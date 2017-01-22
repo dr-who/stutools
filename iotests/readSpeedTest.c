@@ -4,12 +4,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <getopt.h>
 #include <sys/uio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/time.h>
 #include <signal.h>
+
+int keeprunning = 1;
+int useDirect = 0;
 
 typedef struct {
   int threadid;
@@ -30,15 +34,14 @@ double timedouble() {
   return tm/1000000.0;
 }
 
-int keeprunning = 1;
 void intHandler(int d) {
-  fprintf(stderr,"got signal");
+  fprintf(stderr,"got signal\n");
   keeprunning = 0;
 }
 
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int fd = open(threadContext->path, O_RDONLY | O_DIRECT);
+  int fd = open(threadContext->path, O_RDONLY | (useDirect ? O_DIRECT : 0)); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
@@ -78,22 +81,40 @@ void startThreads(int argc, char *argv[]) {
     if (threadContext == NULL) {fprintf(stderr,"OOM(threadContext): \n");exit(-1);}
     double starttime = timedouble();
     for (size_t i = 0; i < threads; i++) {
-      threadContext[i].threadid = i;
-      threadContext[i].path = argv[i + 1];
-      threadContext[i].total = 0;
-      pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
+      if (argv[i + 1][0] != '-') {
+	threadContext[i].threadid = i;
+	threadContext[i].path = argv[i + 1];
+	threadContext[i].total = 0;
+	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
+      }
     }
     size_t allbytes = 0;
     for (size_t i = 0; i < threads; i++) {
-      pthread_join(pt[i], NULL);
-      allbytes += threadContext[i].total;
+      if (argv[i + 1][0] != '-') {
+	pthread_join(pt[i], NULL);
+	allbytes += threadContext[i].total;
+      }
     }
     double elapsedtime = timedouble() - starttime;
     fprintf(stderr,"Total %zd bytes, time %lf seconds, read rate = %lf GB/sec\n", allbytes, elapsedtime, (allbytes/1024.0/1024/1024) / elapsedtime);
   }
 }
 
+void handle_args(int argc, char *argv[]) {
+  int opt;
+  
+  while ((opt = getopt(argc, argv, "d")) != -1) {
+    switch (opt) {
+    case 'd':
+      fprintf(stderr,"USING DIRECT\n");
+      useDirect = 1;
+      break;
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
+  handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
   startThreads(argc, argv);

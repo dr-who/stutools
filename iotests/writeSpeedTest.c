@@ -4,12 +4,17 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <getopt.h>
 #include <sys/uio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/time.h>
 #include <signal.h>
+
+int keeprunning = 1;
+int useDirect = 0;
+
 typedef struct {
   int threadid;
   char *path;
@@ -26,21 +31,24 @@ double timedouble() {
   double tm = (now.tv_sec * 1000000 + now.tv_usec);
   return tm/1000000.0;
 }
-int keeprunning = 1;
+
 void intHandler(int d) {
-  fprintf(stderr,"got signal");
+  fprintf(stderr,"got signal\n");
   keeprunning = 0;
 }
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int fd = open(threadContext->path, O_WRONLY);
+  int fd = open(threadContext->path, O_WRONLY | O_EXCL | (useDirect ? O_DIRECT : 0));
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
   }
   fprintf(stderr,"opened %s\n", threadContext->path);
 #define BUFSIZE (1024*1024)
-  char *buf = calloc(1, BUFSIZE); if (!buf) {fprintf(stderr,"eek\n");exit(1);}
+  void *buf = NULL;
+  if (posix_memalign(&buf, 4096, BUFSIZE)) { // O_DIRECT requires aligned memory
+	fprintf(stderr,"memory allocation failed\n");exit(1);
+  }	
   memset(buf, 0x00, BUFSIZE);
   int wbytes = 0;
   size_t lastg = 0;
@@ -84,7 +92,23 @@ void startThreads(int argc, char *argv[]) {
     fprintf(stderr,"Total %zd bytes, time %lf seconds, write rate = %lf GB/sec\n", allbytes, elapsedtime, (allbytes/1024.0/1024/1024) / elapsedtime);
   }
 }
+
+void handle_args(int argc, char *argv[]) {
+  int opt;
+  
+  while ((opt = getopt(argc, argv, "d")) != -1) {
+    switch (opt) {
+    case 'd':
+      fprintf(stderr,"USING DIRECT\n");
+      useDirect = 1;
+      break;
+    }
+  }
+}
+
+
 int main(int argc, char *argv[]) {
+  handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
   startThreads(argc, argv);
