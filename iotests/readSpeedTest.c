@@ -10,37 +10,44 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <signal.h>
+
 typedef struct {
   int threadid;
   char *path;
   size_t total;
 } threadInfoType;
+
 struct timeval gettm()
 {
   struct timeval now;
   gettimeofday(&now, NULL);
   return now;
 }
+
 double timedouble() {
   struct timeval now = gettm();
   double tm = (now.tv_sec * 1000000 + now.tv_usec);
   return tm/1000000.0;
 }
+
 int keeprunning = 1;
 void intHandler(int d) {
   fprintf(stderr,"got signal");
   keeprunning = 0;
 }
+
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int fd = open(threadContext->path, O_RDONLY);
+  int fd = open(threadContext->path, O_RDONLY | O_DIRECT);
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
   }
   fprintf(stderr,"opened %s\n", threadContext->path);
 #define BUFSIZE (1024*1024)
-  char *buf = calloc(1, BUFSIZE); if (!buf) {fprintf(stderr,"eek\n");exit(1);}
+  void *buf = NULL;
+  posix_memalign(&buf, 4096, BUFSIZE); // O_DIRECT requires aligned memory
+  if (!buf) {fprintf(stderr,"eek\n");exit(1);}
   int rbytes = 0;
   size_t lastg = 0;
   double starttime = timedouble();
@@ -59,6 +66,7 @@ static void *runThread(void *arg) {
   free(buf);
   return NULL;
 }
+
 void startThreads(int argc, char *argv[]) {
   if (argc > 0) {
     size_t threads = argc - 1;
@@ -83,6 +91,7 @@ void startThreads(int argc, char *argv[]) {
     fprintf(stderr,"Total %zd bytes, time %lf seconds, read rate = %lf GB/sec\n", allbytes, elapsedtime, (allbytes/1024.0/1024/1024) / elapsedtime);
   }
 }
+
 int main(int argc, char *argv[]) {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);

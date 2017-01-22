@@ -1,7 +1,7 @@
 all: readSpeedTest
 
-readSpeedTest:
-	gcc --std=c11 -O2 readSpeedTest.c -o readSpeedTest -lpthread -lm
+readSpeedTest: readSpeedTest.c
+	gcc -Wall --std=c11 -O2 $^ -o $@ -lpthread -lm
 
 writeSpeedTest:
 	gcc --std=c11 -O2 writeSpeedTest.c -o writeSpeedTest -lpthread -lm
