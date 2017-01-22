@@ -78,15 +78,19 @@ void startThreads(int argc, char *argv[]) {
     if (threadContext == NULL) {fprintf(stderr,"OOM(threadContext): \n");exit(-1);}
     double starttime = timedouble();
     for (size_t i = 0; i < threads; i++) {
-      threadContext[i].threadid = i;
-      threadContext[i].path = argv[i + 1];
-      threadContext[i].total = 0;
-      pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
+      if (argv[i + 1][0] != '-') {
+	threadContext[i].threadid = i;
+	threadContext[i].path = argv[i + 1];
+	threadContext[i].total = 0;
+	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
+      }
     }
     size_t allbytes = 0;
     for (size_t i = 0; i < threads; i++) {
-      pthread_join(pt[i], NULL);
-      allbytes += threadContext[i].total;
+      if (argv[i + 1][0] != '-') {
+	pthread_join(pt[i], NULL);
+	allbytes += threadContext[i].total;
+      }
     }
     double elapsedtime = timedouble() - starttime;
     fprintf(stderr,"Total %zd bytes, time %lf seconds, write rate = %lf GB/sec\n", allbytes, elapsedtime, (allbytes/1024.0/1024/1024) / elapsedtime);
