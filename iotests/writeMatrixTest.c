@@ -14,7 +14,7 @@
 
 int keeprunning = 1;
 int useDirect = 0;
-float benchmarkTime = 1;
+float benchmarkTime = 3;
 
 typedef struct {
   int threadid;
@@ -134,15 +134,15 @@ void handle_args(int argc, char *argv[]) {
       useDirect = 1;
       break;
     case 'f':
-      benchmarkTime = 0.1;
-      fprintf(stderr,"timeout: %.1f seconds\n", benchmarkTime);
-      break;
+      benchmarkTime = 1;
+        break;
     case 'S':
       benchmarkTime = 10;
-      fprintf(stderr,"timeout: %.1f seconds\n", benchmarkTime);
       break;
     } 
   }
+  fprintf(stderr,"timeout: %.1f seconds\n", benchmarkTime);
+
 }
 
 
