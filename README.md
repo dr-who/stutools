@@ -7,3 +7,8 @@ Stu's handy tools
 
 ./writePairTest  -- writes to all combinations of 2 disks in 2 threads, plus analysis
 
+Common options: -d turns on direct mode (may already be default), -D turns off, -F super fast, -f fast, -S slow 
+
+Usage: ./writePairTest -F /dev/sd[cdefghijklmnop]
+
+ 
