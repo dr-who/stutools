@@ -17,8 +17,9 @@
 
 int keeprunning = 1;
 int useDirect = 1;
-float benchmarkTime = 2;
-size_t atLeastN = 150;
+float benchmarkTime = 2;     // run for at least 2 seconds
+size_t atLeastN = 150;       // at least this many data points
+size_t skippingFirstMB = 64; // per disk, could be enhanced to be about the RAID card cache
 
 typedef struct {
   int threadid;
@@ -86,13 +87,13 @@ size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t r
       }
     }
 
-    // after the threads have started, check until they're all actively writing
+    // after the threads have started, check until they're all actively writing, skip a bit for the on drive write cache
     
     while (1) {
       int allrunning = 1;
       for (size_t i = 0; i < num; i++) {
 	if (running[i]) {
-	  if ((logSpeedN(&threadContext[i].logspeed) < 50) || (logSpeedTotal(&threadContext[i].logspeed) < 64*1024*1024)) { // 50 writes plus 64MB written 
+	  if ((logSpeedN(&threadContext[i].logspeed) < 50) || (logSpeedTotal(&threadContext[i].logspeed) < skippingFirstMB *1024*1024)) { // 50 writes plus 64MB written 
 	    allrunning = 0;
 	    break;
 	  }
@@ -123,6 +124,8 @@ size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t r
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
 	speedmb += (logSpeedMedian(&threadContext[i].logspeed) / 1024.0 / 1024); // sum the MB per drive
+
+	logSpeedFree(&threadContext[i].logspeed);
       }
     }
     //    size_t speedmb =  (size_t) ((allbytes/1024.0/1024) / elapsedtime);
@@ -243,7 +246,7 @@ int main(int argc, char *argv[]) {
   threadInfoType *t = gatherDrives(argc, argv, &num);
 
   if (num > 0) {
-    fprintf(stderr,"timeout: %.1f seconds, direct=%d, at least N samples=%zd\n", benchmarkTime, useDirect, atLeastN);
+    fprintf(stderr,"timeout: %.1f seconds, direct=%d, at least N samples=%zd, skipping first %zd MB\n", benchmarkTime, useDirect, atLeastN, skippingFirstMB);
     nSquareTest(t, num);
   }
   
