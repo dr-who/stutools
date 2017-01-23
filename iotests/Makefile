@@ -17,5 +17,6 @@ utils.o: utils.c utils.h
 logSpeedTest: logSpeedTest.o utils.o logSpeed.o
 
 clean:
-	- rm -f readSpeedTest writeSpeedTest writePairTest logSpeedTest
+	- rm -f readSpeedTest writeSpeedTest writePairTest logSpeedTest *.o
+
 
