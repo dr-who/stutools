@@ -189,7 +189,7 @@ void nSquareTest(threadInfoType *t, const int num) {
 
   fprintf(stdout,"\nAnalysing dependencies:\n");
   for (size_t i = 0; i < num; i++) {
-    for (size_t j = i+1 ; j < num; j++) {
+    for (size_t j = 0 ; j < num; j++) if (i != j) {
       size_t one = values[i][i];
       size_t two = values[j][j];
       size_t couldbe = one + two;
