@@ -72,18 +72,21 @@ static void *runThread(void *arg) {
   return NULL;
 }
 
-size_t benchmark(threadInfoType *threadContext, const int num, size_t running[]) {
+size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t running[]) {
     pthread_t *pt = calloc(num, sizeof(pthread_t));    if (pt==NULL) {fprintf(stderr, "OOM(pt): \n");exit(-1);}
 
     double starttime = timedouble();
 
+    //    fprintf(stderr,"\n\n");
     for (size_t i = 0; i < num; i++) {
       if (running[i]) {
 	//	fprintf(stderr,"running=%zd\n",i);
 	threadContext[i].total = 0;
+	//	fprintf(stderr, "writing to %s \n", threadContext[i].path);
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
       }
     }
+    
     size_t allbytes = 0;
     for (size_t i = 0; i < num; i++) {
       if (running[i]) {
@@ -146,11 +149,15 @@ void handle_args(int argc, char *argv[]) {
 void nSquareTest(threadInfoType *t, const int num) {
 
   size_t values[num][num];
-  size_t *running = calloc(100, sizeof(size_t));
+  volatile size_t *running = calloc(100, sizeof(size_t));
 
   for (size_t j = 0; j < num; j++) {
     for (size_t i = 0; i < num; i++) {
-      memset(running, 0, sizeof(size_t));
+
+      for (size_t z = 0; z < num; z++) {
+	running[z] = 0;
+      }
+
       running[i] = 1;
       running[j] = 1;
 
