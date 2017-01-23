@@ -1,7 +1,7 @@
 # stutools
 Stu's handy tools
 
-./readSpeedTest  -- reads to N disks using N threads
+./readSpeedTest  -- reads from N disks using N threads
 
 ./writeSpeedTest -- writes to N disks using N threads
 
