@@ -83,14 +83,17 @@ size_t logSpeedN(logSpeedType *l) {
   
 
 void logSpeedFree(logSpeedType *l) {
+  free(l->values);
+  l->values = NULL;
+}
+
+
+void logSpeedDump(logSpeedType *l, const char *fn) {
   logSpeedMedian(l);
-  FILE *fp = fopen("log.txt", "wt");
+  FILE *fp = fopen(fn, "wt");
   for (size_t i = 0; i < l->num; i++) {
     fprintf(fp, "%lf\n", l->values[i]);
   }
   fclose(fp);
-    
-  free(l->values);
-  l->values = NULL;
 }
 
