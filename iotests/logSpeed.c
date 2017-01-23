@@ -10,6 +10,7 @@ void logSpeedInit(volatile logSpeedType *l) {
   l->lasttime = l->starttime;
   l->num = 0;
   l->alloc = 10000;
+  l->total = 0;
   l->values = calloc(l->alloc, sizeof(double)); if (!l->values) {fprintf(stderr,"OOM!\n");exit(1);}
 }
 
@@ -17,6 +18,7 @@ void logSpeedReset(logSpeedType *l) {
   l->starttime = timedouble();
   l->lasttime = l->starttime;
   l->num = 0;
+  l->total = 0;
 }
 
 double logSpeedTime(logSpeedType *l) {
@@ -30,11 +32,15 @@ int logSpeedAdd(logSpeedType *l, size_t value) {
   const double timegap = thistime - l->lasttime;
 
   if (l->num >= l->alloc) {
-    fprintf(stderr,"skipping...\n"); sleep(1);
+    l->alloc = l->alloc * 2 + 1;
+    l->values = realloc(l->values, l->alloc * sizeof(double)); if (!l->values) {fprintf(stderr,"OOM! realloc failed\n");exit(1);}
+    //    fprintf(stderr,"skipping...\n"); sleep(1);
   } else {
     l->values[l->num] = value / timegap;
     l->lasttime = thistime;
+    l->total += value;
     l->num++;
+    
   }
 
   return l->num;
@@ -48,6 +54,10 @@ static int comparisonFunction(const void *p1, const void *p2) {
   if (*d1 < *d2) return -1;
   else if (*d1 > *d2) return 1;
   else return 0;
+}
+
+size_t logSpeedTotal(logSpeedType *l) {
+  return l->total;
 }
 
    

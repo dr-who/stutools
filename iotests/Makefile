@@ -14,6 +14,8 @@ writePairTest: writePairTest.o utils.o logSpeed.o
 
 utils.o: utils.c utils.h
 
+logSpeed.o: logSpeed.c logSpeed.h
+
 logSpeedTest: logSpeedTest.o utils.o logSpeed.o
 
 clean:

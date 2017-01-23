@@ -7,6 +7,7 @@ typedef struct {
   double starttime;
   size_t num;
   size_t alloc;
+  size_t total;
   double *values;
   double lasttime;
 } logSpeedType;
@@ -18,6 +19,7 @@ double logSpeedMedian(logSpeedType *l);
 void logSpeedFree(logSpeedType *l);
 size_t logSpeedN(logSpeedType *l);
 void logSpeedReset(logSpeedType *l);
+size_t logSpeedTotal(logSpeedType *l);
 
 
 #endif

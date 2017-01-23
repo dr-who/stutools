@@ -60,6 +60,7 @@ static void *runThread(void *arg) {
   free(buf);
   return NULL;
 }
+
 void startThreads(int argc, char *argv[]) {
   if (argc > 0) {
     size_t threads = argc - 1;
@@ -77,6 +78,8 @@ void startThreads(int argc, char *argv[]) {
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
       }
     }
+
+    
     size_t allbytes = 0;
     double maxtime = 0;
     double allmb = 0;

@@ -92,7 +92,7 @@ size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t r
       int allrunning = 1;
       for (size_t i = 0; i < num; i++) {
 	if (running[i]) {
-	  if (logSpeedN(&threadContext[i].logspeed) < 50) {
+	  if ((logSpeedN(&threadContext[i].logspeed) < 50) || (logSpeedTotal(&threadContext[i].logspeed) < 64*1024*1024)) { // 50 writes plus 64MB written 
 	    allrunning = 0;
 	    break;
 	  }
@@ -105,6 +105,7 @@ size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t r
       }
     }
 
+    // then reset
     for (size_t i = 0; i < num; i++) {
       if (running[i]) {
 	logSpeedReset(&threadContext[i].logspeed);
