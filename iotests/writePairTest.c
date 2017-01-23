@@ -127,7 +127,7 @@ threadInfoType *gatherDrives(int argc, char *argv[], int *num) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDfS")) != -1) {
+  while ((opt = getopt(argc, argv, "dDfFS")) != -1) {
     switch (opt) {
     case 'd':
       fprintf(stderr,"USING DIRECT\n");
@@ -140,12 +140,15 @@ void handle_args(int argc, char *argv[]) {
     case 'f':
       benchmarkTime = 1;
         break;
+    case 'F':
+      benchmarkTime = 0.3;
+        break;
     case 'S':
       benchmarkTime = 10;
       break;
     } 
   }
-  fprintf(stderr,"timeout: %.1f seconds\n", benchmarkTime);
+  fprintf(stderr,"timeout: %.1f seconds, direct=%d\n", benchmarkTime, useDirect);
 
 }
 
