@@ -13,7 +13,7 @@
 #include <signal.h>
 
 int keeprunning = 1;
-int useDirect = 0;
+int useDirect = 1;
 
 typedef struct {
   int threadid;
@@ -100,11 +100,15 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "d")) != -1) {
+  while ((opt = getopt(argc, argv, "dD")) != -1) {
     switch (opt) {
     case 'd':
       fprintf(stderr,"USING DIRECT\n");
       useDirect = 1;
+      break;
+    case 'D':
+      fprintf(stderr,"NOT USING DIRECT\n");
+      useDirect = 0;
       break;
     }
   }
@@ -115,6 +119,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
+  fprintf(stderr,"direct=%d\n", useDirect);
   startThreads(argc, argv);
   return 0;
 }
