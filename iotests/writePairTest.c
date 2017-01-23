@@ -40,7 +40,7 @@ void intHandler(int d) {
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
   //  fprintf(stderr,"opening... '%s'\n", threadContext->path);
-  int fd = open(threadContext->path, O_WRONLY | (useDirect ? O_DIRECT : 0));
+  int fd = open(threadContext->path, O_EXCL | O_WRONLY | (useDirect ? O_DIRECT : 0));
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
