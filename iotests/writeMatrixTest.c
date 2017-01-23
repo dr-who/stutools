@@ -135,7 +135,7 @@ void handle_args(int argc, char *argv[]) {
       fprintf(stderr,"timeout: %.1f seconds\n", benchmarkTime);
       break;
     case 'S':
-      benchmarkTime = 3;
+      benchmarkTime = 10;
       fprintf(stderr,"timeout: %.1f seconds\n", benchmarkTime);
       break;
     } 
