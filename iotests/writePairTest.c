@@ -13,7 +13,7 @@
 #include <signal.h>
 
 int keeprunning = 1;
-int useDirect = 0;
+int useDirect = 1;
 float benchmarkTime = 3;
 
 typedef struct {
@@ -127,11 +127,15 @@ threadInfoType *gatherDrives(int argc, char *argv[], int *num) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dfS")) != -1) {
+  while ((opt = getopt(argc, argv, "dDfS")) != -1) {
     switch (opt) {
     case 'd':
       fprintf(stderr,"USING DIRECT\n");
       useDirect = 1;
+      break;
+    case 'D':
+      fprintf(stderr,"NOT USING DIRECT\n");
+      useDirect = 0;
       break;
     case 'f':
       benchmarkTime = 1;
