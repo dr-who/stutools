@@ -9,33 +9,36 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/time.h>
 #include <signal.h>
-
-#include "utils.h"
-#include "logSpeed.h"
-
 
 int keeprunning = 1;
 int useDirect = 1;
-float benchmarkTime = 1;
-size_t atLeastN = 50;
+float benchmarkTime = 3;
 
 typedef struct {
   int threadid;
   char *path;
   size_t total;
-  int allrunning;
-  //  double speedmb;
-  logSpeedType logspeed;
 } threadInfoType;
-
+struct timeval gettm()
+{
+  struct timeval now;
+  gettimeofday(&now, NULL);
+  return now;
+}
+double timedouble() {
+  struct timeval now = gettm();
+  double tm = (now.tv_sec * 1000000 + now.tv_usec);
+  return tm/1000000.0;
+}
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
   keeprunning = 0;
 }
 static void *runThread(void *arg) {
-  volatile threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
+  threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
   //  fprintf(stderr,"opening... '%s'\n", threadContext->path);
   int fd = open(threadContext->path, O_EXCL | O_WRONLY | (useDirect ? O_DIRECT : 0));
   if (fd < 0) {
@@ -51,20 +54,19 @@ static void *runThread(void *arg) {
   memset(buf, 0x00, BUFSIZE);
   int wbytes = 0;
   size_t lastg = 0;
-  logSpeedType *l = &(threadContext->logspeed);
-  logSpeedInit(l);
-  
+  double starttime = timedouble();
   while (((wbytes = write(fd, buf, BUFSIZE)) > 0) && keeprunning) {
     threadContext->total += wbytes;
-    logSpeedAdd(l, wbytes);
     if (threadContext->total >> 30 != lastg) {
       lastg = threadContext->total >>30;
+      //fprintf(stderr,"write to '%s': %zd GB, speed %.1f MB/s\n", threadContext->path, lastg, (threadContext->total >> 20) / (timedouble() - starttime));
     }
-    if ((logSpeedTime(l) >= benchmarkTime) && (logSpeedN(l) >= atLeastN) && threadContext->allrunning) break; // at least 100 data points
+    if (timedouble() - starttime >= benchmarkTime) break;
   }
   if (wbytes < 0) {
     perror("weird problem");
   }
+  //  fprintf(stderr,"finished. Total write from '%s': %zd bytes in %.1f seconds, %.2f MB/s\n", threadContext->path, threadContext->total, timedouble() - starttime, (threadContext->total >> 20) / (timedouble() - starttime));
   close(fd);
   free(buf);
   return NULL;
@@ -73,59 +75,27 @@ static void *runThread(void *arg) {
 size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t running[]) {
     pthread_t *pt = calloc(num, sizeof(pthread_t));    if (pt==NULL) {fprintf(stderr, "OOM(pt): \n");exit(-1);}
 
+    double starttime = timedouble();
 
     //    fprintf(stderr,"\n\n");
     for (size_t i = 0; i < num; i++) {
       if (running[i]) {
 	//	fprintf(stderr,"running=%zd\n",i);
 	threadContext[i].total = 0;
-	threadContext[i].allrunning = 0;
-	logSpeedInit(&threadContext[i].logspeed);
 	//	fprintf(stderr, "writing to %s \n", threadContext[i].path);
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
       }
     }
-
-    // after the threads have started, check until they're all actively writing
-    
-    while (1) {
-      int allrunning = 1;
-      for (size_t i = 0; i < num; i++) {
-	if (running[i]) {
-	  if (logSpeedN(&threadContext[i].logspeed) < 10) {
-	    allrunning = 0;
-	    break;
-	  }
-	}
-      }
-      if (allrunning == 0) {
-	sleep(0.1); // wait for a bit then try again
-      } else {
-	break;
-      }
-    }
-
-    for (size_t i = 0; i < num; i++) {
-      if (running[i]) {
-	logSpeedReset(&threadContext[i].logspeed);
-	threadContext[i].allrunning = 1;
-      }
-    }
-
-    // wait for complete
-
     
     size_t allbytes = 0;
-    size_t speedmb = 0;
     for (size_t i = 0; i < num; i++) {
       if (running[i]) {
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
-	speedmb += (logSpeedMedian(&threadContext[i].logspeed) / 1024.0 / 1024); // sum the MB per drive
       }
     }
-    //    size_t speedmb =  (size_t) ((allbytes/1024.0/1024) / elapsedtime);
-    
+    double elapsedtime = timedouble() - starttime;
+    size_t speedmb =  (size_t) ((allbytes/1024.0/1024) / elapsedtime);
     free(pt);
     return speedmb;
 }
@@ -219,7 +189,7 @@ void nSquareTest(threadInfoType *t, const int num) {
 
   fprintf(stdout,"\nAnalysing dependencies:\n");
   for (size_t i = 0; i < num; i++) {
-    for (size_t j = 0 ; j < num; j++) if (i != j) {
+    for (size_t j = i+1 ; j < num; j++) {
       size_t one = values[i][i];
       size_t two = values[j][j];
       size_t couldbe = one + two;
@@ -242,7 +212,7 @@ int main(int argc, char *argv[]) {
   threadInfoType *t = gatherDrives(argc, argv, &num);
 
   if (num > 0) {
-    fprintf(stderr,"timeout: %.1f seconds, direct=%d, at least N samples=%zd\n", benchmarkTime, useDirect, atLeastN);
+    fprintf(stderr,"timeout: %.1f seconds, direct=%d\n", benchmarkTime, useDirect);
     nSquareTest(t, num);
   }
   

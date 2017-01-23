@@ -5,12 +5,12 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <getopt.h>
-#include <sys/uio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/time.h>
 #include <signal.h>
+
+#include "logSpeed.h"
 
 int keeprunning = 1;
 int useDirect = 1;
@@ -19,20 +19,9 @@ typedef struct {
   int threadid;
   char *path;
   size_t total;
+  logSpeedType logSpeed;
 } threadInfoType;
 
-struct timeval gettm()
-{
-  struct timeval now;
-  gettimeofday(&now, NULL);
-  return now;
-}
-
-double timedouble() {
-  struct timeval now = gettm();
-  double tm = (now.tv_sec * 1000000 + now.tv_usec);
-  return tm/1000000.0;
-}
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
@@ -54,18 +43,19 @@ static void *runThread(void *arg) {
   }	
   int rbytes = 0;
   size_t lastg = 0;
-  double starttime = timedouble();
+  logSpeedType *l = &(threadContext->logSpeed);
   while (((rbytes = read(fd, buf, BUFSIZE)) > 0) && keeprunning) {
     threadContext->total += rbytes;
+    logSpeedAdd(l, rbytes);
     if (threadContext->total >> 30 != lastg) {
       lastg = threadContext->total >>30;
-      fprintf(stderr,"read from '%s': %zd GB, speed %.1f MB/s\n", threadContext->path, lastg, (threadContext->total >> 20) / (timedouble() - starttime));
+      fprintf(stderr,"read from '%s': %zd GB, speed %.1f MB/s\n", threadContext->path, lastg, logSpeedMedian(l) / 1024.0 / 1024);
     }
   }
   if (rbytes < 0) {
     perror("weird problem");
   }
-  fprintf(stderr,"finished. Total read from '%s': %zd bytes in %.1f seconds, %.2f MB/s\n", threadContext->path, threadContext->total, timedouble() - starttime, (threadContext->total >> 20) / (timedouble() - starttime));
+  fprintf(stderr,"finished. Total read from '%s': %zd bytes in %.1f seconds, %.2f MB/s\n", threadContext->path, threadContext->total, logSpeedTime(l), logSpeedMedian(l) / 1024.0 / 1024.0);
   close(fd);
   free(buf);
   return NULL;
@@ -79,24 +69,29 @@ void startThreads(int argc, char *argv[]) {
 
     threadInfoType *threadContext = (threadInfoType*) calloc(threads, sizeof(threadInfoType));
     if (threadContext == NULL) {fprintf(stderr,"OOM(threadContext): \n");exit(-1);}
-    double starttime = timedouble();
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + 1][0] != '-') {
 	threadContext[i].threadid = i;
 	threadContext[i].path = argv[i + 1];
+	logSpeedInit(&(threadContext[i].logSpeed));
 	threadContext[i].total = 0;
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
       }
     }
     size_t allbytes = 0;
+    double allmb = 0;
+    double maxtime = 0;
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + 1][0] != '-') {
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
+	allmb += logSpeedMedian(&(threadContext[i].logSpeed)) / 1024.0 / 1024;
+	if (logSpeedTime(&(threadContext[i].logSpeed)) > maxtime) {
+	  maxtime = logSpeedTime(&(threadContext[i].logSpeed));
+	}
       }
     }
-    double elapsedtime = timedouble() - starttime;
-    fprintf(stderr,"Total %zd bytes, time %lf seconds, read rate = %lf GB/sec\n", allbytes, elapsedtime, (allbytes/1024.0/1024/1024) / elapsedtime);
+    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, read rate = %.2lf MB/sec\n", allbytes, maxtime, allmb);
   }
 }
 
