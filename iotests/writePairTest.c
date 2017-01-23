@@ -17,8 +17,8 @@
 
 int keeprunning = 1;
 int useDirect = 1;
-float benchmarkTime = 1;
-size_t atLeastN = 50;
+float benchmarkTime = 2;
+size_t atLeastN = 150;
 
 typedef struct {
   int threadid;
@@ -35,7 +35,7 @@ void intHandler(int d) {
   keeprunning = 0;
 }
 static void *runThread(void *arg) {
-  volatile threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
+  threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
   //  fprintf(stderr,"opening... '%s'\n", threadContext->path);
   int fd = open(threadContext->path, O_EXCL | O_WRONLY | (useDirect ? O_DIRECT : 0));
   if (fd < 0) {
@@ -92,7 +92,7 @@ size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t r
       int allrunning = 1;
       for (size_t i = 0; i < num; i++) {
 	if (running[i]) {
-	  if (logSpeedN(&threadContext[i].logspeed) < 10) {
+	  if (logSpeedN(&threadContext[i].logspeed) < 50) {
 	    allrunning = 0;
 	    break;
 	  }
@@ -172,7 +172,7 @@ void handle_args(int argc, char *argv[]) {
       benchmarkTime = 0.3;
         break;
     case 'S':
-      benchmarkTime = 10;
+      benchmarkTime = 3;
       break;
     } 
   }
