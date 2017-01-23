@@ -69,6 +69,13 @@ double logSpeedMedian(logSpeedType *l) {
   return med;
 }
 
+double logSpeed5_95(logSpeedType *l, double *five, double *ninetyfive) {
+  double median = logSpeedMedian(l);
+  *five = l->values[(size_t)(l->num * 0.05)];
+  *ninetyfive = l->values[(size_t)(l->num * 0.95)];
+  return median;
+}
+
 size_t logSpeedN(logSpeedType *l) {
   return l->num;
 }
@@ -76,6 +83,13 @@ size_t logSpeedN(logSpeedType *l) {
   
 
 void logSpeedFree(logSpeedType *l) {
+  logSpeedMedian(l);
+  FILE *fp = fopen("log.txt", "wt");
+  for (size_t i = 0; i < l->num; i++) {
+    fprintf(fp, "%lf\n", l->values[i]);
+  }
+  fclose(fp);
+    
   free(l->values);
   l->values = NULL;
 }

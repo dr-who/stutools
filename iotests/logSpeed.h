@@ -20,6 +20,7 @@ void logSpeedFree(logSpeedType *l);
 size_t logSpeedN(logSpeedType *l);
 void logSpeedReset(logSpeedType *l);
 size_t logSpeedTotal(logSpeedType *l);
+double logSpeed5_95(logSpeedType *l, double *five, double *ninetyfive);
 
 
 #endif

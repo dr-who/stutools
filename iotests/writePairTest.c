@@ -123,7 +123,11 @@ size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t r
       if (running[i]) {
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
-	speedmb += (logSpeedMedian(&threadContext[i].logspeed) / 1024.0 / 1024); // sum the MB per drive
+
+	double five, ninetyfive;
+	double median = logSpeed5_95(&threadContext[i].logspeed, &five, &ninetyfive);
+	//	fprintf(stderr,"%f %f %f\n", five/1024.0/1024, median/1024.0/1024, ninetyfive/1024.0/1024);
+	speedmb += median / 1024.0 / 1024;
 
 	logSpeedFree(&threadContext[i].logspeed);
       }
@@ -252,8 +256,3 @@ int main(int argc, char *argv[]) {
   
   return 0;
 }
-
-
-
-
-
