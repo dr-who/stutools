@@ -15,6 +15,7 @@
 
 int keeprunning = 1;
 int useDirect = 1;
+int BUFSIZE = 1024*1024;
 
 typedef struct {
   int threadid;
@@ -35,7 +36,6 @@ static void *runThread(void *arg) {
     return NULL;
   }
   fprintf(stderr,"opened %s\n", threadContext->path);
-#define BUFSIZE (1024*1024)
   void *buf = NULL;
   if (posix_memalign(&buf, 4096, BUFSIZE)) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
@@ -55,7 +55,7 @@ static void *runThread(void *arg) {
   if (wbytes < 0) {
     perror("weird problem");
   }
-  fprintf(stderr,"finished. Total write from '%s': %zd bytes in %.1f seconds, %.2f MB/s\n", threadContext->path, threadContext->total, logSpeedTime(l), logSpeedMedian(l) / 1024.0 / 1024);
+  fprintf(stderr,"finished. Total write from '%s': %zd bytes in %.1f seconds, %.2f MB/s, n=%zd\n", threadContext->path, threadContext->total, logSpeedTime(l), logSpeedMedian(l) / 1024.0 / 1024, logSpeedN(l));
   close(fd);
   free(buf);
   return NULL;
@@ -100,8 +100,11 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dD")) != -1) {
+  while ((opt = getopt(argc, argv, "dDI")) != -1) {
     switch (opt) {
+    case 'I':
+      BUFSIZE=4096;
+      break;
     case 'd':
       fprintf(stderr,"USING DIRECT\n");
       useDirect = 1;
@@ -119,7 +122,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"direct=%d\n", useDirect);
+  fprintf(stderr,"direct=%d, bufsize=%d\n", useDirect, BUFSIZE);
   startThreads(argc, argv);
   return 0;
 }
