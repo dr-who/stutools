@@ -16,6 +16,7 @@
 int keeprunning = 1;
 int useDirect = 1;
 size_t BUFSIZE = 1024*1024;
+int SEQUENTIAL = 1;
 
 typedef struct {
   int threadid;
@@ -43,7 +44,7 @@ static void *runThread(void *arg) {
   int chunkSizes[1] = {BUFSIZE};
   int numChunks = 1;
   
-  readChunks(fd, threadContext->path, chunkSizes, numChunks, 60, &threadContext->logSpeed, BUFSIZE, 1024*1024*1024);
+  readChunks(fd, threadContext->path, chunkSizes, numChunks, 60, &threadContext->logSpeed, BUFSIZE, 1024*1024*1024, SEQUENTIAL);
   threadContext->total = threadContext->logSpeed.total;
 		
   close(fd);
@@ -81,14 +82,14 @@ void startThreads(int argc, char *argv[]) {
 	}
       }
     }
-    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum mean = %.2lf MB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
+    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum mean = %.2lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
   }
 }
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dD")) != -1) {
+  while ((opt = getopt(argc, argv, "dDIr")) != -1) {
     switch (opt) {
     case 'd':
       fprintf(stderr,"USING DIRECT\n");
@@ -98,6 +99,12 @@ void handle_args(int argc, char *argv[]) {
       fprintf(stderr,"NOT USING DIRECT\n");
       useDirect = 0;
       break;
+    case 'I':
+	BUFSIZE = 4096;
+	break;
+    case 'r':
+	SEQUENTIAL = 0;
+	break;
     }
   }
 }
@@ -106,7 +113,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"direct=%d, blocksize=%zd\n", useDirect, BUFSIZE);
+  fprintf(stderr,"direct=%d, blocksize=%zd, sequential=%d\n", useDirect, BUFSIZE, SEQUENTIAL);
   startThreads(argc, argv);
   return 0;
 }

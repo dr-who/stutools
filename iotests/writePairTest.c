@@ -192,7 +192,7 @@ void nSquareTest(threadInfoType *t, const int num) {
   size_t values[num][num];
   volatile size_t *running = calloc(100, sizeof(size_t));
 
-  fprintf(stdout,"\nThe performance table is in MB/s:\n     ");
+  fprintf(stdout,"\nThe performance table is in MiB/s:\n     ");
   for (size_t i = 0; i < num; i++) {
     fprintf(stdout,"%4zd ", i+1);
   }
