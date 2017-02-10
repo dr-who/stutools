@@ -69,7 +69,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     logSpeedAdd(l, wbytes);
     if ((l->total - lastg) >= outputEvery) {
       lastg = l->total;
-      fprintf(stderr,"%s '%s': %.1lf GB, mean %.1f MB/s, median %.1f MB/s, 99%% %.1f MB/s (n=%zd)/s, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeed99(l) /1024.0/1024, l->num, timedouble() - l->starttime);
+      fprintf(stderr,"%s '%s': %.1lf GB, mean %.1f MB/s, median %.1f MB/s, 99%% %.1f MB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeed99(l) /1024.0/1024, l->num, timedouble() - l->starttime);
     }
     if (chunkIndex >= numChunks) {
       chunkIndex = 0;

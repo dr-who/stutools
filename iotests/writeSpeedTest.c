@@ -37,12 +37,12 @@ static void *runThread(void *arg) {
     perror(threadContext->path);
     return NULL;
   }
-  fprintf(stderr,"opened %s\n", threadContext->path);
+  //fprintf(stderr,"opened %s\n", threadContext->path);
 
   int chunkSizes[1] = {1024*1024};
   int numChunks = 1;
   
-  writeChunks(fd, threadContext->path, chunkSizes, numChunks, 30, &threadContext->logSpeed, 1024*1024, 1024*1024*1024);
+  writeChunks(fd, threadContext->path, chunkSizes, numChunks, 60, &threadContext->logSpeed, 1024*1024, 1024*1024*1024);
   threadContext->total = threadContext->logSpeed.total;
 
   close(fd);

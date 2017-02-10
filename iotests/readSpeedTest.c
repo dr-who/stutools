@@ -15,6 +15,7 @@
 
 int keeprunning = 1;
 int useDirect = 1;
+size_t BUFSIZE = 1024*1024;
 
 typedef struct {
   int threadid;
@@ -36,13 +37,13 @@ static void *runThread(void *arg) {
     perror(threadContext->path);
     return NULL;
   }
-  fprintf(stderr,"opened %s\n", threadContext->path);
+  //fprintf(stderr,"opened %s\n", threadContext->path);
 
 
-  int chunkSizes[1] = {1024*1024};
+  int chunkSizes[1] = {BUFSIZE};
   int numChunks = 1;
   
-  readChunks(fd, threadContext->path, chunkSizes, numChunks, 30, &threadContext->logSpeed, 1024*1024, 1024*1024*1024);
+  readChunks(fd, threadContext->path, chunkSizes, numChunks, 60, &threadContext->logSpeed, BUFSIZE, 1024*1024*1024);
   threadContext->total = threadContext->logSpeed.total;
 		
   close(fd);
@@ -80,7 +81,7 @@ void startThreads(int argc, char *argv[]) {
 	}
       }
     }
-    fprintf(stderr,"Total %.1lf GB bytes, time %.1lf seconds, sum mean = %.2lf MB/sec\n", allbytes/1024.0/1024/1024, maxtime, allbytes/maxtime/1024.0/1024);
+    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum mean = %.2lf MB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
   }
 }
 
@@ -105,7 +106,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"direct=%d\n", useDirect);
+  fprintf(stderr,"direct=%d, blocksize=%zd\n", useDirect, BUFSIZE);
   startThreads(argc, argv);
   return 0;
 }
