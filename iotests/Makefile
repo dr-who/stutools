@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-Wall --std=c99 -O2 -Werror
 
-all: readSpeedTest writeSpeedTest writePairTest mtReadSpeedTest mtWriteSpeedTest
+all: readSpeedTest writeSpeedTest writePairTest 
 
 readSpeedTest: readSpeedTest.c utils.o logSpeed.o
 	gcc -Wall --std=c99 -O2 $^ -o $@ -lpthread -lm
