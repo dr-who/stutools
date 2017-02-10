@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall --std=c99 -g -Werror
+CFLAGS=-Wall --std=c99 -O2 -Werror
 
 all: readSpeedTest writeSpeedTest writePairTest mtReadSpeedTest mtWriteSpeedTest
 
