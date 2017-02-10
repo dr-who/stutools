@@ -31,7 +31,7 @@ void intHandler(int d) {
 
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int fd = open(threadContext->path, O_RDONLY | (useDirect ? O_DIRECT : 0)); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
+  int fd = open(threadContext->path, O_RDONLY | O_DIRECT ); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
@@ -42,8 +42,9 @@ static void *runThread(void *arg) {
   int chunkSizes[1] = {1024*1024};
   int numChunks = 1;
   
-  readChunks(fd, threadContext->path, chunkSizes, numChunks, 30, &threadContext->logSpeed, 1024*1024, 500*1024*1024);
-
+  readChunks(fd, threadContext->path, chunkSizes, numChunks, 30, &threadContext->logSpeed, 1024*1024, 1024*1024*1024);
+  threadContext->total = threadContext->logSpeed.total;
+		
   close(fd);
 
   return NULL;
@@ -79,7 +80,7 @@ void startThreads(int argc, char *argv[]) {
 	}
       }
     }
-    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, read rate = %.2lf MB/sec\n", allbytes, maxtime, allmb);
+    fprintf(stderr,"Total %.1lf GB bytes, time %.1lf seconds, sum mean = %.2lf MB/sec\n", allbytes/1024.0/1024/1024, maxtime, allbytes/maxtime/1024.0/1024);
   }
 }
 

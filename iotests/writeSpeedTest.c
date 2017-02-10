@@ -42,7 +42,8 @@ static void *runThread(void *arg) {
   int chunkSizes[1] = {1024*1024};
   int numChunks = 1;
   
-  writeChunks(fd, threadContext->path, chunkSizes, numChunks, 30, &threadContext->logSpeed, 1024*1024, 500*1024*1024);
+  writeChunks(fd, threadContext->path, chunkSizes, numChunks, 30, &threadContext->logSpeed, 1024*1024, 1024*1024*1024);
+  threadContext->total = threadContext->logSpeed.total;
 
   close(fd);
   return NULL;

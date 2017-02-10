@@ -66,7 +66,6 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       break;
     }
     
-    l->total += wbytes;
     logSpeedAdd(l, wbytes);
     if ((l->total - lastg) >= outputEvery) {
       lastg = l->total;
@@ -76,7 +75,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       chunkIndex = 0;
     }
     if (timedouble() - startTime > maxTime) {
-      fprintf(stderr,"timer triggered after %zd seconds\n", maxTime);
+      //fprintf(stderr,"timer triggered after %zd seconds\n", maxTime);
       break;
     }
   }
