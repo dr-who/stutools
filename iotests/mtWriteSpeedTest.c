@@ -11,9 +11,8 @@
 #include <fcntl.h>
 #include <signal.h>
 
-#include "utils.h"
-
 #include "logSpeed.h"
+#include "utils.h"
 
 int keeprunning = 1;
 int useDirect = 1;
@@ -32,18 +31,19 @@ void intHandler(int d) {
 }
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
+  fprintf(stderr,"%s is block: %d\n", threadContext->path, isBlockDevice(threadContext->path));
   int fd = open(threadContext->path, O_WRONLY | O_EXCL | (useDirect ? O_DIRECT : 0));
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
   }
+  fprintf(stderr,"file: %zd\n", blockDeviceSize(threadContext->path));
   fprintf(stderr,"opened %s\n", threadContext->path);
 
-  int chunkSizes[1] = {1024*1024};
   int numChunks = 1;
+  int chunkSizes[1] = {BUFSIZE};
+  writeChunks(fd, threadContext->path, chunkSizes, numChunks, 10, &threadContext->logSpeed, 1024*1024, 1024*1024*50);
   
-  writeChunks(fd, threadContext->path, chunkSizes, numChunks, 30, &threadContext->logSpeed, 1024*1024, 500*1024*1024);
-
   close(fd);
   return NULL;
 }
@@ -74,13 +74,13 @@ void startThreads(int argc, char *argv[]) {
       if (argv[i + 1][0] != '-') {
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
-	allmb += logSpeedMean(&threadContext[i].logSpeed) / 1024.0 / 1024;
+	allmb += logSpeedMedian(&threadContext[i].logSpeed) / 1024.0 / 1024;
 	if (logSpeedTime(&threadContext[i].logSpeed) > maxtime) {
 	  maxtime = logSpeedTime(&threadContext[i].logSpeed);
 	}
       }
     }
-    fprintf(stderr,"Total %zd bytes, time %lf seconds, sum of mean = %.2lf MB/sec\n", allbytes, maxtime, allmb);
+    fprintf(stderr,"Total %zd bytes, time %lf seconds, write rate = %.2lf MB/sec\n", allbytes, maxtime, allmb);
   }
 }
 

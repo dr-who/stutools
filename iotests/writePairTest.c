@@ -124,8 +124,7 @@ size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t r
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
 
-	double five, ninetyfive;
-	double median = logSpeed5_95(&threadContext[i].logspeed, &five, &ninetyfive);
+	double median = logSpeedMedian(&threadContext[i].logspeed);
 	//	fprintf(stderr,"%f %f %f\n", five/1024.0/1024, median/1024.0/1024, ninetyfive/1024.0/1024);
 	speedmb += median / 1024.0 / 1024;
 

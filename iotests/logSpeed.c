@@ -22,7 +22,7 @@ void logSpeedReset(logSpeedType *l) {
 }
 
 double logSpeedTime(logSpeedType *l) {
-  return timedouble() - l->starttime;
+  return l->lasttime - l->starttime;
 }
 
 
@@ -36,6 +36,7 @@ int logSpeedAdd(logSpeedType *l, size_t value) {
     l->values = realloc(l->values, l->alloc * sizeof(double)); if (!l->values) {fprintf(stderr,"OOM! realloc failed\n");exit(1);}
     //    fprintf(stderr,"skipping...\n"); sleep(1);
   } else {
+    //    fprintf(stderr,"it's been %zd bytes in %lf time, is %lf\n", value, timegap, value/timegap);
     l->values[l->num] = value / timegap;
     l->lasttime = thistime;
     l->total += value;
@@ -69,11 +70,28 @@ double logSpeedMedian(logSpeedType *l) {
   return med;
 }
 
-double logSpeed5_95(logSpeedType *l, double *five, double *ninetyfive) {
-  double median = logSpeedMedian(l);
-  *five = l->values[(size_t)(l->num * 0.05)];
-  *ninetyfive = l->values[(size_t)(l->num * 0.95)];
-  return median;
+double logSpeedMean(logSpeedType *l) {
+  return l->total / logSpeedTime(l);
+}
+
+double logSpeed5(logSpeedType *l) {
+  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+  return l->values[(size_t)(l->num * 0.95)];
+}
+
+double logSpeed95(logSpeedType *l) {
+  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+  return l->values[(size_t)(l->num * 0.95)];
+}
+
+double logSpeed99(logSpeedType *l) {
+  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+  return l->values[(size_t)(l->num * 0.99)];
+}
+
+double logSpeedMax(logSpeedType *l) {
+  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+  return l->values[l->num - 1];
 }
 
 size_t logSpeedN(logSpeedType *l) {

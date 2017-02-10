@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <signal.h>
 
+#include "utils.h"
 #include "logSpeed.h"
 
 int keeprunning = 1;
@@ -36,28 +37,15 @@ static void *runThread(void *arg) {
     return NULL;
   }
   fprintf(stderr,"opened %s\n", threadContext->path);
-#define BUFSIZE (1024*1024)
-  void *buf = NULL;
-  if (posix_memalign(&buf, 4096, BUFSIZE)) { // O_DIRECT requires aligned memory
-	fprintf(stderr,"memory allocation failed\n");exit(1);
-  }	
-  int rbytes = 0;
-  size_t lastg = 0;
-  logSpeedType *l = &(threadContext->logSpeed);
-  while (((rbytes = read(fd, buf, BUFSIZE)) > 0) && keeprunning) {
-    threadContext->total += rbytes;
-    logSpeedAdd(l, rbytes);
-    if (threadContext->total >> 30 != lastg) {
-      lastg = threadContext->total >>30;
-      fprintf(stderr,"read from '%s': %zd GB, speed %.1f MB/s\n", threadContext->path, lastg, logSpeedMedian(l) / 1024.0 / 1024);
-    }
-  }
-  if (rbytes < 0) {
-    perror("weird problem");
-  }
-  fprintf(stderr,"finished. Total read from '%s': %zd bytes in %.1f seconds, %.2f MB/s\n", threadContext->path, threadContext->total, logSpeedTime(l), logSpeedMedian(l) / 1024.0 / 1024.0);
+
+
+  int chunkSizes[1] = {1024*1024};
+  int numChunks = 1;
+  
+  readChunks(fd, threadContext->path, chunkSizes, numChunks, 30, &threadContext->logSpeed, 1024*1024, 500*1024*1024);
+
   close(fd);
-  free(buf);
+
   return NULL;
 }
 
@@ -85,7 +73,7 @@ void startThreads(int argc, char *argv[]) {
       if (argv[i + 1][0] != '-') {
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
-	allmb += logSpeedMedian(&(threadContext[i].logSpeed)) / 1024.0 / 1024;
+	allmb += logSpeedMean(&(threadContext[i].logSpeed)) / 1024.0 / 1024;
 	if (logSpeedTime(&(threadContext[i].logSpeed)) > maxtime) {
 	  maxtime = logSpeedTime(&(threadContext[i].logSpeed));
 	}
