@@ -1,4 +1,4 @@
-GIT_VERSION := $(shell git describe --abbrev=4 --dirty --always --tags)
+GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
 CC=gcc
 CFLAGS=-Wall --std=c99 -O2 -Werror -DVERSION=\"$(GIT_VERSION)\"
 
