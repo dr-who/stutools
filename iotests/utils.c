@@ -59,10 +59,13 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     }
   } 
   int wbytes = 0;
-  size_t lastg = 0;
+  double lastg = 0;
   int chunkIndex = 0;
   double startTime = timedouble();
-  int resetonce = 1;
+  int resetCount = 5;
+  logSpeedType previousSpeeds;
+
+  logSpeedInit(&previousSpeeds);
   
   while (keeprunning) {
     if (!sequential) {
@@ -88,17 +91,25 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     }
     
     logSpeedAdd(l, wbytes);
-    if ((l->total - lastg) >= outputEvery) {
-      lastg = l->total;
+    if ((timedouble() - lastg) >= outputEvery) {
+      lastg = timedouble();
       fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeed1(l)/1024.0/1024, logSpeed99(l) /1024.0/1024, l->num, timedouble() - l->starttime);
-      double diff = logSpeedMean(l) / logSpeedMedian(l);
-	if ((diff < 0.8 || diff > 1.2) && (resetonce > 0)) {
-	  fprintf(stderr,"resetting due to hard to comprehend timings\n");
-	  resetonce--;
-	  logSpeedReset(l);
-	  startTime = timedouble();
-	  lastg = 0;
+      logSpeedAdd(&previousSpeeds, logSpeedMean(l));
+      if (logSpeedN(&previousSpeeds) > 5) {
+	if (keeprunning) {
+	  double low = logSpeedRank(&previousSpeeds, .25);
+	  double high = logSpeedRank(&previousSpeeds, .75);
+	  double mean = logSpeedMean(&previousSpeeds);
+	  if ((mean < low || mean > high) && (resetCount > 0)) {
+	    fprintf(stderr,"  [ %.1lf < %.1lf < %.1lf ]\n", low / 1024.0 / 1024, mean / 1024.0 / 1024, high / 1024.0 /1024);
+	    fprintf(stderr,"resetting due to hard to volatile timings (%d resets remain)\n", resetCount);
+	    resetCount--;
+	    logSpeedReset(l);
+	    logSpeedReset(&previousSpeeds);
+	    startTime = timedouble();
+	  }
 	}
+      }
     }
     if (chunkIndex >= numChunks) {
       chunkIndex = 0;
@@ -108,6 +119,8 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       break;
     }
   }
+  close(fd);
+  l->lasttime = timedouble();
   fprintf(stderr,"finished. Total %s speed '%s': %.1lf GiB in %.1f seconds, mean %.2f MiB/s, n=%zd\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, logSpeedN(l));
   free(buf);
 }

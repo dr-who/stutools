@@ -17,6 +17,7 @@ int keeprunning = 1;
 int useDirect = 1;
 size_t BUFSIZE = 1024*1024;
 int SEQUENTIAL = 1;
+int exitAfterSeconds = 60;
 
 typedef struct {
   int threadid;
@@ -44,10 +45,8 @@ static void *runThread(void *arg) {
   int chunkSizes[1] = {BUFSIZE};
   int numChunks = 1;
   
-  readChunks(fd, threadContext->path, chunkSizes, numChunks, 60, &threadContext->logSpeed, BUFSIZE, OUTPUTINTERVAL, SEQUENTIAL);
+  readChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, BUFSIZE, OUTPUTINTERVAL, SEQUENTIAL); // will close fd
   threadContext->total = threadContext->logSpeed.total;
-		
-  close(fd);
 
   return NULL;
 }
@@ -89,7 +88,7 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDIr")) != -1) {
+  while ((opt = getopt(argc, argv, "dDIrt:")) != -1) {
     switch (opt) {
     case 'd':
       useDirect = 1;
@@ -104,6 +103,9 @@ void handle_args(int argc, char *argv[]) {
     case 'r':
 	SEQUENTIAL = 0;
 	break;
+    case 't':
+      exitAfterSeconds = atoi(optarg);
+      break;
     }
   }
 }

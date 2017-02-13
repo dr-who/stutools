@@ -3,7 +3,7 @@
 
 #include <unistd.h>
 
-#define OUTPUTINTERVAL (1024L*1024*1024)
+#define OUTPUTINTERVAL 1
 
 typedef struct {
   double starttime;
@@ -27,6 +27,7 @@ double logSpeed1(logSpeedType *l);
 double logSpeed5(logSpeedType *l);
 double logSpeed95(logSpeedType *l);
 double logSpeed99(logSpeedType *l);
+double logSpeedRank(logSpeedType *l, const float rank);
 double logSpeedMax(logSpeedType *l);
 void logSpeedDump(logSpeedType *l, const char *fn);
 

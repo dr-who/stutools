@@ -94,6 +94,15 @@ double logSpeed99(logSpeedType *l) {
   return l->values[(size_t)(l->num * 0.99)];
 }
 
+double logSpeedRank(logSpeedType *l, const float rank) {
+  if (rank < 0 || rank > 1) {
+    fprintf(stderr,"rand needs to be in the range [0..1]\n");
+    exit(1);
+  }
+  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+  return l->values[(size_t)(l->num * rank)];
+}
+
 double logSpeedMax(logSpeedType *l) {
   qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
   return l->values[l->num - 1];
