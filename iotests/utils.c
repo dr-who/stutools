@@ -95,14 +95,14 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       lastg = timedouble();
       fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeed1(l)/1024.0/1024, logSpeed99(l) /1024.0/1024, l->num, timedouble() - l->starttime);
       logSpeedAdd(&previousSpeeds, logSpeedMean(l));
-      if (logSpeedN(&previousSpeeds) > 5) {
+      if (logSpeedN(&previousSpeeds) >= 10) { // at least 10 data points before a reset
 	if (keeprunning) {
 	  double low = logSpeedRank(&previousSpeeds, .25);
 	  double high = logSpeedRank(&previousSpeeds, .75);
 	  double mean = logSpeedMean(&previousSpeeds);
 	  if ((mean < low || mean > high) && (resetCount > 0)) {
-	    fprintf(stderr,"  [ %.1lf < %.1lf < %.1lf ]\n", low / 1024.0 / 1024, mean / 1024.0 / 1024, high / 1024.0 /1024);
-	    fprintf(stderr,"resetting due to hard to volatile timings (%d resets remain)\n", resetCount);
+	    fprintf(stderr,"  [ %.1lf < %.1lf MiB/s < %.1lf ]\n", low / 1024.0 / 1024, mean / 1024.0 / 1024, high / 1024.0 /1024);
+	    fprintf(stderr,"resetting due to volatile timings (%d resets remain)\n", resetCount);
 	    resetCount--;
 	    logSpeedReset(l);
 	    logSpeedReset(&previousSpeeds);
@@ -119,9 +119,14 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       break;
     }
   }
+  fprintf(stderr,"flushing and closing...\n");
   close(fd);
   l->lasttime = timedouble();
-  fprintf(stderr,"finished. Total %s speed '%s': %.1lf GiB in %.1f seconds, mean %.2f MiB/s, n=%zd\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, logSpeedN(l));
+  if (resetCount > 0) {
+    fprintf(stderr,"finished. Total %s speed '%s': %.1lf GiB in %.1f seconds, mean %.2f MiB/s, n=%zd\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, logSpeedN(l));
+  } else {
+    fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
+  }
   free(buf);
 }
 
