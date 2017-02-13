@@ -82,7 +82,7 @@ void startThreads(int argc, char *argv[]) {
 	}
       }
     }
-    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum mean = %.2lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
+    fprintf(stderr,"Total %zd bytes, time %.2lf seconds, sum of mean = %.2lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
   }
 }
 
