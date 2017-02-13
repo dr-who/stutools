@@ -40,10 +40,10 @@ static void *runThread(void *arg) {
   }
   //fprintf(stderr,"opened %s\n", threadContext->path);
 
-  int chunkSizes[1] = {1024*1024};
+  int chunkSizes[1] = {BUFSIZE};
   int numChunks = 1;
   
-  writeChunks(fd, threadContext->path, chunkSizes, numChunks, 60, &threadContext->logSpeed, BUFSIZE, 1024*1024*1024, SEQUENTIAL);
+  writeChunks(fd, threadContext->path, chunkSizes, numChunks, 60, &threadContext->logSpeed, BUFSIZE, OUTPUTINTERVAL, SEQUENTIAL);
   threadContext->total = threadContext->logSpeed.total;
 
   close(fd);

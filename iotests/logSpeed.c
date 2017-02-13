@@ -74,6 +74,11 @@ double logSpeedMean(logSpeedType *l) {
   return l->total / logSpeedTime(l);
 }
 
+double logSpeed1(logSpeedType *l) {
+  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+  return l->values[(size_t)(l->num * 0.01)];
+}
+
 double logSpeed5(logSpeedType *l) {
   qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
   return l->values[(size_t)(l->num * 0.95)];

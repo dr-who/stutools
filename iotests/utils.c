@@ -51,9 +51,11 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   srand(fd);
   size_t maxblocks = 0;
   if (!sequential) {
-    if (isBlockDevice(label)) {
-       maxblocks = blockDeviceSize(label)/4096;
+    if (isBlockDevice(label) && ((maxblocks = blockDeviceSize(label)/4096) > 0)) {
        fprintf(stderr,"max blocks on %s is %zd\n", label, maxblocks);
+    } else {
+      fprintf(stderr,"error: need to be a block device with the -r option\n");
+      exit(1);
     }
   } 
   int wbytes = 0;
@@ -86,7 +88,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     logSpeedAdd(l, wbytes);
     if ((l->total - lastg) >= outputEvery) {
       lastg = l->total;
-      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeed99(l) /1024.0/1024, l->num, timedouble() - l->starttime);
+      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeed1(l)/1024.0/1024, logSpeed99(l) /1024.0/1024, l->num, timedouble() - l->starttime);
     }
     if (chunkIndex >= numChunks) {
       chunkIndex = 0;
@@ -96,7 +98,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       break;
     }
   }
-  fprintf(stderr,"finished. Total %s speed '%s': %.1lf GiB bytes in %.1f seconds, mean %.2f MiB/s, n=%zd\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, logSpeedN(l));
+  fprintf(stderr,"finished. Total %s speed '%s': %.1lf GiB in %.1f seconds, mean %.2f MiB/s, n=%zd\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, logSpeedN(l));
   free(buf);
 }
 

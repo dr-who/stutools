@@ -44,7 +44,7 @@ static void *runThread(void *arg) {
   int chunkSizes[1] = {BUFSIZE};
   int numChunks = 1;
   
-  readChunks(fd, threadContext->path, chunkSizes, numChunks, 60, &threadContext->logSpeed, BUFSIZE, 1024*1024*1024, SEQUENTIAL);
+  readChunks(fd, threadContext->path, chunkSizes, numChunks, 60, &threadContext->logSpeed, BUFSIZE, OUTPUTINTERVAL, SEQUENTIAL);
   threadContext->total = threadContext->logSpeed.total;
 		
   close(fd);
