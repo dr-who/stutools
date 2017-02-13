@@ -123,7 +123,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   close(fd);
   l->lasttime = timedouble();
   if (resetCount > 0) {
-    fprintf(stderr,"finished. Total %s speed '%s': %.1lf GiB in %.1f seconds, mean %.2f MiB/s, n=%zd\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, logSpeedN(l));
+    fprintf(stderr,"finished. Total %s speed '%s': %.1lf GiB in %.1f seconds, mean %.2f MiB/s, n=%zd (version %s)\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, logSpeedN(l), VERSION);
   } else {
     fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
   }
