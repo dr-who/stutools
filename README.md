@@ -13,4 +13,13 @@ Stu's handy tools
 
 Usage: ./writePairTest -F /dev/sd[cdefghijklmnop]
 
+       ./writeSpeedTest -t10 -D /dev/sdb (non-direct)
+
+       ./readSpeedTest -t10 -D /dev/sdb (non-direct)
+
+       ./readSpeedTest -t20 /dev/sdc (direct test, 20s timeout)
+       
+
+
+
  
