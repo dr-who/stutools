@@ -62,6 +62,8 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   size_t lastg = 0;
   int chunkIndex = 0;
   double startTime = timedouble();
+  int resetonce = 1;
+  
   while (keeprunning) {
     if (!sequential) {
 	size_t pos = (rand() % maxblocks) * 4096;
@@ -89,6 +91,14 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     if ((l->total - lastg) >= outputEvery) {
       lastg = l->total;
       fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeed1(l)/1024.0/1024, logSpeed99(l) /1024.0/1024, l->num, timedouble() - l->starttime);
+      double diff = logSpeedMean(l) / logSpeedMedian(l);
+	if ((diff < 0.8 || diff > 1.2) && (resetonce > 0)) {
+	  fprintf(stderr,"resetting due to hard to comprehend timings\n");
+	  resetonce--;
+	  logSpeedReset(l);
+	  startTime = timedouble();
+	  lastg = 0;
+	}
     }
     if (chunkIndex >= numChunks) {
       chunkIndex = 0;
@@ -122,3 +132,18 @@ int isBlockDevice(char *name) {
   return (S_ISBLK(sb.st_mode));
 }
 
+
+void dropCaches() {
+  FILE *fp = fopen("/proc/sys/vm/drop_caches", "wt");
+  if (fp == NULL) {
+    fprintf(stderr,"error: you need sudo/root permission to drop caches\n");
+    exit(1);
+  }
+  if (fprintf(fp, "3\n") < 1) {
+    fprintf(stderr,"error: you need sudo/root permission to drop caches\n");
+    exit(1);
+  }
+  fflush(fp);
+  fclose(fp);
+  fprintf(stderr,"caches dropped\n");
+}

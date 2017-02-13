@@ -98,11 +98,9 @@ void handle_args(int argc, char *argv[]) {
       SEQUENTIAL = 0;
       break;
     case 'd':
-      fprintf(stderr,"USING DIRECT\n");
       useDirect = 1;
       break;
     case 'D':
-      fprintf(stderr,"NOT USING DIRECT\n");
       useDirect = 0;
       break;
     }

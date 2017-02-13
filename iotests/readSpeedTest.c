@@ -92,12 +92,11 @@ void handle_args(int argc, char *argv[]) {
   while ((opt = getopt(argc, argv, "dDIr")) != -1) {
     switch (opt) {
     case 'd':
-      fprintf(stderr,"USING DIRECT\n");
       useDirect = 1;
       break;
     case 'D':
-      fprintf(stderr,"NOT USING DIRECT\n");
       useDirect = 0;
+      dropCaches();
       break;
     case 'I':
 	BUFSIZE = 4096;

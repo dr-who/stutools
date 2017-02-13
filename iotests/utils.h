@@ -11,6 +11,7 @@ void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxT
 size_t blockDeviceSize(char *fd);
 int isBlockDevice(char *name);
 
+void dropCaches();
 
 #endif
 
