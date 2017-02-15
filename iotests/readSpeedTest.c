@@ -64,7 +64,7 @@ void startThreads(int argc, char *argv[]) {
       if (argv[i + 1][0] != '-') {
 	threadContext[i].threadid = i;
 	threadContext[i].path = argv[i + 1];
-	logSpeedInit(&(threadContext[i].logSpeed));
+	logSpeedInit(&threadContext[i].logSpeed);
 	threadContext[i].total = 0;
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
       }
@@ -81,8 +81,11 @@ void startThreads(int argc, char *argv[]) {
 	  maxtime = logSpeedTime(&(threadContext[i].logSpeed));
 	}
       }
+      logSpeedFree(&threadContext[i].logSpeed);
     }
     fprintf(stderr,"Total %zd bytes, time %.2lf seconds, sum of mean = %.2lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
+    free(threadContext);
+    free(pt);
   }
 }
 

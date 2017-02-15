@@ -81,9 +81,12 @@ void startThreads(int argc, char *argv[]) {
 	if (logSpeedTime(&threadContext[i].logSpeed) > maxtime) {
 	  maxtime = logSpeedTime(&threadContext[i].logSpeed);
 	}
+	logSpeedFree(&threadContext[i].logSpeed);
       }
     }
     fprintf(stderr,"Total %zd bytes, time %.2lf seconds, sum of mean = %.2lf MiB/sec\n", allbytes, maxtime, allmb);
+    free(threadContext);
+    free(pt);
   }
 }
 

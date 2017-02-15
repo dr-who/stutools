@@ -129,11 +129,14 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     char s[1000];
     sprintf(s, "Total %s speed '%s': %.1lf GiB in %.1f s, mean %.2f MiB/s, %d bytes, %s, %s, n=%zd (stutools %s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], sequential ? "sequential" : "random", direct ? "O_DIRECT" : "pagecache", logSpeedN(l), VERSION, keepRunning ? "" : " - interrupted");
     fprintf(stderr, "%s", s);
-    syslog(LOG_INFO, "%s - %s", username(), s);
+    char *user = username();
+    syslog(LOG_INFO, "%s - %s", user, s);
+    free(user);
   } else {
     fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
   }
   free(buf);
+  logSpeedFree(&previousSpeeds);
 }
 
 
@@ -174,7 +177,7 @@ void dropCaches() {
 
 
 char *username() {
-  char *buf = calloc(200, 1); if (buf == NULL) return "";
+  char *buf = calloc(200, 1); if (buf == NULL) exit(-1);
   getlogin_r(buf, 200);
   return buf;
 }
