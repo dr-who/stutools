@@ -101,7 +101,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 	  double low = logSpeedRank(&previousSpeeds, .1);
 	  double high = logSpeedRank(&previousSpeeds, .9);
 	  double mean = logSpeedMean(&previousSpeeds);
-	  if ((mean < low || mean > high) && (resetCount > 0)) {
+	  if ((high / low > 1.1) && (mean < low || mean > high) && (resetCount > 0)) {
 	    fprintf(stderr,"  [ %.1lf < %.1lf MiB/s < %.1lf ]\n", low / 1024.0 / 1024, mean / 1024.0 / 1024, high / 1024.0 /1024);
 	    fprintf(stderr,"resetting due to volatile timings (%d resets remain)\n", resetCount);
 	    resetCount--;
