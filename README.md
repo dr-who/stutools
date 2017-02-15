@@ -2,33 +2,27 @@
 
 Stu's handy I/O tools
 
-      ./readSpeedTest  -- reads from N disks using N threads
+	./readSpeedTest  -- reads from N disks using N threads
 
-      ./writeSpeedTest -- writes to N disks using N threads
+	./writeSpeedTest -- writes to N disks using N threads
 
-      ./writePairTest  -- writes to all combinations of 2 disks in 2 threads, plus analysis
+	./writePairTest  -- writes to all combinations of 2 disks in 2 threads, plus analysis
 
 Options:
 
-	-I (4096 blocks instead of 1M blocks)
-        -r (random seeks between IO commands)
-	-kN (N KB, e.g. -k4 is 4096 bytes. -I is a shortcut for -k4)
-	-D (don't use O_DIRECT)
-	-tN (timeout in N seconds)
-
-
+	-I   (shortcut to -k4)
+	-r   (random seeks between IO commands)
+	-kN  (N KB, e.g. -k4 is 4096 bytes. Default is -k1024 = 1MB)
+	-D   (don't use O_DIRECT)
+	-tN  (timeout in N seconds, defaults to 60)
 
 Usage:
 
 	./writePairTest -F /dev/sd[cdefghijklmnop]
 
-       ./writeSpeedTest -t10 -D /dev/sdb (non-direct)
+	./writeSpeedTest -t10 -D /dev/sdb (non-direct)
 
-       ./readSpeedTest -t10 -D /dev/sdb (non-direct)
+	./readSpeedTest -t10 -D /dev/sdb (non-direct)
 
-       ./readSpeedTest -t20 /dev/sdc (direct test, 20s timeout)
-       
-
-
-
+	./readSpeedTest -t20 /dev/sdc (direct test, 20s timeout)
  
