@@ -26,7 +26,7 @@ double logSpeedMedian(logSpeedType *l);
 double logSpeedMean(logSpeedType *l);
 size_t logSpeedN(logSpeedType *l);
 size_t logSpeedTotal(logSpeedType *l);
-double logSpeedRank(logSpeedType *l, const float rank); // between [0...1)
+double logSpeedRank(logSpeedType *l, float rank); // between [0...1)
 double logSpeedMax(logSpeedType *l);
 
 void   logSpeedDump(logSpeedType *l, const char *fn);

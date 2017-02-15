@@ -74,11 +74,9 @@ double logSpeedMean(logSpeedType *l) {
   return l->total / logSpeedTime(l);
 }
 
-double logSpeedRank(logSpeedType *l, const float rank) {
-  if (rank < 0 || rank > 1) {
-    fprintf(stderr,"rand needs to be in the range [0..1]\n");
-    exit(1);
-  }
+double logSpeedRank(logSpeedType *l, float rank) {
+  if (rank < 0) rank=0;
+  if (rank >= 1) rank = 0.9999999;
   qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
   return l->values[(size_t)(l->num * rank)];
 }
