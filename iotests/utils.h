@@ -12,6 +12,7 @@ size_t blockDeviceSize(char *fd);
 int isBlockDevice(char *name);
 
 void dropCaches();
+char *username();
 
 #endif
 
