@@ -5,6 +5,9 @@ Stu's handy tools
 
   Options: -I (4096 blocks instead of 1M blocks)
            -r (random seeks between IO commands)
+	   -kN (N KB, e.g. -k4 is 4096 bytes. -I is a shortcut for -k4)
+	   -D (don't use O_DIRECT)
+	   -tN (timeout in N seconds)
 
 ./writeSpeedTest -- writes to N disks using N threads
 

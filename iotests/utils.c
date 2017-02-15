@@ -8,10 +8,11 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <syslog.h>
 
 #include "utils.h"
 
-extern int keeprunning;
+extern int keepRunning;
 
 
 struct timeval gettm() {
@@ -41,7 +42,7 @@ size_t blockDeviceSize(char *path) {
 }
 
 
-void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential) {
+void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct) {
   void *buf = NULL;
   if (posix_memalign(&buf, 4096, 1024*1024+maxBufSize)) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
@@ -67,7 +68,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
   logSpeedInit(&previousSpeeds);
   
-  while (keeprunning) {
+  while (keepRunning) {
     if (!sequential) {
 	size_t pos = (rand() % maxblocks) * 4096;
  	//fprintf(stderr,"%zd\n", pos);	
@@ -93,12 +94,12 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     logSpeedAdd(l, wbytes);
     if ((timedouble() - lastg) >= outputEvery) {
       lastg = timedouble();
-      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeed1(l)/1024.0/1024, logSpeed99(l) /1024.0/1024, l->num, timedouble() - l->starttime);
+      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeedRank(l, 1.0) / 1024.0 / 1024, logSpeedRank(l, 0.99) /1024.0/1024, l->num, timedouble() - l->starttime);
       logSpeedAdd(&previousSpeeds, logSpeedMean(l));
       if (logSpeedN(&previousSpeeds) >= 10) { // at least 10 data points before a reset
-	if (keeprunning) {
-	  double low = logSpeedRank(&previousSpeeds, .25);
-	  double high = logSpeedRank(&previousSpeeds, .75);
+	if (keepRunning) {
+	  double low = logSpeedRank(&previousSpeeds, .1);
+	  double high = logSpeedRank(&previousSpeeds, .9);
 	  double mean = logSpeedMean(&previousSpeeds);
 	  if ((mean < low || mean > high) && (resetCount > 0)) {
 	    fprintf(stderr,"  [ %.1lf < %.1lf MiB/s < %.1lf ]\n", low / 1024.0 / 1024, mean / 1024.0 / 1024, high / 1024.0 /1024);
@@ -119,11 +120,16 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       break;
     }
   }
-  fprintf(stderr,"flushing and closing...\n");
+  if (writeAction) {
+    fprintf(stderr,"flushing and closing...\n");
+  }
   close(fd);
   l->lasttime = timedouble();
   if (resetCount > 0) {
-    fprintf(stderr,"finished. Total %s speed '%s': %.1lf GiB in %.1f seconds, mean %.2f MiB/s, n=%zd (version %s)\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, logSpeedN(l), VERSION);
+    char s[1000];
+    sprintf(s, "Total %s speed '%s': %.1lf GiB in %.1f s, mean %.2f MiB/s, %d bytes, %s, %s, n=%zd (stutools %s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], sequential ? "sequential" : "random", direct ? "O_DIRECT" : "pagecache", logSpeedN(l), VERSION, keepRunning ? "" : " - interrupted");
+    fprintf(stderr, "%s", s);
+    syslog(LOG_INFO, "%s", s);
   } else {
     fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
   }
@@ -132,12 +138,12 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
 
 
-void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq);
+void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct) {
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct);
 }
 
-void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq);
+void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct) {
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq, direct);
 }
 
 

@@ -15,7 +15,7 @@
 #include "logSpeed.h"
 
 
-int keeprunning = 1;
+int keepRunning = 1;
 int useDirect = 1;
 float benchmarkTime = 2;     // run for at least 2 seconds
 size_t atLeastN = 150;       // at least this many data points
@@ -33,7 +33,7 @@ typedef struct {
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
-  keeprunning = 0;
+  keepRunning = 0;
 }
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
@@ -55,7 +55,7 @@ static void *runThread(void *arg) {
   logSpeedType *l = &(threadContext->logspeed);
   logSpeedInit(l);
   
-  while (((wbytes = write(fd, buf, BUFSIZE)) > 0) && keeprunning) {
+  while (((wbytes = write(fd, buf, BUFSIZE)) > 0) && keepRunning) {
     threadContext->total += wbytes;
     logSpeedAdd(l, wbytes);
     if (threadContext->total >> 30 != lastg) {

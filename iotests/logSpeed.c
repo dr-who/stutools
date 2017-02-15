@@ -74,26 +74,6 @@ double logSpeedMean(logSpeedType *l) {
   return l->total / logSpeedTime(l);
 }
 
-double logSpeed1(logSpeedType *l) {
-  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
-  return l->values[(size_t)(l->num * 0.01)];
-}
-
-double logSpeed5(logSpeedType *l) {
-  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
-  return l->values[(size_t)(l->num * 0.95)];
-}
-
-double logSpeed95(logSpeedType *l) {
-  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
-  return l->values[(size_t)(l->num * 0.95)];
-}
-
-double logSpeed99(logSpeedType *l) {
-  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
-  return l->values[(size_t)(l->num * 0.99)];
-}
-
 double logSpeedRank(logSpeedType *l, const float rank) {
   if (rank < 0 || rank > 1) {
     fprintf(stderr,"rand needs to be in the range [0..1]\n");

@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,11 +14,11 @@
 #include "utils.h"
 #include "logSpeed.h"
 
-int keeprunning = 1;
-int useDirect = 1;
-size_t BUFSIZE = 1024*1024;
-int SEQUENTIAL = 1;
-int exitAfterSeconds = 60;
+int    keepRunning = 1;       // have we been interrupted
+size_t blockSize = 1024*1024; // default to 1MiB
+int    exitAfterSeconds = 60; // default timeout
+int    useDirect = 1;
+int    isSequential = 1;   
 
 typedef struct {
   int threadid;
@@ -29,7 +30,7 @@ typedef struct {
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
-  keeprunning = 0;
+  keepRunning = 0;
 }
 
 static void *runThread(void *arg) {
@@ -42,10 +43,10 @@ static void *runThread(void *arg) {
   //fprintf(stderr,"opened %s\n", threadContext->path);
 
 
-  int chunkSizes[1] = {BUFSIZE};
+  int chunkSizes[1] = {blockSize};
   int numChunks = 1;
   
-  readChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, BUFSIZE, OUTPUTINTERVAL, SEQUENTIAL); // will close fd
+  readChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, blockSize, OUTPUTINTERVAL, isSequential, useDirect); // will close fd
   threadContext->total = threadContext->logSpeed.total;
 
   return NULL;
@@ -88,7 +89,7 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDIrt:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDIrt:k:")) != -1) {
     switch (opt) {
     case 'd':
       useDirect = 1;
@@ -97,12 +98,15 @@ void handle_args(int argc, char *argv[]) {
       useDirect = 0;
       dropCaches();
       break;
+    case 'k':
+      blockSize = atoi(optarg) * 1024;
+      break;
     case 'I':
-	BUFSIZE = 4096;
-	break;
+      blockSize = 4096;
+      break;
     case 'r':
-	SEQUENTIAL = 0;
-	break;
+      isSequential = 0;
+      break;
     case 't':
       exitAfterSeconds = atoi(optarg);
       break;
@@ -114,7 +118,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"direct=%d, blocksize=%zd, sequential=%d\n", useDirect, BUFSIZE, SEQUENTIAL);
+  fprintf(stderr,"direct=%d, blocksize=%zd, sequential=%d, timeout=%d\n", useDirect, blockSize, isSequential, exitAfterSeconds);
   startThreads(argc, argv);
   return 0;
 }

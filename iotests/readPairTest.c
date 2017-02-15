@@ -12,8 +12,8 @@
 #include <sys/time.h>
 #include <signal.h>
 
-int keeprunning = 1;
-int useDirect = 1;
+int   keepRunning = 1;
+int   useDirect = 1;
 float benchmarkTime = 3;
 
 typedef struct {
@@ -35,7 +35,7 @@ double timedouble() {
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
-  keeprunning = 0;
+  keepRunning = 0;
 }
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
