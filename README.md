@@ -18,6 +18,8 @@ Options:
 
 Usage:
 
+	./writeSpeedTest /dev/md3
+
 	./writePairTest -F /dev/sd[cdefghijklmnop]
 
 	./writeSpeedTest -t10 -D /dev/sdb (non-direct)
