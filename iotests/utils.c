@@ -251,14 +251,15 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
   close(fd);
 
   char *user = username();
-  syslog(LOG_INFO, "%s - verify: blocks (%zd bytes) checked %zd, correct %zd, failed %zd\n", user, size, check, ok, error);
+  syslog(LOG_INFO, "%s - verify '%s': blocks (%zd bytes) checked %zd, correct %zd, failed %zd\n", user, label, size, check, ok, error);
 
-  fprintf(stderr, "verify: blocks (%zd bytes) checked %zd, correct %zd, failed %zd\n", size, check, ok, error);
-  free(user);
+  fprintf(stderr, "verify '%s': blocks (%zd bytes) checked %zd, correct %zd, failed %zd\n", label, size, check, ok, error);
 
   if (error > 0) {
+    syslog(LOG_INFO, "%s - checksum errors on '%s'\n", user, label);
     fprintf(stderr, "**CHECKSUM** errors\n");
   }
+  free(user);
   free(rawbuf);
 }
 
