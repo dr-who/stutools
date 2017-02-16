@@ -147,7 +147,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   }
 
   if (verifyWrites) {
-    checkContents(label, charbuf, chunkSizes[0], checksum, 1);
+    checkContents(label, charbuf, chunkSizes[0], checksum, 1, l->total);
   }
    
   free(buf);
@@ -199,7 +199,7 @@ char *username() {
 }
 
 
-void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage) {
+void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage, size_t stopatbytes) {
   fprintf(stderr,"verifying contents of '%s'...\n", label);
   int fd = open(label, O_RDONLY | O_DIRECT); // O_DIRECT to check contents
   if (fd < 0) {
@@ -251,14 +251,17 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
       fprintf(stderr,"eek bad aligned read\n");
     }
     pos += wbytes;
+    if (pos >= stopatbytes) {
+      break;
+    }
   }
   fflush(stderr);
   close(fd);
 
   char *user = username();
-  syslog(LOG_INFO, "%s - verify '%s': blocks (%zd bytes) checked %zd, correct %zd, failed %zd\n", user, label, size, check, ok, error);
+  syslog(LOG_INFO, "%s - verify '%s': %.1lf GiB, checked %zd, correct %zd, failed %zd\n", user, label, size*check/1024.0/1024/1024, check, ok, error);
 
-  fprintf(stderr, "verify '%s': blocks (%zd bytes) checked %zd, correct %zd, failed %zd\n", label, size, check, ok, error);
+  fprintf(stderr, "verify '%s': %.1lf GiB, checked %zd, correct %zd, failed %zd\n", label, size*check/1024.0/1024/1024, check, ok, error);
 
   if (error > 0) {
     syslog(LOG_INFO, "%s - checksum errors on '%s'\n", user, label);
