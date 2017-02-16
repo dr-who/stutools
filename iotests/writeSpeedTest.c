@@ -36,7 +36,7 @@ void intHandler(int d) {
 }
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int fd = open(threadContext->path, O_WRONLY | O_EXCL | (useDirect ? O_DIRECT : 0));
+  int fd = open(threadContext->path, O_WRONLY | O_TRUNC | O_EXCL | (useDirect ? O_DIRECT : 0));
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;

@@ -43,15 +43,15 @@ size_t blockDeviceSize(char *path) {
 
 
 void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites) {
-  void *buf = NULL;
-  if (posix_memalign(&buf, 4096, 1024*1024+maxBufSize)) { // O_DIRECT requires aligned memory
+  void *buf = aligned_alloc(65536, maxBufSize);
+  if (!buf) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
   }
-  char *charbuf = (char*) buf;
+   char *charbuf = (char*) buf;
   size_t checksum = 0;
   for (size_t i = 0; i < maxBufSize; i++ ) {
-    charbuf[i] = (char) (i & 0x0ff);
-    checksum += (i & 0xff);
+    charbuf[i] = (char) ('A' + (i%26));
+    checksum += ('A' + (i%26));
   }
 
   srand(fd);
@@ -84,9 +84,9 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     }
 
     if (writeAction) {
-      wbytes = write(fd, buf, chunkSizes[chunkIndex++]);
+      wbytes = write(fd, charbuf, chunkSizes[0]);
     } else {
-      wbytes = read(fd, buf, chunkSizes[chunkIndex++]);
+      wbytes = read(fd, charbuf, chunkSizes[0]);
     }
     if (wbytes == 0) {
       break;
@@ -124,10 +124,12 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       //fprintf(stderr,"timer triggered after %zd seconds\n", maxTime);
       break;
     }
-  }
+  } // while loop
   if (writeAction) {
     fprintf(stderr,"flushing and closing...\n");
   }
+  fdatasync(fd);
+  fsync(fd);
   close(fd);
   l->lasttime = timedouble();
   if (resetCount > 0) {
@@ -197,7 +199,7 @@ char *username() {
 
 void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage) {
   fprintf(stderr,"verifying contents of '%s'...\n", label);
-  int fd = open(label, O_RDONLY | O_DIRECT); // O_DIRECT to check contents
+  int fd = open(label, O_RDONLY ); // O_DIRECT to check contents
   if (fd < 0) {
     perror(label);
     exit(1);
@@ -222,7 +224,7 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
       perror("problem");
       break;
     }
-    if (wbytes == size) { // only check the right siez blocks
+    if (wbytes == size) { // only check the right size blocks
       check++;
       size_t newsum = 0;
       for (size_t i = 0; i <wbytes;i++) {
@@ -230,13 +232,16 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
       }
       if (newsum != checksum) {
 	error++;
+	//	fprintf(stderr,"X");
 	if (error < 5) {
 	  fprintf(stderr,"checksum error %zd\n", pos);
+	  //	  fprintf(stderr,"buffer: %s\n", buf);
 	}
 	if (error == 5) {
 	  fprintf(stderr,"further errors not displayed\n");
 	}
       } else {
+	//	fprintf(stderr,".");
 	ok++;
       }
     }
