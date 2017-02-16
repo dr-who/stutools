@@ -68,7 +68,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     }
   } 
   int wbytes = 0;
-  double lastg = 0;
+  double lastg = timedouble();
   int chunkIndex = 0;
   double startTime = timedouble();
   int resetCount = 5;
@@ -150,12 +150,11 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     checkContents(label, charbuf, chunkSizes[0], checksum, 1);
   }
    
-
-  
   free(buf);
+  
+  //  logSpeedHistogram(&previousSpeeds);
   logSpeedFree(&previousSpeeds);
 }
-
 
 
 void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, int verifyWrites) {

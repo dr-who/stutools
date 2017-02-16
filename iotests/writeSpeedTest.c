@@ -101,6 +101,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'k':
       blockSize=atoi(optarg) * 1024;
+      if (blockSize < 1024) blockSize = 1024;
       break;
     case 'r': 
       isSequential = 0;

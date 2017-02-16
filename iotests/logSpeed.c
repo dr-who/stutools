@@ -29,9 +29,11 @@ double logSpeedTime(logSpeedType *l) {
 
 
 
-int logSpeedAdd(logSpeedType *l, size_t value) {
+int logSpeedAdd(logSpeedType *l, double value) {
   const double thistime = timedouble();
   const double timegap = thistime - l->lasttime;
+
+  //  fprintf(stderr,"--> adding %.1lf\n", value);
 
   if (l->num >= l->alloc) {
     l->alloc = l->alloc * 2 + 1;
@@ -58,7 +60,7 @@ static int comparisonFunction(const void *p1, const void *p2) {
   else return 0;
 }
 
-size_t logSpeedTotal(logSpeedType *l) {
+double logSpeedTotal(logSpeedType *l) {
   return l->total;
 }
 
@@ -80,13 +82,15 @@ void logSpeedSort(logSpeedType *l) {
 double logSpeedMedian(logSpeedType *l) {
   logSpeedSort(l);
   const double med = l->values[l->num / 2];
-  //  fprintf(stderr,"values: %zd, median %f\n", l->num, med);
-
   return med;
 }
 
 double logSpeedMean(logSpeedType *l) {
-  return l->total / logSpeedTime(l);
+  if (l->num <= 2) {
+    return 0;
+  } else {
+    return l->total / logSpeedTime(l);
+  }
 }
 
 double logSpeedRank(logSpeedType *l, float rank) {
@@ -120,5 +124,45 @@ void logSpeedDump(logSpeedType *l, const char *fn) {
     fprintf(fp, "%lf\n", l->values[i]);
   }
   fclose(fp);
+}
+
+
+void logSpeedHistogram(logSpeedType *l) {
+  const double low = logSpeedRank(l, 0);
+  const double high = logSpeedRank(l, 1); // actually 0.9999
+  const double N = 10;
+  const double gap = (high - low) / N;
+  // [0..1] [1..2] .... [9..10]
+
+  fprintf(stderr,"Low: %.1lf MiB/s, High: %.1f MiB/s\n", low / 1024.0/1024, high / 1024.0/1024);
+
+  size_t *hist = calloc(10, sizeof(size_t));
+
+  size_t max = 0;
+  for (size_t i = 0; i < logSpeedN(l); i++) {
+    //    fprintf(stderr,"...%.1lf\n", l->values[i] / 1024.0/1024);
+    size_t index = (l->values[i] - low) / gap;
+    if (index > N-1) index = N-1;
+    //    fprintf(stderr,"index %zd\n", index);
+    hist[index]++;
+    if (hist[index] > max) max = hist[index];
+  }
+  
+  for (size_t i = 0; i < N; i++) {
+    double newlow = low + (i * gap);
+    double newhigh = low + ((i + 1) * gap);
+    
+    fprintf(stderr,"[%.1lf, %.1lf): ", newlow / 1024.0/1024, newhigh / 1024.0/1024);
+    double scale = 1.0;
+    if (max > 60) {
+      scale = 60.0 / max;
+    }
+    for (size_t j = 0; j < hist[i] * scale; j++) {
+      fprintf(stderr,".");
+    }
+    fprintf(stderr,"\n");
+    //%zd\n", i, hist[i]);
+  }
+  free(hist);
 }
 
