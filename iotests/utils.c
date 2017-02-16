@@ -47,14 +47,17 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   if (!buf) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
   }
-   char *charbuf = (char*) buf;
+  srand((int)timedouble());
+
+  char *charbuf = (char*) buf;
   size_t checksum = 0;
+  const size_t startChar = rand() % 255;
+  const size_t startMod = 20 + rand() % 40;
   for (size_t i = 0; i < maxBufSize; i++ ) {
-    charbuf[i] = (char) ('A' + (i%26));
-    checksum += ('A' + (i%26));
+    charbuf[i] = 'A' + (char) ((startChar + i ) % startMod);
+    checksum += ('A' + (startChar + i) % startMod);
   }
 
-  srand(fd);
   size_t maxblocks = 0;
   if (!sequential) {
     if (isBlockDevice(label) && ((maxblocks = blockDeviceSize(label)/4096) > 0)) {
