@@ -74,6 +74,13 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   int resetCount = 5;
   logSpeedType previousSpeeds;
 
+  size_t countValues = 0, allocValues = 20000, sumBytes = 0;
+  double *allValues, *allTimes, *allTotal;
+
+  allValues = malloc(allocValues * sizeof(double));
+  allTimes = malloc(allocValues * sizeof(double));
+  allTotal = malloc(allocValues * sizeof(double));
+
   logSpeedInit(&previousSpeeds);
   
   while (keepRunning) {
@@ -98,11 +105,27 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       perror("problem");
       break;
     }
+
+    const double tt = timedouble();
     
     logSpeedAdd(l, wbytes);
-    if ((timedouble() - lastg) >= outputEvery) {
-      lastg = timedouble();
-      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeedRank(l, 0.01) / 1024.0 / 1024, logSpeedRank(l, 0.99) /1024.0/1024, l->num, timedouble() - l->starttime);
+
+    sumBytes += wbytes;
+    allValues[countValues] = wbytes;
+    allTimes[countValues] = tt;
+    allTotal[countValues] = sumBytes;
+    countValues++;
+    
+    if (countValues >= allocValues) {
+      allocValues = allocValues * 2;
+      allValues = realloc(allValues, allocValues * sizeof(double));
+      allTimes = realloc(allTimes, allocValues * sizeof(double));
+      allTotal = realloc(allTotal, allocValues * sizeof(double));
+    }
+    
+    if ((tt - lastg) >= outputEvery) {
+      lastg = tt;
+      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeedRank(l, 0.01) / 1024.0 / 1024, logSpeedRank(l, 0.99) /1024.0/1024, l->num, tt - l->starttime);
       logSpeedAdd(&previousSpeeds, logSpeedMean(l));
       if (logSpeedN(&previousSpeeds) >= 10) { // at least 10 data points before a reset
 	if (keepRunning) {
@@ -115,7 +138,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 	    resetCount--;
 	    logSpeedReset(l);
 	    logSpeedReset(&previousSpeeds);
-	    startTime = timedouble();
+	    startTime = tt;
 	  }
 	}
       }
@@ -123,7 +146,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     if (chunkIndex >= numChunks) {
       chunkIndex = 0;
     }
-    if (timedouble() - startTime > maxTime) {
+    if (tt - startTime > maxTime) {
       //fprintf(stderr,"timer triggered after %zd seconds\n", maxTime);
       break;
     }
@@ -151,6 +174,24 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   }
    
   free(buf);
+
+  // dump all values
+  char s[1000];
+  sprintf(s, "log-%s", label);
+  for (size_t i = 0; i < strlen(s); i++) {
+    if (s[i] == '/') {
+      s[i] = '_';
+    }
+  }
+  FILE *fp = fopen(s, "wt"); if (!fp) {perror("problem");exit(1);}
+  for (size_t i = 0; i < countValues; i++) {
+    fprintf(fp,"%.6lf\t%.0lf\t%.0lf\n", allTimes[i], allValues[i], allTotal[i]);
+  }
+  fclose(fp);
+  free(allValues);
+  free(allTimes);
+  free(allTotal);
+
   
   //  logSpeedHistogram(&previousSpeeds);
   logSpeedFree(&previousSpeeds);
