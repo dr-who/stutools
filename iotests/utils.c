@@ -42,12 +42,17 @@ size_t blockDeviceSize(char *path) {
 }
 
 
-void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct) {
+void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites) {
   void *buf = NULL;
   if (posix_memalign(&buf, 4096, 1024*1024+maxBufSize)) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
   }
-  memset(buf, 0, maxBufSize);
+  char *charbuf = (char*) buf;
+  size_t checksum = 0;
+  for (size_t i = 0; i < maxBufSize; i++ ) {
+    charbuf[i] = (char) (i & 0x0ff);
+    checksum += (i & 0xff);
+  }
 
   srand(fd);
   size_t maxblocks = 0;
@@ -135,18 +140,25 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   } else {
     fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
   }
+
+  if (verifyWrites) {
+    checkContents(label, charbuf, chunkSizes[0], checksum, 1);
+  }
+   
+
+  
   free(buf);
   logSpeedFree(&previousSpeeds);
 }
 
 
 
-void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct);
+void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, int verifyWrites) {
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites);
 }
 
 void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq, direct);
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq, direct, 0);
 }
 
 
@@ -181,3 +193,68 @@ char *username() {
   getlogin_r(buf, 200);
   return buf;
 }
+
+
+void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage) {
+  fprintf(stderr,"verifying contents of '%s'...\n", label);
+  int fd = open(label, O_RDONLY | O_DIRECT); // O_DIRECT to check contents
+  if (fd < 0) {
+    perror(label);
+    exit(1);
+  }
+
+  void *rawbuf = NULL;
+  if (posix_memalign(&rawbuf, 4096, 1024*1024+size)) { // O_DIRECT requires aligned memory
+	fprintf(stderr,"memory allocation failed\n");exit(1);
+  }
+  size_t pos = 0;
+  unsigned char *buf = (unsigned char*)rawbuf;
+  unsigned long ii = (unsigned long)rawbuf;
+  size_t check = 0, ok = 0, error = 0;
+  srand(ii);
+  
+  while (keepRunning) {
+    int wbytes = read(fd, buf, size);
+    if (wbytes == 0) {
+      break;
+    }
+    if (wbytes < 0) {
+      perror("problem");
+      break;
+    }
+    if (wbytes == size) { // only check the right siez blocks
+      check++;
+      size_t newsum = 0;
+      for (size_t i = 0; i <wbytes;i++) {
+	newsum += (buf[i] & 0xff);
+      }
+      if (newsum != checksum) {
+	error++;
+	if (error < 5) {
+	  fprintf(stderr,"checksum error %zd\n", pos);
+	}
+	if (error == 5) {
+	  fprintf(stderr,"further errors not displayed\n");
+	}
+      } else {
+	ok++;
+      }
+    }
+    pos += wbytes;
+  }
+  fflush(stderr);
+  close(fd);
+
+  char *user = username();
+  syslog(LOG_INFO, "%s - verify: blocks (%zd bytes) checked %zd, correct %zd, failed %zd\n", user, size, check, ok, error);
+
+  fprintf(stderr, "verify: blocks (%zd bytes) checked %zd, correct %zd, failed %zd\n", size, check, ok, error);
+  free(user);
+
+  if (error > 0) {
+    fprintf(stderr, "**CHECKSUM** errors\n");
+  }
+  free(rawbuf);
+}
+
+  

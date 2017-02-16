@@ -20,7 +20,8 @@ int    keepRunning = 1;       // have we been interrupted
 size_t blockSize = 1024*1024; // default to 1MiB
 int    exitAfterSeconds = 60; // default timeout
 int    useDirect = 1;
-int    isSequential = 1;   
+int    isSequential = 1;
+int    verifyWrites = 0;
 
 typedef struct {
   int threadid;
@@ -45,7 +46,7 @@ static void *runThread(void *arg) {
   int chunkSizes[1] = {blockSize};
   int numChunks = 1;
   
-  writeChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, blockSize, OUTPUTINTERVAL, isSequential, useDirect); // will close fd
+  writeChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, blockSize, OUTPUTINTERVAL, isSequential, useDirect, verifyWrites); // will close fd
   threadContext->total = threadContext->logSpeed.total;
 
   return NULL;
@@ -93,7 +94,7 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDIrt:k:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDIrt:k:v")) != -1) {
     switch (opt) {
     case 'I':
       blockSize=4096;
@@ -112,6 +113,9 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 't':
       exitAfterSeconds = atoi(optarg);
+      break;
+    case 'v':
+      verifyWrites = 1;
       break;
     }
     
