@@ -201,7 +201,7 @@ char *username() {
 
 void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage) {
   fprintf(stderr,"verifying contents of '%s'...\n", label);
-  int fd = open(label, O_RDONLY ); // O_DIRECT to check contents
+  int fd = open(label, O_RDONLY | O_DIRECT); // O_DIRECT to check contents
   if (fd < 0) {
     perror(label);
     exit(1);
@@ -247,6 +247,8 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
 	//	fprintf(stderr,".");
 	ok++;
       }
+    } else {
+      fprintf(stderr,"eek bad aligned read\n");
     }
     pos += wbytes;
   }
