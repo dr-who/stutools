@@ -219,6 +219,9 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
 
   keepRunning = 1;
   while (keepRunning) {
+    if (pos >= stopatbytes) {
+      break;
+    }
     int wbytes = read(fd, buf, size);
     if (wbytes == 0) {
       break;
@@ -251,9 +254,6 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
       fprintf(stderr,"eek bad aligned read\n");
     }
     pos += wbytes;
-    if (pos >= stopatbytes) {
-      break;
-    }
   }
   fflush(stderr);
   close(fd);
