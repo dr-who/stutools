@@ -15,6 +15,7 @@ Options:
 	-kN  (N KB, e.g. -k4 is 4096 bytes. Default is -k1024 = 1MB)
 	-D   (don't use O_DIRECT)
 	-tN  (timeout in N seconds, defaults to 60)
+	-v   (verify writes by checking the checksums)	
 
 Usage:
 
