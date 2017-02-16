@@ -208,7 +208,7 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
   }
 
   void *rawbuf = NULL;
-  if ((rawbuf = aligned_alloc(4096, size)) == NULL) { // O_DIRECT requires aligned memory
+  if ((rawbuf = aligned_alloc(65536, size)) == NULL) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
   }
   size_t pos = 0;
