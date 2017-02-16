@@ -216,7 +216,8 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
   unsigned long ii = (unsigned long)rawbuf;
   size_t check = 0, ok = 0, error = 0;
   srand(ii);
-  
+
+  keepRunning = 1;
   while (keepRunning) {
     int wbytes = read(fd, buf, size);
     if (wbytes == 0) {
