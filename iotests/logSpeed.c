@@ -11,6 +11,7 @@ void logSpeedInit(volatile logSpeedType *l) {
   l->num = 0;
   l->alloc = 10000;
   l->total = 0;
+  l->sorted = 0;
   l->values = calloc(l->alloc, sizeof(double)); if (!l->values) {fprintf(stderr,"OOM!\n");exit(1);}
 }
 
@@ -19,6 +20,7 @@ void logSpeedReset(logSpeedType *l) {
   l->lasttime = l->starttime;
   l->num = 0;
   l->total = 0;
+  l->sorted = 0;
 }
 
 double logSpeedTime(logSpeedType *l) {
@@ -40,9 +42,8 @@ int logSpeedAdd(logSpeedType *l, size_t value) {
   l->values[l->num] = value / timegap;
   l->lasttime = thistime;
   l->total += value;
+  l->sorted = 0;
   l->num++;
-  
- 
 
   return l->num;
 }
@@ -61,9 +62,23 @@ size_t logSpeedTotal(logSpeedType *l) {
   return l->total;
 }
 
-   
+void logSpeedSort(logSpeedType *l) {
+  if (!l->sorted) {
+    //    fprintf(stderr,"sorting\n");
+    qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+    l->sorted = 1;
+    if (l->num >= 20000) {
+      for (size_t i = 0; i < l->num/4; i++) {
+	l->values[i] = l->values[i*4];
+      }
+      l->num = l->num/4;
+      //      fprintf(stderr,"1/4\n");
+    }
+  }
+}
+
 double logSpeedMedian(logSpeedType *l) {
-  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+  logSpeedSort(l);
   const double med = l->values[l->num / 2];
   //  fprintf(stderr,"values: %zd, median %f\n", l->num, med);
 
@@ -77,12 +92,12 @@ double logSpeedMean(logSpeedType *l) {
 double logSpeedRank(logSpeedType *l, float rank) {
   if (rank < 0) rank=0;
   if (rank >= 1) rank = 0.9999999;
-  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+  logSpeedSort(l);
   return l->values[(size_t)(l->num * rank)];
 }
 
 double logSpeedMax(logSpeedType *l) {
-  qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+  logSpeedSort(l);
   return l->values[l->num - 1];
 }
 

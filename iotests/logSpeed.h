@@ -12,6 +12,7 @@ typedef struct {
   size_t total;
   double *values;
   double lasttime;
+  int    sorted;
 } logSpeedType;
 
 void   logSpeedInit(volatile logSpeedType *l);
