@@ -158,12 +158,17 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       break;
     }
   } // while loop
+  double startclose = timedouble();
   if (writeAction) {
-    fprintf(stderr,"flushing and closing...\n");
+    fprintf(stderr,"flushing and closing..."); fflush(stderr);
   }
   fdatasync(fd);
   fsync(fd);
   close(fd);
+  if (writeAction) {
+    fprintf(stderr,"took %.1f seconds\n", timedouble() - startclose);
+  }
+    
 
   // add the very last value
   allValues[countValues] = wbytes;
