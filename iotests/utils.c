@@ -42,7 +42,7 @@ size_t blockDeviceSize(char *path) {
 }
 
 
-void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, int flushEverySecs) {
+void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs) {
   void *buf = aligned_alloc(65536, maxBufSize);
   if (!buf) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
@@ -124,7 +124,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       allTotal = realloc(allTotal, allocValues * sizeof(double));
     }
 
-    if (flushEverySecs && (tt - lastFdatasync > flushEverySecs)) {
+    if ((flushEverySecs > 0) && (tt - lastFdatasync > flushEverySecs)) {
       fprintf(stderr,"fdatasync() at %.1lf seconds\n", tt - startTime);
       fdatasync(fd);
       lastFdatasync = tt;
@@ -225,7 +225,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 }
 
 
-void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, int verifyWrites, int flushEverySecs) {
+void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, int verifyWrites, float flushEverySecs) {
   doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs);
 }
 

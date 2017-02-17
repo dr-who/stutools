@@ -22,7 +22,7 @@ int    exitAfterSeconds = 60; // default timeout
 int    useDirect = 1;
 int    isSequential = 1;
 int    verifyWrites = 0;
-int    flushEveryGB = 0;
+float  flushEveryGB = 0;
 
 typedef struct {
   int threadid;
@@ -117,7 +117,7 @@ void handle_args(int argc, char *argv[]) {
       exitAfterSeconds = atoi(optarg);
       break;
     case 'f':
-      flushEveryGB = atoi(optarg);
+      flushEveryGB = atof(optarg);
       break;
     case 'v':
       verifyWrites = 1;
