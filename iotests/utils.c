@@ -169,13 +169,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
   }
 
-  if (verifyWrites) {
-    checkContents(label, charbuf, chunkSizes[0], checksum, 1, l->total);
-  }
-   
-  free(buf);
-
-  // dump all values
+  // dump all values to a log file
   char s[1000];
   sprintf(s, "log-%s", label);
   for (size_t i = 0; i < strlen(s); i++) {
@@ -183,14 +177,33 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       s[i] = '_';
     }
   }
-  FILE *fp = fopen(s, "wt"); if (!fp) {perror("problem");exit(1);}
-  for (size_t i = 0; i < countValues; i++) {
-    fprintf(fp,"%.6lf\t%.0lf\t%.0lf\n", allTimes[i], allValues[i], allTotal[i]);
+  double firsttime = 0;
+  if (countValues > 0) {
+    firsttime = allTimes[0];
   }
-  fclose(fp);
+   
+  FILE *fp = fopen(s, "wt"); if (!fp) {perror("problem");exit(1);}
+  fprintf(fp,"#time\tbigtime\tchunk\ttotalbytes\n");
+  for (size_t i = 0; i < countValues; i++) {
+    int ret = fprintf(fp,"%.6lf\t%.6lf\t%.0lf\t%.0lf\n", allTimes[i] - firsttime, allTimes[i], allValues[i], allTotal[i]);
+    if (ret <= 0) {
+      fprintf(stderr,"error: trouble writing log file\n");
+      break;
+    }
+  }
+  if (fflush(fp) != 0) {perror("problem flushing");}
+  if (fclose(fp) != 0) {perror("problem closing");}
   free(allValues);
   free(allTimes);
   free(allTotal);
+
+  // now verify
+  if (verifyWrites) {
+    checkContents(label, charbuf, chunkSizes[0], checksum, 1, l->total);
+  }
+   
+  free(buf);
+
 
   
   //  logSpeedHistogram(&previousSpeeds);
@@ -291,8 +304,8 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
 	//	fprintf(stderr,".");
 	ok++;
       }
-    } else {
-      fprintf(stderr,"eek bad aligned read\n");
+      //    } else {
+      //      fprintf(stderr,"eek bad aligned read\n");
     }
     pos += wbytes;
   }
