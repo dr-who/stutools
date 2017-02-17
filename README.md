@@ -16,6 +16,7 @@ Options:
 	-D   (don't use O_DIRECT)
 	-tN  (timeout in N seconds, defaults to 60)
 	-v   (verify writes by checking the checksums)	
+	-fN  (perform fdatasync() every N seconds)
 
 Usage:
 
