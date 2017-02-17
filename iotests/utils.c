@@ -117,7 +117,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     countValues++;
     
     if (countValues >= allocValues) {
-      allocValues = allocValues * 2;
+      allocValues = allocValues * 2 + 2;
       allValues = realloc(allValues, allocValues * sizeof(double));
       allTimes = realloc(allTimes, allocValues * sizeof(double));
       allTotal = realloc(allTotal, allocValues * sizeof(double));
@@ -157,6 +157,13 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   fdatasync(fd);
   fsync(fd);
   close(fd);
+
+  // add the very last value
+  allValues[countValues] = wbytes;
+  allTimes[countValues] = timedouble();
+  allTotal[countValues] = sumBytes;
+  countValues++;
+
   l->lasttime = timedouble();
   if (resetCount > 0) {
     char s[1000];
