@@ -96,14 +96,18 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
     if (writeAction) {
       wbytes = write(fd, charbuf, chunkSizes[0]);
+      if (wbytes < 0) {
+	perror("problem writing");
+	break;
+      }
     } else {
       wbytes = read(fd, charbuf, chunkSizes[0]);
+      if (wbytes < 0) {
+	perror("problem reading");
+	break;
+      }
     }
     if (wbytes == 0) {
-      break;
-    }
-    if (wbytes < 0) {
-      perror("problem");
       break;
     }
 
@@ -201,7 +205,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     firsttime = allTimes[0];
   }
    
-  FILE *fp = fopen(s, "wt"); if (!fp) {perror("problem");exit(1);}
+  FILE *fp = fopen(s, "wt"); if (!fp) {perror("problem creating logfile");exit(1);}
   fprintf(fp,"#time\tbigtime\tchunk\ttotalbytes\n");
   for (size_t i = 0; i < countValues; i++) {
     int ret = fprintf(fp,"%.6lf\t%.6lf\t%.0lf\t%.0lf\n", allTimes[i] - firsttime, allTimes[i], allValues[i], allTotal[i]);
@@ -300,7 +304,7 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
       break;
     }
     if (wbytes < 0) {
-      perror("problem");
+      perror("problem reading");
       break;
     }
     if (wbytes == size) { // only check the right size blocks
