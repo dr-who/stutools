@@ -42,7 +42,7 @@ size_t blockDeviceSize(char *path) {
 }
 
 
-void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites) {
+void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, int flushEverySecs) {
   void *buf = aligned_alloc(65536, maxBufSize);
   if (!buf) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
@@ -71,6 +71,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   double lastg = timedouble();
   int chunkIndex = 0;
   double startTime = timedouble();
+  double lastFdatasync = startTime;
   int resetCount = 5;
   logSpeedType previousSpeeds;
 
@@ -121,6 +122,12 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       allValues = realloc(allValues, allocValues * sizeof(double));
       allTimes = realloc(allTimes, allocValues * sizeof(double));
       allTotal = realloc(allTotal, allocValues * sizeof(double));
+    }
+
+    if (flushEverySecs && (tt - lastFdatasync > flushEverySecs)) {
+      fprintf(stderr,"fdatasync() at %.1lf seconds\n", tt - startTime);
+      fdatasync(fd);
+      lastFdatasync = tt;
     }
     
     if ((tt - lastg) >= outputEvery) {
@@ -218,12 +225,12 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 }
 
 
-void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, int verifyWrites) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites);
+void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, int verifyWrites, int flushEverySecs) {
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs);
 }
 
 void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq, direct, 0);
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq, direct, 0, 0);
 }
 
 

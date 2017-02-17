@@ -22,6 +22,7 @@ int    exitAfterSeconds = 60; // default timeout
 int    useDirect = 1;
 int    isSequential = 1;
 int    verifyWrites = 0;
+int    flushEveryGB = 0;
 
 typedef struct {
   int threadid;
@@ -46,7 +47,7 @@ static void *runThread(void *arg) {
   int chunkSizes[1] = {blockSize};
   int numChunks = 1;
   
-  writeChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, blockSize, OUTPUTINTERVAL, isSequential, useDirect, verifyWrites); // will close fd
+  writeChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, blockSize, OUTPUTINTERVAL, isSequential, useDirect, verifyWrites, flushEveryGB); // will close fd
   threadContext->total = threadContext->logSpeed.total;
 
   return NULL;
@@ -94,7 +95,7 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDIrt:k:v")) != -1) {
+  while ((opt = getopt(argc, argv, "dDIrt:k:vf:")) != -1) {
     switch (opt) {
     case 'I':
       blockSize=4096;
@@ -114,6 +115,9 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 't':
       exitAfterSeconds = atoi(optarg);
+      break;
+    case 'f':
+      flushEveryGB = atoi(optarg);
       break;
     case 'v':
       verifyWrites = 1;
