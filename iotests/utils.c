@@ -136,8 +136,8 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       logSpeedAdd(&previousSpeeds, logSpeedMean(l));
       if (logSpeedN(&previousSpeeds) >= 10) { // at least 10 data points before a reset
 	if (keepRunning) {
-	  double low = logSpeedRank(&previousSpeeds, .1);
-	  double high = logSpeedRank(&previousSpeeds, .9);
+	  double low = logSpeedRank(&previousSpeeds, .25);
+	  double high = logSpeedRank(&previousSpeeds, .75);
 	  double mean = logSpeedMean(&previousSpeeds);
 	  if ((high / low > 1.05) && (mean < low || mean > high) && (resetCount > 0)) { // must be over 5% difference
 	    fprintf(stderr,"  [ %.1lf < %.1lf MiB/s < %.1lf ]\n", low / 1024.0 / 1024, mean / 1024.0 / 1024, high / 1024.0 /1024);
@@ -171,7 +171,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   allTotal[countValues] = sumBytes;
   countValues++;
 
-  l->lasttime = timedouble();
+  l->lasttime = timedouble(); // change time after closing
   if (resetCount > 0) {
     char s[1000];
     sprintf(s, "Total %s speed '%s': %.1lf GiB in %.1f s, mean %.2f MiB/s, %d bytes, %s, %s, n=%zd (stutools %s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], sequential ? "sequential" : "random", direct ? "O_DIRECT" : "pagecache", logSpeedN(l), VERSION, keepRunning ? "" : " - interrupted");
