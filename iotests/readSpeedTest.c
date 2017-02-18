@@ -87,7 +87,7 @@ void startThreads(int argc, char *argv[]) {
     free(threadContext);
     free(pt);
   }
-  shmemUnlink();
+  //  shmemUnlink();
 }
 
 void handle_args(int argc, char *argv[]) {

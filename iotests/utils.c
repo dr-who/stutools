@@ -55,7 +55,7 @@ void shmemWrite() {
   int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
 
   /* configure the size of the shared memory segment */
-  ftruncate(shm_fd,SIZE);
+  (void)ftruncate(shm_fd,SIZE);
 
   /* now map the shared memory segment in the address space of the process */
   void *ptr = mmap(0,SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
@@ -110,7 +110,7 @@ void shmemUnlink() {
 void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs) {
 
   // check
-  shmemCheck();
+  //  shmemCheck();
 
   
   void *buf = aligned_alloc(65536, maxBufSize);
@@ -155,7 +155,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   logSpeedInit(&previousSpeeds);
   
   while (keepRunning) {
-    shmemWrite(); // so other people know we're running!
+    //    shmemWrite(); // so other people know we're running!
 
     if (!sequential) {
 	size_t pos = (rand() % maxblocks) * 4096;
