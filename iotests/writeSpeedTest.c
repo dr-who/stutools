@@ -13,8 +13,8 @@
 #include <signal.h>
 
 #include "utils.h"
-
 #include "logSpeed.h"
+#include "shmem.h"
 
 int    keepRunning = 1;       // have we been interrupted
 size_t blockSize = 1024*1024; // default to 1MiB
@@ -55,6 +55,9 @@ static void *runThread(void *arg) {
 
 void startThreads(int argc, char *argv[]) {
   if (argc > 0) {
+    shmemType s;
+    //    shmemInit(&s);
+    
     size_t threads = argc - 1;
     pthread_t *pt = (pthread_t*) calloc((size_t) threads, sizeof(pthread_t));
     if (pt==NULL) {fprintf(stderr, "OOM(pt): \n");exit(-1);}
@@ -89,8 +92,8 @@ void startThreads(int argc, char *argv[]) {
     fprintf(stderr,"Total %zd bytes, time %.2lf seconds, sum of mean = %.2lf MiB/sec\n", allbytes, maxtime, allmb);
     free(threadContext);
     free(pt);
+    shmemFree(&s);
   }
-  //  shmemUnlink();
 }
 
 void handle_args(int argc, char *argv[]) {

@@ -9,9 +9,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <syslog.h>
-#include <sys/shm.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 
 
 #include "utils.h"
@@ -46,69 +43,6 @@ size_t blockDeviceSize(char *path) {
 }
 
 
-void shmemWrite() {
-  const int SIZE = 4096;
-  const char *name = "stutools";
-  char *message0= username();
-
-  /* create the shared memory segment */
-  int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
-
-  /* configure the size of the shared memory segment */
-  if (ftruncate(shm_fd,SIZE) != 0) {
-    fprintf(stderr,"ftruncate problem\n");
-  }
-
-  /* now map the shared memory segment in the address space of the process */
-  void *ptr = mmap(0,SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-  if (ptr == MAP_FAILED) {
-    fprintf(stderr, "Map failed\n");
-    exit(1);
-  }
-
-  sprintf(ptr,"%lf %s\n", timedouble(), message0);
-  ptr += strlen(message0);
-  free(message0);
-}
-
-void shmemCheck() {
-  const char *name = "stutools";
-  const int SIZE = 4096;
-
-  /* open the shared memory segment */
-  int shm_fd = shm_open(name, O_RDONLY, 0666);
-  if (shm_fd == -1) {
-    // not there
-    return ;
-  } else {
-    fprintf(stderr,"warning: POTENTIAL multiple tests running at once\n");
-  }
-
-  /* now map the shared memory segment in the address space of the process */
-  void * ptr = mmap(0,SIZE, PROT_READ, MAP_SHARED, shm_fd, 0);
-  if (ptr == MAP_FAILED) {
-    fprintf(stderr,"error: can't allocate shmem\n");
-    // it's not there :)
-    exit(1);
-  }
-
-  double time = 0;
-  char s[SIZE];
-  sscanf(ptr, "%lf %s", &time, s);
-
-  fprintf(stderr,"warning: user %s, seconds ago: %.1lf %s\n", s, timedouble() - time, (timedouble() - time < 5) ? " *** NOW *** ": "");
-  
-}
-
-
-void shmemUnlink() {
-  const char *name = "stutools";
-  if (shm_unlink(name) == -1) {
-    printf("Error removing %s\n",name);
-    exit(-1);
-  }
-}
-
 
 double loadAverage() {
   FILE *fp = fopen("/proc/loadavg", "rt");
@@ -117,7 +51,9 @@ double loadAverage() {
     return 0;
   }
   double loadavg = 0;
-  fscanf(fp, "%lf", &loadavg);
+  if (fscanf(fp, "%lf", &loadavg) != 1) {
+    fprintf(stderr,"warning: problem with loadavg\n");
+  }
   fclose(fp);
   return loadavg;
 }
