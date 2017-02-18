@@ -5,16 +5,16 @@ CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -O2
 all: readSpeedTest writeSpeedTest writePairTest 
 
 readSpeedTest: readSpeedTest.c utils.o logSpeed.o
-	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm
+	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm -lrt
 
 writeSpeedTest: writeSpeedTest.c utils.o logSpeed.o
-	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm
+	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm -lrt
 
 writePairTest: writePairTest.o utils.o logSpeed.o
-	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm
+	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm -lrt
 
 mtWriteSpeedTest: mtWriteSpeedTest.o utils.o logSpeed.o
-	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm
+	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm -lrt
 
 mtReadSpeedTest: mtReadSpeedTest.o utils.o logSpeed.o
 	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm

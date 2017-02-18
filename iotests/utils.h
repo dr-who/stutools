@@ -15,6 +15,7 @@ void dropCaches();
 char *username();
 
 void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage, size_t stopatbytes);
+void shmemUnlink();
 
 #endif
 
