@@ -109,10 +109,27 @@ void shmemUnlink() {
   }
 }
 
+
+double loadAverage() {
+  FILE *fp = fopen("/proc/loadavg", "rt");
+  if (fp == NULL) {
+    perror("can't open /proc/loadavg");
+    return 0;
+  }
+  double loadavg = 0;
+  fscanf(fp, "%lf", &loadavg);
+  fclose(fp);
+  return loadavg;
+}
+
+
 void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs) {
 
   // check
   //  shmemCheck();
+  if (loadAverage() > 0.3) {
+    fprintf(stderr,"**WARNING** the load average is > 0.3: it is %g (maybe the machine is busy!?)\n", loadAverage());
+  }
 
   
   void *buf = aligned_alloc(65536, maxBufSize);
