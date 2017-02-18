@@ -55,7 +55,9 @@ void shmemWrite() {
   int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
 
   /* configure the size of the shared memory segment */
-  (void)ftruncate(shm_fd,SIZE);
+  if (ftruncate(shm_fd,SIZE) != 0) {
+    fprintf(stderr,"ftruncate problem\n");
+  }
 
   /* now map the shared memory segment in the address space of the process */
   void *ptr = mmap(0,SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
