@@ -47,10 +47,10 @@ int logSpeedAdd(logSpeedType *l, double value) {
     } 
     // fprintf(stderr,"it's been %zd bytes in %lf time, is %lf, total %zd, %lf,  %lf sec\n", value, timegap, value/timegap, l->total, l->total/logSpeedTime(l), logSpeedTime(l));
     l->values[l->num] = v;
-    l->total += value;
     l->sorted = 0;
     l->num++;
   }
+  l->total += value;
   l->lasttime = thistime; // update time anyway so we don't lie about the next speed
 
   return l->num;
