@@ -159,9 +159,10 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     
     if (countValues >= allocValues) {
       allocValues = allocValues * 2 + 2;
-      allValues = realloc(allValues, allocValues * sizeof(double));
-      allTimes = realloc(allTimes, allocValues * sizeof(double));
-      allTotal = realloc(allTotal, allocValues * sizeof(double));
+      double *ret;
+      ret = realloc(allValues, allocValues * sizeof(double)); if (ret) allValues = ret; // too big, so just stop growing and continue
+      ret = realloc(allTimes, allocValues * sizeof(double)); if (ret) allTimes = ret;
+      ret = realloc(allTotal, allocValues * sizeof(double)); if (ret) allTotal = ret;
     }
 
     if ((flushEverySecs > 0) && (tt - lastFdatasync > flushEverySecs)) {
@@ -209,10 +210,12 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     
 
   // add the very last value
-  allValues[countValues] = wbytes;
-  allTimes[countValues] = timedouble();
-  allTotal[countValues] = sumBytes;
-  countValues++;
+  if (countValues < allocValues) {
+    allValues[countValues] = wbytes;
+    allTimes[countValues] = timedouble();
+    allTotal[countValues] = sumBytes;
+    countValues++;
+  }
 
   l->lasttime = timedouble(); // change time after closing
   if (resetCount > 0) {
@@ -239,18 +242,23 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     firsttime = allTimes[0];
   }
 
-  FILE *fp = fopen(s, "wt"); if (!fp) {perror("problem creating logfile");exit(1);}
-  fprintf(stderr,"writing log/stats file: '%s'\n", s);
-  fprintf(fp,"#time    \tbigtime             \tchunk\ttotalbytes\n");
-  for (size_t i = 0; i < countValues; i++) {
-    int ret = fprintf(fp,"%.6lf\t%.6lf\t%.0lf\t%.0lf\n", allTimes[i] - firsttime, allTimes[i], allValues[i], allTotal[i]);
-    if (ret <= 0) {
-      fprintf(stderr,"error: trouble writing log file\n");
-      break;
+  FILE *fp = fopen(s, "wt"); 
+  if (fp) {
+    fprintf(stderr,"writing log/stats file: '%s'\n", s);
+    fprintf(fp,"#time    \tbigtime             \tchunk\ttotalbytes\n");
+    for (size_t i = 0; i < countValues; i++) {
+      int ret = fprintf(fp,"%.6lf\t%.6lf\t%.0lf\t%.0lf\n", allTimes[i] - firsttime, allTimes[i], allValues[i], allTotal[i]);
+      if (ret <= 0) {
+	fprintf(stderr,"error: trouble writing log file\n");
+	break;
+      }
     }
+    if (fflush(fp) != 0) {perror("problem flushing");}
+    if (fclose(fp) != 0) {perror("problem closing");}
+  } else {
+    perror("problem creating logfile");
   }
-  if (fflush(fp) != 0) {perror("problem flushing");}
-  if (fclose(fp) != 0) {perror("problem closing");}
+	  
   free(allValues);
   free(allTimes);
   free(allTotal);
