@@ -238,9 +238,10 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   if (countValues > 0) {
     firsttime = allTimes[0];
   }
-   
+
   FILE *fp = fopen(s, "wt"); if (!fp) {perror("problem creating logfile");exit(1);}
-  fprintf(fp,"#time\tbigtime\tchunk\ttotalbytes\n");
+  fprintf(stderr,"writing log/stats file: '%s'\n", s);
+  fprintf(fp,"#time    \tbigtime             \tchunk\ttotalbytes\n");
   for (size_t i = 0; i < countValues; i++) {
     int ret = fprintf(fp,"%.6lf\t%.6lf\t%.0lf\t%.0lf\n", allTimes[i] - firsttime, allTimes[i], allValues[i], allTotal[i]);
     if (ret <= 0) {
