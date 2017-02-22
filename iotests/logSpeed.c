@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "logSpeed.h"
 #include "utils.h"
@@ -32,20 +33,25 @@ double logSpeedTime(logSpeedType *l) {
 int logSpeedAdd(logSpeedType *l, double value) {
   const double thistime = timedouble();
   const double timegap = thistime - l->lasttime;
-
-  //  fprintf(stderr,"--> adding %.1lf\n", value);
-
-  if (l->num >= l->alloc) {
-    l->alloc = l->alloc * 2 + 1;
-    l->values = realloc(l->values, l->alloc * sizeof(double)); if (!l->values) {fprintf(stderr,"OOM! realloc failed\n");exit(1);}
-    //    fprintf(stderr,"skipping...\n"); sleep(1);
-  } 
-     // fprintf(stderr,"it's been %zd bytes in %lf time, is %lf, total %zd, %lf,  %lf sec\n", value, timegap, value/timegap, l->total, l->total/logSpeedTime(l), logSpeedTime(l));
-  l->values[l->num] = value / timegap;
-  l->lasttime = thistime;
-  l->total += value;
-  l->sorted = 0;
-  l->num++;
+  
+  const double v = value / timegap;
+  
+  if (isfinite(v)) {
+    
+    //  fprintf(stderr,"--> adding %.1lf\n", value);
+    
+    if (l->num >= l->alloc) {
+      l->alloc = l->alloc * 2 + 1;
+      l->values = realloc(l->values, l->alloc * sizeof(double)); if (!l->values) {fprintf(stderr,"OOM! realloc failed\n");exit(1);}
+      //    fprintf(stderr,"skipping...\n"); sleep(1);
+    } 
+    // fprintf(stderr,"it's been %zd bytes in %lf time, is %lf, total %zd, %lf,  %lf sec\n", value, timegap, value/timegap, l->total, l->total/logSpeedTime(l), logSpeedTime(l));
+    l->values[l->num] = v;
+    l->total += value;
+    l->sorted = 0;
+    l->num++;
+  }
+  l->lasttime = thistime; // update time anyway so we don't lie about the next speed
 
   return l->num;
 }
