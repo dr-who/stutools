@@ -88,11 +88,12 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   if (!sequential) {
     if (isBlockDevice(label)) {
       maxDeviceSize = blockDeviceSize(label);
-      fprintf(stderr,"maxDeviceSize on %s is %.1lf GB\n", label, maxDeviceSize / 1024.0 / 1024 / 1024);
+      fprintf(stderr,"maxDeviceSize on %s is %.1lf GB", label, maxDeviceSize / 1024.0 / 1024 / 1024);
       if (limitGBToProcess > 0) {
 	maxDeviceSize = limitGBToProcess * 1024L * 1024 * 1024;
-	fprintf(stderr,"limited to read size of %.1lf GB (override)\n", maxDeviceSize / 1024.0 / 1024 / 1024);
+	fprintf(stderr,", *override* to %.1lf GB", maxDeviceSize / 1024.0 / 1024 / 1024);
       }
+      fprintf(stderr,"\n");
     } else {
       fprintf(stderr,"error: need to be a block device with the -r option\n");
       exit(1);
@@ -119,7 +120,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     //    shmemWrite(); // so other people know we're running!
 
     if (!sequential) {
-      maxblocks = maxDeviceSize / chunkSizes[0];
+      size_t maxblocks = maxDeviceSize / chunkSizes[0];
       size_t pos = (rand() % maxblocks) * chunkSizes[0];
       //fprintf(stderr,"%zd\n", pos);	
       off_t ret = lseek(fd, pos, SEEK_SET);
