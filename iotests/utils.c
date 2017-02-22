@@ -59,7 +59,7 @@ double loadAverage() {
 }
 
 
-void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs) {
+void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, size_t limitGBToProcess) {
 
   // check
   //  shmemCheck();
@@ -83,10 +83,16 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     checksum += ('A' + (startChar + i) % startMod);
   }
 
-  size_t maxblocks = 0;
+  size_t maxDeviceSize = 0;
+
   if (!sequential) {
-    if (isBlockDevice(label) && ((maxblocks = blockDeviceSize(label)/4096) > 0)) {
-       fprintf(stderr,"max blocks on %s is %zd\n", label, maxblocks);
+    if (isBlockDevice(label)) {
+      maxDeviceSize = blockDeviceSize(label);
+      fprintf(stderr,"maxDeviceSize on %s is %.1lf GB\n", label, maxDeviceSize / 1024.0 / 1024 / 1024);
+      if (limitGBToProcess > 0) {
+	maxDeviceSize = limitGBToProcess * 1024L * 1024 * 1024;
+	fprintf(stderr,"limited to read size of %.1lf GB (override)\n", maxDeviceSize / 1024.0 / 1024 / 1024);
+      }
     } else {
       fprintf(stderr,"error: need to be a block device with the -r option\n");
       exit(1);
@@ -113,12 +119,13 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     //    shmemWrite(); // so other people know we're running!
 
     if (!sequential) {
-	size_t pos = (rand() % maxblocks) * 4096;
- 	//fprintf(stderr,"%zd\n", pos);	
- 	off_t ret = lseek(fd, pos, SEEK_SET);
-	if (ret < 0) {
-	  perror("seek error");
-	}
+      maxblocks = maxDeviceSize / chunkSizes[0];
+      size_t pos = (rand() % maxblocks) * chunkSizes[0];
+      //fprintf(stderr,"%zd\n", pos);	
+      off_t ret = lseek(fd, pos, SEEK_SET);
+      if (ret < 0) {
+	perror("seek error");
+      }
     }
 
     if (writeAction) {
@@ -262,11 +269,11 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
 
 void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, int verifyWrites, float flushEverySecs) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs);
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs, 0);
 }
 
-void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq, direct, 0, 0);
+void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, size_t limitGBToProcess) {
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq, direct, 0, 0, limitGBToProcess);
 }
 
 

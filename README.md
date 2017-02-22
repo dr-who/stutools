@@ -11,7 +11,7 @@ Stu's handy I/O tools
 Options:
 
 	-I   (shortcut to -k4)
-	-r   (random seeks between IO commands)
+	-rN  (random seeks, use at most N GB of the device)
 	-kN  (N KB, e.g. -k4 is 4096 bytes. Default is -k1024 = 1MB)
 	-D   (don't use O_DIRECT)
 	-tN  (timeout in N seconds, defaults to 60)
