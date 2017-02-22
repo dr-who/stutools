@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"direct=%d, blocksize=%zd (%zd KiB), sequential=%d, timeout=%d\n", useDirect, blockSize, blockSize/1024, isSequential, exitAfterSeconds);
+  fprintf(stderr,"direct=%d, blocksize=%zd (%zd KiB), %s, timeout=%d\n", useDirect, blockSize, blockSize/1024, isSequential ? "sequential" : "random", exitAfterSeconds);
   startThreads(argc, argv);
   return 0;
 }
