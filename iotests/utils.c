@@ -172,7 +172,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     
     if ((tt - lastg) >= outputEvery) {
       lastg = tt;
-      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 99%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeedRank(l, 0.01) / 1024.0 / 1024, logSpeedRank(l, 0.99) /1024.0/1024, l->num, tt - l->starttime);
+      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 95%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeedRank(l, 0.01) / 1024.0 / 1024, logSpeedRank(l, 0.95) /1024.0/1024, l->num, tt - l->starttime);
       logSpeedAdd(&previousSpeeds, logSpeedMean(l));
       if (logSpeedN(&previousSpeeds) >= 10) { // at least 10 data points before a reset
 	if (keepRunning) {
