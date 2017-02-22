@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"direct=%d, blocksize=%zd, sequential=%d, timeout=%d\n", useDirect, blockSize, isSequential, exitAfterSeconds);
+  fprintf(stderr,"direct=%d, blocksize=%zd (%zd KB), sequential=%d, timeout=%d\n", useDirect, blockSize, blockSize/1024, isSequential, exitAfterSeconds);
   startThreads(argc, argv);
   return 0;
 }
