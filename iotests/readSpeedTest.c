@@ -94,7 +94,7 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDIr:t:k:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:")) != -1) {
     switch (opt) {
     case 'd':
       useDirect = 1;
@@ -106,9 +106,6 @@ void handle_args(int argc, char *argv[]) {
     case 'k':
       blockSize = atoi(optarg) * 1024;
       if (blockSize < 1024) blockSize = 1024;
-      break;
-    case 'I':
-      blockSize = 4096;
       break;
     case 'r':
       isSequential = 0;

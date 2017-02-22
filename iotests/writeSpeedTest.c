@@ -14,7 +14,6 @@
 
 #include "utils.h"
 #include "logSpeed.h"
-#include "shmem.h"
 
 int    keepRunning = 1;       // have we been interrupted
 size_t blockSize = 1024*1024; // default to 1MiB
@@ -55,8 +54,6 @@ static void *runThread(void *arg) {
 
 void startThreads(int argc, char *argv[]) {
   if (argc > 0) {
-    shmemType s;
-    //    shmemInit(&s);
     
     size_t threads = argc - 1;
     pthread_t *pt = (pthread_t*) calloc((size_t) threads, sizeof(pthread_t));
@@ -92,18 +89,14 @@ void startThreads(int argc, char *argv[]) {
     fprintf(stderr,"Total %zd bytes, time %.2lf seconds, sum of mean = %.2lf MiB/sec\n", allbytes, maxtime, allmb);
     free(threadContext);
     free(pt);
-    shmemFree(&s);
   }
 }
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDIrt:k:vf:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDrt:k:vf:")) != -1) {
     switch (opt) {
-    case 'I':
-      blockSize=4096;
-      break;
     case 'k':
       blockSize=atoi(optarg) * 1024;
       if (blockSize < 1024) blockSize = 1024;
