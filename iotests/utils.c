@@ -228,7 +228,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
   // dump all values to a log file
   char s[1000];
-  sprintf(s, "log-%s", label);
+  sprintf(s, "log-%dKB-%s-%s-%s--%.1lf-MiB_s-%s", chunkSizes[0]/1024, direct ? "direct" : "not-direct", sequential ? "seq" : "rand", label, logSpeedMean(l) / 1024.0 / 1024, writeAction ? "write" : "read");
   for (size_t i = 0; i < strlen(s); i++) {
     if (s[i] == '/') {
       s[i] = '-';
