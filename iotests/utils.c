@@ -59,7 +59,7 @@ double loadAverage() {
 }
 
 
-void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, size_t limitGBToProcess) {
+void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, float limitGBToProcess) {
 
   // check
   //  shmemCheck();
@@ -88,10 +88,10 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   if (!sequential) {
     if (isBlockDevice(label)) {
       maxDeviceSize = blockDeviceSize(label);
-      fprintf(stderr,"maxDeviceSize on %s is %.1lf GB", label, maxDeviceSize / 1024.0 / 1024 / 1024);
+      fprintf(stderr,"deviceSize on %s is %.1lf GB (%.0lf MB)", label, maxDeviceSize / 1024.0 / 1024 / 1024, maxDeviceSize / 1024.0 / 1024);
       if (limitGBToProcess > 0) {
 	maxDeviceSize = limitGBToProcess * 1024L * 1024 * 1024;
-	fprintf(stderr,", *override* to %.1lf GB", maxDeviceSize / 1024.0 / 1024 / 1024);
+	fprintf(stderr,", *override* to %.1lf GB (%.0lf MB)", maxDeviceSize / 1024.0 / 1024 / 1024, maxDeviceSize / 1024.0 / 1024);
       }
       fprintf(stderr,"\n");
     } else {
@@ -121,8 +121,9 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
     if (!sequential) {
       size_t maxblocks = maxDeviceSize / chunkSizes[0];
-      size_t pos = (rand() % maxblocks) * chunkSizes[0];
-      //fprintf(stderr,"%zd\n", pos);	
+      const size_t randblock = rand() % maxblocks;
+      //      fprintf(stderr,"%zd (0..%zd)\n", randblock, maxblocks);	
+      size_t pos = randblock * chunkSizes[0];
       off_t ret = lseek(fd, pos, SEEK_SET);
       if (ret < 0) {
 	perror("seek error");
@@ -200,13 +201,11 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   double startclose = timedouble();
   if (writeAction) {
     fprintf(stderr,"flushing and closing..."); fflush(stderr);
-  }
-  fdatasync(fd);
-  fsync(fd);
-  close(fd);
-  if (writeAction) {
+    fdatasync(fd);
+    fsync(fd);
     fprintf(stderr,"took %.1f seconds\n", timedouble() - startclose);
-  }
+  } 
+  close(fd);
     
 
   // add the very last value
@@ -218,7 +217,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   l->lasttime = timedouble(); // change time after closing
   if (resetCount > 0) {
     char s[1000];
-    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.2f MiB/s, %d B (%d KiB), %s, %s, n=%zd (stutools %s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], chunkSizes[0] / 1024, sequential ? "sequential" : "random", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, VERSION, keepRunning ? "" : " - interrupted");
+    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd (stutools %s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], chunkSizes[0] / 1024, sequential ? "sequential" : "random", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, VERSION, keepRunning ? "" : " - interrupted");
     fprintf(stderr, "%s", s);
     char *user = username();
     syslog(LOG_INFO, "%s - %s", user, s);
@@ -273,7 +272,7 @@ void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t max
   doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs, 0);
 }
 
-void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, size_t limitGBToProcess) {
+void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess) {
   doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq, direct, 0, 0, limitGBToProcess);
 }
 

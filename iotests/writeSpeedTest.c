@@ -86,7 +86,7 @@ void startThreads(int argc, char *argv[]) {
 	logSpeedFree(&threadContext[i].logSpeed);
       }
     }
-    fprintf(stderr,"Total %zd bytes, time %.2lf seconds, sum of mean = %.2lf MiB/sec\n", allbytes, maxtime, allmb);
+    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum of mean = %.1lf MiB/sec\n", allbytes, maxtime, allmb);
     free(threadContext);
     free(pt);
   }

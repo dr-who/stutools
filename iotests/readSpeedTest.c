@@ -19,7 +19,7 @@ size_t blockSize = 1024*1024; // default to 1MiB
 int    exitAfterSeconds = 60; // default timeout
 int    useDirect = 1;
 int    isSequential = 1;   
-size_t limitGBToProcess = 0;
+float  limitGBToProcess = 0;
 
 typedef struct {
   int threadid;
@@ -84,7 +84,7 @@ void startThreads(int argc, char *argv[]) {
       }
       logSpeedFree(&threadContext[i].logSpeed);
     }
-    fprintf(stderr,"Total %zd bytes, time %.2lf seconds, sum of mean = %.2lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
+    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum of mean = %.1lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
     free(threadContext);
     free(pt);
   }
@@ -109,7 +109,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'r':
       isSequential = 0;
-      int l = atoi(optarg); if (l < 0) l = 0;
+      float l = atof(optarg); if (l < 0) l = 0;
       limitGBToProcess = l;
       break;
     case 't':
