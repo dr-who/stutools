@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <ctype.h>
 
 #include "utils.h"
 #include "aioOperations.h"
@@ -59,7 +60,10 @@ void startThreads(int argc, char *argv[]) {
     threadInfoType *threadContext = (threadInfoType*) calloc(threads, sizeof(threadInfoType));
     if (threadContext == NULL) {fprintf(stderr,"OOM(threadContext): \n");exit(-1);}
     for (size_t i = 0; i < threads; i++) {
-      if (argv[i + 1][0] != '-') {
+      char *path = argv[i + 1];
+      size_t len = strlen(path);
+      threadContext[i].threadid = -1;
+      if ((argv[i + 1][0] != '-') && (!isdigit(argv[i + 1][len - 1]))) {
 	threadContext[i].threadid = i;
 	threadContext[i].path = argv[i + 1];
 	logSpeedInit(&threadContext[i].logSpeed);
@@ -71,7 +75,8 @@ void startThreads(int argc, char *argv[]) {
     double allmb = 0;
     double maxtime = 0;
     for (size_t i = 0; i < threads; i++) {
-      if (argv[i + 1][0] != '-') {
+      if (threadContext[i].threadid >= 0) {
+	//      if (argv[i + 1][0] != '-') {
 	pthread_join(pt[i], NULL);
 	volatile size_t t = threadContext[i].total;
 	logSpeedAdd(&threadContext[i].logSpeed, t);
