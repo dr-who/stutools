@@ -34,49 +34,66 @@ void intHandler(int d) {
   keepRunning = 0;
 }
 
-static void *runThread(void *arg) {
+static void *readThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
   int fd = open(threadContext->path, O_RDONLY | O_EXCL | O_DIRECT); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
   }
+  close(fd);
+  fprintf(stderr,"read %s\n", threadContext->path);
   size_t sz = blockDeviceSize(threadContext->path);
-  //  fprintf(stderr,"opened %s, size %zd B (%.0lf GB)\n", threadContext->path, sz, sz / 1024.0 / 1024 / 1024);
-
-
   size_t ret = readNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
-  //  fprintf(stderr,"bytes received %zd\n", ret);
   threadContext->total = ret;
 
+  return NULL;
+}
+
+
+static void *writeThread(void *arg) {
+  threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
+  int fd = open(threadContext->path, O_WRONLY | O_EXCL | O_DIRECT); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
+  if (fd < 0) {
+    perror(threadContext->path);
+    return NULL;
+  }
+  close(fd);
+  fprintf(stderr,"write %s\n", threadContext->path);
+  size_t sz = blockDeviceSize(threadContext->path);
+  size_t ret = writeNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
+
+  threadContext->total = ret;
   return NULL;
 }
 
 void startThreads(int argc, char *argv[]) {
   if (argc > 0) {
     size_t threads = argc - 1;
+    double *readSpeeds = calloc(threads, sizeof(double)); if(!readSpeeds) {perror("oom");exit(1);}
+    double *writeSpeeds = calloc(threads, sizeof(double)); if(!writeSpeeds) {perror("oom");exit(1);}
     pthread_t *pt = (pthread_t*) calloc((size_t) threads, sizeof(pthread_t));
     if (pt==NULL) {fprintf(stderr, "OOM(pt): \n");exit(-1);}
 
     threadInfoType *threadContext = (threadInfoType*) calloc(threads, sizeof(threadInfoType));
     if (threadContext == NULL) {fprintf(stderr,"OOM(threadContext): \n");exit(-1);}
+
+    // READ
     for (size_t i = 0; i < threads; i++) {
       char *path = argv[i + 1];
-      size_t len = strlen(path);
+      const size_t len = strlen(path);
       threadContext[i].threadid = -1;
       if ((argv[i + 1][0] != '-') && (!isdigit(argv[i + 1][len - 1]))) {
 	threadContext[i].threadid = i;
-	threadContext[i].path = argv[i + 1];
+	threadContext[i].path = path;
 	logSpeedInit(&threadContext[i].logSpeed);
 	threadContext[i].total = 0;
-	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
+	pthread_create(&(pt[i]), NULL, readThread, &(threadContext[i]));
       }
     }
     size_t allbytes = 0;
     double allmb = 0;
     double maxtime = 0;
-    FILE *fp = fopen("ok.txt", "wt");
-    if (fp == NULL) {perror("ok.txt");exit(1);}
     
     for (size_t i = 0; i < threads; i++) {
       if (threadContext[i].threadid >= 0) {
@@ -85,22 +102,61 @@ void startThreads(int argc, char *argv[]) {
 	volatile size_t t = threadContext[i].total;
 	logSpeedAdd(&threadContext[i].logSpeed, t);
 	const double s = logSpeedTime(&threadContext[i].logSpeed);
+
+	if (t == 0 || s == 0) {
+	  readSpeeds[i] = 0;
+	} else {
+	  readSpeeds[i] = (t / s) / 1024.0 / 1024;
+	}
+      }
+      //      logSpeedFree(&threadContext[i].logSpeed);
+    }
+
+    // WRITE
+    for (size_t i = 0; i < threads; i++) {
+      if (threadContext[i].threadid >= 0) {
+	logSpeedReset(&threadContext[i].logSpeed);
+	threadContext[i].total = 0;
+	pthread_create(&(pt[i]), NULL, writeThread, &(threadContext[i]));
+      }
+    }
+    
+    for (size_t i = 0; i < threads; i++) {
+      if (threadContext[i].threadid >= 0) {
+	pthread_join(pt[i], NULL);
+	volatile size_t t = threadContext[i].total;
+	logSpeedAdd(&threadContext[i].logSpeed, t);
 	allbytes += t;
 	allmb += logSpeedMean(&(threadContext[i].logSpeed)) / 1024.0 / 1024;
+
+	const double s = logSpeedTime(&threadContext[i].logSpeed);
 	if (s > maxtime) {
 	  maxtime = s;
 	}
-	if ((t > 0) && (s > 0) && ((t / s) / 1024.0 / 1024 > minMBPerSec)) {
-	  fprintf(fp,"%s\n", argv[i + 1]);
-	  fprintf(stderr,"%s: %zd bytes in %.1lf is %.1lf B/s (%.1f MB/s)\n", argv[i + 1], t, s, t / s, (t / s) / 1024.0 / 1024);
+	if (t == 0 || s == 0) {
+	  writeSpeeds[i] = 0;
+	} else {
+	  writeSpeeds[i] = (t / s) / 1024.0 / 1024;
 	}
+	
       }
       logSpeedFree(&threadContext[i].logSpeed);
     }
-    fclose(fp);
     //    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum of mean = %.1lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
+
+
+    FILE *fp = fopen("ok.txt", "wt");
+    if (fp == NULL) {perror("ok.txt");exit(1);}
+
+    // post thread join
+    for (size_t i = 0; i < threads; i++) {
+      fprintf(stderr,"%s : %.0lf  %.0lf\n", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
+    }
+    fclose(fp);
+    
     free(threadContext);
     free(pt);
+    free(readSpeeds);
   }
   //  shmemUnlink();
 }

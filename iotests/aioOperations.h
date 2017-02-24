@@ -3,6 +3,7 @@
 
 
 size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t maxBytes, const float secTimeout);
+size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t maxBytes, const float secTimeout);
 
 
 #endif

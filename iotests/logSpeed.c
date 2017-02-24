@@ -158,7 +158,7 @@ void logSpeedHistogram(logSpeedType *l) {
     double newlow = low + (i * gap);
     double newhigh = low + ((i + 1) * gap);
     
-    fprintf(stderr,"[%.1lf, %.1lf): ", newlow / 1024.0/1024, newhigh / 1024.0/1024);
+    fprintf(stderr,"[%.1lf, %.1lf): ", newlow / 1024.0/1024, newhigh / 1024.0 / 1024);
     double scale = 1.0;
     if (max > 60) {
       scale = 60.0 / max;
