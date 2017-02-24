@@ -2,7 +2,7 @@ GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
 CC=gcc
 CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -O2
 
-all: readSpeedTest writeSpeedTest writePairTest 
+all: readSpeedTest writeSpeedTest writePairTest checkDisks
 
 readSpeedTest: readSpeedTest.c utils.o logSpeed.o 
 	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm
@@ -19,6 +19,8 @@ mtWriteSpeedTest: mtWriteSpeedTest.o utils.o logSpeed.o
 mtReadSpeedTest: mtReadSpeedTest.o utils.o logSpeed.o 
 	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm
 
+checkDisks: checkDisks.o utils.o logSpeed.o aioOperations.o
+	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm -laio
 
 utils.o: utils.c utils.h
 
@@ -26,10 +28,12 @@ logSpeed.o: logSpeed.c logSpeed.h
 
 shmem.o: shmem.c shmem.h
 
+aioOperations.o: aioOperations.c aioOperations.h
+
 logSpeedTest: logSpeedTest.o utils.o logSpeed.o
 
 clean:
 	- rm -f readSpeedTest writeSpeedTest writePairTest logSpeedTest *.o \
-	mtReadSpeedTest mtWriteSpeedTest
+	mtReadSpeedTest mtWriteSpeedTest checkDisks
 
 

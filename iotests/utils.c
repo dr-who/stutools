@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <syslog.h>
+#include <errno.h>
 
 
 #include "utils.h"
