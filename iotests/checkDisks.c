@@ -42,7 +42,6 @@ static void *readThread(void *arg) {
     return NULL;
   }
   close(fd);
-  fprintf(stderr,"read %s\n", threadContext->path);
   size_t sz = blockDeviceSize(threadContext->path);
   size_t ret = readNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
   threadContext->total = ret;
@@ -59,7 +58,6 @@ static void *writeThread(void *arg) {
     return NULL;
   }
   close(fd);
-  fprintf(stderr,"write %s\n", threadContext->path);
   size_t sz = blockDeviceSize(threadContext->path);
   size_t ret = writeNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
 
