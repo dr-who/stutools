@@ -48,7 +48,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
     }
     //    cbs[0]->u.c.offset = sz;
     ret = io_submit(ctx, 1, cbs);
-    if (!keepRunning) return 0;
+    if (!keepRunning) break;
     if (ret != 1) {
       fprintf(stderr,"eek i=%zd %d\n", i, ret);
     } else {
@@ -65,6 +65,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
     ret = io_getevents(ctx, 0, 102, events, NULL);
 
     if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+      close(fd);
       return bytesReceived;
     }
 
@@ -80,9 +81,10 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
     //	  ret = io_destroy(ctx);
     if (ret < 0) {
       perror("io_destroy");
-      return -1;
+      break;
     }
   }
+  close(fd);
   return bytesReceived;
 }
 
@@ -127,7 +129,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
     }
     //    cbs[0]->u.c.offset = sz;
     ret = io_submit(ctx, 1, cbs);
-    if (!keepRunning) return 0;
+    if (!keepRunning) break;
     if (ret != 1) {
       fprintf(stderr,"eek i=%zd %d\n", i, ret);
     } else {
@@ -144,6 +146,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
     ret = io_getevents(ctx, 0, 102, events, NULL);
 
     if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+      close(fd);
       return bytesReceived;
     }
 
@@ -159,8 +162,9 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
     //	  ret = io_destroy(ctx);
     if (ret < 0) {
       perror("io_destroy");
-      return -1;
+      break;
     }
   }
+  close(fd);
   return bytesReceived;
 }
