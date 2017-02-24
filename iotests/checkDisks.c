@@ -95,7 +95,6 @@ void startThreads(int argc, char *argv[]) {
     
     for (size_t i = 0; i < threads; i++) {
       if (threadContext[i].threadid >= 0) {
-	//      if (argv[i + 1][0] != '-') {
 	pthread_join(pt[i], NULL);
 	volatile size_t t = threadContext[i].total;
 	logSpeedAdd(&threadContext[i].logSpeed, t);
@@ -149,12 +148,14 @@ void startThreads(int argc, char *argv[]) {
     // post thread join
     fprintf(stderr,"Path     \tRead\tWrite\n");
     for (size_t i = 0; i < threads; i++) {
-      fprintf(stderr,"%s\t%.0lf\t%.0lf", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
-      if (readSpeeds[i] > minMBPerSec && writeSpeeds[i] > minMBPerSec) {
-	fprintf(stderr,"\tOK\n");
-	fprintf(fp, "%s\n", argv[i + 1]);
-      } else {
-	fprintf(stderr,"\tx\n");
+      if (threadContext[i].threadid >= 0) {
+	fprintf(stderr,"%s\t%.0lf\t%.0lf", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
+	if (readSpeeds[i] > minMBPerSec && writeSpeeds[i] > minMBPerSec) {
+	  fprintf(stderr,"\tOK\n");
+	  fprintf(fp, "%s\n", argv[i + 1]);
+	} else {
+	  fprintf(stderr,"\tx\n");
+	}
       }
     }
     fclose(fp);
