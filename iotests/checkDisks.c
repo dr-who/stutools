@@ -151,7 +151,7 @@ void startThreads(int argc, char *argv[]) {
     for (size_t i = 0; i < threads; i++) {
       fprintf(stderr,"%s\t%.0lf\t%.0lf", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
       if (readSpeeds[i] > minMBPerSec && writeSpeeds[i] > minMBPerSec) {
-	fprintf(stderr,"\tOK");
+	fprintf(stderr,"\tOK\n");
 	fprintf(fp, "%s\n", argv[i + 1]);
       } else {
 	fprintf(stderr,"\tx\n");
