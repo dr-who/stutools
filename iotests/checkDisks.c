@@ -148,7 +148,10 @@ void startThreads(int argc, char *argv[]) {
 
     // post thread join
     for (size_t i = 0; i < threads; i++) {
-      fprintf(stderr,"%s : %.0lf  %.0lf\n", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
+      if (readSpeeds[i] > minMBPerSec && writeSpeeds[i] > minMBPerSec) {
+	fprintf(stderr,"%s: %.0lf  %.0lf\n", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
+	fprintf(fp, "%s\n", argv[i + 1]);
+      }
     }
     fclose(fp);
     
