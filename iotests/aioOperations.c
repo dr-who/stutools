@@ -20,7 +20,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
   int ret;
   int fd;
 
-  fprintf(stderr,"%s: %.1lf GB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
+  fprintf(stderr,"read %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
 
   fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
   if (fd < 0) {perror("open");return -1; }
@@ -101,7 +101,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
   int ret;
   int fd;
 
-  fprintf(stderr,"%s: %.1lf GB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
+  fprintf(stderr,"write %s: %.0lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
 
   fd = open(path, O_WRONLY | O_EXCL | O_DIRECT);
   if (fd < 0) {perror("open");return -1; }

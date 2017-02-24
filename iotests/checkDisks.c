@@ -147,9 +147,10 @@ void startThreads(int argc, char *argv[]) {
     if (fp == NULL) {perror("ok.txt");exit(1);}
 
     // post thread join
+    fprintf(stderr,"path\tRead\tWrite\n");
     for (size_t i = 0; i < threads; i++) {
       if (readSpeeds[i] > minMBPerSec && writeSpeeds[i] > minMBPerSec) {
-	fprintf(stderr,"%s: %.0lf  %.0lf\n", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
+	fprintf(stderr,"%s\t%.0lf\t%.0lf\n", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
 	fprintf(fp, "%s\n", argv[i + 1]);
       }
     }
