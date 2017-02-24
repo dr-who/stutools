@@ -19,6 +19,7 @@
 int    keepRunning = 1;       // have we been interrupted
 size_t blockSize = 1024*1024; // default to 1MiB
 int    exitAfterSeconds = 5; // default timeout
+size_t minMBPerSec = 10;
 
 typedef struct {
   int threadid;
@@ -74,6 +75,9 @@ void startThreads(int argc, char *argv[]) {
     size_t allbytes = 0;
     double allmb = 0;
     double maxtime = 0;
+    FILE *fp = fopen("ok.txt", "wt");
+    if (fp == NULL) {perror("ok.txt");exit(1);}
+    
     for (size_t i = 0; i < threads; i++) {
       if (threadContext[i].threadid >= 0) {
 	//      if (argv[i + 1][0] != '-') {
@@ -86,10 +90,14 @@ void startThreads(int argc, char *argv[]) {
 	if (s > maxtime) {
 	  maxtime = s;
 	}
-	fprintf(stderr,"%s: %zd bytes in %.1lf is %.1lf B/s (%.1f MB/s)\n", argv[i + 1], t, s, t / s, (t / s) / 1024.0 / 1024);
+	if ((t > 0) && (s > 0) && ((t / s) / 1024.0 / 1024 > minMBPerSec)) {
+	  fprintf(fp,"%s\n", argv[i + 1]);
+	  fprintf(stderr,"%s: %zd bytes in %.1lf is %.1lf B/s (%.1f MB/s)\n", argv[i + 1], t, s, t / s, (t / s) / 1024.0 / 1024);
+	}
       }
       logSpeedFree(&threadContext[i].logSpeed);
     }
+    fclose(fp);
     //    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum of mean = %.1lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
     free(threadContext);
     free(pt);
@@ -100,7 +108,7 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "t:k:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:m:")) != -1) {
     switch (opt) {
     case 'k':
       blockSize = atoi(optarg) * 1024;
@@ -108,6 +116,10 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 't':
       exitAfterSeconds = atoi(optarg);
+      break;
+    case 'm':
+      minMBPerSec = atoi(optarg);
+      if (minMBPerSec < 0) minMBPerSec = 0;
       break;
     }
   }
@@ -117,7 +129,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"checking disks, blocksize=%zd (%zd KiB), timeout=%d\n", blockSize, blockSize/1024, exitAfterSeconds);
+  fprintf(stderr,"checking disks, blocksize=%zd (%zd KiB), timeout=%d, min %zd MB/s\n", blockSize, blockSize/1024, exitAfterSeconds, minMBPerSec);
   startThreads(argc, argv);
   return 0;
 }
