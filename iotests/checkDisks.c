@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <ctype.h>
+#include <syslog.h>
 
 #include "utils.h"
 #include "aioOperations.h"
@@ -142,6 +143,7 @@ void startThreads(int argc, char *argv[]) {
     //    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum of mean = %.1lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
 
 
+    size_t numok = 0;
     FILE *fp = fopen("ok.txt", "wt");
     if (fp == NULL) {perror("ok.txt");exit(1);}
 
@@ -151,6 +153,7 @@ void startThreads(int argc, char *argv[]) {
       if (threadContext[i].threadid >= 0) {
 	fprintf(stderr,"%s\t%.0lf\t%.0lf", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
 	if (readSpeeds[i] > minMBPerSec && writeSpeeds[i] > minMBPerSec) {
+	  numok++;
 	  fprintf(stderr,"\tOK\n");
 	  fprintf(fp, "%s\n", argv[i + 1]);
 	} else {
@@ -159,10 +162,16 @@ void startThreads(int argc, char *argv[]) {
       }
     }
     fclose(fp);
+
+    char *user = username();
+    syslog(LOG_INFO, "%s - has %zd drives in ok.txt (stutools %s)", user, numok, VERSION);
+    free(user);
+
     
     free(threadContext);
     free(pt);
     free(readSpeeds);
+    free(writeSpeeds);
   }
   //  shmemUnlink();
 }
