@@ -38,7 +38,7 @@ static void *readThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
   int fd = open(threadContext->path, O_RDONLY | O_EXCL | O_DIRECT); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
   if (fd < 0) {
-    perror(threadContext->path);
+    //    perror(threadContext->path);
     return NULL;
   }
   close(fd);
@@ -54,7 +54,7 @@ static void *writeThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
   int fd = open(threadContext->path, O_WRONLY | O_EXCL | O_DIRECT); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
   if (fd < 0) {
-    perror(threadContext->path);
+    //    perror(threadContext->path);
     return NULL;
   }
   close(fd);
@@ -147,11 +147,14 @@ void startThreads(int argc, char *argv[]) {
     if (fp == NULL) {perror("ok.txt");exit(1);}
 
     // post thread join
-    fprintf(stderr,"path\tRead\tWrite\n");
+    fprintf(stderr,"Path     \tRead\tWrite\n");
     for (size_t i = 0; i < threads; i++) {
+      fprintf(stderr,"%s\t%.0lf\t%.0lf", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
       if (readSpeeds[i] > minMBPerSec && writeSpeeds[i] > minMBPerSec) {
-	fprintf(stderr,"%s\t%.0lf\t%.0lf\n", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
+	fprintf(stderr,"\tOK");
 	fprintf(fp, "%s\n", argv[i + 1]);
+      } else {
+	fprintf(stderr,"\tx\n");
       }
     }
     fclose(fp);
