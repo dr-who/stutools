@@ -8,6 +8,8 @@ Stu's handy I/O tools:
 
 	./writePairTest  -- writes to all combinations of 2 disks in 2 threads, plus analysis
 
+	./checkDisks     -- checks that we can ok, read and write to each disk
+
 Options:
 
 	-rN  (random seeks, use at most N GB of the device)
@@ -28,4 +30,9 @@ Usage:
 	./readSpeedTest -t10 -D /dev/sdb (non-direct)
 
 	./readSpeedTest -t20 /dev/sdc (direct test, 20s timeout)
+
+	./checkDisks /dev/sd* (check we can open all the disks)
+
+	./checkDisks -m40 /dev/sd* (check we can open all the disks and limit to those over 40MB/s)
+	
  
