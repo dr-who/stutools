@@ -145,7 +145,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       }
     }
     if (wbytes == 0) {
-      fprintf(stderr,"eod: rewinding\n");
+      //      fprintf(stderr,"eod: rewinding\n");
       lseek(fd, 0, SEEK_SET); // run until timeout
       continue;
       //     break;
