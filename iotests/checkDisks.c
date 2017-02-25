@@ -69,6 +69,7 @@ static void *writeThread(void *arg) {
 void startThreads(int argc, char *argv[]) {
   if (argc > 0) {
     size_t threads = argc - 1;
+    size_t *blockSz = calloc(threads, sizeof(size_t)); if(!blockSz) {perror("oom");exit(1);}
     double *readSpeeds = calloc(threads, sizeof(double)); if(!readSpeeds) {perror("oom");exit(1);}
     double *writeSpeeds = calloc(threads, sizeof(double)); if(!writeSpeeds) {perror("oom");exit(1);}
     pthread_t *pt = (pthread_t*) calloc((size_t) threads, sizeof(pthread_t));
@@ -83,6 +84,7 @@ void startThreads(int argc, char *argv[]) {
       const size_t len = strlen(path);
       threadContext[i].threadid = -1;
       if ((argv[i + 1][0] != '-') && (!isdigit(argv[i + 1][len - 1]))) {
+	blockSz[i] = blockDeviceSize(path);
 	threadContext[i].threadid = i;
 	threadContext[i].path = path;
 	logSpeedInit(&threadContext[i].logSpeed);
@@ -148,10 +150,10 @@ void startThreads(int argc, char *argv[]) {
     if (fp == NULL) {perror("ok.txt");exit(1);}
 
     // post thread join
-    fprintf(stderr,"Path     \tRead\tWrite\n");
+    fprintf(stderr,"Path     \tGB\tRead\tWrite\n");
     for (size_t i = 0; i < threads; i++) {
       if (threadContext[i].threadid >= 0) {
-	fprintf(stderr,"%s\t%.0lf\t%.0lf", argv[i + 1], readSpeeds[i], writeSpeeds[i]);
+	fprintf(stderr,"%s\t%.0lf\t%.0lf\t%.0lf", argv[i + 1], blockSz[i] / 1024.0 / 1024 / 1024, readSpeeds[i], writeSpeeds[i]);
 	if (readSpeeds[i] > minMBPerSec && writeSpeeds[i] > minMBPerSec) {
 	  numok++;
 	  fprintf(stderr,"\tOK\n");
@@ -200,7 +202,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"checking disks, blocksize=%zd (%zd KiB), timeout=%d, min %zd MB/s\n", blockSize, blockSize/1024, exitAfterSeconds, minMBPerSec);
+  fprintf(stderr,"checking disks: blocksize=%zd (%zd KiB), timeout=%d, min=%zd MiB/s\n", blockSize, blockSize/1024, exitAfterSeconds, minMBPerSec);
   startThreads(argc, argv);
   return 0;
 }
