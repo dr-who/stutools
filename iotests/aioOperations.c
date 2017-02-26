@@ -88,7 +88,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
       //      fprintf(stderr, "events: ret %d, seen %zd, total %zd\n", ret, seen, bytesReceived);
     } else {
       //            fprintf(stderr,".");
-      //      usleep(1);
+      usleep(1);
     }
     //	  ret = io_destroy(ctx);
     if (ret < 0) {
@@ -166,27 +166,27 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
 	  //      fprintf(stderr,"red %d\n", ret);
 	}
       }
-
-      ret = io_getevents(ctx, 0, MAXDEPTH, events, NULL);
+    }
+    
+    ret = io_getevents(ctx, 0, MAXDEPTH, events, NULL);
+    
+    if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+      break;
+    }
+    
+    if (ret > 0) {
+      inFlight -= ret;
       
-      if ((!keepRunning) || (timedouble() - start > secTimeout)) {
-	break;
-      }
-      
-      if (ret > 0) {
-	inFlight -= ret;
-	
-	bytesReceived += (ret * BLKSIZE);
-	//      fprintf(stderr, "events: ret %d, seen %zd, total %zd\n", ret, seen, bytesReceived);
-      } else {
-	//            fprintf(stderr,".");
-	//      usleep(0);
-      }
-      //	  ret = io_destroy(ctx);
-      if (ret < 0) {
-	perror("io_destroy");
-	break;
-      }
+      bytesReceived += (ret * BLKSIZE);
+      //      fprintf(stderr, "events: ret %d, seen %zd, total %zd\n", ret, seen, bytesReceived);
+    } else {
+      //            fprintf(stderr,".");
+      usleep(1);
+    }
+    //	  ret = io_destroy(ctx);
+    if (ret < 0) {
+      perror("io_destroy");
+      break;
     }
   }
   close(fd);
