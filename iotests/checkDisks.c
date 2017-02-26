@@ -45,13 +45,14 @@ static void *readThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
   int fd = open(threadContext->path, O_RDONLY | O_EXCL | O_DIRECT); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
   if (fd < 0) {
-    //    perror(threadContext->path);
+    perror(threadContext->path);
     return NULL;
   }
   close(fd);
 
   size_t sz = blockDeviceSize(threadContext->path);
   if (sz == 0) {
+    fprintf(stderr,"empty\n");
     return NULL;
   }
   
@@ -71,7 +72,7 @@ static void *writeThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
   int fd = open(threadContext->path, O_WRONLY | O_EXCL | O_DIRECT); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
   if (fd < 0) {
-    //    perror(threadContext->path);
+    perror(threadContext->path);
     return NULL;
   }
   close(fd);
@@ -79,6 +80,7 @@ static void *writeThread(void *arg) {
 
   size_t sz = blockDeviceSize(threadContext->path);
   if (sz == 0) {
+    fprintf(stderr,"empty\n");
     return NULL;
   }
 

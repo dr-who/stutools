@@ -10,7 +10,7 @@
 
 extern int keepRunning;
 
-#define MAXDEPTH 128
+#define MAXDEPTH 64
 
 size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout) {
   io_context_t ctx;
@@ -28,8 +28,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
   ctx = 0;
 
   size_t inFlight = 0;
-  
-  
+
   // set the queue depth
   ret = io_setup(MAXDEPTH, &ctx);
   if (ret < 0) {perror("io_setup");return -1;}
@@ -61,7 +60,11 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
 	ret = io_submit(ctx, 1, cbs);
 	inFlight++;
 	
-	if (!keepRunning) break;
+	if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+	  //	  fprintf(stderr,"timeout\n");
+	  close(fd);
+	  return bytesReceived;
+	}
 	if (ret != 1) {
 	  fprintf(stderr,"eek i=%zd %d\n", i, ret);
 	} else {
@@ -151,7 +154,12 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
 	//    cbs[0]->u.c.offset = sz;
 	ret = io_submit(ctx, 1, cbs);
 	inFlight++;
-	if (!keepRunning) break;
+	
+	if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+	  //	  fprintf(stderr,"timeout2\n");
+	  close(fd);
+	  return bytesReceived;
+	}
 	if (ret != 1) {
 	  fprintf(stderr,"eek i=%zd %d\n", i, ret);
 	} else {
@@ -159,7 +167,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
 	}
       }
 
-      ret = io_getevents(ctx, 0, 102, events, NULL);
+      ret = io_getevents(ctx, 0, MAXDEPTH, events, NULL);
       
       if ((!keepRunning) || (timedouble() - start > secTimeout)) {
 	break;
