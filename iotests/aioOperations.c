@@ -16,7 +16,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
   io_context_t ctx;
   struct iocb *cbs[1];
   char *data;
-  struct io_event events[1024];
+  struct io_event events[MAXDEPTH];
   int ret;
   int fd;
 
@@ -39,6 +39,9 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
 
   cbs[0] = malloc(sizeof(struct iocb));
 
+  size_t maxBlocks = sz / BLKSIZE;
+  srand(sz + fd);
+
   double start = timedouble();
   size_t bytesReceived = 0;
 
@@ -48,10 +51,10 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
       
       // submit requests
       for (size_t i = 0; i < (MAXDEPTH - inFlight); i++) {
-	size_t newpos =  (i * BLKSIZE);
+	size_t newpos = (rand() % maxBlocks) * BLKSIZE;
 	if (newpos > sz) {
 	  newpos = newpos % sz; // set to zero and warn
-	  //      fprintf(stderr,"newpos truncated to 0\n");
+	  fprintf(stderr,"newpos truncated to 0\n");
 	}
 	// setup the read request
 	io_prep_pread(cbs[0], fd, data, BLKSIZE, newpos);
@@ -109,7 +112,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
   io_context_t ctx;
   struct iocb *cbs[1];
   char *data;
-  struct io_event events[1024];
+  struct io_event events[MAXDEPTH];
   int ret;
   int fd;
 

@@ -20,8 +20,8 @@
 int    keepRunning = 1;       // have we been interrupted
 int    readySetGo = 0;
 size_t blockSize = 1024*1024; // default to 1MiB
-int    exitAfterSeconds = 5; // default timeout
-size_t minMBPerSec = 10;
+int    exitAfterSeconds = 10; // default timeout
+size_t minMBPerSec = 30;
 
 typedef struct {
   int threadid;
@@ -142,6 +142,7 @@ void startThreads(int argc, char *argv[]) {
     }
 
     readySetGo = 0; // don't start yet
+    keepRunning = 1;
 
     // WRITE
     for (size_t i = 0; i < threads; i++) {
