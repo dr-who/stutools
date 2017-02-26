@@ -14,6 +14,8 @@ int isBlockDevice(char *name);
 void dropCaches();
 char *username();
 
+char* queueType(char *path);
+
 void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage, size_t stopatbytes);
 void shmemUnlink();
 

@@ -63,9 +63,8 @@ double loadAverage() {
 void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, float limitGBToProcess) {
 
   // check
-  //  shmemCheck();
-  if (loadAverage() > 0.3) {
-    fprintf(stderr,"**WARNING** the load average is > 0.3: it is %g (maybe the machine is busy!?)\n", loadAverage());
+  if (loadAverage() > 1.0) {
+    fprintf(stderr,"**WARNING** the load average is %g (maybe the machine is busy!?)\n", loadAverage());
   }
 
   
@@ -134,13 +133,17 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     if (writeAction) {
       wbytes = write(fd, charbuf, chunkSizes[0]);
       if (wbytes < 0) {
-	perror("problem writing");
+	//	perror("problem writing");
+	lseek(fd, 0, SEEK_SET);
+	continue;
 	break;
       }
     } else {
       wbytes = read(fd, charbuf, chunkSizes[0]);
       if (wbytes < 0) {
-	perror("problem reading");
+	//	perror("problem reading");
+	lseek(fd, 0, SEEK_SET);
+	continue;
 	break;
       }
     }
@@ -316,6 +319,24 @@ void dropCaches() {
 }
 
 
+char* queueType(char *path) {
+  FILE *fp = fopen("/sys/block/sda/device/queue_type", "rt");
+  if (fp == NULL) {
+    perror("problem opening");
+    //    exit(1);
+  }
+  char instr[100];
+  size_t r = fscanf(fp, "%s", instr);
+  fclose(fp);
+  if (r != 1) {
+    return strdup("n/a");
+    //    fprintf(stderr,"error: problem reading from '%s'\n", path);
+    //    exit(1);
+  }
+  return strdup(instr);
+}
+
+
 char *username() {
   char *buf = calloc(200, 1); if (buf == NULL) exit(-1);
   getlogin_r(buf, 200);
@@ -395,4 +416,5 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
   free(rawbuf);
 }
 
-  
+
+
