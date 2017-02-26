@@ -27,6 +27,9 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
 
   ctx = 0;
 
+  size_t inFlight = 0;
+  
+  
   // set the queue depth
   ret = io_setup(MAXDEPTH, &ctx);
   if (ret < 0) {perror("io_setup");return -1;}
@@ -34,49 +37,55 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
   /* setup I/O control block */
   data = aligned_alloc(4096, BLKSIZE); if (!data) {perror("oom"); exit(1);}
   memset(data, 'A', BLKSIZE);
+
   cbs[0] = malloc(sizeof(struct iocb));
 
-  // setup the read request
-  io_prep_pread(cbs[0], fd, data, BLKSIZE, 0);
-
-  // submit requests
-  for (size_t i = 0 ;i < MAXDEPTH ;i ++) {
-    size_t newpos = (i * BLKSIZE);
-    if (newpos > sz) {
-      newpos = newpos - sz; // set to zero and warn
-      //      fprintf(stderr,"newpos truncated to 0\n");
-    }
-    //    cbs[0]->u.c.offset = sz;
-    ret = io_submit(ctx, 1, cbs);
-    if (!keepRunning) break;
-    if (ret != 1) {
-      fprintf(stderr,"eek i=%zd %d\n", i, ret);
-    } else {
-      //      fprintf(stderr,"red %d\n", ret);
-    }
-  }
-
   double start = timedouble();
-  /* get reply */
-  //  fprintf(stderr,"waiting for results\n");
-  size_t seen = 0;
   size_t bytesReceived = 0;
+
   while (1) {
-    ret = io_getevents(ctx, 0, 102, events, NULL);
+    if (inFlight < MAXDEPTH) {
+      
+      
+      // submit requests
+      for (size_t i = 0; i < (MAXDEPTH - inFlight); i++) {
+	size_t newpos =  (i * BLKSIZE);
+	if (newpos > sz) {
+	  newpos = newpos % sz; // set to zero and warn
+	  //      fprintf(stderr,"newpos truncated to 0\n");
+	}
+	// setup the read request
+	io_prep_pread(cbs[0], fd, data, BLKSIZE, newpos);
+
+	//    cbs[0]->u.c.offset = sz;
+	ret = io_submit(ctx, 1, cbs);
+	inFlight++;
+	
+	if (!keepRunning) break;
+	if (ret != 1) {
+	  fprintf(stderr,"eek i=%zd %d\n", i, ret);
+	} else {
+	  //      fprintf(stderr,"red %d\n", ret);
+	}
+      }
+    }
+
+    ret = io_getevents(ctx, 0, MAXDEPTH, events, NULL);
 
     if ((!keepRunning) || (timedouble() - start > secTimeout)) {
-      close(fd);
-      return bytesReceived;
+      break;
     }
 
     if (ret > 0) {
-      seen += ret;
+      inFlight-= ret;
+
+      //      fprintf(stderr,"in flight %zd\n", inFlight);
+      
       bytesReceived += (ret * BLKSIZE);
       //      fprintf(stderr, "events: ret %d, seen %zd, total %zd\n", ret, seen, bytesReceived);
-      if (seen >= MAXDEPTH) break;
     } else {
       //            fprintf(stderr,".");
-      usleep(1);
+      //      usleep(1);
     }
     //	  ret = io_destroy(ctx);
     if (ret < 0) {
@@ -121,50 +130,55 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
   // submit requests
   size_t maxBlocks = sz / BLKSIZE;
   srand(sz + fd);
-  for (size_t i = 0 ;i < MAXDEPTH ;i ++) {
-    size_t newpos = (rand() % maxBlocks) * BLKSIZE;
-    if (newpos > sz) {
-      newpos = sz; // set to zero and warn
-      fprintf(stderr,"newpos truncated to 0\n");
-    }
-    // setup the read request
-    io_prep_pwrite(cbs[0], fd, data, BLKSIZE, sz);
-    //    cbs[0]->u.c.offset = sz;
-    ret = io_submit(ctx, 1, cbs);
-    if (!keepRunning) break;
-    if (ret != 1) {
-      fprintf(stderr,"eek i=%zd %d\n", i, ret);
-    } else {
-      //      fprintf(stderr,"red %d\n", ret);
-    }
-  }
+
 
   double start = timedouble();
-  /* get reply */
-  //  fprintf(stderr,"waiting for results\n");
-  size_t seen = 0;
   size_t bytesReceived = 0;
+  size_t inFlight = 0;
+
   while (1) {
-    ret = io_getevents(ctx, 0, 102, events, NULL);
+    if (inFlight < MAXDEPTH) {
 
-    if ((!keepRunning) || (timedouble() - start > secTimeout)) {
-      close(fd);
-      return bytesReceived;
-    }
+      for (size_t i = 0 ; i < (MAXDEPTH - inFlight) ; i++) {
+	size_t newpos = (rand() % maxBlocks) * BLKSIZE;
+	if (newpos > sz) {
+	  newpos = newpos % sz; // set to zero and warn
+	  fprintf(stderr,"newpos truncated to 0\n");
+	}
+	// setup the read request
+	io_prep_pwrite(cbs[0], fd, data, BLKSIZE, newpos);
+	
+	//    cbs[0]->u.c.offset = sz;
+	ret = io_submit(ctx, 1, cbs);
+	inFlight++;
+	if (!keepRunning) break;
+	if (ret != 1) {
+	  fprintf(stderr,"eek i=%zd %d\n", i, ret);
+	} else {
+	  //      fprintf(stderr,"red %d\n", ret);
+	}
+      }
 
-    if (ret > 0) {
-      seen += ret;
-      bytesReceived += (ret * BLKSIZE);
-      //      fprintf(stderr, "events: ret %d, seen %zd, total %zd\n", ret, seen, bytesReceived);
-      if (seen >= MAXDEPTH) break;
-    } else {
-      //            fprintf(stderr,".");
-      usleep(1);
-    }
-    //	  ret = io_destroy(ctx);
-    if (ret < 0) {
-      perror("io_destroy");
-      break;
+      ret = io_getevents(ctx, 0, 102, events, NULL);
+      
+      if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+	break;
+      }
+      
+      if (ret > 0) {
+	inFlight -= ret;
+	
+	bytesReceived += (ret * BLKSIZE);
+	//      fprintf(stderr, "events: ret %d, seen %zd, total %zd\n", ret, seen, bytesReceived);
+      } else {
+	//            fprintf(stderr,".");
+	//      usleep(0);
+      }
+      //	  ret = io_destroy(ctx);
+      if (ret < 0) {
+	perror("io_destroy");
+	break;
+      }
     }
   }
   close(fd);

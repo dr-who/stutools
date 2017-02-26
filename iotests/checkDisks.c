@@ -164,7 +164,7 @@ void startThreads(int argc, char *argv[]) {
 
 	const double s = logSpeedTime(&threadContext[i].logSpeed);
 
-		const double speed = (t / s) / 1024.0 / 1024;
+	const double speed = (t / s) / 1024.0 / 1024;
 	if (t == 0 || s <= 0.1 || speed > 100000) { // 100GB/s sanity check
 	  writeSpeeds[i] = 0;
 	} else {
