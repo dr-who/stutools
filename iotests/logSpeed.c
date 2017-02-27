@@ -73,7 +73,7 @@ double logSpeedTotal(logSpeedType *l) {
 void logSpeedSort(logSpeedType *l) {
   if (!l->sorted) {
     //    fprintf(stderr,"sorting\n");
-    qsort(l->values, l->num, sizeof(size_t), comparisonFunction);
+    qsort(l->values, l->num, sizeof(double), comparisonFunction);
     l->sorted = 1;
     if (l->num >= 20000) {
       for (size_t i = 0; i < l->num/4; i++) {

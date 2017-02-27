@@ -191,9 +191,9 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 	    fprintf(stderr,"  [ %.1lf < %.1lf MiB/s < %.1lf ]\n", low / 1024.0 / 1024, mean / 1024.0 / 1024, high / 1024.0 /1024);
 	    fprintf(stderr,"resetting due to volatile timings (%d resets remain)\n", resetCount);
 	    resetCount--;
+	    startTime = tt;
 	    logSpeedReset(l);
 	    logSpeedReset(&previousSpeeds);
-	    startTime = tt;
 	  }
 	}
       }
@@ -201,7 +201,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     if (chunkIndex >= numChunks) {
       chunkIndex = 0;
     }
-    if (tt - startTime > maxTime) {
+    if (maxTime && (tt - startTime > maxTime)) {
       //fprintf(stderr,"timer triggered after %zd seconds\n", maxTime);
       break;
     }
