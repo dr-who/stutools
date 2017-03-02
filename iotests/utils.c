@@ -10,7 +10,9 @@
 #include <sys/stat.h>
 #include <syslog.h>
 #include <errno.h>
-
+#include <unistd.h>
+#include <sys/sysinfo.h>
+#include <sys/utsname.h>
 
 #include "utils.h"
 
@@ -226,12 +228,13 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
   l->lasttime = timedouble(); // change time after closing
   if (resetCount > 0) {
-    char s[1000];
-    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd (stutools %s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], chunkSizes[0] / 1024, sequential ? "sequential" : "random", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, VERSION, keepRunning ? "" : " ^C");
+    char s[1000], *osr = OSRelease();
+    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd (stutools %s, %zd cores/%zd MB RAM/%s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], chunkSizes[0] / 1024, sequential ? "sequential" : "random", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, VERSION, numThreads(), totalRAM() / 1024 / 1024, osr, keepRunning ? "" : " ^C");
     fprintf(stderr, "%s", s);
     char *user = username();
     syslog(LOG_INFO, "%s - %s", user, s);
     free(user);
+    free(osr);
   } else {
     fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
   }
@@ -417,4 +420,19 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
 }
 
 
+size_t numThreads() {
+  return sysconf(_SC_NPROCESSORS_ONLN);
+}
+
+size_t totalRAM() {
+  struct sysinfo info;
+  sysinfo(&info);
+  return info.totalram;
+}
+
+char *OSRelease() {
+  struct utsname buf;
+  uname (&buf);
+  return strdup(buf.release);
+}
 

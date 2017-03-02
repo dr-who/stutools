@@ -20,6 +20,10 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
 void shmemUnlink();
 
 double loadAverage();
+size_t numThreads();
+size_t totalRAM();
+char *OSRelease();
+
 
 #endif
 
