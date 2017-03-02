@@ -229,7 +229,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   l->lasttime = timedouble(); // change time after closing
   if (resetCount > 0) {
     char s[1000], *osr = OSRelease();
-    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd (stutools %s, %zd cores/%zd MB RAM/%s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], chunkSizes[0] / 1024, sequential ? "sequential" : "random", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, VERSION, numThreads(), totalRAM() / 1024 / 1024, osr, keepRunning ? "" : " ^C");
+    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd (stutools %s, %zd cores/%zd MB RAM/%s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], chunkSizes[0] / 1024, sequential ? "seq" : "rand", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, VERSION, numThreads(), totalRAM() / 1024 / 1024, osr, keepRunning ? "" : " ^C");
     fprintf(stderr, "%s", s);
     char *user = username();
     syslog(LOG_INFO, "%s - %s", user, s);
