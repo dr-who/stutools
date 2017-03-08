@@ -34,13 +34,14 @@ double timedouble() {
 
 size_t blockDeviceSize(char *path) {
 
-  int fd = open(path, O_RDONLY );
+  int fd = open(path, O_RDONLY  | O_EXCL);
   if (fd < 0) {
     perror(path);
     return 0;
   }
   size_t file_size_in_bytes = 0;
   ioctl(fd, BLKGETSIZE64, &file_size_in_bytes);
+  fsync(fd);
   close(fd);
   return file_size_in_bytes;
 }
@@ -351,7 +352,7 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
   fprintf(stderr,"verifying contents of '%s'...\n", label);
   int fd = open(label, O_RDONLY | O_DIRECT); // O_DIRECT to check contents
   if (fd < 0) {
-    perror(label);
+    perror("checkContents");
     exit(1);
   }
 

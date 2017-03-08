@@ -23,7 +23,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
   fprintf(stderr,"read %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
 
   fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
-  if (fd < 0) {perror(path);return -1; }
+  if (fd < 0) {perror("rnb");return -1; }
 
   ctx = 0;
 
@@ -31,7 +31,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
 
   // set the queue depth
   ret = io_setup(MAXDEPTH, &ctx);
-  if (ret < 0) {perror("io_setup");return -1;}
+  if (ret < 0) {perror("io_setup");fsync(fd);close(fd); return -1;}
 
   /* setup I/O control block */
   data = aligned_alloc(4096, BLKSIZE); if (!data) {perror("oom"); exit(1);}
@@ -65,8 +65,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
 	
 	if ((!keepRunning) || (timedouble() - start > secTimeout)) {
 	  //	  fprintf(stderr,"timeout\n");
-	  close(fd);
-	  return bytesReceived;
+	  goto retread;
 	}
 	if (ret != 1) {
 	  fprintf(stderr,"eek i=%zd %d\n", i, ret);
@@ -99,7 +98,9 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
       break;
     }
   }
-  close(fd);
+ retread:
+  fsync(fd);
+    close(fd);
   return bytesReceived;
 }
 
@@ -119,7 +120,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
   fprintf(stderr,"write %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
 
   fd = open(path, O_WRONLY | O_EXCL | O_DIRECT);
-  if (fd < 0) {perror(path);return -1; }
+  if (fd < 0) {perror("wnb");return -1; }
 
   ctx = 0;
 
@@ -160,8 +161,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
 	
 	if ((!keepRunning) || (timedouble() - start > secTimeout)) {
 	  //	  fprintf(stderr,"timeout2\n");
-	  close(fd);
-	  return bytesReceived;
+	  goto retwrite;
 	}
 	if (ret != 1) {
 	  fprintf(stderr,"eek i=%zd %d\n", i, ret);
@@ -192,6 +192,8 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
       break;
     }
   }
+ retwrite:
+  fsync(fd);
   close(fd);
   return bytesReceived;
 }

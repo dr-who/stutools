@@ -21,7 +21,7 @@ int    keepRunning = 1;       // have we been interrupted
 int    readySetGo = 0;
 size_t blockSize = 1024*1024; // default to 1MiB
 int    exitAfterSeconds = 10; // default timeout
-size_t minMBPerSec = 30;
+size_t minMBPerSec = 10;
 
 typedef struct {
   int threadid;
@@ -43,16 +43,11 @@ static void *readThread(void *arg) {
   }
 
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int fd = open(threadContext->path, O_RDONLY | O_EXCL | O_DIRECT); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
-  if (fd < 0) {
-    perror(threadContext->path);
-    return NULL;
-  }
-  close(fd);
 
   size_t sz = blockDeviceSize(threadContext->path);
+
   if (sz == 0) {
-    fprintf(stderr,"empty\n");
+    //    fprintf(stderr,"empty\n");
     return NULL;
   }
   
@@ -70,17 +65,10 @@ static void *writeThread(void *arg) {
   }
 
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int fd = open(threadContext->path, O_WRONLY | O_EXCL | O_DIRECT); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
-  if (fd < 0) {
-    perror(threadContext->path);
-    return NULL;
-  }
-  close(fd);
-
 
   size_t sz = blockDeviceSize(threadContext->path);
   if (sz == 0) {
-    fprintf(stderr,"empty\n");
+    //    fprintf(stderr,"empty\n");
     return NULL;
   }
 
@@ -108,9 +96,16 @@ void startThreads(int argc, char *argv[]) {
     for (size_t i = 0; i < threads; i++) {
       char *path = argv[i + 1];
       const size_t len = strlen(path);
-      threadContext[i].threadid = -1;
       if ((argv[i + 1][0] != '-') && (!isdigit(argv[i + 1][len - 1]))) {
 	blockSz[i] = blockDeviceSize(path);
+      }
+    }
+    
+    for (size_t i = 0; i < threads; i++) {
+      char *path = argv[i + 1];
+      const size_t len = strlen(path);
+      threadContext[i].threadid = -1;
+      if ((argv[i + 1][0] != '-') && (!isdigit(argv[i + 1][len - 1]))) {
 	threadContext[i].threadid = i;
 	threadContext[i].path = path;
 	logSpeedInit(&threadContext[i].logSpeed);
