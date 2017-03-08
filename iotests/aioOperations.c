@@ -44,6 +44,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
 
   double start = timedouble();
   size_t bytesReceived = 0;
+  //  size_t count = 0;
 
   while (1) {
     if (inFlight < MAXDEPTH) {
@@ -52,6 +53,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
       // submit requests
       for (size_t i = 0; i < (MAXDEPTH - inFlight); i++) {
 	size_t newpos = (rand() % maxBlocks) * BLKSIZE;
+	//size_t newpos = ((count++) % maxBlocks) * BLKSIZE;
 	if (newpos > sz) {
 	  newpos = newpos % sz; // set to zero and warn
 	  fprintf(stderr,"newpos truncated to 0\n");
@@ -100,7 +102,10 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
   }
  retread:
   fsync(fd);
-    close(fd);
+  int retc = close(fd);
+  if (retc != 0) {
+    perror("read closing error");
+  }
   return bytesReceived;
 }
 
@@ -142,12 +147,15 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
   double start = timedouble();
   size_t bytesReceived = 0;
   size_t inFlight = 0;
+  //  size_t count = 0;
+  size_t gotenough = 0;
 
   while (1) {
     if (inFlight < MAXDEPTH) {
 
       for (size_t i = 0 ; i < (MAXDEPTH - inFlight) ; i++) {
 	size_t newpos = (rand() % maxBlocks) * BLKSIZE;
+	//size_t newpos = ((count++) % maxBlocks) * BLKSIZE;
 	if (newpos > sz) {
 	  newpos = newpos % sz; // set to zero and warn
 	  fprintf(stderr,"newpos truncated to 0\n");
@@ -159,7 +167,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
 	ret = io_submit(ctx, 1, cbs);
 	inFlight++;
 	
-	if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+	if ((!keepRunning) || ((gotenough && (timedouble() - start > secTimeout))) ) {
 	  //	  fprintf(stderr,"timeout2\n");
 	  goto retwrite;
 	}
@@ -173,7 +181,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
     
     ret = io_getevents(ctx, 0, MAXDEPTH, events, NULL);
     
-    if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+    if ( (!keepRunning) || ((gotenough && (timedouble() - start > secTimeout))) ) {
       break;
     }
     
@@ -181,6 +189,12 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
       inFlight -= ret;
       
       bytesReceived += (ret * BLKSIZE);
+      if (!gotenough && (bytesReceived > 64*1024*1024)) { // ignore first 64MiB
+	//	fprintf(stderr,"resetting\n");
+	gotenough = 1;
+	bytesReceived = 0;
+	start = timedouble();
+      }
       //      fprintf(stderr, "events: ret %d, seen %zd, total %zd\n", ret, seen, bytesReceived);
     } else {
       //            fprintf(stderr,".");
@@ -194,6 +208,9 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
   }
  retwrite:
   fsync(fd);
-  close(fd);
+  int retc = close(fd);
+  if (retc != 0) {
+    perror("write closing error");
+  }
   return bytesReceived;
 }
