@@ -34,7 +34,7 @@ double timedouble() {
 
 size_t blockDeviceSize(char *path) {
 
-  int fd = open(path, O_RDONLY  | O_EXCL);
+  int fd = open(path, O_RDONLY);
   if (fd < 0) {
     perror(path);
     return 0;
@@ -91,6 +91,11 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   if (!sequential) {
     if (isBlockDevice(label)) {
       maxDeviceSize = blockDeviceSize(label);
+      if (maxDeviceSize == 0) {
+	return;
+	//	exit(1);
+      }       
+
       fprintf(stderr,"deviceSize on %s is %.1lf GB (%.0lf MB)", label, maxDeviceSize / 1024.0 / 1024 / 1024, maxDeviceSize / 1024.0 / 1024);
       if (limitGBToProcess > 0) {
 	maxDeviceSize = limitGBToProcess * 1024L * 1024 * 1024;
@@ -210,7 +215,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     }
   } // while loop
   double startclose = timedouble();
-  if (writeAction) {
+  if ( (timedouble() - startclose > 0.1)) {
     fprintf(stderr,"flushing and closing..."); fflush(stderr);
     fdatasync(fd);
     fsync(fd);
@@ -255,7 +260,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
   FILE *fp = fopen(s, "wt"); 
   if (fp) {
-    fprintf(stderr,"writing log/stats file: '%s'\n", s);
+    //    fprintf(stderr,"writing log/stats file: '%s'\n", s);
     fprintf(fp,"#time    \tbigtime             \tchunk\ttotalbytes\n");
     for (size_t i = 0; i < countValues; i++) {
       int ret = fprintf(fp,"%.6lf\t%.6lf\t%.0lf\t%.0lf\n", allTimes[i] - firsttime, allTimes[i], allValues[i], allTotal[i]);
