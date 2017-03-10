@@ -124,7 +124,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
     if (!sequential) {
       size_t maxblocks = maxDeviceSize / chunkSizes[0];
-      const size_t randblock = rand() % maxblocks;
+      const size_t randblock = maxblocks ? rand() % maxblocks : 0;
       //      fprintf(stderr,"%zd (0..%zd)\n", randblock, maxblocks);	
       size_t pos = randblock * chunkSizes[0];
       off_t ret = lseek(fd, pos, SEEK_SET);
