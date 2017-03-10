@@ -22,6 +22,7 @@ int    useDirect = 1;
 int    isSequential = 1;
 int    verifyWrites = 0;
 float  flushEveryGB = 0;
+float  limitGBToProcess = 0;
 
 typedef struct {
   int threadid;
@@ -46,7 +47,7 @@ static void *runThread(void *arg) {
   int chunkSizes[1] = {blockSize};
   int numChunks = 1;
   
-  writeChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, blockSize, OUTPUTINTERVAL, isSequential, useDirect, verifyWrites, flushEveryGB); // will close fd
+  writeChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, blockSize, OUTPUTINTERVAL, isSequential, useDirect, limitGBToProcess, verifyWrites, flushEveryGB); // will close fd
   threadContext->total = threadContext->logSpeed.total;
 
   return NULL;
@@ -95,7 +96,7 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDrt:k:vf:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:vf:")) != -1) {
     switch (opt) {
     case 'k':
       blockSize=atoi(optarg) * 1024;
@@ -103,6 +104,8 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'r': 
       isSequential = 0;
+      float l = atof(optarg); if (l < 0) l = 0;
+      limitGBToProcess = l;
       break;
     case 'd':
       useDirect = 1;

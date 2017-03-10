@@ -97,7 +97,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       }       
 
       fprintf(stderr,"deviceSize on %s is %.1lf GB (%.0lf MB)", label, maxDeviceSize / 1024.0 / 1024 / 1024, maxDeviceSize / 1024.0 / 1024);
-      if (limitGBToProcess > 0) {
+      if (limitGBToProcess > 0 && (limitGBToProcess * 1024L * 1024 * 1024 < maxDeviceSize)) {
 	maxDeviceSize = limitGBToProcess * 1024L * 1024 * 1024;
 	fprintf(stderr,", *override* to %.1lf GB (%.0lf MB)", maxDeviceSize / 1024.0 / 1024 / 1024, maxDeviceSize / 1024.0 / 1024);
       }
@@ -293,8 +293,8 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 }
 
 
-void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, int verifyWrites, float flushEverySecs) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs, 0);
+void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess, int verifyWrites, float flushEverySecs) {
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs, limitGBToProcess);
 }
 
 void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess) {
