@@ -227,6 +227,8 @@ void handle_args(int argc, char *argv[]) {
       minMBPerSec = atoi(optarg);
       if (minMBPerSec < 0) minMBPerSec = 0;
       break;
+    default:
+      exit(-1);
     }
   }
 }

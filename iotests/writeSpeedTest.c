@@ -119,6 +119,8 @@ void handle_args(int argc, char *argv[]) {
     case 'v':
       verifyWrites = 1;
       break;
+    default:
+      exit(-1);
     }
     
   }

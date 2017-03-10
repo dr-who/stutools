@@ -115,6 +115,8 @@ void handle_args(int argc, char *argv[]) {
     case 't':
       exitAfterSeconds = atoi(optarg);
       break;
+    default:
+      exit(-1);
     }
   }
 }
