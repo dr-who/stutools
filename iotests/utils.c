@@ -66,7 +66,7 @@ double loadAverage() {
 void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, float limitGBToProcess) {
 
   // check
-  if (loadAverage() > 1.0) {
+  if (loadAverage() > 10.0) {
     fprintf(stderr,"**WARNING** the load average is %g (maybe the machine is busy!?)\n", loadAverage());
   }
 
