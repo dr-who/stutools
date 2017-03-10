@@ -12,7 +12,7 @@ extern int keepRunning;
 
 #define MAXDEPTH 64
 
-size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout) {
+long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout) {
   io_context_t ctx;
   struct iocb *cbs[1];
   char *data;
@@ -23,7 +23,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
   fprintf(stderr,"read %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
 
   fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
-  if (fd < 0) {perror("rnb");return -1; }
+  if (fd < 0) {perror(path);return -1; }
 
   ctx = 0;
 
@@ -114,7 +114,7 @@ size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, 
 
 
 
-size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout) {
+long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout) {
   io_context_t ctx;
   struct iocb *cbs[1];
   char *data;
@@ -125,7 +125,7 @@ size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz,
   fprintf(stderr,"write %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
 
   fd = open(path, O_WRONLY | O_EXCL | O_DIRECT);
-  if (fd < 0) {perror("wnb");return -1; }
+  if (fd < 0) {perror(path);return -1; }
 
   ctx = 0;
 

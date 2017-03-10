@@ -51,8 +51,10 @@ static void *readThread(void *arg) {
     return NULL;
   }
   
-  size_t ret = readNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
-  threadContext->total = ret;
+  long ret = readNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
+  if (ret > 0) {
+    threadContext->total = ret;
+  }
 
   return NULL;
 }
@@ -72,9 +74,11 @@ static void *writeThread(void *arg) {
     return NULL;
   }
 
-  size_t ret = writeNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
-
-  threadContext->total = ret;
+  long ret = writeNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
+  if (ret > 0) {
+    threadContext->total = ret;
+  }
+  
   return NULL;
 }
 

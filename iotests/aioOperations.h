@@ -2,8 +2,8 @@
 #define _AIO_OPERATIONS
 
 
-size_t readNonBlocking(const char *path, const size_t BLKSIZE, const size_t maxBytes, const float secTimeout);
-size_t writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t maxBytes, const float secTimeout);
+long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t maxBytes, const float secTimeout);
+long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t maxBytes, const float secTimeout);
 
 
 #endif
