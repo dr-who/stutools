@@ -30,6 +30,7 @@ typedef struct {
   char *path;
   size_t total;
   size_t startPosition;
+  size_t exclusive;
   logSpeedType logSpeed;
 } threadInfoType;
 
@@ -39,7 +40,11 @@ void intHandler(int d) {
 }
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int fd = open(threadContext->path, O_WRONLY | O_TRUNC | O_EXCL | (useDirect ? O_DIRECT : 0));
+  int mode = O_WRONLY | O_TRUNC | (useDirect ? O_DIRECT : 0);
+  //  if (threadContext->exclusive) {
+    mode = mode | O_EXCL;
+    //  }
+  int fd = open(threadContext->path, mode);
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
@@ -72,12 +77,21 @@ void startThreads(int argc, char *argv[]) {
     
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + 1][0] != '-') {
+	threadContext[i].path = argv[i + 1];
 	threadContext[i].threadid = i;
+	threadContext[i].exclusive = 1;
+	// check previous to see if they are the same, if so make it non-exclusive
+	for (size_t j = 0; j <= i; j++) {
+	  if (strcmp(threadContext[i].path, argv[j]) == 0) {
+	    threadContext[i].exclusive = 0;
+	  }
+	}
 
+	//	fprintf(stderr,"path %s excl %zd\n", threadContext[i].path, threadContext[i].exclusive);
+	    
 	threadContext[i].startPosition = (1024L*1024*1024) * startP;
 	startP += offSetGB;
 
-	threadContext[i].path = argv[i + 1];
 	threadContext[i].total = 0;
 	logSpeedInit(&threadContext[i].logSpeed);
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
