@@ -104,11 +104,22 @@ void handle_args(int argc, char *argv[]) {
       dropCaches();
       break;
     case 'k':
-      blockSize = atoi(optarg) * 1024;
-      if (blockSize < 1024) blockSize = 1024;
+      if (optarg[0] == '-') {
+	fprintf(stderr,"missing argument for '%c' option\n", opt);
+	exit(-2);
+      }
+      if (atoi(optarg) <= 0) {
+	fprintf(stderr,"incorrect argument for '%c' option\n", opt);
+	exit(-2);
+      }
+      blockSize=atoi(optarg) * 1024;
       break;
     case 'r':
       isSequential = 0;
+      if ((optarg[0] == '-') || (atof(optarg) < 0)) {
+	fprintf(stderr,"missing argument for '%c' option\n", opt);
+	exit(-2);
+      }
       float l = atof(optarg); if (l < 0) l = 0;
       limitGBToProcess = l;
       break;
@@ -125,7 +136,12 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"direct=%d, blocksize=%zd (%zd KiB), %s, timeout=%d\n", useDirect, blockSize, blockSize/1024, isSequential ? "sequential" : "random", exitAfterSeconds);
+  fprintf(stderr,"direct=%d, blocksize=%zd (%zd KiB), timeout=%d, %s", useDirect, blockSize, blockSize/1024, exitAfterSeconds, isSequential ? "sequential" : "random");
+  if (!isSequential && limitGBToProcess > 0) {
+    fprintf(stderr," (limit %.1lf GB)", limitGBToProcess);
+  }
+  fprintf(stderr,"\n");
+     
   startThreads(argc, argv);
   return 0;
 }
