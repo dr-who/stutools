@@ -41,9 +41,9 @@ void intHandler(int d) {
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
   int mode = O_WRONLY | O_TRUNC | (useDirect ? O_DIRECT : 0);
-  //  if (threadContext->exclusive) {
+  if (threadContext->exclusive) {
     mode = mode | O_EXCL;
-    //  }
+  }
   int fd = open(threadContext->path, mode);
   if (fd < 0) {
     perror(threadContext->path);
