@@ -20,11 +20,13 @@ int    exitAfterSeconds = 60; // default timeout
 int    useDirect = 1;
 int    isSequential = 1;   
 float  limitGBToProcess = 0;
+int    offSetGB = 0;
 
 typedef struct {
   int threadid;
   char *path;
   size_t total;
+  size_t startPosition;
   logSpeedType logSpeed;
 } threadInfoType;
 
@@ -43,6 +45,8 @@ static void *runThread(void *arg) {
   }
   //fprintf(stderr,"opened %s\n", threadContext->path);
 
+  lseek(fd, threadContext->startPosition, SEEK_SET);
+  fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd\n", threadContext->threadid, fd, threadContext->startPosition);
 
   int chunkSizes[1] = {blockSize};
   int numChunks = 1;
@@ -61,9 +65,16 @@ void startThreads(int argc, char *argv[]) {
 
     threadInfoType *threadContext = (threadInfoType*) calloc(threads, sizeof(threadInfoType));
     if (threadContext == NULL) {fprintf(stderr,"OOM(threadContext): \n");exit(-1);}
+
+    int startP = 0;
+    
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + 1][0] != '-') {
 	threadContext[i].threadid = i;
+
+	threadContext[i].startPosition = (1024L*1024*1024) * startP;
+	startP += offSetGB;
+
 	threadContext[i].path = argv[i + 1];
 	logSpeedInit(&threadContext[i].logSpeed);
 	threadContext[i].total = 0;
@@ -94,7 +105,7 @@ void startThreads(int argc, char *argv[]) {
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:")) != -1) {
     switch (opt) {
     case 'd':
       useDirect = 1;
@@ -122,6 +133,13 @@ void handle_args(int argc, char *argv[]) {
       }
       float l = atof(optarg); if (l < 0) l = 0;
       limitGBToProcess = l;
+      break;
+    case 'o':
+      offSetGB = atoi(optarg);
+      if (offSetGB < 0) {
+	offSetGB = 0;
+      }
+      fprintf(stderr,"offSetGB = %d GB\n", offSetGB);
       break;
     case 't':
       exitAfterSeconds = atoi(optarg);
