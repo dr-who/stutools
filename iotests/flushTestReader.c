@@ -63,12 +63,10 @@ static void *runThread(void *arg) {
 	if (delta > maxdelta) {
 	  maxdelta = delta;
 	}
-	fprintf(stderr,"num: %f (delta %f, avg delta %f, max delta %f)\n", r, delta, totaldelta/totalN, maxdelta);
+	fprintf(stderr,"pos=%zd %f (delta %f, avg delta %f, max delta %f)\n", pos - s, r, delta, totaldelta/totalN, maxdelta);
 	lastnum = r;
       }
       usleep(10);
-    } else {
-      break;
     }
   }
   free(s);

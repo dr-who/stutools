@@ -43,20 +43,22 @@ static void *runThread(void *arg) {
   size_t x = 0;
   while (1) {
     x++;
-    sprintf(s, "%20f    !!!### 3.14159265 ###!!!", timedouble());
+    memset(s, ' ', 65536);
+    double timecheck = timedouble();
+    sprintf(s + (x % 4096), "%20f    !!!### 3.14159265 ###!!!", timecheck);
     int w = lseek(fd, threadContext->startPosition, SEEK_SET);
     if (w < 0) {
       perror("seek");
       fprintf(stderr, "%d\n", w);
     }
-    fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd, writing '%s'\n", threadContext->threadid, fd, threadContext->startPosition, s);
+    fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd, writing %f\n", threadContext->threadid, fd, x % 4096, timecheck);
     w = write(fd, s, 4096);
     if (w < 0) {
       perror("write");
       fprintf(stderr, "%d\n", w);
     }
     fsync(fd);
-    sleep(1);
+    usleep(10);
   }
   free(s);
   
