@@ -46,7 +46,7 @@ static void *runThread(void *arg) {
   double totalN = 0;
   while (1) {
     lseek(fd, 0, SEEK_SET);
-    int w = read(fd, s, 10*1024*1024);
+    int w = read(fd, s, 64*1024);
     double readtime = timedouble();
     if (w < 0) {
       perror("read");
