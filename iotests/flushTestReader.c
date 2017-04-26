@@ -39,14 +39,14 @@ static void *runThread(void *arg) {
     return NULL;
   }
 
-  char *s = aligned_alloc(4096, 10*1024*1024);
+  char *s = aligned_alloc(4096, 10*1024*1024); // 10MB to skip superblock
   double lastnum = 0;
   double maxdelta = 0;
   double totaldelta = 0;
   double totalN = 0;
   while (1) {
     lseek(fd, 0, SEEK_SET);
-    int w = read(fd, s, 64*1024);
+    int w = read(fd, s, 10*1024*1024);
     double readtime = timedouble();
     if (w < 0) {
       perror("read");
