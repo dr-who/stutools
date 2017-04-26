@@ -15,6 +15,8 @@
 #include "utils.h"
 #include "logSpeed.h"
 
+#define NEEDLE "!!!### 3.14159265 ###!!!"
+
 typedef struct {
   int threadid;
   char *path;
@@ -45,7 +47,7 @@ static void *runThread(void *arg) {
     x++;
     memset(s, ' ', 65536);
     double timecheck = timedouble();
-    sprintf(s + (x % 4096), "%20f    !!!### 3.14159265 ###!!!", timecheck);
+    sprintf(s + (x % 4096), "%20f    %s", timecheck, NEEDLE);
     int w = lseek(fd, threadContext->startPosition, SEEK_SET);
     if (w < 0) {
       perror("seek");

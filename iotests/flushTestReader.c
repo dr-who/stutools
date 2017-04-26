@@ -15,6 +15,8 @@
 #include "utils.h"
 #include "logSpeed.h"
 
+#define NEEDLE "!!!### 3.14159265 ###!!!"
+
 typedef struct {
   int threadid;
   char *path;
@@ -51,7 +53,7 @@ static void *runThread(void *arg) {
     if (w < 0) {
       perror("read");
     }
-    char *pos = strstr(s, "!!!### 3.14159265 ###!!!");
+    char *pos = memmem(s, w, NEEDLE, strlen(NEEDLE));
 
     if (pos) {
       double r = atof(pos - 24);
