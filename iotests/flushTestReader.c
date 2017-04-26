@@ -32,31 +32,44 @@ void intHandler(int d) {
 
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int mode = O_WRONLY | O_TRUNC | O_DIRECT;
+  int mode = O_RDONLY | O_DIRECT;
   int fd = open(threadContext->path, mode);
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
   }
 
-  char *s = aligned_alloc(4096, 65536);
-  size_t x = 0;
+  char *s = aligned_alloc(4096, 10*1024*1024);
+  double lastnum = 0;
+  double maxdelta = 0;
+  double totaldelta = 0;
+  double totalN = 0;
   while (1) {
-    x++;
-    sprintf(s, "%20f    !!!### 3.14159265 ###!!!", timedouble());
-    int w = lseek(fd, threadContext->startPosition, SEEK_SET);
+    lseek(fd, 0, SEEK_SET);
+    int w = read(fd, s, 10*1024*1024);
+    double readtime = timedouble();
     if (w < 0) {
-      perror("seek");
-      fprintf(stderr, "%d\n", w);
+      perror("read");
     }
-    fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd, writing '%s'\n", threadContext->threadid, fd, threadContext->startPosition, s);
-    w = write(fd, s, 4096);
-    if (w < 0) {
-      perror("write");
-      fprintf(stderr, "%d\n", w);
+    char *pos = strstr(s, "!!!### 3.14159265 ###!!!");
+
+    if (pos) {
+      double r = atof(pos - 24);
+      if (r != lastnum) {
+	//	fprintf(stderr,"read '%s'\n", s);
+	double delta = readtime - r;
+	totalN++;
+	totaldelta += delta;
+	if (delta > maxdelta) {
+	  maxdelta = delta;
+	}
+	fprintf(stderr,"num: %f (delta %f, avg delta %f, max delta %f)\n", r, delta, totaldelta/totalN, maxdelta);
+	lastnum = r;
+      }
+      usleep(10);
+    } else {
+      break;
     }
-    fsync(fd);
-    sleep(1);
   }
   free(s);
   
