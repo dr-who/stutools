@@ -16,6 +16,7 @@
 #include "logSpeed.h"
 
 #define NEEDLE "!!!### 3.14159265 ###!!!"
+#define READCHUNK (10*1024*1024)
 
 typedef struct {
   int threadid;
@@ -41,19 +42,19 @@ static void *runThread(void *arg) {
     return NULL;
   }
 
-  char *s = aligned_alloc(4096, 10*1024*1024); // 10MB to skip superblock
+  char *haystack = aligned_alloc(4096, READCHUNK); // 10MB to skip superblock
   double lastnum = 0;
   double maxdelta = 0;
   double totaldelta = 0;
   double totalN = 0;
   while (1) {
     lseek(fd, 0, SEEK_SET);
-    int w = read(fd, s, 10*1024*1024);
+    int bytes = read(fd, haystack, READCHUNK);
     double readtime = timedouble();
-    if (w < 0) {
+    if (bytes < 0) {
       perror("read");
     }
-    char *pos = memmem(s, w, NEEDLE, strlen(NEEDLE));
+    char *pos = memmem(haystack, bytes, NEEDLE, strlen(NEEDLE));
 
     if (pos) {
       double r = atof(pos - 24);
@@ -65,13 +66,13 @@ static void *runThread(void *arg) {
 	if (delta > maxdelta) {
 	  maxdelta = delta;
 	}
-	fprintf(stderr,"pos=%zd %f (delta %f, avg delta %f, max delta %f)\n", pos - s, r, delta, totaldelta/totalN, maxdelta);
+	fprintf(stderr,"pos=%zd %f (delta %f, avg delta %f, max delta %f)\n", pos - haystack, r, delta, totaldelta/totalN, maxdelta);
 	lastnum = r;
       }
       usleep(10);
     }
   }
-  free(s);
+  free(haystack);
   
   return NULL;
 }
@@ -117,7 +118,6 @@ void startThreads(int argc, char *argv[]) {
 	logSpeedFree(&threadContext[i].logSpeed);
       }
     }
-    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum of mean = %.1lf MiB/sec\n", allbytes, maxtime, allmb);
     free(threadContext);
     free(pt);
   }

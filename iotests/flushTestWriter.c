@@ -17,6 +17,8 @@
 
 #define NEEDLE "!!!### 3.14159265 ###!!!"
 
+int justOneWrite = 0;
+
 typedef struct {
   int threadid;
   char *path;
@@ -41,28 +43,35 @@ static void *runThread(void *arg) {
     return NULL;
   }
 
-  char *s = aligned_alloc(4096, 65536);
-  size_t x = 0;
-  while (1) {
-    x++;
-    memset(s, ' ', 65536);
-    double timecheck = timedouble();
-    sprintf(s + (x % 4096), "%20f    %s", timecheck, NEEDLE);
-    int w = lseek(fd, threadContext->startPosition, SEEK_SET);
-    if (w < 0) {
-      perror("seek");
-      fprintf(stderr, "%d\n", w);
+  {
+    char *s = aligned_alloc(4096, 65536);
+    size_t x = 0;
+    while (1) {
+      x++;
+      memset(s, ' ', 65536);
+      double timecheck = timedouble();
+      sprintf(s + (x % 4096), "%20f    %s", timecheck, NEEDLE);
+      int w = lseek(fd, threadContext->startPosition, SEEK_SET);
+      if (w < 0) {
+	perror("seek");
+	fprintf(stderr, "%d\n", w);
+      }
+      fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd, writing %f\n", threadContext->threadid, fd, x % 4096, timecheck);
+      w = write(fd, s, 4096);
+      if (w < 0) {
+	perror("write");
+	fprintf(stderr, "%d\n", w);
+      }
+      if (justOneWrite) {
+	fprintf(stderr,"write complete... sleeping 20 before flush()\n");
+	sleep(20);
+      }
+
+      fsync(fd);
+      usleep(10);
     }
-    fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd, writing %f\n", threadContext->threadid, fd, x % 4096, timecheck);
-    w = write(fd, s, 4096);
-    if (w < 0) {
-      perror("write");
-      fprintf(stderr, "%d\n", w);
-    }
-    fsync(fd);
-    usleep(10);
+    free(s);
   }
-  free(s);
   
   return NULL;
 }
@@ -108,13 +117,21 @@ void startThreads(int argc, char *argv[]) {
 	logSpeedFree(&threadContext[i].logSpeed);
       }
     }
-    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum of mean = %.1lf MiB/sec\n", allbytes, maxtime, allmb);
     free(threadContext);
     free(pt);
   }
 }
 
 void handle_args(int argc, char *argv[]) {
+  int opt;
+  
+  while ((opt = getopt(argc, argv, "1")) != -1) {
+    switch (opt) {
+    case '1':
+      justOneWrite = 1;
+      break;
+    }
+  }
 }
 
 
