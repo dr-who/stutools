@@ -50,13 +50,13 @@ static void *runThread(void *arg) {
       x++;
       memset(s, ' ', 65536);
       double timecheck = timedouble();
-      sprintf(s + (x % 4096), "%20f    %s", timecheck, NEEDLE);
+      sprintf(s + (x % 4096), "%20f  %s%2d", timecheck, NEEDLE, threadContext->threadid);
       int w = lseek(fd, threadContext->startPosition, SEEK_SET);
       if (w < 0) {
 	perror("seek");
 	fprintf(stderr, "%d\n", w);
       }
-      fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd, writing %f\n", threadContext->threadid, fd, x % 4096, timecheck);
+      fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd, writing %f\n", threadContext->threadid, fd, threadContext->startPosition + (x % 4096), timecheck);
       w = write(fd, s, 4096);
       if (w < 0) {
 	perror("write");
@@ -86,7 +86,7 @@ void startThreads(int argc, char *argv[]) {
     threadInfoType *threadContext = (threadInfoType*) calloc(threads, sizeof(threadInfoType));
     if (threadContext == NULL) {fprintf(stderr,"OOM(threadContext): \n");exit(-1);}
 
-    int startP = 0;
+    //    int startP = 0;
     
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + 1][0] != '-') {
@@ -94,7 +94,7 @@ void startThreads(int argc, char *argv[]) {
 	threadContext[i].threadid = i;
 	threadContext[i].exclusive = 0;
 	    
-	threadContext[i].startPosition = (1024L*1024*1024) * startP;
+	threadContext[i].startPosition = 65536 * i;
 
 	threadContext[i].total = 0;
 	logSpeedInit(&threadContext[i].logSpeed);
