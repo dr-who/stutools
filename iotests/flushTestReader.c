@@ -68,7 +68,7 @@ static void *runThread(void *arg) {
 	if (delta > maxdelta) {
 	  maxdelta = delta;
 	}
-	fprintf(stderr,"thread %d, pos=%zd %f (delta %f, avg delta %f, max delta %f)\n", threadContext->threadid, pos - haystack, r, delta, totaldelta/totalN, maxdelta);
+	fprintf(stderr,"thread %d, pos=%10zd read %f (delta from now %f, avg delta %f, max delta %f)\n", threadContext->threadid, pos - haystack, r, delta, totaldelta/totalN, maxdelta);
 	lastnum = r;
       }
       usleep(10);

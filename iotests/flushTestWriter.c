@@ -56,7 +56,7 @@ static void *runThread(void *arg) {
 	perror("seek");
 	fprintf(stderr, "%d\n", w);
       }
-      fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd, writing %f\n", threadContext->threadid, fd, threadContext->startPosition + (x % 4096), timecheck);
+      fprintf(stderr,"thread %d, pos=%10zd, writing %f\n", threadContext->threadid, threadContext->startPosition + (x % 4096), timecheck);
       w = write(fd, s, 4096);
       if (w < 0) {
 	perror("write");
