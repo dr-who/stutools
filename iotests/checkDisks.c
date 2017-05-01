@@ -22,6 +22,7 @@ int    readySetGo = 0;
 size_t blockSize = 1024*1024; // default to 1MiB
 int    exitAfterSeconds = 10; // default timeout
 size_t minMBPerSec = 10;
+size_t maxMBPerSec = 3000;
 
 typedef struct {
   int threadid;
@@ -189,7 +190,7 @@ void startThreads(int argc, char *argv[]) {
 	fprintf(stderr,"%s\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%-10s", argv[i + 1], blockSz[i] / 1024.0 / 1024 / 1024, readTotal[i]/1024.0/1024,readSpeeds[i], writeTotal[i]/1024.0/1024,writeSpeeds[i], qt);
 	fflush(stderr);
 	free(qt);
-	if (readSpeeds[i] > minMBPerSec && writeSpeeds[i] > minMBPerSec) {
+	if ((readSpeeds[i] > minMBPerSec) && (readSpeeds[i] < maxMBPerSec) && (writeSpeeds[i] > minMBPerSec) && (writeSpeeds[i] < maxMBPerSec)) {
 	  numok++;
 	  fprintf(stderr,"\tOK\n");
 	  fprintf(fp, "%s\n", argv[i + 1]);
