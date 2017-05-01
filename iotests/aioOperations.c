@@ -10,7 +10,9 @@
 
 extern int keepRunning;
 
-#define MAXDEPTH 64
+#define MAXDEPTH 8
+
+#define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout) {
   io_context_t ctx;
@@ -51,7 +53,7 @@ long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, co
       
       
       // submit requests
-      for (size_t i = 0; i < (MAXDEPTH - inFlight); i++) {
+      for (size_t i = 0; i < MIN(MAXDEPTH - inFlight, 1); i++) {
 	size_t newpos = (rand() % maxBlocks) * BLKSIZE;
 	//size_t newpos = ((count++) % maxBlocks) * BLKSIZE;
 	if (newpos > sz) {
