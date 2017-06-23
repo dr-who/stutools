@@ -71,7 +71,7 @@ long readMultiplePositions(const int fd,
 	submitted++;
 
 	if (timedouble() - last >= 1) {
-	  fprintf(stderr,"submitted %zd, in flight: %d, received=%zd, pos=%zd, submit/second %.1lf\n", submitted, inFlight, received, pos, submitted / (timedouble() - start));
+	  fprintf(stderr,"submitted %zd, in flight/queue: %d, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (timedouble() - start), submitted * BLKSIZE / (timedouble() - start)/1024.0/1024);
 	  if ((!keepRunning) || (timedouble() - start > secTimeout)) {
 	    //	  fprintf(stderr,"timeout\n");
 	    goto endoffunction;
