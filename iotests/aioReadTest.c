@@ -47,7 +47,7 @@ void handle_args(int argc, char *argv[]) {
     }
   }
   if (path == NULL) {
-    fprintf(stderr,"./aioReadTest [-s sequentialFiles] [-q queueDepth] [-G 32] -f blockdevice\n");
+    fprintf(stderr,"./aioReadTest [-s sequentialFiles] [-q queueDepth] [-t 30 secs] [-G 32] -f blockdevice\n");
     exit(1);
   }
 }
@@ -57,7 +57,9 @@ void handle_args(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
   handle_args(argc, argv);
 
-  fprintf(stderr,"path: %s, blocksize: %d", path, 65536);
+  size_t seed = (size_t) timedouble();
+  srand(seed);
+  fprintf(stderr,"path: %s, seed %zd, blocksize: %d", path, seed, 65536);
   int fd = open(path, O_RDONLY | O_DIRECT);
   if (fd < 0) {perror(path);return -1; }
 
@@ -74,13 +76,17 @@ int main(int argc, char *argv[]) {
   if (seqFiles == 0) {
     for (size_t i = 0; i < num; i++) {
       positions[i] = ((size_t)((rand() % bdSize) / 65536)) * 65536;
-      //      fprintf(stderr,"pos %zd\n", positions[i]);
+      if (i < 10) {
+	fprintf(stderr,"[%zd] pos %zd\n", i, positions[i]);
+      }
     }
   } else {
     for (size_t i = 0; i < num; i++) {
       size_t gap = bdSize / (seqFiles + 1);
       positions[i] = ((i % seqFiles) * gap) + ((i / seqFiles) * 65536);
-      //      fprintf(stderr,"pos %zd\n", positions[i]);
+      if (i < 10) {
+	fprintf(stderr,"[%zd] pos %zd\n", i, positions[i]);
+      }
     }
   }
     
