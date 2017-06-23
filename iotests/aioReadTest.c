@@ -94,11 +94,15 @@ int main(int argc, char *argv[]) {
   
   const size_t num = 10*1000*1000;
   size_t *positions = malloc(num * sizeof(size_t));
-  size_t gap = bdSize / (seqFiles);
-  gap = (gap >> 16) <<16;
-  size_t *ppp = calloc(seqFiles, sizeof(size_t));
-  for (size_t i = 0; i < seqFiles; i++) {
-    ppp[i] = i * gap;
+  size_t *ppp = NULL;
+  size_t gap = 0;
+  if (seqFiles > 0) {
+    gap = bdSize / (seqFiles);
+    gap = (gap >> 16) <<16;
+    ppp = calloc(seqFiles, sizeof(size_t));
+    for (size_t i = 0; i < seqFiles; i++) {
+      ppp[i] = i * gap;
+    }
   }
 
   for (size_t i = 0; i < num; i++) {
@@ -109,11 +113,12 @@ int main(int argc, char *argv[]) {
       // sequential
       positions[i] = ppp[i % seqFiles];
       ppp[i % seqFiles] += (jumpStep * BLKSIZE);
+
+      assert((positions[i]>>16) << 16 == positions[i]);
     }
     if (i < seqFiles + 8) {
       fprintf(stderr,"[%zd/%zd] pos %zd (%.1lf%%)\n", i+1, num, positions[i], positions[i]*100.0/bdSize);
     }
-    assert((positions[i]>>16) << 16 == positions[i]);
   }
   
   readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio);
