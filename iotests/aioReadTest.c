@@ -23,11 +23,12 @@ int    seqFiles = 0;
 double maxSizeGB = 0;
 int    BLKSIZE=65536;
 size_t jumpStep = 1;
+double readRatio = 1.0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:")) != -1) {
     switch (opt) {
     case 't':
       exitAfterSeconds = atoi(optarg);
@@ -47,6 +48,11 @@ void handle_args(int argc, char *argv[]) {
     case 'k':
       BLKSIZE = 1024 * atoi(optarg); if (BLKSIZE < 1024) BLKSIZE=1024;
       break;
+    case 'p':
+      readRatio = atof(optarg);
+      if (readRatio < 0) readRatio = 0;
+      if (readRatio > 1) readRatio = 1;
+      break;
     case 'f':
       path = optarg;
       break;
@@ -55,9 +61,10 @@ void handle_args(int argc, char *argv[]) {
     }
   }
   if (path == NULL) {
-    fprintf(stderr,"./aioReadTest [-s sequentialFiles] [-j jumpBlocks] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] [-G 32] -f blockdevice\n");
+    fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-j jumpBlocks] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] [-G 32] [-p readRatio] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
-    fprintf(stderr,"  ./aioReadTest -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100\n");
+    fprintf(stderr,"  ./aioRWTest -p0.75 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100 # 75%% reads\n");
+    fprintf(stderr,"  ./aioRWTest -p0.0 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100  # 0%% reads, 100%% writes\n");
     exit(1);
   }
 }
@@ -69,8 +76,8 @@ int main(int argc, char *argv[]) {
 
   size_t seed = (size_t) timedouble();
   srand(seed);
-  fprintf(stderr,"path: %s, max queue depth: %d, seed %zd, blocksize: %d", path, qd, seed, BLKSIZE);
-  int fd = open(path, O_RDONLY | O_DIRECT);
+  fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, seed %zd, blocksize: %d", path, readRatio, qd, seed, BLKSIZE);
+  int fd = open(path, O_RDWR | O_DIRECT);
   if (fd < 0) {perror(path);return -1; }
 
   size_t bdSize = blockDeviceSize(path);
@@ -104,7 +111,7 @@ int main(int argc, char *argv[]) {
     }
   }
   
-  readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd);
+  readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio);
 
   free(positions);
   free(ppp);

@@ -3,7 +3,7 @@ CC=gcc
 CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -O2 -g
 
 all: readSpeedTest writeSpeedTest writePairTest checkDisks flushTestWriter flushTestReader \
-	aioReadTest
+	aioRWTest
 
 readSpeedTest: readSpeedTest.c utils.o logSpeed.o 
 	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm
@@ -29,7 +29,7 @@ flushTestWriter: flushTestWriter.o utils.o logSpeed.o
 flushTestReader: flushTestReader.o utils.o logSpeed.o 
 	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm
 
-aioReadTest: aioReadTest.o aioReads.o logSpeed.o utils.o
+aioRWTest: aioReadTest.o aioReads.o logSpeed.o utils.o
 	gcc -Wall --std=c99 $^ -o $@ -lm -laio
 
 
@@ -45,6 +45,6 @@ logSpeedTest: logSpeedTest.o utils.o logSpeed.o
 
 clean:
 	- rm -f readSpeedTest writeSpeedTest writePairTest logSpeedTest *.o \
-	mtReadSpeedTest mtWriteSpeedTest checkDisks
+	mtReadSpeedTest mtWriteSpeedTest checkDisks aioReadTest aioRWTest
 
 

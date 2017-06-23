@@ -18,7 +18,8 @@ long readMultiplePositions(const int fd,
 			   const size_t sz,
 			   const size_t BLKSIZE,
 			   const float secTimeout,
-			   const size_t QD) {
+			   const size_t QD,
+			   const double readRatio) {
   int ret;
   io_context_t ctx;
   struct iocb *cbs[1];
@@ -62,7 +63,14 @@ long readMultiplePositions(const int fd,
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
 	size_t newpos = positions[pos++]; if (pos > sz) pos = 0;
 	// setup the read request
-	io_prep_pread(cbs[0], fd, data, BLKSIZE, newpos);
+	if ((readRatio >= 1.0) || (rand()%100 < 100*readRatio)) {
+	  io_prep_pread(cbs[0], fd, data, BLKSIZE, newpos);
+	  //	  fprintf(stderr,"r");
+	} else {
+	  io_prep_pwrite(cbs[0], fd, data, BLKSIZE, newpos);
+	  //	  	  fprintf(stderr,"w");
+	}
+	
 
 	//    cbs[0]->u.c.offset = sz;
 	//	fprintf(stderr,"submit...\n");
