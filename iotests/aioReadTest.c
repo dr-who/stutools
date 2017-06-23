@@ -80,9 +80,13 @@ int main(int argc, char *argv[]) {
   int fd = open(path, O_RDWR | O_DIRECT);
   if (fd < 0) {perror(path);return -1; }
 
-  size_t bdSize = blockDeviceSize(path);
-  if (maxSizeGB >0) {
+  size_t origbdSize = blockDeviceSize(path);
+  size_t bdSize = origbdSize;
+  if (maxSizeGB > 0) {
     bdSize = (size_t) (maxSizeGB * 1024L * 1024 * 1024);
+  }
+  if (bdSize > origbdSize) {
+    bdSize = origbdSize;
   }
   fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
 
