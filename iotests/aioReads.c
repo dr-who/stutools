@@ -63,7 +63,7 @@ long readMultiplePositions(const int fd,
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
 	size_t newpos = positions[pos++]; if (pos > sz) pos = 0;
 	// setup the read request
-	if ((readRatio >= 1.0) || (rand()%100 < 100*readRatio)) {
+	if ((readRatio >= 1.0) || (lrand48()%100 < 100*readRatio)) {
 	  io_prep_pread(cbs[0], fd, data, BLKSIZE, newpos);
 	  //	  fprintf(stderr,"r");
 	} else {

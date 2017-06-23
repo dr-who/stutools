@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
 
   size_t seed = (size_t) timedouble();
-  srand(seed);
+  srand48(seed);
   fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, seed %zd, blocksize: %d", path, readRatio, qd, seed, BLKSIZE);
   int fd = open(path, O_RDWR | O_DIRECT);
   if (fd < 0) {perror(path);return -1; }
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
 
   
-  const size_t num = 10*1000*1000;
+  const size_t num = 100*1000*1000;
   size_t *positions = malloc(num * sizeof(size_t));
   const size_t gap = bdSize / (seqFiles + 1);
   size_t *ppp = calloc(seqFiles, sizeof(size_t));
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
   for (size_t i = 0; i < num; i++) {
     if (seqFiles == 0) {
       // random
-      positions[i] = ((size_t)((rand() % bdSize) / BLKSIZE)) * BLKSIZE;
+      positions[i] = ((size_t)((lrand48() % bdSize) / BLKSIZE)) * BLKSIZE;
     } else {
       // sequential
       positions[i] = ppp[i % seqFiles];
