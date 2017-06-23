@@ -139,7 +139,6 @@ void handle_args(int argc, char *argv[]) {
       if (offSetGB < 0) {
 	offSetGB = 0;
       }
-      fprintf(stderr,"offSetGB = %d GB\n", offSetGB);
       break;
     case 't':
       exitAfterSeconds = atoi(optarg);
