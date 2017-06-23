@@ -20,11 +20,12 @@ int    exitAfterSeconds = 30;
 int    qd = 32;
 char   *path = NULL;
 int    seqFiles = 0;
+double maxSizeGB = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:")) != -1) {
     switch (opt) {
     case 't':
       exitAfterSeconds = atoi(optarg);
@@ -35,6 +36,9 @@ void handle_args(int argc, char *argv[]) {
     case 's':
       seqFiles = atoi(optarg);
       break;
+    case 'G':
+      maxSizeGB = atof(optarg);
+      break;
     case 'f':
       path = optarg;
       break;
@@ -43,7 +47,7 @@ void handle_args(int argc, char *argv[]) {
     }
   }
   if (path == NULL) {
-    fprintf(stderr,"./aioReadTest [-s sequentialFiles] [-q queueDepth] -f blockdevice\n");
+    fprintf(stderr,"./aioReadTest [-s sequentialFiles] [-q queueDepth] [-G 32] -f blockdevice\n");
     exit(1);
   }
 }
@@ -53,11 +57,17 @@ void handle_args(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
   handle_args(argc, argv);
 
-  fprintf(stderr,"path: %s, blocksize: %d\n", path, 65536);
+  fprintf(stderr,"path: %s, blocksize: %d", path, 65536);
   int fd = open(path, O_RDONLY | O_DIRECT);
   if (fd < 0) {perror(path);return -1; }
 
   size_t bdSize = blockDeviceSize(path);
+  if (maxSizeGB >0) {
+    bdSize = (size_t) (maxSizeGB * 1024L * 1024 * 1024);
+  }
+  fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
+
+  
   size_t num = 10*1000*1000;
   size_t *positions = malloc(num * sizeof(size_t));
 
