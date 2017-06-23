@@ -43,8 +43,11 @@ long readMultiplePositions(const int fd,
   if (ret < 0) {perror("io_setup");return -1;}
 
   /* setup I/O control block */
-  char *data = aligned_alloc(4096, BLKSIZE); if (!data) {perror("oom"); exit(1);}
-  memset(data, 'A', BLKSIZE);
+  char **data = malloc(QD * sizeof(char*));
+  for (size_t i = 0; i <QD; i++) {
+    data[i] = aligned_alloc(4096, BLKSIZE); if (!data[i]) {perror("oom"); exit(1);}
+    memset(data[i], 'A', BLKSIZE);
+  }
 
   int inFlight = 0;
 
@@ -62,12 +65,13 @@ long readMultiplePositions(const int fd,
       // submit requests, one at a time
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
 	size_t newpos = positions[pos++]; if (pos > sz) pos = 0;
+	//	fprintf(stderr,"ewpos %zd\n", newpos);
 	// setup the read request
 	if ((readRatio >= 1.0) || (lrand48()%100 < 100*readRatio)) {
-	  io_prep_pread(cbs[0], fd, data, BLKSIZE, newpos);
+	  io_prep_pread(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
 	  //	  fprintf(stderr,"r");
 	} else {
-	  io_prep_pwrite(cbs[0], fd, data, BLKSIZE, newpos);
+	  io_prep_pwrite(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
 	  //	  	  fprintf(stderr,"w");
 	}
 	
@@ -75,16 +79,22 @@ long readMultiplePositions(const int fd,
 	//    cbs[0]->u.c.offset = sz;
 	//	fprintf(stderr,"submit...\n");
 	ret = io_submit(ctx, 1, cbs);
-	inFlight++;
-	submitted++;
+	if (ret == 1) {
+	  inFlight++;
+	  submitted++;
+	} else {
+	  fprintf(stderr,"!!!\n");
+	}
+	
+	double gt = timedouble();
 
-	if (timedouble() - last >= 1) {
-	  fprintf(stderr,"submitted %zd, in flight/queue: %d, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (timedouble() - start), submitted * BLKSIZE / (timedouble() - start)/1024.0/1024);
-	  if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+	if (gt - last >= 1) {
+	  fprintf(stderr,"submitted %zd, in flight/queue: %d, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (gt - start), received* BLKSIZE / (gt - start)/1024.0/1024);
+	  last = gt;
+	  if ((!keepRunning) || (gt - start > secTimeout)) {
 	    //	  fprintf(stderr,"timeout\n");
 	    goto endoffunction;
 	  }
-	  last = timedouble();
 	}
 	if (ret != 1) {
 	  fprintf(stderr,"eek i=%zd %d\n", i, ret);
@@ -112,8 +122,8 @@ long readMultiplePositions(const int fd,
       //      }
 	
     } else {
-      //            fprintf(stderr,".");
-      //      usleep(1);
+      //             fprintf(stderr,".");
+      //		  usleep(1);
     }
     //	  ret = io_destroy(ctx);
     if (ret < 0) {

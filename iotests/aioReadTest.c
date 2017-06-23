@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <assert.h>
 
 #include "aioReads.h"
 #include "utils.h"
@@ -91,28 +92,28 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
 
   
-  const size_t num = 100*1000*1000;
+  const size_t num = 10*1000*1000;
   size_t *positions = malloc(num * sizeof(size_t));
-  const size_t gap = bdSize / (seqFiles + 1);
+  size_t gap = bdSize / (seqFiles);
+  gap = (gap >> 16) <<16;
   size_t *ppp = calloc(seqFiles, sizeof(size_t));
   for (size_t i = 0; i < seqFiles; i++) {
     ppp[i] = i * gap;
-    //    fprintf(stderr,"ppp %zd\n", ppp[i]);
   }
 
   for (size_t i = 0; i < num; i++) {
     if (seqFiles == 0) {
       // random
-      positions[i] = ((size_t)((lrand48() % bdSize) / BLKSIZE)) * BLKSIZE;
+      positions[i] = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
     } else {
       // sequential
       positions[i] = ppp[i % seqFiles];
       ppp[i % seqFiles] += (jumpStep * BLKSIZE);
-      //((i% seqFiles) * gap) + ((i/ seqFiles) * BLKSIZE);
     }
     if (i < seqFiles + 8) {
       fprintf(stderr,"[%zd/%zd] pos %zd (%.1lf%%)\n", i+1, num, positions[i], positions[i]*100.0/bdSize);
     }
+    assert((positions[i]>>16) << 16 == positions[i]);
   }
   
   readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio);

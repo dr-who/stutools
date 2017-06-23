@@ -63,10 +63,12 @@ static void *runThread(void *arg) {
       if (r != lastnum) {
 	//	fprintf(stderr,"read '%s'\n", s);
 	double delta = readtime - r;
-	totalN++;
-	totaldelta += delta;
-	if (delta > maxdelta) {
-	  maxdelta = delta;
+	if (delta < 87600) {	
+	  totalN++;
+	  totaldelta += delta;
+	  if (delta > maxdelta) {
+	    maxdelta = delta;
+	  }
 	}
 	fprintf(stderr,"thread %d, pos=%10zd read %f (delta from now %f, avg delta %f, max delta %f)\n", threadContext->threadid, pos - haystack, r, delta, totaldelta/totalN, maxdelta);
 	lastnum = r;
