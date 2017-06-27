@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
   size_t seed = (size_t) timedouble();
   srand48(seed);
   fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, seed %zd, blocksize: %d", path, readRatio, qd, seed, BLKSIZE);
-  int fd = open(path, O_RDWR | O_DIRECT);
+  int fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
   if (fd < 0) {perror(path);return -1; }
 
   size_t origbdSize = blockDeviceSize(path);
