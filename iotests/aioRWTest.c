@@ -17,7 +17,7 @@
 #include "logSpeed.h"
 
 int    keepRunning = 1;       // have we been interrupted
-int    exitAfterSeconds = 2;
+double exitAfterSeconds = 2;
 int    qd = 32;
 char   *path = NULL;
 int    seqFiles = 0;
@@ -36,7 +36,7 @@ void handle_args(int argc, char *argv[]) {
       table = 1;
       break;
     case 't':
-      exitAfterSeconds = atoi(optarg);
+      exitAfterSeconds = atof(optarg); if (exitAfterSeconds < 0.1) exitAfterSeconds = 0.1;
       break;
     case 'q':
       qd = atoi(optarg); if (qd < 1) qd = 1;
@@ -97,30 +97,9 @@ int main(int argc, char *argv[]) {
   const size_t num = 10*1000*1000;
   size_t *positions = malloc(num * sizeof(size_t));
   size_t *randpositions = malloc(num * sizeof(size_t));
-  size_t *ppp = NULL;
-  size_t gap = 0;
-
-  if (seqFiles > 0) {
-    gap = bdSize / (seqFiles);
-    gap = (gap >> 16) <<16;
-    ppp = calloc(seqFiles, sizeof(size_t));
-    for (size_t i = 0; i < seqFiles; i++) {
-      ppp[i] = i * gap;
-    }
-  }
 
   for (size_t i = 0; i < num; i++) {
     randpositions[i] = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
-  }
-
-  if (seqFiles > 0) {
-    for (size_t i = 0; i < num; i++) {
-      // sequential
-      positions[i] = ppp[i % seqFiles];
-      ppp[i % seqFiles] += (jumpStep * BLKSIZE);
-      
-      assert((positions[i]>>16) << 16 == positions[i]);
-    }
   }
 
   if (table) {
@@ -134,17 +113,42 @@ int main(int argc, char *argv[]) {
       for (size_t ssindex=0; ssindex <4; ssindex++) {
 	for (size_t qdindex=0; qdindex<3; qdindex++) {
 	  for (size_t bsindex=0; bsindex<1; bsindex++) {
-	    double ios = 0;
+	    double ios = 0, start = 0, elapsed = 0;
 	    
 	    fprintf(stderr,"%zd\t%zd\t%zd\t%4.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
 	    
-	    double start = timedouble();
+	    
 	    if (ssArray[ssindex] == 0) {
+	      start = timedouble();
 	      ios = readMultiplePositions(fd, randpositions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 0);
+	      elapsed = timedouble() - start;
 	    } else {
+	      // setup positions
+	      size_t *ppp = NULL;
+	      size_t gap = 0;
+	      seqFiles = ssArray[ssindex];
+	      gap = bdSize / (seqFiles);
+	      gap = (gap >> 16) <<16;
+	      ppp = calloc(seqFiles, sizeof(size_t));
+	      for (size_t i = 0; i < seqFiles; i++) {
+		ppp[i] = i * gap;
+	      }
+	      for (size_t i = 0; i < num; i++) {
+		// sequential
+		positions[i] = ppp[i % seqFiles];
+		ppp[i % seqFiles] += (jumpStep * BLKSIZE);
+		
+		assert((positions[i]>>16) << 16 == positions[i]);
+	      }
+
+	      start = timedouble();
 	      ios = readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 0);
+	      elapsed = timedouble() - start;
+
+	      free(ppp);
+	      
 	    }
-	    double elapsed = timedouble() - start;
+
 	    
 	    fprintf(stderr,"%6.0lf\t%6.0lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
 	    fsync(fd);
@@ -160,7 +164,7 @@ int main(int argc, char *argv[]) {
   }
   
   free(positions);
-  free(ppp);
+  free(randpositions);
   
   return 0;
 }
