@@ -129,14 +129,14 @@ int main(int argc, char *argv[]) {
     double rrArray[]={1.0, 0, 0.5};
     size_t ssArray[]={0, 1, 8, 32};
 
-    fprintf(stderr,"blockSize\tnumSequent\tQueueD\tR/W ratio\tIOPS\tMB/s\n");
+    fprintf(stderr,"blockSz\tnumSeq\tQueueD\tR/W\tIOPS\tMB/s\n");
     for (size_t rrindex=0; rrindex<3; rrindex++) {
       for (size_t ssindex=0; ssindex <4; ssindex++) {
 	for (size_t qdindex=0; qdindex<3; qdindex++) {
 	  for (size_t bsindex=0; bsindex<1; bsindex++) {
 	    double ios = 0;
 	    
-	    fprintf(stderr,"bs %zd\t#sequential %zd\tqd %zd\trr %.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
+	    fprintf(stderr,"%zd\t%zd\t%zd\t%4.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
 	    
 	    double start = timedouble();
 	    if (ssArray[ssindex] == 0) {
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
 	    }
 	    double elapsed = timedouble() - start;
 	    
-	    fprintf(stderr,"\t%.0lf\t%.0lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
+	    fprintf(stderr,"%6.0lf\t%6.0lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
 	    fsync(fd);
 	    fdatasync(fd);
 	  }
