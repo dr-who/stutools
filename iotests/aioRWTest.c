@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
     double rrArray[]={1.0, 0, 0.5};
     size_t ssArray[]={0, 1, 8, 32};
 
-    fprintf(stderr,"blockSz\tnumSeq\tQueueD\tR/W\tIOPS\tMB/s\n");
+    fprintf(stderr,"blockSz\tnumSeq\tQueueD\tR/W\tIOPS\tMiB/s\n");
     for (size_t rrindex=0; rrindex<3; rrindex++) {
       for (size_t ssindex=0; ssindex <4; ssindex++) {
 	for (size_t qdindex=0; qdindex<3; qdindex++) {
@@ -119,11 +119,12 @@ int main(int argc, char *argv[]) {
 	    
 	    
 	    if (ssArray[ssindex] == 0) {
+	      // random
 	      start = timedouble();
 	      ios = readMultiplePositions(fd, randpositions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0);
 	      elapsed = timedouble() - start;
 	    } else {
-	      // setup positions
+	      // setup multiple sequential positions
 	      size_t *ppp = NULL;
 	      size_t gap = 0;
 	      seqFiles = ssArray[ssindex];
