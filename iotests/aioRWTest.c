@@ -98,8 +98,10 @@ int main(int argc, char *argv[]) {
   
   const size_t num = 10*1000*1000;
   size_t *positions = malloc(num * sizeof(size_t));
+  size_t *randpositions = malloc(num * sizeof(size_t));
   size_t *ppp = NULL;
   size_t gap = 0;
+
   if (seqFiles > 0) {
     gap = bdSize / (seqFiles);
     gap = (gap >> 16) <<16;
@@ -110,45 +112,52 @@ int main(int argc, char *argv[]) {
   }
 
   for (size_t i = 0; i < num; i++) {
-    if (seqFiles == 0) {
-      // random
-      positions[i] = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
-    } else {
+    randpositions[i] = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
+  }
+
+  if (seqFiles > 0) {
+    for (size_t i = 0; i < num; i++) {
       // sequential
       positions[i] = ppp[i % seqFiles];
       ppp[i % seqFiles] += (jumpStep * BLKSIZE);
-
+      
       assert((positions[i]>>16) << 16 == positions[i]);
-    }
-    if (i < seqFiles + 8) {
-      //      fprintf(stderr,"[%zd/%zd] pos %zd (%.1lf%%)\n", i+1, num, positions[i], positions[i]*100.0/bdSize);
     }
   }
 
   if (table) {
     size_t bsArray[]={BLKSIZE};
     size_t qdArray[]={1, 8, 32, 256};
-    double rrArray[]={1.0, 0.75, 0.5, 0.25, 0};
+    double rrArray[]={1.0, 0, 0.5, 0.75, 0.25};
+    size_t ssArray[]={0, 1, 8, 32, 256};
 
-    for (size_t bsindex=0; bsindex<1; bsindex++) {
-      for (size_t qdindex=0; qdindex<4; qdindex++) {
-	for (size_t rrindex=0; rrindex<5; rrindex++) {
-	  fprintf(stderr,"bs=%zd\tqd=%zd\trr=%.2g\t", bsArray[bsindex], qdArray[qdindex], rrArray[rrindex]);
-
-	  double start = timedouble();
-	  double ios = readMultiplePositions(fd, positions, num, bsArray[bsindex], exitAfterSeconds, qdArray[qdindex], rrArray[rrindex],0 );
-	  double elapsed = timedouble() - start;
-	  
-	  fprintf(stderr,"\t%.0lf\t%.1lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
-	  fsync(fd);
-	  fdatasync(fd);
+    for (size_t rrindex=0; rrindex<5; rrindex++) {
+      for (size_t ssindex=0; ssindex <5; ssindex++) {
+	for (size_t qdindex=0; qdindex<4; qdindex++) {
+	  for (size_t bsindex=0; bsindex<1; bsindex++) {
+	    double ios = 0;
+	    
+	    fprintf(stderr,"bs=%zd\tseq=%zd\tqd=%zd\trr=%.2g\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
+	    
+	    double start = timedouble();
+	    if (ssArray[ssindex] == 0) {
+	      ios = readMultiplePositions(fd, randpositions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 0);
+	    } else {
+	      ios = readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 0);
+	    }
+	    double elapsed = timedouble() - start;
+	    
+	    fprintf(stderr,"\t%.0lf\t%.1lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
+	    fsync(fd);
+	    fdatasync(fd);
+	  }
 	}
       }
     }
   } else {
     readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 1);
   }
-
+  
   free(positions);
   free(ppp);
   
