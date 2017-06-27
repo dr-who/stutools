@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
 	    
 	    if (ssArray[ssindex] == 0) {
 	      start = timedouble();
-	      ios = readMultiplePositions(fd, randpositions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 0);
+	      ios = readMultiplePositions(fd, randpositions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0);
 	      elapsed = timedouble() - start;
 	    } else {
 	      // setup positions
@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
 	      }
 
 	      start = timedouble();
-	      ios = readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 0);
+	      ios = readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0);
 	      elapsed = timedouble() - start;
 
 	      free(ppp);
