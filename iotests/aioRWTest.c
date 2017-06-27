@@ -81,7 +81,6 @@ int main(int argc, char *argv[]) {
 
   size_t seed = (size_t) timedouble();
   srand48(seed);
-  fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, seed %zd, blocksize: %d", path, readRatio, qd, seed, BLKSIZE);
   int fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
   if (fd < 0) {perror(path);return -1; }
 
@@ -93,7 +92,6 @@ int main(int argc, char *argv[]) {
   if (bdSize > origbdSize) {
     bdSize = origbdSize;
   }
-  fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
 
   
   const size_t num = 10*1000*1000;
@@ -127,17 +125,18 @@ int main(int argc, char *argv[]) {
 
   if (table) {
     size_t bsArray[]={BLKSIZE};
-    size_t qdArray[]={1, 8, 32, 256};
-    double rrArray[]={1.0, 0, 0.5, 0.75, 0.25};
-    size_t ssArray[]={0, 1, 8, 32, 256};
+    size_t qdArray[]={1, 8, 32};
+    double rrArray[]={1.0, 0, 0.5};
+    size_t ssArray[]={0, 1, 8, 32};
 
-    for (size_t rrindex=0; rrindex<5; rrindex++) {
-      for (size_t ssindex=0; ssindex <5; ssindex++) {
-	for (size_t qdindex=0; qdindex<4; qdindex++) {
+    fprintf(stderr,"blockSize\tnumSequent\tQueueD\tR/W ratio\tIOPS\tMB/s\n");
+    for (size_t rrindex=0; rrindex<3; rrindex++) {
+      for (size_t ssindex=0; ssindex <4; ssindex++) {
+	for (size_t qdindex=0; qdindex<3; qdindex++) {
 	  for (size_t bsindex=0; bsindex<1; bsindex++) {
 	    double ios = 0;
 	    
-	    fprintf(stderr,"bs=%zd\tseq=%zd\tqd=%zd\trr=%.2g\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
+	    fprintf(stderr,"bs %zd\t#sequential %zd\tqd %zd\trr %.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
 	    
 	    double start = timedouble();
 	    if (ssArray[ssindex] == 0) {
@@ -147,7 +146,7 @@ int main(int argc, char *argv[]) {
 	    }
 	    double elapsed = timedouble() - start;
 	    
-	    fprintf(stderr,"\t%.0lf\t%.1lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
+	    fprintf(stderr,"\t%.0lf\t%.0lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
 	    fsync(fd);
 	    fdatasync(fd);
 	  }
@@ -155,6 +154,8 @@ int main(int argc, char *argv[]) {
       }
     }
   } else {
+    fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, seed %zd, blocksize: %d", path, readRatio, qd, seed, BLKSIZE);
+    fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
     readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 1);
   }
   
