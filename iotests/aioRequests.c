@@ -13,13 +13,14 @@ extern int keepRunning;
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
-long readMultiplePositions(const int fd,
+double readMultiplePositions(const int fd,
 			   const size_t *positions,
 			   const size_t sz,
 			   const size_t BLKSIZE,
 			   const float secTimeout,
 			   const size_t QD,
-			   const double readRatio) {
+			   const double readRatio,
+			   const int verbose) {
   int ret;
   io_context_t ctx;
   struct iocb *cbs[1];
@@ -57,6 +58,7 @@ long readMultiplePositions(const int fd,
   double last = start;
   size_t submitted = 0;
   size_t received = 0;
+  //  double mbps = 0;
   
 
   while (1) {
@@ -89,7 +91,7 @@ long readMultiplePositions(const int fd,
 	double gt = timedouble();
 
 	if (gt - last >= 1) {
-	  fprintf(stderr,"submitted %zd, in flight/queue: %d, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (gt - start), received* BLKSIZE / (gt - start)/1024.0/1024);
+	  if (verbose) fprintf(stderr,"submitted %zd, in flight/queue: %d, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (gt - start), received* BLKSIZE / (gt - start)/1024.0/1024);
 	  last = gt;
 	  if ((!keepRunning) || (gt - start > secTimeout)) {
 	    //	  fprintf(stderr,"timeout\n");
@@ -108,7 +110,9 @@ long readMultiplePositions(const int fd,
     ret = io_getevents(ctx, 0, QD, events, NULL);
 
     if ((!keepRunning) || (timedouble() - start > secTimeout)) {
-      break;
+      if (received > 0) {
+	break;
+      }
     }
 
     if (ret > 0) {
@@ -131,6 +135,10 @@ long readMultiplePositions(const int fd,
       break;
     }
   }
+
+  //  mbps = received* BLKSIZE / (timedouble() - start)/1024.0/1024.0;
+  
  endoffunction:
-  return 0; //
+  io_destroy(ctx);
+  return received;
 }

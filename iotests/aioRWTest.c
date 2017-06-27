@@ -25,12 +25,16 @@ double maxSizeGB = 0;
 int    BLKSIZE=65536;
 size_t jumpStep = 1;
 double readRatio = 1.0;
+size_t table = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:T")) != -1) {
     switch (opt) {
+    case 'T':
+      table = 1;
+      break;
     case 't':
       exitAfterSeconds = atoi(optarg);
       break;
@@ -117,11 +121,31 @@ int main(int argc, char *argv[]) {
       assert((positions[i]>>16) << 16 == positions[i]);
     }
     if (i < seqFiles + 8) {
-      fprintf(stderr,"[%zd/%zd] pos %zd (%.1lf%%)\n", i+1, num, positions[i], positions[i]*100.0/bdSize);
+      //      fprintf(stderr,"[%zd/%zd] pos %zd (%.1lf%%)\n", i+1, num, positions[i], positions[i]*100.0/bdSize);
     }
   }
-  
-  readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio);
+
+  if (table) {
+    size_t bsArray[]={BLKSIZE};
+    size_t qdArray[]={1, 8, 32, 256};
+    double rrArray[]={1.0, 0.75, 0.5, 0.25, 0};
+
+    for (size_t bsindex=0; bsindex<1; bsindex++) {
+      for (size_t qdindex=0; qdindex<4; qdindex++) {
+	for (size_t rrindex=0; rrindex<5; rrindex++) {
+	  fprintf(stderr,"bs=%zd\tqd=%zd\trr=%.2g\t", bsArray[bsindex], qdArray[qdindex], rrArray[rrindex]);
+
+	  double start = timedouble();
+	  double ios = readMultiplePositions(fd, positions, num, bsArray[bsindex], 5, qdArray[qdindex], rrArray[rrindex],0 );
+	  double elapsed = timedouble() - start;
+	  
+	  fprintf(stderr,"\t%.0lf\t%.1lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
+	}
+      }
+    }
+  } else {
+    readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 1);
+  }
 
   free(positions);
   free(ppp);
