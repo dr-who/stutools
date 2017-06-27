@@ -17,7 +17,7 @@
 #include "logSpeed.h"
 
 int    keepRunning = 1;       // have we been interrupted
-int    exitAfterSeconds = 30;
+int    exitAfterSeconds = 2;
 int    qd = 32;
 char   *path = NULL;
 int    seqFiles = 0;
@@ -136,10 +136,12 @@ int main(int argc, char *argv[]) {
 	  fprintf(stderr,"bs=%zd\tqd=%zd\trr=%.2g\t", bsArray[bsindex], qdArray[qdindex], rrArray[rrindex]);
 
 	  double start = timedouble();
-	  double ios = readMultiplePositions(fd, positions, num, bsArray[bsindex], 5, qdArray[qdindex], rrArray[rrindex],0 );
+	  double ios = readMultiplePositions(fd, positions, num, bsArray[bsindex], exitAfterSeconds, qdArray[qdindex], rrArray[rrindex],0 );
 	  double elapsed = timedouble() - start;
 	  
 	  fprintf(stderr,"\t%.0lf\t%.1lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
+	  fsync(fd);
+	  fdatasync(fd);
 	}
       }
     }
