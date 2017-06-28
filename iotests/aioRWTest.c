@@ -110,6 +110,7 @@ void setupPositions(size_t *positions, size_t num, const size_t bdSize, const in
   }
 
   if (verbose) {
+    fprintf(stderr,"\n");
     for(size_t i = 0; i < 10;i++) {
       fprintf(stderr,"%zd: %zd\n", i, positions[i]);
     }
@@ -153,10 +154,10 @@ int main(int argc, char *argv[]) {
     size_t ssArray[]={0, 1, 8, 32};
 
     fprintf(stderr,"blockSz\tnumSeq\tQueueD\tR/W\tIOPS\tMiB/s\n");
-    for (size_t rrindex=0; rrindex<3; rrindex++) {
-      for (size_t ssindex=0; ssindex <4; ssindex++) {
-	for (size_t qdindex=0; qdindex<3; qdindex++) {
-	  for (size_t bsindex=0; bsindex<1; bsindex++) {
+    for (size_t rrindex=0; rrindex < sizeof(rrArray) / sizeof(rrArray[0]); rrindex++) {
+      for (size_t ssindex=0; ssindex < sizeof(ssArray) / sizeof(ssArray[0]); ssindex++) {
+	for (size_t qdindex=0; qdindex < sizeof(qdArray) / sizeof(qdArray[0]); qdindex++) {
+	  for (size_t bsindex=0; bsindex < sizeof(bsArray) / sizeof(bsArray[0]); bsindex++) {
 	    double ios = 0, start = 0, elapsed = 0;
 	    char filename[1024];
 
@@ -168,7 +169,6 @@ int main(int argc, char *argv[]) {
 	    logSpeedInit(&l);
 	    
 	    fprintf(stderr,"%zd\t%zd\t%zd\t%4.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
-	    
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // random
