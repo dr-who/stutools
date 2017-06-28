@@ -8,6 +8,7 @@
 #include <assert.h>
 
 #include "utils.h"
+#include "logSpeed.h"
 
 extern int keepRunning;
 
@@ -20,11 +21,15 @@ double readMultiplePositions(const int fd,
 			   const float secTimeout,
 			   const size_t QD,
 			   const double readRatio,
-			   const int verbose) {
+			     const int verbose,
+			     logSpeedType *l
+			     ) {
   int ret;
   io_context_t ctx;
   struct iocb *cbs[1];
   struct io_event *events;
+
+  assert(QD);
 
   events = malloc(QD * sizeof(struct io_event)); assert(events);
   cbs[0] = malloc(sizeof(struct iocb));
@@ -40,8 +45,10 @@ double readMultiplePositions(const int fd,
   ctx = 0;
 
   // set the queue depth
+
+  //  fprintf(stderr,"QD = %zd\n", QD);
   ret = io_setup(QD, &ctx);
-  if (ret < 0) {perror("io_setup");return -1;}
+  if (ret != 0) {perror("io_setup");abort();}
 
   /* setup I/O control block */
   char **data = malloc(QD * sizeof(char*));
@@ -67,7 +74,7 @@ double readMultiplePositions(const int fd,
       // submit requests, one at a time
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
 	size_t newpos = positions[pos++]; if (pos > sz) pos = 0;
-	//	fprintf(stderr,"ewpos %zd\n", newpos);
+	//	fprintf(stderr,"ewpos %zd (%zd)\n", newpos, newpos % BLKSIZE);
 	// setup the read request
 	if ((readRatio >= 1.0) || (lrand48()%100 < 100*readRatio)) {
 	  io_prep_pread(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
@@ -116,6 +123,9 @@ double readMultiplePositions(const int fd,
     }
 
     if (ret > 0) {
+      if (l) {
+	logSpeedAdd(l, received * BLKSIZE);
+      }
       inFlight -= ret;
 
       //      fprintf(stderr,"in flight %zd\n", inFlight);
@@ -139,6 +149,14 @@ double readMultiplePositions(const int fd,
   //  mbps = received* BLKSIZE / (timedouble() - start)/1024.0/1024.0;
   
  endoffunction:
+  //  fdatasync(fd);
+  free(events);
+  free(cbs[0]);
+  for (size_t i = 0; i <QD; i++) {
+    free(data[i]);
+  }
+  free(data);
   io_destroy(ctx);
+  
   return received;
 }

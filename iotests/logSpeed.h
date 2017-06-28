@@ -10,6 +10,10 @@ typedef struct {
   size_t num;
   size_t alloc;
   double total;
+  double rawtot;
+  double *rawtime;
+  double *rawvalues;
+  double *rawtotal;
   double *values;
   double lasttime;
   int    sorted;

@@ -13,7 +13,11 @@ void logSpeedInit(volatile logSpeedType *l) {
   l->alloc = 10000;
   l->total = 0;
   l->sorted = 0;
+  l->rawtot = 0;
   l->values = calloc(l->alloc, sizeof(double)); if (!l->values) {fprintf(stderr,"OOM!\n");exit(1);}
+  l->rawtime = calloc(l->alloc, sizeof(double)); if (!l->rawtime) {fprintf(stderr,"OOM!\n");exit(1);}
+  l->rawvalues = calloc(l->alloc, sizeof(double)); if (!l->rawvalues) {fprintf(stderr,"OOM!\n");exit(1);}
+  l->rawtotal = calloc(l->alloc, sizeof(double)); if (!l->rawtotal) {fprintf(stderr,"OOM!\n");exit(1);}
 }
 
 void logSpeedReset(logSpeedType *l) {
@@ -43,10 +47,17 @@ int logSpeedAdd(logSpeedType *l, double value) {
     if (l->num >= l->alloc) {
       l->alloc = l->alloc * 2 + 1;
       l->values = realloc(l->values, l->alloc * sizeof(double)); if (!l->values) {fprintf(stderr,"OOM! realloc failed\n");exit(1);}
+      l->rawtime = realloc(l->rawtime, l->alloc * sizeof(double));
+      l->rawvalues = realloc(l->rawvalues, l->alloc * sizeof(double));
+      l->rawtotal = realloc(l->rawtotal, l->alloc * sizeof(double));
       //    fprintf(stderr,"skipping...\n"); sleep(1);
     } 
     // fprintf(stderr,"it's been %zd bytes in %lf time, is %lf, total %zd, %lf,  %lf sec\n", value, timegap, value/timegap, l->total, l->total/logSpeedTime(l), logSpeedTime(l));
     l->values[l->num] = v;
+    l->rawtime[l->num] = thistime;
+    l->rawtotal[l->num] = l->rawtot;
+    l->rawtot += value;
+    l->rawvalues[l->num] = value;
     l->sorted = 0;
     l->num++;
   }
@@ -119,15 +130,17 @@ size_t logSpeedN(logSpeedType *l) {
 
 void logSpeedFree(logSpeedType *l) {
   free(l->values);
+  free(l->rawtime);
+  free(l->rawvalues);
   l->values = NULL;
 }
 
 
 void logSpeedDump(logSpeedType *l, const char *fn) {
-  logSpeedMedian(l);
+  //  logSpeedMedian(l);
   FILE *fp = fopen(fn, "wt");
   for (size_t i = 0; i < l->num; i++) {
-    fprintf(fp, "%lf\n", l->values[i]);
+    fprintf(fp, "%.6lf\t%.6lf\t%.0lf\t%.0lf\n", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], l->rawtotal[i]);
   }
   fclose(fp);
 }

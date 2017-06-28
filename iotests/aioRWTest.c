@@ -26,14 +26,18 @@ int    BLKSIZE=65536;
 size_t jumpStep = 1;
 double readRatio = 1.0;
 size_t table = 0;
+char   *logFNPrefix = NULL;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:T")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:")) != -1) {
     switch (opt) {
     case 'T':
       table = 1;
+      break;
+    case 'l':
+      logFNPrefix = strdup(optarg);
       break;
     case 't':
       exitAfterSeconds = atof(optarg); if (exitAfterSeconds < 0.1) exitAfterSeconds = 0.1;
@@ -115,6 +119,14 @@ int main(int argc, char *argv[]) {
 	for (size_t qdindex=0; qdindex<3; qdindex++) {
 	  for (size_t bsindex=0; bsindex<1; bsindex++) {
 	    double ios = 0, start = 0, elapsed = 0;
+	    char filename[1024];
+
+	    if (logFNPrefix) {
+	      mkdir(logFNPrefix, 0755);
+	    }
+	    sprintf(filename, "%s/bs%zd_ss%zd_qd%zd_rr%.2f", logFNPrefix ? logFNPrefix : ".", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
+	    logSpeedType l;
+	    logSpeedInit(&l);
 	    
 	    fprintf(stderr,"%zd\t%zd\t%zd\t%4.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
 	    
@@ -122,7 +134,9 @@ int main(int argc, char *argv[]) {
 	    if (ssArray[ssindex] == 0) {
 	      // random
 	      start = timedouble();
-	      ios = readMultiplePositions(fd, randpositions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0);
+	      ios = readMultiplePositions(fd, randpositions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0, &l);
+	      fsync(fd);
+	      fdatasync(fd);
 	      elapsed = timedouble() - start;
 	    } else {
 	      // setup multiple sequential positions
@@ -144,13 +158,16 @@ int main(int argc, char *argv[]) {
 	      }
 
 	      start = timedouble();
-	      ios = readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0);
-	      elapsed = timedouble() - start;
+	      ios = readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0, &l);
+	      fsync(fd);
+	      fdatasync(fd);
 
+	      elapsed = timedouble() - start;
 	      free(ppp);
-	      
 	    }
 
+	    logSpeedDump(&l, filename);
+	    logSpeedFree(&l);
 	    
 	    fprintf(stderr,"%6.0lf\t%6.0lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
 	    fsync(fd);
@@ -162,11 +179,14 @@ int main(int argc, char *argv[]) {
   } else {
     fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, seed %zd, blocksize: %d", path, readRatio, qd, seed, BLKSIZE);
     fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
-    readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 1);
+    readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 1, NULL);
   }
   
   free(positions);
   free(randpositions);
+  if (logFNPrefix) {
+    free(logFNPrefix);
+  }
   
   return 0;
 }

@@ -1,6 +1,8 @@
 #ifndef _AIOREADS_H
 #define _AIOREADS_H
 
+#include "logSpeed.h"
+
 double readMultiplePositions(const int fd,
 			   const size_t *positions,
 			   const size_t sz,
@@ -8,6 +10,7 @@ double readMultiplePositions(const int fd,
 			   const float secTimeout,
 			   const size_t QD,
 			   const double readRatio,
-			   const int verbose);
+			     const int verbose,
+			     logSpeedType *l);
 
 #endif
