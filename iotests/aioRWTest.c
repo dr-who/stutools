@@ -148,10 +148,11 @@ int main(int argc, char *argv[]) {
 
 
   if (table) {
+    // generate a table
     size_t bsArray[]={BLKSIZE};
-    size_t qdArray[]={1, 8, 32};
+    size_t qdArray[]={1, 8, 32, 256};
     double rrArray[]={1.0, 0, 0.5};
-    size_t ssArray[]={0, 1, 8, 32};
+    size_t ssArray[]={0, 1, 8, 32, 128};
 
     fprintf(stderr,"blockSz\tnumSeq\tQueueD\tR/W\tIOPS\tMiB/s\n");
     for (size_t rrindex=0; rrindex < sizeof(rrArray) / sizeof(rrArray[0]); rrindex++) {
@@ -200,6 +201,7 @@ int main(int argc, char *argv[]) {
       }
     }
   } else {
+    // just execute a single run
     fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, seed %zd, blocksize: %d", path, readRatio, qd, seed, BLKSIZE);
     fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
     if (seqFiles == 0) {
