@@ -124,7 +124,7 @@ double readMultiplePositions(const int fd,
 
     if (ret > 0) {
       if (l) {
-	logSpeedAdd(l, received * BLKSIZE);
+	logSpeedAdd(l, ret * BLKSIZE);
       }
       inFlight -= ret;
 
