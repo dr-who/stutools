@@ -27,14 +27,18 @@ size_t jumpStep = 1;
 double readRatio = 1.0;
 size_t table = 0;
 char   *logFNPrefix = NULL;
+int    verbose = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:v")) != -1) {
     switch (opt) {
     case 'T':
       table = 1;
+      break;
+    case 'v':
+      verbose++;
       break;
     case 'l':
       logFNPrefix = strdup(optarg);
@@ -102,8 +106,16 @@ void setupPositions(size_t *positions, size_t num, const size_t bdSize, const in
       assert((positions[i]>>16) << 16 == positions[i]);
     }
     free(ppp);
+    
+  }
+
+  if (verbose) {
+    for(size_t i = 0; i < 10;i++) {
+      fprintf(stderr,"%zd: %zd\n", i, positions[i]);
+    }
   }
   
+
 }
 
 
@@ -168,7 +180,7 @@ int main(int argc, char *argv[]) {
 	      elapsed = timedouble() - start;
 	    } else {
 	      // setup multiple sequential positions
-	      setupPositions(positions, num, bdSize, seqFiles);
+	      setupPositions(positions, num, bdSize, ssArray[ssindex]);
 	      start = timedouble();
 	      ios = readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0, &l);
 	      fsync(fd);
