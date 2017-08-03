@@ -119,11 +119,13 @@ double readMultiplePositions(const int fd,
 	}
       }
       if (flushWhenQueueFull) {
-	// sync whenever the queue is full
-	if (verbose) {
-	  fprintf(stderr,"calling fsync() on array index %zd\n", pos);
+	if ((pos % flushWhenQueueFull) == 0) {
+	  // sync whenever the queue is full
+	  if (verbose) {
+	    fprintf(stderr,"calling fsync() on array index %zd\n", pos);
+	  }
+	  fsync(fd);
 	}
-	fsync(fd);
       }
     }
 
