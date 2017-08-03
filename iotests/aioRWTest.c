@@ -43,7 +43,11 @@ void handle_args(int argc, char *argv[]) {
       singlePosition = 1;
       break;
     case 'F':
-      flushWhenQueueFull = 1;
+      if (flushWhenQueueFull == 0) {
+	flushWhenQueueFull = 1;
+      } else {
+	flushWhenQueueFull = 10 * flushWhenQueueFull;
+      }
       break;
     case 'v':
       verbose++;
