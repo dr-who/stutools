@@ -28,14 +28,18 @@ double readRatio = 1.0;
 size_t table = 0;
 char   *logFNPrefix = NULL;
 int    verbose = 0;
+int    singlePosition = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:v")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vS")) != -1) {
     switch (opt) {
     case 'T':
       table = 1;
+      break;
+    case 'S':
+      singlePosition = 1;
       break;
     case 'v':
       verbose++;
@@ -79,34 +83,43 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -p0.75 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100 # 75%% reads\n");
     fprintf(stderr,"  ./aioRWTest -p0.0 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100  # 0%% reads, 100%% writes\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
+    fprintf(stderr,"  ./aioRWTest -S -k4 -f /dev/nbd0  # single position\n");
     exit(1);
   }
 }
 
 
 void setupPositions(size_t *positions, size_t num, const size_t bdSize, const int sf) {
-  if (sf == 0) {
+  if (singlePosition) {
+    size_t con = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
+    fprintf(stderr,"Using a single block position: %zd\n", con);
     for (size_t i = 0; i < num; i++) {
-      positions[i] = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
+      positions[i] = con;
     }
   } else {
-    size_t *ppp = NULL;
-    size_t gap = 0;
-    gap = bdSize / (sf);
-    gap = (gap >> 16) <<16;
-    ppp = calloc(sf, sizeof(size_t));
-    for (size_t i = 0; i < sf; i++) {
-      ppp[i] = i * gap;
+    // dynamic positions
+    if (sf == 0) {
+      for (size_t i = 0; i < num; i++) {
+	positions[i] = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
+      }
+    } else {
+      size_t *ppp = NULL;
+      size_t gap = 0;
+      gap = bdSize / (sf);
+      gap = (gap >> 16) <<16;
+      ppp = calloc(sf, sizeof(size_t));
+      for (size_t i = 0; i < sf; i++) {
+	ppp[i] = i * gap;
+      }
+      for (size_t i = 0; i < num; i++) {
+	// sequential
+	positions[i] = ppp[i % sf];
+	ppp[i % sf] += (jumpStep * BLKSIZE);
+	
+	assert((positions[i]>>16) << 16 == positions[i]);
+      }
+      free(ppp);
     }
-    for (size_t i = 0; i < num; i++) {
-      // sequential
-      positions[i] = ppp[i % sf];
-      ppp[i % sf] += (jumpStep * BLKSIZE);
-      
-      assert((positions[i]>>16) << 16 == positions[i]);
-    }
-    free(ppp);
-    
   }
 
   if (verbose) {
