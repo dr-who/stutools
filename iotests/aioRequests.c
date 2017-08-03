@@ -119,6 +119,9 @@ double readMultiplePositions(const int fd,
       }
       if (singlePosition) {
 	// sync whenever the queue is full
+	if (verbose) {
+	  fprintf(stderr,"calling fsync()\n");
+	}
 	fsync(fd);
       }
     }
