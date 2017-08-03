@@ -79,13 +79,13 @@ double readMultiplePositions(const int fd,
 	// setup the read request
 	if ((readRatio >= 1.0) || (lrand48()%100 < 100*readRatio)) {
 	  if (verbose) {
-	    fprintf(stderr,"read pos %zd (%s), size %zd\n", newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE);
+	    fprintf(stderr,"[%zd/%zd] read pos %zd (%s), size %zd\n", pos, sz, newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE);
 	  }
 	  io_prep_pread(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
 	  //	  fprintf(stderr,"r");
 	} else {
 	  if (verbose) {
-	    fprintf(stderr,"write pos %zd (%s), size %zd\n", newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE);
+	    fprintf(stderr,"[%zd/%zd] write pos %zd (%s), size %zd\n", pos, sz, newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE);
 	  }
 	  io_prep_pwrite(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
 	  //	  	  fprintf(stderr,"w");
@@ -122,7 +122,7 @@ double readMultiplePositions(const int fd,
 	if ((pos % flushWhenQueueFull) == 0) {
 	  // sync whenever the queue is full
 	  if (verbose) {
-	    fprintf(stderr,"calling fsync() on array index %zd\n", pos);
+	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
 	  fsync(fd);
 	}

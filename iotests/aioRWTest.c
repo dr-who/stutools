@@ -40,7 +40,11 @@ void handle_args(int argc, char *argv[]) {
       table = 1;
       break;
     case 'S':
-      singlePosition = 1;
+      if (singlePosition == 0) {
+	singlePosition = 1;
+      } else {
+	singlePosition = 10 * singlePosition;
+      }
       break;
     case 'F':
       if (flushWhenQueueFull == 0) {
@@ -100,8 +104,14 @@ void handle_args(int argc, char *argv[]) {
 void setupPositions(size_t *positions, size_t num, const size_t bdSize, const int sf) {
   if (singlePosition) {
     size_t con = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
-    fprintf(stderr,"Using a single block position: %zd\n", con);
+    fprintf(stderr,"Using a single block position: %zd (singlePosition value %zd)\n", con, singlePosition);
     for (size_t i = 0; i < num; i++) {
+      if (singlePosition > 1) {
+	if ((i % singlePosition) == 0) {
+	  con = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
+	}
+      }
+	  
       positions[i] = con;
     }
   } else {
