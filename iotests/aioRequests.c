@@ -11,6 +11,7 @@
 #include "logSpeed.h"
 
 extern int keepRunning;
+extern int singlePosition;
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
@@ -110,6 +111,10 @@ double readMultiplePositions(const int fd,
 	} else {
 	  //      fprintf(stderr,"red %d\n", ret);
 	}
+      }
+      if (singlePosition) {
+	// sync whenever the queue is full
+	fsync(fd);
       }
     }
 
