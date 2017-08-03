@@ -29,17 +29,21 @@ size_t table = 0;
 char   *logFNPrefix = NULL;
 int    verbose = 0;
 int    singlePosition = 0;
+int    flushWhenQueueFull = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vS")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vSF")) != -1) {
     switch (opt) {
     case 'T':
       table = 1;
       break;
     case 'S':
       singlePosition = 1;
+      break;
+    case 'F':
+      flushWhenQueueFull = 1;
       break;
     case 'v':
       verbose++;
@@ -83,7 +87,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -p0.75 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100 # 75%% reads\n");
     fprintf(stderr,"  ./aioRWTest -p0.0 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100  # 0%% reads, 100%% writes\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
-    fprintf(stderr,"  ./aioRWTest -S -k4 -f /dev/nbd0  # single position\n");
+    fprintf(stderr,"  ./aioRWTest -S -F -k4 -f /dev/nbd0  # single position, fsync when queue full\n");
     exit(1);
   }
 }

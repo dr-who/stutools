@@ -12,16 +12,17 @@
 
 extern int keepRunning;
 extern int singlePosition;
+extern int flushWhenQueueFull;
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 double readMultiplePositions(const int fd,
-			   const size_t *positions,
-			   const size_t sz,
-			   const size_t BLKSIZE,
-			   const float secTimeout,
-			   const size_t QD,
-			   const double readRatio,
+			     const size_t *positions,
+			     const size_t sz,
+			     const size_t BLKSIZE,
+			     const float secTimeout,
+			     const size_t QD,
+			     const double readRatio,
 			     const int verbose,
 			     logSpeedType *l
 			     ) {
@@ -78,13 +79,13 @@ double readMultiplePositions(const int fd,
 	// setup the read request
 	if ((readRatio >= 1.0) || (lrand48()%100 < 100*readRatio)) {
 	  if (verbose) {
-	    fprintf(stderr,"read pos %zd\n", newpos);
+	    fprintf(stderr,"read pos %zd (%s), size %zd\n", newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE);
 	  }
 	  io_prep_pread(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
 	  //	  fprintf(stderr,"r");
 	} else {
 	  if (verbose) {
-	    fprintf(stderr,"write pos %zd\n", newpos);
+	    fprintf(stderr,"write pos %zd (%s), size %zd\n", newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE);
 	  }
 	  io_prep_pwrite(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
 	  //	  	  fprintf(stderr,"w");
@@ -117,7 +118,7 @@ double readMultiplePositions(const int fd,
 	  //      fprintf(stderr,"red %d\n", ret);
 	}
       }
-      if (singlePosition) {
+      if (flushWhenQueueFull) {
 	// sync whenever the queue is full
 	if (verbose) {
 	  fprintf(stderr,"calling fsync()\n");
