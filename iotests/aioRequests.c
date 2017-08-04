@@ -60,7 +60,7 @@ double aioMultiplePositions(const int fd,
     memset(data[i], 'A', BLKSIZE);
   }
 
-  int inFlight = 0;
+  size_t inFlight = 0;
 
   size_t pos = 0;
 
