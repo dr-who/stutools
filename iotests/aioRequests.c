@@ -79,13 +79,13 @@ double readMultiplePositions(const int fd,
 	// setup the read request
 	if ((readRatio >= 1.0) || (lrand48()%100 < 100*readRatio)) {
 	  if (verbose) {
-	    fprintf(stderr,"[%zd/%zd] read pos %zd (%s), size %zd\n", pos, sz, newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE);
+	    fprintf(stderr,"[%zd] read ", pos);
 	  }
 	  io_prep_pread(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
 	  //	  fprintf(stderr,"r");
 	} else {
 	  if (verbose) {
-	    fprintf(stderr,"[%zd/%zd] write pos %zd (%s), size %zd\n", pos, sz, newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE);
+	    fprintf(stderr,"[%zd] write", pos);
 	  }
 	  io_prep_pwrite(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
 	  //	  	  fprintf(stderr,"w");
@@ -95,9 +95,11 @@ double readMultiplePositions(const int fd,
 	//    cbs[0]->u.c.offset = sz;
 	//	fprintf(stderr,"submit...\n");
 	ret = io_submit(ctx, 1, cbs);
-	if (ret == 1) {
+	if (ret > 0) {
 	  inFlight++;
 	  submitted++;
+	  fprintf(stderr,"pos %zd (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE, inFlight, QD, submitted, received);
+
 	} else {
 	  fprintf(stderr,"!!!\n");
 	}
@@ -153,7 +155,7 @@ double readMultiplePositions(const int fd,
 	
     } else {
       //             fprintf(stderr,".");
-      //		  usleep(1);
+      usleep(1);
     }
     //	  ret = io_destroy(ctx);
     if (ret < 0) {
