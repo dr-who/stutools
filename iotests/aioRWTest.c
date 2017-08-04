@@ -104,7 +104,7 @@ void handle_args(int argc, char *argv[]) {
 void setupPositions(size_t *positions, size_t num, const size_t bdSize, const int sf) {
   if (singlePosition) {
     size_t con = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
-    fprintf(stderr,"Using a single block position: %zd (singlePosition value %zd)\n", con, singlePosition);
+    fprintf(stderr,"Using a single block position: %zd (singlePosition value %d)\n", con, singlePosition);
     for (size_t i = 0; i < num; i++) {
       if (singlePosition > 1) {
 	if ((i % singlePosition) == 0) {
