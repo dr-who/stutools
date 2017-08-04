@@ -16,7 +16,7 @@ extern int flushWhenQueueFull;
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
-double readMultiplePositions(const int fd,
+double aioMultiplePositions(const int fd,
 			     const size_t *positions,
 			     const size_t sz,
 			     const size_t BLKSIZE,
@@ -24,6 +24,7 @@ double readMultiplePositions(const int fd,
 			     const size_t QD,
 			     const double readRatio,
 			     const int verbose,
+			     const int tableMode, 
 			     logSpeedType *l
 			     ) {
   int ret;
@@ -85,7 +86,7 @@ double readMultiplePositions(const int fd,
 	  //	  fprintf(stderr,"r");
 	} else {
 	  if (verbose) {
-	    fprintf(stderr,"[%zd] write", pos);
+	    fprintf(stderr,"[%zd] write ", pos);
 	  }
 	  io_prep_pwrite(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
 	  //	  	  fprintf(stderr,"w");
@@ -98,7 +99,9 @@ double readMultiplePositions(const int fd,
 	if (ret > 0) {
 	  inFlight++;
 	  submitted++;
-	  fprintf(stderr,"pos %zd (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE, inFlight, QD, submitted, received);
+	  if (verbose) {
+	    fprintf(stderr,"pos %zd (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE, inFlight, QD, submitted, received);
+	  }
 
 	} else {
 	  fprintf(stderr,"!!!\n");
@@ -107,7 +110,7 @@ double readMultiplePositions(const int fd,
 	double gt = timedouble();
 
 	if (gt - last >= 1) {
-	  if (verbose) fprintf(stderr,"submitted %zd, in flight/queue: %d, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (gt - start), received* BLKSIZE / (gt - start)/1024.0/1024);
+	  if (!tableMode) fprintf(stderr,"submitted %zd, in flight/queue: %d, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (gt - start), received* BLKSIZE / (gt - start)/1024.0/1024);
 	  last = gt;
 	  if ((!keepRunning) || (gt - start > secTimeout)) {
 	    //	  fprintf(stderr,"timeout\n");
@@ -154,8 +157,7 @@ double readMultiplePositions(const int fd,
       //      }
 	
     } else {
-      //             fprintf(stderr,".");
-      usleep(1);
+      //      usleep(1);
     }
     //	  ret = io_destroy(ctx);
     if (ret < 0) {

@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
 	      // random
 	      start = timedouble();
 	      setupPositions(positions, num, bdSize, 0);
-	      ios = readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0, &l);
+	      ios = aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0, 1, &l);
 	      fsync(fd);
 	      fdatasync(fd);
 	      elapsed = timedouble() - start;
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
 	      // setup multiple sequential positions
 	      setupPositions(positions, num, bdSize, ssArray[ssindex]);
 	      start = timedouble();
-	      ios = readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0, &l);
+	      ios = aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0, 1, &l);
 	      fsync(fd);
 	      fdatasync(fd);
 
@@ -237,10 +237,10 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
     if (seqFiles == 0) {
       setupPositions(positions, num, bdSize, 0);
-      readMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, 1, NULL);
+      aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, verbose, 0, NULL);
     } else {
       setupPositions(positions, num, bdSize, seqFiles);
-      readMultiplePositions(fd, positions,     num, BLKSIZE, exitAfterSeconds, qd, readRatio, 1, NULL);
+      aioMultiplePositions(fd, positions,     num, BLKSIZE, exitAfterSeconds, qd, readRatio, verbose, 0, NULL);
     }
   }
   
