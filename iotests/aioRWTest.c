@@ -30,14 +30,18 @@ char   *logFNPrefix = NULL;
 int    verbose = 0;
 int    singlePosition = 0;
 int    flushWhenQueueFull = 0;
+size_t noops = 1;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vSF")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vSF0")) != -1) {
     switch (opt) {
     case 'T':
       table = 1;
+      break;
+    case '0':
+      noops = 0;
       break;
     case 'S':
       if (singlePosition == 0) {
@@ -92,10 +96,14 @@ void handle_args(int argc, char *argv[]) {
   if (path == NULL) {
     fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-j jumpBlocks] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] [-G 32] [-p readRatio] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
-    fprintf(stderr,"  ./aioRWTest -p0.75 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100 # 75%% reads\n");
+    fprintf(stderr,"  ./aioRWTest -p1 -f /dev/nbd0 -k4 -q64 -s32 -j16  # 100%% reads over entire block device\n");
+    fprintf(stderr,"  ./aioRWTest -p0.75 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100 # 75%% reads, limited to the first 100GB\n");
     fprintf(stderr,"  ./aioRWTest -p0.0 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100  # 0%% reads, 100%% writes\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
-    fprintf(stderr,"  ./aioRWTest -S -F -k4 -f /dev/nbd0  # single position, fsync when queue full\n");
+    fprintf(stderr,"  ./aioRWTest -S -F -k4 -f /dev/nbd0  # single position, fsync after every op\n");
+    fprintf(stderr,"  ./aioRWTest -S -S -F -F -k4 -f /dev/nbd0  # single position, changing every 10 ops, fsync every 10 ops\n");
+    fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0  # send no operations, then flush. Basically, fast flush loop\n");
+    fprintf(stderr,"  ./aioRWTest -S -F -v -f /dev/nbd0  # verbose that shows every operation\n");
     exit(1);
   }
 }
@@ -189,8 +197,8 @@ int main(int argc, char *argv[]) {
   }
 
   
-  const size_t num = 10*1000*1000;
-  size_t *positions = malloc(num * sizeof(size_t));
+  const size_t num = noops * 10*1000*1000;
+  size_t *positions = malloc((num+1) * sizeof(size_t));
 
 
   if (table) {

@@ -75,6 +75,7 @@ double aioMultiplePositions(const int fd,
     if (inFlight < QD) {
       
       // submit requests, one at a time
+      if (sz) // if we have some positions
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
 	size_t newpos = positions[pos++]; if (pos > sz) pos = 0;
 	// setup the read request
@@ -122,7 +123,7 @@ double aioMultiplePositions(const int fd,
 	} else {
 	  //      fprintf(stderr,"red %d\n", ret);
 	}
-      }
+      } // for loop
       if (flushWhenQueueFull) {
 	if ((pos % flushWhenQueueFull) == 0) {
 	  // sync whenever the queue is full
