@@ -51,7 +51,7 @@ size_t blockDeviceSize(char *path) {
   fsync(fd);
   close(fd);
   if (file_size_in_bytes == 0) {
-    fprintf(stderr,"*warning*: size is %zd bytes?\n", 0);
+    fprintf(stderr,"*warning*: size is %d bytes?\n", 0);
     file_size_in_bytes = 1; // make it 1 to avoid DBZ
   }
   return file_size_in_bytes;
