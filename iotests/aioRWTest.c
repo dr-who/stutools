@@ -72,7 +72,7 @@ void handle_args(int argc, char *argv[]) {
       jumpStep = atoi(optarg); if (jumpStep < 1) jumpStep = 1;
       break;
     case 'G':
-      maxSizeGB = atof(optarg); 
+      maxSizeGB = atof(optarg);
       break;
     case 'k':
       BLKSIZE = 1024 * atoi(optarg); if (BLKSIZE < 1024) BLKSIZE=1024;
@@ -102,6 +102,11 @@ void handle_args(int argc, char *argv[]) {
 
 
 void setupPositions(size_t *positions, size_t num, const size_t bdSize, const int sf) {
+  if (bdSize < BLKSIZE) {
+    fprintf(stderr,"*warning* size of device is less than block size!\n");
+    return;
+  }
+  
   if (singlePosition) {
     size_t con = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
     fprintf(stderr,"Using a single block position: %zd (singlePosition value %d)\n", con, singlePosition);
@@ -133,20 +138,18 @@ void setupPositions(size_t *positions, size_t num, const size_t bdSize, const in
 	// sequential
 	positions[i] = ppp[i % sf];
 	ppp[i % sf] += (jumpStep * BLKSIZE);
-	
-	assert((positions[i]>>16) << 16 == positions[i]);
       }
       free(ppp);
     }
   }
 
-  if (verbose) {
+  /*  if (verbose) {
     fprintf(stderr,"\n");
     for(size_t i = 0; i < 10;i++) {
       fprintf(stderr,"%zd: %zd\n", i, positions[i]);
     }
   }
-  
+  */
 
 }
 
@@ -160,10 +163,19 @@ int main(int argc, char *argv[]) {
 
   size_t seed = (size_t) timedouble();
   srand48(seed);
-  int fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
+  int fd = 0;
+
+  size_t origbdSize = 0;
+  if (isBlockDevice(path)) {
+    origbdSize = blockDeviceSize(path);
+    fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
+  } else {
+    fd = open(path, O_RDWR | O_DIRECT | O_EXCL);
+    origbdSize = fileSize(fd);
+    fprintf(stderr,"*info* file specified: '%s' size %zd bytes\n", path, origbdSize);
+  }
   if (fd < 0) {perror(path);return -1; }
 
-  size_t origbdSize = blockDeviceSize(path);
   size_t bdSize = origbdSize;
   if (maxSizeGB > 0) {
     bdSize = (size_t) (maxSizeGB * 1024L * 1024 * 1024);

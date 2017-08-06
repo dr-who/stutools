@@ -24,6 +24,8 @@ size_t numThreads();
 size_t totalRAM();
 char *OSRelease();
 
+size_t fileSize(int fd);
+
 
 #endif
 
