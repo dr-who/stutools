@@ -1,6 +1,6 @@
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
 CC=gcc
-CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -O2 -g
+CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g
 
 all: readSpeedTest writeSpeedTest writePairTest checkDisks flushTestWriter flushTestReader \
 	aioRWTest
@@ -45,6 +45,7 @@ logSpeedTest: logSpeedTest.o utils.o logSpeed.o
 
 clean:
 	- rm -f readSpeedTest writeSpeedTest writePairTest logSpeedTest *.o \
-	mtReadSpeedTest mtWriteSpeedTest checkDisks aioReadTest aioRWTest
+	mtReadSpeedTest mtWriteSpeedTest checkDisks aioReadTest aioRWTest \
+	flushTestReader flushTestWriter writeSmallBlocks
 
 
