@@ -180,9 +180,12 @@ int main(int argc, char *argv[]) {
   if (maxSizeGB > 0) {
     bdSize = (size_t) (maxSizeGB * 1024L * 1024 * 1024);
   }
+  
   if (bdSize > origbdSize) {
     bdSize = origbdSize;
-    fprintf(stderr,"Override option too high, reducing BD size to %.1lf GB\n", bdSize /1024.0/1024/1024);
+    fprintf(stderr,"*info* override option too high, reducing size to %.1lf GB\n", bdSize /1024.0/1024/1024);
+  } else if (bdSize < origbdSize) {
+    fprintf(stderr,"*info* size limited %.2lf GB (original size %.2lf GB)\n", bdSize / 1024.0/1024/1024, origbdSize /1024.0/1024/1024);
   }
 
   
