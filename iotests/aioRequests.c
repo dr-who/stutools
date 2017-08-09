@@ -155,14 +155,7 @@ double aioMultiplePositions(const int fd,
 	logSpeedAdd(l, ret * len);
       }
       inFlight -= ret;
-
-      //      fprintf(stderr,"in flight %zd\n", inFlight);
-      
-      //      bytesReceived += (ret * BLKSIZE);
-      //      fprintf(stderr, "events: ret %d, seen %zd, total %zd\n", ret, seen, bytesReceived);
       received += ret;
-      //      }
-	
     } else {
       // busy loop, no pausing here
       //      usleep(1);
@@ -198,8 +191,7 @@ int aioVerifyWrites(const char *path,
 		    const char *randomBuffer) {
 
 
-  dropCaches();
-  int fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
+  const int fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
   if (fd < 0) {fprintf(stderr,"fd error\n");exit(1);}
 
   fprintf(stderr,"*info* started verification\n");
