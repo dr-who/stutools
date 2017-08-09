@@ -33,6 +33,7 @@ typedef struct {
 
 
 void intHandler(int d) {
+  (void)d;
   fprintf(stderr,"got signal\n");
   keepRunning = 0;
 }
@@ -230,7 +231,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'm':
       minMBPerSec = atoi(optarg);
-      if (minMBPerSec < 0) minMBPerSec = 0;
+      if (minMBPerSec > 100000) minMBPerSec = 0; // if too large then set to 0
       break;
     default:
       exit(-1);

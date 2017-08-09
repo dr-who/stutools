@@ -340,6 +340,8 @@ void dropCaches() {
 
 
 char* queueType(char *path) {
+  if (path) {
+  }
   FILE *fp = fopen("/sys/block/sda/device/queue_type", "rt");
   if (fp == NULL) {
     perror("problem opening");
@@ -366,6 +368,8 @@ char *username() {
 
 void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage, size_t stopatbytes) {
   fprintf(stderr,"verifying contents of '%s'...\n", label);
+  if (charbuf || checkpercentage) {
+  }
   int fd = open(label, O_RDONLY | O_DIRECT); // O_DIRECT to check contents
   if (fd < 0) {
     perror("checkContents");
@@ -395,10 +399,10 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
       perror("problem reading");
       break;
     }
-    if (wbytes == size) { // only check the right size blocks
+    if ((size_t)wbytes == size) { // only check the right size blocks
       check++;
       size_t newsum = 0;
-      for (size_t i = 0; i <wbytes;i++) {
+      for (size_t i = 0; i < (size_t)wbytes;i++) {
 	newsum += (buf[i] & 0xff);
       }
       if (newsum != checksum) {

@@ -22,7 +22,7 @@ int    qd = 32;
 char   *path = NULL;
 int    seqFiles = 0;
 double maxSizeGB = 0;
-int    BLKSIZE=65536;
+size_t BLKSIZE=65536;
 size_t jumpStep = 1;
 double readRatio = 1.0;
 size_t table = 0;
@@ -152,7 +152,7 @@ void dumpPositionStats(positionType *positions, size_t num) {
   fprintf(stderr,"action summary: reads %zd, writes %zd, len = [%zd, %zd]\n", rcount, wcount, sizelow, sizehigh);
 }
 
-void setupPositions(positionType *positions, size_t num, const size_t bdSize, const int sf, const double readorwrite) {
+void setupPositions(positionType *positions, size_t num, const size_t bdSize, const size_t sf, const double readorwrite) {
   if (bdSize < BLKSIZE) {
     fprintf(stderr,"*warning* size of device is less than block size!\n");
     return;

@@ -30,6 +30,7 @@ typedef struct {
 int keepRunning = 1;
 
 void intHandler(int d) {
+  (void)d;
   fprintf(stderr,"got signal\n");
 }
 
@@ -127,12 +128,8 @@ void startThreads(int argc, char *argv[]) {
   }
 }
 
-void handle_args(int argc, char *argv[]) {
-}
-
 
 int main(int argc, char *argv[]) {
-  handle_args(argc, argv);
   startThreads(argc, argv);
   return 0;
 }

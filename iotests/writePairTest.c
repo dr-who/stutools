@@ -32,6 +32,7 @@ typedef struct {
 
 
 void intHandler(int d) {
+  (void)d;
   fprintf(stderr,"got signal\n");
   keepRunning = 0;
 }
@@ -71,7 +72,7 @@ static void *runThread(void *arg) {
   return NULL;
 }
 
-size_t benchmark(threadInfoType *threadContext, const int num, volatile size_t running[]) {
+size_t benchmark(threadInfoType *threadContext, const size_t num, volatile size_t running[]) {
     pthread_t *pt = calloc(num, sizeof(pthread_t));    if (pt==NULL) {fprintf(stderr, "OOM(pt): \n");exit(-1);}
 
 
@@ -147,7 +148,7 @@ threadInfoType *gatherDrives(int argc, char *argv[], int *num) {
     *num = 0;
     if (argc > 0) {
       
-      for (size_t i = 1; i < argc; i++) {
+      for (int i = 1; i < argc; i++) {
 	if (argv[i][0] != '-') {
 	  threadContext->threadid = *num;
 	  *num = (*num) + 1;
@@ -187,7 +188,7 @@ void handle_args(int argc, char *argv[]) {
 }
 
 
-void nSquareTest(threadInfoType *t, const int num) {
+void nSquareTest(threadInfoType *t, const size_t num) {
 
   size_t values[num][num];
   volatile size_t *running = calloc(100, sizeof(size_t));

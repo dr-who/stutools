@@ -31,6 +31,7 @@ typedef struct {
 int keepRunning = 1;
 
 void intHandler(int d) {
+  (void)d;
   fprintf(stderr,"got signal\n");
 }
 
