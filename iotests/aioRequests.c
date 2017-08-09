@@ -81,7 +81,7 @@ double aioMultiplePositions(const int fd,
       if (sz) // if we have some positions
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
 	size_t newpos = positions[pos].pos;
-	char read = (positions[pos].action == 'R');
+	int read = (positions[pos].action == 'R');
 
 	// setup the request
 	if (read) {
@@ -90,12 +90,12 @@ double aioMultiplePositions(const int fd,
 	} else {
 	  if (verbose) {fprintf(stderr,"[%zd] write ", pos);}
 	  io_prep_pwrite(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
+	  positions[pos].success = 1;
 	}
 	//    cbs[0]->u.c.offset = sz;
 	//	fprintf(stderr,"submit...\n");
 	ret = io_submit(ctx, 1, cbs);
 	if (ret > 0) {
-	  positions[pos].success = 1;
 	  inFlight++;
 	  submitted++;
 	  if (verbose) {
@@ -200,7 +200,7 @@ int aioVerifyWrites(const char *path,
 
 
   dropCaches();
-  int fd = open(path, O_RDONLY | O_EXCL);
+  int fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
   if (fd < 0) {fprintf(stderr,"fd error\n");exit(1);}
 
   fprintf(stderr,"*info* started verification\n");
@@ -211,14 +211,16 @@ int aioVerifyWrites(const char *path,
   buffer[maxBufferSize]= 0;
   
   for (size_t i = 0; i < maxpos; i++) {
-    if (positions[i].action == 'W' && positions[i].success) {
+    if ((positions[i].action == 'W') && positions[i].success) {
+      fprintf(stderr,"%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
       checked++;
       const size_t pos = positions[i].pos;
       const size_t len = positions[i].len;
       if (lseek(fd, pos, SEEK_SET) == -1) {
 	perror("cannot seek");
-    }
+      }
       bytesRead = read(fd, buffer, len);
+      buffer[len] = 0;
       if (bytesRead != len) {
 	fprintf(stderr,"[%zd/%zd] verify read truncated bytesRead %d instead of len=%zd\n", i, pos, bytesRead, len);
 	errors++;
@@ -226,13 +228,13 @@ int aioVerifyWrites(const char *path,
 	if (strncmp(buffer, randomBuffer, len) != 0) {
 	  fprintf(stderr,"[%zd/%zd] verify error at location\n", i, pos);
 	  if (errors < 10) {
-	    fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
-	    fprintf(stderr,"ondisk:   \n%s\n", buffer);
+	    //	    fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
+	    //	    fprintf(stderr,"ondisk:   \n%s\n", buffer);
 	  }
 	  errors++;
 	} else {
 	  if (verbose) {
-	    fprintf(stderr,"[%zd/%zd] verified ok.\n", i, pos);
+	    fprintf(stderr,"[%zd] verified ok location %zd\n", i, pos);
 	  }
 	}
       }

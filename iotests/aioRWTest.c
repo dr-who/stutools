@@ -94,6 +94,7 @@ void handle_args(int argc, char *argv[]) {
       readRatio = atof(optarg);
       if (readRatio < 0) readRatio = 0;
       if (readRatio > 1) readRatio = 1;
+      fprintf(stderr,"rr: %f\n", readRatio);
       break;
     case 'f':
       path = optarg;
@@ -125,7 +126,7 @@ void handle_args(int argc, char *argv[]) {
 
 
 positionType *createPositions(size_t num) {
-  positionType *p = calloc((num + 1), sizeof(positionType));
+  positionType *p = calloc(num, sizeof(positionType));
   if (!p) {fprintf(stderr,"oom! positions\n"); exit(1);}
   return p;
 }
@@ -151,7 +152,7 @@ void dumpPositionStats(positionType *positions, size_t num) {
   fprintf(stderr,"action summary: reads %zd, writes %zd, len = [%zd, %zd]\n", rcount, wcount, sizelow, sizehigh);
 }
 
-void setupPositions(positionType *positions, size_t num, const size_t bdSize, const int sf, const float readorwrite) {
+void setupPositions(positionType *positions, size_t num, const size_t bdSize, const int sf, const double readorwrite) {
   if (bdSize < BLKSIZE) {
     fprintf(stderr,"*warning* size of device is less than block size!\n");
     return;
@@ -201,16 +202,17 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
       p->action = 'W';
     }
     p->len = BLKSIZE;
+    p->success = 0;
     p++;
   }
   
-  /*  if (verbose) {
+  if (verbose) {
     fprintf(stderr,"\n");
     for(size_t i = 0; i < 10;i++) {
-      fprintf(stderr,"%zd: %zd\n", i, positions[i]);
+      fprintf(stderr,"%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
     }
   }
-  */
+  
 
   dumpPositionStats(positions, num);
 }
