@@ -13,13 +13,12 @@ typedef struct {
 double aioMultiplePositions(const int fd,
 			     positionType *positions,
 			     const size_t sz,
-			     const size_t BLKSIZE,
 			     const float secTimeout,
 			     const size_t QD,
 			     const int verbose,
 			     const int tableMode,
 			     logSpeedType *l,
-			     const char *randomBuffer);
+			     char *randomBuffer);
 
 int aioVerifyWrites(const char *path,
 		    const positionType *positions,

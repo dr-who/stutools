@@ -20,13 +20,12 @@ extern int flushWhenQueueFull;
 double aioMultiplePositions(const int fd,
 			     positionType *positions,
 			     const size_t sz,
-			     const size_t BLKSIZE,
 			     const float secTimeout,
 			     const size_t QD,
 			     const int verbose,
 			     const int tableMode, 
 			     logSpeedType *l,
-			     const char *randomBuffer
+			     char *randomBuffer
 			     ) {
   int ret;
   io_context_t ctx;
@@ -44,8 +43,6 @@ double aioMultiplePositions(const int fd,
   //  }
 
   
-  //  fprintf(stderr,"write %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
-
   ctx = 0;
 
   // set the queue depth
@@ -58,9 +55,10 @@ double aioMultiplePositions(const int fd,
   char **data = malloc(QD * sizeof(char*));
 
   // copy the randomBuffer to each data[]
+  const size_t len = strlen(randomBuffer);
   for (size_t i = 0; i <QD; i++) {
-    data[i] = aligned_alloc(4096, BLKSIZE); if (!data[i]) {perror("oom"); exit(1);}
-    memcpy(data[i], randomBuffer, BLKSIZE);
+    data[i] = aligned_alloc(4096, len + 1); if (!data[i]) {perror("oom"); exit(1);}
+    memcpy(data[i], randomBuffer, len);
   }
 
   size_t inFlight = 0;
@@ -80,16 +78,17 @@ double aioMultiplePositions(const int fd,
       // submit requests, one at a time
       if (sz) // if we have some positions
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
-	size_t newpos = positions[pos].pos;
+	long long newpos = positions[pos].pos;
+	// len = positions[pos].len;
 	int read = (positions[pos].action == 'R');
 
 	// setup the request
 	if (read) {
 	  if (verbose) {fprintf(stderr,"[%zd] read ", pos);}
-	  io_prep_pread(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
+	  io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
 	} else {
 	  if (verbose) {fprintf(stderr,"[%zd] write ", pos);}
-	  io_prep_pwrite(cbs[0], fd, data[i%QD], BLKSIZE, newpos);
+	  io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
 	  positions[pos].success = 1;
 	}
 	//    cbs[0]->u.c.offset = sz;
@@ -99,7 +98,7 @@ double aioMultiplePositions(const int fd,
 	  inFlight++;
 	  submitted++;
 	  if (verbose) {
-	    fprintf(stderr,"pos %zd (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % BLKSIZE) ? "NO!!" : "aligned", BLKSIZE, inFlight, QD, submitted, received);
+	    fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % len) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 	  }
 
 	} else {
@@ -110,7 +109,7 @@ double aioMultiplePositions(const int fd,
 	double gt = timedouble();
 
 	if (gt - last >= 1) {
-	  if (!tableMode) fprintf(stderr,"submitted %zd, in flight/queue: %zd, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (gt - start), received* BLKSIZE / (gt - start)/1024.0/1024);
+	  if (!tableMode) fprintf(stderr,"submitted %zd, in flight/queue: %zd, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (gt - start), received* len / (gt - start)/1024.0/1024);
 	  last = gt;
 	  if ((!keepRunning) || (gt - start > secTimeout)) {
 	    //	  fprintf(stderr,"timeout\n");
@@ -147,13 +146,13 @@ double aioMultiplePositions(const int fd,
       // verify it's all ok
       for (size_t j = 0; j < ret; j++) {
 	struct iocb *my_iocb = events[j].obj;
-	if (events[j].res != BLKSIZE) { // if return of bytes written or read
+	if (events[j].res != len) { // if return of bytes written or read
 	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	}
       }
       
       if (l) {
-	logSpeedAdd(l, ret * BLKSIZE);
+	logSpeedAdd(l, ret * len);
       }
       inFlight -= ret;
 
@@ -205,14 +204,13 @@ int aioVerifyWrites(const char *path,
 
   fprintf(stderr,"*info* started verification\n");
   size_t errors = 0, checked = 0;
-  
   int bytesRead = 0;
-  char *buffer = malloc(maxBufferSize + 1); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
+  char *buffer = aligned_alloc(4096, maxBufferSize + 1); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
   buffer[maxBufferSize]= 0;
   
   for (size_t i = 0; i < maxpos; i++) {
     if ((positions[i].action == 'W') && positions[i].success) {
-      fprintf(stderr,"%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
+      //      fprintf(stderr,"%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
       checked++;
       const size_t pos = positions[i].pos;
       const size_t len = positions[i].len;
@@ -226,10 +224,10 @@ int aioVerifyWrites(const char *path,
 	errors++;
       } else {
 	if (strncmp(buffer, randomBuffer, len) != 0) {
-	  fprintf(stderr,"[%zd/%zd] verify error at location\n", i, pos);
+	  fprintf(stderr,"[%zd/%zd] verify error at location.  %c   %c \n", i, pos, buffer[0], randomBuffer[0]);
 	  if (errors < 10) {
-	    //	    fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
-	    //	    fprintf(stderr,"ondisk:   \n%s\n", buffer);
+	    	    fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
+	    	    fprintf(stderr,"ondisk:   \n%s\n", buffer);
 	  }
 	  errors++;
 	} else {
@@ -240,7 +238,7 @@ int aioVerifyWrites(const char *path,
       }
     }
   }
-  fprintf(stderr,"blocks checked %zd, errors %zd\n", checked, errors);
+  fprintf(stderr,"verified %zd blocks, number of errors %zd\n", checked, errors);
   close(fd);
   free(buffer);
   return 0;

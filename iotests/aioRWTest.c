@@ -94,7 +94,6 @@ void handle_args(int argc, char *argv[]) {
       readRatio = atof(optarg);
       if (readRatio < 0) readRatio = 0;
       if (readRatio > 1) readRatio = 1;
-      fprintf(stderr,"rr: %f\n", readRatio);
       break;
     case 'f':
       path = optarg;
@@ -222,7 +221,7 @@ void genRandomBuffer(char *buffer, size_t size) {
   const char verystartpoint = ' ' + (lrand48() % 15);
   const char jump = (lrand48() % 3) + 1;
   char startpoint = verystartpoint;
-  for (size_t j = 0; j < BLKSIZE; j++) {
+  for (size_t j = 0; j < size; j++) {
     buffer[j] = startpoint;
     startpoint += jump;
     if (startpoint > 'z') {
@@ -230,6 +229,7 @@ void genRandomBuffer(char *buffer, size_t size) {
     }
   }
   buffer[size] = 0; // end of string to help printing
+  strncpy(buffer, "STU-EE!",7);
   if (strlen(buffer) != size) {
     fprintf(stderr,"eekk random!\n");
   }
@@ -274,7 +274,7 @@ int main(int argc, char *argv[]) {
   const size_t num = noops * 10*1000*1000;
   positionType *positions = createPositions(num);
 
-  char *randomBuffer = malloc(BLKSIZE + 1); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
+  char *randomBuffer = aligned_alloc(4096, BLKSIZE + 1); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
   genRandomBuffer(randomBuffer, BLKSIZE);
 
   if (table) {
@@ -307,7 +307,7 @@ int main(int argc, char *argv[]) {
 	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex]);
 
 	      start = timedouble();
-	      ios = aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
+	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
 	      fsync(fd);
 	      fdatasync(fd);
 	      elapsed = timedouble() - start;
@@ -316,7 +316,7 @@ int main(int argc, char *argv[]) {
 	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex]);
 	      
 	      start = timedouble();
-	      ios = aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
+	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
 	      fsync(fd);
 	      fdatasync(fd);
 
@@ -339,10 +339,10 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
     if (seqFiles == 0) {
       setupPositions(positions, num, bdSize, 0, readRatio);
-      aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
+      aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
     } else {
       setupPositions(positions, num, bdSize, seqFiles, readRatio);
-      aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
+      aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
     }
     fsync(fd);
     close(fd);
