@@ -336,7 +336,7 @@ int main(int argc, char *argv[]) {
     }
   } else {
     // just execute a single run
-    fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, blocksize: %d", path, readRatio, qd, BLKSIZE);
+    fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, blocksize: %zd", path, readRatio, qd, BLKSIZE);
     fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
     if (seqFiles == 0) {
       setupPositions(positions, num, bdSize, 0, readRatio);
