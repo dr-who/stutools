@@ -206,7 +206,7 @@ int aioVerifyWrites(const char *path,
   fprintf(stderr,"*info* started verification\n");
   size_t errors = 0, checked = 0;
   
-  ssize_t bytesRead = 0;
+  int bytesRead = 0;
   char *buffer = malloc(maxBufferSize + 1); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
   buffer[maxBufferSize]= 0;
   
