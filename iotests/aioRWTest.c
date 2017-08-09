@@ -31,17 +31,23 @@ int    verbose = 0;
 int    singlePosition = 0;
 int    flushWhenQueueFull = 0;
 size_t noops = 1;
+int    verifyWrites = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
+  long int seed = (long int) timedouble();
+  if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vSF0")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vVSF0R:")) != -1) {
     switch (opt) {
     case 'T':
       table = 1;
       break;
     case '0':
       noops = 0;
+      break;
+    case 'R':
+      seed = atoi(optarg);
       break;
     case 'S':
       if (singlePosition == 0) {
@@ -58,6 +64,9 @@ void handle_args(int argc, char *argv[]) {
       }
       break;
     case 'v':
+      verifyWrites = 1;
+      break;
+    case 'V':
       verbose++;
       break;
     case 'l':
@@ -102,16 +111,47 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -S -F -k4 -f /dev/nbd0  # single position, fsync after every op\n");
     fprintf(stderr,"  ./aioRWTest -S -S -F -F -k4 -f /dev/nbd0  # single position, changing every 10 ops, fsync every 10 ops\n");
     fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0  # send no operations, then flush. Basically, fast flush loop\n");
-    fprintf(stderr,"  ./aioRWTest -S -F -v -f /dev/nbd0  # verbose that shows every operation\n");
-    fprintf(stderr,"  ./aioRWTest -S -F -v -f file.txt  # can also use a single file. Note the file will be destroyed.\n");
+    fprintf(stderr,"  ./aioRWTest -S -F -V -f /dev/nbd0  # verbose that shows every operation\n");
+    fprintf(stderr,"  ./aioRWTest -S -F -V -f file.txt  # can also use a single file. Note the file will be destroyed.\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
   }
+
+  srand48(seed);
+  fprintf(stderr,"*info* seed = %ld\n", seed);
+
 }
 
 
-void setupPositions(size_t *positions, size_t num, const size_t bdSize, const int sf) {
+positionType *createPositions(size_t num) {
+  positionType *p = calloc((num + 1), sizeof(positionType));
+  if (!p) {fprintf(stderr,"oom! positions\n"); exit(1);}
+  return p;
+}
+ 
+void dumpPositionStats(positionType *positions, size_t num) {
+  size_t rcount = 0, wcount = 0;
+  size_t sizelow = -1, sizehigh = 0;
+  positionType *p = positions;
+  for (size_t j = 0; j < num; j++) {
+    if (p->len < sizelow) {
+      sizelow = p->len;
+    }
+    if (p->len > sizehigh) {
+      sizehigh = p->len;
+    }
+    if (p->action == 'R') {
+      rcount++;
+    } else {
+      wcount++;
+    }
+    p++;
+  }
+  fprintf(stderr,"action summary: reads %zd, writes %zd, len = [%zd, %zd]\n", rcount, wcount, sizelow, sizehigh);
+}
+
+void setupPositions(positionType *positions, size_t num, const size_t bdSize, const int sf, const float readorwrite) {
   if (bdSize < BLKSIZE) {
     fprintf(stderr,"*warning* size of device is less than block size!\n");
     return;
@@ -126,14 +166,13 @@ void setupPositions(size_t *positions, size_t num, const size_t bdSize, const in
 	  con = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
 	}
       }
-	  
-      positions[i] = con;
+      positions[i].pos = con;
     }
   } else {
     // dynamic positions
     if (sf == 0) {
       for (size_t i = 0; i < num; i++) {
-	positions[i] = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
+	positions[i].pos = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
       }
     } else {
       size_t *ppp = NULL;
@@ -146,13 +185,25 @@ void setupPositions(size_t *positions, size_t num, const size_t bdSize, const in
       }
       for (size_t i = 0; i < num; i++) {
 	// sequential
-	positions[i] = ppp[i % sf];
+	positions[i].pos = ppp[i % sf];
 	ppp[i % sf] += (jumpStep * BLKSIZE);
       }
       free(ppp);
     }
   }
 
+  // setup R/W
+  positionType *p = positions;
+  for (size_t j = 0; j < num; j++) {
+    if (drand48() <= readorwrite) {
+      p->action = 'R';
+    } else {
+      p->action = 'W';
+    }
+    p->len = BLKSIZE;
+    p++;
+  }
+  
   /*  if (verbose) {
     fprintf(stderr,"\n");
     for(size_t i = 0; i < 10;i++) {
@@ -161,8 +212,29 @@ void setupPositions(size_t *positions, size_t num, const size_t bdSize, const in
   }
   */
 
+  dumpPositionStats(positions, num);
 }
 
+
+void genRandomBuffer(char *buffer, size_t size) {
+  const char verystartpoint = ' ' + (lrand48() % 15);
+  const char jump = (lrand48() % 3) + 1;
+  char startpoint = verystartpoint;
+  for (size_t j = 0; j < BLKSIZE; j++) {
+    buffer[j] = startpoint;
+    startpoint += jump;
+    if (startpoint > 'z') {
+      startpoint = verystartpoint;
+    }
+  }
+  buffer[size] = 0; // end of string to help printing
+  if (strlen(buffer) != size) {
+    fprintf(stderr,"eekk random!\n");
+  }
+  if (verbose >= 2) {
+    fprintf(stderr,"generated randomBuffer: %s\n", buffer);
+  }
+}
 
     
     
@@ -171,8 +243,6 @@ void setupPositions(size_t *positions, size_t num, const size_t bdSize, const in
 int main(int argc, char *argv[]) {
   handle_args(argc, argv);
 
-  size_t seed = (size_t) timedouble();
-  srand48(seed);
   int fd = 0;
 
   size_t origbdSize = 0;
@@ -200,8 +270,10 @@ int main(int argc, char *argv[]) {
 
   
   const size_t num = noops * 10*1000*1000;
-  size_t *positions = malloc((num+1) * sizeof(size_t));
+  positionType *positions = createPositions(num);
 
+  char *randomBuffer = malloc(BLKSIZE + 1); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
+  genRandomBuffer(randomBuffer, BLKSIZE);
 
   if (table) {
     // generate a table
@@ -211,6 +283,7 @@ int main(int argc, char *argv[]) {
     size_t ssArray[]={0, 1, 8, 32, 128};
 
     fprintf(stderr,"blockSz\tnumSeq\tQueueD\tR/W\tIOPS\tMiB/s\n");
+    
     for (size_t rrindex=0; rrindex < sizeof(rrArray) / sizeof(rrArray[0]); rrindex++) {
       for (size_t ssindex=0; ssindex < sizeof(ssArray) / sizeof(ssArray[0]); ssindex++) {
 	for (size_t qdindex=0; qdindex < sizeof(qdArray) / sizeof(qdArray[0]); qdindex++) {
@@ -229,17 +302,19 @@ int main(int argc, char *argv[]) {
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // random
+	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex]);
+
 	      start = timedouble();
-	      setupPositions(positions, num, bdSize, 0);
-	      ios = aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0, 1, &l);
+	      ios = aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
 	      fsync(fd);
 	      fdatasync(fd);
 	      elapsed = timedouble() - start;
 	    } else {
-	      // setup multiple sequential positions
-	      setupPositions(positions, num, bdSize, ssArray[ssindex]);
+	      // setup multiple/parallel sequential blocks
+	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex]);
+	      
 	      start = timedouble();
-	      ios = aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], rrArray[rrindex], 0, 1, &l);
+	      ios = aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
 	      fsync(fd);
 	      fdatasync(fd);
 
@@ -258,18 +333,25 @@ int main(int argc, char *argv[]) {
     }
   } else {
     // just execute a single run
-    fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, seed %zd, blocksize: %d", path, readRatio, qd, seed, BLKSIZE);
+    fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, blocksize: %d", path, readRatio, qd, BLKSIZE);
     fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
     if (seqFiles == 0) {
-      setupPositions(positions, num, bdSize, 0);
-      aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, readRatio, verbose, 0, NULL);
+      setupPositions(positions, num, bdSize, 0, readRatio);
+      aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
     } else {
-      setupPositions(positions, num, bdSize, seqFiles);
-      aioMultiplePositions(fd, positions,     num, BLKSIZE, exitAfterSeconds, qd, readRatio, verbose, 0, NULL);
+      setupPositions(positions, num, bdSize, seqFiles, readRatio);
+      aioMultiplePositions(fd, positions, num, BLKSIZE, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
+    }
+    fsync(fd);
+    close(fd);
+    
+    if (verifyWrites && readRatio < 1) {
+      aioVerifyWrites(path, positions, num, BLKSIZE, verbose, randomBuffer);
     }
   }
   
   free(positions);
+  free(randomBuffer);
   if (logFNPrefix) {
     free(logFNPrefix);
   }

@@ -93,8 +93,8 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   const size_t startChar = rand() % 255;
   const size_t startMod = 20 + rand() % 40;
   for (size_t i = 0; i < maxBufSize; i++ ) {
-    charbuf[i] = 'A' + (char) ((startChar + i ) % startMod);
-    checksum += ('A' + (startChar + i) % startMod);
+    charbuf[i] = 'A' + (char) ((startChar + i + i) % startMod);
+    checksum += ('A' + (startChar + i + i) % startMod);
   }
 
   size_t maxDeviceSize = 0;
@@ -335,7 +335,7 @@ void dropCaches() {
   }
   fflush(fp);
   fclose(fp);
-  fprintf(stderr,"caches dropped\n");
+  fprintf(stderr,"*info* /proc/sys/vm/drop_caches dropped\n");
 }
 
 
