@@ -292,9 +292,13 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
   // now verify
   if (verifyWrites) {
-    checkContents(label, charbuf, chunkSizes[0], checksum, 1, l->total);
+    if (sequential) {
+      checkContents(label, charbuf, chunkSizes[0], checksum, 1, l->total);
+    } else {
+      fprintf(stderr,"verify random writes not implemented. use aioRWTest\n");
+    }
   }
-   
+  
   free(buf);
 
 
