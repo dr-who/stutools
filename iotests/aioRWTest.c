@@ -149,7 +149,9 @@ void dumpPositionStats(positionType *positions, size_t num) {
     }
     p++;
   }
-  fprintf(stderr,"action summary: reads %zd, writes %zd, len = [%zd, %zd]\n", rcount, wcount, sizelow, sizehigh);
+  if (verbose) {
+    fprintf(stderr,"action summary: reads %zd, writes %zd, len = [%zd, %zd]\n", rcount, wcount, sizelow, sizehigh);
+  }
 }
 
 void setupPositions(positionType *positions, size_t num, const size_t bdSize, const size_t sf, const double readorwrite) {
