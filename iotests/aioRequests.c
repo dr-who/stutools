@@ -209,6 +209,8 @@ int aioVerifyWrites(const char *path,
       if (lseek(fd, pos, SEEK_SET) == -1) {
 	perror("cannot seek");
       }
+      buffer[0] = randomBuffer[0] ^ 0xff; // make sure the first char is different
+
       bytesRead = read(fd, buffer, len);
       buffer[len] = 0;
       if ((size_t)bytesRead != len) {
