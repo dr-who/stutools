@@ -15,8 +15,6 @@ extern int keepRunning;
 extern int singlePosition;
 extern int flushWhenQueueFull;
 
-#define MIN(x,y) (((x) < (y)) ? (x) : (y))
-
 double aioMultiplePositions(const int fd,
 			     positionType *positions,
 			     const size_t sz,

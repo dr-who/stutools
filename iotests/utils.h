@@ -3,6 +3,9 @@
 
 #include "logSpeed.h"
 
+#define MIN(x,y) (((x) < (y)) ? (x) : (y))
+#define ABS(x) (((x) > 0) ? (x) : (-(x)))
+
 double timedouble();
 
 void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess, int verifyWrites, float flushEverySecs);

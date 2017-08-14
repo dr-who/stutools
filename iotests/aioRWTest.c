@@ -17,7 +17,7 @@
 #include "logSpeed.h"
 
 int    keepRunning = 1;       // have we been interrupted
-double exitAfterSeconds = 2;
+double exitAfterSeconds = 5;
 int    qd = 32;
 char   *path = NULL;
 int    seqFiles = 0;
@@ -39,7 +39,7 @@ void handle_args(int argc, char *argv[]) {
   long int seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rw")) != -1) {
+  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:")) != -1) {
     switch (opt) {
     case 'T':
       table = 1;
@@ -92,7 +92,11 @@ void handle_args(int argc, char *argv[]) {
       qd = atoi(optarg); if (qd < 1) qd = 1;
       break;
     case 's':
-      seqFiles = atoi(optarg); if (seqFiles < 0) seqFiles = 0;
+      seqFiles = atoi(optarg); 
+      break;
+    case 'b':
+      seqFiles = -atoi(optarg);
+      fprintf(stderr,"*info* backwards contiguous: %d\n", seqFiles);
       break;
     case 'j':
       jumpStep = atoi(optarg); if (jumpStep < 1) jumpStep = 1;
@@ -176,7 +180,7 @@ void dumpPositionStats(positionType *positions, size_t num) {
   }
 }
 
-void setupPositions(positionType *positions, size_t num, const size_t bdSize, const size_t sf, const double readorwrite) {
+void setupPositions(positionType *positions, size_t num, const size_t bdSize, const int sf, const double readorwrite) {
   if (bdSize < BLKSIZE) {
     fprintf(stderr,"*warning* size of device is less than block size!\n");
     return;
@@ -194,26 +198,44 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
       positions[i].pos = con;
     }
   } else {
-    // dynamic positions
+    // random positions
     if (sf == 0) {
       for (size_t i = 0; i < num; i++) {
 	positions[i].pos = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
       }
     } else {
+      // parallel contiguous regions
       size_t *ppp = NULL;
       size_t gap = 0;
-      gap = bdSize / (sf);
+      int abssf = ABS(sf);
+      gap = bdSize / abssf;
+      if (gap == 0) {
+	fprintf(stderr,"*error* serious problem!\n");
+      }
       gap = (gap >> 16) <<16;
-      ppp = calloc(sf, sizeof(size_t));
-      for (size_t i = 0; i < sf; i++) {
+      ppp = calloc(abssf, sizeof(size_t));
+      for (size_t i = 0; i < abssf; i++) {
 	ppp[i] = i * gap;
       }
       for (size_t i = 0; i < num; i++) {
 	// sequential
-	positions[i].pos = ppp[i % sf];
-	ppp[i % sf] += (jumpStep * BLKSIZE);
+	positions[i].pos = ppp[i % abssf];
+	ppp[i % abssf] += (jumpStep * BLKSIZE);
+	if (ppp[i % abssf] + 128*1024 > bdSize) { // if could go off the end then set back to 0
+	  ppp[i % abssf] = 0;
+	}
       }
       free(ppp);
+
+      if (sf < 0) {
+	// reverse positions array
+	fprintf(stderr,"*info* reversing positions\n");
+	for (size_t i = 0; i < num/2; i++) { 
+	  size_t temp = positions[i].pos;
+	  positions[i].pos = positions[num-1 - i].pos;
+	  positions[num-1 -i].pos = temp;
+	}
+      }
     }
   }
 
@@ -236,7 +258,6 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
     }
   }
   
-
   dumpPositionStats(positions, num);
 }
 
@@ -262,12 +283,8 @@ void genRandomBuffer(char *buffer, size_t size) {
   }
 }
 
-    
-    
-
 
 int main(int argc, char *argv[]) {
-
 
   handle_args(argc, argv);
 
