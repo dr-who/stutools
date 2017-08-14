@@ -32,16 +32,21 @@ int    singlePosition = 0;
 int    flushWhenQueueFull = 0;
 size_t noops = 1;
 int    verifyWrites = 0;
+char*  overriddendisks = NULL;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   long int seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vVSF0R:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:")) != -1) {
     switch (opt) {
     case 'T':
       table = 1;
+      break;
+    case 'O':
+      overriddendisks = strdup(optarg);
+      fprintf(stderr,"*info* overriddendisks from %s\n", optarg);
       break;
     case '0':
       noops = 0;
@@ -106,7 +111,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-j jumpBlocks] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] [-G 32] [-p readRatio] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
     fprintf(stderr,"  ./aioRWTest -p1 -f /dev/nbd0 -k4 -q64 -s32 -j16  # 100%% reads over entire block device\n");
-    fprintf(stderr,"  ./aioRWTest -p0.75 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100 # 75%% reads, limited to the first 100GB\n");
+    fprintf(stderr,"  ./aioRWTest -p0.75 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100 # 75%% reads, limited to the first 100GiB\n");
     fprintf(stderr,"  ./aioRWTest -p0.0 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100  # 0%% reads, 100%% writes\n");
     fprintf(stderr,"  ./aioRWTest -S -F -k4 -f /dev/nbd0  # single position, fsync after every op\n");
     fprintf(stderr,"  ./aioRWTest -S -S -F -F -k4 -f /dev/nbd0  # single position, changing every 10 ops, fsync every 10 ops\n");
@@ -246,6 +251,8 @@ void genRandomBuffer(char *buffer, size_t size) {
 
 
 int main(int argc, char *argv[]) {
+
+
   handle_args(argc, argv);
 
   int fd = 0;
@@ -261,7 +268,12 @@ int main(int argc, char *argv[]) {
     if (verbose) {
       fprintf(stderr,"*info* major %d, minor %d\n", major, minor);
     }
-    getProcDiskstats(major, minor, &sectorsRead, &sectorsWritten);
+    if (overriddendisks) {
+      sumFileOfDrives(overriddendisks, &sectorsRead, &sectorsWritten, verbose);
+    } else {
+      getProcDiskstats(major, minor, &sectorsRead, &sectorsWritten);
+    }
+    
   } else {
     fd = open(path, O_RDWR | O_DIRECT | O_EXCL);
     origbdSize = fileSize(fd);
@@ -276,9 +288,9 @@ int main(int argc, char *argv[]) {
   
   if (bdSize > origbdSize) {
     bdSize = origbdSize;
-    fprintf(stderr,"*info* override option too high, reducing size to %.1lf GB\n", bdSize /1024.0/1024/1024);
+    fprintf(stderr,"*info* override option too high, reducing size to %.1lf GiB\n", bdSize /1024.0/1024/1024);
   } else if (bdSize < origbdSize) {
-    fprintf(stderr,"*info* size limited %.2lf GB (original size %.2lf GB)\n", bdSize / 1024.0/1024/1024, origbdSize /1024.0/1024/1024);
+    fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", bdSize / 1024.0/1024/1024, origbdSize /1024.0/1024/1024);
   }
 
   
@@ -347,7 +359,7 @@ int main(int argc, char *argv[]) {
   } else {
     // just execute a single run
     fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, blocksize: %zd", path, readRatio, qd, BLKSIZE);
-    fprintf(stderr,", bdSize %.1lf GB\n", bdSize/1024.0/1024/1024);
+    fprintf(stderr,", bdSize %.1lf GiB\n", bdSize/1024.0/1024/1024);
     if (seqFiles == 0) {
       setupPositions(positions, num, bdSize, 0, readRatio);
       aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
@@ -374,7 +386,13 @@ int main(int argc, char *argv[]) {
   /* number of bytes read/written not under our control */
   if (isBlockDevice(path)) {
     size_t sectorsRead2 = 0, sectorsWritten2 = 0;
-    getProcDiskstats(major, minor, &sectorsRead2, &sectorsWritten2);
+
+    if (overriddendisks) {
+      sumFileOfDrives(overriddendisks, &sectorsRead2, &sectorsWritten2, verbose);
+    } else {
+      getProcDiskstats(major, minor, &sectorsRead2, &sectorsWritten2);
+    }
+
     size_t totread = (sectorsRead2 - sectorsRead) * 512;
     size_t totwritten = (sectorsWritten2 - sectorsWritten) * 512;
     fprintf(stderr,"*info* read amplification  %zd / %zd, %.2lf%%\n", totread, totalreads, totread*100.0/totalreads);

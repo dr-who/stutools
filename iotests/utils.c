@@ -498,3 +498,38 @@ void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t
   free(line);
   fclose(fp);
 }
+
+
+void sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose) {
+  *sread = 0;
+  *swritten = 0;
+  FILE *fp = fopen(path, "rt");
+  if (!fp) {
+    fprintf(stderr,"can't open %s!\n", path);
+    return;
+  }
+  char *line = NULL;
+  size_t len = 0;
+  ssize_t read = 0;
+  char *str = malloc(1000); if (!str) {fprintf(stderr,"pd OOM\n");exit(1);}
+  while ((read = getline(&line, &len, fp)) != -1) {
+    if (sscanf(line, "%s", str) >= 1) {
+      int fd = open(str, O_RDONLY);
+      unsigned int major = 0, minor = 0;
+      majorAndMinor(fd, &major, &minor);
+      size_t sr = 0, sw = 0;
+      getProcDiskstats(major, minor, &sr, &sw);
+      if (verbose) {
+	fprintf(stderr,"opened %s major %d minor %d sectorsRead %zd sectorsWritten %zd\n", str, major, minor, sr, sw);
+      }
+      *sread = (*sread) + sr;
+      *swritten = (*swritten) + sw;
+      close (fd);
+      //      fprintf(stderr,"%zd %zd\n", sr, sw);
+    }
+  }
+  free(str);
+  free(line);
+  fclose(fp);
+}
+
