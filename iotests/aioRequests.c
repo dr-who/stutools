@@ -84,11 +84,11 @@ double aioMultiplePositions(const int fd,
 
 	// setup the request
 	if (read) {
-	  if (verbose) {fprintf(stderr,"[%zd] read ", pos);}
+	  if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
 	  io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
 	  positions[pos].success = 1;
 	} else {
-	  if (verbose) {fprintf(stderr,"[%zd] write ", pos);}
+	  if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
 	  io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
 	  positions[pos].success = 1;
 	}
@@ -98,7 +98,7 @@ double aioMultiplePositions(const int fd,
 	if (ret > 0) {
 	  inFlight++;
 	  submitted++;
-	  if (verbose) {
+	  if (verbose >= 2) {
 	    fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % len) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 	  }
 
@@ -126,7 +126,7 @@ double aioMultiplePositions(const int fd,
       if (flushWhenQueueFull) {
 	if ((pos % flushWhenQueueFull) == 0) {
 	  // sync whenever the queue is full
-	  if (verbose) {
+	  if (verbose >= 2) {
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
 	  fsync(fd);
@@ -228,7 +228,7 @@ int aioVerifyWrites(const char *path,
 	    }
 	    errors++;
 	  } else {
-	    if (verbose) {
+	    if (verbose >= 2) {
 	      fprintf(stderr,"[%zd] verified ok location %zd\n", i, pos);
 	    }
 	  }
