@@ -159,7 +159,7 @@ positionType *createPositions(size_t num) {
   return p;
 }
  
-void dumpPositionStats(positionType *positions, size_t num) {
+void dumpPositionStats(positionType *positions, size_t num, size_t bdSize) {
   size_t rcount = 0, wcount = 0;
   size_t sizelow = -1, sizehigh = 0;
   positionType *p = positions;
@@ -177,12 +177,31 @@ void dumpPositionStats(positionType *positions, size_t num) {
     }
     p++;
   }
+
+  // check all positions are aligned to low and high lengths
+  p = positions;
+  if (sizelow > 0) {
+    for (size_t j = 0; j < num; j++) {
+      if (p->pos + sizehigh > bdSize) {
+	fprintf(stderr,"eek off the end of the array %zd!\n", p->pos);
+      }
+      if ((p->pos % sizelow) != 0) {
+	fprintf(stderr,"eek no %zd aligned position at %zd!\n", sizelow, p->pos);
+      }
+      if ((p->pos % sizehigh) != 0) {
+	fprintf(stderr,"eek no %zd aligned position at %zd!\n", sizehigh, p->pos);
+      }
+      p++;
+    }
+  }
+    
+
   if (verbose) {
     fprintf(stderr,"action summary: reads %zd, writes %zd, len = [%zd, %zd]\n", rcount, wcount, sizelow, sizehigh);
   }
 }
 
-void setupPositions(positionType *positions, size_t num, const size_t bdSize, const int sf, const double readorwrite) {
+void setupPositions(positionType *positions, size_t num, const size_t bdSize, const int sf, const double readorwrite, size_t bs) {
   if (bdSize < BLKSIZE) {
     fprintf(stderr,"*warning* size of device is less than block size!\n");
     return;
@@ -223,7 +242,7 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
 	// sequential
 	positions[i].pos = ppp[i % abssf];
 	ppp[i % abssf] += (jumpStep * BLKSIZE);
-	if (ppp[i % abssf] + 128*1024 > bdSize) { // if could go off the end then set back to 0
+	if (ppp[i % abssf] + bs > bdSize) { // if could go off the end then set back to 0
 	  ppp[i % abssf] = 0;
 	}
       }
@@ -260,7 +279,7 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
     }
   }
   
-  dumpPositionStats(positions, num);
+  dumpPositionStats(positions, num, bdSize);
 }
 
 
@@ -369,7 +388,7 @@ int main(int argc, char *argv[]) {
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // random
-	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex]);
+	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex], bsArray[bsindex]);
 
 	      start = timedouble();
 	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
@@ -378,7 +397,7 @@ int main(int argc, char *argv[]) {
 	      elapsed = timedouble() - start;
 	    } else {
 	      // setup multiple/parallel sequential blocks
-	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex]);
+	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex]);
 	      
 	      start = timedouble();
 	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
@@ -402,7 +421,7 @@ int main(int argc, char *argv[]) {
     // just execute a single run
     fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, blocksize: %zd", path, readRatio, qd, BLKSIZE);
     fprintf(stderr,", bdSize %.1lf GiB\n", bdSize/1024.0/1024/1024);
-    setupPositions(positions, num, bdSize, seqFiles, readRatio);
+    setupPositions(positions, num, bdSize, seqFiles, readRatio, BLKSIZE);
     aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
     fsync(fd);
     close(fd);
