@@ -27,5 +27,4 @@ int aioVerifyWrites(const char *path,
 		    const int verbose,
 		    const char *randomBuffer);
 
-
 #endif

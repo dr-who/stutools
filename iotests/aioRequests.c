@@ -86,6 +86,7 @@ double aioMultiplePositions(const int fd,
 	if (read) {
 	  if (verbose) {fprintf(stderr,"[%zd] read ", pos);}
 	  io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
+	  positions[pos].success = 1;
 	} else {
 	  if (verbose) {fprintf(stderr,"[%zd] write ", pos);}
 	  io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
@@ -195,38 +196,41 @@ int aioVerifyWrites(const char *path,
   if (fd < 0) {fprintf(stderr,"fd error\n");exit(1);}
 
   fprintf(stderr,"*info* started verification\n");
+
   size_t errors = 0, checked = 0;
   int bytesRead = 0;
   char *buffer = aligned_alloc(4096, maxBufferSize + 1); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
   buffer[maxBufferSize]= 0;
   
   for (size_t i = 0; i < maxpos; i++) {
-    if ((positions[i].action == 'W') && positions[i].success) {
+    if (positions[i].success) {
+      if (positions[i].action == 'W') {
       //      fprintf(stderr,"%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
-      checked++;
-      const size_t pos = positions[i].pos;
-      const size_t len = positions[i].len;
-      if (lseek(fd, pos, SEEK_SET) == -1) {
-	perror("cannot seek");
-      }
-      buffer[0] = randomBuffer[0] ^ 0xff; // make sure the first char is different
-
-      bytesRead = read(fd, buffer, len);
-      buffer[len] = 0;
-      if ((size_t)bytesRead != len) {
-	fprintf(stderr,"[%zd/%zd] verify read truncated bytesRead %d instead of len=%zd\n", i, pos, bytesRead, len);
-	errors++;
-      } else {
-	if (strncmp(buffer, randomBuffer, len) != 0) {
-	  fprintf(stderr,"[%zd/%zd] verify error at location.  %c   %c \n", i, pos, buffer[0], randomBuffer[0]);
-	  if (errors < 10) {
-	    	    fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
-	    	    fprintf(stderr,"ondisk:   \n%s\n", buffer);
-	  }
+	checked++;
+	const size_t pos = positions[i].pos;
+	const size_t len = positions[i].len;
+	if (lseek(fd, pos, SEEK_SET) == -1) {
+	  perror("cannot seek");
+	}
+	buffer[0] = randomBuffer[0] ^ 0xff; // make sure the first char is different
+	
+	bytesRead = read(fd, buffer, len);
+	buffer[len] = 0;
+	if ((size_t)bytesRead != len) {
+	  fprintf(stderr,"[%zd/%zd] verify read truncated bytesRead %d instead of len=%zd\n", i, pos, bytesRead, len);
 	  errors++;
 	} else {
-	  if (verbose) {
-	    fprintf(stderr,"[%zd] verified ok location %zd\n", i, pos);
+	  if (strncmp(buffer, randomBuffer, len) != 0) {
+	    fprintf(stderr,"[%zd/%zd] verify error at location.  %c   %c \n", i, pos, buffer[0], randomBuffer[0]);
+	    if (errors < 10) {
+	      fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
+	      fprintf(stderr,"ondisk:   \n%s\n", buffer);
+	    }
+	    errors++;
+	  } else {
+	    if (verbose) {
+	      fprintf(stderr,"[%zd] verified ok location %zd\n", i, pos);
+	    }
 	  }
 	}
       }

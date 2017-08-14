@@ -249,11 +249,19 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
 
   int fd = 0;
+  unsigned int major = 0, minor = 0;
 
   size_t origbdSize = 0;
+  size_t sectorsRead = 0, sectorsWritten = 0;
+
   if (isBlockDevice(path)) {
     origbdSize = blockDeviceSize(path);
     fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
+    majorAndMinor(fd, &major, &minor);
+    if (verbose) {
+      fprintf(stderr,"*info* major %d, minor %d\n", major, minor);
+    }
+    getProcDiskstats(major, minor, &sectorsRead, &sectorsWritten);
   } else {
     fd = open(path, O_RDWR | O_DIRECT | O_EXCL);
     origbdSize = fileSize(fd);
@@ -349,11 +357,34 @@ int main(int argc, char *argv[]) {
     }
     fsync(fd);
     close(fd);
-    
-    if (verifyWrites && readRatio < 1) {
-      aioVerifyWrites(path, positions, num, BLKSIZE, verbose, randomBuffer);
+  }
+
+  /* total number of bytes read and written under our control */
+  size_t totalreads = 0, totalwrites = 0;
+  for (size_t i = 0; i < num; i++) {
+    if (positions[i].success) {
+      if (positions[i].action == 'W') totalwrites += positions[i].len;
+      else totalreads += positions[i].len;
     }
   }
+  if (verbose) {
+    fprintf(stderr,"*info* total reads = %zd, total writes = %zd\n", totalreads, totalwrites);
+  }
+
+  /* number of bytes read/written not under our control */
+  if (isBlockDevice(path)) {
+    size_t sectorsRead2 = 0, sectorsWritten2 = 0;
+    getProcDiskstats(major, minor, &sectorsRead2, &sectorsWritten2);
+    size_t totread = (sectorsRead2 - sectorsRead) * 512;
+    size_t totwritten = (sectorsWritten2 - sectorsWritten) * 512;
+    fprintf(stderr,"*info* read amplification  %zd / %zd, %.2lf%%\n", totread, totalreads, totread*100.0/totalreads);
+    fprintf(stderr,"*info* write amplification %zd / %zd, %.2lf%%\n", totwritten, totalwrites, totwritten*100.0/totalwrites);
+  }
+
+  if (verifyWrites && readRatio < 1) {
+    aioVerifyWrites(path, positions, num, BLKSIZE, verbose, randomBuffer);
+  }
+
   
   free(positions);
   free(randomBuffer);
