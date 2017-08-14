@@ -119,6 +119,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -S -F -V -f /dev/nbd0  # verbose that shows every operation\n");
     fprintf(stderr,"  ./aioRWTest -S -F -V -f file.txt  # can also use a single file. Note the file will be destroyed.\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -f /dev/nbd0  # random positions, 50%% R/W, verified after 15 seconds.\n");
+    fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -R 9812 -f /dev/nbd0  # hard core starting seed to 9812\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
