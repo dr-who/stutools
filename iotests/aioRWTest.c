@@ -24,7 +24,7 @@ int    seqFiles = 0;
 double maxSizeGB = 0;
 size_t BLKSIZE=65536;
 size_t jumpStep = 1;
-double readRatio = 1.0;
+double readRatio = 0.5;
 size_t table = 0;
 char   *logFNPrefix = NULL;
 int    verbose = 0;
@@ -39,7 +39,7 @@ void handle_args(int argc, char *argv[]) {
   long int seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rw")) != -1) {
     switch (opt) {
     case 'T':
       table = 1;
@@ -50,6 +50,14 @@ void handle_args(int argc, char *argv[]) {
       break;
     case '0':
       noops = 0;
+      break;
+    case 'r':
+      readRatio += 0.5;
+      if (readRatio > 1) readRatio = 1;
+      break;
+    case 'w':
+      readRatio -= 0.5;
+      if (readRatio < 0) readRatio = 0;
       break;
     case 'R':
       seed = atoi(optarg);
@@ -110,6 +118,11 @@ void handle_args(int argc, char *argv[]) {
   if (path == NULL) {
     fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-j jumpBlocks] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] [-G 32] [-p readRatio] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
+    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0         # 50/50 read/write test, defaults to random\n");
+    fprintf(stderr,"  ./aioRWTest -r -f /dev/nbd0      # read test, defaults to random\n");
+    fprintf(stderr,"  ./aioRWTest -w -f /dev/nbd0      m write test, defaults to random\n");
+    fprintf(stderr,"  ./aioRWTest -p0.25 -f /dev/nbd0  # 25%% write, and 75%% read\n");
+    fprintf(stderr,"  ./aioRWTest -p1 -f /dev/nbd0 -k4 -q64 -s32 -j16  # 100%% reads over entire block device\n");
     fprintf(stderr,"  ./aioRWTest -p1 -f /dev/nbd0 -k4 -q64 -s32 -j16  # 100%% reads over entire block device\n");
     fprintf(stderr,"  ./aioRWTest -p0.75 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100 # 75%% reads, limited to the first 100GiB\n");
     fprintf(stderr,"  ./aioRWTest -p0.0 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100  # 0%% reads, 100%% writes\n");
@@ -264,6 +277,9 @@ int main(int argc, char *argv[]) {
   if (isBlockDevice(path)) {
     origbdSize = blockDeviceSize(path);
     fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
+    if (fd < 0) {
+      perror(path);exit(1);
+    }
     majorAndMinor(fd, &major, &minor);
     if (verbose) {
       fprintf(stderr,"*info* major %d, minor %d\n", major, minor);
@@ -276,11 +292,15 @@ int main(int argc, char *argv[]) {
     
   } else {
     fd = open(path, O_RDWR | O_DIRECT | O_EXCL);
+    if (fd < 0) {
+      perror(path);exit(1);
+    }
     origbdSize = fileSize(fd);
     fprintf(stderr,"*info* file specified: '%s' size %zd bytes\n", path, origbdSize);
   }
-  if (fd < 0) {perror(path);return -1; }
 
+
+  // using the -G option to reduce the max position on the block device
   size_t bdSize = origbdSize;
   if (maxSizeGB > 0) {
     bdSize = (size_t) (maxSizeGB * 1024L * 1024 * 1024);
@@ -294,7 +314,7 @@ int main(int argc, char *argv[]) {
   }
 
   
-  const size_t num = noops * 10*1000*1000;
+  const size_t num = noops * 10*1000*1000; // use 10M operations
   positionType *positions = createPositions(num);
 
   char *randomBuffer = aligned_alloc(4096, BLKSIZE + 1); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
@@ -360,13 +380,8 @@ int main(int argc, char *argv[]) {
     // just execute a single run
     fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, blocksize: %zd", path, readRatio, qd, BLKSIZE);
     fprintf(stderr,", bdSize %.1lf GiB\n", bdSize/1024.0/1024/1024);
-    if (seqFiles == 0) {
-      setupPositions(positions, num, bdSize, 0, readRatio);
-      aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
-    } else {
-      setupPositions(positions, num, bdSize, seqFiles, readRatio);
-      aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
-    }
+    setupPositions(positions, num, bdSize, seqFiles, readRatio);
+    aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
     fsync(fd);
     close(fd);
   }
@@ -394,15 +409,16 @@ int main(int argc, char *argv[]) {
     }
 
     size_t totread = (sectorsRead2 - sectorsRead) * 512;
-    size_t totwritten = (sectorsWritten2 - sectorsWritten) * 512;
     fprintf(stderr,"*info* read amplification  %zd / %zd, %.2lf%%\n", totread, totalreads, totread*100.0/totalreads);
+
+    size_t totwritten = (sectorsWritten2 - sectorsWritten) * 512;
     fprintf(stderr,"*info* write amplification %zd / %zd, %.2lf%%\n", totwritten, totalwrites, totwritten*100.0/totalwrites);
   }
 
+  // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
   if (verifyWrites && readRatio < 1) {
     aioVerifyWrites(path, positions, num, BLKSIZE, verbose, randomBuffer);
   }
-
   
   free(positions);
   free(randomBuffer);

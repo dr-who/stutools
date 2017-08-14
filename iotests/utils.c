@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
-
+#include <linux/hdreg.h>
 #include "utils.h"
 
 extern int keepRunning;
@@ -515,6 +515,10 @@ void sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose) {
   while ((read = getline(&line, &len, fp)) != -1) {
     if (sscanf(line, "%s", str) >= 1) {
       int fd = open(str, O_RDONLY);
+      if (fd < 0) {
+	perror("problem");
+      }
+      //      getWriteCacheStatus(fd);
       unsigned int major = 0, minor = 0;
       majorAndMinor(fd, &major, &minor);
       size_t sr = 0, sw = 0;
@@ -533,3 +537,12 @@ void sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose) {
   fclose(fp);
 }
 
+int getWriteCacheStatus(int fd) {
+  unsigned long val = 0;
+  if (ioctl(fd, HDIO_GET_WCACHE, &val) >= 0) {
+    fprintf(stderr,"*info* write cache setting for %d is %lu\n", fd, val);
+  } else {
+    perror("ioctl");
+  }
+  return val;
+}
