@@ -255,7 +255,7 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
   }
   
   if (verbose) {
-    for(size_t i = 0; i < 20;i++) {
+    for(size_t i = 0; i < MIN(num, 20);i++) {
       fprintf(stderr,"%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
     }
   }
