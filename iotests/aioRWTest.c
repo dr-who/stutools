@@ -118,15 +118,18 @@ void handle_args(int argc, char *argv[]) {
   if (path == NULL) {
     fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-j jumpBlocks] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] [-G 32] [-p readRatio] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
-    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0         # 50/50 read/write test, defaults to random\n");
-    fprintf(stderr,"  ./aioRWTest -r -f /dev/nbd0      # read test, defaults to random\n");
-    fprintf(stderr,"  ./aioRWTest -w -f /dev/nbd0      m write test, defaults to random\n");
-    fprintf(stderr,"  ./aioRWTest -p0.25 -f /dev/nbd0  # 25%% write, and 75%% read\n");
+    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0          # 50/50 read/write test, defaults to random\n");
+    fprintf(stderr,"  ./aioRWTest -r -f /dev/nbd0       # read test, defaults to random\n");
+    fprintf(stderr,"  ./aioRWTest -w -f /dev/nbd0       # write test, defaults to random\n");
+    fprintf(stderr,"  ./aioRWTest -r -s1 -f /dev/nbd0   # read test, single contiguous region\n");
+    fprintf(stderr,"  ./aioRWTest -w -s128 -f /dev/nbd0 # write test, 128 parallel contiguous region\n");
+    fprintf(stderr,"  ./aioRWTest -S -F -f /dev/nbd0    # single static position, fsync after every op\n");
+    fprintf(stderr,"  ./aioRWTest -p0.25 -f /dev/nbd0   # 25%% write, and 75%% read\n");
     fprintf(stderr,"  ./aioRWTest -p1 -f /dev/nbd0 -k4 -q64 -s32 -j16  # 100%% reads over entire block device\n");
     fprintf(stderr,"  ./aioRWTest -p1 -f /dev/nbd0 -k4 -q64 -s32 -j16  # 100%% reads over entire block device\n");
-    fprintf(stderr,"  ./aioRWTest -p0.75 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100 # 75%% reads, limited to the first 100GiB\n");
-    fprintf(stderr,"  ./aioRWTest -p0.0 -f /dev/nbd0 -k4 -q64 -s32 -j16 -G100  # 0%% reads, 100%% writes\n");
-    fprintf(stderr,"  ./aioRWTest -S -F -k4 -f /dev/nbd0  # single position, fsync after every op\n");
+    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -G100    # limit actions to first 100GiB\n");
+    fprintf(stderr,"  ./aioRWTest -p0.1 -f/dev/nbd0 -G3 # 90%% reads, 10%% writes, limited to first 3GiB of device\n");
+    fprintf(stderr,"  ./aioRWTest -t30 -f/dev/nbd0      # test for 30 seconds\n");
     fprintf(stderr,"  ./aioRWTest -S -S -F -F -k4 -f /dev/nbd0  # single position, changing every 10 ops, fsync every 10 ops\n");
     fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0  # send no operations, then flush. Basically, fast flush loop\n");
     fprintf(stderr,"  ./aioRWTest -S -F -V -f /dev/nbd0  # verbose that shows every operation\n");

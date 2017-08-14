@@ -76,37 +76,39 @@ double aioMultiplePositions(const int fd,
     if (inFlight < QD) {
       
       // submit requests, one at a time
-      if (sz) // if we have some positions
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
-	long long newpos = positions[pos].pos;
-	// len = positions[pos].len;
-	int read = (positions[pos].action == 'R');
-
-	// setup the request
-	if (read) {
-	  if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-	  io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
-	  positions[pos].success = 1;
-	} else {
-	  if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
-	  io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
-	  positions[pos].success = 1;
-	}
-	//    cbs[0]->u.c.offset = sz;
-	//	fprintf(stderr,"submit...\n");
-	ret = io_submit(ctx, 1, cbs);
-	if (ret > 0) {
-	  inFlight++;
-	  submitted++;
-	  if (verbose >= 2) {
-	    fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % len) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+	if (sz) { // if we have some positions
+	  long long newpos = positions[pos].pos;
+	  // len = positions[pos].len;
+	  int read = (positions[pos].action == 'R');
+	  
+	  // setup the request
+	  if (read) {
+	    if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
+	    io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
+	    positions[pos].success = 1;
+	  } else {
+	    if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
+	    io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
+	    positions[pos].success = 1;
 	  }
-
-	} else {
-	  fprintf(stderr,"!!!\n");
+	  //    cbs[0]->u.c.offset = sz;
+	  //	fprintf(stderr,"submit...\n");
+	  ret = io_submit(ctx, 1, cbs);
+	  if (ret > 0) {
+	    inFlight++;
+	    submitted++;
+	    if (verbose >= 2) {
+	      fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % len) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+	    }
+	    
+	  } else {
+	    fprintf(stderr,"!!!\n");
+	  }
+	  
+	  pos++; if (pos > sz) pos = 0;
 	}
-
-	pos++; if (pos > sz) pos = 0;
+	
 	double gt = timedouble();
 
 	if (gt - last >= 1) {
@@ -117,11 +119,11 @@ double aioMultiplePositions(const int fd,
 	    goto endoffunction;
 	  }
 	}
-	if (ret != 1) {
+	/*	if (ret != 1) {
 	  fprintf(stderr,"eek i=%zd %d\n", i, ret);
 	} else {
 	  //      fprintf(stderr,"red %d\n", ret);
-	}
+	  }*/
       } // for loop
       if (flushWhenQueueFull) {
 	if ((pos % flushWhenQueueFull) == 0) {
