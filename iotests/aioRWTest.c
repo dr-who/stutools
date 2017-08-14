@@ -141,6 +141,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -f /dev/nbd0  # random positions, 50%% R/W, verified after 15 seconds.\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -R 9812 -f /dev/nbd0  # set the starting seed to 9812\n");
     fprintf(stderr,"  ./aioRWTest -s 1 -j 10 -f /dev/sdc -V   # contiguous access, jumping 10 blocks at a time\n");
+    fprintf(stderr,"  ./aioRWTest -s -8 -f /dev/sdc -V    # reverse contiguous 8 regions in parallel\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -O ok.txt  # use a list of devices in ok.txt for disk stats/amplification\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
