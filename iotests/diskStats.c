@@ -127,3 +127,43 @@ void diskStatFree(diskStatType *d) {
   d->numDrives = 0;
   d->allocDrives = 0;
 }
+
+
+void majorAndMinor(int fd, unsigned int *major, unsigned int *minor) {
+  struct stat buf;
+  if (fstat(fd, &buf) == 0) {
+    dev_t dt = buf.st_rdev;
+    *major = major(dt);
+    *minor = minor(dt);
+  } else {
+    fprintf(stderr,"*warning* can't get major/minor\n");
+  }
+}
+  
+void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten) {
+  FILE *fp = fopen("/proc/diskstats", "rt");
+  if (!fp) {
+    fprintf(stderr,"can't open diskstats!\n");
+    return;
+  }
+  char *line = NULL;
+  size_t len = 0;
+  ssize_t read = 0;
+  char *str = malloc(1000); if (!str) {fprintf(stderr,"pd OOM\n");exit(1);}
+  while ((read = getline(&line, &len, fp)) != -1) {
+    long mj, mn, s;
+    size_t read1, write1;
+    sscanf(line,"%ld %ld %s %ld %ld %zd %ld %ld %ld %zd", &mj, &mn, str, &s, &s, &read1, &s, &s, &s, &write1);
+    if (mj == major && mn == minor) {
+      *sread = read1;
+      *swritten = write1;
+      break;
+      //      printf("Retrieved line of length (%u %u) (%zd %zd) :\n", mj, mn, *sread, *swritten);
+      //      printf("%s", line);
+    }
+  }
+  free(str);
+  free(line);
+  fclose(fp);
+}
+
