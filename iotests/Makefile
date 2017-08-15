@@ -29,7 +29,7 @@ flushTestWriter: flushTestWriter.o utils.o logSpeed.o
 flushTestReader: flushTestReader.o utils.o logSpeed.o 
 	gcc -Wall --std=c99 $^ -o $@ -lpthread -lm
 
-aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o
+aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o
 	gcc -Wall --std=c99 $^ -o $@ -lm -laio
 
 

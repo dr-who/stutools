@@ -15,6 +15,7 @@
 #include "aioRequests.h"
 #include "utils.h"
 #include "logSpeed.h"
+#include "diskStats.h"
 
 int    keepRunning = 1;       // have we been interrupted
 double exitAfterSeconds = 5;
@@ -32,7 +33,7 @@ int    singlePosition = 0;
 int    flushWhenQueueFull = 0;
 size_t noops = 1;
 int    verifyWrites = 0;
-char*  overriddendisks = NULL;
+char*  specifiedDisks = NULL;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
@@ -45,8 +46,8 @@ void handle_args(int argc, char *argv[]) {
       table = 1;
       break;
     case 'O':
-      overriddendisks = strdup(optarg);
-      fprintf(stderr,"*info* overriddendisks from %s\n", optarg);
+      specifiedDisks = strdup(optarg);
+      fprintf(stderr,"*info* specifiedDisks from %s\n", optarg);
       break;
     case '0':
       noops = 0;
@@ -195,10 +196,9 @@ void dumpPositionStats(positionType *positions, size_t num, size_t bdSize) {
       p++;
     }
   }
-    
 
   if (verbose) {
-    fprintf(stderr,"action summary: reads %zd, writes %zd, len = [%zd, %zd]\n", rcount, wcount, sizelow, sizehigh);
+    fprintf(stderr,"action summary: reads %zd, writes %zd, checked ratio = %.1lf, len = [%zd, %zd]\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh);
   }
 }
 
@@ -284,7 +284,7 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
 }
 
 
-void genRandomBuffer(char *buffer, size_t size) {
+void generateRandomBuffer(char *buffer, size_t size) {
   const char verystartpoint = ' ' + (lrand48() % 15);
   const char jump = (lrand48() % 3) + 1;
   char startpoint = verystartpoint;
@@ -312,12 +312,13 @@ int main(int argc, char *argv[]) {
 
   int fd = 0;
   unsigned int major = 0, minor = 0;
+  size_t actualBlockDeviceSize = 0;
 
-  size_t origbdSize = 0;
-  size_t sectorsRead = 0, sectorsWritten = 0;
+  diskStatType dst;
+  diskStatSetup(&dst);
 
   if (isBlockDevice(path)) {
-    origbdSize = blockDeviceSize(path);
+    actualBlockDeviceSize = blockDeviceSize(path);
     fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
     if (fd < 0) {
       perror(path);exit(1);
@@ -326,33 +327,35 @@ int main(int argc, char *argv[]) {
     if (verbose) {
       fprintf(stderr,"*info* major %d, minor %d\n", major, minor);
     }
-    if (overriddendisks) {
-      sumFileOfDrives(overriddendisks, &sectorsRead, &sectorsWritten, verbose);
+    size_t sectorsRead = 0, sectorsWritten = 0;
+    if (specifiedDisks) {
+      sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
     } else {
       getProcDiskstats(major, minor, &sectorsRead, &sectorsWritten);
     }
+    diskStatAddStart(&dst, sectorsRead, sectorsWritten);
     
   } else {
     fd = open(path, O_RDWR | O_DIRECT | O_EXCL);
     if (fd < 0) {
       perror(path);exit(1);
     }
-    origbdSize = fileSize(fd);
-    fprintf(stderr,"*info* file specified: '%s' size %zd bytes\n", path, origbdSize);
+    actualBlockDeviceSize = fileSize(fd);
+    fprintf(stderr,"*info* file specified: '%s' size %zd bytes\n", path, actualBlockDeviceSize);
   }
 
 
   // using the -G option to reduce the max position on the block device
-  size_t bdSize = origbdSize;
+  size_t bdSize = actualBlockDeviceSize;
   if (maxSizeGB > 0) {
     bdSize = (size_t) (maxSizeGB * 1024L * 1024 * 1024);
   }
   
-  if (bdSize > origbdSize) {
-    bdSize = origbdSize;
+  if (bdSize > actualBlockDeviceSize) {
+    bdSize = actualBlockDeviceSize;
     fprintf(stderr,"*info* override option too high, reducing size to %.1lf GiB\n", bdSize /1024.0/1024/1024);
-  } else if (bdSize < origbdSize) {
-    fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", bdSize / 1024.0/1024/1024, origbdSize /1024.0/1024/1024);
+  } else if (bdSize < actualBlockDeviceSize) {
+    fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", bdSize / 1024.0/1024/1024, actualBlockDeviceSize /1024.0/1024/1024);
   }
 
   
@@ -360,7 +363,7 @@ int main(int argc, char *argv[]) {
   positionType *positions = createPositions(num);
 
   char *randomBuffer = aligned_alloc(4096, BLKSIZE + 1); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
-  genRandomBuffer(randomBuffer, BLKSIZE);
+  generateRandomBuffer(randomBuffer, BLKSIZE);
 
   if (table) {
     // generate a table
@@ -369,7 +372,7 @@ int main(int argc, char *argv[]) {
     double rrArray[]={1.0, 0, 0.5};
     size_t ssArray[]={0, 1, 8, 32, 128};
 
-    fprintf(stderr,"blockSz\tnumSeq\tQueueD\tR/W\tIOPS\tMiB/s\n");
+    fprintf(stderr,"blockSz\tnumSeq\tQueueD\tR/W\tIOPS\tMiB/s\tEffici\n");
     
     for (size_t rrindex=0; rrindex < sizeof(rrArray) / sizeof(rrArray[0]); rrindex++) {
       for (size_t ssindex=0; ssindex < sizeof(ssArray) / sizeof(ssArray[0]); ssindex++) {
@@ -384,36 +387,49 @@ int main(int argc, char *argv[]) {
 	    sprintf(filename, "%s/bs%zd_ss%zd_qd%zd_rr%.2f", logFNPrefix ? logFNPrefix : ".", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
 	    logSpeedType l;
 	    logSpeedInit(&l);
+
+	    diskStatType cellstats;
+	    diskStatSetup(&cellstats);
+	    size_t sectorsRead = 0, sectorsWritten = 0;
+	    if (specifiedDisks) {
+	      sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
+	    }
+	    diskStatAddStart(&cellstats, sectorsRead, sectorsWritten);
 	    
 	    fprintf(stderr,"%zd\t%zd\t%zd\t%4.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
 	    
 	    if (ssArray[ssindex] == 0) {
-	      // random
+	      // setup random positions. An value of 0 means random. e.g. zero sequential files
 	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex], bsArray[bsindex]);
 
-	      start = timedouble();
+	      start = timedouble(); // start timing after positions created
 	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
-	      fsync(fd);
-	      fdatasync(fd);
-	      elapsed = timedouble() - start;
 	    } else {
-	      // setup multiple/parallel sequential blocks
+	      // setup multiple/parallel sequential region
 	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex]);
 	      
-	      start = timedouble();
+	      start = timedouble(); // start timing after positions created
 	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
-	      fsync(fd);
-	      fdatasync(fd);
-
-	      elapsed = timedouble() - start;
 	    }
+	    fsync(fd);
+	    fdatasync(fd);
+	    elapsed = timedouble() - start;
+	      
+	    if (specifiedDisks) {
+	      sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
+	    }
+	    diskStatAddFinish(&cellstats, sectorsRead, sectorsWritten);
+
+	    size_t trb = 0, twb = 0;
+	    diskStatSummary(&cellstats, &trb, &twb, 0, 0, 0);	    
+	    size_t shouldHaveBytes = ios * bsArray[bsindex];
+	    size_t didBytes = trb + twb;
+	    double efficiency = didBytes *100.0/shouldHaveBytes;
 
 	    logSpeedDump(&l, filename);
 	    logSpeedFree(&l);
 	    
-	    fprintf(stderr,"%6.0lf\t%6.0lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0);
-	    fsync(fd);
-	    fdatasync(fd);
+	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0, efficiency);
 	  }
 	}
       }
@@ -429,32 +445,30 @@ int main(int argc, char *argv[]) {
   }
 
   /* total number of bytes read and written under our control */
-  size_t totalreads = 0, totalwrites = 0;
+  size_t shouldReadBytes = 0, shouldWriteBytes = 0;
   for (size_t i = 0; i < num; i++) {
     if (positions[i].success) {
-      if (positions[i].action == 'W') totalwrites += positions[i].len;
-      else totalreads += positions[i].len;
+      if (positions[i].action == 'W') shouldWriteBytes += positions[i].len;
+      else shouldReadBytes += positions[i].len;
     }
   }
   if (verbose) {
-    fprintf(stderr,"*info* total reads = %zd, total writes = %zd\n", totalreads, totalwrites);
+    fprintf(stderr,"*info* total reads = %zd, total writes = %zd\n", shouldReadBytes, shouldWriteBytes);
   }
 
   /* number of bytes read/written not under our control */
   if (isBlockDevice(path)) {
-    size_t sectorsRead2 = 0, sectorsWritten2 = 0;
+    size_t sectorsRead = 0, sectorsWritten = 0;
 
-    if (overriddendisks) {
-      sumFileOfDrives(overriddendisks, &sectorsRead2, &sectorsWritten2, verbose);
+    if (specifiedDisks) {
+      sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
     } else {
-      getProcDiskstats(major, minor, &sectorsRead2, &sectorsWritten2);
+      getProcDiskstats(major, minor, &sectorsRead, &sectorsWritten);
     }
+    diskStatAddFinish(&dst, sectorsRead, sectorsWritten);
 
-    size_t totread = (sectorsRead2 - sectorsRead) * 512;
-    fprintf(stderr,"*info* read amplification  %zd / %zd, %.2lf%%\n", totread, totalreads, totread*100.0/totalreads);
-
-    size_t totwritten = (sectorsWritten2 - sectorsWritten) * 512;
-    fprintf(stderr,"*info* write amplification %zd / %zd, %.2lf%%\n", totwritten, totalwrites, totwritten*100.0/totalwrites);
+    size_t trb = 0, twb = 0;
+    diskStatSummary(&dst, &trb, &twb, shouldReadBytes, shouldWriteBytes, 1);
   }
 
   // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
