@@ -155,14 +155,13 @@ void handle_args(int argc, char *argv[]) {
 }
 
 
+// sorting function, used by qsort
 static int poscompare(const void *p1, const void *p2)
 {
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
-  const long l1 = pos1->pos;
-  const long l2 = pos2->pos;
-  if (l1<l2) return -1;
-  else if (l1>l2) return 1;
+  if (pos1->pos < pos2->pos) return -1;
+  else if (pos1->pos > pos2->pos) return 1;
   else return 0;
 }
 
@@ -172,7 +171,8 @@ positionType *createPositions(size_t num) {
   if (!p) {fprintf(stderr,"oom! positions\n"); exit(1);}
   return p;
 }
- 
+
+// lots of checks
 void dumpPositionStats(positionType *positions, size_t num, size_t bdSize) {
   size_t rcount = 0, wcount = 0;
   size_t sizelow = -1, sizehigh = 0;
@@ -233,6 +233,7 @@ void dumpPositionStats(positionType *positions, size_t num, size_t bdSize) {
   }
 }
 
+// create the position array
 void setupPositions(positionType *positions, size_t num, const size_t bdSize, const int sf, const double readorwrite, size_t bs) {
   if (bdSize < BLKSIZE) {
     fprintf(stderr,"*warning* size of device is less than block size!\n");
@@ -315,6 +316,7 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
 }
 
 
+// the block size random buffer. Nice ASCII
 void generateRandomBuffer(char *buffer, size_t size) {
   const char verystartpoint = ' ' + (lrand48() % 15);
   const char jump = (lrand48() % 3) + 1;
@@ -488,12 +490,12 @@ int main(int argc, char *argv[]) {
       aioVerifyWrites(path, positions, num, BLKSIZE, verbose, randomBuffer);
     }
   } // end single run
-  
+
+  diskStatFree(&dst);
   free(positions);
   free(randomBuffer);
-  if (logFNPrefix) {
-    free(logFNPrefix);
-  }
+  if (logFNPrefix) {free(logFNPrefix);}
+  if (specifiedDisks) {free(specifiedDisks);}
   
   return 0;
 }

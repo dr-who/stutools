@@ -119,3 +119,11 @@ void diskStatFinish(diskStatType *d) {
   d->finishSecRead = sread;
   d->finishSecWrite = swritten;
 }
+
+void diskStatFree(diskStatType *d) {
+  if (d->majorArray) {free(d->majorArray); d->majorArray = NULL;}
+  if (d->minorArray) {free(d->minorArray); d->minorArray = NULL;}
+  diskStatClear(d);
+  d->numDrives = 0;
+  d->allocDrives = 0;
+}

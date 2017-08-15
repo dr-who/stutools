@@ -23,6 +23,7 @@ void diskStatSectorUsage(diskStatType *d, size_t *sread, size_t *swritten, int v
 void diskStatFromFilelist(diskStatType *d, const char *path);
 void diskStatStart(diskStatType *d);
 void diskStatFinish(diskStatType *d);
+void diskStatFree(diskStatType *d);
 
 #endif
 
