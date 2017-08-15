@@ -346,7 +346,7 @@ int main(int argc, char *argv[]) {
   int fd = 0;
   size_t actualBlockDeviceSize = 0;
 
-  diskStatType dst;
+  diskStatType dst; // count sectors/bytes
   diskStatSetup(&dst);
 
   if (isBlockDevice(path)) {
@@ -399,7 +399,7 @@ int main(int argc, char *argv[]) {
     double rrArray[]={1.0, 0, 0.5};
     size_t ssArray[]={0, 1, 8, 32, 128};
 
-    fprintf(stderr,"blockSz\tnumSeq\tQueueD\tR/W\tIOPS\tMiB/s\tEffici\n");
+    fprintf(stderr,"blkSz\tnumSq\tQueueD\t R/W\t  IOPS\t MiB/s\t Ampli\t Disk%%\n");
     
     for (size_t rrindex=0; rrindex < sizeof(rrArray) / sizeof(rrArray[0]); rrindex++) {
       for (size_t ssindex=0; ssindex < sizeof(ssArray) / sizeof(ssArray[0]); ssindex++) {
@@ -439,7 +439,8 @@ int main(int argc, char *argv[]) {
 	    diskStatFinish(&dst);
 
 	    size_t trb = 0, twb = 0;
-	    diskStatSummary(&dst, &trb, &twb, 0, 0, 0);	    
+	    double util = 0;
+	    diskStatSummary(&dst, &trb, &twb, &util, 0, 0, 0, elapsed);	    
 	    size_t shouldHaveBytes = ios * bsArray[bsindex];
 	    size_t didBytes = trb + twb;
 	    double efficiency = didBytes *100.0/shouldHaveBytes;
@@ -450,7 +451,7 @@ int main(int argc, char *argv[]) {
 	    logSpeedDump(&l, filename);
 	    logSpeedFree(&l);
 	    
-	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency);
+	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
 	  }
 	}
       }
@@ -463,10 +464,13 @@ int main(int argc, char *argv[]) {
     setupPositions(positions, num, bdSize, seqFiles, readRatio, BLKSIZE);
 
     diskStatStart(&dst); // grab the sector counts
+    double start = timedouble();
 
     aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
     fsync(fd);
     close(fd);
+    double elapsed = timedouble() - start;
+    
     diskStatFinish(&dst); // and sector counts when finished
     
     /* total number of bytes read and written under our control */
@@ -483,7 +487,8 @@ int main(int argc, char *argv[]) {
 
     /* number of bytes read/written not under our control */
     size_t trb = 0, twb = 0;
-    diskStatSummary(&dst, &trb, &twb, shouldReadBytes, shouldWriteBytes, 1);
+    double util = 0;
+    diskStatSummary(&dst, &trb, &twb, &util, shouldReadBytes, shouldWriteBytes, 1, elapsed);
 
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
     if (verifyWrites && readRatio < 1) {
