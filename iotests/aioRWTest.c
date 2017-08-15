@@ -425,6 +425,9 @@ int main(int argc, char *argv[]) {
 	    size_t shouldHaveBytes = ios * bsArray[bsindex];
 	    size_t didBytes = trb + twb;
 	    double efficiency = didBytes *100.0/shouldHaveBytes;
+	    if (!specifiedDisks) {
+	      efficiency = 100;
+	    }
 
 	    logSpeedDump(&l, filename);
 	    logSpeedFree(&l);
