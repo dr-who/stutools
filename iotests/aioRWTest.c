@@ -437,6 +437,7 @@ int main(int argc, char *argv[]) {
 	}
       }
     }
+    // end table results
   } else {
     // just execute a single run
     fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, blocksize: %zd", path, readRatio, qd, BLKSIZE);
@@ -445,39 +446,39 @@ int main(int argc, char *argv[]) {
     aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
     fsync(fd);
     close(fd);
-  }
-
-  /* total number of bytes read and written under our control */
-  size_t shouldReadBytes = 0, shouldWriteBytes = 0;
-  for (size_t i = 0; i < num; i++) {
-    if (positions[i].success) {
-      if (positions[i].action == 'W') shouldWriteBytes += positions[i].len;
-      else shouldReadBytes += positions[i].len;
+    
+    /* total number of bytes read and written under our control */
+    size_t shouldReadBytes = 0, shouldWriteBytes = 0;
+    for (size_t i = 0; i < num; i++) {
+      if (positions[i].success) {
+	if (positions[i].action == 'W') shouldWriteBytes += positions[i].len;
+	else shouldReadBytes += positions[i].len;
+      }
     }
-  }
-  if (verbose) {
-    fprintf(stderr,"*info* total reads = %zd, total writes = %zd\n", shouldReadBytes, shouldWriteBytes);
-  }
-
-  /* number of bytes read/written not under our control */
-  if (isBlockDevice(path)) {
-    size_t sectorsRead = 0, sectorsWritten = 0;
-
-    if (specifiedDisks) {
-      sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
-    } else {
-      getProcDiskstats(major, minor, &sectorsRead, &sectorsWritten);
+    if (verbose) {
+      fprintf(stderr,"*info* total reads = %zd, total writes = %zd\n", shouldReadBytes, shouldWriteBytes);
     }
-    diskStatAddFinish(&dst, sectorsRead, sectorsWritten);
 
-    size_t trb = 0, twb = 0;
-    diskStatSummary(&dst, &trb, &twb, shouldReadBytes, shouldWriteBytes, 1);
-  }
+    /* number of bytes read/written not under our control */
+    if (isBlockDevice(path)) {
+      size_t sectorsRead = 0, sectorsWritten = 0;
 
-  // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
-  if (verifyWrites && readRatio < 1) {
-    aioVerifyWrites(path, positions, num, BLKSIZE, verbose, randomBuffer);
-  }
+      if (specifiedDisks) {
+	sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
+      } else {
+	getProcDiskstats(major, minor, &sectorsRead, &sectorsWritten);
+      }
+      diskStatAddFinish(&dst, sectorsRead, sectorsWritten);
+
+      size_t trb = 0, twb = 0;
+      diskStatSummary(&dst, &trb, &twb, shouldReadBytes, shouldWriteBytes, 1);
+    }
+
+    // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
+    if (verifyWrites && readRatio < 1) {
+      aioVerifyWrites(path, positions, num, BLKSIZE, verbose, randomBuffer);
+    }
+  } // end single run
   
   free(positions);
   free(randomBuffer);
