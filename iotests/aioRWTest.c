@@ -399,7 +399,7 @@ int main(int argc, char *argv[]) {
     double rrArray[]={1.0, 0, 0.5};
     size_t ssArray[]={0, 1, 8, 32, 128};
 
-    fprintf(stderr,"blkSz\tnumSq\tQueueD\t R/W\t  IOPS\t MiB/s\t Ampli\t Disk%%\n");
+    fprintf(stderr," blkSz\t numSq\tQueueD\t   R/W\t  IOPS\t MiB/s\t Ampli\t Disk%%\n");
     
     for (size_t rrindex=0; rrindex < sizeof(rrArray) / sizeof(rrArray[0]); rrindex++) {
       for (size_t ssindex=0; ssindex < sizeof(ssArray) / sizeof(ssArray[0]); ssindex++) {
@@ -417,7 +417,7 @@ int main(int argc, char *argv[]) {
 
 	    diskStatStart(&dst); // reset the counts
 	    
-	    fprintf(stderr,"%zd\t%zd\t%zd\t%4.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
+	    fprintf(stderr,"%6zd\t%6zd\t%6zd\t%6.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // setup random positions. An value of 0 means random. e.g. zero sequential files
