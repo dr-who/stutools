@@ -14,6 +14,7 @@ typedef struct {
   size_t allocDevices;
   int *majorArray;
   int *minorArray;
+  size_t *sizeArray;
 } diskStatType;
 
 void diskStatSetup(diskStatType *d);
@@ -26,6 +27,7 @@ void diskStatFromFilelist(diskStatType *d, const char *path);
 void diskStatStart(diskStatType *d);
 void diskStatFinish(diskStatType *d);
 void diskStatFree(diskStatType *d);
+size_t diskStatTotalDeviceSize(diskStatType *d);
 
 void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten, size_t *stimeIO);
 

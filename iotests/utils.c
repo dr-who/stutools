@@ -39,6 +39,12 @@ size_t fileSize(int fd) {
   return sz;
 }
   
+size_t blockDeviceSizeFromFD(int fd) {
+  size_t file_size_in_bytes = 0;
+  ioctl(fd, BLKGETSIZE64, &file_size_in_bytes);
+  return file_size_in_bytes;
+}
+  
 
 size_t blockDeviceSize(char *path) {
 

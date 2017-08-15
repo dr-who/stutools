@@ -25,6 +25,7 @@ void diskStatSetup(diskStatType *d) {
   d->allocDevices = 10;
   d->majorArray = calloc(d->allocDevices, sizeof(int));
   d->minorArray = calloc(d->allocDevices, sizeof(int));
+  d->sizeArray = calloc(d->allocDevices, sizeof(size_t));
 }
 
 void diskStatAddDrive(diskStatType *d, int fd) {
@@ -34,9 +35,11 @@ void diskStatAddDrive(diskStatType *d, int fd) {
     d->allocDevices += 10;
     d->majorArray = realloc(d->majorArray, d->allocDevices * sizeof(int));
     d->minorArray = realloc(d->minorArray, d->allocDevices * sizeof(int));
+    d->sizeArray = realloc(d->sizeArray, d->allocDevices * sizeof(size_t));
   }
   d->majorArray[d->numDevices] = major;
   d->minorArray[d->numDevices] = minor;
+  d->sizeArray[d->numDevices] = blockDeviceSizeFromFD(fd);
   //  fprintf(stderr,"diskStatAddDrive fd %d, major %u, minor %u\n", fd, major, minor);
   d->numDevices++;
 }
@@ -70,6 +73,14 @@ void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWrite
   }
 }
 
+size_t diskStatTotalDeviceSize(diskStatType *d) {
+  size_t totl = 0;
+  for (size_t i = 0; i < d->numDevices; i++) {
+    totl += d->sizeArray[i];
+  }
+  return totl;
+}
+
 
 
 void diskStatSectorUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, int verbose) {
@@ -98,12 +109,16 @@ void diskStatFromFilelist(diskStatType *d, const char *path) {
   char *str = malloc(1000); if (!str) {fprintf(stderr,"pd OOM\n");exit(1);}
   while ((read = getline(&line, &len, fp)) != -1) {
     if (sscanf(line, "%s", str) >= 1) {
-      int fd = open(str, O_RDONLY);
-      if (fd < 0) {
-	perror("problem");
+      if (isBlockDevice(str)) {
+	int fd = open(str, O_RDONLY);
+	if (fd < 0) {
+	  perror("problem");
+	}
+	diskStatAddDrive(d, fd);
+	close (fd);
+      } else {
+	fprintf(stderr,"*warning* %s is not a block device\n", str);
       }
-      diskStatAddDrive(d, fd);
-      close (fd);
     }
   }
   free(str);
