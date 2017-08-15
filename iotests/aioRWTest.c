@@ -230,7 +230,7 @@ void dumpPositionStats(positionType *positions, size_t num, size_t bdSize) {
   free(copy);
 
   if (verbose) {
-    fprintf(stderr,"action summary: reads %zd, writes %zd, checked ratio = %.1lf, len = [%zd, %zd]\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh);
+    fprintf(stderr,"action summary: reads %zd, writes %zd, checked ratio %.1lf, len [%zd, %zd], unique positions %zd\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh, unique);
   }
 }
 
