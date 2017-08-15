@@ -484,9 +484,9 @@ void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t
   ssize_t read = 0;
   char *str = malloc(1000); if (!str) {fprintf(stderr,"pd OOM\n");exit(1);}
   while ((read = getline(&line, &len, fp)) != -1) {
-    unsigned int mj, mn, s;
+    long mj, mn, s;
     size_t read1, write1;
-    sscanf(line,"%u %u %s %d %d %zd %d %d %d %zd", &mj, &mn, str, &s, &s, &read1, &s, &s, &s, &write1);
+    sscanf(line,"%ld %ld %s %ld %ld %zd %ld %ld %ld %zd", &mj, &mn, str, &s, &s, &read1, &s, &s, &s, &write1);
     if (mj == major && mn == minor) {
       *sread = read1;
       *swritten = write1;
@@ -501,13 +501,14 @@ void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t
 }
 
 
-void sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose) {
+int sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose) {
   *sread = 0;
   *swritten = 0;
+  int numdisks = 0;
   FILE *fp = fopen(path, "rt");
   if (!fp) {
     fprintf(stderr,"can't open %s!\n", path);
-    return;
+    return -1;
   }
   char *line = NULL;
   size_t len = 0;
@@ -519,6 +520,7 @@ void sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose) {
       if (fd < 0) {
 	perror("problem");
       }
+      numdisks++;
       //      getWriteCacheStatus(fd);
       unsigned int major = 0, minor = 0;
       majorAndMinor(fd, &major, &minor);
@@ -536,6 +538,7 @@ void sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose) {
   free(str);
   free(line);
   fclose(fp);
+  return numdisks;
 }
 
 int getWriteCacheStatus(int fd) {

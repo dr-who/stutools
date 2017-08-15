@@ -31,7 +31,7 @@ size_t fileSize(int fd);
 
 void majorAndMinor(int fd, unsigned int *major, unsigned int *minor);
 void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten);
-void sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose);
+int sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose);
 
 int getWriteCacheStatus(int fd);
 
