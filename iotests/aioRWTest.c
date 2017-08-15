@@ -155,6 +155,18 @@ void handle_args(int argc, char *argv[]) {
 }
 
 
+static int poscompare(const void *p1, const void *p2)
+{
+  const positionType *pos1 = (positionType*)p1;
+  const positionType *pos2 = (positionType*)p2;
+  const long l1 = pos1->pos;
+  const long l2 = pos2->pos;
+  if (l1<l2) return -1;
+  else if (l1>l2) return 1;
+  else return 0;
+}
+
+
 positionType *createPositions(size_t num) {
   positionType *p = calloc(num, sizeof(positionType));
   if (!p) {fprintf(stderr,"oom! positions\n"); exit(1);}
@@ -196,6 +208,26 @@ void dumpPositionStats(positionType *positions, size_t num, size_t bdSize) {
       p++;
     }
   }
+
+  // duplicate, sort the array. Count unique positions
+  positionType *copy = calloc(num, sizeof(positionType)); if (!copy) {fprintf(stderr,"eek oom\n");exit(1);}
+  memcpy(copy, positions, num * sizeof(positionType));
+  qsort(copy, num, sizeof(positionType), poscompare);
+  // check order
+  size_t unique = 0;
+  for (size_t i = 1; i <num; i++) {
+    if (copy[i].pos != copy[i-1].pos) {
+      unique++;
+      if (i==1) { // if the first number checked is different then really it's 2 unique values.
+	unique++;
+      }
+    }
+    if (copy[i].pos < copy[i-1].pos) {
+      fprintf(stderr,"not sorted %zd %zd, unique %zd\n",i, copy[i].pos, unique);
+    }
+  }
+  fprintf(stderr,"*info* %zd unique positions\n", unique);
+  free(copy);
 
   if (verbose) {
     fprintf(stderr,"action summary: reads %zd, writes %zd, checked ratio = %.1lf, len = [%zd, %zd]\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh);
