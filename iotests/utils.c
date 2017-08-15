@@ -529,8 +529,10 @@ int sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose) {
       if (verbose) {
 	fprintf(stderr,"opened %s major %d minor %d sectorsRead %zd sectorsWritten %zd\n", str, major, minor, sr, sw);
       }
+      fprintf(stderr,"before %zd %zd....", *sread, *swritten);
       *sread = (*sread) + sr;
       *swritten = (*swritten) + sw;
+      fprintf(stderr,"after %zd %zd\n", *sread, *swritten);
       close (fd);
       //      fprintf(stderr,"%zd %zd\n", sr, sw);
     }
