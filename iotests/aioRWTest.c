@@ -226,7 +226,6 @@ void dumpPositionStats(positionType *positions, size_t num, size_t bdSize) {
       fprintf(stderr,"not sorted %zd %zd, unique %zd\n",i, copy[i].pos, unique);
     }
   }
-  fprintf(stderr,"*info* %zd unique positions\n", unique);
   free(copy);
 
   if (verbose) {
