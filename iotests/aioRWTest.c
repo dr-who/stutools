@@ -342,7 +342,6 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv);
 
   int fd = 0;
-  unsigned int major = 0, minor = 0;
   size_t actualBlockDeviceSize = 0;
 
   diskStatType dst;
@@ -354,17 +353,12 @@ int main(int argc, char *argv[]) {
     if (fd < 0) {
       perror(path);exit(1);
     }
-    majorAndMinor(fd, &major, &minor);
-    if (verbose) {
-      fprintf(stderr,"*info* major %d, minor %d\n", major, minor);
-    }
-    size_t sectorsRead = 0, sectorsWritten = 0;
+
     if (specifiedDisks) {
-      sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
+      diskStatFromFilelist(&dst, specifiedDisks);
     } else {
-      getProcDiskstats(major, minor, &sectorsRead, &sectorsWritten);
+      diskStatAddDrive(&dst, fd);
     }
-    diskStatAddStart(&dst, sectorsRead, sectorsWritten);
     
   } else {
     fd = open(path, O_RDWR | O_DIRECT | O_EXCL);
@@ -384,9 +378,9 @@ int main(int argc, char *argv[]) {
   
   if (bdSize > actualBlockDeviceSize) {
     bdSize = actualBlockDeviceSize;
-    fprintf(stderr,"*info* override option too high, reducing size to %.1lf GiB\n", bdSize /1024.0/1024/1024);
+    fprintf(stderr,"*info* override option too high, reducing size to %.1lf GiB\n", TOGiB(bdSize));
   } else if (bdSize < actualBlockDeviceSize) {
-    fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", bdSize / 1024.0/1024/1024, actualBlockDeviceSize /1024.0/1024/1024);
+    fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", TOGiB(bdSize), TOGiB(actualBlockDeviceSize));
   }
 
   
@@ -419,13 +413,7 @@ int main(int argc, char *argv[]) {
 	    logSpeedType l;
 	    logSpeedInit(&l);
 
-	    diskStatType cellstats;
-	    diskStatSetup(&cellstats);
-	    size_t sectorsRead = 0, sectorsWritten = 0;
-	    if (specifiedDisks) {
-	      sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
-	    }
-	    diskStatAddStart(&cellstats, sectorsRead, sectorsWritten);
+	    diskStatStart(&dst); // reset the counts
 	    
 	    fprintf(stderr,"%zd\t%zd\t%zd\t%4.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
 	    
@@ -446,13 +434,10 @@ int main(int argc, char *argv[]) {
 	    fdatasync(fd);
 	    elapsed = timedouble() - start;
 	      
-	    if (specifiedDisks) {
-	      sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
-	    }
-	    diskStatAddFinish(&cellstats, sectorsRead, sectorsWritten);
+	    diskStatFinish(&dst);
 
 	    size_t trb = 0, twb = 0;
-	    diskStatSummary(&cellstats, &trb, &twb, 0, 0, 0);	    
+	    diskStatSummary(&dst, &trb, &twb, 0, 0, 0);	    
 	    size_t shouldHaveBytes = ios * bsArray[bsindex];
 	    size_t didBytes = trb + twb;
 	    double efficiency = didBytes *100.0/shouldHaveBytes;
@@ -463,7 +448,7 @@ int main(int argc, char *argv[]) {
 	    logSpeedDump(&l, filename);
 	    logSpeedFree(&l);
 	    
-	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, ios*BLKSIZE/elapsed/1024.0/1024.0, efficiency);
+	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency);
 	  }
 	}
       }
@@ -472,11 +457,15 @@ int main(int argc, char *argv[]) {
   } else {
     // just execute a single run
     fprintf(stderr,"path: %s, readRatio: %.2lf, max queue depth: %d, blocksize: %zd", path, readRatio, qd, BLKSIZE);
-    fprintf(stderr,", bdSize %.1lf GiB\n", bdSize/1024.0/1024/1024);
+    fprintf(stderr,", bdSize %.1lf GiB\n", TOGiB(bdSize));
     setupPositions(positions, num, bdSize, seqFiles, readRatio, BLKSIZE);
+
+    diskStatStart(&dst); // grab the sector counts
+
     aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
     fsync(fd);
     close(fd);
+    diskStatFinish(&dst); // and sector counts when finished
     
     /* total number of bytes read and written under our control */
     size_t shouldReadBytes = 0, shouldWriteBytes = 0;
@@ -491,19 +480,8 @@ int main(int argc, char *argv[]) {
     }
 
     /* number of bytes read/written not under our control */
-    if (isBlockDevice(path)) {
-      size_t sectorsRead = 0, sectorsWritten = 0;
-
-      if (specifiedDisks) {
-	sumFileOfDrives(specifiedDisks, &sectorsRead, &sectorsWritten, verbose);
-      } else {
-	getProcDiskstats(major, minor, &sectorsRead, &sectorsWritten);
-      }
-      diskStatAddFinish(&dst, sectorsRead, sectorsWritten);
-
-      size_t trb = 0, twb = 0;
-      diskStatSummary(&dst, &trb, &twb, shouldReadBytes, shouldWriteBytes, 1);
-    }
+    size_t trb = 0, twb = 0;
+    diskStatSummary(&dst, &trb, &twb, shouldReadBytes, shouldWriteBytes, 1);
 
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
     if (verifyWrites && readRatio < 1) {

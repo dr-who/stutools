@@ -108,10 +108,10 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 	//	exit(1);
       }       
 
-      fprintf(stderr,"deviceSize on %s is %.1lf GB (%.0lf MB)", label, maxDeviceSize / 1024.0 / 1024 / 1024, maxDeviceSize / 1024.0 / 1024);
+      fprintf(stderr,"deviceSize on %s is %.1lf GB (%.0lf MB)", label, TOGiB(maxDeviceSize), TOMiB(maxDeviceSize));
       if (limitGBToProcess > 0 && (limitGBToProcess * 1024L * 1024 * 1024 < maxDeviceSize)) {
 	maxDeviceSize = limitGBToProcess * 1024L * 1024 * 1024;
-	fprintf(stderr,", *override* to %.1lf GB (%.0lf MB)", maxDeviceSize / 1024.0 / 1024 / 1024, maxDeviceSize / 1024.0 / 1024);
+	fprintf(stderr,", *override* to %.1lf GB (%.0lf MB)", TOGiB(maxDeviceSize), TOMiB(maxDeviceSize));
       }
       fprintf(stderr,"\n");
     } else {
@@ -200,7 +200,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     
     if ((tt - lastg) >= outputEvery) {
       lastg = tt;
-      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 95%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedMean(l) / 1024.0 / 1024, logSpeedMedian(l) / 1024.0 / 1024, logSpeedRank(l, 0.01) / 1024.0 / 1024, logSpeedRank(l, 0.95) /1024.0/1024, l->num, tt - l->starttime);
+      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 95%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, TOGiB(l->total), TOMiB(logSpeedMean(l)), TOMiB(logSpeedMedian(l)), TOMiB(logSpeedRank(l, 0.01)), TOMiB(logSpeedRank(l, 0.95)), l->num, tt - l->starttime);
       logSpeedAdd(&previousSpeeds, logSpeedMean(l));
       if (logSpeedN(&previousSpeeds) >= 10) { // at least 10 data points before a reset
 	if (keepRunning) {
@@ -208,7 +208,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 	  double high = logSpeedRank(&previousSpeeds, .9);
 	  double mean = logSpeedMean(&previousSpeeds);
 	  if ((high / low > 1.05) && (mean < low || mean > high) && (resetCount > 0)) { // must be over 5% difference
-	    fprintf(stderr,"  [ %.1lf < %.1lf MiB/s < %.1lf ]\n", low / 1024.0 / 1024, mean / 1024.0 / 1024, high / 1024.0 /1024);
+	    fprintf(stderr,"  [ %.1lf < %.1lf MiB/s < %.1lf ]\n", TOMiB(low), TOMiB(mean), TOMiB(high));
 	    fprintf(stderr,"resetting due to volatile timings (%d resets remain)\n", resetCount);
 	    resetCount--;
 	    startTime = tt;
@@ -247,7 +247,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   l->lasttime = timedouble(); // change time after closing
   if (resetCount > 0) {
     char s[1000], *osr = OSRelease();
-    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd (stutools %s, %zd cores/%zd MB RAM/%s)%s\n", writeAction ? "write" : "read", label, l->total / 1024.0 / 1024 / 1024, logSpeedTime(l), logSpeedMean(l) / 1024.0 / 1024, chunkSizes[0], chunkSizes[0] / 1024, sequential ? "seq" : "rand", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, VERSION, numThreads(), totalRAM() / 1024 / 1024, osr, keepRunning ? "" : " ^C");
+    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd (stutools %s, %zd cores/%.0lf MB RAM/%s)%s\n", writeAction ? "write" : "read", label, TOGiB(l->total), logSpeedTime(l), TOMiB(logSpeedMean(l)), chunkSizes[0], chunkSizes[0] / 1024, sequential ? "seq" : "rand", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, VERSION, numThreads(), TOMiB(totalRAM()), osr, keepRunning ? "" : " ^C");
     fprintf(stderr, "%s", s);
     char *user = username();
     syslog(LOG_INFO, "%s - %s", user, s);
@@ -259,7 +259,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
   // dump all values to a log file
   char s[1000];
-  sprintf(s, "log-%dKB-%s-%s-%s--%.1lf-MiB_s-%s", chunkSizes[0]/1024, direct ? "direct" : "not-direct", sequential ? "seq" : "rand", label, logSpeedMean(l) / 1024.0 / 1024, writeAction ? "write" : "read");
+  sprintf(s, "log-%dKB-%s-%s-%s--%.1lf-MiB_s-%s", chunkSizes[0]/1024, direct ? "direct" : "not-direct", sequential ? "seq" : "rand", label, TOMiB(logSpeedMean(l)), writeAction ? "write" : "read");
   for (size_t i = 0; i < strlen(s); i++) {
     if (s[i] == '/') {
       s[i] = '-';
@@ -433,9 +433,9 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
   close(fd);
 
   char *user = username();
-  syslog(LOG_INFO, "%s - verify '%s': %.1lf GiB, checked %zd, correct %zd, failed %zd\n", user, label, size*check/1024.0/1024/1024, check, ok, error);
+  syslog(LOG_INFO, "%s - verify '%s': %.1lf GiB, checked %zd, correct %zd, failed %zd\n", user, label, TOGiB(size*check), check, ok, error);
 
-  fprintf(stderr, "verify '%s': %.1lf GiB, checked %zd, correct %zd, failed %zd\n", label, size*check/1024.0/1024/1024, check, ok, error);
+  fprintf(stderr, "verify '%s': %.1lf GiB, checked %zd, correct %zd, failed %zd\n", label, TOGiB(size*check), check, ok, error);
 
   if (error > 0) {
     syslog(LOG_INFO, "%s - checksum errors on '%s'\n", user, label);
@@ -529,10 +529,10 @@ int sumFileOfDrives(char *path, size_t *sread, size_t *swritten, int verbose) {
       if (verbose) {
 	fprintf(stderr,"opened %s major %d minor %d sectorsRead %zd sectorsWritten %zd\n", str, major, minor, sr, sw);
       }
-      fprintf(stderr,"before %zd %zd....", *sread, *swritten);
+      //fprintf(stderr,"before %zd %zd....", *sread, *swritten);
       *sread = (*sread) + sr;
       *swritten = (*swritten) + sw;
-      fprintf(stderr,"after %zd %zd\n", *sread, *swritten);
+      //fprintf(stderr,"after %zd %zd\n", *sread, *swritten);
       close (fd);
       //      fprintf(stderr,"%zd %zd\n", sr, sw);
     }
