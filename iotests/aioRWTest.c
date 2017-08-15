@@ -33,7 +33,7 @@ int    singlePosition = 0;
 int    flushWhenQueueFull = 0;
 size_t noops = 1;
 int    verifyWrites = 0;
-char*  specifiedDisks = NULL;
+char*  specifiedDevices = NULL;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
@@ -46,8 +46,7 @@ void handle_args(int argc, char *argv[]) {
       table = 1;
       break;
     case 'O':
-      specifiedDisks = strdup(optarg);
-      fprintf(stderr,"*info* specifiedDisks from %s\n", optarg);
+      specifiedDevices = strdup(optarg);
       break;
     case '0':
       noops = 0;
@@ -356,8 +355,8 @@ int main(int argc, char *argv[]) {
       perror(path);exit(1);
     }
 
-    if (specifiedDisks) {
-      diskStatFromFilelist(&dst, specifiedDisks);
+    if (specifiedDevices) {
+      diskStatFromFilelist(&dst, specifiedDevices);
     } else {
       diskStatAddDrive(&dst, fd);
     }
@@ -444,7 +443,7 @@ int main(int argc, char *argv[]) {
 	    size_t shouldHaveBytes = ios * bsArray[bsindex];
 	    size_t didBytes = trb + twb;
 	    double efficiency = didBytes *100.0/shouldHaveBytes;
-	    if (!specifiedDisks) {
+	    if (!specifiedDevices) {
 	      efficiency = 100;
 	    }
 
@@ -500,7 +499,7 @@ int main(int argc, char *argv[]) {
   free(positions);
   free(randomBuffer);
   if (logFNPrefix) {free(logFNPrefix);}
-  if (specifiedDisks) {free(specifiedDisks);}
+  if (specifiedDevices) {free(specifiedDevices);}
   
   return 0;
 }

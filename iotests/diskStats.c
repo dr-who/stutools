@@ -109,6 +109,7 @@ void diskStatFromFilelist(diskStatType *d, const char *path) {
   free(str);
   free(line);
   fclose(fp);
+  fprintf(stderr,"*info* specifiedDevices from %s, numDevices is %zd\n", path, d->numDevices);
 }
 
 
