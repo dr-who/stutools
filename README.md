@@ -2,26 +2,27 @@
 
 Stu's handy I/O tools:
 
-	./readSpeedTest  -- reads from N disks using N threads
+	./aioRWTest      -- Linux AIO (not POSIX AIO), queue depth, timing, ratio of R/W,
+			    sequential, groups of flushing and more
 
-	./writeSpeedTest -- writes to N disks using N threads
+	./readSpeedTest  -- reads from N disks using N threads using fread
+
+	./writeSpeedTest -- writes to N disks using N threads using fwrite/
 
 	./writePairTest  -- writes to all combinations of 2 disks in 2 threads, plus analysis
 
 	./checkDisks     -- checks that we can ok, read and write to each disk
 
-	./aioRWTest      -- alter queue depth, timing, ratio of R/W, sequential, groups of flushing and more
 
 Common options:
 
-	-rN  (random seeks, use at most N GB of the device)
 	-kN  (N KB, e.g. -k4 is 4096 bytes. Default is -k1024 = 1MB)
-	-D   (don't use O_DIRECT)
 	-tN  (timeout in N seconds, defaults to 60)
 	-v   (verify writes by checking the checksums)	
-	-fN  (perform fdatasync() every N seconds)
 
 Usage:
+
+	./aioRWTest
 
 	./writeSpeedTest /dev/md3
 
