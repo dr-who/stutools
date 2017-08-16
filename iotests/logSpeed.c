@@ -14,10 +14,10 @@ void logSpeedInit(volatile logSpeedType *l) {
   l->total = 0;
   l->sorted = 0;
   l->rawtot = 0;
-  l->values = calloc(l->alloc, sizeof(double)); if (!l->values) {fprintf(stderr,"OOM!\n");exit(1);}
-  l->rawtime = calloc(l->alloc, sizeof(double)); if (!l->rawtime) {fprintf(stderr,"OOM!\n");exit(1);}
-  l->rawvalues = calloc(l->alloc, sizeof(double)); if (!l->rawvalues) {fprintf(stderr,"OOM!\n");exit(1);}
-  l->rawtotal = calloc(l->alloc, sizeof(double)); if (!l->rawtotal) {fprintf(stderr,"OOM!\n");exit(1);}
+  CALLOC(l->values, l->alloc, sizeof(double));
+  CALLOC(l->rawtime, l->alloc, sizeof(double));
+  CALLOC(l->rawvalues, l->alloc, sizeof(double));
+  CALLOC(l->rawtotal, l->alloc, sizeof(double));
 }
 
 void logSpeedReset(logSpeedType *l) {

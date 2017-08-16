@@ -32,25 +32,19 @@ double aioMultiplePositions(const int fd,
 
   assert(QD);
 
-  events = malloc(QD * sizeof(struct io_event)); assert(events);
-  cbs[0] = malloc(sizeof(struct iocb));
-
-  //  cbs = malloc(sizeof(struct iocb*) * QD); assert(cbs);
-  //for (size_t i = 0 ; i < QD; i++) {
-  //    cbs[i] = malloc(sizeof(struct iocb)); assert(cbs[i]);
-  //  }
-
+  CALLOC(events, QD, sizeof(struct io_event));
+  CALLOC(cbs[0], 1, sizeof(struct iocb));
   
   ctx = 0;
 
   // set the queue depth
 
-  //  fprintf(stderr,"QD = %zd\n", QD);
   ret = io_setup(QD, &ctx);
   if (ret != 0) {perror("io_setup");abort();}
 
   /* setup I/O control block, randomised just for this run. So we can check verification afterwards */
-  char **data = malloc(QD * sizeof(char*));
+  char **data = NULL;
+  CALLOC(data, QD, sizeof(char*));
 
   // copy the randomBuffer to each data[]
   const size_t len = strlen(randomBuffer);

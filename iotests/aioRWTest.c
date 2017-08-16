@@ -20,6 +20,7 @@
 int    keepRunning = 1;       // have we been interrupted
 double exitAfterSeconds = 5;
 int    qd = 32;
+int    qdSpecified = 0;
 char   *path = NULL;
 int    seqFiles = 0;
 int    seqFilesSpecified = 0;
@@ -91,6 +92,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'q':
       qd = atoi(optarg); if (qd < 1) qd = 1;
+      qdSpecified = 1;
       break;
     case 's':
       seqFiles = atoi(optarg);
@@ -168,7 +170,8 @@ static int poscompare(const void *p1, const void *p2)
 
 
 positionType *createPositions(size_t num) {
-  positionType *p = calloc(num, sizeof(positionType)); if (!p) {fprintf(stderr,"oom! positions\n"); exit(1);}
+  positionType *p;
+  CALLOC(p, num, sizeof(positionType));
   return p;
 }
 
@@ -210,7 +213,8 @@ void dumpPositionStats(positionType *positions, size_t num, size_t bdSize) {
   }
 
   // duplicate, sort the array. Count unique positions
-  positionType *copy = calloc(num, sizeof(positionType)); if (!copy) {fprintf(stderr,"eek oom\n");exit(1);}
+  positionType *copy;
+  CALLOC(copy, num, sizeof(positionType));
   memcpy(copy, positions, num * sizeof(positionType));
   qsort(copy, num, sizeof(positionType), poscompare);
   // check order
@@ -267,7 +271,7 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
 	fprintf(stderr,"*error* serious problem!\n");
       }
       gap = (gap >> 16) <<16;
-      ppp = calloc(abssf, sizeof(size_t)); if (!ppp) {fprintf(stderr,"oom!!!!\n");exit(1);}
+      CALLOC(ppp, abssf, sizeof(size_t));
       for (size_t i = 0; i < abssf; i++) {
 	ppp[i] = i * gap;
       }
@@ -396,16 +400,27 @@ int main(int argc, char *argv[]) {
   if (table) {
     // generate a table
     size_t bsArray[]={BLKSIZE};
-    size_t qdArray[]={1, 8, 32, 256};
     double rrArray[]={1.0, 0, 0.5};
+
+    size_t *qdArray = NULL;
+    if (qdSpecified) {
+      qdSpecified = 1;
+      CALLOC(qdArray, qdSpecified, sizeof(size_t));
+      qdArray[0] = qd;
+    } else {
+      qdSpecified = 4;
+      CALLOC(qdArray, qdSpecified, sizeof(size_t));
+      qdArray[0] = 1; qdArray[1] = 8; qdArray[2] = 32; qdArray[3] = 256;
+    }
+      
     size_t *ssArray = NULL; 
     if (seqFilesSpecified) { // if 's' specified on command line, then use it only 
       seqFilesSpecified = 1;
-      ssArray = calloc(seqFilesSpecified, sizeof(size_t)); if (!ssArray) {fprintf(stderr,"OOM!\n");exit(1);}
+      CALLOC(ssArray, seqFilesSpecified, sizeof(size_t));
       ssArray[0] = seqFiles;
     } else { // otherwise an array of values
       seqFilesSpecified = 5;
-      ssArray = calloc(seqFilesSpecified, sizeof(size_t)); if (!ssArray) {fprintf(stderr,"OOM!\n");exit(1);}
+      CALLOC(ssArray, seqFilesSpecified, sizeof(size_t));
       ssArray[0] = 0; ssArray[1] = 1; ssArray[2] = 8; ssArray[3] = 32; ssArray[4] = 128;
     }
 

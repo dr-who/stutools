@@ -23,9 +23,9 @@ void diskStatSetup(diskStatType *d) {
   diskStatClear(d);
   d->numDevices = 0;
   d->allocDevices = 10;
-  d->majorArray = calloc(d->allocDevices, sizeof(int));
-  d->minorArray = calloc(d->allocDevices, sizeof(int));
-  d->sizeArray = calloc(d->allocDevices, sizeof(size_t));
+  CALLOC(d->majorArray, d->allocDevices, sizeof(int));
+  CALLOC(d->minorArray, d->allocDevices, sizeof(int));
+  CALLOC(d->sizeArray, d->allocDevices, sizeof(size_t));
 }
 
 void diskStatAddDrive(diskStatType *d, int fd) {
@@ -106,7 +106,8 @@ void diskStatFromFilelist(diskStatType *d, const char *path) {
   char *line = NULL;
   size_t len = 0;
   ssize_t read = 0;
-  char *str = malloc(1000); if (!str) {fprintf(stderr,"pd OOM\n");exit(1);}
+  char *str;
+  CALLOC(str, 1000, 1);
   while ((read = getline(&line, &len, fp)) != -1) {
     if (sscanf(line, "%s", str) >= 1) {
       if (isBlockDevice(str)) {
@@ -175,7 +176,8 @@ void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t
   char *line = NULL;
   size_t len = 0;
   ssize_t read = 0;
-  char *str = malloc(1000); if (!str) {fprintf(stderr,"pd OOM\n");exit(1);}
+  char *str;
+  CALLOC(str, 1000, 1);
   while ((read = getline(&line, &len, fp)) != -1) {
     long mj, mn, s;
     size_t read1, write1, timespentIO;

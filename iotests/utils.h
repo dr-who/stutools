@@ -8,6 +8,8 @@
 #define TOGiB(x) ((x)/1024.0/1024/1024)
 #define TOMiB(x) ((x)/1024.0/1024)
 
+#define CALLOC(x, y, z) {x = calloc(y, z); if (!(x)) {fprintf(stderr,"ooom!!\n");exit(1);}}
+
 double timedouble();
 
 void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess, int verifyWrites, float flushEverySecs);
