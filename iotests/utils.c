@@ -115,10 +115,10 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 	//	exit(1);
       }       
 
-      fprintf(stderr,"deviceSize on %s is %.1lf GB (%.0lf MB)", label, TOGiB(maxDeviceSize), TOMiB(maxDeviceSize));
+      fprintf(stderr,"deviceSize on %s is %.1lf GiB (%.0lf MiB)", label, TOGiB(maxDeviceSize), TOMiB(maxDeviceSize));
       if (limitGBToProcess > 0 && (limitGBToProcess * 1024L * 1024 * 1024 < maxDeviceSize)) {
 	maxDeviceSize = limitGBToProcess * 1024L * 1024 * 1024;
-	fprintf(stderr,", *override* to %.1lf GB (%.0lf MB)", TOGiB(maxDeviceSize), TOMiB(maxDeviceSize));
+	fprintf(stderr,", *override* to %.1lf GiB (%.0lf MiB)", TOGiB(maxDeviceSize), TOMiB(maxDeviceSize));
       }
       fprintf(stderr,"\n");
     } else {
@@ -488,12 +488,14 @@ int getWriteCacheStatus(int fd) {
 #define BLKSECDISCARD  _IO(0x12,125)
 #endif
 
-int trimDevice(int fd, char *path) {
+int trimDevice(int fd, char *path, unsigned long low, unsigned long high) {
   unsigned long range[2];
   int secure = 0;
   
-  range[0] = 0;
-  range[1] = ULONG_MAX;
+  range[0] = low;
+  range[1] = high;
+
+  fprintf(stderr,"*info* sending trim command to %s [%ld, %ld] [%.1lf GiB, %.1lf GiB]\n", path, range[0], range[1], TOGiB(range[0]), TOGiB(range[1]));
   
   int err = 0;
   if (secure) {

@@ -36,14 +36,18 @@ int    flushWhenQueueFull = 0;
 size_t noops = 1;
 int    verifyWrites = 0;
 char*  specifiedDevices = NULL;
+int    sendTrim = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   long int seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:M")) != -1) {
     switch (opt) {
+    case 'M':
+      sendTrim = 1;
+      break;
     case 'T':
       table = 1;
       break;
@@ -139,14 +143,15 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -p0.1 -f/dev/nbd0 -G3 # 90%% reads, 10%% writes, limited to first 3GiB of device\n");
     fprintf(stderr,"  ./aioRWTest -t30 -f/dev/nbd0      # test for 30 seconds\n");
     fprintf(stderr,"  ./aioRWTest -S -S -F -F -k4 -f /dev/nbd0  # single position, changing every 10 ops, fsync every 10 ops\n");
-    fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0  # send no operations, then flush. Basically, fast flush loop\n");
-    fprintf(stderr,"  ./aioRWTest -S -F -V -f /dev/nbd0  # verbose that shows every operation\n");
+    fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0    # send no operations, then flush. Basically, fast flush loop\n");
+    fprintf(stderr,"  ./aioRWTest -S -F -V -f /dev/nbd0 # verbose that shows every operation\n");
     fprintf(stderr,"  ./aioRWTest -S -F -V -f file.txt  # can also use a single file. Note the file will be destroyed.\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -f /dev/nbd0  # random positions, 50%% R/W, verified after 15 seconds.\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -R 9812 -f /dev/nbd0  # set the starting seed to 9812\n");
     fprintf(stderr,"  ./aioRWTest -s 1 -j 10 -f /dev/sdc -V   # contiguous access, jumping 10 blocks at a time\n");
-    fprintf(stderr,"  ./aioRWTest -s -8 -f /dev/sdc -V    # reverse contiguous 8 regions in parallel\n");
-    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -O ok.txt  # use a list of devices in ok.txt for disk stats/amplification\n");
+    fprintf(stderr,"  ./aioRWTest -s -8 -f /dev/sdc -V  # reverse contiguous 8 regions in parallel\n");
+    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -O ok    # use a list of devices in ok.txt for disk stats/amplification\n");
+    fprintf(stderr,"  ./aioRWTest -M -f /dev/nbd0 -G20  # -M sends trim/discard command, using -G range if specified\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
@@ -359,7 +364,6 @@ int main(int argc, char *argv[]) {
     if (fd < 0) {
       perror(path);exit(1);
     }
-    trimDevice(fd, path);
 
     if (specifiedDevices) {
       diskStatFromFilelist(&dst, specifiedDevices);
@@ -389,6 +393,11 @@ int main(int argc, char *argv[]) {
   } else if (bdSize < actualBlockDeviceSize) {
     fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", TOGiB(bdSize), TOGiB(actualBlockDeviceSize));
   }
+  if (sendTrim) {
+    trimDevice(fd, path, 0, bdSize);
+  }
+
+
 
   
   const size_t num = noops * 10*1000*1000; // use 10M operations

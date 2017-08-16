@@ -38,7 +38,7 @@ size_t fileSize(int fd);
 void majorAndMinor(int fd, unsigned int *major, unsigned int *minor);
 
 int getWriteCacheStatus(int fd);
-int trimDevice(int fd, char *path);
+int trimDevice(int fd, char *path, unsigned long low, unsigned long high);
 
 #endif
 
