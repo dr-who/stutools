@@ -428,7 +428,7 @@ int main(int argc, char *argv[]) {
     
     for (size_t rrindex=0; rrindex < sizeof(rrArray) / sizeof(rrArray[0]); rrindex++) {
       for (size_t ssindex=0; ssindex < seqFilesSpecified; ssindex++) {
-	for (size_t qdindex=0; qdindex < sizeof(qdArray) / sizeof(qdArray[0]); qdindex++) {
+	for (size_t qdindex=0; qdindex < qdSpecified; qdindex++) {
 	  for (size_t bsindex=0; bsindex < sizeof(bsArray) / sizeof(bsArray[0]); bsindex++) {
 	    double ios = 0, start = 0, elapsed = 0;
 	    char filename[1024];
