@@ -479,18 +479,8 @@ int getWriteCacheStatus(int fd) {
   return val;
 }
 
-
-#ifndef BLKDISCARD
-#define BLKDISCARD _IO(0x12,119)
-#endif
-
-#ifndef BLKSECDISCARD
-#define BLKSECDISCARD  _IO(0x12,125)
-#endif
-
 int trimDevice(int fd, char *path, unsigned long low, unsigned long high) {
   unsigned long range[2];
-  int secure = 0;
   
   range[0] = low;
   range[1] = high;
@@ -498,13 +488,9 @@ int trimDevice(int fd, char *path, unsigned long low, unsigned long high) {
   fprintf(stderr,"*info* sending trim command to %s [%ld, %ld] [%.1lf GiB, %.1lf GiB]\n", path, range[0], range[1], TOGiB(range[0]), TOGiB(range[1]));
   
   int err = 0;
-  if (secure) {
-    if ((err = ioctl(fd, BLKSECDISCARD, &range))) 
-      fprintf(stderr, "%s: BLKSECDISCARD ioctl failed\n", path);
-  } else {
-    if ((err = ioctl(fd, BLKDISCARD, &range)))
-      fprintf(stderr, "%s: BLKDISCARD ioctl failed\n", path);
-  }
+  if ((err = ioctl(fd, BLKDISCARD, &range))) 
+    fprintf(stderr, "%s: BLKDISCARD ioctl failed\n", path);
+
   return err;
 }
 
