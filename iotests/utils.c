@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <syslog.h>
 #include <errno.h>
+#include <limits.h>
 #include <unistd.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
@@ -477,3 +478,31 @@ int getWriteCacheStatus(int fd) {
   }
   return val;
 }
+
+
+#ifndef BLKDISCARD
+#define BLKDISCARD _IO(0x12,119)
+#endif
+
+#ifndef BLKSECDISCARD
+#define BLKSECDISCARD  _IO(0x12,125)
+#endif
+
+int trimDevice(int fd, char *path) {
+  unsigned long range[2];
+  int secure = 0;
+  
+  range[0] = 0;
+  range[1] = ULONG_MAX;
+  
+  int err = 0;
+  if (secure) {
+    if ((err = ioctl(fd, BLKSECDISCARD, &range))) 
+      fprintf(stderr, "%s: BLKSECDISCARD ioctl failed\n", path);
+  } else {
+    if ((err = ioctl(fd, BLKDISCARD, &range)))
+      fprintf(stderr, "%s: BLKDISCARD ioctl failed\n", path);
+  }
+  return err;
+}
+

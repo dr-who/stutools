@@ -359,6 +359,7 @@ int main(int argc, char *argv[]) {
     if (fd < 0) {
       perror(path);exit(1);
     }
+    trimDevice(fd, path);
 
     if (specifiedDevices) {
       diskStatFromFilelist(&dst, specifiedDevices);
