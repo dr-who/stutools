@@ -132,6 +132,7 @@ void logSpeedFree(logSpeedType *l) {
   free(l->values);
   free(l->rawtime);
   free(l->rawvalues);
+  free(l->rawtotal);
   l->values = NULL;
 }
 

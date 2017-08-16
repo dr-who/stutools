@@ -166,8 +166,7 @@ static int poscompare(const void *p1, const void *p2)
 
 
 positionType *createPositions(size_t num) {
-  positionType *p = calloc(num, sizeof(positionType));
-  if (!p) {fprintf(stderr,"oom! positions\n"); exit(1);}
+  positionType *p = calloc(num, sizeof(positionType)); if (!p) {fprintf(stderr,"oom! positions\n"); exit(1);}
   return p;
 }
 
@@ -266,7 +265,7 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
 	fprintf(stderr,"*error* serious problem!\n");
       }
       gap = (gap >> 16) <<16;
-      ppp = calloc(abssf, sizeof(size_t));
+      ppp = calloc(abssf, sizeof(size_t)); if (!ppp) {fprintf(stderr,"oom!!!!\n");exit(1);}
       for (size_t i = 0; i < abssf; i++) {
 	ppp[i] = i * gap;
       }
@@ -391,6 +390,7 @@ int main(int argc, char *argv[]) {
   char *randomBuffer = aligned_alloc(4096, BLKSIZE + 1); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
   generateRandomBuffer(randomBuffer, BLKSIZE);
 
+  size_t row = 0;
   if (table) {
     // generate a table
     size_t bsArray[]={BLKSIZE};
@@ -451,6 +451,10 @@ int main(int argc, char *argv[]) {
 	    logSpeedFree(&l);
 	    
 	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
+	    row++;
+	    if (row > 1) {
+	      //	      rrindex=99999;ssindex=99999;qdindex=99999;bsindex=99999;
+	    }
 	  }
 	}
       }

@@ -39,7 +39,7 @@ long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, co
   data = aligned_alloc(4096, BLKSIZE); if (!data) {perror("oom"); exit(1);}
   memset(data, 'A', BLKSIZE);
 
-  cbs[0] = malloc(sizeof(struct iocb));
+  cbs[0] = malloc(sizeof(struct iocb)); if (!cbs[0]) {fprintf(stderr,"ooM!!\n");exit(1);}
 
   size_t maxBlocks = sz / BLKSIZE;
   srand(sz + fd);
@@ -138,7 +138,7 @@ long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, c
   /* setup I/O control block */
   data = aligned_alloc(4096, BLKSIZE); if (!data) {perror("oom"); exit(1);}
   memset(data, 'A', BLKSIZE);
-  cbs[0] = malloc(sizeof(struct iocb));
+  cbs[0] = malloc(sizeof(struct iocb)); if (!cbs[0]) {fprintf(stderr,"oom!!!!\n");exit(1);}
 
 
   // submit requests

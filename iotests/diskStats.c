@@ -148,6 +148,7 @@ void diskStatFinish(diskStatType *d) {
 void diskStatFree(diskStatType *d) {
   if (d->majorArray) {free(d->majorArray); d->majorArray = NULL;}
   if (d->minorArray) {free(d->minorArray); d->minorArray = NULL;}
+  if (d->sizeArray) {free(d->sizeArray); d->sizeArray = NULL;}
   diskStatClear(d);
   d->numDevices = 0;
   d->allocDevices = 0;
