@@ -22,6 +22,7 @@ double exitAfterSeconds = 5;
 int    qd = 32;
 char   *path = NULL;
 int    seqFiles = 0;
+int    seqFilesSpecified = 0;
 double maxSizeGB = 0;
 size_t BLKSIZE=65536;
 size_t jumpStep = 1;
@@ -92,7 +93,8 @@ void handle_args(int argc, char *argv[]) {
       qd = atoi(optarg); if (qd < 1) qd = 1;
       break;
     case 's':
-      seqFiles = atoi(optarg); 
+      seqFiles = atoi(optarg);
+      seqFilesSpecified = 1;
       break;
     case 'b':
       seqFiles = -atoi(optarg);
@@ -396,12 +398,21 @@ int main(int argc, char *argv[]) {
     size_t bsArray[]={BLKSIZE};
     size_t qdArray[]={1, 8, 32, 256};
     double rrArray[]={1.0, 0, 0.5};
-    size_t ssArray[]={0, 1, 8, 32, 128};
+    size_t *ssArray = NULL; 
+    if (seqFilesSpecified) { // if 's' specified on command line, then use it only 
+      seqFilesSpecified = 1;
+      ssArray = calloc(seqFilesSpecified, sizeof(size_t)); if (!ssArray) {fprintf(stderr,"OOM!\n");exit(1);}
+      ssArray[0] = seqFiles;
+    } else { // otherwise an array of values
+      seqFilesSpecified = 5;
+      ssArray = calloc(seqFilesSpecified, sizeof(size_t)); if (!ssArray) {fprintf(stderr,"OOM!\n");exit(1);}
+      ssArray[0] = 0; ssArray[1] = 1; ssArray[2] = 8; ssArray[3] = 32; ssArray[4] = 128;
+    }
 
     fprintf(stderr," blkSz\t numSq\tQueueD\t   R/W\t  IOPS\t MiB/s\t Ampli\t Disk%%\n");
     
     for (size_t rrindex=0; rrindex < sizeof(rrArray) / sizeof(rrArray[0]); rrindex++) {
-      for (size_t ssindex=0; ssindex < sizeof(ssArray) / sizeof(ssArray[0]); ssindex++) {
+      for (size_t ssindex=0; ssindex < seqFilesSpecified; ssindex++) {
 	for (size_t qdindex=0; qdindex < sizeof(qdArray) / sizeof(qdArray[0]); qdindex++) {
 	  for (size_t bsindex=0; bsindex < sizeof(bsArray) / sizeof(bsArray[0]); bsindex++) {
 	    double ios = 0, start = 0, elapsed = 0;
@@ -459,6 +470,8 @@ int main(int argc, char *argv[]) {
 	}
       }
     }
+    free(ssArray);
+
     // end table results
   } else {
     // just execute a single run
