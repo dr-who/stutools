@@ -37,14 +37,18 @@ size_t noops = 1;
 int    verifyWrites = 0;
 char*  specifiedDevices = NULL;
 int    sendTrim = 0;
+int    autoDiscover = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   long int seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:M")) != -1) {
+  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:Mg")) != -1) {
     switch (opt) {
+    case 'g':
+      autoDiscover = 1;
+      break;
     case 'M':
       sendTrim = 1;
       break;
@@ -348,6 +352,22 @@ void generateRandomBuffer(char *buffer, size_t size) {
 }
 
 
+int testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer) {
+  size_t pospos = ((size_t) b / blksize) * blksize;
+  fprintf(stderr,"position %6.2lf GiB: ", TOGiB(pospos));
+  positionType *pos = positions;
+  for (size_t i = 0; i < num; i++) {
+    pos->pos = pospos;  pos->action = 'R'; pos->success = 0; pos->len = BLKSIZE;
+  }
+      
+  double start = timedouble();
+  size_t ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer);
+  double elapsed = timedouble() - start;
+  fprintf(stderr,"ios %5zd %.1lf MiB/s\n", ios, TOMiB(ios * BLKSIZE / elapsed));
+
+  return ios;
+}
+
 int main(int argc, char *argv[]) {
 
   handle_args(argc, argv);
@@ -498,7 +518,7 @@ int main(int argc, char *argv[]) {
     free(ssArray);
 
     // end table results
-  } else {
+  } else if (!autoDiscover) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
     fprintf(stderr,"path: %s, readWriteRatio: %.2lf, QD: %d, blksz: %zd", path, readRatio, qd, BLKSIZE);
@@ -536,7 +556,37 @@ int main(int argc, char *argv[]) {
     if (verifyWrites && readRatio < 1) {
       aioVerifyWrites(path, positions, num, BLKSIZE, verbose, randomBuffer);
     }
-  } // end single run
+    // end single run
+  } else {
+    size_t L = 0;
+    size_t R = bdSize - BLKSIZE;
+    size_t AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer);
+    size_t AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer);
+
+    while (L < R) {
+
+      double f = ABS(AR - AL) / MAX(AL, AR);
+
+      if (f < .1) break;
+
+      fprintf(stderr,"%.1lf\n", f);
+      
+      size_t m = (L + R) / 2;
+      size_t Am = testReadLocation(fd, m, BLKSIZE, positions, num, randomBuffer);
+      // 0    50    100
+      // 1000 1050   50
+      if (AR < Am) {
+	R = m - BLKSIZE;
+	AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer);
+      } else if (AL < Am) {
+	// 50 1050 1000
+	L = m + BLKSIZE;
+	AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer);
+      }
+    }
+  }
+
+    
 
   diskStatFree(&dst);
   free(positions);
