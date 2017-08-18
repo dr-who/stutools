@@ -352,7 +352,7 @@ void generateRandomBuffer(char *buffer, size_t size) {
 }
 
 
-int testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer) {
+double testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer) {
   size_t pospos = ((size_t) b / blksize) * blksize;
   fprintf(stderr,"position %6.2lf GiB: ", TOGiB(pospos));
   positionType *pos = positions;
@@ -360,19 +360,32 @@ int testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, 
   for (size_t i = 0; i < num; i++) {
     pos->pos = posondisk;  pos->action = 'R'; pos->success = 0; pos->len = BLKSIZE;
     posondisk += (BLKSIZE*5);
-    if (posondisk > b + 1024*1024*1024L) {
+    if (posondisk > b + 50*1024*1024L) {
       posondisk = b;
     }
     pos++;
   }
       
   double start = timedouble();
-  size_t ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer);
+  double ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer);
   double elapsed = timedouble() - start;
-  fprintf(stderr,"ios %5zd %.1lf MiB/s\n", ios, TOMiB(ios * BLKSIZE / elapsed));
+  ios = ios / elapsed;
+  fprintf(stderr,"ios %lf %.1lf MiB/s\n", ios, TOMiB(ios * BLKSIZE));
 
   return ios;
 }
+
+
+int similarNumbers(double a, double b) {
+  double f = MIN(a, b) * 1.0 / MAX(a, b);
+  //  fprintf(stderr,"similar %lf %lf,  f %lf\n", a, b, f);
+  if ((f > 0.95) && (f < 1.05)) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+  
 
 int main(int argc, char *argv[]) {
 
@@ -565,34 +578,29 @@ int main(int argc, char *argv[]) {
     // end single run
   } else {
     size_t L = 0;
-    size_t R = bdSize - (1024*1024*1024L);
-    size_t AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer);
-    size_t AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer);
-
-    while (L < R) {
-
-      double f = ABS(AR - AL) / MAX(AL, AR);
-
-      if (f < .05) break;
-
-      fprintf(stderr,"%.1lf\n", f);
+    size_t R = bdSize - (50*1024*1024L);
+    double AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer);
+    double AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer);
+    
+    while (!(similarNumbers(AL, AR))) {
+      //      fprintf(stderr,"left %lf.... right %lf\n", AL, AR);
       
       size_t m = (L + R) / 2;
-      size_t Am = testReadLocation(fd, m, BLKSIZE, positions, num, randomBuffer);
+      double Am = testReadLocation(fd, m, BLKSIZE, positions, num, randomBuffer);
+      //      fprintf(stderr,"mid %zd %zd %zd ..... [%lf %lf %lf]\n", L, m, R, AL, Am, AR);
       // 0    50    100
-      // 1000 1050   50
-      if (AR < Am) {
+      // 120  150   150
+      if (similarNumbers(AR, Am)) {
 	R = m - BLKSIZE;
 	AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer);
-      } else if (AL < Am) {
-	// 50 1050 1000
+      } else if (similarNumbers(AL, Am)) {
 	L = m + BLKSIZE;
 	AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer);
+      } else {
+	break;
       }
     }
   }
-
-    
 
   diskStatFree(&dst);
   free(positions);

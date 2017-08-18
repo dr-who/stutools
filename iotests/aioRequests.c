@@ -139,12 +139,12 @@ double aioMultiplePositions(const int fd,
     if (ret > 0) {
 
       // verify it's all ok
-      for (int j = 0; j < ret; j++) {
+      /*      for (int j = 0; j < ret; j++) {
 	struct iocb *my_iocb = events[j].obj;
 	if (events[j].res != len) { // if return of bytes written or read
 	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	}
-      }
+	}*/
       
       if (l) {
 	logSpeedAdd(l, ret * len);
