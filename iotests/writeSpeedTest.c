@@ -52,7 +52,7 @@ static void *runThread(void *arg) {
   //fprintf(stderr,"opened %s\n", threadContext->path);
 
   lseek(fd, threadContext->startPosition, SEEK_SET);
-  fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd\n", threadContext->threadid, fd, threadContext->startPosition);
+  //fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd\n", threadContext->threadid, fd, threadContext->startPosition);
 
   int chunkSizes[1] = {blockSize};
   int numChunks = 1;

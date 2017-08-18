@@ -85,10 +85,9 @@ double loadAverage() {
 void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, float limitGBToProcess) {
 
   // check
-  if (loadAverage() > 10.0) {
-    fprintf(stderr,"**WARNING** the load average is %g (maybe the machine is busy!?)\n", loadAverage());
-  }
-
+  //  if (loadAverage() > 10.0) {
+  //    fprintf(stderr,"**WARNING** the load average is %g (maybe the machine is busy!?)\n", loadAverage());
+  //  }
   
   void *buf = aligned_alloc(65536, maxBufSize);
   if (!buf) { // O_DIRECT requires aligned memory
@@ -254,7 +253,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   l->lasttime = timedouble(); // change time after closing
   if (resetCount > 0) {
     char s[1000], *osr = OSRelease();
-    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd (stutools %s, %zd cores/%.0lf MB RAM/%s)%s\n", writeAction ? "write" : "read", label, TOGiB(l->total), logSpeedTime(l), TOMiB(logSpeedMean(l)), chunkSizes[0], chunkSizes[0] / 1024, sequential ? "seq" : "rand", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, VERSION, numThreads(), TOMiB(totalRAM()), osr, keepRunning ? "" : " ^C");
+    sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd%s\n", writeAction ? "write" : "read", label, TOGiB(l->total), logSpeedTime(l), TOMiB(logSpeedMean(l)), chunkSizes[0], chunkSizes[0] / 1024, sequential ? "seq" : "rand", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, keepRunning ? "" : " ^C");
     fprintf(stderr, "%s", s);
     char *user = username();
     syslog(LOG_INFO, "%s - %s", user, s);
