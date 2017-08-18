@@ -356,8 +356,10 @@ int testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, 
   size_t pospos = ((size_t) b / blksize) * blksize;
   fprintf(stderr,"position %6.2lf GiB: ", TOGiB(pospos));
   positionType *pos = positions;
+  size_t posondisk = 0;
   for (size_t i = 0; i < num; i++) {
-    pos->pos = pospos;  pos->action = 'R'; pos->success = 0; pos->len = BLKSIZE;
+    pos->pos = pospos;  pos->action = 'R'; pos->success = posondisk; pos->len = BLKSIZE;
+    posondisk += (BLKSIZE*5);
     pos++;
   }
       
@@ -560,7 +562,7 @@ int main(int argc, char *argv[]) {
     // end single run
   } else {
     size_t L = 0;
-    size_t R = bdSize - BLKSIZE;
+    size_t R = bdSize - (1024*1024*1024L);
     size_t AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer);
     size_t AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer);
 
