@@ -360,6 +360,9 @@ int testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, 
   for (size_t i = 0; i < num; i++) {
     pos->pos = posondisk;  pos->action = 'R'; pos->success = 0; pos->len = BLKSIZE;
     posondisk += (BLKSIZE*5);
+    if (posondisk > b + 1024*1024*1024L) {
+      posondisk = b;
+    }
     pos++;
   }
       
