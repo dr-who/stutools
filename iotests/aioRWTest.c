@@ -379,7 +379,7 @@ double testReadLocation(int fd, size_t b, size_t blksize, positionType *position
 int similarNumbers(double a, double b) {
   double f = MIN(a, b) * 1.0 / MAX(a, b);
   //  fprintf(stderr,"similar %lf %lf,  f %lf\n", a, b, f);
-  if ((f > 0.95) && (f < 1.05)) {
+  if ((f > 0.8) && (f < 1.2)) {
     return 1;
   } else {
     return 0;
