@@ -358,6 +358,7 @@ int testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, 
   positionType *pos = positions;
   for (size_t i = 0; i < num; i++) {
     pos->pos = pospos;  pos->action = 'R'; pos->success = 0; pos->len = BLKSIZE;
+    pos++;
   }
       
   double start = timedouble();
@@ -567,7 +568,7 @@ int main(int argc, char *argv[]) {
 
       double f = ABS(AR - AL) / MAX(AL, AR);
 
-      if (f < .1) break;
+      if (f < .05) break;
 
       fprintf(stderr,"%.1lf\n", f);
       
