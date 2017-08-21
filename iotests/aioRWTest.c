@@ -359,8 +359,8 @@ double testReadLocation(int fd, size_t b, size_t blksize, positionType *position
   size_t posondisk = pospos;
   for (size_t i = 0; i < num; i++) {
     pos->pos = posondisk;  pos->action = 'R'; pos->success = 0; pos->len = BLKSIZE;
-    posondisk += (BLKSIZE*5);
-    if (posondisk > b + 50*1024*1024L) {
+    posondisk += (BLKSIZE);
+    if (posondisk > b + 512*1024*1024L) {
       posondisk = b;
     }
     pos++;
@@ -578,7 +578,7 @@ int main(int argc, char *argv[]) {
     // end single run
   } else {
     size_t L = 0;
-    size_t R = bdSize - (50*1024*1024L);
+    size_t R = bdSize - (512*1024*1024L);
     double AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer);
     double AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer);
     
