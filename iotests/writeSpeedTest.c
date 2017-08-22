@@ -63,6 +63,16 @@ static void *runThread(void *arg) {
   return NULL;
 }
 
+// sorting function, used by qsort
+/*static int poscompare(const void *p1, const void *p2)
+{
+  threadInfoType *pos1 = (threadInfoType*)p1;
+  threadInfoType *pos2 = (threadInfoType*)p2;
+  if (logSpeedMean(&pos1->logSpeed) < logSpeedMean(&pos2->logSpeed)) return -1;
+  else if (logSpeedMean(&pos1->logSpeed) > logSpeedMean(&pos2->logSpeed)) return 1;
+  else return 0;
+  }*/
+
 void startThreads(int argc, char *argv[]) {
   if (argc > 0) {
     
@@ -104,7 +114,11 @@ void startThreads(int argc, char *argv[]) {
     double allmb = 0;
     size_t minSpeed = (size_t)-1; // actually a big number
     size_t driveCount = 0;
+    size_t zeroDrives = 0;
     char *minName = NULL;
+    // sort threadContext by logSpeed
+    //    qsort(threadContext, threads, sizeof(threadInfoType), poscompare);
+    
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + 1][0] != '-') {
 	pthread_join(pt[i], NULL);
@@ -114,6 +128,9 @@ void startThreads(int argc, char *argv[]) {
 	if (threadContext[i].total > 0) {
 	  if (speed < minSpeed) {minSpeed = speed; minName = threadContext[i].path;}
 	  driveCount++;
+	} else {
+	  fprintf(stderr,"*warning* zero bytes to %s\n", threadContext[i].path);
+	  zeroDrives++;
 	}
 	if (logSpeedTime(&threadContext[i].logSpeed) > maxtime) {
 	  maxtime = logSpeedTime(&threadContext[i].logSpeed);
@@ -121,7 +138,7 @@ void startThreads(int argc, char *argv[]) {
 	logSpeedFree(&threadContext[i].logSpeed);
       }
     }
-    fprintf(stderr,"*info* worst %s %.1lf MiB/s, synced case %.1lf MiB/s, %zd drives\n", minName ? minName : "", TOMiB(minSpeed), TOMiB(minSpeed * driveCount), driveCount);
+    fprintf(stderr,"*info* worst %s %.1lf MiB/s, synced case %.1lf MiB/s, %zd drives, %zd zero byte drives\n", minName ? minName : "", TOMiB(minSpeed), TOMiB(minSpeed * driveCount), driveCount, zeroDrives);
     fprintf(stderr,"Total %.1lf GiB bytes, time %.1lf s, sum of mean = %.1lf MiB/s\n", TOGiB(allbytes), maxtime, TOMiB(allmb));
     free(threadContext);
     free(pt);
