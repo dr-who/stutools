@@ -84,18 +84,23 @@ void startThreads(int argc, char *argv[]) {
     size_t allbytes = 0;
     double allmb = 0;
     double maxtime = 0;
+    size_t minSpeed = (size_t)-1; // actually a big number
+    size_t driveCount = 0;
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + 1][0] != '-') {
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
-	allmb += logSpeedMean(&(threadContext[i].logSpeed)) / 1024.0 / 1024;
+	driveCount++;
+	const double speed = logSpeedMean(&threadContext[i].logSpeed);
+	allmb += speed;
+	if (speed < minSpeed) minSpeed = speed;
 	if (logSpeedTime(&(threadContext[i].logSpeed)) > maxtime) {
 	  maxtime = logSpeedTime(&(threadContext[i].logSpeed));
 	}
       }
       logSpeedFree(&threadContext[i].logSpeed);
     }
-    fprintf(stderr,"Total %zd bytes, time %.1lf seconds, sum of mean = %.1lf MiB/sec\n", allbytes, maxtime, allbytes/maxtime/1024.0/1024);
+    fprintf(stderr,"Total %.1lf GiB bytes, time %.1lf s, sum of mean = %.1lf MiB/s (synced case %.1lf MiB/s, %zd drives)\n", TOGiB(allbytes), maxtime, TOMiB(allmb), TOMiB(minSpeed * driveCount), driveCount);
     free(threadContext);
     free(pt);
   }
