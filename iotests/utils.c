@@ -203,9 +203,14 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     }
     
     if ((tt - lastg) >= outputEvery) {
+      logSpeedAdd(&previousSpeeds, logSpeedMean(l)); // after a second, add the mean of the time period to an array of speeds
+      double deltabytes = logSpeedTotal(l) - logSpeedGetCheckpoint(l);
+
+      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 95%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, TOGiB(l->total), TOMiB(deltabytes / (tt - lastg)), TOMiB(logSpeedMedian(l)), TOMiB(logSpeedRank(l, 0.01)), TOMiB(logSpeedRank(l, 0.95)), l->num, tt - l->starttime);
+
       lastg = tt;
-      fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 95%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, TOGiB(l->total), TOMiB(logSpeedMean(l)), TOMiB(logSpeedMedian(l)), TOMiB(logSpeedRank(l, 0.01)), TOMiB(logSpeedRank(l, 0.95)), l->num, tt - l->starttime);
-      logSpeedAdd(&previousSpeeds, logSpeedMean(l));
+      logSpeedCheckpoint(&previousSpeeds); // tag the current total so mean
+      logSpeedCheckpoint(l); // tag the current total so mean
       if ((logSpeedN(&previousSpeeds) >= resetTime) && (resetCount > 0)) { // at least 10 data points before a reset
 	if (keepRunning) {
 	  /*double low = logSpeedRank(&previousSpeeds, .1);
@@ -291,9 +296,9 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     perror("problem creating logfile");
   }
 	  
-  free(allValues);
-  free(allTimes);
-  free(allTotal);
+  if (allValues) free(allValues);
+  if (allTimes) free(allTimes);
+  if (allTotal) free(allTotal);
 
   // now verify
   if (verifyWrites) {
@@ -304,7 +309,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     }
   }
   
-  free(charbuf);
+  if (charbuf) free(charbuf);
   
   //  logSpeedHistogram(&previousSpeeds);
   logSpeedFree(&previousSpeeds);

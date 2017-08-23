@@ -110,7 +110,7 @@ void startThreads(int argc, char *argv[], int index) {
       logSpeedFree(&threadContext[i].logSpeed);
     }
     fprintf(stdout, "*info* worst %s %.1lf MiB/s, synced case %.1lf MiB/s, %zd drives, %zd zero byte drives\n", minName ? minName : "", TOMiB(minSpeed), TOMiB(minSpeed * driveCount), driveCount, zeroDrives);
-    fprintf(stdout, "Total %.1lf GiB bytes, time %.1lf s, sum of mean = %.1lf MiB/s\n", TOGiB(allbytes), maxtime, TOMiB(allmb));
+    fprintf(stdout, "Total %.1lf GiB bytes, time %.1lf s, max/sum of mean = %.1lf MiB/s\n", TOGiB(allbytes), maxtime, TOMiB(allmb));
     free(threadContext);
     free(pt);
   }

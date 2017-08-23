@@ -13,6 +13,7 @@ void logSpeedInit(volatile logSpeedType *l) {
   l->alloc = 10000;
   l->total = 0;
   l->sorted = 0;
+  l->checkpoint = 0;
   l->rawtot = 0;
   CALLOC(l->values, l->alloc, sizeof(double));
   CALLOC(l->rawtime, l->alloc, sizeof(double));
@@ -22,11 +23,23 @@ void logSpeedInit(volatile logSpeedType *l) {
 
 void logSpeedReset(logSpeedType *l) {
   l->starttime = timedouble();
+  l->checkpoint = 0;
   l->lasttime = l->starttime;
   l->num = 0;
   l->total = 0;
   l->sorted = 0;
 }
+
+
+void logSpeedCheckpoint(logSpeedType *l) {
+  l->checkpoint = l->total;
+}
+
+double logSpeedGetCheckpoint(logSpeedType *l) {
+  return l->checkpoint;
+}
+
+
 
 double logSpeedTime(logSpeedType *l) {
   return l->lasttime - l->starttime;
@@ -106,7 +119,7 @@ double logSpeedMean(logSpeedType *l) {
   if (l->num <= 2) {
     return 0;
   } else {
-    return l->total / logSpeedTime(l);
+    return (l->total) / logSpeedTime(l);
   }
 }
 

@@ -11,6 +11,7 @@ typedef struct {
   size_t alloc;
   double total;
   double rawtot;
+  double checkpoint;
   double *rawtime;
   double *rawvalues;
   double *rawtotal;
@@ -36,6 +37,9 @@ double logSpeedMax(logSpeedType *l);
 
 void   logSpeedDump(logSpeedType *l, const char *fn);
 void logSpeedHistogram(logSpeedType *l);
+void logSpeedCheckpoint(logSpeedType *l);
+double logSpeedGetCheckpoint(logSpeedType *l);
+
 
 #endif
 
