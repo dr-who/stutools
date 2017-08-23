@@ -549,10 +549,12 @@ char *getScheduler(const char *path) {
       return strdup("problem");
     }
     //    fprintf(stderr,"opened %s\n", s);
-    fscanf(fp, "%s", s);
+    int ret = fscanf(fp, "%s", s);
     fclose(fp);
-    return strdup(s);
-  } else {
-    return strdup("unknown");
+    if (ret == 1) {
+      return strdup(s);
+    }
   }
+
+  return strdup("unknown");
 }
