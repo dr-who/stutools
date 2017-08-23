@@ -377,7 +377,12 @@ int main(int argc, char *argv[]) {
 
   if (isBlockDevice(path)) {
     actualBlockDeviceSize = blockDeviceSize(path);
-    fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
+    if (readRatio < 1) {
+      fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
+    } else {
+      fd = open(path, O_RDONLY | O_DIRECT);
+    }
+      
     if (fd < 0) {
       perror(path);exit(1);
     }
