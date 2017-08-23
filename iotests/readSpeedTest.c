@@ -45,6 +45,8 @@ static void *runThread(void *arg) {
   }
   //fprintf(stderr,"opened %s\n", threadContext->path);
 
+  logSpeedInit(&threadContext->logSpeed);
+  
   lseek(fd, threadContext->startPosition, SEEK_SET);
   //  fprintf(stderr,"thread %d, lseek fd=%d to pos=%zd\n", threadContext->threadid, fd, threadContext->startPosition);
 
@@ -76,7 +78,6 @@ void startThreads(int argc, char *argv[], int index) {
 	startP += offSetGB;
 
 	threadContext[i].path = argv[i + index];
-	logSpeedInit(&threadContext[i].logSpeed);
 	threadContext[i].total = 0;
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
       }

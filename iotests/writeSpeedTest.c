@@ -63,6 +63,7 @@ static void *runThread(void *arg) {
     }
     sleep(2);
   }
+  fsync(fd); // sync previous writes before we start timing
 
   logSpeedInit(&threadContext->logSpeed);
 
