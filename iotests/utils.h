@@ -42,5 +42,8 @@ int getWriteCacheStatus(int fd);
 int trimDevice(int fd, char *path, unsigned long low, unsigned long high);
 void generateRandomBuffer(char *buffer, size_t size);
 
+char *getSuffix(const char *path);
+char *getScheduler(const char *path);
+
 #endif
 

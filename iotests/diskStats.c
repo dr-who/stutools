@@ -99,7 +99,7 @@ void diskStatSectorUsage(diskStatType *d, size_t *sread, size_t *swritten, size_
   }
 }
 
-void diskStatFromFilelist(diskStatType *d, const char *path) {
+void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
   FILE *fp = fopen(path, "rt");
   if (!fp) {fprintf(stderr,"can't open %s!\n", path);exit(1);}
 
@@ -114,6 +114,11 @@ void diskStatFromFilelist(diskStatType *d, const char *path) {
 	int fd = open(str, O_RDONLY);
 	if (fd < 0) {
 	  perror("problem");
+	}
+	if (verbose) {
+	  char *sched = getScheduler(str);
+	  fprintf(stderr,"*info* scheduler for %s is [%s]\n", str, sched);
+	  free(sched);
 	}
 	diskStatAddDrive(d, fd);
 	close (fd);

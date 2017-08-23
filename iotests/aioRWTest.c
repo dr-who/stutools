@@ -273,13 +273,7 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
     } else {
       // parallel contiguous regions
       size_t *ppp = NULL;
-      size_t gap = 0;
       int abssf = ABS(sf);
-      gap = bdSize / abssf;
-      if (gap == 0) {
-	fprintf(stderr,"*error* serious problem!\n");
-      }
-      gap = (gap >> 16) <<16;
       CALLOC(ppp, abssf, sizeof(size_t));
       for (size_t i = 0; i < abssf; i++) {
 	size_t startSeqPos = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE; 
@@ -377,6 +371,10 @@ int main(int argc, char *argv[]) {
   diskStatSetup(&dst);
 
   if (isBlockDevice(path)) {
+    char *sched = getScheduler(path);
+    fprintf(stderr,"*info* scheduler for %s is [%s]\n", path, sched);
+    free(sched);
+
     actualBlockDeviceSize = blockDeviceSize(path);
     if (readRatio < 1) {
       fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
@@ -389,7 +387,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (specifiedDevices) {
-      diskStatFromFilelist(&dst, specifiedDevices);
+      diskStatFromFilelist(&dst, specifiedDevices, verbose);
     } else {
       diskStatAddDrive(&dst, fd);
     }

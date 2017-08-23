@@ -521,3 +521,38 @@ void generateRandomBuffer(char *buffer, size_t size) {
 }
 
 
+/* creates a new string */
+char *getSuffix(const char *path) {
+  int found = -1;
+  for (size_t i = strlen(path)-1; i >= 0; i--) {
+    if (path[i] == '/') {
+      found = i + 1;
+      break;
+    }
+  }
+  if (found > 0) {
+    return strdup(path + found);
+  } else {
+    return NULL;
+  }
+}
+
+
+char *getScheduler(const char *path) {
+  char *suffix = getSuffix(path);
+  if (suffix) {
+    char s[1000];
+    sprintf(s, "/sys/block/%s/queue/scheduler", suffix);
+    FILE *fp = fopen(s, "rt"); 
+    if (!fp) {
+      //      perror("scheduler");
+      return strdup("problem");
+    }
+    //    fprintf(stderr,"opened %s\n", s);
+    fscanf(fp, "%s", s);
+    fclose(fp);
+    return strdup(s);
+  } else {
+    return strdup("unknown");
+  }
+}

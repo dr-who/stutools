@@ -51,6 +51,10 @@ static void *runThread(void *arg) {
     perror(threadContext->path);
     return NULL;
   }
+
+  char *sched = getScheduler(threadContext->path);
+  fprintf(stderr,"*info* scheduler %s -> %s\n", threadContext->path, sched);
+  if (sched) free(sched);
   
   if (sendTrim) {
     size_t bdsize = blockDeviceSizeFromFD(fd);
@@ -230,6 +234,7 @@ int handle_args(int argc, char *argv[]) {
 
 
 int main(int argc, char *argv[]) {
+
   int index = handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
