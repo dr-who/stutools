@@ -17,7 +17,7 @@
 int    keepRunning = 1;       // have we been interrupted
 size_t blockSize = 1024*1024; // default to 1MiB
 int    exitAfterSeconds = 60; // default timeout
-int    useDirect = 1;
+int    resetSeconds = 20;
 int    isSequential = 1;   
 float  limitGBToProcess = 0;
 int    offSetGB = 0;
@@ -38,7 +38,7 @@ void intHandler(int d) {
 
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
-  int fd = open(threadContext->path, O_RDONLY | (useDirect ? O_DIRECT : 0) ); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
+  int fd = open(threadContext->path, O_RDONLY | O_DIRECT); // may use O_DIRECT if required, although running for a decent amount of time is illuminating
   if (fd < 0) {
     perror(threadContext->path);
     return NULL;
@@ -51,15 +51,15 @@ static void *runThread(void *arg) {
   int chunkSizes[1] = {blockSize};
   int numChunks = 1;
   
-  readChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, &threadContext->logSpeed, blockSize, OUTPUTINTERVAL, isSequential, useDirect, limitGBToProcess); // will close fd
+  readChunks(fd, threadContext->path, chunkSizes, numChunks, exitAfterSeconds, resetSeconds, &threadContext->logSpeed, blockSize, OUTPUTINTERVAL, isSequential, 1, limitGBToProcess); // will close fd
   threadContext->total = threadContext->logSpeed.total;
 
   return NULL;
 }
 
-void startThreads(int argc, char *argv[]) {
-  if (argc > 0) {
-    size_t threads = argc - 1;
+void startThreads(int argc, char *argv[], int index) {
+  if (argc - index > 0) {
+    size_t threads = argc - index;
     pthread_t *pt = (pthread_t*) calloc((size_t) threads, sizeof(pthread_t));
     if (pt==NULL) {fprintf(stderr, "OOM(pt): \n");exit(-1);}
 
@@ -69,13 +69,13 @@ void startThreads(int argc, char *argv[]) {
     int startP = 0;
     
     for (size_t i = 0; i < threads; i++) {
-      if (argv[i + 1][0] != '-') {
+      if (argv[i + index][0] != '-') {
 	threadContext[i].threadid = i;
 
 	threadContext[i].startPosition = (1024L*1024*1024) * startP;
 	startP += offSetGB;
 
-	threadContext[i].path = argv[i + 1];
+	threadContext[i].path = argv[i + index];
 	logSpeedInit(&threadContext[i].logSpeed);
 	threadContext[i].total = 0;
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
@@ -90,7 +90,7 @@ void startThreads(int argc, char *argv[]) {
     char *minName = NULL;
     
     for (size_t i = 0; i < threads; i++) {
-      if (argv[i + 1][0] != '-') {
+      if (argv[i + index][0] != '-') {
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
 	const double speed = logSpeedMean(&threadContext[i].logSpeed);
@@ -108,26 +108,19 @@ void startThreads(int argc, char *argv[]) {
       }
       logSpeedFree(&threadContext[i].logSpeed);
     }
-    fprintf(stderr,"*info* worst %s %.1lf MiB/s, synced case %.1lf MiB/s, %zd drives, %zd zero byte drives\n", minName ? minName : "", TOMiB(minSpeed), TOMiB(minSpeed * driveCount), driveCount, zeroDrives);
-    fprintf(stderr,"Total %.1lf GiB bytes, time %.1lf s, sum of mean = %.1lf MiB/s\n", TOGiB(allbytes), maxtime, TOMiB(allmb));
+    fprintf(stdout, "*info* worst %s %.1lf MiB/s, synced case %.1lf MiB/s, %zd drives, %zd zero byte drives\n", minName ? minName : "", TOMiB(minSpeed), TOMiB(minSpeed * driveCount), driveCount, zeroDrives);
+    fprintf(stdout, "Total %.1lf GiB bytes, time %.1lf s, sum of mean = %.1lf MiB/s\n", TOGiB(allbytes), maxtime, TOMiB(allmb));
     free(threadContext);
     free(pt);
   }
   //  shmemUnlink();
 }
 
-void handle_args(int argc, char *argv[]) {
+int handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "dDr:t:k:o:")) != -1) {
+  while ((opt = getopt(argc, argv, "r:t:k:o:T:")) != -1) {
     switch (opt) {
-    case 'd':
-      useDirect = 1;
-      break;
-    case 'D':
-      useDirect = 0;
-      dropCaches();
-      break;
     case 'k':
       if (optarg[0] == '-') {
 	fprintf(stderr,"missing argument for '%c' option\n", opt);
@@ -157,22 +150,26 @@ void handle_args(int argc, char *argv[]) {
     case 't':
       exitAfterSeconds = atoi(optarg);
       break;
+    case 'T':
+      resetSeconds = atoi(optarg);
+      break;
     default:
       exit(-1);
     }
   }
+  return optind;
 }
 
 int main(int argc, char *argv[]) {
-  handle_args(argc, argv);
+  int index = handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"direct=%d, blocksize=%zd (%zd KiB), timeout=%d, %s", useDirect, blockSize, blockSize/1024, exitAfterSeconds, isSequential ? "sequential" : "random");
+  fprintf(stderr,"direct=%d, blocksize=%zd (%zd KiB), timeout=%d, resettime=%d, %s", 1, blockSize, blockSize/1024, exitAfterSeconds, resetSeconds, isSequential ? "sequential" : "random");
   if (!isSequential && limitGBToProcess > 0) {
     fprintf(stderr," (limit %.1lf GB)", limitGBToProcess);
   }
   fprintf(stderr,"\n");
      
-  startThreads(argc, argv);
+  startThreads(argc, argv, index);
   return 0;
 }

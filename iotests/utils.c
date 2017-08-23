@@ -82,26 +82,24 @@ double loadAverage() {
 }
 
 
-void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, float limitGBToProcess) {
+void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, float limitGBToProcess) {
 
   // check
   //  if (loadAverage() > 10.0) {
   //    fprintf(stderr,"**WARNING** the load average is %g (maybe the machine is busy!?)\n", loadAverage());
   //  }
   
-  void *buf = aligned_alloc(65536, maxBufSize);
-  if (!buf) { // O_DIRECT requires aligned memory
+  char *charbuf = aligned_alloc(65536, maxBufSize);
+  if (!charbuf) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
   }
   srand((int)timedouble());
 
-  char *charbuf = (char*) buf;
+  generateRandomBuffer(charbuf, maxBufSize);
+
   size_t checksum = 0;
-  const size_t startChar = rand() % 255;
-  const size_t startMod = 20 + rand() % 40;
   for (size_t i = 0; i < maxBufSize; i++ ) {
-    charbuf[i] = 'A' + (char) ((startChar + i + i) % startMod);
-    checksum += ('A' + (startChar + i + i) % startMod);
+    checksum += charbuf[i];
   }
 
   size_t maxDeviceSize = 0;
@@ -130,7 +128,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   int chunkIndex = 0;
   double startTime = timedouble();
   double lastFdatasync = startTime;
-  int resetCount = 5;
+  int resetCount = 1;
   logSpeedType previousSpeeds;
 
   size_t countValues = 0, allocValues = 20000, sumBytes = 0;
@@ -208,26 +206,26 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       lastg = tt;
       fprintf(stderr,"%s '%s': %.1lf GiB, mean %.1f MiB/s, median %.1f MiB/s, 1%% %.1f MiB/s, 95%% %.1f MiB/s, n=%zd, %.1fs\n", writeAction ? "write" : "read", label, TOGiB(l->total), TOMiB(logSpeedMean(l)), TOMiB(logSpeedMedian(l)), TOMiB(logSpeedRank(l, 0.01)), TOMiB(logSpeedRank(l, 0.95)), l->num, tt - l->starttime);
       logSpeedAdd(&previousSpeeds, logSpeedMean(l));
-      if (logSpeedN(&previousSpeeds) >= 10) { // at least 10 data points before a reset
+      if ((logSpeedN(&previousSpeeds) >= resetTime) && (resetCount > 0)) { // at least 10 data points before a reset
 	if (keepRunning) {
-	  double low = logSpeedRank(&previousSpeeds, .1);
+	  /*double low = logSpeedRank(&previousSpeeds, .1);
 	  double high = logSpeedRank(&previousSpeeds, .9);
 	  double mean = logSpeedMean(&previousSpeeds);
-	  if ((high / low > 1.05) && (mean < low || mean > high) && (resetCount > 0)) { // must be over 5% difference
+	  	  if ((high / low > 1.05) && (mean < low || mean > high) && (resetCount > 0)) { // must be over 5% difference
 	    fprintf(stderr,"  [ %.1lf < %.1lf MiB/s < %.1lf ]\n", TOMiB(low), TOMiB(mean), TOMiB(high));
-	    fprintf(stderr,"resetting due to volatile timings (%d resets remain)\n", resetCount);
+	    fprintf(stderr,"resetting due to volatile timings (%d resets remain)\n", resetCount); */
 	    resetCount--;
 	    startTime = tt;
 	    logSpeedReset(l);
 	    logSpeedReset(&previousSpeeds);
-	  }
+	    //	    }
 	}
       }
     }
     if (chunkIndex >= numChunks) {
       chunkIndex = 0;
     }
-    if (maxTime && (tt - startTime > maxTime)) {
+    if ((resetCount == 0) && maxTime && (tt - startTime > maxTime)) {
       //fprintf(stderr,"timer triggered after %zd seconds\n", maxTime);
       break;
     }
@@ -251,20 +249,20 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   }
 
   l->lasttime = timedouble(); // change time after closing
-  if (resetCount > 0) {
+  //  if (resetCount > 0) {
     char s[1000], *osr = OSRelease();
     sprintf(s, "Total %s '%s': %.1lf GiB, %.1f s, mean %.1f MiB/s, %d B (%d KiB), %s, %s, n=%zd%s\n", writeAction ? "write" : "read", label, TOGiB(l->total), logSpeedTime(l), TOMiB(logSpeedMean(l)), chunkSizes[0], chunkSizes[0] / 1024, sequential ? "seq" : "rand", direct ? "DIRECT" : "NOT DIRECT (pagecache)", countValues, keepRunning ? "" : " ^C");
-    fprintf(stderr, "%s", s);
+    fprintf(stdout, "%s", s);
     char *user = username();
     syslog(LOG_INFO, "%s - %s", user, s);
     free(user);
     free(osr);
-  } else {
+    /*  } else {
     fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
-  }
+    }*/
 
   // dump all values to a log file
-  char s[1000];
+    //  char s[1000];
   sprintf(s, "log-%dKB-%s-%s-%s--%.1lf-MiB_s-%s", chunkSizes[0]/1024, direct ? "direct" : "not-direct", sequential ? "seq" : "rand", label, TOMiB(logSpeedMean(l)), writeAction ? "write" : "read");
   for (size_t i = 0; i < strlen(s); i++) {
     if (s[i] == '/') {
@@ -306,21 +304,19 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     }
   }
   
-  free(buf);
-
-
+  free(charbuf);
   
   //  logSpeedHistogram(&previousSpeeds);
   logSpeedFree(&previousSpeeds);
 }
 
 
-void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess, int verifyWrites, float flushEverySecs) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs, limitGBToProcess);
+void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess, int verifyWrites, float flushEverySecs) {
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, resetTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs, limitGBToProcess);
 }
 
-void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, l, maxBufSize, outputEvery, 0, seq, direct, 0, 0, limitGBToProcess);
+void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess) {
+  doChunks(fd, label, chunkSizes, numChunks, maxTime, resetTime, l, maxBufSize, outputEvery, 0, seq, direct, 0, 0, limitGBToProcess);
 }
 
 
@@ -484,12 +480,39 @@ int trimDevice(int fd, char *path, unsigned long low, unsigned long high) {
   range[0] = low;
   range[1] = high;
 
-  fprintf(stderr,"*info* sending trim command to %s [%ld, %ld] [%.1lf GiB, %.1lf GiB]\n", path, range[0], range[1], TOGiB(range[0]), TOGiB(range[1]));
+  //  fprintf(stderr,"*info* sending trim command to %s [%ld, %ld] [%.1lf GiB, %.1lf GiB]\n", path, range[0], range[1], TOGiB(range[0]), TOGiB(range[1]));
   
   int err = 0;
-  if ((err = ioctl(fd, BLKDISCARD, &range))) 
+  if ((err = ioctl(fd, BLKDISCARD, &range))) {
     fprintf(stderr, "%s: BLKDISCARD ioctl failed\n", path);
+  }
+
+  fdatasync(fd);
+  fsync(fd);
 
   return err;
 }
+
+// the block size random buffer. Nice ASCII
+void generateRandomBuffer(char *buffer, size_t size) {
+  const char verystartpoint = ' ' + (lrand48() % 15);
+  const char jump = (lrand48() % 3) + 1;
+  char startpoint = verystartpoint;
+  for (size_t j = 0; j < size; j++) {
+    buffer[j] = startpoint;
+    startpoint += jump;
+    if (startpoint > 'z') {
+      startpoint = verystartpoint;
+    }
+  }
+  buffer[size] = 0; // end of string to help printing
+  strncpy(buffer, "STU-EE!",7);
+  if (strlen(buffer) != size) {
+    fprintf(stderr,"eekk random!\n");
+  }
+  //  if (verbose >= 2) {
+  //    fprintf(stderr,"generated randomBuffer: %s\n", buffer);
+  //  }
+}
+
 

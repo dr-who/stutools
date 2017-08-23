@@ -329,28 +329,6 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
 }
 
 
-// the block size random buffer. Nice ASCII
-void generateRandomBuffer(char *buffer, size_t size) {
-  const char verystartpoint = ' ' + (lrand48() % 15);
-  const char jump = (lrand48() % 3) + 1;
-  char startpoint = verystartpoint;
-  for (size_t j = 0; j < size; j++) {
-    buffer[j] = startpoint;
-    startpoint += jump;
-    if (startpoint > 'z') {
-      startpoint = verystartpoint;
-    }
-  }
-  buffer[size] = 0; // end of string to help printing
-  strncpy(buffer, "STU-EE!",7);
-  if (strlen(buffer) != size) {
-    fprintf(stderr,"eekk random!\n");
-  }
-  if (verbose >= 2) {
-    fprintf(stderr,"generated randomBuffer: %s\n", buffer);
-  }
-}
-
 
 double testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer) {
   size_t pospos = ((size_t) b / blksize) * blksize;
