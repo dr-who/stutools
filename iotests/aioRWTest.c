@@ -282,11 +282,12 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
       gap = (gap >> 16) <<16;
       CALLOC(ppp, abssf, sizeof(size_t));
       for (size_t i = 0; i < abssf; i++) {
-	ppp[i] = i * gap;
+	size_t startSeqPos = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE; 
+	ppp[i] = startSeqPos;
       }
       for (size_t i = 0; i < num; i++) {
 	// sequential
-	positions[i].pos = ppp[i % abssf];
+	positions[i].pos = ((size_t)(ppp[i % abssf] / BLKSIZE)) * BLKSIZE;
 	ppp[i % abssf] += (jumpStep * BLKSIZE);
 	if (ppp[i % abssf] + bs > bdSize) { // if could go off the end then set back to 0
 	  ppp[i % abssf] = 0;
