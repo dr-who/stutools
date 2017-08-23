@@ -276,9 +276,34 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
       int abssf = ABS(sf);
       CALLOC(ppp, abssf, sizeof(size_t));
       for (size_t i = 0; i < abssf; i++) {
-	size_t startSeqPos = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE; 
+	size_t startSeqPos = 0;
+	size_t count = 0;
+	while (1) {
+	  startSeqPos = (lrand48() % (bdSize / BLKSIZE)) * BLKSIZE;
+	  if (i == 0) {
+	    break;
+	  }
+	  
+	  int close = 0;
+	  for (size_t j = 0; j < i-1; j++) {
+	    if (ABS(ppp[j] - startSeqPos) < 100*1024*1024) { // make sure all the points are 100MB apart
+	      close = 1;
+	    }
+	  }
+	  if (!close) {
+	    break;
+	  }
+	  count++;
+	  if (count > 100) {
+	    fprintf(stderr,"*error* can't make enough spaced positions given the size of the disk\n");
+	    exit(1);
+	  }
+	  //	    fprintf(stderr,"count++\n");
+	}
 	ppp[i] = startSeqPos;
+	//	  fprintf(stderr,"i=%zd val %zd\n", i, startSeqPos);
       }
+      
       for (size_t i = 0; i < num; i++) {
 	// sequential
 	positions[i].pos = ((size_t)(ppp[i % abssf] / BLKSIZE)) * BLKSIZE;
@@ -316,7 +341,7 @@ void setupPositions(positionType *positions, size_t num, const size_t bdSize, co
   
   if (verbose) {
     for(size_t i = 0; i < MIN(num, 20);i++) {
-      fprintf(stderr,"%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
+      fprintf(stderr,"%3zd: %2c %12zd %7zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
     }
   }
   

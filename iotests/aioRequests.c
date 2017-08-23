@@ -61,6 +61,8 @@ double aioMultiplePositions(const int fd,
   double last = start;
   size_t submitted = 0;
   size_t received = 0;
+
+  size_t totalBytes = 0; 
   //  double mbps = 0;
   
 
@@ -86,6 +88,8 @@ double aioMultiplePositions(const int fd,
 	  }
 	  //    cbs[0]->u.c.offset = sz;
 	  //	fprintf(stderr,"submit...\n");
+	  totalBytes += len;
+	  
 	  ret = io_submit(ctx, 1, cbs);
 	  if (ret > 0) {
 	    inFlight++;
@@ -104,7 +108,7 @@ double aioMultiplePositions(const int fd,
 	double gt = timedouble();
 
 	if (gt - last >= 1) {
-	  if (!tableMode) fprintf(stderr,"submitted %zd, in flight/queue: %zd, received=%zd, pos=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", submitted, inFlight, received, pos, submitted / (gt - start), received* len / (gt - start)/1024.0/1024);
+	  if (!tableMode) fprintf(stderr,"submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", TOGiB(totalBytes), inFlight, received, pos, submitted / (gt - start), received* len / (gt - start)/1024.0/1024);
 	  last = gt;
 	  if ((!keepRunning) || (gt - start > secTimeout)) {
 	    //	  fprintf(stderr,"timeout\n");
