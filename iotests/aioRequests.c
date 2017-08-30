@@ -13,7 +13,7 @@
 
 extern int keepRunning;
 extern int singlePosition;
-extern int flushWhenQueueFull;
+extern int flushEvery;
 
 double aioMultiplePositions(const int fd,
 			     positionType *positions,
@@ -121,8 +121,8 @@ double aioMultiplePositions(const int fd,
 	  //      fprintf(stderr,"red %d\n", ret);
 	  }*/
       } // for loop
-      if (flushWhenQueueFull) {
-	if ((pos % flushWhenQueueFull) == 0) {
+      if (flushEvery) {
+	if ((pos % flushEvery) == 0) {
 	  // sync whenever the queue is full
 	  if (verbose >= 2) {
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);

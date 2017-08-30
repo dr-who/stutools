@@ -32,9 +32,10 @@ flushTestWriter: flushTestWriter.o utils.o logSpeed.o
 flushTestReader: flushTestReader.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
 
-aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o 
+aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o
 	gcc $^ -o $@ -lm -laio
 
+positions.o: positions.c utils.h
 
 logSpeed.o: logSpeed.c logSpeed.h utils.h
 

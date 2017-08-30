@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/time.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
@@ -502,6 +503,16 @@ int trimDevice(int fd, char *path, unsigned long low, unsigned long high) {
 // the block size random buffer. Nice ASCII
 void generateRandomBuffer(char *buffer, size_t size) {
 
+  time_t timer;
+  char timebuffer[26];
+  struct tm* tm_info;
+  
+  time(&timer);
+  tm_info = localtime(&timer);
+  
+  strftime(timebuffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+  
+      
   char *user = username();
 
   const char verystartpoint = ' ' + (lrand48() % 15);
@@ -516,7 +527,7 @@ void generateRandomBuffer(char *buffer, size_t size) {
   }
   buffer[size] = 0; // end of string to help printing
   char s[1000];
-  sprintf(s, "\nstutools - %s\n", user);
+  sprintf(s, "\nstutools - %s - %s\n", user, timebuffer);
   strncpy(buffer, s, strlen(s));
 
   free(user);

@@ -2,13 +2,7 @@
 #define _AIOREADS_H
 
 #include "logSpeed.h"
-
-typedef struct {
-  size_t pos;
-  char   action; // 'R' or 'W'
-  size_t len;
-  int    success;
-} positionType;
+#include "positions.h"
 
 double aioMultiplePositions(const int fd,
 			     positionType *positions,
