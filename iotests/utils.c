@@ -372,7 +372,8 @@ char* queueType(char *path) {
 
 
 char *username() {
-  char *buf = calloc(200, 1); if (buf == NULL) exit(-1);
+  char *buf = NULL;
+  CALLOC(buf, 200, sizeof(char));
   getlogin_r(buf, 200);
   return buf;
 }
@@ -500,6 +501,9 @@ int trimDevice(int fd, char *path, unsigned long low, unsigned long high) {
 
 // the block size random buffer. Nice ASCII
 void generateRandomBuffer(char *buffer, size_t size) {
+
+  char *user = username();
+
   const char verystartpoint = ' ' + (lrand48() % 15);
   const char jump = (lrand48() % 3) + 1;
   char startpoint = verystartpoint;
@@ -511,7 +515,10 @@ void generateRandomBuffer(char *buffer, size_t size) {
     }
   }
   buffer[size] = 0; // end of string to help printing
-  strncpy(buffer, "STU-EE!",7);
+  strncpy(buffer, user, strlen(user));
+
+  free(user);
+
   if (strlen(buffer) != size) {
     fprintf(stderr,"eekk random!\n");
   }
