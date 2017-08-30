@@ -374,7 +374,7 @@ int main(int argc, char *argv[]) {
   } else if (!autoDiscover) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
-    fprintf(stderr,"path: %s, readWriteRatio: %.2lf, QD: %d, blksz: %zd, flush %zd", path, readRatio, qd, BLKSIZE, flushEvery);
+    fprintf(stderr,"path: %s, readWriteRatio: %.2lf, QD: %d, blksz: %zd, flushEvery %d", path, readRatio, qd, BLKSIZE, flushEvery);
     fprintf(stderr,", bdSize %.3lf GiB, rawSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSize), TOGiB(totl), 100.0*totl/bdSize - 100);
     setupPositions(positions, num, bdSize, seqFiles, readRatio, BLKSIZE, singlePosition, jumpStep, startAtZero);
 

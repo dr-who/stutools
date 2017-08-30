@@ -224,14 +224,14 @@ void setupPositions(positionType *positions,
 		          const size_t startAtZero
 		    ) {
   if (bdSizeBytes < bs) {
-    fprintf(stderr,"*warning* size of device is less than block size!\n");
+    fprintf(stderr, "*warning* size of device is less than block size!\n");
     return;
   }
   
   if (singlePosition) {
     size_t con = (lrand48() % (bdSizeBytes / bs)) * bs;
     if (startAtZero) con = 0;
-    fprintf(stderr,"Using a single block position: %zd (singlePosition value %d)\n", con, singlePosition);
+    fprintf(stderr, "Using a single block position: %zd (singlePosition value %zd)\n", con, singlePosition);
     for (size_t i = 0; i < num; i++) {
       if (singlePosition > 1) {
 	if ((i % singlePosition) == 0) {
