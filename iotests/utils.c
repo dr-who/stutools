@@ -515,7 +515,9 @@ void generateRandomBuffer(char *buffer, size_t size) {
     }
   }
   buffer[size] = 0; // end of string to help printing
-  strncpy(buffer, user, strlen(user));
+  char s[1000];
+  sprintf(s, "\nstutools - %s\n", user);
+  strncpy(buffer, s, strlen(s));
 
   free(user);
 
