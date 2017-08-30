@@ -527,10 +527,11 @@ void generateRandomBuffer(char *buffer, size_t size) {
   }
   buffer[size] = 0; // end of string to help printing
   char s[1000];
-  sprintf(s, "\nstutools - %s - %s\n", user, timebuffer);
+  sprintf(s, "stutools - %s - %s\n", user, timebuffer);
   strncpy(buffer, s, strlen(s));
 
   free(user);
+  buffer[size - 1] = '\n';
 
   if (strlen(buffer) != size) {
     fprintf(stderr,"eekk random!\n");
