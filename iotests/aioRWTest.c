@@ -161,6 +161,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s -8 -f /dev/sdc -V  # reverse contiguous 8 regions in parallel\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -O ok    # use a list of devices in ok.txt for disk stats/amplification\n");
     fprintf(stderr,"  ./aioRWTest -M -f /dev/nbd0 -G20  # -M sends trim/discard command, using -G range if specified\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -k1 -G0.001 # write 1KiB buffers from 1MiB (1000 unique). Cache testing.\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
