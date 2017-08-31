@@ -40,14 +40,18 @@ char*  specifiedDevices = NULL;
 int    sendTrim = 0;
 int    autoDiscover = 0;
 int    startAtZero = 0;
+size_t maxPositions = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   long int seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:Mgz")) != -1) {
+  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:")) != -1) {
     switch (opt) {
+    case 'P':
+      maxPositions = atoi(optarg);
+      break;
     case 'z':
       startAtZero = 1;
       break;
@@ -162,6 +166,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -O ok    # use a list of devices in ok.txt for disk stats/amplification\n");
     fprintf(stderr,"  ./aioRWTest -M -f /dev/nbd0 -G20  # -M sends trim/discard command, using -G range if specified\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -k1 -G0.1 # write 1KiB buffers from 100 MiB (100,000 unique). Cache testing.\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -P 10000 -f /dev/nbd0 -k1 -G0.1 # Use 10,000 positions. Cache testing.\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
@@ -273,7 +278,13 @@ int main(int argc, char *argv[]) {
 
 
   
-  const size_t num = noops * 10*1000*1000; // use 10M operations
+  size_t num;
+  if (maxPositions) {
+    num = maxPositions;
+    fprintf(stderr,"*info* hard coded maximum number of positions %zd\n", num);
+  } else {
+    num = noops * 10*1000*1000; // use 10M operations
+  }
   positionType *positions = createPositions(num);
 
   char *randomBuffer = aligned_alloc(4096, BLKSIZE + 1); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}

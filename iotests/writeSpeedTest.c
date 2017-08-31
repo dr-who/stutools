@@ -45,7 +45,10 @@ static void *runThread(void *arg) {
   int mode = O_WRONLY | O_TRUNC | O_DIRECT;
   if (threadContext->exclusive) {
     mode = mode | O_EXCL;
+  } else {
+    fprintf(stderr, "*warning* %s opened without O_EXCL\n", threadContext->path);
   }
+  
   int fd = open(threadContext->path, mode);
   if (fd < 0) {
     perror(threadContext->path);
@@ -117,12 +120,18 @@ void startThreads(int argc, char *argv[], int index) {
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + index][0] != '-') {
 	threadContext[i].path = argv[i + index];
+	if (strcmp(threadContext[i].path, "/dev/sda") == 0) {
+	  fprintf(stderr,"*error* sorry, I won't write to /dev/sda\n");
+	  exit(1);
+	}
 	threadContext[i].threadid = i;
 	threadContext[i].exclusive = 1;
 	// check previous to see if they are the same, if so make it non-exclusive
-	for (size_t j = 0; j <= i; j++) {
+	for (size_t j = 0; j < i; j++) { // check up to this one
 	  if (strcmp(threadContext[i].path, argv[j + index]) == 0) {
-	    threadContext[i].exclusive = 0;
+	    fprintf(stderr,"*info* duplicate %s\n", threadContext[i].path); // warn it's a duplicate
+	    exit(1);
+	    //	    threadContext[i].exclusive = 0;
 	  }
 	}
 
@@ -141,7 +150,7 @@ void startThreads(int argc, char *argv[], int index) {
     size_t allbytes = 0;
     double maxtime = 0;
     double allmb = 0;
-    size_t minSpeed = (size_t)-1; // actually a big number
+    size_t minSpeed = 0; // actually a big number
     size_t driveCount = 0;
     size_t zeroDrives = 0;
     char *minName = NULL;
@@ -155,7 +164,7 @@ void startThreads(int argc, char *argv[], int index) {
 	allbytes += threadContext[i].total;
 	allmb += speed;
 	if (threadContext[i].total > 0) {
-	  if (speed < minSpeed) {minSpeed = speed; minName = threadContext[i].path;}
+	  if ((speed < minSpeed) || (i == 0)) {minSpeed = speed; minName = threadContext[i].path;}
 	  driveCount++;
 	} else {
 	  fprintf(stderr,"*warning* zero bytes to %s\n", threadContext[i].path);

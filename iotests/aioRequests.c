@@ -102,7 +102,7 @@ double aioMultiplePositions(const int fd,
 	    fprintf(stderr,"!!!\n");
 	  }
 	  
-	  pos++; if (pos > sz) pos = 0;
+	  pos++; if (pos >= sz) pos = 0; // don't go over the end of the array
 	}
 	
 	double gt = timedouble();
