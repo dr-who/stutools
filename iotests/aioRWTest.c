@@ -27,7 +27,7 @@ int    seqFiles = 0;
 int    seqFilesSpecified = 0;
 double maxSizeGB = 0;
 size_t BLKSIZE=65536;
-size_t jumpStep = 1;
+int    jumpStep = 1;
 double readRatio = 0.5;
 size_t table = 0;
 char   *logFNPrefix = NULL;
@@ -120,7 +120,7 @@ void handle_args(int argc, char *argv[]) {
       fprintf(stderr,"*info* backwards contiguous: %d\n", seqFiles);
       break;
     case 'j':
-      jumpStep = atoi(optarg); if (jumpStep < 1) jumpStep = 1;
+      jumpStep = atoi(optarg); 
       break;
     case 'G':
       maxSizeGB = atof(optarg);
