@@ -121,8 +121,7 @@ void startThreads(int argc, char *argv[], int index) {
       if (argv[i + index][0] != '-') {
 	threadContext[i].path = argv[i + index];
 	if (strcmp(threadContext[i].path, "/dev/sda") == 0) {
-	  fprintf(stderr,"*error* sorry, I won't write to /dev/sda\n");
-	  exit(1);
+	  fprintf(stderr,"*warning* possible problem, hope you don't boot off /dev/sda\n");
 	}
 	threadContext[i].threadid = i;
 	threadContext[i].exclusive = 1;
