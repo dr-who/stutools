@@ -41,14 +41,18 @@ int    sendTrim = 0;
 int    autoDiscover = 0;
 int    startAtZero = 0;
 size_t maxPositions = 0;
+size_t dontUseExclusive = 0;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   long int seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:X")) != -1) {
     switch (opt) {
+    case 'X':
+      dontUseExclusive++;
+      break;
     case 'P':
       maxPositions = atoi(optarg);
       break;
@@ -167,6 +171,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -M -f /dev/nbd0 -G20  # -M sends trim/discard command, using -G range if specified\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -k1 -G0.1 # write 1KiB buffers from 100 MiB (100,000 unique). Cache testing.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -P 10000 -f /dev/nbd0 -k1 -G0.1 # Use 10,000 positions. Cache testing.\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX # Triple X does not use O_EXCL. For multiple instances simultaneously.\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
@@ -234,7 +239,12 @@ int main(int argc, char *argv[]) {
 
     actualBlockDeviceSize = blockDeviceSize(path);
     if (readRatio < 1) {
-      fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
+      if (dontUseExclusive < 3) { // specify at least -XXX to turn off exclusive
+	fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
+      } else {
+	fprintf(stderr,"*warning* opening %s without O_EXCL\n", path);
+	fd = open(path, O_RDWR | O_DIRECT | O_TRUNC);
+      }
     } else {
       fd = open(path, O_RDONLY | O_DIRECT);
     }
