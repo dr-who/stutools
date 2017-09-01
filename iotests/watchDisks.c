@@ -45,26 +45,25 @@ static void *runThread(void *arg) {
   //  fprintf(stderr,"opened %s\n", threadContext->path);
 
   // do stuff
-  size_t maxread = ((size_t)(1024*1024*1024 * limitToGB) >> 10) << 10; // size needs to be a multiple of 1k;
+  //  size_t maxread = ((size_t)(1024*1024*1024 * limitToGB) >> 10) << 10; // size needs to be a multiple of 1k;
   //  fprintf(stderr,"fd %d, max read %zd\n", fd, maxread);
-  char *buffer = aligned_alloc(65536, maxread); if (!buffer) {fprintf(stderr,"OOM\n");exit(1);}
+  //  char *buffer = aligned_alloc(65536, maxread); if (!buffer) {fprintf(stderr,"OOM\n");exit(1);}
 
   if (lseek(fd, threadContext->position, SEEK_SET) == -1) {
     perror("cannot seek");
   }
   //  fprintf(stderr,"%s to position %zd\n", threadContext->path, threadContext->position);
   
-  ssize_t rb = read(fd, buffer, maxread);
+  ssize_t rb = read(fd, threadContext->data, threadContext->datalen);
   if (rb < 0) {
     perror("runThread\n");
   }
+  threadContext->datalen = rb;
   size_t checksum = 0;
   for (size_t i = 0; i < rb; i++) {
-    checksum += buffer[i];
+    checksum += threadContext->data[i];
   }
     
-  threadContext->datalen = rb;
-  threadContext->data = buffer;
   threadContext->checksum = checksum;
 
   close(fd);
@@ -81,11 +80,15 @@ void startThreads(int argc, char *argv[], int index) {
     CALLOC(threadContext, threads, sizeof(threadInfoType));
     CALLOC(nextContext, threads, sizeof(threadInfoType));
 
+    const size_t maxread = ((size_t)(1024*1024*1024 * limitToGB) >> 10) << 10; // size needs to be a multiple of 1k;
+
     // grab the first one
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + index][0] != '-') {
 	threadContext[i].threadid = i;
 	threadContext[i].position = 0;
+	threadContext[i].datalen = maxread;
+	threadContext[i].data = aligned_alloc(65536, maxread); if (!threadContext[i].data) {fprintf(stderr,"OOM\n");exit(1);}
 
 	threadContext[i].path = argv[i + index];
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
@@ -108,6 +111,10 @@ void startThreads(int argc, char *argv[], int index) {
 	if (argv[i + index][0] != '-') {
 	  nextContext[i].threadid = i;
 	  nextContext[i].position = 0;
+	  nextContext[i].datalen = maxread;
+	  if (!nextContext[i].data) {
+	    nextContext[i].data = aligned_alloc(65536, maxread); if (!threadContext[i].data) {fprintf(stderr,"OOM\n");exit(1);}
+	  }
 	  
 	  nextContext[i].path = argv[i + index];
 	  pthread_create(&(pt[i]), NULL, runThread, &(nextContext[i]));
@@ -142,6 +149,13 @@ void startThreads(int argc, char *argv[], int index) {
       sleep(1);
     }
     //output info
+
+    for (size_t i = 0; i < threads; i++) {
+      if (argv[i + index][0] != '-') {
+	free(threadContext[i].data);
+	free(nextContext[i].data);
+      }
+    }
     
     free(threadContext);
     free(nextContext);
