@@ -109,7 +109,7 @@ void handle_args(int argc, char *argv[]) {
       logFNPrefix = strdup(optarg);
       break;
     case 't':
-      exitAfterSeconds = atof(optarg); if (exitAfterSeconds < 0.1) exitAfterSeconds = 0.1;
+      exitAfterSeconds = atof(optarg); 
       break;
     case 'q':
       qd = atoi(optarg); if (qd < 1) qd = 1;
@@ -226,6 +226,9 @@ int similarNumbers(double a, double b) {
 int main(int argc, char *argv[]) {
 
   handle_args(argc, argv);
+  if (exitAfterSeconds < 0) {
+    exitAfterSeconds = 99999999;
+  }
 
   int fd = 0;
   size_t actualBlockDeviceSize = 0;
