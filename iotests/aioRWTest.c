@@ -172,6 +172,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -k1 -G0.1 # write 1KiB buffers from 100 MiB (100,000 unique). Cache testing.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -P 10000 -f /dev/nbd0 -k1 -G0.1 # Use 10,000 positions. Cache testing.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX # Triple X does not use O_EXCL. For multiple instances simultaneously.\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z # Start the first position at position zero instead of random.\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);

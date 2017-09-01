@@ -6,9 +6,15 @@ CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g -O2
 	$(CC) -c $(CFLAGS) $< -o $@
 
 all: readSpeedTest writeSpeedTest writePairTest checkDisks flushTestWriter flushTestReader \
-	aioRWTest
+	aioRWTest watchDisks flipBits
 
 readSpeedTest: readSpeedTest.o utils.o logSpeed.o 
+	gcc $^ -o $@ -lpthread -lm
+
+watchDisks: watchDisks.o utils.o logSpeed.o 
+	gcc $^ -o $@ -lpthread -lm
+
+flipBits: flipBits.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
 
 writeSpeedTest: writeSpeedTest.o utils.o logSpeed.o
