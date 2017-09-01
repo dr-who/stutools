@@ -13,6 +13,10 @@ Stu's handy I/O tools:
 
 	./checkDisks     -- checks that we can ok, read and write to each disk
 
+	./watchDisks /dev/sd[cd] -- watch the first N GiB of a disk. -G defaults to 0.01
+
+	./flipBits   /dev/sd[cd] -- randomly change bits
+
 
 Common options:
 
