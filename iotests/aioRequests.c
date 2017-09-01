@@ -23,7 +23,8 @@ double aioMultiplePositions(const int fd,
 			     const int verbose,
 			     const int tableMode, 
 			     logSpeedType *l,
-			     char *randomBuffer
+			     char *randomBuffer,
+			     const size_t randomBufferSize
 			     ) {
   int ret;
   io_context_t ctx;
@@ -47,10 +48,9 @@ double aioMultiplePositions(const int fd,
   CALLOC(data, QD, sizeof(char*));
 
   // copy the randomBuffer to each data[]
-  const size_t len = strlen(randomBuffer);
   for (size_t i = 0; i <QD; i++) {
-    data[i] = aligned_alloc(4096, len + 1); if (!data[i]) {perror("oom"); exit(1);}
-    memcpy(data[i], randomBuffer, len);
+    data[i] = aligned_alloc(4096, randomBufferSize); if (!data[i]) {perror("oom"); exit(1);}
+    memcpy(data[i], randomBuffer, randomBufferSize);
   }
 
   size_t inFlight = 0;
@@ -79,23 +79,23 @@ double aioMultiplePositions(const int fd,
 	  // setup the request
 	  if (read) {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-	    io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
+	    io_prep_pread(cbs[0], fd, data[i%QD], randomBufferSize, newpos);
 	    positions[pos].success = 1;
 	  } else {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
-	    io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
+	    io_prep_pwrite(cbs[0], fd, randomBuffer, randomBufferSize, newpos);
 	    positions[pos].success = 1;
 	  }
 	  //    cbs[0]->u.c.offset = sz;
 	  //	fprintf(stderr,"submit...\n");
-	  totalBytes += len;
+	  totalBytes += randomBufferSize;
 	  
 	  ret = io_submit(ctx, 1, cbs);
 	  if (ret > 0) {
 	    inFlight++;
 	    submitted++;
-	    if (verbose >= 2) {
-	      fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % len) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+	    if (verbose >= 2 || (newpos % randomBufferSize != 0)) {
+	      fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % randomBufferSize) ? "NO!!" : "aligned", randomBufferSize, inFlight, QD, submitted, received);
 	    }
 	    
 	  } else {
@@ -108,7 +108,7 @@ double aioMultiplePositions(const int fd,
 	double gt = timedouble();
 
 	if (gt - last >= 1) {
-	  if (!tableMode) fprintf(stderr,"submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", TOGiB(totalBytes), inFlight, received, pos, submitted / (gt - start), received* len / (gt - start)/1024.0/1024);
+	  if (!tableMode) fprintf(stderr,"submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", TOGiB(totalBytes), inFlight, received, pos, submitted / (gt - start), received * randomBufferSize / (gt - start)/1024.0/1024);
 	  last = gt;
 	  if ((!keepRunning) || (gt - start > secTimeout)) {
 	    //	  fprintf(stderr,"timeout\n");
@@ -151,7 +151,7 @@ double aioMultiplePositions(const int fd,
 	}*/
       
       if (l) {
-	logSpeedAdd(l, ret * len);
+	logSpeedAdd(l, ret * randomBufferSize);
       }
       inFlight -= ret;
       received += ret;
@@ -197,8 +197,7 @@ int aioVerifyWrites(const char *path,
 
   size_t errors = 0, checked = 0;
   int bytesRead = 0;
-  char *buffer = aligned_alloc(4096, maxBufferSize + 1); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
-  buffer[maxBufferSize]= 0;
+  char *buffer = aligned_alloc(4096, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
   
   for (size_t i = 0; i < maxpos; i++) {
     if (positions[i].success) {

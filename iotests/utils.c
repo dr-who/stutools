@@ -525,20 +525,13 @@ void generateRandomBuffer(char *buffer, size_t size) {
       startpoint = verystartpoint;
     }
   }
-  buffer[size - 1] = '\n'; // end of string to help printing
+  buffer[size - 1] = 0; // end of string to help printing
   char s[1000];
   sprintf(s, "stutools - %s - %s\n", user, timebuffer);
-  strncpy(buffer, s, strlen(s));
+  strncpy(buffer, s, size);
 
   free(user);
   buffer[size - 1] = 0;
-
-  if (strlen(buffer) != size -1) { // size will be one off because of the last value being a 0
-    fprintf(stderr,"eekk random!\n");
-  }
-  //  if (verbose >= 2) {
-  //    fprintf(stderr,"generated randomBuffer: %s\n", buffer);
-  //  }
 }
 
 

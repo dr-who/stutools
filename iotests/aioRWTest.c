@@ -188,7 +188,7 @@ void handle_args(int argc, char *argv[]) {
 
 
 
-double testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer) {
+double testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer, const size_t randomBufferSize) {
   size_t pospos = ((size_t) b / blksize) * blksize;
   fprintf(stderr,"position %6.2lf GiB: ", TOGiB(pospos));
   positionType *pos = positions;
@@ -203,7 +203,7 @@ double testReadLocation(int fd, size_t b, size_t blksize, positionType *position
   }
       
   double start = timedouble();
-  double ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer);
+  double ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer, randomBufferSize);
   double elapsed = timedouble() - start;
   ios = ios / elapsed;
   fprintf(stderr,"ios %lf %.1lf MiB/s\n", ios, TOMiB(ios * BLKSIZE));
@@ -301,7 +301,7 @@ int main(int argc, char *argv[]) {
   }
   positionType *positions = createPositions(num);
 
-  char *randomBuffer = aligned_alloc(4096, BLKSIZE + 1); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
+  char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
   generateRandomBuffer(randomBuffer, BLKSIZE);
 
   size_t row = 0;
@@ -357,14 +357,14 @@ int main(int argc, char *argv[]) {
 	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex], bsArray[bsindex], singlePosition, jumpStep, startAtZero);
 
 	      start = timedouble(); // start timing after positions created
-	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
+	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex]);
 	    } else {
 	      // setup multiple/parallel sequential region
 	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], singlePosition, jumpStep, startAtZero);
 
 	      
 	      start = timedouble(); // start timing after positions created
-	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer);
+	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex]);
 	    }
 	    fsync(fd);
 	    fdatasync(fd);
@@ -407,7 +407,7 @@ int main(int argc, char *argv[]) {
     diskStatStart(&dst); // grab the sector counts
     double start = timedouble();
 
-    aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer);
+    aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer, BLKSIZE);
     fsync(fd);
     close(fd);
     double elapsed = timedouble() - start;
@@ -439,23 +439,23 @@ int main(int argc, char *argv[]) {
   } else {
     size_t L = 0;
     size_t R = bdSize - (512*1024*1024L);
-    double AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer);
-    double AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer);
+    double AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
+    double AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
     
     while (!(similarNumbers(AL, AR))) {
       //      fprintf(stderr,"left %lf.... right %lf\n", AL, AR);
       
       size_t m = (L + R) / 2;
-      double Am = testReadLocation(fd, m, BLKSIZE, positions, num, randomBuffer);
+      double Am = testReadLocation(fd, m, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
       //      fprintf(stderr,"mid %zd %zd %zd ..... [%lf %lf %lf]\n", L, m, R, AL, Am, AR);
       // 0    50    100
       // 120  150   150
       if (similarNumbers(AR, Am)) {
 	R = m - BLKSIZE;
-	AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer);
+	AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
       } else if (similarNumbers(AL, Am)) {
 	L = m + BLKSIZE;
-	AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer);
+	AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
       } else {
 	break;
       }
