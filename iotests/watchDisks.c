@@ -17,7 +17,7 @@
 
 int    keepRunning = 1;       // have we been interrupted
 
-int    exitAfterSeconds = 3600; // default timeout
+size_t  exitAfterSeconds = -1; // default timeout
 double limitToGB = 0.01; // 10MiB
 
 typedef struct {
@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
   int index = handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"*info* number of disks %d, timeout=%d, limit=%.2lf GiB\n", argc - index, exitAfterSeconds, limitToGB);
+  fprintf(stderr,"*info* number of disks %d, timeout=%ld, limit=%.2lf GiB\n", argc - index, (ssize_t) exitAfterSeconds, limitToGB);
      
   startThreads(argc, argv, index);
   return 0;

@@ -17,7 +17,7 @@
 
 int    keepRunning = 1;       // have we been interrupted
 
-int    exitAfterSeconds = 60; // default timeout
+size_t    exitAfterSeconds = -1; // default timeout
 double limitToGB = 0.01; // 10MiB
 double sleepBetween = 1000000; // 1 second
 
@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
   
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"*info* flipBits: number of disks %d, sleepBetween=%.0lf ns, timeout=%d s, limit=%.2lf GiB\n", argc - index, sleepBetween,  exitAfterSeconds, limitToGB);
+  fprintf(stderr,"*info* flipBits: number of disks %d, sleepBetween=%.0lf ns, timeout=%ld s, limit=%.2lf GiB\n", argc - index, sleepBetween, (ssize_t) exitAfterSeconds, limitToGB);
      
   startThreads(argc, argv, index);
   return 0;
