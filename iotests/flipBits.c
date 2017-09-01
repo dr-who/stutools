@@ -121,7 +121,7 @@ void startThreads(int argc, char *argv[], int index) {
       for (size_t i = 0; i < threads; i++) {
 	if (argv[i + index][0] != '-') {
 	  pthread_join(pt[i], NULL);
-	  fprintf(stdout,"path %s, position %zd, sz = %ld, checksum = %zd\n", threadContext[i].path, threadContext[i].position, threadContext[i].datalen, threadContext[i].checksum);
+	  //	  fprintf(stdout,"path %s, position %zd, sz = %ld, checksum = %zd\n", threadContext[i].path, threadContext[i].position, threadContext[i].datalen, threadContext[i].checksum);
 	}
       }
 
