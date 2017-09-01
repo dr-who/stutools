@@ -19,7 +19,7 @@ int    keepRunning = 1;       // have we been interrupted
 
 int    exitAfterSeconds = 60; // default timeout
 double limitToGB = 0.01; // 10MiB
-double sleepBetween = 10000; // 10,000 ns
+double sleepBetween = 1000000; // 1 second
 
 typedef struct {
   int threadid;
