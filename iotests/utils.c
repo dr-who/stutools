@@ -560,10 +560,11 @@ char *getSuffix(const char *path) {
 
 
 char *getScheduler(const char *path) {
-  char *suffix = getSuffix(path);
+  char *suffix = getSuffix(path); 
   if (suffix) {
     char s[1000];
     sprintf(s, "/sys/block/%s/queue/scheduler", suffix);
+    free(suffix);
     FILE *fp = fopen(s, "rt"); 
     if (!fp) {
       //      perror("scheduler");
