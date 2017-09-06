@@ -245,7 +245,11 @@ void setupPositions(positionType *positions,
     // random positions
     if (sf == 0) {
       for (size_t i = 0; i < num; i++) {
-	positions[i].pos = (lrand48() % (bdSizeBytes / bs)) * bs;
+	if (startAtZero && (i==0)) {
+	  positions[i].pos = 0;
+	} else {
+	  positions[i].pos = (lrand48() % (bdSizeBytes / bs)) * bs;
+	}
       }
     } else {
       // parallel contiguous regions

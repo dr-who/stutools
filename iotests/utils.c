@@ -527,11 +527,13 @@ void generateRandomBuffer(char *buffer, size_t size) {
   }
   buffer[size - 1] = 0; // end of string to help printing
   char s[1000];
-  sprintf(s, "stutools - %s - %s\n", user, timebuffer);
-  strncpy(buffer, s, size);
+  const size_t topr = sprintf(s, "stutools - %s - %s\n", user, timebuffer);
+  strncpy(buffer, s, topr);
 
   free(user);
   buffer[size - 1] = 0;
+
+  //  fprintf(stderr,"size: %zd, jump %d, '%s'\n", size, jump, buffer);
 }
 
 

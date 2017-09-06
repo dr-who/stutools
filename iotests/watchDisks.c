@@ -18,7 +18,7 @@
 int    keepRunning = 1;       // have we been interrupted
 
 size_t  exitAfterSeconds = -1; // default timeout
-double limitToGB = 0.01; // 10MiB
+double limitToGB = 0.02; // 10MiB
 
 typedef struct {
   int threadid;
@@ -57,6 +57,11 @@ static void *runThread(void *arg) {
   ssize_t rb = read(fd, threadContext->data, threadContext->datalen);
   if (rb < 0) {
     perror("runThread\n");
+  } else {
+    //    fprintf(stderr,"."); fflush(stderr);
+  }
+  if (rb != threadContext->datalen) {
+    fprintf(stderr,"eek!\n");
   }
   threadContext->datalen = rb;
   size_t checksum = 0;
@@ -68,6 +73,16 @@ static void *runThread(void *arg) {
 
   close(fd);
   return NULL;
+}
+
+size_t countDiff(volatile char *d1, volatile char *d2, size_t len) {
+  size_t diff = 0;
+  for (size_t i = 0; i < len; i++) {
+    if (d1[i] != d2[i]) {
+      diff++;
+    }
+  }
+  return diff;
 }
 
 void startThreads(int argc, char *argv[], int index) {
@@ -113,7 +128,7 @@ void startThreads(int argc, char *argv[], int index) {
 	  nextContext[i].position = 0;
 	  nextContext[i].datalen = maxread;
 	  if (!nextContext[i].data) {
-	    nextContext[i].data = aligned_alloc(65536, maxread); if (!threadContext[i].data) {fprintf(stderr,"OOM\n");exit(1);}
+	    nextContext[i].data = aligned_alloc(65536, maxread); if (!nextContext[i].data) {fprintf(stderr,"OOM\n");exit(1);}
 	  }
 	  
 	  nextContext[i].path = argv[i + index];
@@ -122,16 +137,23 @@ void startThreads(int argc, char *argv[], int index) {
       }
       
       for (size_t i = 0; i < threads; i++) {
+	size_t diff = 0;
 	if (argv[i + index][0] != '-') {
 	  pthread_join(pt[i], NULL);
 	  //	  fprintf(stderr,"2 path %s, position %zd, sz = %ld, checksum = %zd\n", nextContext[i].path, nextContext[i].position, nextContext[i].datalen, nextContext[i].checksum);
-	  if (nextContext[i].checksum != threadContext[i].checksum) {
-	    fprintf(stderr,"%s ", nextContext[i].path);
-	    size_t diff = 0, lastpos = 0;
+
+	  volatile char *d1 = nextContext[i].data;
+	  volatile char *d2 = threadContext[i].data;
+	  if ((diff = countDiff(d1, d2, nextContext[i].datalen))) {
+	    fprintf(stderr,"%s (%zd)", nextContext[i].path, diff);
+	    size_t lastpos = 0, printed = 0;
 	    for (size_t j = 0; j < nextContext[i].datalen; j++) {
-	      if (threadContext[i].data[j] != nextContext[i].data[j]) {
-		fprintf(stderr,"[%2x %c]", (unsigned char)nextContext[i].data[j], nextContext[i].data[j]);
-		diff++;
+	      if (d1[j] != d2[j]) {
+		if (printed++ < 10) {
+		  fprintf(stderr,"[%2x %c]", (unsigned char)d1[j], (unsigned char)d1[j]);
+		} else if (printed == 10) {
+		  fprintf(stderr,".....\n");
+		}
 		lastpos = j;
 	      }
 	    }
@@ -139,9 +161,11 @@ void startThreads(int argc, char *argv[], int index) {
 	      fprintf(stderr,"\n");
 	      }*/
 	    //	    fprintf(stderr,"....DIFFERENT.... %zd ... %zd (count = %zd, pos = %zd)\n", threadContext[i].checksum, nextContext[i].checksum, diff, lastpos);
-	    fprintf(stderr,"\t\tcount = %zd, pos = %zd\n", diff, lastpos);
+	    fprintf(stderr,"\t\tdiff = %zd, pos = %zd (%.4lf GiB)\n", diff, lastpos, TOGiB(lastpos));
 	    threadContext[i].checksum = nextContext[i].checksum;
-	    strncpy(threadContext[i].data, nextContext[i].data, nextContext[i].datalen);
+	    for (size_t k=0; k < nextContext[i].datalen; k++) {
+	      threadContext[i].data[k] = nextContext[i].data[k];
+	    }
 	  }
 	}
       }
