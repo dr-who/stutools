@@ -113,7 +113,7 @@ void startThreads(int argc, char *argv[], int index) {
     for (size_t i = 0; i < threads; i++) {
       if (argv[i + index][0] != '-') {
 	pthread_join(pt[i], NULL);
-	fprintf(stderr,"path %s, position %zd, watching up to = %ld bytes (%.2lf GiB)\n", threadContext[i].path, threadContext[i].position, threadContext[i].datalen, TOGiB(threadContext[i].datalen));
+	fprintf(stderr,"path %s, position %zd, watching up to = %zd bytes (%.2lf GiB)\n", threadContext[i].path, threadContext[i].position, threadContext[i].datalen, TOGiB(threadContext[i].datalen));
       }
     }
 
@@ -209,7 +209,7 @@ int main(int argc, char *argv[]) {
   int index = handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"*info* number of disks %d, timeout=%ld, limit=%.2lf GiB\n", argc - index, (ssize_t) exitAfterSeconds, limitToGB);
+  fprintf(stderr,"*info* number of disks %d, timeout=%zd, limit=%.2lf GiB\n", argc - index, (ssize_t) exitAfterSeconds, limitToGB);
      
   startThreads(argc, argv, index);
   return 0;

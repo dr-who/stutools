@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
   
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  fprintf(stderr,"*info* flipBits: number of disks %d, sleepBetween=%.0lf ns, timeout=%ld s, limit=%.2lf GiB\n", argc - index, sleepBetween, (ssize_t) exitAfterSeconds, limitToGB);
+  fprintf(stderr,"*info* flipBits: number of disks %d, sleepBetween=%.0lf ns, timeout=%zd s, limit=%.2lf GiB\n", argc - index, sleepBetween, (ssize_t) exitAfterSeconds, limitToGB);
      
   startThreads(argc, argv, index);
   return 0;
