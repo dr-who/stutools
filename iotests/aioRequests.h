@@ -13,7 +13,8 @@ double aioMultiplePositions(const int fd,
 			     const int tableMode,
 			     logSpeedType *l,
 			     char *randomBuffer,
-			     const size_t randomBufferSize);
+			     const size_t randomBufferSize,
+			     const size_t alignment);
 
 int aioVerifyWrites(const char *path,
 		    const positionType *positions,

@@ -136,7 +136,7 @@ void createLinearPositions(positionType *positions,
 }
 
 
-void createParallelPositions(positionType *positions,
+/*void createParallelPositions(positionType *positions,
 			     const size_t numPositions,
 			     const size_t blockSize,
 			     const size_t bdSizeBytes,
@@ -162,7 +162,7 @@ void createParallelPositions(positionType *positions,
     size_t startSeqPos = 0;
     size_t count = 0;
     while (1) {
-      startSeqPos = (lrand48() % (bdSizeBytes / blockSize)) * blockSize;
+      startSeqPos = alignedNumber(lrand48() % bdSizeBytes, alignment);// % (bdSizeBytes / blockSize)) * blockSize;
       if (i == 0) {
 	break;
       }
@@ -210,7 +210,7 @@ void createParallelPositions(positionType *positions,
 }
 
 
-
+*/
 
 // create the position array
 void setupPositions(positionType *positions,
@@ -220,6 +220,7 @@ void setupPositions(positionType *positions,
 			  const double readorwrite,
 			  const size_t lowbs,
 			  const size_t bs,
+		          const size_t alignment,
 			  const size_t singlePosition,
 		          const int    jumpStep,
 		          const size_t startAtZero
@@ -237,7 +238,7 @@ void setupPositions(positionType *positions,
     for (size_t i = 0; i < num; i++) {
       if (singlePosition > 1) {
 	if ((i % singlePosition) == 0) {
-	  con = (lrand48() % (bdSizeBytes / bs)) * bs;
+	  con = alignedNumber(lrand48(), alignment); // % (bdSizeBytes / bs)) * bs;
 	  if (startAtZero) con = 0;
 	}
       }
@@ -250,7 +251,7 @@ void setupPositions(positionType *positions,
 	if (startAtZero && (i==0)) {
 	  positions[i].pos = 0;
 	} else {
-	  positions[i].pos = (lrand48() % (bdSizeBytes / bs)) * bs;
+	  positions[i].pos = alignedNumber(lrand48() % bdSizeBytes, alignment);// % (bdSizeBytes / bs)) * bs;
 	}
       }
     } else {
@@ -292,7 +293,7 @@ void setupPositions(positionType *positions,
       
       for (size_t i = 0; i < num; i++) {
 	// sequential
-	positions[i].pos = ((size_t)(ppp[i % abssf] / bs)) * bs;
+	positions[i].pos = alignedNumber(ppp[i % abssf], alignment);// / bs)) * bs;
 	ppp[i % abssf] += (jumpStep * bs);
 	if (ppp[i % abssf] + bs > bdSizeBytes) { // if could go off the end then set back to 0
 	  ppp[i % abssf] = 0;
@@ -320,15 +321,21 @@ void setupPositions(positionType *positions,
     } else {
       p->action = 'W';
     }
-    
-    size_t randombs = lowbs;
-    if (bs > lowbs) randombs += (lrand48() % (bs - lowbs));
-    //    fprintf(stderr,"r1 %zd\n", randombs);
-    randombs = ((size_t) randombs >> 10) << 10;  // align on 1k
-    if (randombs <= 0) {
-      randombs = lowbs;
+
+    size_t lowbs_k = lowbs / alignment; // 1 / 4096 = 0
+    if (lowbs_k < 1) lowbs_k = 1;
+    size_t highbs_k = bs / alignment;   // 8 / 4096 = 2
+    if (highbs_k < 1) highbs_k = 1;
+
+    size_t randombs_k = lowbs_k;
+    if (highbs_k > lowbs_k) {
+      randombs_k += (lrand48() % (highbs_k - lowbs_k + 1));
     }
-    //    fprintf(stderr,"r2 %zd\n", randombs);
+    
+    size_t randombs = alignedNumber(randombs_k * alignment, alignment);
+    if (randombs <= 0) {
+      randombs = alignment;
+    }
     p->len = randombs;
     p->success = 0;
     p++;

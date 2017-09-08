@@ -26,8 +26,9 @@ char   *path = NULL;
 int    seqFiles = 0;
 int    seqFilesSpecified = 0;
 double maxSizeGB = 0;
-size_t LOWBLKSIZE=65536;
-size_t BLKSIZE=65536;
+size_t alignment = 4096;
+size_t LOWBLKSIZE = 65536;
+size_t BLKSIZE = 65536;
 int    jumpStep = 1;
 double readRatio = 0.5;
 size_t table = 0;
@@ -49,8 +50,11 @@ void handle_args(int argc, char *argv[]) {
   long int seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:X")) != -1) {
+  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:")) != -1) {
     switch (opt) {
+    case 'a':
+      alignment = atoi(optarg) * 1024;
+      break;
     case 'X':
       dontUseExclusive++;
       break;
@@ -186,6 +190,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -P 10000 -f /dev/nbd0 -k1 -G0.1 # Use 10,000 positions. Cache testing.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX # Triple X does not use O_EXCL. For multiple instances simultaneously.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z # Start the first position at position zero instead of random.\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB instead of the default 4KiB\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
@@ -216,7 +221,7 @@ double testReadLocation(int fd, size_t b, size_t blksize, positionType *position
   }
       
   double start = timedouble();
-  double ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer, randomBufferSize);
+  double ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer, randomBufferSize, alignment);
   double elapsed = timedouble() - start;
   ios = ios / elapsed;
   fprintf(stderr,"ios %lf %.1lf MiB/s\n", ios, TOMiB(ios * BLKSIZE));
@@ -310,11 +315,11 @@ int main(int argc, char *argv[]) {
     num = maxPositions;
     fprintf(stderr,"*info* hard coded maximum number of positions %zd\n", num);
   } else {
-    num = noops * 10*1000*1000; // use 10M operations
+    num = noops * 1*1000*1000; // use 10M operations
   }
   positionType *positions = createPositions(num);
 
-  char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
+  char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
   generateRandomBuffer(randomBuffer, BLKSIZE);
 
   size_t row = 0;
@@ -367,17 +372,17 @@ int main(int argc, char *argv[]) {
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // setup random positions. An value of 0 means random. e.g. zero sequential files
-	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], singlePosition, jumpStep, startAtZero);
+	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero);
 
 	      start = timedouble(); // start timing after positions created
-	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex]);
+	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment);
 	    } else {
 	      // setup multiple/parallel sequential region
-	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], singlePosition, jumpStep, startAtZero);
+	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero);
 
 	      
 	      start = timedouble(); // start timing after positions created
-	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex]);
+	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment);
 	    }
 	    fsync(fd);
 	    fdatasync(fd);
@@ -413,14 +418,14 @@ int main(int argc, char *argv[]) {
   } else if (!autoDiscover) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
-    fprintf(stderr,"path: %s, readWriteRatio: %.2lf, QD: %d, blksz: [%zd-%zd] KiB, flushEvery %d", path, readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, flushEvery);
+    fprintf(stderr,"path: %s, readWriteRatio: %.2lf, QD: %d, blksz: [%zd-%zd] KiB (aligned to %zd bytes), flushEvery %d", path, readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment, flushEvery);
     fprintf(stderr,", bdSize %.3lf GiB, rawSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSize), TOGiB(totl), 100.0*totl/bdSize - 100);
-    setupPositions(positions, num, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, singlePosition, jumpStep, startAtZero);
+    setupPositions(positions, num, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero);
 
     diskStatStart(&dst); // grab the sector counts
     double start = timedouble();
 
-    aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer, BLKSIZE);
+    aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer, BLKSIZE, alignment);
     fsync(fd);
     close(fd);
     double elapsed = timedouble() - start;

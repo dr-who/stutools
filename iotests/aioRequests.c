@@ -24,7 +24,8 @@ double aioMultiplePositions(const int fd,
 			     const int tableMode, 
 			     logSpeedType *l,
 			     char *randomBuffer,
-			     const size_t randomBufferSize
+			     const size_t randomBufferSize,
+			     const size_t alignment
 			     ) {
   int ret;
   io_context_t ctx;
@@ -94,8 +95,8 @@ double aioMultiplePositions(const int fd,
 	  if (ret > 0) {
 	    inFlight++;
 	    submitted++;
-	    if (verbose >= 2 || (newpos % 1024 != 0)) {
-	      fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % 1024) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+	    if (verbose >= 2 || (newpos % alignment != 0)) {
+	      fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 	    }
 	    
 	  } else {
