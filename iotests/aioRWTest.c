@@ -54,6 +54,7 @@ void handle_args(int argc, char *argv[]) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
+      if (alignment < 1024) alignment = 1024;
       break;
     case 'X':
       dontUseExclusive++;
