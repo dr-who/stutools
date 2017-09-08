@@ -207,7 +207,7 @@ void handle_args(int argc, char *argv[]) {
 
 
 
-double testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer, const size_t randomBufferSize) {
+size_t testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer, const size_t randomBufferSize) {
   size_t pospos = ((size_t) b / blksize) * blksize;
   fprintf(stderr,"position %6.2lf GiB: ", TOGiB(pospos));
   positionType *pos = positions;
@@ -222,12 +222,13 @@ double testReadLocation(int fd, size_t b, size_t blksize, positionType *position
   }
       
   double start = timedouble();
-  double ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer, randomBufferSize, alignment);
+  size_t ios = 0, totalRB = 0, totalWB = 0;
+  size_t br = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer, randomBufferSize, alignment, &ios, &totalRB, &totalWB);
   double elapsed = timedouble() - start;
-  ios = ios / elapsed;
-  fprintf(stderr,"ios %lf %.1lf MiB/s\n", ios, TOMiB(ios * BLKSIZE));
+  //ios = ios / elapsed;
+  fprintf(stderr,"ios %.1lf %.1lf MiB/s\n", ios/elapsed, TOMiB(br/elapsed));
 
-  return ios;
+  return br;
 }
 
 
@@ -357,7 +358,8 @@ int main(int argc, char *argv[]) {
       for (size_t ssindex=0; ssindex < seqFilesSpecified; ssindex++) {
 	for (size_t qdindex=0; qdindex < qdSpecified; qdindex++) {
 	  for (size_t bsindex=0; bsindex < sizeof(bsArray) / sizeof(bsArray[0]); bsindex++) {
-	    double ios = 0, start = 0, elapsed = 0;
+	    size_t rb = 0, ios = 0, totalWB = 0, totalRB = 0;
+	    double start = 0, elapsed = 0;
 	    char filename[1024];
 
 	    if (logFNPrefix) {
@@ -376,14 +378,14 @@ int main(int argc, char *argv[]) {
 	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero);
 
 	      start = timedouble(); // start timing after positions created
-	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment);
+	      rb = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
 	    } else {
 	      // setup multiple/parallel sequential region
 	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero);
 
 	      
 	      start = timedouble(); // start timing after positions created
-	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment);
+	      rb = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
 	    }
 	    fsync(fd);
 	    fdatasync(fd);
@@ -394,7 +396,7 @@ int main(int argc, char *argv[]) {
 	    size_t trb = 0, twb = 0;
 	    double util = 0;
 	    diskStatSummary(&dst, &trb, &twb, &util, 0, 0, 0, elapsed);	    
-	    size_t shouldHaveBytes = ios * bsArray[bsindex];
+	    size_t shouldHaveBytes = rb;
 	    size_t didBytes = trb + twb;
 	    double efficiency = didBytes *100.0/shouldHaveBytes;
 	    if (!specifiedDevices) {
@@ -404,7 +406,7 @@ int main(int argc, char *argv[]) {
 	    logSpeedDump(&l, filename);
 	    logSpeedFree(&l);
 	    
-	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
+	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", rb/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
 	    row++;
 	    if (row > 1) {
 	      //	      rrindex=99999;ssindex=99999;qdindex=99999;bsindex=99999;
@@ -426,21 +428,14 @@ int main(int argc, char *argv[]) {
     diskStatStart(&dst); // grab the sector counts
     double start = timedouble();
 
-    aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer, BLKSIZE, alignment);
+    size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
+    aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes);
     fsync(fd);
     close(fd);
     double elapsed = timedouble() - start;
     
     diskStatFinish(&dst); // and sector counts when finished
     
-    /* total number of bytes read and written under our control */
-    size_t shouldReadBytes = 0, shouldWriteBytes = 0;
-    for (size_t i = 0; i < num; i++) {
-      if (positions[i].success) {
-	if (positions[i].action == 'W') shouldWriteBytes += positions[i].len;
-	else shouldReadBytes += positions[i].len;
-      }
-    }
     if (verbose) {
       fprintf(stderr,"*info* total reads = %zd, total writes = %zd\n", shouldReadBytes, shouldWriteBytes);
     }

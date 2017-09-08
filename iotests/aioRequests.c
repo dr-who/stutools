@@ -15,7 +15,7 @@ extern int keepRunning;
 extern int singlePosition;
 extern int flushEvery;
 
-double aioMultiplePositions(const int fd,
+size_t aioMultiplePositions(const int fd,
 			     positionType *positions,
 			     const size_t sz,
 			     const float secTimeout,
@@ -25,7 +25,10 @@ double aioMultiplePositions(const int fd,
 			     logSpeedType *l,
 			     char *randomBuffer,
 			     const size_t randomBufferSize,
-			     const size_t alignment
+			     const size_t alignment,
+			     size_t *ios,
+			     size_t *totalRB,
+			     size_t *totalWB
 			     ) {
   int ret;
   io_context_t ctx;
@@ -63,7 +66,8 @@ double aioMultiplePositions(const int fd,
   size_t submitted = 0;
   size_t received = 0;
 
-  size_t totalBytes = 0; 
+  size_t totalWriteBytes = 0; 
+  size_t totalReadBytes = 0; 
   //  double mbps = 0;
   
 
@@ -82,14 +86,15 @@ double aioMultiplePositions(const int fd,
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
 	    io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
 	    positions[pos].success = 1;
+	    totalReadBytes += len;
 	  } else {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
 	    io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
 	    positions[pos].success = 1;
+	    totalWriteBytes += len;
 	  }
 	  //    cbs[0]->u.c.offset = sz;
 	  //	fprintf(stderr,"submit...\n");
-	  totalBytes += len;
 	  
 	  ret = io_submit(ctx, 1, cbs);
 	  if (ret > 0) {
@@ -109,7 +114,7 @@ double aioMultiplePositions(const int fd,
 	double gt = timedouble();
 
 	if (gt - last >= 1) {
-	  if (!tableMode) fprintf(stderr,"submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", TOGiB(totalBytes), inFlight, received, pos, submitted / (gt - start), totalBytes / (gt - start)/1024.0/1024);
+	  if (!tableMode) fprintf(stderr,"submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), (totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024);
 	  last = gt;
 	  if ((!keepRunning) || (gt - start > secTimeout)) {
 	    //	  fprintf(stderr,"timeout\n");
@@ -183,8 +188,14 @@ double aioMultiplePositions(const int fd,
   }
   free(data);
   io_destroy(ctx);
+
+  *ios = received;
+
+  *totalWB = totalWriteBytes;
+  *totalRB = totalReadBytes;
+    
   
-  return received;
+  return *totalWB + *totalRB;
 }
 
 
