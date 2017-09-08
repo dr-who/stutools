@@ -73,29 +73,29 @@ double aioMultiplePositions(const int fd,
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
 	if (sz) { // if we have some positions
 	  long long newpos = positions[pos].pos;
-	  // len = positions[pos].len;
+	  const size_t len = positions[pos].len;
 	  int read = (positions[pos].action == 'R');
 	  
 	  // setup the request
 	  if (read) {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-	    io_prep_pread(cbs[0], fd, data[i%QD], randomBufferSize, newpos);
+	    io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
 	    positions[pos].success = 1;
 	  } else {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
-	    io_prep_pwrite(cbs[0], fd, randomBuffer, randomBufferSize, newpos);
+	    io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
 	    positions[pos].success = 1;
 	  }
 	  //    cbs[0]->u.c.offset = sz;
 	  //	fprintf(stderr,"submit...\n");
-	  totalBytes += randomBufferSize;
+	  totalBytes += len;
 	  
 	  ret = io_submit(ctx, 1, cbs);
 	  if (ret > 0) {
 	    inFlight++;
 	    submitted++;
-	    if (verbose >= 2 || (newpos % randomBufferSize != 0)) {
-	      fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % randomBufferSize) ? "NO!!" : "aligned", randomBufferSize, inFlight, QD, submitted, received);
+	    if (verbose >= 2 || (newpos % 1024 != 0)) {
+	      fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % 1024) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 	    }
 	    
 	  } else {
@@ -108,7 +108,7 @@ double aioMultiplePositions(const int fd,
 	double gt = timedouble();
 
 	if (gt - last >= 1) {
-	  if (!tableMode) fprintf(stderr,"submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", TOGiB(totalBytes), inFlight, received, pos, submitted / (gt - start), received * randomBufferSize / (gt - start)/1024.0/1024);
+	  if (!tableMode) fprintf(stderr,"submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", TOGiB(totalBytes), inFlight, received, pos, submitted / (gt - start), totalBytes / (gt - start)/1024.0/1024);
 	  last = gt;
 	  if ((!keepRunning) || (gt - start > secTimeout)) {
 	    //	  fprintf(stderr,"timeout\n");
@@ -143,16 +143,21 @@ double aioMultiplePositions(const int fd,
     if (ret > 0) {
 
       // verify it's all ok
-      /*      for (int j = 0; j < ret; j++) {
-	struct iocb *my_iocb = events[j].obj;
-	if (events[j].res != len) { // if return of bytes written or read
-	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
+      for (int j = 0; j < ret; j++) {
+	//	struct iocb *my_iocb = events[j].obj;
+	if (l) {
+	  logSpeedAdd(l, events[j].res);
 	}
-	}*/
-      
-      if (l) {
-	logSpeedAdd(l, ret * randomBufferSize);
+	  
+	/*	if (events[j].res != len) { // if return of bytes written or read
+	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
+	  } */
       }
+      
+	/*      if (l) {
+	logSpeedAdd(l, ret * len);
+	}*/
+	
       inFlight -= ret;
       received += ret;
     } else {

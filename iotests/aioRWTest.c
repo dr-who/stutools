@@ -26,6 +26,7 @@ char   *path = NULL;
 int    seqFiles = 0;
 int    seqFilesSpecified = 0;
 double maxSizeGB = 0;
+size_t LOWBLKSIZE=65536;
 size_t BLKSIZE=65536;
 int    jumpStep = 1;
 double readRatio = 0.5;
@@ -129,8 +130,20 @@ void handle_args(int argc, char *argv[]) {
     case 'G':
       maxSizeGB = atof(optarg);
       break;
-    case 'k':
-      BLKSIZE = 1024 * atoi(optarg); if (BLKSIZE < 1024) BLKSIZE=1024;
+    case 'k': {
+      char *ndx = index(optarg, '-');
+      if (ndx) {
+	int firstnum = atoi(optarg) * 1024;
+	int secondnum = atoi(ndx + 1) * 1024;
+	if (secondnum < firstnum) secondnum = firstnum;
+	fprintf(stderr,"*info* block range: %d to %d\n", firstnum, secondnum);
+	LOWBLKSIZE = firstnum;
+	BLKSIZE = secondnum;
+	// range
+      } else {
+	BLKSIZE = 1024 * atoi(optarg); if (BLKSIZE < 1024) BLKSIZE=1024;
+	LOWBLKSIZE = BLKSIZE;
+      }}
       break;
     case 'p':
       readRatio = atof(optarg);
@@ -354,13 +367,13 @@ int main(int argc, char *argv[]) {
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // setup random positions. An value of 0 means random. e.g. zero sequential files
-	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex], bsArray[bsindex], singlePosition, jumpStep, startAtZero);
+	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], singlePosition, jumpStep, startAtZero);
 
 	      start = timedouble(); // start timing after positions created
 	      ios = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex]);
 	    } else {
 	      // setup multiple/parallel sequential region
-	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], singlePosition, jumpStep, startAtZero);
+	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], singlePosition, jumpStep, startAtZero);
 
 	      
 	      start = timedouble(); // start timing after positions created
@@ -400,9 +413,9 @@ int main(int argc, char *argv[]) {
   } else if (!autoDiscover) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
-    fprintf(stderr,"path: %s, readWriteRatio: %.2lf, QD: %d, blksz: %zd, flushEvery %d", path, readRatio, qd, BLKSIZE, flushEvery);
+    fprintf(stderr,"path: %s, readWriteRatio: %.2lf, QD: %d, blksz: [%zd-%zd] KiB, flushEvery %d", path, readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, flushEvery);
     fprintf(stderr,", bdSize %.3lf GiB, rawSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSize), TOGiB(totl), 100.0*totl/bdSize - 100);
-    setupPositions(positions, num, bdSize, seqFiles, readRatio, BLKSIZE, singlePosition, jumpStep, startAtZero);
+    setupPositions(positions, num, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, singlePosition, jumpStep, startAtZero);
 
     diskStatStart(&dst); // grab the sector counts
     double start = timedouble();

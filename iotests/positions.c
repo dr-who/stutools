@@ -218,11 +218,13 @@ void setupPositions(positionType *positions,
 			  const size_t bdSizeBytes,
 			  const int sf,
 			  const double readorwrite,
+			  const size_t lowbs,
 			  const size_t bs,
 			  const size_t singlePosition,
 		          const int    jumpStep,
 		          const size_t startAtZero
 		    ) {
+  assert (lowbs <= bs);
   if (bdSizeBytes < bs) {
     fprintf(stderr, "*warning* size of device is less than block size!\n");
     return;
@@ -318,7 +320,16 @@ void setupPositions(positionType *positions,
     } else {
       p->action = 'W';
     }
-    p->len = bs;
+    
+    size_t randombs = lowbs;
+    if (bs > lowbs) randombs += (lrand48() % (bs - lowbs));
+    //    fprintf(stderr,"r1 %zd\n", randombs);
+    randombs = ((size_t) randombs >> 10) << 10;  // align on 1k
+    if (randombs <= 0) {
+      randombs = lowbs;
+    }
+    //    fprintf(stderr,"r2 %zd\n", randombs);
+    p->len = randombs;
     p->success = 0;
     p++;
   }
