@@ -37,6 +37,7 @@ void setupPositions(positionType *positions,
 		    const double readorwrite,
 		    const size_t lowbs,
 		    const size_t bs,
+		    const size_t alignment,
 		    const size_t singlePosition,
 		    const int    jumpStep,
 		    const size_t startAtZero);

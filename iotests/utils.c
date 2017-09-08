@@ -575,3 +575,14 @@ char *getScheduler(const char *path) {
 
   return strdup("unknown");
 }
+
+size_t alignedNumber(size_t num, size_t alignment) {
+  size_t ret = num / alignment;
+  if (num % alignment > num/2) {
+    ret++;
+  }
+  ret = ret * alignment;
+
+  return ret;
+}
+

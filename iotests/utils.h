@@ -45,5 +45,7 @@ void generateRandomBuffer(char *buffer, size_t size);
 char *getSuffix(const char *path);
 char *getScheduler(const char *path);
 
+size_t alignedNumber(size_t num, size_t alignment);
+
 #endif
 
