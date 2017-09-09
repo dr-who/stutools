@@ -406,7 +406,7 @@ int main(int argc, char *argv[]) {
 	    logSpeedDump(&l, filename);
 	    logSpeedFree(&l);
 	    
-	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", rb/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
+	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
 	    row++;
 	    if (row > 1) {
 	      //	      rrindex=99999;ssindex=99999;qdindex=99999;bsindex=99999;
