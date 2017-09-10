@@ -365,7 +365,8 @@ int main(int argc, char *argv[]) {
   }
   positionType *positions = createPositions(num);
 
-
+  int exitcode = 0;
+  
   size_t row = 0;
   if (table) {
     // generate a table
@@ -489,7 +490,10 @@ int main(int argc, char *argv[]) {
 
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
     if (verifyWrites && readRatio < 1) {
-      aioVerifyWrites(path, positions, num, BLKSIZE, alignment, verbose, randomBuffer);
+      int numerrors = aioVerifyWrites(path, positions, num, BLKSIZE, alignment, verbose, randomBuffer);
+      if (numerrors) {
+	exitcode = MIN(numerrors, 999);
+      }
     }
     // end single run
   } else {
@@ -524,5 +528,5 @@ int main(int argc, char *argv[]) {
   if (logFNPrefix) {free(logFNPrefix);}
   if (specifiedDevices) {free(specifiedDevices);}
   
-  return 0;
+  return exitcode;
 }

@@ -267,5 +267,6 @@ int aioVerifyWrites(const char *path,
   fprintf(stderr,"verified %zd blocks, number of errors %zd\n", checked, errors);
   close(fd);
   free(buffer);
-  return 0;
+
+  return errors;
 }
