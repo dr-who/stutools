@@ -256,10 +256,37 @@ int main(int argc, char *argv[]) {
   diskStatType dst; // count sectors/bytes
   diskStatSetup(&dst);
 
+  // follow a symlink
+  char *newpath;
+  CALLOC(newpath, 4096, sizeof(char));
+  if (readlink(path, newpath, 4096)>=0) {
+    strcpy(path, newpath);
+  }
+  if (newpath) free(newpath);
+
+  // process the path  
+  size_t phy, log;
   if (isBlockDevice(path)) {
-    char *sched = getScheduler(path);
-    fprintf(stderr,"*info* scheduler for %s is [%s]\n", path, sched);
+    /* -- From a Google search
+    The physical block size is the smallest size the device can
+    handle atomically. The smalles block it can handle without needing
+    to do a read-modify-write cycle. Applications should try to write
+    in multiples of that (and they do) but are not required to.
+
+    The logical block size on the other hand is the smallest size the
+    device can handle at all. Applications must write in multiples of
+    that.
+    */
+									
+    char *suffix = getSuffix(path);
+    char *sched = getScheduler(suffix);
+    fprintf(stderr,"*info* scheduler for %s (%s) is [%s]\n", path, suffix, sched);
+    
+    getPhyLogSizes(suffix, &phy, &log);
+    fprintf(stderr,"*info* physical_block_size %zd, logical_block_size %zd\n", phy, log);
+
     free(sched);
+    free(suffix);
 
     actualBlockDeviceSize = blockDeviceSize(path);
     if (readRatio < 1) {
@@ -292,10 +319,15 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* file specified: '%s' size %zd bytes\n", path, actualBlockDeviceSize);
   }
 
+  // various warnings and informational comments
   if (LOWBLKSIZE < alignment) {
     LOWBLKSIZE = alignment;
     if (LOWBLKSIZE > BLKSIZE) BLKSIZE = LOWBLKSIZE;
     fprintf(stderr,"*warning* setting -k [%zd-%zd] because of the alignment of %zd bytes\n", LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
+  }
+
+  if (LOWBLKSIZE < log) {
+    fprintf(stderr,"*warning* the block size is lower than the device logical block size\n");
   }
 
   if (alignment == 0) {

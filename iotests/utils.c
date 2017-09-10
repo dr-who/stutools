@@ -555,15 +555,13 @@ char *getSuffix(const char *path) {
 }
 
 
-char *getScheduler(const char *path) {
-  char *suffix = getSuffix(path); 
+char *getScheduler(const char *suffix) {
   if (suffix) {
     char s[1000];
     sprintf(s, "/sys/block/%s/queue/scheduler", suffix);
-    free(suffix);
     FILE *fp = fopen(s, "rt"); 
     if (!fp) {
-      //      perror("scheduler");
+      perror(s);
       return strdup("problem");
     }
     //    fprintf(stderr,"opened %s\n", s);
@@ -574,8 +572,47 @@ char *getScheduler(const char *path) {
     }
   }
 
-  return strdup("unknown");
+  return strdup("NULL");
 }
+
+
+void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
+  *phy = 512;
+  *log = 512;
+  if (suffix) {
+    char s[1000];
+    // first physical
+    sprintf(s, "/sys/block/%s/queue/physical_block_size", suffix);
+    int d, ret;
+    FILE *fp = fopen(s, "rt"); 
+    if (!fp) {
+      fprintf(stderr,"*error* problem opening %s: returning 512\n", s);
+    } else {
+    //    fprintf(stderr,"opened %s\n", s);
+      ret = fscanf(fp, "%d", &d);
+      fclose(fp);
+      if (ret == 1) {
+	*phy = d;
+      }
+    }
+
+      // first physical
+    sprintf(s, "/sys/block/%s/queue/logical_block_size", suffix);
+    fp = fopen(s, "rt"); 
+    if (!fp) {
+      fprintf(stderr,"*error* problem opening %s: returning 512\n", s);
+      *log = 512;
+    } else {
+      //    fprintf(stderr,"opened %s\n", s);
+      ret = fscanf(fp, "%d", &d);
+      fclose(fp);
+      if (ret == 1) {
+	*log = d;
+      }
+    }
+  }
+}
+
 
 size_t alignedNumber(size_t num, size_t alignment) {
   size_t ret = num / alignment;
