@@ -292,6 +292,12 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* file specified: '%s' size %zd bytes\n", path, actualBlockDeviceSize);
   }
 
+  if (LOWBLKSIZE < alignment) {
+    LOWBLKSIZE = alignment;
+    if (LOWBLKSIZE > BLKSIZE) BLKSIZE = LOWBLKSIZE;
+    fprintf(stderr,"*warning* setting -k [%zd-%zd] because of the alignment of %zd bytes\n", LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
+  }
+
 
   // using the -G option to reduce the max position on the block device
   size_t bdSize = actualBlockDeviceSize;
@@ -447,7 +453,7 @@ int main(int argc, char *argv[]) {
 
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
     if (verifyWrites && readRatio < 1) {
-      aioVerifyWrites(path, positions, num, BLKSIZE, verbose, randomBuffer);
+      aioVerifyWrites(path, positions, num, BLKSIZE, alignment, verbose, randomBuffer);
     }
     // end single run
   } else {

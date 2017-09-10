@@ -238,7 +238,7 @@ void setupPositions(positionType *positions,
     for (size_t i = 0; i < num; i++) {
       if (singlePosition > 1) {
 	if ((i % singlePosition) == 0) {
-	  con = alignedNumber(lrand48(), alignment); // % (bdSizeBytes / bs)) * bs;
+	  con = alignedNumber(lrand48(), bs); // % (bdSizeBytes / bs)) * bs;
 	  if (startAtZero) con = 0;
 	}
       }
@@ -251,7 +251,7 @@ void setupPositions(positionType *positions,
 	if (startAtZero && (i==0)) {
 	  positions[i].pos = 0;
 	} else {
-	  positions[i].pos = alignedNumber(lrand48() % bdSizeBytes, alignment);// % (bdSizeBytes / bs)) * bs;
+	  positions[i].pos = alignedNumber(lrand48() % bdSizeBytes, bs);// % (bdSizeBytes / bs)) * bs;
 	}
       }
     } else {
@@ -293,7 +293,7 @@ void setupPositions(positionType *positions,
       
       for (size_t i = 0; i < num; i++) {
 	// sequential
-	positions[i].pos = alignedNumber(ppp[i % abssf], alignment);// / bs)) * bs;
+	positions[i].pos = alignedNumber(ppp[i % abssf], bs);// / bs)) * bs;
 	ppp[i % abssf] += (jumpStep * bs);
 	if (ppp[i % abssf] + bs > bdSizeBytes) { // if could go off the end then set back to 0
 	  ppp[i % abssf] = 0;
@@ -332,7 +332,7 @@ void setupPositions(positionType *positions,
       randombs_k += (lrand48() % (highbs_k - lowbs_k + 1));
     }
     
-    size_t randombs = alignedNumber(randombs_k * alignment, alignment);
+    size_t randombs = alignedNumber(randombs_k * alignment, bs);
     if (randombs <= 0) {
       randombs = alignment;
     }

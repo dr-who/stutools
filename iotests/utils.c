@@ -583,6 +583,8 @@ size_t alignedNumber(size_t num, size_t alignment) {
   }
   ret = ret * alignment;
 
+  //  fprintf(stderr,"requested %zd returned %zd\n", num, ret);
+
   return ret;
 }
 

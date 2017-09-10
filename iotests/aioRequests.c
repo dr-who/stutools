@@ -53,7 +53,7 @@ size_t aioMultiplePositions(const int fd,
 
   // copy the randomBuffer to each data[]
   for (size_t i = 0; i <QD; i++) {
-    data[i] = aligned_alloc(4096, randomBufferSize); if (!data[i]) {perror("oom"); exit(1);}
+    data[i] = aligned_alloc(alignment, randomBufferSize); if (!data[i]) {perror("oom"); exit(1);}
     memcpy(data[i], randomBuffer, randomBufferSize);
   }
 
@@ -89,6 +89,7 @@ size_t aioMultiplePositions(const int fd,
 	    totalReadBytes += len;
 	  } else {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
+	    assert(randomBuffer[0] == 's'); // from stutools
 	    io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
 	    positions[pos].success = 1;
 	    totalWriteBytes += len;
@@ -203,6 +204,7 @@ int aioVerifyWrites(const char *path,
 		    const positionType *positions,
 		    const size_t maxpos,
 		    const size_t maxBufferSize,
+		    const size_t alignment,
 		    const int verbose,
 		    const char *randomBuffer) {
 
@@ -214,11 +216,14 @@ int aioVerifyWrites(const char *path,
 
   size_t errors = 0, checked = 0;
   int bytesRead = 0;
-  char *buffer = aligned_alloc(4096, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
+
+  char *buffer = aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
   
   for (size_t i = 0; i < maxpos; i++) {
     if (positions[i].success) {
       if (positions[i].action == 'W') {
+	assert(positions[i].len >= 1024);
+	assert(positions[i].len % 1024 == 0);
       //      fprintf(stderr,"%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
 	checked++;
 	const size_t pos = positions[i].pos;
@@ -229,7 +234,7 @@ int aioVerifyWrites(const char *path,
 	buffer[0] = randomBuffer[0] ^ 0xff; // make sure the first char is different
 	
 	bytesRead = read(fd, buffer, len);
-	buffer[len] = 0;
+	buffer[len - 1] = 0; // clear the end byte
 	if ((size_t)bytesRead != len) {
 	  fprintf(stderr,"[%zd/%zd] verify read truncated bytesRead %d instead of len=%zd\n", i, pos, bytesRead, len);
 	  errors++;

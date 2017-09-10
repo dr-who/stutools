@@ -23,6 +23,7 @@ int aioVerifyWrites(const char *path,
 		    const positionType *positions,
 		    const size_t maxpos,
 		    const size_t maxBufferSize,
+		    const size_t alignment,
 		    const int verbose,
 		    const char *randomBuffer);
 
