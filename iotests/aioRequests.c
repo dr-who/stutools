@@ -250,10 +250,10 @@ int aioVerifyWrites(const char *path,
 		}
 	      }
 	    }
-	    if (errors <= 1) {
+	    /*	    if (errors <= 1) {
 	      fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
 	      fprintf(stderr,"ondisk:   \n%s\n", buffer);
-	    }
+	      }*/
 	    errors++;
 	  } else {
 	    if (verbose >= 2) {
