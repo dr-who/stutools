@@ -26,7 +26,7 @@ char   *path = NULL;
 int    seqFiles = 0;
 int    seqFilesSpecified = 0;
 double maxSizeGB = 0;
-size_t alignment = 4096;
+size_t alignment = 0;
 size_t LOWBLKSIZE = 65536;
 size_t BLKSIZE = 65536;
 int    jumpStep = 1;
@@ -296,6 +296,10 @@ int main(int argc, char *argv[]) {
     LOWBLKSIZE = alignment;
     if (LOWBLKSIZE > BLKSIZE) BLKSIZE = LOWBLKSIZE;
     fprintf(stderr,"*warning* setting -k [%zd-%zd] because of the alignment of %zd bytes\n", LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
+  }
+
+  if (alignment == 0) {
+    alignment = LOWBLKSIZE;
   }
 
 
