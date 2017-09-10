@@ -588,3 +588,22 @@ size_t alignedNumber(size_t num, size_t alignment) {
   return ret;
 }
 
+// return the blockSize
+size_t randomBlockSize(size_t lowbsBytes, size_t highbsBytes, size_t alignmentBytes) {
+  size_t lowbs_k = lowbsBytes / alignmentBytes; // 1 / 4096 = 0
+  if (lowbs_k < 1) lowbs_k = 1;
+  size_t highbs_k = highbsBytes / alignmentBytes;   // 8 / 4096 = 2
+  if (highbs_k < 1) highbs_k = 1;
+  
+  size_t randombs_k = lowbs_k;
+  if (highbs_k > lowbs_k) {
+    randombs_k += (lrand48() % (highbs_k - lowbs_k + 1));
+  }
+  
+  size_t randombs = randombs_k * alignmentBytes;
+  if (randombs <= 0) {
+    randombs = alignmentBytes;
+  }
+  //  fprintf(stderr,"random bytes %zd\n", randombs);
+  return randombs;
+}

@@ -95,6 +95,7 @@ void dumpPositions(positionType *positions, size_t num, size_t bdSizeBytes) {
   }
 }
 
+/*
 
 void createLinearPositions(positionType *positions,
 			   const size_t numPositions,
@@ -134,6 +135,7 @@ void createLinearPositions(positionType *positions,
     p++;
   }
 }
+*/
 
 
 /*void createParallelPositions(positionType *positions,
@@ -243,6 +245,7 @@ void setupPositions(positionType *positions,
 	}
       }
       positions[i].pos = con;
+      positions[i].len = randomBlockSize(lowbs, bs, alignment);
     }
   } else {
     // random positions
@@ -253,6 +256,7 @@ void setupPositions(positionType *positions,
 	} else {
 	  positions[i].pos = alignedNumber(lrand48() % bdSizeBytes, bs);// % (bdSizeBytes / bs)) * bs;
 	}
+	positions[i].len = randomBlockSize(lowbs, bs, alignment);
       }
     } else {
       // parallel contiguous regions
@@ -289,12 +293,15 @@ void setupPositions(positionType *positions,
 	}
 	ppp[i] = startSeqPos;
 	//	  fprintf(stderr,"i=%zd val %zd\n", i, startSeqPos);
-      }
-      
+      } //finish setup
+
+      // now iterate 
       for (size_t i = 0; i < num; i++) {
 	// sequential
-	positions[i].pos = alignedNumber(ppp[i % abssf], bs);// / bs)) * bs;
-	ppp[i % abssf] += (jumpStep * bs);
+	size_t rbs = randomBlockSize(lowbs, bs, alignment);
+	positions[i].pos = ppp[i % abssf];// / bs)) * bs;
+	positions[i].len = rbs;
+	ppp[i % abssf] += rbs;
 	if (ppp[i % abssf] + bs > bdSizeBytes) { // if could go off the end then set back to 0
 	  ppp[i % abssf] = 0;
 	}
@@ -321,23 +328,8 @@ void setupPositions(positionType *positions,
     } else {
       p->action = 'W';
     }
-
-    size_t lowbs_k = lowbs / alignment; // 1 / 4096 = 0
-    if (lowbs_k < 1) lowbs_k = 1;
-    size_t highbs_k = bs / alignment;   // 8 / 4096 = 2
-    if (highbs_k < 1) highbs_k = 1;
-
-    size_t randombs_k = lowbs_k;
-    if (highbs_k > lowbs_k) {
-      randombs_k += (lrand48() % (highbs_k - lowbs_k + 1));
-    }
-    
-    size_t randombs = alignedNumber(randombs_k * alignment, bs);
-    if (randombs <= 0) {
-      randombs = alignment;
-    }
-    p->len = randombs;
     p->success = 0;
+    assert(p->len); // can't be zero
     p++;
   }
 }
