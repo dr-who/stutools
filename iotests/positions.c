@@ -330,6 +330,8 @@ void setupPositions(positionType *positions,
     }
     p->success = 0;
     assert(p->len); // can't be zero
+    assert(p->len >= lowbs);
+    assert(p->len <= bs);
     p++;
   }
 }

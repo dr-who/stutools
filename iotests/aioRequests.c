@@ -224,7 +224,7 @@ int aioVerifyWrites(const char *path,
       if (positions[i].action == 'W') {
 	assert(positions[i].len >= 1024);
 	assert(positions[i].len % 1024 == 0);
-      //      fprintf(stderr,"%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
+	//	fprintf(stderr,"\n%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
 	checked++;
 	const size_t pos = positions[i].pos;
 	const size_t len = positions[i].len;
@@ -234,14 +234,23 @@ int aioVerifyWrites(const char *path,
 	buffer[0] = randomBuffer[0] ^ 0xff; // make sure the first char is different
 	
 	bytesRead = read(fd, buffer, len);
-	buffer[len - 1] = 0; // clear the end byte
+	//	fprintf(stderr,"reading... %d\n", bytesRead);
+	//	buffer[len - 1] = 0; // clear the end byte
 	if ((size_t)bytesRead != len) {
 	  fprintf(stderr,"[%zd/%zd] verify read truncated bytesRead %d instead of len=%zd\n", i, pos, bytesRead, len);
 	  errors++;
 	} else {
-	  if (strncmp(buffer, randomBuffer, len) != 0) {
-	    fprintf(stderr,"[%zd/%zd] verify error at location.  %c   %c \n", i, pos, buffer[0], randomBuffer[0]);
-	    if (errors < 10) {
+	  if (strncmp(buffer, randomBuffer, bytesRead) != 0) {
+	    size_t firstprint = 1;
+	    for (size_t p = 0; p < bytesRead; p++) {
+	      if (buffer[p] != randomBuffer[p]) {
+		if (firstprint) {
+		  fprintf(stderr,"[%zd/%zd][%zd] verify error at location.  %c   %c \n", i, pos, p, buffer[p], randomBuffer[p]);
+		  firstprint = 0;
+		}
+	      }
+	    }
+	    if (errors <= 1) {
 	      fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
 	      fprintf(stderr,"ondisk:   \n%s\n", buffer);
 	    }
