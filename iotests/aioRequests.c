@@ -257,7 +257,7 @@ int aioVerifyWrites(const char *path,
 	    errors++;
 	  } else {
 	    if (verbose >= 2) {
-	      fprintf(stderr,"[%zd] verified ok location %zd\n", i, pos);
+	      fprintf(stderr,"[%zd] verified ok location %zd, size %zd\n", i, pos, len);
 	    }
 	  }
 	}
