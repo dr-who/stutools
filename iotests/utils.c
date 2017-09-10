@@ -511,7 +511,8 @@ void generateRandomBuffer(char *buffer, size_t size) {
   tm_info = localtime(&timer);
   
   strftime(timebuffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
-  
+
+  //  fprintf(stderr,"*info* start %s localtime\n", timebuffer);
       
   char *user = username();
 

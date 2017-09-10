@@ -141,7 +141,7 @@ void handle_args(int argc, char *argv[]) {
 	int firstnum = atoi(optarg) * 1024;
 	int secondnum = atoi(ndx + 1) * 1024;
 	if (secondnum < firstnum) secondnum = firstnum;
-	fprintf(stderr,"*info* block range: %d to %d\n", firstnum, secondnum);
+	fprintf(stderr,"*info* specific block range: %d KiB (%d) to %d KiB (%d)\n", firstnum/1024, firstnum, secondnum/1024, secondnum);
 	LOWBLKSIZE = firstnum;
 	BLKSIZE = secondnum;
 	// range
@@ -320,6 +320,8 @@ int main(int argc, char *argv[]) {
   }
 
 
+  char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
+  generateRandomBuffer(randomBuffer, BLKSIZE);
 
   
   size_t num;
@@ -331,8 +333,6 @@ int main(int argc, char *argv[]) {
   }
   positionType *positions = createPositions(num);
 
-  char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
-  generateRandomBuffer(randomBuffer, BLKSIZE);
 
   size_t row = 0;
   if (table) {
@@ -431,7 +431,7 @@ int main(int argc, char *argv[]) {
   } else if (!autoDiscover) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
-    fprintf(stderr,"path: %s, readWriteRatio: %.2lf, QD: %d, blksz: [%zd-%zd] KiB (aligned to %zd bytes), flushEvery %d", path, readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment, flushEvery);
+    fprintf(stderr,"*info* path: %s, readWriteRatio: %.2lf, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n*info* flushEvery %d", path, readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment, flushEvery);
     fprintf(stderr,", bdSize %.3lf GiB, rawSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSize), TOGiB(totl), 100.0*totl/bdSize - 100);
     setupPositions(positions, num, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero);
 

@@ -67,7 +67,9 @@ void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWrite
   *util = 100.0 * ((d->finishSecTimeio - d->startSecTimeio)/1000.0 / d->numDevices) / elapsed;
 
   if (verbose && (shouldReadBytes || shouldWriteBytes)) {
-    fprintf(stderr,"*info* read  amplification: should be %zd (%.3lf GiB), read  %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldReadBytes, TOGiB(shouldReadBytes), *totalReadBytes, TOGiB(*totalReadBytes), *totalReadBytes*100.0/shouldReadBytes, d->numDevices);
+    if (shouldReadBytes + *totalReadBytes)
+      fprintf(stderr,"*info* read  amplification: should be %zd (%.3lf GiB), read  %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldReadBytes, TOGiB(shouldReadBytes), *totalReadBytes, TOGiB(*totalReadBytes), *totalReadBytes*100.0/shouldReadBytes, d->numDevices);
+    if (shouldWriteBytes + *totalWriteBytes)
     fprintf(stderr,"*info* write amplification: should be %zd (%.3lf GiB), write %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldWriteBytes, TOGiB(shouldWriteBytes), *totalWriteBytes, TOGiB(*totalWriteBytes), *totalWriteBytes*100.0/shouldWriteBytes, d->numDevices);
     fprintf(stderr,"*info* total disk utilisation: %.1lf %% (devices = %zd)\n", *util, d->numDevices);
   }
