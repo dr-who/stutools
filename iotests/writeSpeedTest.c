@@ -55,9 +55,11 @@ static void *runThread(void *arg) {
     return NULL;
   }
 
-  char *sched = getScheduler(threadContext->path);
+  char *suffix = getSuffix(threadContext->path);
+  char *sched = getScheduler(suffix);
   fprintf(stderr,"*info* scheduler %s -> %s\n", threadContext->path, sched);
   if (sched) free(sched);
+  if (suffix) free(suffix);
   
   if (sendTrim) {
     size_t bdsize = blockDeviceSizeFromFD(fd);
