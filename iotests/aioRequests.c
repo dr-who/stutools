@@ -212,12 +212,23 @@ int aioVerifyWrites(const char *path,
   const int fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
   if (fd < 0) {fprintf(stderr,"fd error\n");exit(1);}
 
-  fprintf(stderr,"*info* started verification\n");
 
   size_t errors = 0, checked = 0;
 
   char *buffer = aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
-  
+
+  size_t bytesToVerify = 0;
+  for (size_t i = 0; i < maxpos; i++) {
+    if (positions[i].success) {
+      if (positions[i].action == 'W') {
+	bytesToVerify += positions[i].len;
+      }
+    }
+  }
+
+  fprintf(stderr,"*info* started verification (%.2lf GiB)\n", TOGiB(bytesToVerify));
+
+
   for (size_t i = 0; i < maxpos; i++) {
     if (positions[i].success) {
       if (positions[i].action == 'W') {
