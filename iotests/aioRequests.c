@@ -212,9 +212,7 @@ int aioVerifyWrites(const char *path,
   const int fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
   if (fd < 0) {fprintf(stderr,"fd error\n");exit(1);}
 
-
   size_t errors = 0, checked = 0;
-
   char *buffer = aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
 
   size_t bytesToVerify = 0;
@@ -225,20 +223,22 @@ int aioVerifyWrites(const char *path,
       }
     }
   }
-
   fprintf(stderr,"*info* started verification (%.2lf GiB)\n", TOGiB(bytesToVerify));
-
 
   for (size_t i = 0; i < maxpos; i++) {
     if (positions[i].success) {
       if (positions[i].action == 'W') {
-	assert(positions[i].len >= 1024);
-	assert(positions[i].len % 1024 == 0);
+	//	assert(positions[i].len >= 1024);
+	//	assert(positions[i].len % 1024 == 0);
 	//	fprintf(stderr,"\n%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
 	checked++;
 	const size_t pos = positions[i].pos;
 	const size_t len = positions[i].len;
-	assert (len <= maxBufferSize);
+	assert((len % alignment) == 0);
+	assert(len <= maxBufferSize);
+	assert(len > 0);
+	assert((pos % alignment) == 0);
+	
 	if (lseek(fd, pos, SEEK_SET) == -1) {
 	  perror("cannot seek");
 	}
@@ -250,6 +250,7 @@ int aioVerifyWrites(const char *path,
 	  fprintf(stderr,"[%zd/%zd][position %zd] verify read truncated bytesRead=%d instead of len=%zd\n", i, maxpos, pos, bytesRead, len);
 	} else {
 	  assert(bytesRead == len);
+	  assert((len % alignment) == 0);
 	  if (strncmp(buffer, randomBuffer, bytesRead) != 0) {
 	    errors++;
 	    size_t firstprint = 0;
@@ -259,7 +260,7 @@ int aioVerifyWrites(const char *path,
 	      if (*bufferp != *randomp) {
 		//	      if (buffer[p] != randomBuffer[p]) {
 		if (firstprint < 1) {
-		  fprintf(stderr,"[%zd/%zd][position %zd] verify error [size=%zd] at location (%zd).  '%c'   '%c' \n", i, maxpos, pos, p, len, buffer[p], randomBuffer[p]);
+		  fprintf(stderr,"[%zd/%zd][position %zd] verify error [size=%zd, read=%d] at location (%zd).  '%c'   '%c' \n", i, maxpos, pos, len, bytesRead, p, buffer[p], randomBuffer[p]);
 		  firstprint++;
 		}
 	      }
