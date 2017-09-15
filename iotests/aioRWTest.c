@@ -333,6 +333,7 @@ int main(int argc, char *argv[]) {
   if (LOWBLKSIZE < log) {
     fprintf(stderr,"*warning* the block size is lower than the device logical block size\n");
     LOWBLKSIZE = log;
+    if (LOWBLKSIZE < BLKSIZE) BLKSIZE=LOWBLKSIZE;
   }
 
   if (alignment == 0) {

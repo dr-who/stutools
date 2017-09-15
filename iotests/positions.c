@@ -251,7 +251,7 @@ void setupPositions(positionType *positions,
     }
   } else {
     // parallel contiguous regions
-    size_t *ppp = NULL;
+    size_t *ppp = NULL, totallen = 0;
     int abssf = ABS(sf);
     if (abssf <= 0) abssf = 1;
     CALLOC(ppp, abssf, sizeof(size_t));
@@ -293,10 +293,16 @@ void setupPositions(positionType *positions,
       size_t rbs = randomBlockSize(lowbs, bs, alignment);
       positions[i].pos = ppp[i % abssf];// / bs)) * bs;
       positions[i].len = rbs;
+      
       ppp[i % abssf] += rbs;
+      totallen += rbs;
       if (ppp[i % abssf] + bs > bdSizeBytes) { // if could go off the end then set back to 0
 	ppp[i % abssf] = 0;
       }
+    }
+    if (totallen > bdSizeBytes) {
+      fprintf(stderr,"*warning* sum position size is too large! will have overlapping access (%zd positions)\n", num);
+      fprintf(stderr,"*warning* sum of position sizes %zd (%.2lf GiB) > %zd (%.2lf GiB)\n", totallen, TOGiB(totallen), bdSizeBytes, TOGiB(bdSizeBytes));
     }
     free(ppp);
     
@@ -315,20 +321,25 @@ void setupPositions(positionType *positions,
 
   // if randomise then reorder
   if (sf == 0) {
-    if (verbose) {
-      fprintf(stderr,"*info* randomizing the array\n");
-    }
-    for (size_t i = 0; i < num; i++) {
-      size_t j = i;
-      if (num > 1) {
-	while ((j = lrand48() % num) == i) {
-	  ;
+    for (size_t shuffle = 0; shuffle < 3; shuffle++) {
+      if (verbose) {
+	fprintf(stderr,"*info* shuffling the array (%zd). Shuffle %zd\n", num, shuffle);
+      }
+      for (size_t i = 0; i < num; i++) {
+	size_t j = i;
+	if (num > 1) {
+	  while ((j = lrand48() % num) == i) {
+	    ;
+	  }
+	}
+	// swap i and j
+	positionType p = positions[i];
+	positions[i] = positions[j];
+	positions[j] = p;
+	if (verbose > 1 && i < 10) {
+	  fprintf(stderr,"*info* [%zd]: %zd/%zd (was %zd/%zd)\n", i, positions[i].pos, positions[i].len, positions[j].pos, positions[j].len);
 	}
       }
-      // swap i and j
-      positionType p = positions[i];
-      positions[i] = positions[j];
-      positions[j] = p;
     }
   }
 
