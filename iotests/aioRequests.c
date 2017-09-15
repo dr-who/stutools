@@ -232,21 +232,20 @@ int aioVerifyWrites(const char *path,
 	  perror("cannot seek");
 	}
 	buffer[0] = randomBuffer[0] ^ 0xff; // make sure the first char is different
-	
 	bytesRead = read(fd, buffer, len);
-	//	fprintf(stderr,"reading... %d\n", bytesRead);
-	//	buffer[len - 1] = 0; // clear the end byte
+
 	if ((size_t)bytesRead != len) {
-	  fprintf(stderr,"[%zd/%zd] verify read truncated bytesRead %d instead of len=%zd\n", i, pos, bytesRead, len);
 	  errors++;
+	  fprintf(stderr,"[%zd/%zd][position %zd] verify read truncated bytesRead=%d instead of len=%zd\n", i, maxpos, pos, bytesRead, len);
 	} else {
 	  if (strncmp(buffer, randomBuffer, bytesRead) != 0) {
-	    size_t firstprint = 1;
+	    errors++;
+	    size_t firstprint = 0;
 	    for (size_t p = 0; p < bytesRead; p++) {
 	      if (buffer[p] != randomBuffer[p]) {
-		if (firstprint) {
-		  fprintf(stderr,"[%zd/%zd][%zd] verify error at location.  %c   %c \n", i, pos, p, buffer[p], randomBuffer[p]);
-		  firstprint = 0;
+		if (firstprint < 1) {
+		  fprintf(stderr,"[%zd/%zd][position %zd] verify error at location (%zd).  '%c'   '%c' \n", i, maxpos, pos, p, buffer[p], randomBuffer[p]);
+		  firstprint++;
 		}
 	      }
 	    }
@@ -254,7 +253,6 @@ int aioVerifyWrites(const char *path,
 	      fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
 	      fprintf(stderr,"ondisk:   \n%s\n", buffer);
 	      }*/
-	    errors++;
 	  } else {
 	    if (verbose >= 2) {
 	      fprintf(stderr,"[%zd] verified ok location %zd, size %zd\n", i, pos, len);

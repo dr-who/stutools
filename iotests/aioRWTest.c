@@ -440,8 +440,11 @@ int main(int argc, char *argv[]) {
 	      start = timedouble(); // start timing after positions created
 	      rb = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
 	    }
+	    if (verbose) {
+	      fprintf(stderr,"*info* calling fsync()\n");
+	    }
 	    fsync(fd);
-	    fdatasync(fd);
+
 	    elapsed = timedouble() - start;
 	      
 	    diskStatFinish(&dst);
@@ -483,6 +486,9 @@ int main(int argc, char *argv[]) {
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
     aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes);
+    if (verbose) {
+      fprintf(stderr,"*info* calling fsync()\n");
+    }
     fsync(fd);
     close(fd);
     double elapsed = timedouble() - start;
