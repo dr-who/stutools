@@ -323,6 +323,12 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* file specified: '%s' size %zd bytes\n", path, actualBlockDeviceSize);
   }
 
+  if (LOWBLKSIZE < log) {
+    fprintf(stderr,"*warning* the block size is lower than the device logical block size\n");
+    LOWBLKSIZE = log;
+    if (LOWBLKSIZE > BLKSIZE) BLKSIZE=LOWBLKSIZE;
+  }
+
   // various warnings and informational comments
   if (LOWBLKSIZE < alignment) {
     LOWBLKSIZE = alignment;
@@ -330,11 +336,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*warning* setting -k [%zd-%zd] because of the alignment of %zd bytes\n", LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
   }
 
-  if (LOWBLKSIZE < log) {
-    fprintf(stderr,"*warning* the block size is lower than the device logical block size\n");
-    LOWBLKSIZE = log;
-    if (LOWBLKSIZE < BLKSIZE) BLKSIZE=LOWBLKSIZE;
-  }
+
 
   if (alignment == 0) {
     alignment = LOWBLKSIZE;
