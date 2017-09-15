@@ -7,6 +7,8 @@
 #include "utils.h"
 #include "positions.h"
 
+extern int verbose;
+
 // sorting function, used by qsort
 static int poscompare(const void *p1, const void *p2)
 {
@@ -248,75 +250,85 @@ void setupPositions(positionType *positions,
       positions[i].len = randomBlockSize(lowbs, bs, alignment);
     }
   } else {
-    // random positions
-    if (sf == 0) {
-      for (size_t i = 0; i < num; i++) {
-	if (startAtZero && (i==0)) {
-	  positions[i].pos = 0;
-	} else {
-	  positions[i].pos = alignedNumber(lrand48() % bdSizeBytes, bs);// % (bdSizeBytes / bs)) * bs;
+    // parallel contiguous regions
+    size_t *ppp = NULL;
+    int abssf = ABS(sf);
+    if (abssf <= 0) abssf = 1;
+    CALLOC(ppp, abssf, sizeof(size_t));
+    for (size_t i = 0; i < abssf; i++) {
+      size_t startSeqPos = 0;
+      size_t count = 0;
+      while (1) {
+	startSeqPos = (lrand48() % (bdSizeBytes / bs)) * bs;
+	if ((i == 0) && startAtZero) {
+	  startSeqPos = 0;
 	}
-	positions[i].len = randomBlockSize(lowbs, bs, alignment);
+	if (i == 0) {
+	  break;
+	}
+	
+	int close = 0;
+	for (size_t j = 0; j < i-1; j++) {
+	  if (ABS(ppp[j] - startSeqPos) < 100*1024*1024) { // make sure all the points are 100MB apart
+	    close = 1;
+	  }
+	}
+	if (!close) {
+	  break;
+	}
+	count++;
+	if (count > 100) {
+	  fprintf(stderr,"*error* can't make enough spaced positions given the size of the disk\n");
+	  exit(1);
+	}
+	//	    fprintf(stderr,"count++\n");
       }
-    } else {
-      // parallel contiguous regions
-      size_t *ppp = NULL;
-      int abssf = ABS(sf);
-      CALLOC(ppp, abssf, sizeof(size_t));
-      for (size_t i = 0; i < abssf; i++) {
-	size_t startSeqPos = 0;
-	size_t count = 0;
-	while (1) {
-	  startSeqPos = (lrand48() % (bdSizeBytes / bs)) * bs;
-	  if ((i == 0) && startAtZero) {
-	    startSeqPos = 0;
-	  }
-	  if (i == 0) {
-	    break;
-	  }
-	  
-	  int close = 0;
-	  for (size_t j = 0; j < i-1; j++) {
-	    if (ABS(ppp[j] - startSeqPos) < 100*1024*1024) { // make sure all the points are 100MB apart
-	      close = 1;
-	    }
-	  }
-	  if (!close) {
-	    break;
-	  }
-	  count++;
-	  if (count > 100) {
-	    fprintf(stderr,"*error* can't make enough spaced positions given the size of the disk\n");
-	    exit(1);
-	  }
-	  //	    fprintf(stderr,"count++\n");
-	}
-	ppp[i] = startSeqPos;
-	//	  fprintf(stderr,"i=%zd val %zd\n", i, startSeqPos);
-      } //finish setup
-
+      ppp[i] = startSeqPos;
+      //	  fprintf(stderr,"i=%zd val %zd\n", i, startSeqPos);
+    } //finish setup
+    
       // now iterate 
-      for (size_t i = 0; i < num; i++) {
-	// sequential
-	size_t rbs = randomBlockSize(lowbs, bs, alignment);
-	positions[i].pos = ppp[i % abssf];// / bs)) * bs;
-	positions[i].len = rbs;
-	ppp[i % abssf] += rbs;
-	if (ppp[i % abssf] + bs > bdSizeBytes) { // if could go off the end then set back to 0
-	  ppp[i % abssf] = 0;
-	}
+    for (size_t i = 0; i < num; i++) {
+      // sequential
+      size_t rbs = randomBlockSize(lowbs, bs, alignment);
+      positions[i].pos = ppp[i % abssf];// / bs)) * bs;
+      positions[i].len = rbs;
+      ppp[i % abssf] += rbs;
+      if (ppp[i % abssf] + bs > bdSizeBytes) { // if could go off the end then set back to 0
+	ppp[i % abssf] = 0;
       }
-      free(ppp);
-
-      if (sf < 0) {
-	// reverse positions array
+    }
+    free(ppp);
+    
+    if (sf < 0) {
+      // reverse positions array
+      if (verbose) {
 	fprintf(stderr,"*info* reversing positions\n");
-	for (size_t i = 0; i < num/2; i++) { 
-	  size_t temp = positions[i].pos;
-	  positions[i].pos = positions[num-1 - i].pos;
-	  positions[num-1 -i].pos = temp;
+      }
+      for (size_t i = 0; i < num/2; i++) { 
+	size_t temp = positions[i].pos;
+	positions[i].pos = positions[num-1 - i].pos;
+	positions[num-1 -i].pos = temp;
+      }
+    }
+  }
+
+  // if randomise then reorder
+  if (sf == 0) {
+    if (verbose) {
+      fprintf(stderr,"*info* randomizing the array\n");
+    }
+    for (size_t i = 0; i < num; i++) {
+      size_t j = i;
+      if (num > 1) {
+	while ((j = lrand48() % num) == i) {
+	  ;
 	}
       }
+      // swap i and j
+      positionType p = positions[i];
+      positions[i] = positions[j];
+      positions[j] = p;
     }
   }
 

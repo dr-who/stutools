@@ -280,10 +280,14 @@ int main(int argc, char *argv[]) {
 									
     char *suffix = getSuffix(path);
     char *sched = getScheduler(suffix);
-    fprintf(stderr,"*info* scheduler for %s (%s) is [%s]\n", path, suffix, sched);
+    if (verbose) {
+      fprintf(stderr,"*info* scheduler for %s (%s) is [%s]\n", path, suffix, sched);
+    }
     
     getPhyLogSizes(suffix, &phy, &log);
-    fprintf(stderr,"*info* physical_block_size %zd, logical_block_size %zd\n", phy, log);
+    if (verbose) {
+      fprintf(stderr,"*info* physical_block_size %zd, logical_block_size %zd\n", phy, log);
+    }
 
     free(sched);
     free(suffix);
@@ -360,7 +364,9 @@ int main(int argc, char *argv[]) {
   size_t num;
   if (maxPositions) {
     num = maxPositions;
-    fprintf(stderr,"*info* hard coded maximum number of positions %zd\n", num);
+    if (verbose) {
+      fprintf(stderr,"*info* hard coded maximum number of positions %zd\n", num);
+    }
   } else {
     num = noops * 1*1000*1000; // use 10M operations
   }
