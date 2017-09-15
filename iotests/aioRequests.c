@@ -215,7 +215,6 @@ int aioVerifyWrites(const char *path,
   fprintf(stderr,"*info* started verification\n");
 
   size_t errors = 0, checked = 0;
-  int bytesRead = 0;
 
   char *buffer = aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
   
@@ -228,26 +227,33 @@ int aioVerifyWrites(const char *path,
 	checked++;
 	const size_t pos = positions[i].pos;
 	const size_t len = positions[i].len;
+	assert (len <= maxBufferSize);
 	if (lseek(fd, pos, SEEK_SET) == -1) {
 	  perror("cannot seek");
 	}
-	buffer[0] = randomBuffer[0] ^ 0xff; // make sure the first char is different
-	bytesRead = read(fd, buffer, len);
+	//	buffer[0] = 256 - randomBuffer[0] ^ 0xff; // make sure the first char is different
+	const int bytesRead = read(fd, buffer, len);
 
 	if ((size_t)bytesRead != len) {
 	  errors++;
 	  fprintf(stderr,"[%zd/%zd][position %zd] verify read truncated bytesRead=%d instead of len=%zd\n", i, maxpos, pos, bytesRead, len);
 	} else {
+	  assert(bytesRead == len);
 	  if (strncmp(buffer, randomBuffer, bytesRead) != 0) {
 	    errors++;
 	    size_t firstprint = 0;
+	    char *bufferp = buffer;
+	    char *randomp = (char*)randomBuffer;
 	    for (size_t p = 0; p < bytesRead; p++) {
-	      if (buffer[p] != randomBuffer[p]) {
+	      if (*bufferp != *randomp) {
+		//	      if (buffer[p] != randomBuffer[p]) {
 		if (firstprint < 1) {
 		  fprintf(stderr,"[%zd/%zd][position %zd] verify error [size=%zd] at location (%zd).  '%c'   '%c' \n", i, maxpos, pos, p, len, buffer[p], randomBuffer[p]);
 		  firstprint++;
 		}
 	      }
+	      bufferp++;
+	      randomp++;
 	    }
 	    /*	    if (errors <= 1) {
 	      fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
