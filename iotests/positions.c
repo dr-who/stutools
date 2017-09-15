@@ -311,10 +311,11 @@ void setupPositions(positionType *positions,
       if (verbose) {
 	fprintf(stderr,"*info* reversing positions\n");
       }
-      for (size_t i = 0; i < num/2; i++) { 
-	size_t temp = positions[i].pos;
-	positions[i].pos = positions[num-1 - i].pos;
-	positions[num-1 -i].pos = temp;
+      for (size_t i = 0; i < num/2; i++) {
+
+	positionType p = positions[i];
+	positions[i] = positions[num-1 -i];
+	positions[num-1 -i] = p;
       }
     }
   }
