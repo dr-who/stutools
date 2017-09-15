@@ -244,7 +244,7 @@ int aioVerifyWrites(const char *path,
 	    for (size_t p = 0; p < bytesRead; p++) {
 	      if (buffer[p] != randomBuffer[p]) {
 		if (firstprint < 1) {
-		  fprintf(stderr,"[%zd/%zd][position %zd] verify error at location (%zd).  '%c'   '%c' \n", i, maxpos, pos, p, buffer[p], randomBuffer[p]);
+		  fprintf(stderr,"[%zd/%zd][position %zd] verify error [size=%zd] at location (%zd).  '%c'   '%c' \n", i, maxpos, pos, p, len, buffer[p], randomBuffer[p]);
 		  firstprint++;
 		}
 	      }
