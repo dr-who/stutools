@@ -156,10 +156,12 @@ size_t aioMultiplePositions(const int fd,
 	  logSpeedAdd(l, events[j].res);
 	}
 	  
-	/*	if (events[j].res != len) { // if return of bytes written or read
-	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
-	  } */
+	if (events[j].res <= 0) { // if return of bytes written or read
+	  fprintf(stderr,"failure: %ld bytes\n", events[j].res);
+	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
+	}
       }
+	//}
       
 	/*      if (l) {
 	logSpeedAdd(l, ret * len);
@@ -218,7 +220,7 @@ int aioVerifyWrites(const char *path,
 		    const int verbose,
 		    const char *randomBuffer) {
 
-  fprintf(stderr,"*info* sorting array (%zd)\n", maxpos);
+  fprintf(stderr,"*info* sorting verification array (%zd)\n", maxpos);
   qsort(positions, maxpos, sizeof(positionType), poscompare);
 
 
