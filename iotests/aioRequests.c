@@ -200,13 +200,27 @@ size_t aioMultiplePositions(const int fd,
 }
 
 
+// sorting function, used by qsort
+static int poscompare(const void *p1, const void *p2)
+{
+  const positionType *pos1 = (positionType*)p1;
+  const positionType *pos2 = (positionType*)p2;
+  if (pos1->pos < pos2->pos) return -1;
+  else if (pos1->pos > pos2->pos) return 1;
+  else return 0;
+}
+
 int aioVerifyWrites(const char *path,
-		    const positionType *positions,
+		    positionType *positions,
 		    const size_t maxpos,
 		    const size_t maxBufferSize,
 		    const size_t alignment,
 		    const int verbose,
 		    const char *randomBuffer) {
+
+  fprintf(stderr,"*info* sorting array (%zd)\n", maxpos);
+  qsort(positions, maxpos, sizeof(positionType), poscompare);
+
 
 
   const int fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
@@ -247,7 +261,7 @@ int aioVerifyWrites(const char *path,
 
 	if ((size_t)bytesRead != len) {
 	  errors++;
-	  fprintf(stderr,"[%zd/%zd][position %zd] verify read truncated bytesRead=%d instead of len=%zd\n", i, maxpos, pos, bytesRead, len);
+	  fprintf(stderr,"[%zd/%zd][position %zd] verify read truncated bytesRead=%d instead of len=%zd\n", checked, maxpos, pos, bytesRead, len);
 	} else {
 	  assert(bytesRead == len);
 	  assert((len % alignment) == 0);
@@ -260,7 +274,7 @@ int aioVerifyWrites(const char *path,
 	      if (*bufferp != *randomp) {
 		//	      if (buffer[p] != randomBuffer[p]) {
 		if (firstprint < 1) {
-		  fprintf(stderr,"[%zd/%zd][position %zd] verify error [size=%zd, read=%d] at location (%zd).  '%c'   '%c' \n", i, maxpos, pos, len, bytesRead, p, buffer[p], randomBuffer[p]);
+		  fprintf(stderr,"[%zd/%zd][position %zd] verify error [size=%zd, read=%d] at location (%zd).  '%c'   '%c' \n", checked, maxpos, pos, len, bytesRead, p, buffer[p], randomBuffer[p]);
 		  firstprint++;
 		}
 	      }
@@ -273,7 +287,7 @@ int aioVerifyWrites(const char *path,
 	      }*/
 	  } else {
 	    if (verbose >= 2) {
-	      fprintf(stderr,"[%zd] verified ok location %zd, size %zd\n", i, pos, len);
+	      fprintf(stderr,"[%zd] verified ok location %zd, size %zd\n", checked, pos, len);
 	    }
 	  }
 	}

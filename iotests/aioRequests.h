@@ -20,7 +20,7 @@ size_t aioMultiplePositions(const int fd,
 			    size_t *totalWB);
 
 int aioVerifyWrites(const char *path,
-		    const positionType *positions,
+		    positionType *positions,
 		    const size_t maxpos,
 		    const size_t maxBufferSize,
 		    const size_t alignment,
