@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <getopt.h>
 #include <sys/types.h>
+#include <syslog.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -552,8 +553,17 @@ int main(int argc, char *argv[]) {
     double elapsed = timedouble() - start;
     
     diskStatFinish(&dst); // and sector counts when finished
-    
-    fprintf(stderr,"*info* total reads = %zd (%.1lf GiB), total writes = %zd (%.1lf GiB)\n", shouldReadBytes, TOGiB(shouldReadBytes), shouldWriteBytes, TOGiB(shouldWriteBytes));
+
+    char s[1000];
+    sprintf(s, "total read %.2lf GiB, %.0lf MiB/s, total write = %.2lf GiB, %.0lf MiB/s, %.1lf s, qd %d, bs %zd-%zd, seq %d, drives %zd",
+	    TOGiB(shouldReadBytes), TOMiB(shouldReadBytes)/elapsed,
+	    TOGiB(shouldWriteBytes), TOMiB(shouldWriteBytes)/elapsed, elapsed, qd, LOWBLKSIZE, BLKSIZE, seqFiles, fdLen);
+    fprintf(stderr,"*info* %s\n", s);
+
+    char *user = username();
+    syslog(LOG_INFO, "%s - %s stutools %s", s, user, VERSION);
+    free(user);
+
 
     /* number of bytes read/written not under our control */
     size_t trb = 0, twb = 0;
