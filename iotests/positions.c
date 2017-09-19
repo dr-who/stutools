@@ -223,7 +223,7 @@ void setupPositions(positionType *positions,
 	  if (idx > count) idx -= count;
 	  lb += poss[idx].len;
 	}
-	fprintf(stderr,"*info* sequence %zd, position array index [%zd - %zd] (%.1lf GiB)\n", i + 1, ppp[i], ppp2[i],TOGiB(lb));
+	fprintf(stderr,"*info* sequence %zd, position array index [%zd - %zd) (%.1lf GiB)\n", i + 1, ppp[i], ppp2[i] % count ,TOGiB(lb));
       }
     } //finish setup
     
