@@ -201,13 +201,13 @@ void setupPositions(positionType *positions,
     size_t *ppp = NULL, *ppp2 = NULL, totallen = 0;
     int abssf = ABS(sf);
     if (abssf <= 0) abssf = 1;
-    *num = abssf * (size_t)((*num) /abssf);
+    *num = abssf * (size_t)((*num) /abssf); // round/be a multiple of the number of sequences
 
     size_t offset = lrand48() % count; // offset in the list of possible positions
     if (startAtZero) offset = 0;
     
     CALLOC(ppp, abssf, sizeof(size_t)); // start in 'abssf' regions
-    CALLOC(ppp2, abssf, sizeof(size_t)); // start in 'abssf' regions
+    CALLOC(ppp2, abssf, sizeof(size_t)); // end in 'abssf' regions
     // if 1 start at 0 + offset
     // if 2 start at 0 + offset and n/2 + offset
     // if 3 start at 0 + offset and n/3 + offset and 2n/3 + offset
