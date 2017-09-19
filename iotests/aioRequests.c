@@ -63,12 +63,12 @@ size_t aioMultiplePositions( positionType *positions,
   size_t pos = 0;
 
   double start = timedouble();
-  double last = start;
+  double last = start, gt = start;
   size_t submitted = 0;
   size_t received = 0;
 
   size_t totalWriteBytes = 0; 
-  size_t totalReadBytes = 0; 
+  size_t totalReadBytes = 0;
   //  double mbps = 0;
   
 
@@ -107,13 +107,13 @@ size_t aioMultiplePositions( positionType *positions,
 	    }
 	    
 	  } else {
-	    fprintf(stderr,"!!!\n");
+	    fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()");exit(1);
 	  }
 	  
 	  pos++; if (pos >= sz) pos = 0; // don't go over the end of the array
 	}
 	
-	double gt = timedouble();
+	gt = timedouble();
 
 	if (gt - last >= DISPLAYEVERY) {
 	  if (!tableMode) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), (totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024);
@@ -143,11 +143,14 @@ size_t aioMultiplePositions( positionType *positions,
     
     ret = io_getevents(ctx, 0, QD, events, NULL);
 
-    /*    if ((!keepRunning) || ((long)(timedouble() - start) >= secTimeout)) {
-      if (received > 0) {
-	break;
+    // if stop running or been running long enough
+    if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
+      if (gt - last > 1) { // if it's been over a second since per-second output
+	if (received > 0) {
+	  break;
+	}
       }
-      }*/
+    }
 
     if (ret > 0) {
 
