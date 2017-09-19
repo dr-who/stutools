@@ -555,9 +555,9 @@ int main(int argc, char *argv[]) {
     diskStatFinish(&dst); // and sector counts when finished
 
     char s[1000];
-    sprintf(s, "total read %.2lf GiB, %.0lf MiB/s, total write = %.2lf GiB, %.0lf MiB/s, %.1lf s, qd %d, bs %zd-%zd, seq %d, drives %zd",
+    sprintf(s, "total read %.2lf GiB, %.0lf MiB/s, total write = %.2lf GiB, %.0lf MiB/s, %.1lf s, qd %d, bs %zd-%zd, seq %d, drives %zd, testSize %.2lf GiB",
 	    TOGiB(shouldReadBytes), TOMiB(shouldReadBytes)/elapsed,
-	    TOGiB(shouldWriteBytes), TOMiB(shouldWriteBytes)/elapsed, elapsed, qd, LOWBLKSIZE, BLKSIZE, seqFiles, fdLen);
+	    TOGiB(shouldWriteBytes), TOMiB(shouldWriteBytes)/elapsed, elapsed, qd, LOWBLKSIZE, BLKSIZE, seqFiles, fdLen, TOGiB(actualBlockDeviceSize));
     fprintf(stderr,"*info* %s\n", s);
 
     char *user = username();
