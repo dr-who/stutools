@@ -15,8 +15,7 @@ extern int keepRunning;
 extern int singlePosition;
 extern int flushEvery;
 
-size_t aioMultiplePositions(const int fd,
-			     positionType *positions,
+size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
 			     const float secTimeout,
 			     const size_t QD,
@@ -84,13 +83,13 @@ size_t aioMultiplePositions(const int fd,
 	  // setup the request
 	  if (read) {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-	    io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
+	    io_prep_pread(cbs[0], positions[pos].fd, data[i%QD], len, newpos);
 	    positions[pos].success = 1;
 	    totalReadBytes += len;
 	  } else {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
 	    assert(randomBuffer[0] == 's'); // from stutools
-	    io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
+	    io_prep_pwrite(cbs[0], positions[pos].fd, randomBuffer, len, newpos);
 	    positions[pos].success = 1;
 	    totalWriteBytes += len;
 	  }
@@ -102,7 +101,7 @@ size_t aioMultiplePositions(const int fd,
 	    inFlight++;
 	    submitted++;
 	    if (verbose >= 2 || (newpos % alignment != 0)) {
-	      fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+	      fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", positions[pos].fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 	    }
 	    
 	  } else {
@@ -127,14 +126,15 @@ size_t aioMultiplePositions(const int fd,
 	} else {
 	  //      fprintf(stderr,"red %d\n", ret);
 	  }*/
-      } // for loop
+      } // for loop i
+      
       if (flushEvery) {
 	if ((pos % flushEvery) == 0) {
 	  // sync whenever the queue is full
 	  if (verbose >= 2) {
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
-	  fsync(fd);
+	  fsync(positions[pos].fd);
 	}
       }
     }

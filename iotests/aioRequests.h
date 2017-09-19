@@ -4,8 +4,7 @@
 #include "logSpeed.h"
 #include "positions.h"
 
-size_t aioMultiplePositions(const int fd,
-			     positionType *positions,
+size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
 			     const float secTimeout,
 			     const size_t QD,

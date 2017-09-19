@@ -22,7 +22,8 @@ int    keepRunning = 1;       // have we been interrupted
 double exitAfterSeconds = 5;
 int    qd = 32;
 int    qdSpecified = 0;
-char   *path = NULL;
+char   **pathArray = NULL;
+size_t pathLen = 0;
 int    seqFiles = 0;
 int    seqFilesSpecified = 0;
 double maxSizeGB = 0;
@@ -42,7 +43,7 @@ char*  specifiedDevices = NULL;
 int    sendTrim = 0;
 int    autoDiscover = 0;
 int    startAtZero = 0;
-size_t maxPositions = 0;
+size_t maxPositions = 10*1000*1000;
 size_t dontUseExclusive = 0;
 
 void handle_args(int argc, char *argv[]) {
@@ -61,6 +62,9 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'P':
       maxPositions = atoi(optarg);
+      if (verbose) {
+	fprintf(stderr,"*info* hard coded maximum number of positions %zd\n", maxPositions);
+      }
       break;
     case 'z':
       startAtZero = 1;
@@ -75,7 +79,9 @@ void handle_args(int argc, char *argv[]) {
       table = 1;
       break;
     case 'O':
-      specifiedDevices = strdup(optarg);
+      if (!specifiedDevices) {
+	specifiedDevices = strdup(optarg);
+      }
       break;
     case '0':
       noops = 0;
@@ -141,7 +147,9 @@ void handle_args(int argc, char *argv[]) {
 	int firstnum = atoi(optarg) * 1024;
 	int secondnum = atoi(ndx + 1) * 1024;
 	if (secondnum < firstnum) secondnum = firstnum;
-	fprintf(stderr,"*info* specific block range: %d KiB (%d) to %d KiB (%d)\n", firstnum/1024, firstnum, secondnum/1024, secondnum);
+	if (verbose > 1) {
+	  fprintf(stderr,"*info* specific block range: %d KiB (%d) to %d KiB (%d)\n", firstnum/1024, firstnum, secondnum/1024, secondnum);
+	}
 	LOWBLKSIZE = firstnum;
 	BLKSIZE = secondnum;
 	// range
@@ -156,13 +164,19 @@ void handle_args(int argc, char *argv[]) {
       if (readRatio > 1) readRatio = 1;
       break;
     case 'f':
-      path = optarg;
+      pathArray = (char**)realloc(pathArray, (pathLen + 1) * sizeof(char *));
+      pathArray[pathLen] = strdup(optarg);
+      if (verbose >= 2) {
+	fprintf(stderr,"*info* adding -f '%s'\n", pathArray[pathLen]);
+      }
+      pathLen++;
+      //      path = optarg;
       break;
     default:
       exit(-1);
     }
   }
-  if (path == NULL) {
+  if (pathLen < 1) {
     fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-j jumpBlocks] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] [-G 32] [-p readRatio] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0          # 50/50 read/write test, defaults to random\n");
@@ -223,7 +237,7 @@ size_t testReadLocation(int fd, size_t b, size_t blksize, positionType *position
       
   double start = timedouble();
   size_t ios = 0, totalRB = 0, totalWB = 0;
-  size_t br = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer, randomBufferSize, alignment, &ios, &totalRB, &totalWB);
+  size_t br = aioMultiplePositions(positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer, randomBufferSize, alignment, &ios, &totalRB, &totalWB);
   double elapsed = timedouble() - start;
   //ios = ios / elapsed;
   fprintf(stderr,"ios %.1lf %.1lf MiB/s\n", ios/elapsed, TOMiB(br/elapsed));
@@ -241,6 +255,103 @@ int similarNumbers(double a, double b) {
     return 0;
   }
 }
+
+
+size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim) {
+  size_t actualBlockDeviceSize = 0 ;
+  
+  for (size_t i = 0; i < len; i++) {
+    // follow a symlink
+    char *newpath;
+    CALLOC(newpath, 4096, sizeof(char));
+    if (readlink(p[i], newpath, 4096)>=0) {
+      // was a link
+    } else {
+      strcpy(newpath, p[i]);
+    }
+
+    if (verbose >= 2) {
+      fprintf(stderr,"*info* processing path %s\n", newpath);
+    }
+
+    size_t phy, log;
+    if (isBlockDevice(newpath)) {
+      /* -- From a Google search
+	 The physical block size is the smallest size the device can
+	 handle atomically. The smalles block it can handle without needing
+	 to do a read-modify-write cycle. Applications should try to write
+	 in multiples of that (and they do) but are not required to.
+
+	 The logical block size on the other hand is the smallest size the
+	 device can handle at all. Applications must write in multiples of
+	 that.
+      */
+									
+      char *suffix = getSuffix(newpath);
+      char *sched = getScheduler(suffix);
+      if (verbose >= 2) {
+	fprintf(stderr,"  *info* scheduler for %s (%s) is [%s]\n", newpath, suffix, sched);
+      }
+    
+      getPhyLogSizes(suffix, &phy, &log);
+      if (verbose >= 2) {
+	fprintf(stderr,"  *info* physical_block_size %zd, logical_block_size %zd\n", phy, log);
+      }
+
+      if (LOWBLKSIZE < log) {
+	fprintf(stderr,"  *warning* the block size is lower than the device logical block size\n");
+	LOWBLKSIZE = log;
+	if (LOWBLKSIZE > BLKSIZE) BLKSIZE=LOWBLKSIZE;
+      }
+      
+      // various warnings and informational comments
+      if (LOWBLKSIZE < alignment) {
+	LOWBLKSIZE = alignment;
+	if (LOWBLKSIZE > BLKSIZE) BLKSIZE = LOWBLKSIZE;
+	fprintf(stderr,"*warning* setting -k [%zd-%zd] because of the alignment of %zd bytes\n", LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
+      }
+
+
+      free(sched);
+      free(suffix);
+      
+      actualBlockDeviceSize = blockDeviceSize(newpath);
+      if (readRatio < 1) {
+	if (dontUseExclusive < 3) { // specify at least -XXX to turn off exclusive
+	  fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
+	} else {
+	  fprintf(stderr,"  *warning* opening %s without O_EXCL\n", newpath);
+	  fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_TRUNC);
+	}
+      } else {
+	fdArray[i] = open(newpath, O_RDONLY | O_DIRECT); // if no writes, don't need write access
+      }
+
+      
+      
+    } else {
+      fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL); // if a file
+      if (fdArray[i] < 0) {
+	perror(newpath);exit(1);
+      }
+      actualBlockDeviceSize = fileSize(fdArray[i]);
+    } 
+    
+    if (fdArray[i] < 0) {
+      perror(newpath);exit(1);
+    } else {
+      (*fdLen)++;
+    }
+
+    fprintf(stderr,"*info* file specified: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
+
+    
+    if (newpath) free(newpath);
+  } // i
+
+  return actualBlockDeviceSize;
+}
+
   
 
 int main(int argc, char *argv[]) {
@@ -251,100 +362,25 @@ int main(int argc, char *argv[]) {
   }
 
   int fd = 0;
-  size_t actualBlockDeviceSize = 0;
 
   diskStatType dst; // count sectors/bytes
   diskStatSetup(&dst);
-
-  // follow a symlink
-  char *newpath;
-  CALLOC(newpath, 4096, sizeof(char));
-  if (readlink(path, newpath, 4096)>=0) {
-    strcpy(path, newpath);
+  if (specifiedDevices) {
+    diskStatFromFilelist(&dst, specifiedDevices, verbose);
   }
-  if (newpath) free(newpath);
-
-  // process the path  
-  size_t phy, log;
-  if (isBlockDevice(path)) {
-    /* -- From a Google search
-    The physical block size is the smallest size the device can
-    handle atomically. The smalles block it can handle without needing
-    to do a read-modify-write cycle. Applications should try to write
-    in multiples of that (and they do) but are not required to.
-
-    The logical block size on the other hand is the smallest size the
-    device can handle at all. Applications must write in multiples of
-    that.
-    */
-									
-    char *suffix = getSuffix(path);
-    char *sched = getScheduler(suffix);
-    if (verbose) {
-      fprintf(stderr,"*info* scheduler for %s (%s) is [%s]\n", path, suffix, sched);
-    }
-    
-    getPhyLogSizes(suffix, &phy, &log);
-    if (verbose) {
-      fprintf(stderr,"*info* physical_block_size %zd, logical_block_size %zd\n", phy, log);
-    }
-
-    free(sched);
-    free(suffix);
-
-    actualBlockDeviceSize = blockDeviceSize(path);
-    if (readRatio < 1) {
-      if (dontUseExclusive < 3) { // specify at least -XXX to turn off exclusive
-	fd = open(path, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
-      } else {
-	fprintf(stderr,"*warning* opening %s without O_EXCL\n", path);
-	fd = open(path, O_RDWR | O_DIRECT | O_TRUNC);
-      }
-    } else {
-      fd = open(path, O_RDONLY | O_DIRECT);
-    }
-      
-    if (fd < 0) {
-      perror(path);exit(1);
-    }
-
-    if (specifiedDevices) {
-      diskStatFromFilelist(&dst, specifiedDevices, verbose);
-    } else {
-      diskStatAddDrive(&dst, fd);
-    }
-    
-  } else {
-    fd = open(path, O_RDWR | O_DIRECT | O_EXCL);
-    if (fd < 0) {
-      perror(path);exit(1);
-    }
-    actualBlockDeviceSize = fileSize(fd);
-    fprintf(stderr,"*info* file specified: '%s' size %zd bytes\n", path, actualBlockDeviceSize);
-  }
-
-  if (LOWBLKSIZE < log) {
-    fprintf(stderr,"*warning* the block size is lower than the device logical block size\n");
-    LOWBLKSIZE = log;
-    if (LOWBLKSIZE > BLKSIZE) BLKSIZE=LOWBLKSIZE;
-  }
-
-  // various warnings and informational comments
-  if (LOWBLKSIZE < alignment) {
-    LOWBLKSIZE = alignment;
-    if (LOWBLKSIZE > BLKSIZE) BLKSIZE = LOWBLKSIZE;
-    fprintf(stderr,"*warning* setting -k [%zd-%zd] because of the alignment of %zd bytes\n", LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
-  }
-
-
+  
+  int *fdArray;
+  size_t fdLen = 0;
+  CALLOC(fdArray, pathLen, sizeof(size_t));
+  size_t actualBlockDeviceSize = openArrayPaths(pathArray, pathLen, fdArray, &fdLen, sendTrim);
 
   if (alignment == 0) {
     alignment = LOWBLKSIZE;
   }
 
-
   // using the -G option to reduce the max position on the block device
   size_t bdSize = actualBlockDeviceSize;
+  const size_t origBDSize = bdSize;
   if (maxSizeGB > 0) {
     bdSize = (size_t) (maxSizeGB * 1024L * 1024 * 1024);
   }
@@ -355,25 +391,16 @@ int main(int argc, char *argv[]) {
   } else if (bdSize < actualBlockDeviceSize) {
     fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", TOGiB(bdSize), TOGiB(actualBlockDeviceSize));
   }
+  /*
   if (sendTrim) {
     trimDevice(fd, path, 0, bdSize);
   }
-
+  */
 
   char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
   generateRandomBuffer(randomBuffer, BLKSIZE);
 
-  
-  size_t num;
-  if (maxPositions) {
-    num = maxPositions;
-    if (verbose) {
-      fprintf(stderr,"*info* hard coded maximum number of positions %zd\n", num);
-    }
-  } else {
-    num = noops * 1*1000*1000; // use 10M operations
-  }
-  positionType *positions = createPositions(num);
+  positionType *positions = createPositions(maxPositions);
 
   int exitcode = 0;
   
@@ -428,17 +455,17 @@ int main(int argc, char *argv[]) {
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // setup random positions. An value of 0 means random. e.g. zero sequential files
-	      setupPositions(positions, num, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero);
+	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero);
 
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
 	    } else {
 	      // setup multiple/parallel sequential region
-	      setupPositions(positions, num, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero);
+	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero);
 
 	      
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(fd, positions, num, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
 	    }
 	    if (verbose) {
 	      fprintf(stderr,"*info* calling fsync()\n");
@@ -477,15 +504,18 @@ int main(int argc, char *argv[]) {
   } else if (!autoDiscover) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
-    fprintf(stderr,"*info* path: %s, readWriteRatio: %.2lf, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n*info* flushEvery %d", path, readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment, flushEvery);
-    fprintf(stderr,", bdSize %.3lf GiB, rawSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSize), TOGiB(totl), 100.0*totl/bdSize - 100);
-    setupPositions(positions, num, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero);
+    fprintf(stderr,"*info* readWriteRatio: %.2lf, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n", readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
+    fprintf(stderr,"*info* flushEvery %d, max bdSize %.3lf GiB\n", flushEvery, TOGiB(bdSize));
+    if (totl > 0) {
+      fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(origBDSize), TOGiB(totl), 100.0*totl/origBDSize - 100);
+    }
+    setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero);
 
     diskStatStart(&dst); // grab the sector counts
     double start = timedouble();
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
-    aioMultiplePositions(fd, positions, num, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes);
+    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes);
     if (verbose) {
       fprintf(stderr,"*info* calling fsync()\n");
     }
@@ -506,7 +536,7 @@ int main(int argc, char *argv[]) {
 
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
     if (verifyWrites && readRatio < 1) {
-      int numerrors = aioVerifyWrites(path, positions, num, BLKSIZE, alignment, verbose, randomBuffer);
+      int numerrors = aioVerifyWrites(pathArray[0], positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
       if (numerrors) {
 	exitcode = MIN(numerrors, 999);
       }
@@ -515,23 +545,23 @@ int main(int argc, char *argv[]) {
   } else {
     size_t L = 0;
     size_t R = bdSize - (512*1024*1024L);
-    double AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
-    double AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
+    double AL = testReadLocation(fd, L, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
+    double AR = testReadLocation(fd, R, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
     
     while (!(similarNumbers(AL, AR))) {
       //      fprintf(stderr,"left %lf.... right %lf\n", AL, AR);
       
       size_t m = (L + R) / 2;
-      double Am = testReadLocation(fd, m, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
+      double Am = testReadLocation(fd, m, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
       //      fprintf(stderr,"mid %zd %zd %zd ..... [%lf %lf %lf]\n", L, m, R, AL, Am, AR);
       // 0    50    100
       // 120  150   150
       if (similarNumbers(AR, Am)) {
 	R = m - BLKSIZE;
-	AR = testReadLocation(fd, R, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
+	AR = testReadLocation(fd, R, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
       } else if (similarNumbers(AL, Am)) {
 	L = m + BLKSIZE;
-	AL = testReadLocation(fd, L, BLKSIZE, positions, num, randomBuffer, BLKSIZE);
+	AL = testReadLocation(fd, L, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
       } else {
 	break;
       }
@@ -541,6 +571,9 @@ int main(int argc, char *argv[]) {
   diskStatFree(&dst);
   free(positions);
   free(randomBuffer);
+  if (fdArray) free(fdArray);
+  if (pathLen) {for(size_t i = 0; i < pathLen;i++) free(pathArray[i]);}
+  if (pathArray) free(pathArray);
   if (logFNPrefix) {free(logFNPrefix);}
   if (specifiedDevices) {free(specifiedDevices);}
   
