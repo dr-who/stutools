@@ -149,18 +149,15 @@ void setupPositions(positionType *positions,
     *num = count;
   }
 
-  if (startAtZero) {
-    poss[0].pos = 0;
-  }
-
   int fdPos = 0;
   if (singlePosition) {
     // set a few fixed positions
     fprintf(stderr, "Using a single block position: singlePosition value of %zd\n", singlePosition);
     
     size_t sinPos = lrand48() % count;
+    if (startAtZero) sinPos = 0;
     for (size_t i = 0; i < *num; i++) {
-      if ((singlePosition > 1) && ((i % singlePosition) == 0)) {
+      if ((i > 0) && (singlePosition > 1) && ((i % singlePosition) == 0)) {
 	sinPos = lrand48() % count;
       }
 
@@ -207,6 +204,7 @@ void setupPositions(positionType *positions,
     *num = abssf * (size_t)((*num) /abssf);
 
     size_t offset = lrand48() % count; // offset in the list of possible positions
+    if (startAtZero) offset = 0;
     
     CALLOC(ppp, abssf, sizeof(size_t)); // start in 'abssf' regions
     CALLOC(ppp2, abssf, sizeof(size_t)); // start in 'abssf' regions
