@@ -327,9 +327,6 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       } else {
 	fdArray[i] = open(newpath, O_RDONLY | O_DIRECT); // if no writes, don't need write access
       }
-
-      
-      
     } else {
       fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL); // if a file
       if (fdArray[i] < 0) {

@@ -53,7 +53,8 @@ size_t blockDeviceSize(char *path) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
     perror(path);
-    return 0;
+    exit(1);
+    //    return 0;
   }
   size_t file_size_in_bytes = 0;
   ioctl(fd, BLKGETSIZE64, &file_size_in_bytes);
@@ -386,7 +387,7 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
   }
   int fd = open(label, O_RDONLY | O_DIRECT); // O_DIRECT to check contents
   if (fd < 0) {
-    perror("checkContents");
+    perror(label);
     exit(1);
   }
 
