@@ -41,7 +41,6 @@ size_t noops = 1;
 int    verifyWrites = 0;
 char*  specifiedDevices = NULL;
 int    sendTrim = 0;
-int    autoDiscover = 0;
 int    startAtZero = 0;
 size_t maxPositions = 10*1000*1000;
 size_t dontUseExclusive = 0;
@@ -68,9 +67,6 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'z':
       startAtZero = 1;
-      break;
-    case 'g':
-      autoDiscover = 1;
       break;
     case 'M':
       sendTrim = 1;
@@ -361,8 +357,6 @@ int main(int argc, char *argv[]) {
     exitAfterSeconds = 99999999;
   }
 
-  int fd = 0;
-
   diskStatType dst; // count sectors/bytes
   diskStatSetup(&dst);
   if (specifiedDevices) {
@@ -470,7 +464,9 @@ int main(int argc, char *argv[]) {
 	    if (verbose) {
 	      fprintf(stderr,"*info* calling fsync()\n");
 	    }
-	    fsync(fd);
+	    for (size_t f = 0; f < fdLen; f++) {
+	      fsync(fdArray[f]); // should be parallel sync
+	    }
 
 	    elapsed = timedouble() - start;
 	      
@@ -501,7 +497,7 @@ int main(int argc, char *argv[]) {
     free(ssArray);
 
     // end table results
-  } else if (!autoDiscover) {
+  } else {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
     fprintf(stderr,"*info* readWriteRatio: %.2lf, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n", readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
@@ -519,15 +515,16 @@ int main(int argc, char *argv[]) {
     if (verbose) {
       fprintf(stderr,"*info* calling fsync()\n");
     }
-    fsync(fd);
-    close(fd);
+    for (size_t f = 0; f < fdLen; f++) {
+      fsync(fdArray[f]); // should be parallel sync
+      close(fdArray[f]);
+    }
+    
     double elapsed = timedouble() - start;
     
     diskStatFinish(&dst); // and sector counts when finished
     
-    if (verbose) {
-      fprintf(stderr,"*info* total reads = %zd, total writes = %zd\n", shouldReadBytes, shouldWriteBytes);
-    }
+    fprintf(stderr,"*info* total reads = %zd (%.1lf GiB), total writes = %zd (%.1lf GiB)\n", shouldReadBytes, TOGiB(shouldReadBytes), shouldWriteBytes, TOGiB(shouldWriteBytes));
 
     /* number of bytes read/written not under our control */
     size_t trb = 0, twb = 0;
@@ -541,32 +538,7 @@ int main(int argc, char *argv[]) {
 	exitcode = MIN(numerrors, 999);
       }
     }
-    // end single run
-  } else {
-    size_t L = 0;
-    size_t R = bdSize - (512*1024*1024L);
-    double AL = testReadLocation(fd, L, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
-    double AR = testReadLocation(fd, R, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
-    
-    while (!(similarNumbers(AL, AR))) {
-      //      fprintf(stderr,"left %lf.... right %lf\n", AL, AR);
-      
-      size_t m = (L + R) / 2;
-      double Am = testReadLocation(fd, m, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
-      //      fprintf(stderr,"mid %zd %zd %zd ..... [%lf %lf %lf]\n", L, m, R, AL, Am, AR);
-      // 0    50    100
-      // 120  150   150
-      if (similarNumbers(AR, Am)) {
-	R = m - BLKSIZE;
-	AR = testReadLocation(fd, R, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
-      } else if (similarNumbers(AL, Am)) {
-	L = m + BLKSIZE;
-	AL = testReadLocation(fd, L, BLKSIZE, positions, maxPositions, randomBuffer, BLKSIZE);
-      } else {
-	break;
-      }
-    }
-  }
+  } // end single run
 
   diskStatFree(&dst);
   free(positions);

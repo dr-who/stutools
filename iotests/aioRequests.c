@@ -220,7 +220,7 @@ int aioVerifyWrites(const char *path,
 		    const int verbose,
 		    const char *randomBuffer) {
 
-  fprintf(stderr,"*info* sorting verification array (%zd)\n", maxpos);
+  fprintf(stderr,"*info* sorting verification array, %zd positions\n", maxpos);
   qsort(positions, maxpos, sizeof(positionType), poscompare);
 
 
@@ -239,6 +239,8 @@ int aioVerifyWrites(const char *path,
       }
     }
   }
+
+  double start = timedouble();
   fprintf(stderr,"*info* started verification (%.2lf GiB)\n", TOGiB(bytesToVerify));
 
   for (size_t i = 0; i < maxpos; i++) {
@@ -296,7 +298,8 @@ int aioVerifyWrites(const char *path,
       }
     }
   }
-  fprintf(stderr,"verified %zd blocks, number of errors %zd\n", checked, errors);
+  double elapsed = timedouble() - start;
+  fprintf(stderr,"verified %zd blocks, number of errors %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
   close(fd);
   free(buffer);
 
