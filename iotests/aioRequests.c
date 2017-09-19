@@ -15,6 +15,8 @@ extern int keepRunning;
 extern int singlePosition;
 extern int flushEvery;
 
+#define DISPLAYEVERY 1
+
 size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
 			     const float secTimeout,
@@ -113,11 +115,11 @@ size_t aioMultiplePositions( positionType *positions,
 	
 	double gt = timedouble();
 
-	if (gt - last >= 1) {
-	  if (!tableMode) fprintf(stderr,"submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), (totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024);
+	if (gt - last >= DISPLAYEVERY) {
+	  if (!tableMode) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), (totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024);
 	  last = gt;
-	  if ((!keepRunning) || (gt - start > secTimeout)) {
-	    //	  fprintf(stderr,"timeout\n");
+	  if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
+	    //	    	  fprintf(stderr,"timeout\n");
 	    goto endoffunction;
 	  }
 	}
@@ -141,11 +143,11 @@ size_t aioMultiplePositions( positionType *positions,
     
     ret = io_getevents(ctx, 0, QD, events, NULL);
 
-    if ((!keepRunning) || (timedouble() - start > secTimeout)) {
+    /*    if ((!keepRunning) || ((long)(timedouble() - start) >= secTimeout)) {
       if (received > 0) {
 	break;
       }
-    }
+      }*/
 
     if (ret > 0) {
 
@@ -241,7 +243,7 @@ int aioVerifyWrites(int *fdArray,
   }
 
   double start = timedouble();
-  fprintf(stderr,"*info* started verification (%.2lf GiB)\n", TOGiB(bytesToVerify));
+  fprintf(stderr,"*info* started verification (%.1lf GiB)\n", TOGiB(bytesToVerify));
 
   for (size_t i = 0; i < maxpos; i++) {
     if (positions[i].success) {
