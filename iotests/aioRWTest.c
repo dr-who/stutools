@@ -257,7 +257,9 @@ int similarNumbers(double a, double b) {
 
 
 size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim) {
+  size_t retBD = 0;
   size_t actualBlockDeviceSize = 0 ;
+  
   int error = 0;
   
   for (size_t i = 0; i < len; i++) {
@@ -331,6 +333,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       }
 
       actualBlockDeviceSize = blockDeviceSize(newpath);
+      fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
     } else {
       fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL); // if a file
       if (fdArray[i] < 0) {
@@ -338,11 +341,18 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       }
 
       actualBlockDeviceSize = fileSize(fdArray[i]);
-    } 
+      fprintf(stderr,"*info* file: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
+    }
+    if (i == 0) {
+      retBD = actualBlockDeviceSize;
+    } else {
+      if (actualBlockDeviceSize < retBD) {
+	retBD = actualBlockDeviceSize;
+      }
+    }
     
     (*fdLen)++;
 
-    fprintf(stderr,"*info* file specified: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
     
     if (newpath) free(newpath);
 
@@ -354,7 +364,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     exit(1);
   }
 
-  return actualBlockDeviceSize;
+  return retBD;
 }
 
   
