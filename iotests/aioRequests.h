@@ -18,7 +18,8 @@ size_t aioMultiplePositions( positionType *positions,
 			    size_t *totalRB,
 			    size_t *totalWB);
 
-int aioVerifyWrites(const char *path,
+int aioVerifyWrites(int *fdArray,
+		    const size_t fdLen,
 		    positionType *positions,
 		    const size_t maxpos,
 		    const size_t maxBufferSize,

@@ -207,12 +207,14 @@ static int poscompare(const void *p1, const void *p2)
 {
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
+
   if (pos1->pos < pos2->pos) return -1;
   else if (pos1->pos > pos2->pos) return 1;
   else return 0;
 }
 
-int aioVerifyWrites(const char *path,
+int aioVerifyWrites(int *fdArray,
+		    const size_t fdlen,
 		    positionType *positions,
 		    const size_t maxpos,
 		    const size_t maxBufferSize,
@@ -223,16 +225,14 @@ int aioVerifyWrites(const char *path,
   fprintf(stderr,"*info* sorting verification array, %zd positions\n", maxpos);
   qsort(positions, maxpos, sizeof(positionType), poscompare);
 
-
-
-  const int fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
-  if (fd < 0) {fprintf(stderr,"fd error\n");exit(1);}
-
   size_t errors = 0, checked = 0;
   char *buffer = aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
 
   size_t bytesToVerify = 0;
   for (size_t i = 0; i < maxpos; i++) {
+    /*    if (i < 10) {
+      fprintf(stderr,"%d %zd %zd\n", positions[i].fd, positions[i].pos, positions[i].len);
+      }*/
     if (positions[i].success) {
       if (positions[i].action == 'W') {
 	bytesToVerify += positions[i].len;
@@ -257,11 +257,11 @@ int aioVerifyWrites(const char *path,
 	assert(len > 0);
 	assert((pos % alignment) == 0);
 	
-	if (lseek(fd, pos, SEEK_SET) == -1) {
+	if (lseek(positions[i].fd, pos, SEEK_SET) == -1) {
 	  perror("cannot seek");
 	}
 	//	buffer[0] = 256 - randomBuffer[0] ^ 0xff; // make sure the first char is different
-	const int bytesRead = read(fd, buffer, len);
+	const int bytesRead = read(positions[i].fd, buffer, len);
 
 	if ((size_t)bytesRead != len) {
 	  errors++;
@@ -300,7 +300,8 @@ int aioVerifyWrites(const char *path,
   }
   double elapsed = timedouble() - start;
   fprintf(stderr,"verified %zd blocks, number of errors %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
-  close(fd);
+
+  
   free(buffer);
 
   return errors;

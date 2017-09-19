@@ -526,7 +526,6 @@ int main(int argc, char *argv[]) {
     }
     for (size_t f = 0; f < fdLen; f++) {
       fsync(fdArray[f]); // should be parallel sync
-      close(fdArray[f]);
     }
     
     double elapsed = timedouble() - start;
@@ -542,11 +541,16 @@ int main(int argc, char *argv[]) {
 
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
     if (verifyWrites && readRatio < 1) {
-      int numerrors = aioVerifyWrites(pathArray[0], positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
+      int numerrors = aioVerifyWrites(fdArray, fdLen, positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
       if (numerrors) {
 	exitcode = MIN(numerrors, 999);
       }
     }
+
+    for (size_t f = 0; f < fdLen; f++) {
+      close(fdArray[f]); // should be parallel sync
+    }
+
   } // end single run
 
   diskStatFree(&dst);
