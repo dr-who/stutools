@@ -45,10 +45,11 @@ int    startAtZero = 0;
 size_t maxPositions = 10*1000*1000;
 size_t dontUseExclusive = 0;
 char*  logPositions = NULL;
+long int seed;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
-  long int seed = (long int) timedouble();
+  seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
   while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:")) != -1) {
@@ -212,9 +213,6 @@ void handle_args(int argc, char *argv[]) {
     exit(1);
   }
 
-  srand48(seed);
-  fprintf(stderr,"*info* seed = %ld\n", seed);
-
 }
 
 
@@ -260,9 +258,11 @@ int similarNumbers(double a, double b) {
 
 size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim) {
   size_t actualBlockDeviceSize = 0 ;
+  int error = 0;
   
   for (size_t i = 0; i < len; i++) {
     // follow a symlink
+    fdArray[i] = -1;
     char *newpath;
     CALLOC(newpath, 4096, sizeof(char));
     if (readlink(p[i], newpath, 4096)>=0) {
@@ -316,36 +316,43 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       free(sched);
       free(suffix);
       
-      actualBlockDeviceSize = blockDeviceSize(newpath);
-      if (readRatio < 1) {
+      if (readRatio < 1) { // if any writes
 	if (dontUseExclusive < 3) { // specify at least -XXX to turn off exclusive
 	  fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
 	} else {
 	  fprintf(stderr,"  *warning* opening %s without O_EXCL\n", newpath);
 	  fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_TRUNC);
 	}
-      } else {
+      } else { // only reads
 	fdArray[i] = open(newpath, O_RDONLY | O_DIRECT); // if no writes, don't need write access
       }
+      if (fdArray[i] < 0) {
+	perror(newpath); error=1; goto cont;
+      }
+
+      actualBlockDeviceSize = blockDeviceSize(newpath);
     } else {
       fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL); // if a file
       if (fdArray[i] < 0) {
-	perror(newpath);exit(1);
+	perror(newpath); error=1; goto cont;
       }
+
       actualBlockDeviceSize = fileSize(fdArray[i]);
     } 
     
-    if (fdArray[i] < 0) {
-      perror(newpath);exit(1);
-    } else {
-      (*fdLen)++;
-    }
+    (*fdLen)++;
 
     fprintf(stderr,"*info* file specified: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
-
     
     if (newpath) free(newpath);
+
+  cont: {}
+    
   } // i
+
+  if (error) {
+    exit(1);
+  }
 
   return actualBlockDeviceSize;
 }
@@ -392,6 +399,10 @@ int main(int argc, char *argv[]) {
     trimDevice(fd, path, 0, bdSize);
   }
   */
+
+  srand48(seed);
+  fprintf(stderr,"*info* seed = %ld\n", seed);
+
 
   char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
   generateRandomBuffer(randomBuffer, BLKSIZE);
