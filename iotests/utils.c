@@ -52,9 +52,9 @@ size_t blockDeviceSize(char *path) {
 
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
-    perror(path);
-    exit(1);
-    //    return 0;
+    //    perror(path);
+    //    exit(1);
+    return 0;
   }
   size_t file_size_in_bytes = 0;
   ioctl(fd, BLKGETSIZE64, &file_size_in_bytes);
