@@ -44,17 +44,21 @@ int    sendTrim = 0;
 int    startAtZero = 0;
 size_t maxPositions = 10*1000*1000;
 size_t dontUseExclusive = 0;
+char*  logPositions = NULL;
 
 void handle_args(int argc, char *argv[]) {
   int opt;
   long int seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
       if (alignment < 1024) alignment = 1024;
+      break;
+    case 'L':
+      logPositions = strdup(optarg);
       break;
     case 'X':
       dontUseExclusive++;
@@ -202,6 +206,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX # Triple X does not use O_EXCL. For multiple instances simultaneously.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z # Start the first position at position zero instead of random.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB instead of the default 4KiB\n");
+    fprintf(stderr,"  ./aioRWTest -L log.txt -s1 -w -f /dev/nbd0 # log all positions and operations to log.txt\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
@@ -507,6 +512,13 @@ int main(int argc, char *argv[]) {
     }
     setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero);
 
+    if (logPositions) {
+      if (verbose) {
+	fprintf(stderr, "*info* dumping positions to '%s'\n", logPositions);
+      }
+      dumpPositions(logPositions, positions, maxPositions, bdSize);
+    }
+
     diskStatStart(&dst); // grab the sector counts
     double start = timedouble();
 
@@ -544,10 +556,14 @@ int main(int argc, char *argv[]) {
   free(positions);
   free(randomBuffer);
   if (fdArray) free(fdArray);
-  if (pathLen) {for(size_t i = 0; i < pathLen;i++) free(pathArray[i]);}
+  if (pathLen) {
+    for(size_t i = 0; i < pathLen;i++)
+      free(pathArray[i]);
+  }
   if (pathArray) free(pathArray);
-  if (logFNPrefix) {free(logFNPrefix);}
-  if (specifiedDevices) {free(specifiedDevices);}
+  if (logFNPrefix) free(logFNPrefix);
+  if (specifiedDevices) free(specifiedDevices);
+  if (logPositions) free(logPositions);
   
   return exitcode;
 }

@@ -90,10 +90,16 @@ void checkPositionArray(const positionType *positions, size_t num, size_t bdSize
 
 
 // lots of checks
-void dumpPositions(positionType *positions, size_t num, size_t bdSizeBytes) {
-  //  fprintf(stderr,"... dump positions\n");
-  for (size_t i = 0; i <num; i++) {
-    fprintf(stdout,"%10zd\t%.2lf GiB\t%c\t%zd\t%zd\t%.2lf GiB\t(%.1lf%%)\n", positions[i].pos, TOGiB(positions[i].pos), positions[i].action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].pos * 100.0 / bdSizeBytes);
+void dumpPositions(const char *name, positionType *positions, size_t num, size_t bdSizeBytes) {
+  if (name) {
+    FILE *fp = fopen(name, "wt");
+    if (!fp) {
+      perror(name); return;
+    }
+    for (size_t i = 0; i <num; i++) {
+      fprintf(fp, "%8d\t%10zd\t%.2lf GiB\t%c\t%zd\t%zd\t%.2lf GiB\t(%.1lf%%)\n", positions[i].fd, positions[i].pos, TOGiB(positions[i].pos), positions[i].action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].pos * 100.0 / bdSizeBytes);
+    }
+    fclose(fp);
   }
 }
 
