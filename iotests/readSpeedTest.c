@@ -17,7 +17,7 @@
 int    keepRunning = 1;       // have we been interrupted
 size_t blockSize = 1024*1024; // default to 1MiB
 int    exitAfterSeconds = 60; // default timeout
-int    resetSeconds = 20;
+int    resetSeconds = 0;
 int    isSequential = 1;   
 float  limitGBToProcess = 0;
 int    offSetGB = 0;
@@ -109,7 +109,7 @@ void startThreads(int argc, char *argv[], int index) {
       }
       logSpeedFree(&threadContext[i].logSpeed);
     }
-    fprintf(stdout, "*info* worst %s %.1lf MiB/s, synced case %.1lf MiB/s, %zd drives, %zd zero byte drives\n", minName ? minName : "", TOMiB(minSpeed), TOMiB(minSpeed * driveCount), driveCount, zeroDrives);
+    fprintf(stderr, "*info* worst %s %.1lf MiB/s, synced case %.1lf MiB/s, %zd drives, %zd zero byte drives\n", minName ? minName : "", TOMiB(minSpeed), TOMiB(minSpeed * driveCount), driveCount, zeroDrives);
     fprintf(stdout, "Total read %.1lf GiB bytes, time %.1lf s, max/sum of mean = %.1lf MiB/s\n", TOGiB(allbytes), maxtime, TOMiB(allmb));
     free(threadContext);
     free(pt);
