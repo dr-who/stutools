@@ -119,7 +119,9 @@ void setupPositions(positionType *positions,
 		          const int    jumpStep,
 		          const size_t startAtZero
 		    ) {
-  assert (lowbs <= bs);
+  assert(lowbs <= bs);
+  assert(positions);
+  assert(fdArray);
   if (bdSizeBytes < bs) {
     fprintf(stderr, "*warning* size of device is less than block size!\n");
     return;
@@ -145,7 +147,9 @@ void setupPositions(positionType *positions,
     fprintf(stderr,"*info* %zd unique positions, allocated %zd positions\n", count, *num);
   }
   if (*num > count) {
-    fprintf(stderr,"*warning* there are %zd unique positions on the device\n", count);
+    if (verbose > 1) {
+      fprintf(stderr,"*warning* there are %zd unique positions on the device\n", count);
+    }
     *num = count;
   }
 

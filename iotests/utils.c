@@ -41,14 +41,14 @@ size_t fileSize(int fd) {
   return sz;
 }
   
-size_t blockDeviceSizeFromFD(int fd) {
+size_t blockDeviceSizeFromFD(const int fd) {
   size_t file_size_in_bytes = 0;
   ioctl(fd, BLKGETSIZE64, &file_size_in_bytes);
   return file_size_in_bytes;
 }
   
 
-size_t blockDeviceSize(char *path) {
+size_t blockDeviceSize(const char *path) {
 
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
@@ -327,7 +327,7 @@ void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxT
 }
 
 
-int isBlockDevice(char *name) {
+int isBlockDevice(const char *name) {
   struct stat sb;
 
   if (stat(name, &sb) == -1) {

@@ -263,12 +263,14 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
   
   int error = 0;
   
+  char newpath[4096];
+  //  CALLOC(newpath, 4096, sizeof(char));
+    
   for (size_t i = 0; i < len; i++) {
+    memset(newpath, 0, 4096);
     // follow a symlink
     fdArray[i] = -1;
-    char *newpath;
-    CALLOC(newpath, 4096, sizeof(char));
-    if (readlink(p[i], newpath, 4096)>=0) {
+    if (readlink(p[i], newpath, 4095)>=0) {
       // was a link
     } else {
       strcpy(newpath, p[i]);
@@ -316,8 +318,8 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       }
 
 
-      free(sched);
-      free(suffix);
+      free(sched); sched = NULL;
+      free(suffix); suffix = NULL;
       
       if (readRatio < 1) { // if any writes
 	if (dontUseExclusive < 3) { // specify at least -XXX to turn off exclusive
@@ -333,7 +335,9 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
 	perror(newpath); error=1; goto cont;
       }
 
+      //      fprintf(stderr,"nnn %s\n", newpath);
       actualBlockDeviceSize = blockDeviceSize(newpath);
+      //      fprintf(stderr,"nnn %s\n", newpath);
       fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
     } else {
       fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL); // if a file
@@ -353,9 +357,6 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     }
     
     (*fdLen)++;
-
-    
-    if (newpath) free(newpath);
 
   cont: {}
     
@@ -518,7 +519,7 @@ int main(int argc, char *argv[]) {
 	}
       }
     }
-    free(ssArray);
+    free(ssArray); ssArray = NULL;
 
     // end table results
   } else {
