@@ -15,8 +15,9 @@ extern int keepRunning;
 extern int singlePosition;
 extern int flushEvery;
 
-size_t aioMultiplePositions(const int fd,
-			     positionType *positions,
+#define DISPLAYEVERY 1
+
+size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
 			     const float secTimeout,
 			     const size_t QD,
@@ -62,12 +63,12 @@ size_t aioMultiplePositions(const int fd,
   size_t pos = 0;
 
   double start = timedouble();
-  double last = start;
+  double last = start, gt = start;
   size_t submitted = 0;
   size_t received = 0;
 
   size_t totalWriteBytes = 0; 
-  size_t totalReadBytes = 0; 
+  size_t totalReadBytes = 0;
   //  double mbps = 0;
   
 
@@ -84,13 +85,13 @@ size_t aioMultiplePositions(const int fd,
 	  // setup the request
 	  if (read) {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-	    io_prep_pread(cbs[0], fd, data[i%QD], len, newpos);
+	    io_prep_pread(cbs[0], positions[pos].fd, data[i%QD], len, newpos);
 	    positions[pos].success = 1;
 	    totalReadBytes += len;
 	  } else {
 	    if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
 	    assert(randomBuffer[0] == 's'); // from stutools
-	    io_prep_pwrite(cbs[0], fd, randomBuffer, len, newpos);
+	    io_prep_pwrite(cbs[0], positions[pos].fd, randomBuffer, len, newpos);
 	    positions[pos].success = 1;
 	    totalWriteBytes += len;
 	  }
@@ -102,23 +103,23 @@ size_t aioMultiplePositions(const int fd,
 	    inFlight++;
 	    submitted++;
 	    if (verbose >= 2 || (newpos % alignment != 0)) {
-	      fprintf(stderr,"pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+	      fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", positions[pos].fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 	    }
 	    
 	  } else {
-	    fprintf(stderr,"!!!\n");
+	    fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()");exit(1);
 	  }
 	  
 	  pos++; if (pos >= sz) pos = 0; // don't go over the end of the array
 	}
 	
-	double gt = timedouble();
+	gt = timedouble();
 
-	if (gt - last >= 1) {
-	  if (!tableMode) fprintf(stderr,"submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), (totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024);
+	if (gt - last >= DISPLAYEVERY) {
+	  if (!tableMode) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), (totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024);
 	  last = gt;
-	  if ((!keepRunning) || (gt - start > secTimeout)) {
-	    //	  fprintf(stderr,"timeout\n");
+	  if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
+	    //	    	  fprintf(stderr,"timeout\n");
 	    goto endoffunction;
 	  }
 	}
@@ -127,23 +128,27 @@ size_t aioMultiplePositions(const int fd,
 	} else {
 	  //      fprintf(stderr,"red %d\n", ret);
 	  }*/
-      } // for loop
+      } // for loop i
+      
       if (flushEvery) {
 	if ((pos % flushEvery) == 0) {
 	  // sync whenever the queue is full
 	  if (verbose >= 2) {
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
-	  fsync(fd);
+	  fsync(positions[pos].fd);
 	}
       }
     }
     
     ret = io_getevents(ctx, 0, QD, events, NULL);
 
-    if ((!keepRunning) || (timedouble() - start > secTimeout)) {
-      if (received > 0) {
-	break;
+    // if stop running or been running long enough
+    if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
+      if (gt - last > 1) { // if it's been over a second since per-second output
+	if (received > 0) {
+	  break;
+	}
       }
     }
 
@@ -156,10 +161,12 @@ size_t aioMultiplePositions(const int fd,
 	  logSpeedAdd(l, events[j].res);
 	}
 	  
-	/*	if (events[j].res != len) { // if return of bytes written or read
-	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
-	  } */
+	if (events[j].res <= 0) { // if return of bytes written or read
+	  fprintf(stderr,"failure: %ld bytes\n", events[j].res);
+	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
+	}
       }
+	//}
       
 	/*      if (l) {
 	logSpeedAdd(l, ret * len);
@@ -200,72 +207,106 @@ size_t aioMultiplePositions(const int fd,
 }
 
 
-int aioVerifyWrites(const char *path,
-		    const positionType *positions,
+// sorting function, used by qsort
+static int poscompare(const void *p1, const void *p2)
+{
+  const positionType *pos1 = (positionType*)p1;
+  const positionType *pos2 = (positionType*)p2;
+
+  if (pos1->pos < pos2->pos) return -1;
+  else if (pos1->pos > pos2->pos) return 1;
+  else return 0;
+}
+
+int aioVerifyWrites(int *fdArray,
+		    const size_t fdlen,
+		    positionType *positions,
 		    const size_t maxpos,
 		    const size_t maxBufferSize,
 		    const size_t alignment,
 		    const int verbose,
 		    const char *randomBuffer) {
 
-
-  const int fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
-  if (fd < 0) {fprintf(stderr,"fd error\n");exit(1);}
-
-  fprintf(stderr,"*info* started verification\n");
+  fprintf(stderr,"*info* sorting verification array, %zd positions\n", maxpos);
+  qsort(positions, maxpos, sizeof(positionType), poscompare);
 
   size_t errors = 0, checked = 0;
-  int bytesRead = 0;
-
   char *buffer = aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
-  
+
+  size_t bytesToVerify = 0;
+  for (size_t i = 0; i < maxpos; i++) {
+    /*    if (i < 10) {
+      fprintf(stderr,"%d %zd %zd\n", positions[i].fd, positions[i].pos, positions[i].len);
+      }*/
+    if (positions[i].success) {
+      if (positions[i].action == 'W') {
+	bytesToVerify += positions[i].len;
+      }
+    }
+  }
+
+  double start = timedouble();
+  fprintf(stderr,"*info* started verification (%.1lf GiB)\n", TOGiB(bytesToVerify));
+
   for (size_t i = 0; i < maxpos; i++) {
     if (positions[i].success) {
       if (positions[i].action == 'W') {
-	assert(positions[i].len >= 1024);
-	assert(positions[i].len % 1024 == 0);
+	//	assert(positions[i].len >= 1024);
+	//	assert(positions[i].len % 1024 == 0);
 	//	fprintf(stderr,"\n%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
 	checked++;
 	const size_t pos = positions[i].pos;
 	const size_t len = positions[i].len;
-	if (lseek(fd, pos, SEEK_SET) == -1) {
+	assert((len % alignment) == 0);
+	assert(len <= maxBufferSize);
+	assert(len > 0);
+	assert((pos % alignment) == 0);
+	
+	if (lseek(positions[i].fd, pos, SEEK_SET) == -1) {
 	  perror("cannot seek");
 	}
-	buffer[0] = randomBuffer[0] ^ 0xff; // make sure the first char is different
-	
-	bytesRead = read(fd, buffer, len);
-	//	fprintf(stderr,"reading... %d\n", bytesRead);
-	//	buffer[len - 1] = 0; // clear the end byte
+	//	buffer[0] = 256 - randomBuffer[0] ^ 0xff; // make sure the first char is different
+	const int bytesRead = read(positions[i].fd, buffer, len);
+
 	if ((size_t)bytesRead != len) {
-	  fprintf(stderr,"[%zd/%zd] verify read truncated bytesRead %d instead of len=%zd\n", i, pos, bytesRead, len);
 	  errors++;
+	  fprintf(stderr,"[%zd/%zd][position %zd] verify read truncated bytesRead=%d instead of len=%zd\n", checked, maxpos, pos, bytesRead, len);
 	} else {
+	  assert(bytesRead == len);
+	  assert((len % alignment) == 0);
 	  if (strncmp(buffer, randomBuffer, bytesRead) != 0) {
-	    size_t firstprint = 1;
+	    errors++;
+	    size_t firstprint = 0;
+	    char *bufferp = buffer;
+	    char *randomp = (char*)randomBuffer;
 	    for (size_t p = 0; p < bytesRead; p++) {
-	      if (buffer[p] != randomBuffer[p]) {
-		if (firstprint) {
-		  fprintf(stderr,"[%zd/%zd][%zd] verify error at location.  %c   %c \n", i, pos, p, buffer[p], randomBuffer[p]);
-		  firstprint = 0;
+	      if (*bufferp != *randomp) {
+		//	      if (buffer[p] != randomBuffer[p]) {
+		if (firstprint < 1) {
+		  fprintf(stderr,"[%zd/%zd][position %zd] verify error [size=%zd, read=%d] at location (%zd).  '%c'   '%c' \n", checked, maxpos, pos, len, bytesRead, p, buffer[p], randomBuffer[p]);
+		  firstprint++;
 		}
 	      }
+	      bufferp++;
+	      randomp++;
 	    }
 	    /*	    if (errors <= 1) {
 	      fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
 	      fprintf(stderr,"ondisk:   \n%s\n", buffer);
 	      }*/
-	    errors++;
 	  } else {
 	    if (verbose >= 2) {
-	      fprintf(stderr,"[%zd] verified ok location %zd, size %zd\n", i, pos, len);
+	      fprintf(stderr,"[%zd] verified ok location %zd, size %zd\n", checked, pos, len);
 	    }
 	  }
 	}
       }
     }
   }
-  fprintf(stderr,"verified %zd blocks, number of errors %zd\n", checked, errors);
-  close(fd);
+  double elapsed = timedouble() - start;
+  fprintf(stderr,"verified %zd blocks, number of errors %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
+
+  
   free(buffer);
 
   return errors;

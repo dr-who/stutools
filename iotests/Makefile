@@ -50,8 +50,6 @@ diskStats.o: diskStats.c diskStats.h utils.h
 logSpeedTest: logSpeedTest.o utils.o logSpeed.o
 
 clean:
-	- rm -f readSpeedTest writeSpeedTest writePairTest logSpeedTest *.o \
-	mtReadSpeedTest mtWriteSpeedTest checkDisks aioReadTest aioRWTest \
-	flushTestReader flushTestWriter writeSmallBlocks
+	git clean -xdf
 
 

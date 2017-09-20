@@ -4,8 +4,7 @@
 #include "logSpeed.h"
 #include "positions.h"
 
-size_t aioMultiplePositions(const int fd,
-			     positionType *positions,
+size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
 			     const float secTimeout,
 			     const size_t QD,
@@ -19,8 +18,9 @@ size_t aioMultiplePositions(const int fd,
 			    size_t *totalRB,
 			    size_t *totalWB);
 
-int aioVerifyWrites(const char *path,
-		    const positionType *positions,
+int aioVerifyWrites(int *fdArray,
+		    const size_t fdLen,
+		    positionType *positions,
 		    const size_t maxpos,
 		    const size_t maxBufferSize,
 		    const size_t alignment,
