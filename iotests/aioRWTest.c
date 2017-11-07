@@ -257,7 +257,7 @@ int similarNumbers(double a, double b) {
 }
 
 
-size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim) {
+size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim, const size_t maxSizeGB) {
   size_t retBD = 0;
   size_t actualBlockDeviceSize = 0 ;
   
@@ -270,11 +270,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     memset(newpath, 0, 4096);
     // follow a symlink
     fdArray[i] = -1;
-    if (readlink(p[i], newpath, 4095)>=0) {
-      // was a link
-    } else {
-      strcpy(newpath, p[i]);
-    }
+    realpath(p[i], newpath);
 
     if (verbose >= 2) {
       fprintf(stderr,"*info* processing path %s\n", newpath);
@@ -339,6 +335,15 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       actualBlockDeviceSize = blockDeviceSize(newpath);
       //      fprintf(stderr,"nnn %s\n", newpath);
       fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
+      if (sendTrim) {
+	if (maxSizeGB > 0) {
+	  trimDevice(fdArray[i], newpath, 0, maxSizeGB*1024*1024*1024);
+	} else {
+	  fprintf(stderr,"*info* limiting to 10GiB... ");
+	  trimDevice(fdArray[i], newpath, 0, 10L*1024*1024*1024);
+	}
+      }
+
     } else {
       fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL); // if a file
       if (fdArray[i] < 0) {
@@ -387,7 +392,7 @@ int main(int argc, char *argv[]) {
   int *fdArray;
   size_t fdLen = 0;
   CALLOC(fdArray, pathLen, sizeof(size_t));
-  size_t actualBlockDeviceSize = openArrayPaths(pathArray, pathLen, fdArray, &fdLen, sendTrim);
+  size_t actualBlockDeviceSize = openArrayPaths(pathArray, pathLen, fdArray, &fdLen, sendTrim, maxSizeGB);
 
   if (alignment == 0) {
     alignment = LOWBLKSIZE;
@@ -406,11 +411,6 @@ int main(int argc, char *argv[]) {
   } else if (bdSize < actualBlockDeviceSize) {
     fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", TOGiB(bdSize), TOGiB(actualBlockDeviceSize));
   }
-  /*
-  if (sendTrim) {
-    trimDevice(fd, path, 0, bdSize);
-  }
-  */
 
   srand48(seed);
   fprintf(stderr,"*info* seed = %ld\n", seed);
