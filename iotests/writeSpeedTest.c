@@ -72,7 +72,7 @@ static void *runThread(void *arg) {
   
   if (sendTrim) {
     size_t bdsize = blockDeviceSizeFromFD(fd);
-    trimDevice(fd, threadContext->path, 0, bdsize);
+    trimDevice(fd, threadContext->path, 0, MIN(1L*1024*1024*1024, bdsize)); // only sending 1GiB for now
     trimRemains--;
     while (trimRemains > 0) {
       // wait
@@ -160,7 +160,7 @@ void startThreads(int argc, char *argv[], int index) {
     size_t allbytes = 0;
     double maxtime = 0;
     double allmb = 0;
-    size_t minSpeed = 0; // actually a big number
+    size_t minSpeed = (size_t)-1; // actually a big number
     size_t driveCount = 0;
     size_t zeroDrives = 0;
     char *minName = NULL;
@@ -174,10 +174,16 @@ void startThreads(int argc, char *argv[], int index) {
 	allbytes += threadContext[i].total;
 	allmb += speed;
 	if (threadContext[i].total > 0) {
-	  if ((speed < minSpeed) || (i == 0)) {minSpeed = speed; minName = threadContext[i].path;}
+	  //	  fprintf(stderr,"NAME %s  %f\n", threadContext[i].path, speed/1024/1024.0);
+	  if ((speed < minSpeed) && (speed > 0)) {
+	    minSpeed = speed; minName = threadContext[i].path;
+	    //	    fprintf(stderr,"MIN !!\n");
+	  }
 	  driveCount++;
 	} else {
-	  fprintf(stderr,"*warning* zero bytes to %s\n", threadContext[i].path);
+	  //	  if () {
+	  //	    fprintf(stderr,"*warning* zero bytes to %s\n", threadContext[i].path);
+	  //	  }
 	  zeroDrives++;
 	}
 	if (logSpeedTime(&threadContext[i].logSpeed) > maxtime) {
