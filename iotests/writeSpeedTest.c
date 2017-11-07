@@ -55,9 +55,18 @@ static void *runThread(void *arg) {
     return NULL;
   }
 
-  char *suffix = getSuffix(threadContext->path);
+  char abs[1000];
+  ssize_t l = readlink(threadContext->path, abs, 1000);
+  if (l >= 1) {
+    abs[l] = 0;
+  } else {
+    strcpy(abs, threadContext->path);
+  }
+  
+  //  char *suffix = getSuffix(threadContext->path);
+  char *suffix = getSuffix(abs);
   char *sched = getScheduler(suffix);
-  fprintf(stderr,"*info* scheduler %s -> %s\n", threadContext->path, sched);
+  fprintf(stderr,"*info* scheduler %s (%s) -> %s\n", threadContext->path, suffix, sched);
   if (sched) free(sched);
   if (suffix) free(suffix);
   
