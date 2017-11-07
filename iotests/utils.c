@@ -488,11 +488,11 @@ int trimDevice(int fd, char *path, unsigned long low, unsigned long high) {
   range[0] = low;
   range[1] = high;
 
-  //  fprintf(stderr,"*info* sending trim command to %s [%ld, %ld] [%.1lf GiB, %.1lf GiB]\n", path, range[0], range[1], TOGiB(range[0]), TOGiB(range[1]));
+  fprintf(stderr,"*info* sending trim command to %s [%ld, %ld] [%.1lf GiB, %.1lf GiB]\n", path, range[0], range[1], TOGiB(range[0]), TOGiB(range[1]));
   
   int err = 0;
   if ((err = ioctl(fd, BLKDISCARD, &range))) {
-    fprintf(stderr, "%s: BLKDISCARD ioctl failed\n", path);
+    fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed (maybe read only mode only?)\n", path);
   }
 
   fdatasync(fd);
