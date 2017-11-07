@@ -56,6 +56,8 @@ static void *readThread(void *arg) {
   long ret = readNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
   if (ret > 0) {
     threadContext->total = ret;
+  } else {
+    threadContext->total = 0;
   }
 
   return NULL;
@@ -79,6 +81,8 @@ static void *writeThread(void *arg) {
   long ret = writeNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds);
   if (ret > 0) {
     threadContext->total = ret;
+  } else {
+    threadContext->total = 0;
   }
   
   return NULL;
@@ -101,17 +105,17 @@ void startThreads(int argc, char *argv[]) {
     // READ
     for (size_t i = 0; i < threads; i++) {
       char *path = argv[i + 1];
-      const size_t len = strlen(path);
-      if ((argv[i + 1][0] != '-') && (!isdigit(argv[i + 1][len - 1]))) {
+      //      const size_t len = strlen(path);
+      if ((argv[i + 1][0] != '-') /*&& (!isdigit(argv[i + 1][len - 1]))*/ ) {
 	blockSz[i] = blockDeviceSize(path);
       }
     }
     
     for (size_t i = 0; i < threads; i++) {
       char *path = argv[i + 1];
-      const size_t len = strlen(path);
+      //      const size_t len = strlen(path);
       threadContext[i].threadid = -1;
-      if ((argv[i + 1][0] != '-') && (!isdigit(argv[i + 1][len - 1]))) {
+      if ((argv[i + 1][0] != '-') /*&& (!isdigit(argv[i + 1][len - 1]))*/ ) {
 	threadContext[i].threadid = i;
 	threadContext[i].path = path;
 	logSpeedInit(&threadContext[i].logSpeed);
@@ -184,19 +188,32 @@ void startThreads(int argc, char *argv[]) {
     if (fp == NULL) {perror("ok.txt");exit(1);}
 
     // post thread join
-    fprintf(stderr,"Path     \tGB\tR. MB\tR. MB/s\tW. MB\tW. MB/s\tQueue\n");
+    fprintf(stdout, "Path     \tGB\trMB\trMB/s\twMB\twMB/s\tQueue\n");
     for (size_t i = 0; i < threads; i++) {
       if (threadContext[i].threadid >= 0) {
-	char *qt = queueType(argv[i + 1]);
-	fprintf(stderr,"%s\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%-10s", argv[i + 1], blockSz[i] / 1024.0 / 1024 / 1024, readTotal[i]/1024.0/1024,readSpeeds[i], writeTotal[i]/1024.0/1024,writeSpeeds[i], qt);
+
+	char abs[1000];
+	ssize_t l = readlink(argv[i + 1], abs, 1000);
+	if (l >= 1) {
+	  abs[l] = 0;
+	} else {
+	  strcpy(abs, threadContext->path);
+	}
+
+	char *suffix = getSuffix(abs);
+	char *qt = getScheduler(suffix);
+
+	//	char *qt = queueType(abs);
+
+	fprintf(stdout, "%s\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%-10s", argv[i + 1], blockSz[i] / 1024.0 / 1024 / 1024, readTotal[i]/1024.0/1024,readSpeeds[i], writeTotal[i]/1024.0/1024,writeSpeeds[i], qt);
 	fflush(stderr);
 	free(qt);
 	if ((readSpeeds[i] > minMBPerSec) && (readSpeeds[i] < maxMBPerSec) && (writeSpeeds[i] > minMBPerSec) && (writeSpeeds[i] < maxMBPerSec)) {
 	  numok++;
-	  fprintf(stderr,"\tOK\n");
+	  fprintf(stdout, "\tOK\n");
 	  fprintf(fp, "%s\n", argv[i + 1]);
 	} else {
-	  fprintf(stderr,"\tx\n");
+	  fprintf(stdout, "\tx\n");
 	}
       }
     }
