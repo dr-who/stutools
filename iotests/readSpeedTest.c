@@ -15,7 +15,7 @@
 #include "logSpeed.h"
 
 int    keepRunning = 1;       // have we been interrupted
-size_t blockSize = 1024*1024; // default to 1MiB
+size_t blockSize = 64*1024; // default to 1MiB
 int    exitAfterSeconds = 60; // default timeout
 int    resetSeconds = 0;
 int    isSequential = 1;   
