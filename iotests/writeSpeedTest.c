@@ -66,7 +66,7 @@ static void *runThread(void *arg) {
   //  char *suffix = getSuffix(threadContext->path);
   char *suffix = getSuffix(abs);
   char *sched = getScheduler(suffix);
-  fprintf(stderr,"*info* scheduler %s (%s) -> %s\n", threadContext->path, suffix, sched);
+  //fprintf(stderr,"*info* scheduler %s (%s) -> %s\n", threadContext->path, suffix, sched);
   if (sched) free(sched);
   if (suffix) free(suffix);
   
