@@ -46,7 +46,7 @@ void process(int argc, char ** argv, int num) {
 
     if (sz) {
 
-      fprintf(stderr,"%s\t", argv[i]); fflush(stdout);
+      fprintf(stdout,"%s\t", argv[i]); fflush(stdout);
 
       double starttime = timedouble();
       long ret = writeNonBlocking(argv[i], blockSize, sz, exitAfterSeconds, 1);

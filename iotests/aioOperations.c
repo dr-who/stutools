@@ -31,7 +31,7 @@ long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, co
     fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
     if (fd < 0) {
       /*if (try > 5) {*/
-      perror("wwread");return -1; 
+      perror(path);return -1; 
     }
       //    } else {break;}
       //    sleep(1);
@@ -140,7 +140,7 @@ long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, c
     fprintf(stderr,"write %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
 
   fd = open(path, O_WRONLY | O_EXCL | O_DIRECT);
-  if (fd < 0) {perror("eek");return -1; }
+  if (fd < 0) {perror(path);return -1; }
 
   fsync(fd);
 
@@ -165,7 +165,6 @@ long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, c
   size_t bytesReceived = 0;
   size_t inFlight = 0;
   //  size_t count = 0;
-  size_t gotenough = 0;
 
   while (1) {
     if (inFlight < MAXDEPTH) {
@@ -184,7 +183,7 @@ long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, c
 	ret = io_submit(ctx, 1, cbs);
 	inFlight++;
 	
-	if ((!keepRunning) || ((gotenough && (timedouble() - start > secTimeout))) ) {
+	if ((!keepRunning) || (timedouble() - start > secTimeout)) {
 	  //	  fprintf(stderr,"timeout2\n");
 	  goto retwrite;
 	}
@@ -198,7 +197,7 @@ long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, c
     
     ret = io_getevents(ctx, 0, MAXDEPTH, events, NULL);
     
-    if ( (!keepRunning) || ((gotenough && (timedouble() - start > secTimeout))) ) {
+    if ( (!keepRunning) || (timedouble() - start > secTimeout)) {
       break;
     }
     
@@ -206,12 +205,6 @@ long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, c
       inFlight -= ret;
       
       bytesReceived += (ret * BLKSIZE);
-      if (!gotenough && (bytesReceived > 64*1024*1024)) { // ignore first 64MiB
-	//	fprintf(stderr,"resetting\n");
-	gotenough = 1;
-	bytesReceived = 0;
-	start = timedouble();
-      }
       //      fprintf(stderr, "events: ret %d, seen %zd, total %zd\n", ret, seen, bytesReceived);
     } else {
       //            fprintf(stderr,".");

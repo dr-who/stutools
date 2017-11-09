@@ -88,34 +88,34 @@ static void *writeThread(void *arg) {
   return NULL;
 }
 
-void startThreads(int argc, char *argv[]) {
-  if (argc > 0) {
-    size_t threads = argc - 1;
-    size_t *blockSz = calloc(threads, sizeof(size_t)); if(!blockSz) {perror("oom");exit(1);}
-    double *readSpeeds = calloc(threads, sizeof(double)); if(!readSpeeds) {perror("oom");exit(1);}
-    double *writeSpeeds = calloc(threads, sizeof(double)); if(!writeSpeeds) {perror("oom");exit(1);}
-    size_t *readTotal = calloc(threads, sizeof(size_t)); if(!readTotal) {perror("oom");exit(1);}
-    size_t *writeTotal = calloc(threads, sizeof(size_t)); if(!writeTotal) {perror("oom");exit(1);}
-    pthread_t *pt = (pthread_t*) calloc((size_t) threads, sizeof(pthread_t));
+void startThreads(int argc, char *argv[], int start) {
+  if (argc - start >= 0) {
+    //    size_t threads = argc - start + 1;
+    size_t *blockSz = calloc(argc, sizeof(size_t)); if(!blockSz) {perror("oom");exit(1);}
+    double *readSpeeds = calloc(argc, sizeof(double)); if(!readSpeeds) {perror("oom");exit(1);}
+    double *writeSpeeds = calloc(argc, sizeof(double)); if(!writeSpeeds) {perror("oom");exit(1);}
+    size_t *readTotal = calloc(argc, sizeof(size_t)); if(!readTotal) {perror("oom");exit(1);}
+    size_t *writeTotal = calloc(argc, sizeof(size_t)); if(!writeTotal) {perror("oom");exit(1);}
+    pthread_t *pt = (pthread_t*) calloc((size_t) argc, sizeof(pthread_t));
     if (pt==NULL) {fprintf(stderr, "OOM(pt): \n");exit(-1);}
 
-    threadInfoType *threadContext = (threadInfoType*) calloc(threads, sizeof(threadInfoType));
+    threadInfoType *threadContext = (threadInfoType*) calloc(argc, sizeof(threadInfoType));
     if (threadContext == NULL) {fprintf(stderr,"OOM(threadContext): \n");exit(-1);}
 
     // READ
-    for (size_t i = 0; i < threads; i++) {
-      char *path = argv[i + 1];
+    for (size_t i = start; i < argc; i++) {
+      char *path = argv[i];
       //      const size_t len = strlen(path);
-      if ((argv[i + 1][0] != '-') /*&& (!isdigit(argv[i + 1][len - 1]))*/ ) {
+      if ((argv[i][0] != '-') /*&& (!isdigit(argv[i + 1][len - 1]))*/ ) {
 	blockSz[i] = blockDeviceSize(path);
       }
     }
     
-    for (size_t i = 0; i < threads; i++) {
-      char *path = argv[i + 1];
+    for (size_t i = start; i < argc; i++) {
+      char *path = argv[i];
       //      const size_t len = strlen(path);
       threadContext[i].threadid = -1;
-      if ((argv[i + 1][0] != '-') /*&& (!isdigit(argv[i + 1][len - 1]))*/ ) {
+      if ((argv[i][0] != '-') /*&& (!isdigit(argv[i + 1][len - 1]))*/ ) {
 	threadContext[i].threadid = i;
 	threadContext[i].path = path;
 	logSpeedInit(&threadContext[i].logSpeed);
@@ -128,7 +128,7 @@ void startThreads(int argc, char *argv[]) {
     usleep(0.5*1000*1000);  // sleep then...
     readySetGo = 1; // go for it
     
-    for (size_t i = 0; i < threads; i++) {
+    for (size_t i = start; i < argc; i++) {
       if (threadContext[i].threadid >= 0) {
 	pthread_join(pt[i], NULL);
 	readTotal[i] = threadContext[i].total;
@@ -150,7 +150,7 @@ void startThreads(int argc, char *argv[]) {
     keepRunning = 1;
 
     // WRITE
-    for (size_t i = 0; i < threads; i++) {
+    for (size_t i = start; i < argc; i++) {
       if (threadContext[i].threadid >= 0) {
 	logSpeedReset(&threadContext[i].logSpeed);
 	threadContext[i].total = 0;
@@ -161,7 +161,7 @@ void startThreads(int argc, char *argv[]) {
     usleep(0.5*1000*1000);  // sleep then...
     readySetGo = 1; // go for it
 
-    for (size_t i = 0; i < threads; i++) {
+    for (size_t i = start; i < argc; i++) {
       if (threadContext[i].threadid >= 0) {
 	pthread_join(pt[i], NULL);
 	writeTotal[i] = threadContext[i].total;
@@ -189,15 +189,15 @@ void startThreads(int argc, char *argv[]) {
 
     // post thread join
     fprintf(stdout, "Path     \tGB\trMB\trMB/s\twMB\twMB/s\tQueue\n");
-    for (size_t i = 0; i < threads; i++) {
+    for (size_t i = start; i < argc; i++) {
       if (threadContext[i].threadid >= 0) {
 
 	char abs[1000];
-	ssize_t l = readlink(argv[i + 1], abs, 1000);
+	ssize_t l = readlink(argv[i], abs, 1000);
 	if (l >= 1) {
 	  abs[l] = 0;
 	} else {
-	  strcpy(abs, threadContext->path);
+	  if (threadContext->path) strcpy(abs, threadContext->path);
 	}
 
 	char *suffix = getSuffix(abs);
@@ -205,13 +205,13 @@ void startThreads(int argc, char *argv[]) {
 
 	//	char *qt = queueType(abs);
 
-	fprintf(stdout, "%s\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%-10s", argv[i + 1], blockSz[i] / 1024.0 / 1024 / 1024, readTotal[i]/1024.0/1024,readSpeeds[i], writeTotal[i]/1024.0/1024,writeSpeeds[i], qt);
+	fprintf(stdout, "%s\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%-10s", argv[i], blockSz[i] / 1024.0 / 1024 / 1024, readTotal[i]/1024.0/1024,readSpeeds[i], writeTotal[i]/1024.0/1024,writeSpeeds[i], qt);
 	fflush(stderr);
 	free(qt);
 	if ((readSpeeds[i] > minMBPerSec) && (readSpeeds[i] < maxMBPerSec) && (writeSpeeds[i] > minMBPerSec) && (writeSpeeds[i] < maxMBPerSec)) {
 	  numok++;
 	  fprintf(stdout, "\tOK\n");
-	  fprintf(fp, "%s\n", argv[i + 1]);
+	  fprintf(fp, "%s\n", argv[i]);
 	} else {
 	  fprintf(stdout, "\tx\n");
 	}
@@ -234,7 +234,7 @@ void startThreads(int argc, char *argv[]) {
   //  shmemUnlink();
 }
 
-void handle_args(int argc, char *argv[]) {
+int handle_args(int argc, char *argv[]) {
   int opt;
   
   while ((opt = getopt(argc, argv, "t:k:m:")) != -1) {
@@ -254,13 +254,14 @@ void handle_args(int argc, char *argv[]) {
       exit(-1);
     }
   }
+  return optind;
 }
 
 int main(int argc, char *argv[]) {
-  handle_args(argc, argv);
+  int index = handle_args(argc, argv);
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
   fprintf(stderr,"checking disks: blocksize=%zd (%zd KiB), timeout=%d, min=%zd MiB/s\n", blockSize, blockSize/1024, exitAfterSeconds, minMBPerSec);
-  startThreads(argc, argv);
+  startThreads(argc, argv, index);
   return 0;
 }
