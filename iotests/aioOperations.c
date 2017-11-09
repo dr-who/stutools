@@ -14,7 +14,7 @@ extern int keepRunning;
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
-long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout) {
+long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout, int quiet) {
   io_context_t ctx;
   struct iocb *cbs[1];
   char *data;
@@ -22,10 +22,22 @@ long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, co
   int ret;
   int fd;
 
-  fprintf(stderr,"read %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
+  if (!quiet) 
+    fprintf(stderr,"read %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
 
-  fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
-  if (fd < 0) {perror(path);return -1; }
+  //  size_t try = 0;
+  //  while (1) {
+  //    try++;
+    fd = open(path, O_RDONLY | O_EXCL | O_DIRECT);
+    if (fd < 0) {
+      /*if (try > 5) {*/
+      perror("wwread");return -1; 
+    }
+      //    } else {break;}
+      //    sleep(1);
+      //  }
+
+  fsync(fd);
 
   ctx = 0;
 
@@ -116,7 +128,7 @@ long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, co
 
 
 
-long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout) {
+long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout, int quiet) {
   io_context_t ctx;
   struct iocb *cbs[1];
   char *data;
@@ -124,10 +136,13 @@ long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, c
   int ret;
   int fd;
 
-  fprintf(stderr,"write %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
+  if (!quiet) 
+    fprintf(stderr,"write %s: %.1lf GiB (%.0lf MiB), blocksize %zd B (%zd KiB), timeout %.1f s\n", path, sz / 1024.0 / 1024 / 1024, sz / 1024.0 / 1024 , BLKSIZE, BLKSIZE / 1024, secTimeout);
 
   fd = open(path, O_WRONLY | O_EXCL | O_DIRECT);
-  if (fd < 0) {perror(path);return -1; }
+  if (fd < 0) {perror("eek");return -1; }
+
+  fsync(fd);
 
   ctx = 0;
 
