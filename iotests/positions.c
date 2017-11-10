@@ -291,7 +291,7 @@ void setupPositions(positionType *positions,
   if (verbose >= 1) {
     fprintf(stderr,"*info* number positions: %zd\n", *num);
     for (size_t i = 0; i < MIN(*num, 30); i++) {
-      fprintf(stderr,"*info* [%zd]: %zd/%zd %c\n", i, positions[i].pos, positions[i].len, positions[i].action);
+      fprintf(stderr,"*info* [%zd]:\t%zd\t%zd\t%c\t%d\n", i, positions[i].pos, positions[i].len, positions[i].action, positions[i].fd);
     }
   }
 

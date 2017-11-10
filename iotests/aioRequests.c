@@ -83,31 +83,33 @@ size_t aioMultiplePositions( positionType *positions,
 	  int read = (positions[pos].action == 'R');
 	  
 	  // setup the request
-	  if (read) {
-	    if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-	    io_prep_pread(cbs[0], positions[pos].fd, data[i%QD], len, newpos);
-	    positions[pos].success = 1;
-	    totalReadBytes += len;
-	  } else {
-	    if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
-	    assert(randomBuffer[0] == 's'); // from stutools
-	    io_prep_pwrite(cbs[0], positions[pos].fd, randomBuffer, len, newpos);
-	    positions[pos].success = 1;
-	    totalWriteBytes += len;
-	  }
-	  //    cbs[0]->u.c.offset = sz;
-	  //	fprintf(stderr,"submit...\n");
-	  
-	  ret = io_submit(ctx, 1, cbs);
-	  if (ret > 0) {
-	    inFlight++;
-	    submitted++;
-	    if (verbose >= 2 || (newpos % alignment != 0)) {
-	      fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", positions[pos].fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+	  if (positions[pos].fd >= 0) {
+	    if (read) {
+	      if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
+	      io_prep_pread(cbs[0], positions[pos].fd, data[i%QD], len, newpos);
+	      positions[pos].success = 1;
+	      totalReadBytes += len;
+	    } else {
+	      if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
+	      assert(randomBuffer[0] == 's'); // from stutools
+	      io_prep_pwrite(cbs[0], positions[pos].fd, randomBuffer, len, newpos);
+	      positions[pos].success = 1;
+	      totalWriteBytes += len;
 	    }
+	    //    cbs[0]->u.c.offset = sz;
+	    //	fprintf(stderr,"submit...\n");
 	    
-	  } else {
-	    fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()");exit(1);
+	    ret = io_submit(ctx, 1, cbs);
+	    if (ret > 0) {
+	      inFlight++;
+	      submitted++;
+	      if (verbose >= 2 || (newpos % alignment != 0)) {
+		fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", positions[pos].fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+	      }
+	      
+	    } else {
+	      fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()");exit(1);
+	    }
 	  }
 	  
 	  pos++; if (pos >= sz) pos = 0; // don't go over the end of the array
@@ -233,7 +235,7 @@ int aioVerifyWrites(int *fdArray,
   size_t errors = 0, checked = 0;
   char *buffer = aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(1);}
 
-  size_t bytesToVerify = 0;
+  size_t bytesToVerify = 0, posTOV = 0;
   for (size_t i = 0; i < maxpos; i++) {
     /*    if (i < 10) {
       fprintf(stderr,"%d %zd %zd\n", positions[i].fd, positions[i].pos, positions[i].len);
@@ -241,6 +243,7 @@ int aioVerifyWrites(int *fdArray,
     if (positions[i].success) {
       if (positions[i].action == 'W') {
 	bytesToVerify += positions[i].len;
+	posTOV++;
       }
     }
   }
@@ -249,6 +252,7 @@ int aioVerifyWrites(int *fdArray,
   fprintf(stderr,"*info* started verification (%.1lf GiB)\n", TOGiB(bytesToVerify));
 
   for (size_t i = 0; i < maxpos; i++) {
+    if (!keepRunning) break;
     if (positions[i].success) {
       if (positions[i].action == 'W') {
 	//	assert(positions[i].len >= 1024);
@@ -304,7 +308,7 @@ int aioVerifyWrites(int *fdArray,
     }
   }
   double elapsed = timedouble() - start;
-  fprintf(stderr,"verified %zd blocks, number of errors %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
+  fprintf(stderr,"verified %zd/%zd blocks, number of errors %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, posTOV, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
 
   
   free(buffer);

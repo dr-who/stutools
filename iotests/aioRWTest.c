@@ -435,8 +435,10 @@ int main(int argc, char *argv[]) {
   if (exitAfterSeconds < 0) {
     exitAfterSeconds = 99999999;
   }
-  signal(SIGTERM, intHandler);
-  signal(SIGINT, intHandler);
+  if (!table) { // if not table mode then install ^c handlers
+    signal(SIGTERM, intHandler);
+    signal(SIGINT, intHandler);
+  }
 
 
   diskStatType dst; // count sectors/bytes

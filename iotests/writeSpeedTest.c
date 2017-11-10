@@ -37,7 +37,7 @@ typedef struct {
 } threadInfoType;
 
 void intHandler(int d) {
-  fprintf(stderr,"got signal\n");
+  //  fprintf(stderr,"got signal\n");
   keepRunning = 0;
 }
 static void *runThread(void *arg) {
