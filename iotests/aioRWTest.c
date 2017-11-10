@@ -48,6 +48,12 @@ size_t dontUseExclusive = 0;
 char*  logPositions = NULL;
 long int seed;
 
+void intHandler(int d) {
+  fprintf(stderr,"got signal\n");
+  keepRunning = 0;
+}
+
+
 void addDeviceToAnalyse(const char *fn) {
   pathArray = (char**)realloc(pathArray, (pathLen + 1) * sizeof(char *));
   pathArray[pathLen] = strdup(fn);
@@ -429,6 +435,9 @@ int main(int argc, char *argv[]) {
   if (exitAfterSeconds < 0) {
     exitAfterSeconds = 99999999;
   }
+  signal(SIGTERM, intHandler);
+  signal(SIGINT, intHandler);
+
 
   diskStatType dst; // count sectors/bytes
   diskStatSetup(&dst);
