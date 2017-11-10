@@ -189,9 +189,6 @@ void setupPositions(positionType *positions,
 	  positionType p = poss[i];
 	  poss[i] = poss[j];
 	  poss[j] = p;
-	  if (verbose > 1 && i < 10) {
-	    fprintf(stderr,"*info* [%zd]: %zd/%zd (was %zd/%zd)\n", i, poss[i].pos, poss[i].len, poss[j].pos, poss[j].len);
-	  }
 	}
       }
     }
@@ -290,6 +287,14 @@ void setupPositions(positionType *positions,
     assert(p->len <= bs);
     p++;
   }
+
+  if (verbose >= 1) {
+    fprintf(stderr,"*info* number positions: %zd\n", *num);
+    for (size_t i = 0; i < MIN(*num, 30); i++) {
+      fprintf(stderr,"*info* [%zd]: %zd/%zd %c\n", i, positions[i].pos, positions[i].len, positions[i].action);
+    }
+  }
+
 
   free(poss); // free the possible locations
 }

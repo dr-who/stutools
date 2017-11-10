@@ -21,11 +21,11 @@
 
 int    keepRunning = 1;       // have we been interrupted
 double exitAfterSeconds = 5;
-int    qd = 32;
+int    qd = 256;
 int    qdSpecified = 0;
 char   **pathArray = NULL;
 size_t pathLen = 0;
-int    seqFiles = 0;
+int    seqFiles = 1;
 int    seqFilesSpecified = 0;
 double maxSizeGB = 0;
 size_t alignment = 0;
@@ -334,7 +334,9 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       //      fprintf(stderr,"nnn %s\n", newpath);
       actualBlockDeviceSize = blockDeviceSize(newpath);
       //      fprintf(stderr,"nnn %s\n", newpath);
-      fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
+      if (verbose >= 2) 
+	fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
+
       if (sendTrim) {
 	if (maxSizeGB > 0) {
 	  trimDevice(fdArray[i], newpath, 0, maxSizeGB*1024*1024*1024);
