@@ -20,7 +20,7 @@
 #include "positions.h"
 
 int    keepRunning = 1;       // have we been interrupted
-double exitAfterSeconds = 5;
+double exitAfterSeconds = 60;
 int    qd = 256;
 int    qdSpecified = 0;
 char   **pathArray = NULL;
@@ -48,12 +48,48 @@ size_t dontUseExclusive = 0;
 char*  logPositions = NULL;
 long int seed;
 
+void addDeviceToAnalyse(const char *fn) {
+  pathArray = (char**)realloc(pathArray, (pathLen + 1) * sizeof(char *));
+  pathArray[pathLen] = strdup(fn);
+  if (verbose >= 2) {
+    fprintf(stderr,"*info* adding -f '%s'\n", pathArray[pathLen]);
+  }
+  pathLen++;
+}
+
+size_t loadSpecifiedFiles(const char *fn) {
+  size_t add = 0;
+  FILE *fp = fopen(fn, "rt");
+  if (!fp) {
+    perror(fn);
+    return add;
+  }
+
+  char *line = NULL;
+  size_t len = 0;
+  ssize_t read;
+  
+  while ((read = getline(&line, &len, fp)) != -1) {
+    //    printf("Retrieved line of length %zu :\n", read);
+    line[strlen(line)-1] = 0; // erase the \n
+    addDeviceToAnalyse(line);
+    add++;
+    //    printf("%s", line);
+  }
+  
+  free(line);
+
+  fclose(fp);
+  return add;
+}
+
+
 void handle_args(int argc, char *argv[]) {
   int opt;
   seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:")) != -1) {
+  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -61,6 +97,12 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'L':
       logPositions = strdup(optarg);
+      break;
+    case 'I':
+      {}
+      size_t added = loadSpecifiedFiles(optarg);
+      fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
+      //      inputFilenames = strdup(optarg);
       break;
     case 'X':
       dontUseExclusive++;
@@ -166,12 +208,13 @@ void handle_args(int argc, char *argv[]) {
       if (readRatio > 1) readRatio = 1;
       break;
     case 'f':
-      pathArray = (char**)realloc(pathArray, (pathLen + 1) * sizeof(char *));
+      addDeviceToAnalyse(optarg);
+      /*      pathArray = (char**)realloc(pathArray, (pathLen + 1) * sizeof(char *));
       pathArray[pathLen] = strdup(optarg);
       if (verbose >= 2) {
 	fprintf(stderr,"*info* adding -f '%s'\n", pathArray[pathLen]);
       }
-      pathLen++;
+      pathLen++;*/
       //      path = optarg;
       break;
     default:
@@ -181,11 +224,13 @@ void handle_args(int argc, char *argv[]) {
   if (pathLen < 1) {
     fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-j jumpBlocks] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] [-G 32] [-p readRatio] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
-    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0          # 50/50 read/write test, defaults to random\n");
-    fprintf(stderr,"  ./aioRWTest -r -f /dev/nbd0       # read test, defaults to random\n");
-    fprintf(stderr,"  ./aioRWTest -w -f /dev/nbd0       # write test, defaults to random\n");
-    fprintf(stderr,"  ./aioRWTest -r -s1 -f /dev/nbd0   # read test, single contiguous region\n");
-    fprintf(stderr,"  ./aioRWTest -w -s128 -f /dev/nbd0 # write test, 128 parallel contiguous region\n");
+    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0          # 50/50 read/write test, seq r/w\n");
+    fprintf(stderr,"  ./aioRWTest -I devicelist.txt     # 50/50 read/write test, seq r/w from a file\n");
+    fprintf(stderr,"  ./aioRWTest -r -f /dev/nbd0       # read test\n");
+    fprintf(stderr,"  ./aioRWTest -w -f /dev/nbd0       # write test\n");
+    fprintf(stderr,"  ./aioRWTest -w -V -f /dev/nbd0    # write test, verbosity, including showing the first N positions\n");
+    fprintf(stderr,"  ./aioRWTest -r -s1 -I devs.txt    # read test, single contiguous region\n");
+    fprintf(stderr,"  ./aioRWTest -w -s128 -f /dev/nbd0 # write test, 128 parallel contiguous regions\n");
     fprintf(stderr,"  ./aioRWTest -S -F -f /dev/nbd0    # single static position, fsync after every op\n");
     fprintf(stderr,"  ./aioRWTest -p0.25 -f /dev/nbd0   # 25%% write, and 75%% read\n");
     fprintf(stderr,"  ./aioRWTest -p1 -f /dev/nbd0 -k4 -q64 -s32 -j16  # 100%% reads over entire block device\n");
@@ -261,7 +306,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
   size_t retBD = 0;
   size_t actualBlockDeviceSize = 0 ;
   
-  int error = 0;
+  //  int error = 0;
   
   char newpath[4096];
   //  CALLOC(newpath, 4096, sizeof(char));
@@ -328,7 +373,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
 	fdArray[i] = open(newpath, O_RDONLY | O_DIRECT); // if no writes, don't need write access
       }
       if (fdArray[i] < 0) {
-	perror(newpath); error=1; goto cont;
+	perror(newpath); goto cont;
       }
 
       //      fprintf(stderr,"nnn %s\n", newpath);
@@ -349,7 +394,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     } else {
       fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL); // if a file
       if (fdArray[i] < 0) {
-	perror(newpath); error=1; goto cont;
+	perror(newpath); goto cont;
       }
 
       actualBlockDeviceSize = fileSize(fdArray[i]);
@@ -369,9 +414,9 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     
   } // i
 
-  if (error) {
+  /*  if (error) {
     exit(1);
-  }
+    }*/
 
   return retBD;
 }
