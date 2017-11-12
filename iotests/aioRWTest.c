@@ -1,4 +1,4 @@
-#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -397,7 +397,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
 	  trimDevice(fdArray[i], newpath, 0, maxSizeGB*1024*1024*1024);
 	} else {
 	  fprintf(stderr,"*info* limiting to 10GiB... ");
-	  trimDevice(fdArray[i], newpath, 0, 10L*1024*1024*1024);
+	  trimDevice(fdArray[i], newpath, 0, 1L*1024*1024*1024);
 	}
       }
 
