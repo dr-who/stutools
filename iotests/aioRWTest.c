@@ -1,3 +1,4 @@
+#define _BSD_SOURCE
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -11,6 +12,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <limits.h>
 #include <assert.h>
 
 #include "aioRequests.h"
@@ -321,7 +323,9 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     memset(newpath, 0, 4096);
     // follow a symlink
     fdArray[i] = -1;
-    realpath(p[i], newpath);
+    char * ret = realpath(p[i], newpath);
+    if (!ret) {perror("realpath");}
+
 
     if (verbose >= 2) {
       fprintf(stderr,"*info* processing path %s\n", newpath);
