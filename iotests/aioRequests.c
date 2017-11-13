@@ -52,10 +52,18 @@ size_t aioMultiplePositions( positionType *positions,
   char **data = NULL;
   CALLOC(data, QD, sizeof(char*));
 
-  // copy the randomBuffer to each data[]
+  // setup the buffers to be contiguous
+  data[0] = aligned_alloc(alignment, randomBufferSize * QD); if (!data[0]) {perror("oom"); exit(1);}
   for (size_t i = 0; i <QD; i++) {
-    data[i] = aligned_alloc(alignment, randomBufferSize); if (!data[i]) {perror("oom"); exit(1);}
-    memcpy(data[i], randomBuffer, randomBufferSize);
+    data[i] = data[0] + (randomBufferSize * i);
+  }
+
+  // copy the randomBuffer to each data[]
+  for (size_t i = 0; i < QD; i++) {
+    if (verbose >= 2) {
+      fprintf(stderr,"randomBuffer[%zd]: %p\n", i, (void*)data[i]);
+    }
+    strncpy(data[i], randomBuffer, randomBufferSize);
   }
 
   size_t inFlight = 0;
@@ -193,10 +201,10 @@ size_t aioMultiplePositions( positionType *positions,
   //  fdatasync(fd);
   free(events);
   free(cbs[0]);
-  for (size_t i = 0; i <QD; i++) {
+  /*  for (size_t i = 0; i <QD; i++) {
     free(data[i]);
-  }
-  free(data);
+    }*/
+  free(data[0]);
   io_destroy(ctx);
 
   *ios = received;
