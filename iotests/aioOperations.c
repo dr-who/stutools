@@ -12,8 +12,6 @@ extern int keepRunning;
 
 #define MAXDEPTH 8
 
-#define MIN(x,y) (((x) < (y)) ? (x) : (y))
-
 long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, const float secTimeout, int quiet) {
   io_context_t ctx;
   struct iocb *cbs[1];
