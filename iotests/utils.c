@@ -16,6 +16,8 @@
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
 #include <linux/hdreg.h>
+#include <assert.h>
+
 #include "utils.h"
 
 extern int keepRunning;
@@ -628,20 +630,22 @@ size_t alignedNumber(size_t num, size_t alignment) {
 }
 
 // return the blockSize
-size_t randomBlockSize(size_t lowbsBytes, size_t highbsBytes, size_t alignmentBytes) {
-  size_t lowbs_k = lowbsBytes / alignmentBytes; // 1 / 4096 = 0
+inline size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits) {
+  assert(alignmentbits < 100);
+  
+  size_t lowbs_k = lowbsBytes >> alignmentbits; // 1 / 4096 = 0
   if (lowbs_k < 1) lowbs_k = 1;
-  size_t highbs_k = highbsBytes / alignmentBytes;   // 8 / 4096 = 2
+  size_t highbs_k = highbsBytes >> alignmentbits;   // 8 / 4096 = 2
   if (highbs_k < 1) highbs_k = 1;
   
   size_t randombs_k = lowbs_k;
   if (highbs_k > lowbs_k) {
-    randombs_k += (lrand48() % (highbs_k - lowbs_k + 1));
+    randombs_k += (rand() % (highbs_k - lowbs_k + 1));
   }
   
-  size_t randombs = randombs_k * alignmentBytes;
+  size_t randombs = randombs_k << alignmentbits;
   if (randombs <= 0) {
-    randombs = alignmentBytes;
+    randombs = 1 << alignmentbits;
   }
   //  fprintf(stderr,"random bytes %zd\n", randombs);
   return randombs;
