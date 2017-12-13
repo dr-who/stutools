@@ -45,7 +45,7 @@ int    verifyWrites = 0;
 char*  specifiedDevices = NULL;
 int    sendTrim = 0;
 int    startAtZero = 0;
-size_t maxPositions = 10*1000*1000;
+size_t maxPositions = 1*1000*1000;
 size_t dontUseExclusive = 0;
 char*  logPositions = NULL;
 long int seed;
