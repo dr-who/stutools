@@ -129,7 +129,7 @@ void setupPositions(positionType *positions,
   }
 
   // list of possibles positions
-  positionType *poss;
+  positionType *poss, *poss2;
   size_t possAlloc = 100, startPos = 0, count = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
   while ((startPos + bs < bdSizeBytes) && (count < *num)) {
@@ -143,11 +143,16 @@ void setupPositions(positionType *positions,
     startPos += poss[count].len;
     count++;
     if (count >= possAlloc) {
-      possAlloc = possAlloc * 4 / 3 + 1;
-      poss = realloc(poss, possAlloc * sizeof(positionType));
+      possAlloc = possAlloc * 4 / 3 + 1; // grow by a 1/3 each time
+      poss2 = realloc(poss, possAlloc * sizeof(positionType));
       if (!poss) {
 	fprintf(stderr,"OOM: breaking from setup array\n");
 	break;
+      } else {
+	if (verbose >= 1) {
+	  fprintf(stderr,"*info*: new position size %.1lf MB array\n", TOMiB(possAlloc * sizeof(positionType)));
+	}
+	poss = poss2; // point to the new array
       }
       //      fprintf(stderr,"realloc\n");
     }
