@@ -46,7 +46,9 @@ char *getSuffix(const char *path);
 char *getScheduler(const char *path);
 
 size_t alignedNumber(size_t num, size_t alignment);
-size_t randomBlockSize(size_t lowbsBytes, size_t highbsBytes, size_t alignmentBytes);
+size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits);
+
+  
 
 void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log);
 

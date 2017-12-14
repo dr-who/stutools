@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 
 #include "utils.h"
 #include "positions.h"
@@ -132,8 +133,12 @@ void setupPositions(positionType *positions,
   size_t possAlloc = 100, startPos = 0, count = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
   while ((startPos + bs < bdSizeBytes) && (count < *num)) {
+    int alignbits = (int)(log(alignment)/log(2) + 0.01);
+  //  fprintf(stderr,"%zd %d\n", alignment, alignbits);
+    assert((1<<alignbits) == alignment);
+    
     poss[count].pos = startPos;
-    poss[count].len = randomBlockSize(lowbs, bs, alignment);
+    poss[count].len = randomBlockSize(lowbs, bs, alignbits);
     
     startPos += poss[count].len;
     count++;
