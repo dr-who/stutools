@@ -47,6 +47,7 @@ int    sendTrim = 0;
 int    startAtZero = 0;
 size_t maxPositions = 10*1000*1000;
 size_t dontUseExclusive = 0;
+size_t blocksFromEnd = 10;
 char*  logPositions = NULL;
 long int seed;
 
@@ -184,8 +185,8 @@ void handle_args(int argc, char *argv[]) {
       seqFilesSpecified = 1;
       break;
     case 'b':
-      seqFiles = -atoi(optarg);
-      fprintf(stderr,"*info* backwards contiguous: %d\n", seqFiles);
+      blocksFromEnd = atoi(optarg);
+      fprintf(stderr,"*info* blocksFromEnd: %zd\n", blocksFromEnd);
       break;
     case 'j':
       jumpStep = atoi(optarg); 
@@ -538,13 +539,13 @@ int main(int argc, char *argv[]) {
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // setup random positions. An value of 0 means random. e.g. zero sequential files
-	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize);
+	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
 
 	      start = timedouble(); // start timing after positions created
 	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
 	    } else {
 	      // setup multiple/parallel sequential region
-	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize);
+	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
 
 	      
 	      start = timedouble(); // start timing after positions created
@@ -590,11 +591,11 @@ int main(int argc, char *argv[]) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
     fprintf(stderr,"*info* readWriteRatio: %.2lf, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n", readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
-    fprintf(stderr,"*info* flushEvery %d, max bdSize %.3lf GiB\n", flushEvery, TOGiB(bdSize));
+    fprintf(stderr,"*info* flushEvery %d, max bdSize %.3lf GiB, blocksFromEnd %zd\n", flushEvery, TOGiB(bdSize), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(origBDSize), TOGiB(totl), 100.0*totl/origBDSize - 100);
     }
-    setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize);
+    setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
 
     if (logPositions) {
       if (verbose) {

@@ -119,7 +119,8 @@ void setupPositions(positionType *positions,
 			  const size_t singlePosition,
 		          const int    jumpStep,
 		          const size_t startAtZero,
-		          const size_t actualBlockDeviceSize
+		          const size_t actualBlockDeviceSize,
+		          const size_t blocksFromEnd
 		    ) {
   assert(lowbs <= bs);
   assert(positions);
@@ -139,7 +140,7 @@ void setupPositions(positionType *positions,
   //  fprintf(stderr,"%zd %d\n", alignment, alignbits);
     assert((1<<alignbits) == alignment);
     
-    poss[count].pos = startPos;
+    poss[count].pos = (startPos + actualBlockDeviceSize - (blocksFromEnd * bs)) % actualBlockDeviceSize;
     poss[count].len = randomBlockSize(lowbs, bs, alignbits);
     
     startPos += poss[count].len;
