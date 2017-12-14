@@ -131,15 +131,19 @@ void setupPositions(positionType *positions,
   positionType *poss;
   size_t possAlloc = 100, startPos = 0, count = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
-  while (startPos + bs < bdSizeBytes) {
+  while ((startPos + bs < bdSizeBytes) && (count < *num)) {
     poss[count].pos = startPos;
     poss[count].len = randomBlockSize(lowbs, bs, alignment);
     
     startPos += poss[count].len;
     count++;
     if (count >= possAlloc) {
-      possAlloc = possAlloc * 2;
+      possAlloc = possAlloc * 4 / 3 + 1;
       poss = realloc(poss, possAlloc * sizeof(positionType));
+      if (!poss) {
+	fprintf(stderr,"OOM: breaking from setup array\n");
+	break;
+      }
       //      fprintf(stderr,"realloc\n");
     }
   } // find a position across the disks
