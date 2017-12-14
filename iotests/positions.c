@@ -130,7 +130,7 @@ void setupPositions(positionType *positions,
 
   // list of possibles positions
   positionType *poss, *poss2;
-  size_t possAlloc = 100, startPos = 0, count = 0;
+  size_t possAlloc = 1024*10, startPos = 0, count = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
   while ((startPos + bs < bdSizeBytes) && (count < *num)) {
     int alignbits = (int)(log(alignment)/log(2) + 0.01);
@@ -149,7 +149,7 @@ void setupPositions(positionType *positions,
 	fprintf(stderr,"OOM: breaking from setup array\n");
 	break;
       } else {
-	if (verbose >= 1) {
+	if (verbose >= 2) {
 	  fprintf(stderr,"*info*: new position size %.1lf MB array\n", TOMiB(possAlloc * sizeof(positionType)));
 	}
 	poss = poss2; // point to the new array
