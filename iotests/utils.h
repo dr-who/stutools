@@ -9,7 +9,7 @@
 #define TOGiB(x) ((x)/1024.0/1024/1024)
 #define TOMiB(x) ((x)/1024.0/1024)
 
-#define CALLOC(x, y, z) {x = calloc(y, z); if (!(x)) {fprintf(stderr,"ooom!!\n");exit(1);}}
+#define CALLOC(x, y, z) {x = calloc(y, z); if (!(x)) {fprintf(stderr,"ooom!!\n");abort();}}
 
 double timedouble();
 
