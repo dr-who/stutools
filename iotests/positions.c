@@ -118,11 +118,13 @@ void setupPositions(positionType *positions,
 		          const size_t alignment,
 			  const size_t singlePosition,
 		          const int    jumpStep,
-		          const size_t startAtZero
+		          const size_t startAtZero,
+		          const size_t actualBlockDeviceSize
 		    ) {
   assert(lowbs <= bs);
   assert(positions);
   assert(fdArray);
+
   if (bdSizeBytes < bs) {
     fprintf(stderr, "*warning* size of device is less than block size!\n");
     return;
@@ -159,7 +161,7 @@ void setupPositions(positionType *positions,
     }
   } // find a position across the disks
   if (verbose >= 0) {
-    fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered\n", count, *num, TOGiB(totalLen));
+    fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), first %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(actualBlockDeviceSize));
   }
   if (*num > count) {
     if (verbose > 1) {
@@ -306,7 +308,7 @@ void setupPositions(positionType *positions,
   if (verbose >= 1) {
     fprintf(stderr,"*info* unique positions: %zd\n", *num);
     for (size_t i = 0; i < MIN(*num, 30); i++) {
-      fprintf(stderr,"*info* [%zd]:\t%zd\t%zd\t%c\t%d\n", i, positions[i].pos, positions[i].len, positions[i].action, positions[i].fd);
+      fprintf(stderr,"*info* [%zd]:\t%zd\t%.1lf GB\t%zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].fd);
     }
   }
 
