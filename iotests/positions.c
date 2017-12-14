@@ -130,7 +130,7 @@ void setupPositions(positionType *positions,
 
   // list of possibles positions
   positionType *poss, *poss2;
-  size_t possAlloc = 1024*10, startPos = 0, count = 0;
+  size_t possAlloc = 1024*10, startPos = 0, count = 0, totalLen = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
   while ((startPos + bs < bdSizeBytes) && (count < *num)) {
     int alignbits = (int)(log(alignment)/log(2) + 0.01);
@@ -141,6 +141,7 @@ void setupPositions(positionType *positions,
     poss[count].len = randomBlockSize(lowbs, bs, alignbits);
     
     startPos += poss[count].len;
+    totalLen += poss[count].len;
     count++;
     if (count >= possAlloc) {
       possAlloc = possAlloc * 4 / 3 + 1; // grow by a 1/3 each time
@@ -157,8 +158,8 @@ void setupPositions(positionType *positions,
       //      fprintf(stderr,"realloc\n");
     }
   } // find a position across the disks
-  if (verbose > 1) {
-    fprintf(stderr,"*info* %zd unique positions, allocated %zd positions\n", count, *num);
+  if (verbose >= 0) {
+    fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered\n", count, *num, TOGiB(totalLen));
   }
   if (*num > count) {
     if (verbose > 1) {
@@ -303,7 +304,7 @@ void setupPositions(positionType *positions,
   }
 
   if (verbose >= 1) {
-    fprintf(stderr,"*info* number positions: %zd\n", *num);
+    fprintf(stderr,"*info* unique positions: %zd\n", *num);
     for (size_t i = 0; i < MIN(*num, 30); i++) {
       fprintf(stderr,"*info* [%zd]:\t%zd\t%zd\t%c\t%d\n", i, positions[i].pos, positions[i].len, positions[i].action, positions[i].fd);
     }
