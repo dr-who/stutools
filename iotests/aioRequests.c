@@ -237,7 +237,7 @@ int aioVerifyWrites(int *fdArray,
 		    const int verbose,
 		    const char *randomBuffer) {
 
-  fprintf(stderr,"*info* sorting verification array, %zd positions\n", maxpos);
+  fprintf(stderr,"*info* sorting verification array\n");
   qsort(positions, maxpos, sizeof(positionType), poscompare);
 
   size_t errors = 0, checked = 0;
@@ -257,7 +257,7 @@ int aioVerifyWrites(int *fdArray,
   }
 
   double start = timedouble();
-  fprintf(stderr,"*info* started verification (%.1lf GiB)\n", TOGiB(bytesToVerify));
+  fprintf(stderr,"*info* started verification (%zd positions, %.1lf GiB)\n", posTOV, TOGiB(bytesToVerify));
 
   for (size_t i = 0; i < maxpos; i++) {
     if (!keepRunning) break;

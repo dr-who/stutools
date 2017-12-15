@@ -184,7 +184,9 @@ void setupPositions(positionType *positions,
       size_t dontgo = origStart[(count+1) % toalloc];
       size_t diff = DIFF(thispos, dontgo);
       if (diff < bs) {
-	fprintf(stderr,"*info* breaking after %zd positions, %zd %zd (diff %zd)\n", count, thispos, dontgo, diff);
+	if (verbose >= 2) {
+	  fprintf(stderr,"*info* breaking after %zd positions, %zd %zd (diff %zd)\n", count, thispos, dontgo, diff);
+	}
 	break;
       }
     }
