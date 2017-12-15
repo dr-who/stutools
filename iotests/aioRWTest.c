@@ -47,7 +47,7 @@ int    sendTrim = 0;
 int    startAtZero = 0;
 size_t maxPositions = 10*1000*1000;
 size_t dontUseExclusive = 0;
-size_t blocksFromEnd = 10;
+int    blocksFromEnd = 0;
 char*  logPositions = NULL;
 long int seed;
 
@@ -150,13 +150,6 @@ void handle_args(int argc, char *argv[]) {
     case 'R':
       seed = atoi(optarg);
       break;
-    case 'S':
-      if (singlePosition == 0) {
-	singlePosition = 1;
-      } else {
-	singlePosition = 10 * singlePosition;
-      }
-      break;
     case 'F':
       if (flushEvery == 0) {
 	flushEvery = 1;
@@ -186,7 +179,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'b':
       blocksFromEnd = atoi(optarg);
-      fprintf(stderr,"*info* blocksFromEnd: %zd\n", blocksFromEnd);
+      fprintf(stderr,"*info* blocksFromEnd: %d\n", blocksFromEnd);
       break;
     case 'j':
       jumpStep = atoi(optarg); 
@@ -240,17 +233,17 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -w -V -f /dev/nbd0    # write test, verbosity, including showing the first N positions\n");
     fprintf(stderr,"  ./aioRWTest -r -s1 -I devs.txt    # read test, single contiguous region\n");
     fprintf(stderr,"  ./aioRWTest -w -s128 -f /dev/nbd0 # write test, 128 parallel contiguous regions\n");
-    fprintf(stderr,"  ./aioRWTest -S -F -f /dev/nbd0    # single static position, fsync after every op\n");
+    fprintf(stderr,"  ./aioRWTest -P1 -F -f /dev/nbd0    # single static position, fsync after every op\n");
     fprintf(stderr,"  ./aioRWTest -p0.25 -f /dev/nbd0   # 25%% write, and 75%% read\n");
     fprintf(stderr,"  ./aioRWTest -p1 -f /dev/nbd0 -k4 -q64 -s32 -j16  # 100%% reads over entire block device\n");
     fprintf(stderr,"  ./aioRWTest -p1 -f /dev/nbd0 -k4 -q64 -s32 -j16  # 100%% reads over entire block device\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -G100    # limit actions to first 100GiB\n");
     fprintf(stderr,"  ./aioRWTest -p0.1 -f/dev/nbd0 -G3 # 90%% reads, 10%% writes, limited to first 3GiB of device\n");
     fprintf(stderr,"  ./aioRWTest -t30 -f/dev/nbd0      # test for 30 seconds\n");
-    fprintf(stderr,"  ./aioRWTest -S -S -F -F -k4 -f /dev/nbd0  # single position, changing every 10 ops, fsync every 10 ops\n");
+    fprintf(stderr,"  ./aioRWTest -P1 -F -F -k4 -f /dev/nbd0  # single position, fsync every 10 ops\n");
     fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0    # send no operations, then flush. Basically, fast flush loop\n");
-    fprintf(stderr,"  ./aioRWTest -S -F -V -f /dev/nbd0 # verbose that shows every operation\n");
-    fprintf(stderr,"  ./aioRWTest -S -F -V -f file.txt  # can also use a single file. Note the file will be destroyed.\n");
+    fprintf(stderr,"  ./aioRWTest -P1 -F -V -f /dev/nbd0 # verbose that shows every operation\n");
+    fprintf(stderr,"  ./aioRWTest -P1 -F -V -f file.txt  # can also use a single file. Note the file will be destroyed.\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -f /dev/nbd0  # random positions, 50%% R/W, verified after 15 seconds.\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -R 9812 -f /dev/nbd0  # set the starting seed to 9812\n");
     fprintf(stderr,"  ./aioRWTest -s 1 -j 10 -f /dev/sdc -V   # contiguous access, jumping 10 blocks at a time\n");
@@ -591,7 +584,7 @@ int main(int argc, char *argv[]) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
     fprintf(stderr,"*info* readWriteRatio: %.2lf, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n", readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
-    fprintf(stderr,"*info* flushEvery %d, max bdSize %.3lf GiB, blocksFromEnd %zd\n", flushEvery, TOGiB(bdSize), blocksFromEnd);
+    fprintf(stderr,"*info* flushEvery %d, max bdSize %.3lf GiB, blocksFromEnd %d\n", flushEvery, TOGiB(bdSize), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(origBDSize), TOGiB(totl), 100.0*totl/origBDSize - 100);
     }

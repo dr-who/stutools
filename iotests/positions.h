@@ -28,7 +28,7 @@ void setupPositions(positionType *positions,
 		    const int    jumpStep,
 		    const size_t startAtZero,
 		    const size_t actualBlockDeviceSize,
-		    const size_t blocksFromEnd);
+		    const int blockOffset);
 
 
 

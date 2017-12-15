@@ -120,7 +120,7 @@ void setupPositions(positionType *positions,
 		          const int    jumpStep,
 		          const size_t startAtZero,
 		          const size_t actualBlockDeviceSize,
-		          const size_t blocksFromEnd
+		          const int blockOffset
 		    ) {
   assert(lowbs <= bs);
   assert(positions);
@@ -133,19 +133,49 @@ void setupPositions(positionType *positions,
 
   // list of possibles positions
   positionType *poss, *poss2;
-  size_t possAlloc = 1024*10, startPos = 0, count = 0, totalLen = 0;
+  size_t possAlloc = 1024*10, count = 0, totalLen = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
-  while ((startPos + bs < bdSizeBytes) && (count < *num)) {
-    int alignbits = (int)(log(alignment)/log(2) + 0.01);
-  //  fprintf(stderr,"%zd %d\n", alignment, alignbits);
-    assert((1<<alignbits) == alignment);
-    
-    poss[count].pos = (startPos + actualBlockDeviceSize - (blocksFromEnd * bs)) % actualBlockDeviceSize;
+
+  const int alignbits = (int)(log(alignment)/log(2) + 0.01);    assert((1<<alignbits) == alignment);
+
+
+  // setup the start positions for the parallel files
+  // with a random starting position, -z sets to 0
+  size_t *positionsStart;
+  int toalloc = sf;
+  if (toalloc < 1) toalloc = 1;
+  CALLOC(positionsStart, toalloc, sizeof(size_t));
+  size_t maxBlock = (actualBlockDeviceSize / bs) - 1;
+  size_t stBlock = lrand48() % (maxBlock + 1); //0..maxblock
+  if (startAtZero) stBlock = 0;
+  if (blockOffset < 0) {
+    stBlock = (stBlock + maxBlock + blockOffset);
+  } else {
+    stBlock += blockOffset;
+  }
+  size_t blockGap = (maxBlock + 1) / toalloc;
+  if (verbose) {
+    fprintf(stderr,"maxblock %zd, blockgap %zd (bs %zd)\n", maxBlock, blockGap, bs); 
+  }
+
+  for (size_t i = 0; i < toalloc; i++) {
+    positionsStart[i] = (stBlock) + (i * blockGap); // initially in block
+    positionsStart[i] = positionsStart[i] * bs;     // now in bytes
+    if (verbose >= 1) {
+      fprintf(stderr,"*info2* alignment start %zd: %zd\n", i, positionsStart[i]);
+    }
+  }
+
+  // setup the -P positions
+  while (count < *num) {
+    poss[count].pos = (positionsStart[count % toalloc]) % (actualBlockDeviceSize - bs);
+    //    poss[count].pos = (poss[count].pos >> alignbits) << alignbits; // check aligned
+    assert (poss[count].pos % alignment == 0);
     poss[count].len = randomBlockSize(lowbs, bs, alignbits);
     
-    startPos += poss[count].len;
+    positionsStart[count % toalloc] += poss[count].len;
+    
     totalLen += poss[count].len;
-    count++;
     if (count >= possAlloc) {
       possAlloc = possAlloc * 4 / 3 + 1; // grow by a 1/3 each time
       poss2 = realloc(poss, possAlloc * sizeof(positionType));
@@ -158,9 +188,11 @@ void setupPositions(positionType *positions,
 	}
 	poss = poss2; // point to the new array
       }
-      //      fprintf(stderr,"realloc\n");
     }
+    count++;
   } // find a position across the disks
+
+  
   if (verbose >= 0) {
     fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), first %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(actualBlockDeviceSize));
   }
@@ -171,122 +203,32 @@ void setupPositions(positionType *positions,
     *num = count;
   }
 
-  int fdPos = 0;
-  if (singlePosition) {
-    // set a few fixed positions
-    fprintf(stderr, "Using a single block position: singlePosition value of %zd\n", singlePosition);
-    
-    size_t sinPos = lrand48() % count;
-    if (startAtZero) sinPos = 0;
-    for (size_t i = 0; i < *num; i++) {
-      if ((i > 0) && (singlePosition > 1) && ((i % singlePosition) == 0)) {
-	sinPos = lrand48() % count;
+  // distribute among multiple FDs
+  size_t fdPos = 0;
+  for (size_t i = 0; i < *num; i++) {
+    positions[i].pos = poss[i].pos;
+    positions[i].len = poss[i].len;
+    positions[i].fd = fdArray[fdPos++];
+    if (fdPos >= fdSize) fdPos = 0;
+  }
+  
+  // if randomise then reorder
+  if (sf == 0) {
+    for (size_t shuffle = 0; shuffle < 1; shuffle++) {
+      if (verbose >= 1) {
+	fprintf(stderr,"*info* shuffling the array %zd\n", count);
       }
-
-      positions[i].pos = poss[sinPos].pos;
-      positions[i].len = poss[sinPos].len;
-      positions[i].fd = fdArray[fdPos++];
-      if (fdPos >= fdSize) fdPos = 0;
-    }
-  } else {
-    
-    // if randomise then reorder
-    if (sf == 0) {
-      for (size_t shuffle = 0; shuffle < 1; shuffle++) {
-	if (verbose > 1) {
-	  fprintf(stderr,"*info* shuffling the array %zd\n", count);
-	}
-	for (size_t i = 0; i < count; i++) {
-	  size_t j = i;
-	  if (count > 1) {
-	    while ((j = lrand48() % count) == i) {
-	      ;
-	    }
+      for (size_t i = 0; i < count; i++) {
+	size_t j = i;
+	if (count > 1) {
+	  while ((j = lrand48() % count) == i) {
+	    ;
 	  }
-	  // swap i and j
-	  positionType p = poss[i];
-	  poss[i] = poss[j];
-	  poss[j] = p;
 	}
-      }
-    }
-
-    
-    if (verbose) {
-      fprintf(stderr,"*info* generating parallel contiguous regions, num %zd, #fd = %zd, abssf=%d\n", *num, fdSize, sf);
-    }
-
-    // setup the starting positions for parallel contiguous regions
-    size_t *ppp = NULL, *ppp2 = NULL, totallen = 0;
-    int abssf = ABS(sf);
-    if (abssf <= 0) abssf = 1;
-    *num = abssf * (size_t)((*num) /abssf); // round/be a multiple of the number of sequences
-
-    size_t offset = lrand48() % count; // offset in the list of possible positions
-    if (startAtZero) offset = 0;
-    
-    CALLOC(ppp, abssf, sizeof(size_t)); // start in 'abssf' regions
-    CALLOC(ppp2, abssf, sizeof(size_t)); // end in 'abssf' regions
-    // if 1 start at 0 + offset
-    // if 2 start at 0 + offset and n/2 + offset
-    // if 3 start at 0 + offset and n/3 + offset and 2n/3 + offset
-    for (size_t i = 0; i < abssf; i++) {
-      ppp[i] = i * count / abssf + offset;  //start
-      ppp2[i] = (i+1) * count / abssf + offset; //end
-      if (ppp2[i] > count) ppp2[i] -= count;
-      if (ppp[i] > count) ppp[i] -= count;
-      if (verbose > 1) {
-	size_t lb = 0;
-	for (size_t j = 0; j < count / abssf; j++) {
-	  size_t idx = ppp[i] + j;
-	  if (idx > count) idx -= count;
-	  lb += poss[idx].len;
-	}
-	fprintf(stderr,"*info* sequence %zd, position array index [%zd - %zd) (%.1lf GiB)\n", i + 1, ppp[i], ppp2[i] % count ,TOGiB(lb));
-      }
-    } //finish setup
-    
-      // now iterate
-    fdPos = 0;
-    size_t i = 0;
-    while (i < *num) {
-    //    for (size_t i = 0; i < *num; i++) {
-      // sequential
-      if (ppp[i % abssf] == ppp2[i % abssf] && (i)) {
-	fprintf(stderr,"*error* overlapping regions\n");
-      }
-
-      positions[i].pos = poss[ppp[i % abssf]].pos; // dereference
-      positions[i].len = poss[ppp[i % abssf]].len;
-      positions[i].fd = fdArray[fdPos++];
-      if (fdPos >= fdSize) fdPos = 0;
-      
-      ppp[i % abssf]++;
-
-      if (ppp[i % abssf] >= count) {
-	ppp[i % abssf] = 0; // back to the start
-      }
-      totallen += positions[i].len;
-      //fprintf(stderr,"** %d %zd %zd\n", positions[i].fd, positions[i].pos, positions[i].len);
-      i++;
-    }
-    if (totallen > bdSizeBytes) {
-      fprintf(stderr,"*warning* sum position size is too large! will have overlapping access (%zd positions)\n", *num);
-      fprintf(stderr,"*warning* sum of position sizes %zd (%.2lf GiB) > %zd (%.2lf GiB)\n", totallen, TOGiB(totallen), bdSizeBytes, TOGiB(bdSizeBytes));
-    }
-    free(ppp);
-    free(ppp2);
-    
-    if (sf < 0) {
-      // reverse positions array
-      if (verbose) {
-	fprintf(stderr,"*info* reversing positions\n");
-      }
-      for (size_t i = 0; i < (*num)/2; i++) {
-
+	// swap i and j
 	positionType p = positions[i];
-	positions[i] = positions[(*num)-1 -i];
-	positions[(*num)-1 -i] = p;
+	positions[i] = positions[j];
+	positions[j] = p;
       }
     }
   }
@@ -309,7 +251,7 @@ void setupPositions(positionType *positions,
   if (verbose >= 1) {
     fprintf(stderr,"*info* unique positions: %zd\n", *num);
     for (size_t i = 0; i < MIN(*num, 30); i++) {
-      fprintf(stderr,"*info* [%zd]:\t%zd\t%.1lf GB\t%zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].fd);
+      fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.1lf GB\t%8zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].fd);
     }
   }
 
