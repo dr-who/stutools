@@ -132,7 +132,7 @@ void setupPositions(positionType *positions,
   }
 
   // list of possibles positions
-  positionType *poss, *poss2;
+  positionType *poss = NULL, *poss2 = NULL;
   size_t possAlloc = 1024*10, count = 0, totalLen = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
 
@@ -142,37 +142,44 @@ void setupPositions(positionType *positions,
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
   size_t *positionsStart, *origStart;
-  int toalloc = sf;
-  if (toalloc < 1) toalloc = 1;
+  const int toalloc = (sf < 1) ? 1 : sf;
+    //  if (toalloc < 1) toalloc = 1;
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(origStart, toalloc, sizeof(size_t));
   size_t maxBlock = (bdSizeBytes / bs) - 1;
+  if (maxBlock < 1) maxBlock = 1;
+  const size_t maxBlockBytes = maxBlock * bs;
   size_t stBlock = lrand48() % (maxBlock + 1); //0..maxblock
   if ((sf == 0) || startAtZero) {
     stBlock = 0; // start from 0
   }
   
-  size_t blockGap = (maxBlock + 1) / toalloc;
+  const size_t blockGap = (maxBlock + 1) / toalloc;
+  const size_t blockGapBytes = blockGap * bs;
   if (verbose >= 2) {
-    fprintf(stderr,"*info* maxblock %zd, blockgap %zd (bs %zd)\n", maxBlock, blockGap, bs); 
+    fprintf(stderr,"*info* maxBlockBytes %zd, blockGapBytes %zd (bs %zd)\n", maxBlockBytes, blockGapBytes, bs); 
   }
 
   for (size_t i = 0; i < toalloc; i++) {
     positionsStart[i] = (stBlock) + (i * blockGap); // initially in block
     positionsStart[i] = positionsStart[i] * bs;     // now in bytes
+    if (positionsStart[i] > maxBlockBytes) {
+      positionsStart[i] -= maxBlockBytes;
+    }
     origStart[i] = positionsStart[i];
     if (verbose >= 2) {
+      assert(positionsStart[i] <= maxBlockBytes);
       fprintf(stderr,"*info* alignment start %zd: %zd\n", i, positionsStart[i]);
     }
   }
 
-  //  fprintf(stderr,"sf %d, %zd\n", sf, origStart[0]);
+  //    fprintf(stderr,"sf %d, %zd\n", sf, origStart[0]);
   // setup the -P positions
   while (count < *num) {
     const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
     //    fprintf(stderr,"%zd   %zd.... %zd\n", origStart[(count) % toalloc], origStart[(count+1) % toalloc], poss[count].pos);
 
-    if (sf >= 2) { // if more than two positions, check they don't overlap with the next one
+    if (sf >= 2) { // if more than two parallel regions, check they don't overlap with the next one
       size_t thispos = positionsStart[count % toalloc] + thislen;
       size_t dontgo = origStart[(count+1) % toalloc];
       size_t diff = DIFF(thispos, dontgo);
@@ -181,26 +188,7 @@ void setupPositions(positionType *positions,
 	break;
       }
     }
-    
-    poss[count].pos = positionsStart[count % toalloc];
 
-    if (sf <= 1) {
-      if (poss[count].pos >= (maxBlock * bs)) {
-	fprintf(stderr,"*warning* got to the end, count %zd\n", count);
-	break;
-      }
-    }
-
-    poss[count].pos = poss[count].pos % (maxBlock * bs);
-    
-    
-    //    poss[count].pos = (poss[count].pos >> alignbits) << alignbits; // check aligned
-    assert (poss[count].pos % alignment == 0);
-    poss[count].len = thislen;
-    
-    positionsStart[count % toalloc] += thislen;
-    totalLen += thislen;
-    
     if (count >= possAlloc) {
       possAlloc = possAlloc * 4 / 3 + 1; // grow by a 1/3 each time
       poss2 = realloc(poss, possAlloc * sizeof(positionType));
@@ -212,11 +200,39 @@ void setupPositions(positionType *positions,
 	poss = poss2; // point to the new array
       }
     }
+    
+    poss[count].len = thislen;
+    poss[count].pos = positionsStart[count % toalloc];
+
+    if (sf <= 1) {
+      if (poss[count].pos > maxBlockBytes) {
+	if (verbose) {
+	  fprintf(stderr,"*warning* got to the end, count %zd\n", count);
+	}
+	break;
+      }
+    }
+
+    if (poss[count].pos >= maxBlockBytes) { // wrap
+      poss[count].pos -= maxBlockBytes;
+    }
+
+    assert(poss[count].pos <= maxBlockBytes);
+    //poss[count].pos = poss[count].pos % (maxBlock * bs);
+
+    
+    
+    //    poss[count].pos = (poss[count].pos >> alignbits) << alignbits; // check aligned
+    //    assert (poss[count].pos % alignment == 0);
+    
+    positionsStart[count % toalloc] += thislen;
+    totalLen += thislen;
+    
     count++;
   } // find a position across the disks
 
   
-  if (verbose >= 0) {
+  if (verbose >= 1) {
     fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(maxBlock * bs));
   }
   if (*num > count) {
