@@ -56,7 +56,7 @@ diskStats.o: diskStats.c diskStats.h utils.h
 logSpeedTest: logSpeedTest.o utils.o logSpeed.o
 
 test:
-	time ./test.sh $(DRIVE)
+	./test.sh $(DRIVE)
 
 clean:
 	git clean -xdf
