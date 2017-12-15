@@ -119,7 +119,7 @@ void setupPositions(positionType *positions,
 			  const size_t singlePosition,
 		          const int    jumpStep,
 		          const size_t startAtZero,
-		          const size_t actualBlockDeviceSize,
+		          const size_t actualBlockDeviceSize2,
 		          const int blockOffset
 		    ) {
   assert(lowbs <= bs);
@@ -141,11 +141,12 @@ void setupPositions(positionType *positions,
 
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
-  size_t *positionsStart;
+  size_t *positionsStart, *origStart;
   int toalloc = sf;
   if (toalloc < 1) toalloc = 1;
   CALLOC(positionsStart, toalloc, sizeof(size_t));
-  size_t maxBlock = (actualBlockDeviceSize / bs) - 1;
+  CALLOC(origStart, toalloc, sizeof(size_t));
+  size_t maxBlock = (bdSizeBytes / bs) - 1;
   size_t stBlock = lrand48() % (maxBlock + 1); //0..maxblock
   if (startAtZero) stBlock = 0;
   if (blockOffset < 0) {
@@ -161,28 +162,40 @@ void setupPositions(positionType *positions,
   for (size_t i = 0; i < toalloc; i++) {
     positionsStart[i] = (stBlock) + (i * blockGap); // initially in block
     positionsStart[i] = positionsStart[i] * bs;     // now in bytes
-    if (verbose >= 1) {
-      fprintf(stderr,"*info2* alignment start %zd: %zd\n", i, positionsStart[i]);
+    origStart[i] = positionsStart[i];
+    if (verbose >= 2) {
+      fprintf(stderr,"*info* alignment start %zd: %zd\n", i, positionsStart[i]);
     }
   }
 
   // setup the -P positions
   while (count < *num) {
-    poss[count].pos = (positionsStart[count % toalloc]) % (actualBlockDeviceSize - bs);
+    const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
+    //    fprintf(stderr,"%zd   %zd.... %zd\n", origStart[(count) % toalloc], origStart[(count+1) % toalloc], poss[count].pos);
+
+    if (sf >=1) {
+      size_t thispos = positionsStart[count % toalloc] + thislen;
+      size_t dontgo = origStart[(count+1) % toalloc];
+      size_t diff = DIFF(thispos, dontgo);
+      if (diff < bs) {
+	fprintf(stderr,"*info* breaking after %zd positions, %zd %zd (diff %zd)\n", count, thispos, dontgo, diff);
+	break;
+      }
+    }
+    
+    poss[count].pos = (positionsStart[count % toalloc]) % (maxBlock * bs);
     //    poss[count].pos = (poss[count].pos >> alignbits) << alignbits; // check aligned
     assert (poss[count].pos % alignment == 0);
-    poss[count].len = randomBlockSize(lowbs, bs, alignbits);
+    poss[count].len = thislen;
     
-    positionsStart[count % toalloc] += poss[count].len;
+    positionsStart[count % toalloc] += thislen;
+    totalLen += thislen;
     
-    totalLen += poss[count].len;
     if (count >= possAlloc) {
       possAlloc = possAlloc * 4 / 3 + 1; // grow by a 1/3 each time
       poss2 = realloc(poss, possAlloc * sizeof(positionType));
-      if (!poss) {
-	fprintf(stderr,"OOM: breaking from setup array\n");
-	break;
-      } else {
+      if (!poss) {fprintf(stderr,"OOM: breaking from setup array\n");break;}
+      else {
 	if (verbose >= 2) {
 	  fprintf(stderr,"*info*: new position size %.1lf MB array\n", TOMiB(possAlloc * sizeof(positionType)));
 	}
@@ -194,7 +207,7 @@ void setupPositions(positionType *positions,
 
   
   if (verbose >= 0) {
-    fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), first %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(actualBlockDeviceSize));
+    fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(maxBlock * bs));
   }
   if (*num > count) {
     if (verbose > 1) {
@@ -251,7 +264,7 @@ void setupPositions(positionType *positions,
   if (verbose >= 1) {
     fprintf(stderr,"*info* unique positions: %zd\n", *num);
     for (size_t i = 0; i < MIN(*num, 30); i++) {
-      fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.1lf GB\t%8zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].fd);
+      fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].fd);
     }
   }
 
