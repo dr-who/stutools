@@ -179,7 +179,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'b':
       blocksFromEnd = atoi(optarg);
-      fprintf(stderr,"*info* blocksFromEnd: %d\n", blocksFromEnd);
+      fprintf(stderr,"*info* blockoffset: %d\n", blocksFromEnd);
       break;
     case 'j':
       jumpStep = atoi(optarg); 
@@ -584,7 +584,7 @@ int main(int argc, char *argv[]) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
     fprintf(stderr,"*info* readWriteRatio: %.2lf, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n", readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
-    fprintf(stderr,"*info* flushEvery %d, max bdSize %.3lf GiB, blocksFromEnd %d\n", flushEvery, TOGiB(bdSize), blocksFromEnd);
+    fprintf(stderr,"*info* flushEvery %d, max bdSize %.3lf GiB, blockoffset %d\n", flushEvery, TOGiB(bdSize), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(origBDSize), TOGiB(totl), 100.0*totl/origBDSize - 100);
     }

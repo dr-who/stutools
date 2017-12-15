@@ -148,15 +148,13 @@ void setupPositions(positionType *positions,
   CALLOC(origStart, toalloc, sizeof(size_t));
   size_t maxBlock = (bdSizeBytes / bs) - 1;
   size_t stBlock = lrand48() % (maxBlock + 1); //0..maxblock
-  if (startAtZero) stBlock = 0;
-  if (blockOffset < 0) {
-    stBlock = (stBlock + maxBlock + blockOffset);
-  } else {
-    stBlock += blockOffset;
+  if ((sf == 0) || startAtZero) {
+    stBlock = 0; // start from 0
   }
+  
   size_t blockGap = (maxBlock + 1) / toalloc;
-  if (verbose) {
-    fprintf(stderr,"maxblock %zd, blockgap %zd (bs %zd)\n", maxBlock, blockGap, bs); 
+  if (verbose >= 2) {
+    fprintf(stderr,"*info* maxblock %zd, blockgap %zd (bs %zd)\n", maxBlock, blockGap, bs); 
   }
 
   for (size_t i = 0; i < toalloc; i++) {
@@ -168,12 +166,13 @@ void setupPositions(positionType *positions,
     }
   }
 
+  //  fprintf(stderr,"sf %d, %zd\n", sf, origStart[0]);
   // setup the -P positions
   while (count < *num) {
     const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
     //    fprintf(stderr,"%zd   %zd.... %zd\n", origStart[(count) % toalloc], origStart[(count+1) % toalloc], poss[count].pos);
 
-    if (sf >=1) {
+    if (sf >= 2) { // if more than two positions, check they don't overlap with the next one
       size_t thispos = positionsStart[count % toalloc] + thislen;
       size_t dontgo = origStart[(count+1) % toalloc];
       size_t diff = DIFF(thispos, dontgo);
@@ -183,7 +182,18 @@ void setupPositions(positionType *positions,
       }
     }
     
-    poss[count].pos = (positionsStart[count % toalloc]) % (maxBlock * bs);
+    poss[count].pos = positionsStart[count % toalloc];
+
+    if (sf <= 1) {
+      if (poss[count].pos >= (maxBlock * bs)) {
+	fprintf(stderr,"*warning* got to the end, count %zd\n", count);
+	break;
+      }
+    }
+
+    poss[count].pos = poss[count].pos % (maxBlock * bs);
+    
+    
     //    poss[count].pos = (poss[count].pos >> alignbits) << alignbits; // check aligned
     assert (poss[count].pos % alignment == 0);
     poss[count].len = thislen;
@@ -216,17 +226,28 @@ void setupPositions(positionType *positions,
     *num = count;
   }
 
-  // distribute among multiple FDs
+  // distribute among multiple FDs, do block offset
   size_t fdPos = 0;
   for (size_t i = 0; i < *num; i++) {
     positions[i].pos = poss[i].pos;
+    if (blockOffset < 0) {
+      if (positions[i].pos >= (-blockOffset*bs) ) {
+	positions[i].pos += (blockOffset*bs);
+      } else {
+	// wrap
+	//	fprintf(stderr,"wrap %zd\n", positions[i].pos);
+	positions[i].pos = (maxBlock * bs) - positions[i].pos + (blockOffset * bs);
+      }
+    } else {
+      positions[i].pos = poss[i].pos + (blockOffset*bs);
+    }
     positions[i].len = poss[i].len;
     positions[i].fd = fdArray[fdPos++];
     if (fdPos >= fdSize) fdPos = 0;
   }
   
   // if randomise then reorder
-  if (sf == 0) {
+  if (/*(0) &&*/ (sf == 0)) {
     for (size_t shuffle = 0; shuffle < 1; shuffle++) {
       if (verbose >= 1) {
 	fprintf(stderr,"*info* shuffling the array %zd\n", count);
