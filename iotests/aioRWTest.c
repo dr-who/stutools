@@ -34,6 +34,7 @@ size_t alignment = 0;
 size_t LOWBLKSIZE = 65536;
 size_t BLKSIZE = 65536;
 int    jumpStep = 1;
+int    rrSpecified = 0;
 double readRatio = 0.5;
 size_t table = 0;
 char   *logFNPrefix = NULL;
@@ -208,6 +209,7 @@ void handle_args(int argc, char *argv[]) {
       readRatio = atof(optarg);
       if (readRatio < 0) readRatio = 0;
       if (readRatio > 1) readRatio = 1;
+      rrSpecified = 1;
       break;
     case 'f':
       addDeviceToAnalyse(optarg);
@@ -485,7 +487,16 @@ int main(int argc, char *argv[]) {
   if (table) {
     // generate a table
     size_t bsArray[]={BLKSIZE};
-    double rrArray[]={1.0, 0, 0.5};
+    double *rrArray = NULL;
+    if(rrSpecified){
+      rrSpecified = 2;
+      CALLOC(rrArray, rrSpecified, sizeof(double));
+      rrArray[0] = readRatio; rrArray[1] = 1.0 - readRatio;
+    } else {
+      rrSpecified = 3;
+      CALLOC(rrArray, rrSpecified, sizeof(double));
+      rrArray[0] = 1.0; rrArray[1] = 0; rrArray[2] = 0.5;
+    }
 
     size_t *qdArray = NULL;
     if (qdSpecified) {
@@ -511,7 +522,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr," blkSz\t numSq\tQueueD\t   R/W\t  IOPS\t MiB/s\t Ampli\t Disk%%\n");
     
-    for (size_t rrindex=0; rrindex < sizeof(rrArray) / sizeof(rrArray[0]); rrindex++) {
+    for (size_t rrindex=0; rrindex < rrSpecified; rrindex++) {
       for (size_t ssindex=0; ssindex < seqFilesSpecified; ssindex++) {
 	for (size_t qdindex=0; qdindex < qdSpecified; qdindex++) {
 	  for (size_t bsindex=0; bsindex < sizeof(bsArray) / sizeof(bsArray[0]); bsindex++) {
