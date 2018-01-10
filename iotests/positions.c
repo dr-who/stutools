@@ -142,13 +142,16 @@ void setupPositions(positionType *positions,
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
   size_t *positionsStart, *origStart;
-  const int toalloc = (sf < 1) ? 1 : sf;
+  const int toalloc = (sf == 0) ? 1 : abs(sf);
     //  if (toalloc < 1) toalloc = 1;
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(origStart, toalloc, sizeof(size_t));
   size_t maxBlock = (bdSizeBytes / bs) - 1;
   if (maxBlock < 1) maxBlock = 1;
   const size_t maxBlockBytes = maxBlock * bs;
+  if (verbose >= 1) {
+    fprintf(stderr,"*info* maxBlockBytes: %zd\n", maxBlockBytes);
+  }
   size_t stBlock = lrand48() % (maxBlock + 1); //0..maxblock
   if ((sf == 0) || startAtZero) {
     stBlock = 0; // start from 0
@@ -171,6 +174,7 @@ void setupPositions(positionType *positions,
       assert(positionsStart[i] <= maxBlockBytes);
       fprintf(stderr,"*info* alignment start %zd: %zd\n", i, positionsStart[i]);
     }
+    //    fprintf(stderr,"*info* positionStart[%zd]: %zd\n", i, positionsStart[i]);
   }
 
   //    fprintf(stderr,"sf %d, %zd\n", sf, origStart[0]);
@@ -178,18 +182,6 @@ void setupPositions(positionType *positions,
   while (count < *num) {
     const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
     //    fprintf(stderr,"%zd   %zd.... %zd\n", origStart[(count) % toalloc], origStart[(count+1) % toalloc], poss[count].pos);
-
-    if (sf >= 2) { // if more than two parallel regions, check they don't overlap with the next one
-      size_t thispos = positionsStart[count % toalloc] + thislen;
-      size_t dontgo = origStart[(count+1) % toalloc];
-      size_t diff = DIFF(thispos, dontgo);
-      if (diff < bs) {
-	if (verbose >= 2) {
-	  fprintf(stderr,"*info* breaking after %zd positions, %zd %zd (diff %zd)\n", count, thispos, dontgo, diff);
-	}
-	break;
-      }
-    }
 
     if (count >= possAlloc) {
       possAlloc = possAlloc * 4 / 3 + 1; // grow by a 1/3 each time
@@ -211,11 +203,11 @@ void setupPositions(positionType *positions,
 	if (verbose) {
 	  fprintf(stderr,"*warning* got to the end, count %zd\n", count);
 	}
-	break;
+	//	break;
       }
     }
 
-    if (poss[count].pos >= maxBlockBytes) { // wrap
+    if (poss[count].pos > maxBlockBytes) { // wrap
       poss[count].pos -= maxBlockBytes;
     }
 
@@ -226,9 +218,46 @@ void setupPositions(positionType *positions,
     
     //    poss[count].pos = (poss[count].pos >> alignbits) << alignbits; // check aligned
     //    assert (poss[count].pos % alignment == 0);
+
+    long l = 0;
+    if (sf >= 0) {
+      l = positionsStart[count % toalloc];
+      l += thislen;
+      l += (jumpStep * lowbs);
+      if (l > (maxBlock * bs)) {
+	l -= (maxBlock * bs);
+	//	l = 0;
+      }
+    } else {
+      l = positionsStart[count % toalloc];
+      l -= thislen;
+      l -= (jumpStep * lowbs);
+      if (l < 0) {
+	l += (maxBlock * bs);
+      }
+    }
+    assert(l>=0);
+    assert(l <= maxBlock * bs);
+    positionsStart[count % toalloc] = (size_t) l;
     
-    positionsStart[count % toalloc] += thislen;
     totalLen += thislen;
+    if (totalLen > maxBlock * bs) { // if total length written is too much
+      break;
+    }
+
+    if (abs(sf) >= 2) { // if more than two parallel regions, check they don't overlap with the next one
+      size_t thispos = positionsStart[count % toalloc];
+      size_t dontgo = origStart[(count+1) % toalloc];
+      size_t diff = DIFF(thispos, dontgo);
+      if (diff ==0) {
+	if (verbose >= 2) {
+	  fprintf(stderr,"*info* breaking after %zd positions, %zd %zd (diff %zd)\n", count, thispos, dontgo, diff);
+	}
+	break;
+      }
+    }
+
+
     
     count++;
   } // find a position across the disks
