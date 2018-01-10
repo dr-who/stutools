@@ -1,0 +1,4 @@
+set nokey
+set term png
+set output "a.png"
+plot 'x' using 2
