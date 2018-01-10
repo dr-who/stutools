@@ -157,14 +157,18 @@ void setupPositions(positionType *positions,
     stBlock = 0; // start from 0
   }
   
-  const size_t blockGap = (maxBlock + 1) / toalloc;
+  const double blockGap = (maxBlock + 1) * 1.0 / toalloc; // need to be a floating point for large -s
+  if (blockGap < 1) {
+    fprintf(stderr,"*error* can't generate that many sequences %d\n", toalloc);
+    exit(1);
+  }
   const size_t blockGapBytes = blockGap * bs;
   if (verbose >= 2) {
     fprintf(stderr,"*info* maxBlockBytes %zd, blockGapBytes %zd (bs %zd)\n", maxBlockBytes, blockGapBytes, bs); 
   }
 
   for (size_t i = 0; i < toalloc; i++) {
-    positionsStart[i] = (stBlock) + (i * blockGap); // initially in block
+    positionsStart[i] = (stBlock) + (size_t) (i * blockGap); // initially in block
     positionsStart[i] = positionsStart[i] * bs;     // now in bytes
     if (positionsStart[i] > maxBlockBytes) {
       positionsStart[i] -= maxBlockBytes;
@@ -174,7 +178,8 @@ void setupPositions(positionType *positions,
       assert(positionsStart[i] <= maxBlockBytes);
       fprintf(stderr,"*info* alignment start %zd: %zd\n", i, positionsStart[i]);
     }
-    //    fprintf(stderr,"*info* positionStart[%zd]: %zd\n", i, positionsStart[i]);
+    if (verbose >= 2)
+      fprintf(stderr,"*info* positionStart[%zd]: %zd\n", i, positionsStart[i]);
   }
 
   //    fprintf(stderr,"sf %d, %zd\n", sf, origStart[0]);
@@ -198,7 +203,7 @@ void setupPositions(positionType *positions,
     poss[count].len = thislen;
     poss[count].pos = positionsStart[count % toalloc];
 
-    if (sf <= 1) {
+    if (abs(sf) <= 1) {
       if (poss[count].pos > maxBlockBytes) {
 	if (verbose) {
 	  fprintf(stderr,"*warning* got to the end, count %zd\n", count);
@@ -224,7 +229,7 @@ void setupPositions(positionType *positions,
       l = positionsStart[count % toalloc];
       l += thislen;
       l += (jumpStep * lowbs);
-      if (l > (maxBlock * bs)) {
+      while (l > (maxBlock * bs)) {
 	l -= (maxBlock * bs);
 	//	l = 0;
       }
@@ -232,7 +237,7 @@ void setupPositions(positionType *positions,
       l = positionsStart[count % toalloc];
       l -= thislen;
       l -= (jumpStep * lowbs);
-      if (l < 0) {
+      while (l < 0) {
 	l += (maxBlock * bs);
       }
     }
@@ -245,9 +250,15 @@ void setupPositions(positionType *positions,
       break;
     }
 
+    /*
     if (abs(sf) >= 2) { // if more than two parallel regions, check they don't overlap with the next one
       size_t thispos = positionsStart[count % toalloc];
-      size_t dontgo = origStart[(count+1) % toalloc];
+      size_t dontgo;
+      if (sf > 0)
+	dontgo = origStart[(count+1) % toalloc];
+      else 
+	dontgo = origStart[(toalloc+count-1) % toalloc];
+      
       size_t diff = DIFF(thispos, dontgo);
       if (diff ==0) {
 	if (verbose >= 2) {
@@ -256,13 +267,12 @@ void setupPositions(positionType *positions,
 	break;
       }
     }
-
+    */
 
     
     count++;
   } // find a position across the disks
 
-  
   if (verbose >= 1) {
     fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(maxBlock * bs));
   }

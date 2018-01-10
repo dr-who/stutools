@@ -1,6 +1,7 @@
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
 CC=gcc
 CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g -O2
+DRIVE=/dev/loop3
 
 %.o : %.c %.h
 	$(CC) -c $(CFLAGS) $< -o $@
@@ -60,3 +61,23 @@ test:
 
 clean:
 	git clean -xdf
+
+graph: aioRWTest
+	./aioRWTest -f $(DRIVE) -s 1 -j0 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s1j0.png
+	./aioRWTest -f $(DRIVE) -s 1 -j2 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s1j2.png
+	./aioRWTest -f $(DRIVE) -s 1 -j5 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s1j5.png
+	./aioRWTest -f $(DRIVE) -s 1 -j50 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s1j50.png
+	./aioRWTest -f $(DRIVE) -s 5 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s5.png
+	./aioRWTest -f $(DRIVE) -s 9 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s9.png
+	./aioRWTest -f $(DRIVE) -s 32 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s32.png
+	./aioRWTest -f $(DRIVE) -s 1024 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s1024.png
+	./aioRWTest -f $(DRIVE) -s -1 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s-1.png
+	./aioRWTest -f $(DRIVE) -s -5 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s-5.png
+	./aioRWTest -f $(DRIVE) -s -9 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s-9.png
+	./aioRWTest -f $(DRIVE) -s -32 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s-32.png
+	./aioRWTest -f $(DRIVE) -s -1024 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s-1024.png
+	./aioRWTest -f $(DRIVE) -s 0 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s0.png
+	./aioRWTest -f $(DRIVE) -s 1 -j10 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s1j10.png
+	@echo display *.png # to see the results
+
+
