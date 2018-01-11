@@ -56,27 +56,30 @@ int logSpeedAdd(logSpeedType *l, double value) {
   
   const double v = value / timegap;
 
-  if (isfinite(v)) {
+  //  if (isfinite(v)) {
     
     //  fprintf(stderr,"--> adding %.1lf\n", value);
     
-    if (l->num >= l->alloc) {
-      l->alloc = l->alloc * 2 + 1;
-      l->values = realloc(l->values, l->alloc * sizeof(double)); if (!l->values) {fprintf(stderr,"OOM! realloc failed\n");exit(1);}
-      l->rawtime = realloc(l->rawtime, l->alloc * sizeof(double));
-      l->rawvalues = realloc(l->rawvalues, l->alloc * sizeof(double));
-      l->rawtotal = realloc(l->rawtotal, l->alloc * sizeof(double));
-      //    fprintf(stderr,"skipping...\n"); sleep(1);
-    } 
-    // fprintf(stderr,"it's been %zd bytes in %lf time, is %lf, total %zd, %lf,  %lf sec\n", value, timegap, value/timegap, l->total, l->total/logSpeedTime(l), logSpeedTime(l));
-    l->values[l->num] = v;
-    l->rawtime[l->num] = thistime;
-    l->rawtotal[l->num] = l->rawtot;
-    l->rawvalues[l->num] = value;
-    l->rawtot += value;
-    l->sorted = 0;
-    l->num++;
-  }
+  if (l->num >= l->alloc) {
+    l->alloc = l->alloc * 2 + 1;
+    l->values = realloc(l->values, l->alloc * sizeof(double)); if (!l->values) {fprintf(stderr,"OOM! realloc failed\n");exit(1);}
+    l->rawtime = realloc(l->rawtime, l->alloc * sizeof(double));
+    l->rawvalues = realloc(l->rawvalues, l->alloc * sizeof(double));
+    l->rawtotal = realloc(l->rawtotal, l->alloc * sizeof(double));
+    //    fprintf(stderr,"skipping...\n"); sleep(1);
+    //    fprintf(stderr,"new size %zd\n", l->num);
+  } 
+  // fprintf(stderr,"it's been %zd bytes in %lf time, is %lf, total %zd, %lf,  %lf sec\n", value, timegap, value/timegap, l->total, l->total/logSpeedTime(l), logSpeedTime(l));
+  l->values[l->num] = v;
+  l->rawtime[l->num] = thistime;
+  l->rawtotal[l->num] = l->rawtot;
+  l->rawvalues[l->num] = value;
+  l->rawtot += value;
+  l->sorted = 0;
+  l->num++;
+  //  } else {
+  //    fprintf(stderr,"skipping dupli\n");
+
   l->total += value;
   l->lasttime = thistime; // update time anyway so we don't lie about the next speed
 
