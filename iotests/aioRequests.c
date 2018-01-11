@@ -23,7 +23,7 @@ size_t aioMultiplePositions( positionType *positions,
 			     const size_t QD,
 			     const int verbose,
 			     const int tableMode, 
-			     logSpeedType *l,
+			     logSpeedType *alll,
 			     char *randomBuffer,
 			     const size_t randomBufferSize,
 			     const size_t alignment,
@@ -42,7 +42,6 @@ size_t aioMultiplePositions( positionType *positions,
   CALLOC(cbs[0], 1, sizeof(struct iocb));
   
   ctx = 0;
-
   // set the queue depth
 
   ret = io_setup(QD, &ctx);
@@ -126,6 +125,7 @@ size_t aioMultiplePositions( positionType *positions,
 	gt = timedouble();
 
 	if (gt - last >= DISPLAYEVERY) {
+	  //	  logSpeedAdd(alll, totalReadBytes + totalWriteBytes);
 	  if (!tableMode) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), (totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024);
 	  last = gt;
 	  if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
@@ -167,9 +167,7 @@ size_t aioMultiplePositions( positionType *positions,
       // verify it's all ok
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
-	if (l) {
-	  logSpeedAdd(l, events[j].res);
-	}
+	if (alll) logSpeedAdd(alll, events[j].res);
 	  
 	if (events[j].res <= 0) { // if return of bytes written or read
 	  fprintf(stderr,"failure: %ld bytes\n", events[j].res);
@@ -179,7 +177,7 @@ size_t aioMultiplePositions( positionType *positions,
 	//}
       
 	/*      if (l) {
-	logSpeedAdd(l, ret * len);
+	logSpeedAdd(alll, ret * len);
 	}*/
 	
       inFlight -= ret;

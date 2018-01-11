@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <assert.h>
 
 #include "logSpeed.h"
 #include "utils.h"
@@ -22,6 +23,7 @@ void logSpeedInit(volatile logSpeedType *l) {
 }
 
 void logSpeedReset(logSpeedType *l) {
+  assert(l);
   l->starttime = timedouble();
   l->checkpoint = 0;
   l->lasttime = l->starttime;
@@ -48,11 +50,12 @@ double logSpeedTime(logSpeedType *l) {
 
 
 int logSpeedAdd(logSpeedType *l, double value) {
+  assert(l);
   const double thistime = timedouble();
   const double timegap = thistime - l->lasttime;
   
   const double v = value / timegap;
-  
+
   if (isfinite(v)) {
     
     //  fprintf(stderr,"--> adding %.1lf\n", value);
@@ -69,8 +72,8 @@ int logSpeedAdd(logSpeedType *l, double value) {
     l->values[l->num] = v;
     l->rawtime[l->num] = thistime;
     l->rawtotal[l->num] = l->rawtot;
-    l->rawtot += value;
     l->rawvalues[l->num] = value;
+    l->rawtot += value;
     l->sorted = 0;
     l->num++;
   }
@@ -91,6 +94,7 @@ static int comparisonFunction(const void *p1, const void *p2) {
 }
 
 double logSpeedTotal(logSpeedType *l) {
+  assert(l);
   return l->total;
 }
 
@@ -147,14 +151,32 @@ void logSpeedFree(logSpeedType *l) {
   free(l->rawvalues);
   free(l->rawtotal);
   l->values = NULL;
+  l->rawtime = NULL;
+  l->rawvalues = NULL;
+  l->rawtotal = NULL;
 }
 
 
-void logSpeedDump(logSpeedType *l, const char *fn) {
+void logSpeedDump(logSpeedType *l, const char *fn, const int format) {
   //  logSpeedMedian(l);
+  //  if (format) {
+  //    fprintf(stderr, "*info* logSpeedDump format %d\n", format);
+  //  }
   FILE *fp = fopen(fn, "wt");
-  for (size_t i = 0; i < l->num; i++) {
-    fprintf(fp, "%.6lf\t%.6lf\t%.0lf\t%.0lf\n", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], l->rawtotal[i]);
+  if (!format) {// if no format
+    for (size_t i = 0; i < l->num; i++) {
+      fprintf(fp, "%.6lf\t%.0lf\t%.6lf\t%.0lf\n", l->rawtime[i] - l->starttime, l->rawtotal[i], l->rawtime[i], l->rawvalues[i]);
+    }
+  } else if (format == JSON) {
+    fprintf(fp,"[\n");
+    for (size_t i = 0; i < l->num; i++) {
+      fprintf(fp, "{\"time\":\"%.6lf\", \"total\":\"%.0lf\"}", l->rawtime[i] - l->starttime, l->rawtotal[i]);
+      if (i < l->num-1) fprintf(fp,",");
+      fprintf(fp,"\n");
+    }
+    fprintf(fp,"]\n");
+  } else {
+    assert(0); // no idea
   }
   fclose(fp);
 }

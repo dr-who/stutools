@@ -26,6 +26,8 @@ double exitAfterSeconds = 60;
 int    qd = 256;
 int    qdSpecified = 0;
 char   **pathArray = NULL;
+char   *dataLog = NULL;
+int    dataLogFormat = 0;
 size_t pathLen = 0;
 int    seqFiles = 1;
 int    seqFilesSpecified = 0;
@@ -99,11 +101,17 @@ void handle_args(int argc, char *argv[]) {
   seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "dDt:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:J")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
       if (alignment < 1024) alignment = 1024;
+      break;
+    case 'J':
+      dataLogFormat = JSON;
+      break;
+    case 'D':
+      dataLog = strdup(optarg);
       break;
     case 'L':
       logPositions = strdup(optarg);
@@ -257,7 +265,9 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX # Triple X does not use O_EXCL. For multiple instances simultaneously.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z # Start the first position at position zero instead of random.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB instead of the default 4KiB\n");
-    fprintf(stderr,"  ./aioRWTest -L log.txt -s1 -w -f /dev/nbd0 # log all positions and operations to log.txt\n");
+    fprintf(stderr,"  ./aioRWTest -L locations.txt -s1 -w -f /dev/nbd0 # log all locations and operations to locations.txt\n");
+    fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to timedata (TSV format)\n");
+    fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to timedata (in JSON format)\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
@@ -576,7 +586,7 @@ int main(int argc, char *argv[]) {
 	      efficiency = 100;
 	    }
 
-	    logSpeedDump(&l, filename);
+	    logSpeedDump(&l, filename, dataLogFormat);
 	    logSpeedFree(&l);
 	    
 	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
@@ -603,16 +613,19 @@ int main(int argc, char *argv[]) {
 
     if (logPositions) {
       if (verbose) {
-	fprintf(stderr, "*info* dumping positions to '%s'\n", logPositions);
+	fprintf(stderr, "*info* dumping positions only to '%s'\n", logPositions);
       }
       dumpPositions(logPositions, positions, maxPositions, bdSize);
     }
 
+    logSpeedType l;
+    logSpeedInit(&l);
+    
     diskStatStart(&dst); // grab the sector counts
     double start = timedouble();
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
-    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, NULL, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes);
+    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes);
     if (verbose) {
       fprintf(stderr,"*info* calling fsync()\n");
     }
@@ -621,6 +634,13 @@ int main(int argc, char *argv[]) {
     }
     
     double elapsed = timedouble() - start;
+
+    if (dataLog) {
+      fprintf(stderr, "*info* dumping request timing to '%s'\n", dataLog);
+      logSpeedDump(&l, dataLog, dataLogFormat);
+    }
+    logSpeedFree(&l);
+
     
     diskStatFinish(&dst); // and sector counts when finished
 
@@ -665,6 +685,7 @@ int main(int argc, char *argv[]) {
   }
   if (pathArray) free(pathArray);
   if (logFNPrefix) free(logFNPrefix);
+  if (dataLog) free(dataLog);
   if (specifiedDevices) free(specifiedDevices);
   if (logPositions) free(logPositions);
   

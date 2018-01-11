@@ -5,6 +5,8 @@
 
 #define OUTPUTINTERVAL 1
 
+#define JSON 1
+
 typedef struct {
   double starttime;
   size_t num;
@@ -35,7 +37,7 @@ double logSpeedTotal(logSpeedType *l);
 double logSpeedRank(logSpeedType *l, float rank); // between [0...1)
 double logSpeedMax(logSpeedType *l);
 
-void   logSpeedDump(logSpeedType *l, const char *fn);
+void   logSpeedDump(logSpeedType *l, const char *fn, const int format);
 void logSpeedHistogram(logSpeedType *l);
 void logSpeedCheckpoint(logSpeedType *l);
 double logSpeedGetCheckpoint(logSpeedType *l);
