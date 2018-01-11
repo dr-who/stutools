@@ -265,7 +265,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX # Triple X does not use O_EXCL. For multiple instances simultaneously.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z # Start the first position at position zero instead of random.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB instead of the default 4KiB\n");
-    fprintf(stderr,"  ./aioRWTest -L locations.txt -s1 -w -f /dev/nbd0 # log all locations and operations to locations.txt\n");
+    fprintf(stderr,"  ./aioRWTest -L locations.txt -s1 -w -f /dev/nbd0 # dump planned locations and operations to locations.txt\n");
     fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to timedata (TSV format)\n");
     fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to timedata (in JSON format)\n");
     fprintf(stderr,"\nTable summary:\n");
