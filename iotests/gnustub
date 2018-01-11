@@ -1,4 +1,4 @@
 set nokey
-set term png
+set term png size 1024,768
 set output "a.png"
 plot 'x' using 2

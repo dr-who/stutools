@@ -477,7 +477,7 @@ int main(int argc, char *argv[]) {
   char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
   generateRandomBuffer(randomBuffer, BLKSIZE);
 
-  if (maxPositions < 1) maxPositions = 1;
+  if (maxPositions < 0) maxPositions = 0;
   
   positionType *positions = createPositions(maxPositions);
 

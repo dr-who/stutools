@@ -78,6 +78,4 @@ graph: aioRWTest
 	./aioRWTest -f $(DRIVE) -s -1024 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s-1024.png
 	./aioRWTest -f $(DRIVE) -s 0 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s0.png
 	./aioRWTest -f $(DRIVE) -s 1 -j10 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s1j10.png
-	@echo display *.png # to see the results
-
-
+	@echo display "*.png" # to see the results

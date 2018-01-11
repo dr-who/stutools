@@ -98,7 +98,7 @@ void dumpPositions(const char *name, positionType *positions, size_t num, size_t
       perror(name); return;
     }
     for (size_t i = 0; i <num; i++) {
-      fprintf(fp, "%8d\t%10zd\t%.2lf GiB\t%c\t%zd\t%zd\t%.2lf GiB\t(%.1lf%%)\n", positions[i].fd, positions[i].pos, TOGiB(positions[i].pos), positions[i].action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].pos * 100.0 / bdSizeBytes);
+      fprintf(fp, "%8d\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\n", positions[i].fd, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, positions[i].action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes));
     }
     fclose(fp);
   }
@@ -230,7 +230,7 @@ void setupPositions(positionType *positions,
       l += thislen;
       l += (jumpStep * lowbs);
       while (l > (maxBlock * bs)) {
-	l -= (maxBlock * bs);
+	l -= (maxBlock * bs + thislen);
 	//	l = 0;
       }
     } else {
@@ -238,7 +238,7 @@ void setupPositions(positionType *positions,
       l -= thislen;
       l -= (jumpStep * lowbs);
       while (l < 0) {
-	l += (maxBlock * bs);
+	l += (maxBlock * bs + thislen);
       }
     }
     assert(l>=0);
