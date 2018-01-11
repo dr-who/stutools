@@ -612,9 +612,7 @@ int main(int argc, char *argv[]) {
     setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
 
     if (logPositions) {
-      if (verbose) {
-	fprintf(stderr, "*info* dumping positions only to '%s'\n", logPositions);
-      }
+      fprintf(stderr, "*info* dumping positions only to '%s'\n", logPositions);
       dumpPositions(logPositions, positions, maxPositions, bdSize);
     }
 
