@@ -244,6 +244,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -I devicelist.txt       # 50/50 read/write test, seq r/w from a file\n");
     fprintf(stderr,"  ./aioRWTest -r -f /dev/nbd0         # read test\n");
     fprintf(stderr,"  ./aioRWTest -w -f /dev/nbd0         # write test\n");
+    fprintf(stderr,"  ./aioRWTest -w -FF -f /dev/nbd0     # write test, flush every 10 writes.\n");
     fprintf(stderr,"  ./aioRWTest -w -v -f /dev/nbd0      # write test with verify\n");
     fprintf(stderr,"  ./aioRWTest -w -V -f /dev/nbd0      # write test, verbosity, including showing the first N positions\n");
     fprintf(stderr,"  ./aioRWTest -r -s1 -I devs.txt      # read test, single contiguous region\n");
