@@ -173,7 +173,7 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format) {
   } else if (format == JSON) {
     fprintf(fp,"[\n");
     for (size_t i = 0; i < l->num; i++) {
-      fprintf(fp, "{\"time\":\"%.6lf\", \"total\":\"%.0lf\"}", l->rawtime[i] - l->starttime, l->rawtotal[i]);
+      fprintf(fp, "{\"time\":\"%.6lf\", \"sum\":\"%.0lf\", \"value\":\"%.0lf\"}", l->rawtime[i] - l->starttime, l->rawtotal[i], l->values[i]);
       if (i < l->num-1) fprintf(fp,",");
       fprintf(fp,"\n");
     }

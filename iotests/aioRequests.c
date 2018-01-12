@@ -24,6 +24,7 @@ size_t aioMultiplePositions( positionType *positions,
 			     const int verbose,
 			     const int tableMode, 
 			     logSpeedType *alll,
+			     logSpeedType *benchl,
 			     char *randomBuffer,
 			     const size_t randomBufferSize,
 			     const size_t alignment,
@@ -78,7 +79,8 @@ size_t aioMultiplePositions( positionType *positions,
   size_t totalReadBytes = 0;
   //  double mbps = 0;
   
-
+  size_t lastBytes = 0;
+  
   while (1) {
     if (inFlight < QD) {
       
@@ -125,8 +127,10 @@ size_t aioMultiplePositions( positionType *positions,
 	gt = timedouble();
 
 	if (gt - last >= DISPLAYEVERY) {
-	  //	  logSpeedAdd(alll, totalReadBytes + totalWriteBytes);
-	  if (!tableMode) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), (totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024);
+	  const double speed = 1.0*(totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024;
+	  if (benchl) logSpeedAdd(benchl, TOMiB(totalReadBytes + totalWriteBytes - lastBytes));
+	  lastBytes = totalReadBytes + totalWriteBytes;
+	  if (!tableMode) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
 	  last = gt;
 	  if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
 	    //	    	  fprintf(stderr,"timeout\n");

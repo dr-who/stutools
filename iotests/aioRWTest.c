@@ -27,6 +27,7 @@ int    qd = 256;
 int    qdSpecified = 0;
 char   **pathArray = NULL;
 char   *dataLog = NULL;
+char   *benchLog = NULL;
 int    dataLogFormat = 0;
 size_t pathLen = 0;
 int    seqFiles = 1;
@@ -101,7 +102,7 @@ void handle_args(int argc, char *argv[]) {
   seed = (long int) timedouble();
   if (seed < 0) seed=-seed;
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:J")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:JB:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -112,6 +113,9 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'D':
       dataLog = strdup(optarg);
+      break;
+    case 'B':
+      benchLog = strdup(optarg);
       break;
     case 'L':
       logPositions = strdup(optarg);
@@ -266,8 +270,9 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z # Start the first position at position zero instead of random.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB instead of the default 4KiB\n");
     fprintf(stderr,"  ./aioRWTest -L locations.txt -s1 -w -f /dev/nbd0 # dump planned locations and operations to locations.txt\n");
-    fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to timedata (TSV format)\n");
-    fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to timedata (in JSON format)\n");
+    fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0 # log *block* timing and total data to timedata (TSV format)\n");
+    fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to timedata (JSON format)\n");
+    fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0 # log *per second* benching timing (add -J for JSON)\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
@@ -296,7 +301,7 @@ size_t testReadLocation(int fd, size_t b, size_t blksize, positionType *position
       
   double start = timedouble();
   size_t ios = 0, totalRB = 0, totalWB = 0;
-  size_t br = aioMultiplePositions(positions, num, exitAfterSeconds, qd, verbose, 1, NULL, randomBuffer, randomBufferSize, alignment, &ios, &totalRB, &totalWB);
+  size_t br = aioMultiplePositions(positions, num, exitAfterSeconds, qd, verbose, 1, NULL, NULL, randomBuffer, randomBufferSize, alignment, &ios, &totalRB, &totalWB);
   double elapsed = timedouble() - start;
   //ios = ios / elapsed;
   fprintf(stderr,"ios %.1lf %.1lf MiB/s\n", ios/elapsed, TOMiB(br/elapsed));
@@ -556,14 +561,14 @@ int main(int argc, char *argv[]) {
 	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
 
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
 	    } else {
 	      // setup multiple/parallel sequential region
 	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
 
 	      
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
 	    }
 	    if (verbose) {
 	      fprintf(stderr,"*info* calling fsync()\n");
@@ -612,18 +617,22 @@ int main(int argc, char *argv[]) {
     setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
 
     if (logPositions) {
-      fprintf(stderr, "*info* dumping positions only to '%s'\n", logPositions);
+      fprintf(stderr, "*info* writing predefined positions to '%s'\n", logPositions);
       dumpPositions(logPositions, positions, maxPositions, bdSize);
     }
 
     logSpeedType l;
     logSpeedInit(&l);
+
+    logSpeedType benchl;
+    logSpeedInit(&benchl);
+
     
     diskStatStart(&dst); // grab the sector counts
     double start = timedouble();
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
-    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes);
+    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes);
     if (verbose) {
       fprintf(stderr,"*info* calling fsync()\n");
     }
@@ -634,10 +643,17 @@ int main(int argc, char *argv[]) {
     double elapsed = timedouble() - start;
 
     if (dataLog) {
-      fprintf(stderr, "*info* dumping request timing to '%s'\n", dataLog);
+      fprintf(stderr, "*info* writing per-block timing to '%s'\n", dataLog);
       logSpeedDump(&l, dataLog, dataLogFormat);
     }
+
+    if (benchLog) {
+      fprintf(stderr, "*info* writing per-second benchmark speeds to '%s'\n", benchLog);
+      logSpeedDump(&benchl, benchLog, dataLogFormat);
+    }
+
     logSpeedFree(&l);
+    logSpeedFree(&benchl);
 
     
     diskStatFinish(&dst); // and sector counts when finished
@@ -684,6 +700,7 @@ int main(int argc, char *argv[]) {
   if (pathArray) free(pathArray);
   if (logFNPrefix) free(logFNPrefix);
   if (dataLog) free(dataLog);
+  if (benchLog) free(benchLog);
   if (specifiedDevices) free(specifiedDevices);
   if (logPositions) free(logPositions);
   
