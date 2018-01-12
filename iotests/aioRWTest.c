@@ -238,12 +238,13 @@ void handle_args(int argc, char *argv[]) {
     }
   }
   if (pathLen < 1) {
-    fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-j jumpBlocks] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] [-G 32] [-p readRatio] -f blockdevice\n");
+    fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0            # 50/50 read/write test, seq r/w\n");
     fprintf(stderr,"  ./aioRWTest -I devicelist.txt       # 50/50 read/write test, seq r/w from a file\n");
     fprintf(stderr,"  ./aioRWTest -r -f /dev/nbd0         # read test\n");
     fprintf(stderr,"  ./aioRWTest -w -f /dev/nbd0         # write test\n");
+    fprintf(stderr,"  ./aioRWTest -w -v -f /dev/nbd0      # write test with verify\n");
     fprintf(stderr,"  ./aioRWTest -w -V -f /dev/nbd0      # write test, verbosity, including showing the first N positions\n");
     fprintf(stderr,"  ./aioRWTest -r -s1 -I devs.txt      # read test, single contiguous region\n");
     fprintf(stderr,"  ./aioRWTest -w -s128 -f /dev/nbd0   # write test, 128 parallel contiguous regions\n");
