@@ -3,7 +3,7 @@
 
 if [ $# -le 1 ]
 then
-    echo "./run.sh /dev/loop3 *.cli"
+    echo "./bench.sh /dev/nbd0 *.cli"
     exit 1;
 fi
 
