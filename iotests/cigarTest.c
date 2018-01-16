@@ -2,12 +2,28 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "utils.h"
+#include <time.h>
+#include <sys/time.h>
 
+#include "utils.h"
 #include "cigar.h"
 
+
+
+struct timeval gettm() {
+  struct timeval now;
+  gettimeofday(&now, NULL);
+  return now;
+}
+
+double timedouble() {
+  struct timeval now = gettm();
+  double tm = (now.tv_sec * 1000000 + now.tv_usec);
+  return tm/1000000.0;
+}
+
 int main(int argc, char *argv[]) {
-  
+  srand48(timedouble() * 1000);
   if (argc < 2) {
     fprintf(stderr,"./cigarTest 10.20-30X\n");
     fprintf(stderr,"./cigarTest 100R\n");
