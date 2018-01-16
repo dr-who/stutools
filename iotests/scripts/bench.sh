@@ -30,7 +30,7 @@ do
 	   then
 	       /bin/echo -e $line"\t"$retcode | awk -F'\t' '{printf "%4.1f GB/s\t%s\n", $2/10.0, $1}' 
 	       
-	       /bin/echo -e $line"\t"$retcode | tr -d ' ' | awk -F'\t' '{printf "%s\t%4.1f\n", $1, $2}' >> $logfile
+	       /bin/echo -e $line"\t"$retcode | tr -d ' ' | awk -F'\t' '{printf "%s\t%4.1f\n", $1, $2/10.0}' >> $logfile
 	fi
 	
 	
