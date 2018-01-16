@@ -28,10 +28,11 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"./cigarTest 10.20-30X\n");
     fprintf(stderr,"./cigarTest 100R\n");
     fprintf(stderr,"./cigarTest 100R_100W_\n");
-    fprintf(stderr,"./cigarTest ~R\n");
-    fprintf(stderr,"./cigarTest @R\n");
-    fprintf(stderr,"./cigarTest :R\n");
+    fprintf(stderr,"./cigarTest ~R          # ~ means a random number [1, 10]\n");
+    fprintf(stderr,"./cigarTest @R          # @ means a random number [11, 100]\n");
+    fprintf(stderr,"./cigarTest :R          # : means a random number [100, 1000]\n");
     fprintf(stderr,"./cigarTest @X\n");
+    fprintf(stderr,"./cigarTest ~R1f@W1f:X1f\n");
   } else {
     cigartype c;
     cigar_init(&c);
