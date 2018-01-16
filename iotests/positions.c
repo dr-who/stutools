@@ -162,7 +162,7 @@ void setupPositions(positionType *positions,
   const double blockGap = (maxBlock + 1) * 1.0 / toalloc; // need to be a floating point for large -s
   if (blockGap < 1) {
     fprintf(stderr,"*error* can't generate that many sequences %d\n", toalloc);
-    exit(1);
+    exit(-1);
   }
   const size_t blockGapBytes = blockGap * bs;
   if (verbose >= 2) {
@@ -368,7 +368,7 @@ void setupPositions(positionType *positions,
       p->action = action;
     } else {
       fprintf(stderr,"*error* unknown CIGAR action '%c'\n", action);
-      exit(1);
+      exit(-1);
     }
     p->success = 0;
     assert(p->len); // can't be zero

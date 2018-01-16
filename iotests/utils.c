@@ -55,7 +55,7 @@ size_t blockDeviceSize(const char *path) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
     //    perror(path);
-    //    exit(1);
+    //    exit(-1);
     return 0;
   }
   size_t file_size_in_bytes = 0;
@@ -95,7 +95,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   
   char *charbuf = aligned_alloc(65536, maxBufSize);
   if (!charbuf) { // O_DIRECT requires aligned memory
-	fprintf(stderr,"memory allocation failed\n");exit(1);
+	fprintf(stderr,"memory allocation failed\n");exit(-1);
   }
   //  srand((int)timedouble());
 
@@ -113,7 +113,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       maxDeviceSize = blockDeviceSize(label);
       if (maxDeviceSize == 0) {
 	return;
-	//	exit(1);
+	//	exit(-1);
       }       
 
       fprintf(stderr,"deviceSize on %s is %.1lf GiB (%.0lf MiB)", label, TOGiB(maxDeviceSize), TOMiB(maxDeviceSize));
@@ -124,7 +124,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       fprintf(stderr,"\n");
     } else {
       fprintf(stderr,"error: need to be a block device with the -r option\n");
-      exit(1);
+      exit(-1);
     }
   } 
   int wbytes = 0;
@@ -343,11 +343,11 @@ void dropCaches() {
   FILE *fp = fopen("/proc/sys/vm/drop_caches", "wt");
   if (fp == NULL) {
     fprintf(stderr,"error: you need sudo/root permission to drop caches\n");
-    exit(1);
+    exit(-1);
   }
   if (fprintf(fp, "3\n") < 1) {
     fprintf(stderr,"error: you need sudo/root permission to drop caches\n");
-    exit(1);
+    exit(-1);
   }
   fflush(fp);
   fclose(fp);
@@ -361,7 +361,7 @@ char* queueType(char *path) {
   FILE *fp = fopen("/sys/block/sda/device/queue_type", "rt");
   if (fp == NULL) {
     perror("problem opening");
-    //    exit(1);
+    //    exit(-1);
   }
   char instr[100];
   size_t r = fscanf(fp, "%s", instr);
@@ -369,7 +369,7 @@ char* queueType(char *path) {
   if (r != 1) {
     return strdup("n/a");
     //    fprintf(stderr,"error: problem reading from '%s'\n", path);
-    //    exit(1);
+    //    exit(-1);
   }
   return strdup(instr);
 }
@@ -390,12 +390,12 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
   int fd = open(label, O_RDONLY | O_DIRECT); // O_DIRECT to check contents
   if (fd < 0) {
     perror(label);
-    exit(1);
+    exit(-1);
   }
 
   void *rawbuf = NULL;
   if ((rawbuf = aligned_alloc(65536, size)) == NULL) { // O_DIRECT requires aligned memory
-	fprintf(stderr,"memory allocation failed\n");exit(1);
+	fprintf(stderr,"memory allocation failed\n");exit(-1);
   }
   size_t pos = 0;
   unsigned char *buf = (unsigned char*)rawbuf;

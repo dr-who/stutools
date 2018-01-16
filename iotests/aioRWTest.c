@@ -302,7 +302,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, 'B' repeats the previous, 'S' skip\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
-    exit(1);
+    exit(-1);
   }
 
 }
@@ -463,7 +463,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
   } // i
 
   /*  if (error) {
-    exit(1);
+    exit(-1);
     }*/
 
   return retBD;
@@ -520,7 +520,7 @@ int main(int argc, char *argv[]) {
   }
   fprintf(stderr,"\n");
 
-  char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
+  char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
   generateRandomBuffer(randomBuffer, BLKSIZE);
 
   if (maxPositions < 0) maxPositions = 0;
