@@ -68,14 +68,20 @@ int cigar_parse(cigartype *c, char *string) {
 
   while (end && *end) {
     long l = 0;
-    if (start && ((*start == '~') || (*start == '@') || (*start == ':'))) {
+    if (start && ((*start == '~') || (*start == '@') || (*start == ':') || (*start == '%'))) {
       if (*start == '~') {
 	l = (lrand48() % 10) + 1;
       } else if (*start == '@') {
-	l = (lrand48() % 90) + 10;
+	l = (lrand48() % 90) + 11;
+      } else if (*start == ':') {
+	l = (lrand48() % 900) + 101;
+      } else if (*start == '%') {
+	l = (lrand48() % 9000) + 1001;
       } else {
-	l = (lrand48() % 900) + 100;
+	assert(0);
+	//	l=1;
       }
+      
       //            fprintf(stderr,"*info* found a %c mapping to %ld\n", *start, l);
       end = start+1;
     } else {
