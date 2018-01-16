@@ -293,7 +293,8 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0    # log *block* timing and total data to 'timedata' (TSV format)\n");
     fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to 'timedata' (JSON)\n");
     fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0   # log *per second* benching timing (add -J for JSON)\n");
-    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # Use the CIGAR format. '100R' '200X' '10R1F100W50X' (to come)\n");
+    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # Use the CIGAR format. '100R' '200X' '10R100W50X'\n");
+    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, variable sizes '~R@W' '@W' ':R@W~R'\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);
@@ -583,13 +584,13 @@ int main(int argc, char *argv[]) {
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // setup random positions. An value of 0 means random. e.g. zero sequential files
-	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
+	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd, &cigar);
 
 	      start = timedouble(); // start timing after positions created
 	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
 	    } else {
 	      // setup multiple/parallel sequential region
-	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
+	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd, &cigar);
 
 	      
 	      start = timedouble(); // start timing after positions created
@@ -639,7 +640,7 @@ int main(int argc, char *argv[]) {
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(origBDSize), TOGiB(totl), 100.0*totl/origBDSize - 100);
     }
-    setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd);
+    setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd, &cigar);
 
     if (logPositions) {
       fprintf(stderr, "*info* writing predefined positions to '%s'\n", logPositions);

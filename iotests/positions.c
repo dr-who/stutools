@@ -7,6 +7,7 @@
 
 #include "utils.h"
 #include "positions.h"
+#include "cigar.h"
 
 extern int verbose;
 
@@ -108,19 +109,20 @@ void dumpPositions(const char *name, positionType *positions, size_t num, size_t
 // create the position array
 void setupPositions(positionType *positions,
 		    size_t *num,
-		          const int *fdArray,
-		          const size_t fdSize,
-			  const size_t bdSizeBytes,
-			  const int sf,
-			  const double readorwrite,
-			  const size_t lowbs,
-			  const size_t bs,
-		          const size_t alignment,
-			  const size_t singlePosition,
-		          const int    jumpStep,
-		          const size_t startAtZero,
-		          const size_t actualBlockDeviceSize2,
-		          const int blockOffset
+		    const int *fdArray,
+		    const size_t fdSize,
+		    const size_t bdSizeBytes,
+		    const int sf,
+		    const double readorwrite,
+		    const size_t lowbs,
+		    const size_t bs,
+		    const size_t alignment,
+		    const size_t singlePosition,
+		    const int    jumpStep,
+		    const size_t startAtZero,
+		    const size_t actualBlockDeviceSize2,
+		    const int blockOffset,
+		    cigartype *cigar
 		    ) {
   assert(lowbs <= bs);
   assert(positions);
@@ -326,11 +328,28 @@ void setupPositions(positionType *positions,
 
   // setup R/W
   positionType *p = positions;
+  size_t cl = 0;
+  if (cigar) cl = cigar_len(cigar);
+  
   for (size_t j = 0; j < *num; j++) {
-    if (drand48() <= readorwrite) {
-      p->action = 'R';
+    char action;
+    if (cl > 0) { // if we have a CIGAR
+      action = cigar_at(cigar, (j / ABS(sf)) % cl);
     } else {
-      p->action = 'W';
+      action = 'X';
+    }
+    
+    if (action == 'X') {
+      if (drand48() <= readorwrite) {
+	p->action = 'R';
+      } else {
+	p->action = 'W';
+      }
+    } else if (action == 'R' || action == 'W') {
+      p->action = action;
+    } else {
+      fprintf(stderr,"*error* unknown CIGAR action '%c'\n", action);
+      exit(1);
     }
     p->success = 0;
     assert(p->len); // can't be zero

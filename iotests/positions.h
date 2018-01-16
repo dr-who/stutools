@@ -1,6 +1,8 @@
 #ifndef _POSITIONS_H
 #define _POSITIONS_H
 
+#include "cigar.h"
+
 typedef struct {
   int    fd;
   size_t pos;
@@ -28,7 +30,8 @@ void setupPositions(positionType *positions,
 		    const int    jumpStep,
 		    const size_t startAtZero,
 		    const size_t actualBlockDeviceSize,
-		    const int blockOffset);
+		    const int blockOffset,
+		    cigartype *cigar);
 
 
 

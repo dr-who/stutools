@@ -20,4 +20,7 @@ void cigar_add(cigartype *c, const size_t len, const char ty);
 void cigar_setrwrand(cigartype *c, double d);
 int cigar_parse(cigartype *c, char *string);
 
+char cigar_at(const cigartype *c, const size_t pos);
+
+
 #endif

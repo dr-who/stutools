@@ -39,17 +39,25 @@ void cigar_dump(const cigartype *c, FILE *fp) {
 void cigar_add(cigartype *c, const size_t len, const char ty) {
   c->types = realloc(c->types, (c->len + len) * sizeof(char));
   for (size_t i = 0 ; i < len; i++) {
-    if (ty == 'X') { // X is random
+    /*    if (ty == 'X') { // X is random
+      c->types[c->len + i] 
       if (drand48() <= c->rand) {
 	c->types[c->len + i]= 'R';
       } else {
 	c->types[c->len + i]= 'W';
       }
-    } else {
-      c->types[c->len + i]= ty;
-    }
+      } else {*/
+    c->types[c->len + i]= ty;
+    // }
   }
   c->len += len;
+}
+
+
+char cigar_at(const cigartype *c, const size_t pos) {
+  assert(c);
+  assert(pos < c->len);
+  return c->types[pos];
 }
   
 
