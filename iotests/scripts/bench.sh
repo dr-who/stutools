@@ -15,6 +15,7 @@ time=2
 device=$1
 shift
 
+lineno=0
 for f in $*
 do
 
@@ -23,7 +24,8 @@ do
     
     while read -r line
     do
-	../aioRWTest -t$time -f $device $line >/dev/null 2>&1
+	lineno=$[lineno+1]
+	../aioRWTest -t$time -R $lineno -f $device $line >/dev/null 2>&1
 	retcode=$?
 	# 255 is exit(-1) and the speed goes from 0.. upwards. 255 would be 25.5 GB/s, which is too high for now
 	if [ $retcode -ne 255 ]
