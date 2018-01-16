@@ -294,7 +294,8 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to 'timedata' (JSON)\n");
     fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0   # log *per second* benching timing (add -J for JSON)\n");
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # Use CIGAR format for R/W/X actions. '100R' '200X' '10R100W50X'\n");
-    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, variable sizes '~R@W' '@W' ':R@W~R'\n");
+    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, variable sizes '~R' '@W' ':W' '~R@W:W'\n");
+    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, 'B' repeats the previous, 'S' skip\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(1);

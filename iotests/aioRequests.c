@@ -86,9 +86,10 @@ size_t aioMultiplePositions( positionType *positions,
       
       // submit requests, one at a time
       for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
-	if (sz) { // if we have some positions
+	if (sz && positions[pos].action != 'S') { // if we have some positions
 	  long long newpos = positions[pos].pos;
 	  const size_t len = positions[pos].len;
+
 	  int read = (positions[pos].action == 'R');
 	  
 	  // setup the request

@@ -226,21 +226,29 @@ void setupPositions(positionType *positions,
     //    poss[count].pos = (poss[count].pos >> alignbits) << alignbits; // check aligned
     //    assert (poss[count].pos % alignment == 0);
 
-    long l = 0;
+    size_t l = 0;
     if (sf >= 0) {
+      // +ve sequential
       l = positionsStart[count % toalloc];
       l += thislen;
       l += (jumpStep * lowbs);
-      while (l > (maxBlock * bs)) {
-	l -= (maxBlock * bs + thislen);
+      while (l >= (maxBlock * bs)) {
+	l -= (maxBlock * bs);
 	//	l = 0;
       }
     } else {
+      // negative sequential
       l = positionsStart[count % toalloc];
-      l -= thislen;
-      l -= (jumpStep * lowbs);
-      while (l < 0) {
-	l += (maxBlock * bs + thislen);
+      if (l >= thislen) {
+	l -= thislen;
+      } else {
+	l = (maxBlock * bs);
+      }
+
+      if (l >= jumpStep * lowbs) {
+	l -= (jumpStep * lowbs);
+      } else {
+	l = (maxBlock * bs) - (jumpStep * lowbs);
       }
     }
     assert(l>=0);
@@ -335,7 +343,7 @@ void setupPositions(positionType *positions,
     char action;
     if (cl > 0) { // if we have a CIGAR
       if (sf != 0) {
-	action = cigar_at(cigar, (j / ABS(sf)) % cl);
+	action = cigar_at(cigar, (j / ABS(sf)) % cl); // have the exact the same pattern per contiguous range
       } else {
 	action = cigar_at(cigar, j % cl);
       }
@@ -349,6 +357,13 @@ void setupPositions(positionType *positions,
       } else {
 	p->action = 'W';
       }
+    } else if (action == 'S') {
+      p->action = action; // skip
+    } else if (action == 'B') {
+      // backwards
+      p->action = positions[j-1].action;
+      p->pos = positions[j-1].pos;
+      p->len = positions[j-1].len;
     } else if (action == 'R' || action == 'W') {
       p->action = action;
     } else {
