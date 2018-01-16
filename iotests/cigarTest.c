@@ -1,11 +1,21 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
+#include <stdlib.h>
+#include "utils.h"
+
 #include "cigar.h"
 
 int main(int argc, char *argv[]) {
+  
   if (argc < 2) {
     fprintf(stderr,"./cigarTest 10.20-30X\n");
     fprintf(stderr,"./cigarTest 100R\n");
     fprintf(stderr,"./cigarTest 100R_100W_\n");
+    fprintf(stderr,"./cigarTest ~R\n");
+    fprintf(stderr,"./cigarTest @R\n");
+    fprintf(stderr,"./cigarTest :R\n");
+    fprintf(stderr,"./cigarTest @X\n");
   } else {
     cigartype c;
     cigar_init(&c);
