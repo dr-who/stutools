@@ -64,7 +64,7 @@ long readNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, co
       
       // submit requests
       for (size_t i = 0; i < MIN(MAXDEPTH - inFlight, 1); i++) {
-	size_t newpos = (rand() % maxBlocks) * BLKSIZE;
+	size_t newpos = (lrand48() % maxBlocks) * BLKSIZE;
 	//size_t newpos = ((count++) % maxBlocks) * BLKSIZE;
 	if (newpos > sz) {
 	  newpos = newpos % sz; // set to zero and warn
@@ -168,7 +168,7 @@ long writeNonBlocking(const char *path, const size_t BLKSIZE, const size_t sz, c
     if (inFlight < MAXDEPTH) {
 
       for (size_t i = 0 ; i < (MAXDEPTH - inFlight) ; i++) {
-	size_t newpos = (rand() % maxBlocks) * BLKSIZE;
+	size_t newpos = (lrand48() % maxBlocks) * BLKSIZE;
 	//size_t newpos = ((count++) % maxBlocks) * BLKSIZE;
 	if (newpos > sz) {
 	  newpos = newpos % sz; // set to zero and warn

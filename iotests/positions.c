@@ -352,7 +352,6 @@ void setupPositions(positionType *positions,
 
 
 /*int main() {
-  srand48((long)timedouble());
   const size_t num = 10*1024*1024;
   positionType *p = createPositions(num);
 

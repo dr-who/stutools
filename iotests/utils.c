@@ -97,7 +97,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   if (!charbuf) { // O_DIRECT requires aligned memory
 	fprintf(stderr,"memory allocation failed\n");exit(1);
   }
-  srand((int)timedouble());
+  //  srand((int)timedouble());
 
   generateRandomBuffer(charbuf, maxBufSize);
 
@@ -149,7 +149,7 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
 
     if (!sequential) {
       size_t maxblocks = maxDeviceSize / chunkSizes[0];
-      const size_t randblock = maxblocks ? rand() % maxblocks : 0;
+      const size_t randblock = maxblocks ? lrand48() % maxblocks : 0;
       //      fprintf(stderr,"%zd (0..%zd)\n", randblock, maxblocks);	
       size_t pos = randblock * chunkSizes[0];
       off_t ret = lseek(fd, pos, SEEK_SET);
@@ -399,9 +399,9 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
   }
   size_t pos = 0;
   unsigned char *buf = (unsigned char*)rawbuf;
-  unsigned long ii = (unsigned long)rawbuf;
+  //  unsigned long ii = (unsigned long)rawbuf;
   size_t check = 0, ok = 0, error = 0;
-  srand(ii);
+  //  srand(ii);
 
   keepRunning = 1;
   while (keepRunning) {
@@ -640,7 +640,7 @@ inline size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes,
   
   size_t randombs_k = lowbs_k;
   if (highbs_k > lowbs_k) {
-    randombs_k += (rand() % (highbs_k - lowbs_k + 1));
+    randombs_k += (lrand48() % (highbs_k - lowbs_k + 1));
   }
   
   size_t randombs = randombs_k << alignmentbits;

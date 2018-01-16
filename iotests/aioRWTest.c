@@ -20,6 +20,7 @@
 #include "logSpeed.h"
 #include "diskStats.h"
 #include "positions.h"
+#include "cigar.h"
 
 int    keepRunning = 1;       // have we been interrupted
 double exitAfterSeconds = 60;
@@ -54,6 +55,8 @@ size_t dontUseExclusive = 0;
 int    blocksFromEnd = 0;
 char*  logPositions = NULL;
 long int seed;
+char*  cigarPattern = NULL;
+cigartype cigar;
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
@@ -99,10 +102,11 @@ size_t loadSpecifiedFiles(const char *fn) {
 
 void handle_args(int argc, char *argv[]) {
   int opt;
-  seed = (long int) timedouble();
+  seed = (long int) (timedouble() * 1000);
   if (seed < 0) seed=-seed;
+  srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:JB:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:JB:C:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -162,6 +166,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'R':
       seed = atoi(optarg);
+      srand48(seed);
       break;
     case 'F':
       if (flushEvery == 0) {
@@ -233,6 +238,19 @@ void handle_args(int argc, char *argv[]) {
       pathLen++;*/
       //      path = optarg;
       break;
+    case 'C':
+      cigarPattern = strdup(optarg);
+      cigar_init(&cigar);
+      cigar_setrwrand(&cigar, readRatio);
+      if (cigar_parse(&cigar, optarg) != 0) {
+	fprintf(stderr,"*error* not a valid CIGAR pattern\n");
+	exit(-1);
+	//      } else {
+	//	fprintf(stderr,"*info* CIGAR: ");
+	//	cigar_dump(&cigar, stderr);
+	//        fprintf(stderr,"\n");
+      }
+      break;
     default:
       exit(-1);
     }
@@ -250,9 +268,9 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -r -s1 -I devs.txt      # read test, single contiguous region\n");
     fprintf(stderr,"  ./aioRWTest -w -s128 -f /dev/nbd0   # write test, 128 parallel contiguous regions\n");
     fprintf(stderr,"  ./aioRWTest -P1 -F -f /dev/nbd0     # single static position, fsync after every op\n");
-    fprintf(stderr,"  ./aioRWTest -p0.25 -f /dev/nbd0     # 25%% write, and 75%% read\n");
+    fprintf(stderr,"  ./aioRWTest -p0.25 -f /dev/nbd0     # 25%% read, and 75%% write\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -G100      # limit actions to first 100GiB\n");
-    fprintf(stderr,"  ./aioRWTest -p0.1 -f/dev/nbd0 -G3   # 90%% reads, 10%% writes, limited to first 3GiB of device\n");
+    fprintf(stderr,"  ./aioRWTest -p0.1 -f/dev/nbd0 -G3   # 10%% reads, 90%% writes, limited to first 3GiB of device\n");
     fprintf(stderr,"  ./aioRWTest -t30 -f/dev/nbd0        # test for 30 seconds\n");
     fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0      # send no operations, then flush. Basically, fast flush loop\n");
     fprintf(stderr,"  ./aioRWTest -P1 -F -V -f /dev/nbd0  # verbose that shows every operation\n");
@@ -487,9 +505,13 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", TOGiB(bdSize), TOGiB(actualBlockDeviceSize));
   }
 
-  srand48(seed);
-  fprintf(stderr,"*info* seed = %ld\n", seed);
-
+  fprintf(stderr,"*info* seed = %ld", seed);
+  if (cigar_len(&cigar)) {
+    fprintf(stderr, ", cigar = %s ('", cigarPattern);
+    cigar_dump(&cigar, stderr);
+    fprintf(stderr, "')");
+  }
+  fprintf(stderr,"\n");
 
   char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(1);}
   generateRandomBuffer(randomBuffer, BLKSIZE);
@@ -705,6 +727,7 @@ int main(int argc, char *argv[]) {
   if (benchLog) free(benchLog);
   if (specifiedDevices) free(specifiedDevices);
   if (logPositions) free(logPositions);
+  if (cigarPattern) free(cigarPattern);
   
   return exitcode;
 }

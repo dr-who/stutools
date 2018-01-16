@@ -1,13 +1,13 @@
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
 CC=gcc
-CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g -O2
+CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g 
 DRIVE=/dev/loop3
 
 %.o : %.c %.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 all: readSpeedTest writeSpeedTest writePairTest checkDisks flushTestWriter flushTestReader \
-	aioRWTest watchDisks flipBits indiDisks trim
+	aioRWTest watchDisks flipBits indiDisks trim cigarTest
 
 readSpeedTest: readSpeedTest.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
@@ -45,7 +45,7 @@ flushTestWriter: flushTestWriter.o utils.o logSpeed.o
 flushTestReader: flushTestReader.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
 
-aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o
+aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o
 	gcc $^ -o $@ -lm -laio
 
 positions.o: positions.c utils.h
@@ -54,7 +54,11 @@ logSpeed.o: logSpeed.c logSpeed.h utils.h
 
 diskStats.o: diskStats.c diskStats.h utils.h
 
+cigar.o: cigar.c cigar.h
+
 logSpeedTest: logSpeedTest.o utils.o logSpeed.o
+
+cigarTest: cigarTest.o cigar.o 
 
 test:
 	./test.sh $(DRIVE)
