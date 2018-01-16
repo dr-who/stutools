@@ -334,7 +334,11 @@ void setupPositions(positionType *positions,
   for (size_t j = 0; j < *num; j++) {
     char action;
     if (cl > 0) { // if we have a CIGAR
-      action = cigar_at(cigar, (j / ABS(sf)) % cl);
+      if (sf != 0) {
+	action = cigar_at(cigar, (j / ABS(sf)) % cl);
+      } else {
+	action = cigar_at(cigar, j % cl);
+      }
     } else {
       action = 'X';
     }
