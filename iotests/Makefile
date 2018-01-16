@@ -1,6 +1,6 @@
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
 CC=gcc
-CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g 
+CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g -Ofast
 DRIVE=/dev/loop3
 
 %.o : %.c %.h
