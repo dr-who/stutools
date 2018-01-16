@@ -17,7 +17,8 @@ size_t aioMultiplePositions( positionType *positions,
 			    const size_t alignment,
 			    size_t *ios,
 			    size_t *totalRB,
-			    size_t *totalWB);
+			     size_t *totalWB,
+			     const size_t oneShot);
 
 int aioVerifyWrites(int *fdArray,
 		    const size_t fdLen,

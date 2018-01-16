@@ -30,7 +30,8 @@ size_t aioMultiplePositions( positionType *positions,
 			     const size_t alignment,
 			     size_t *ios,
 			     size_t *totalRB,
-			     size_t *totalWB
+			     size_t *totalWB,
+			     const size_t oneShot
 			     ) {
   int ret;
   io_context_t ctx;
@@ -123,7 +124,13 @@ size_t aioMultiplePositions( positionType *positions,
 	  }
 	  
 	}
-	pos++; if (pos >= sz) pos = 0; // don't go over the end of the array
+	pos++;
+	if (pos >= sz) {
+	  if (oneShot) {
+	    goto endoffunction; // only go through once
+	  }
+	  pos = 0; // don't go over the end of the array
+	}
 	
 	gt = timedouble();
 

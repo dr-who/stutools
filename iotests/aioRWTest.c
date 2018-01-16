@@ -57,6 +57,7 @@ char*  logPositions = NULL;
 long int seed;
 char*  cigarPattern = NULL;
 cigartype cigar;
+int    oneShot = 0;
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
@@ -106,7 +107,7 @@ void handle_args(int argc, char *argv[]) {
   if (seed < 0) seed=-seed;
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:JB:C:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -251,6 +252,9 @@ void handle_args(int argc, char *argv[]) {
 	//        fprintf(stderr,"\n");
       }
       break;
+    case '1':
+      oneShot = 1;
+      break;
     default:
       exit(-1);
     }
@@ -324,7 +328,7 @@ size_t testReadLocation(int fd, size_t b, size_t blksize, positionType *position
       
   double start = timedouble();
   size_t ios = 0, totalRB = 0, totalWB = 0;
-  size_t br = aioMultiplePositions(positions, num, exitAfterSeconds, qd, verbose, 1, NULL, NULL, randomBuffer, randomBufferSize, alignment, &ios, &totalRB, &totalWB);
+  size_t br = aioMultiplePositions(positions, num, exitAfterSeconds, qd, verbose, 1, NULL, NULL, randomBuffer, randomBufferSize, alignment, &ios, &totalRB, &totalWB, oneShot);
   double elapsed = timedouble() - start;
   //ios = ios / elapsed;
   fprintf(stderr,"ios %.1lf %.1lf MiB/s\n", ios/elapsed, TOMiB(br/elapsed));
@@ -588,14 +592,14 @@ int main(int argc, char *argv[]) {
 	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd, &cigar);
 
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot);
 	    } else {
 	      // setup multiple/parallel sequential region
 	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd, &cigar);
 
 	      
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot);
 	    }
 	    if (verbose) {
 	      fprintf(stderr,"*info* calling fsync()\n");
@@ -659,7 +663,7 @@ int main(int argc, char *argv[]) {
     double start = timedouble();
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
-    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes);
+    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes, oneShot);
     if (verbose) {
       fprintf(stderr,"*info* calling fsync()\n");
     }
@@ -708,6 +712,10 @@ int main(int argc, char *argv[]) {
       if (numerrors) {
 	exitcode = MIN(numerrors, 999);
       }
+    } else {
+      // not verify so set exit code
+      fprintf(stderr,"%f %f %f\n", TOMiB(shouldReadBytes), TOMiB(shouldWriteBytes), elapsed);
+      exitcode = (int) (((TOMiB(shouldReadBytes) + TOMiB(shouldWriteBytes)) / elapsed) / 100.0 + 0.5);
     }
 
     for (size_t f = 0; f < fdLen; f++) {
