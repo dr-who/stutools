@@ -1,13 +1,25 @@
 # stutools
 
-Stu's handy I/O tools:
+Stu's handy I/O tools. The primary tool in this package is aioRWTest.
 
 	./aioRWTest      -- Linux AIO (not POSIX AIO), queue depth, timing, ratio of R/W,
 			    sequential, groups of flushing and more
 
+in the scripts/ directory is a simple benchmarking system.
+
+# make
+# cd iotests/scripts
+# ./bench.sh /dev/blockdevice *.cli
+
+The output of bench.sh will be in a log file. Multiple log files from
+multiple machines can be joined simply 'join logfile1 logfile2'. The
+log files have had the spaces removed and tab delimited columns.
+
+Other tools include:
+
 	./readSpeedTest  -- reads from N disks using N threads using fread
 
-	./writeSpeedTest -- writes to N disks using N threads using fwrite/
+	./writeSpeedTest -- writes to N disks using N threads using fwrite
 
 	./writePairTest  -- writes to all combinations of 2 disks in 2 threads, plus analysis
 
@@ -25,8 +37,7 @@ Common options:
 	-v   (verify writes by checking the checksums)	
 
 Usage:
-
-	./aioRWTest
+	./aioRWTest     # this will display usage
 
 	./writeSpeedTest /dev/md3
 
