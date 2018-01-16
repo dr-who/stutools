@@ -122,8 +122,8 @@ size_t aioMultiplePositions( positionType *positions,
 	    }
 	  }
 	  
-	  pos++; if (pos >= sz) pos = 0; // don't go over the end of the array
 	}
+	pos++; if (pos >= sz) pos = 0; // don't go over the end of the array
 	
 	gt = timedouble();
 
