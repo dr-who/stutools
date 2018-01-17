@@ -710,7 +710,7 @@ int main(int argc, char *argv[]) {
       keepRunning = 1;
       int numerrors = aioVerifyWrites(fdArray, fdLen, positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
       if (numerrors) {
-	exitcode = MIN(numerrors, 999);
+	exitcode = MIN(numerrors, 254);
       }
     } else {
       // not verify so set exit code. The result is 100 = 10 GB/s, 10 = 1 GB/s, 1 = 0.100 GB/s
