@@ -10,7 +10,7 @@ fi
 logfile=logfile.$$
 echo "Logfile: "$logfile
 
-time=2
+time=3
 
 device=$1
 shift
