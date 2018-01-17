@@ -713,8 +713,7 @@ int main(int argc, char *argv[]) {
 	exitcode = MIN(numerrors, 999);
       }
     } else {
-      // not verify so set exit code
-      fprintf(stderr,"%f %f %f\n", TOMiB(shouldReadBytes), TOMiB(shouldWriteBytes), elapsed);
+      // not verify so set exit code. The result is 100 = 10 GB/s, 10 = 1 GB/s, 1 = 0.100 GB/s
       exitcode = (int) (((TOMiB(shouldReadBytes) + TOMiB(shouldWriteBytes)) / elapsed) / 100.0 + 0.5);
     }
 
