@@ -6,6 +6,8 @@ cat /proc/cpuinfo | grep name
 dmidecode | grep -i "clock speed"
 dmidecode | grep -i "current speed"
 
+../ramSpeedTest
+
 mkdir -p /mnt/stu
 mount -t tmpfs -o size=1024M,mode=0755 tmpfs /mnt/stu
 dd if=/dev/zero of=/mnt/stu/wow >/dev/null 2>&1

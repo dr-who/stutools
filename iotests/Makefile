@@ -7,7 +7,7 @@ DRIVE=/dev/loop3
 	$(CC) -c $(CFLAGS) $< -o $@
 
 all: readSpeedTest writeSpeedTest writePairTest checkDisks flushTestWriter flushTestReader \
-	aioRWTest watchDisks flipBits indiDisks trim cigarTest
+	aioRWTest watchDisks flipBits indiDisks trim cigarTest ramSpeedTest
 
 readSpeedTest: readSpeedTest.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
@@ -58,7 +58,9 @@ cigar.o: cigar.c cigar.h
 
 logSpeedTest: logSpeedTest.o utils.o logSpeed.o
 
-cigarTest: cigarTest.o cigar.o 
+cigarTest: cigarTest.o cigar.o
+
+ramSpeedTest: ramSpeedTest.c utils.o logSpeed.o
 
 test:
 	./test.sh $(DRIVE)
