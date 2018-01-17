@@ -2,5 +2,5 @@
 
 uname -a
 free
-cat /proc/cpuinfo | grep MHz
+cat /proc/cpuinfo | grep name
 dmidecode | grep MHz
