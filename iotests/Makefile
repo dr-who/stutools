@@ -7,7 +7,7 @@ DRIVE=/dev/loop3
 	$(CC) -c $(CFLAGS) $< -o $@
 
 all: readSpeedTest writeSpeedTest writePairTest checkDisks flushTestWriter flushTestReader \
-	aioRWTest watchDisks flipBits indiDisks trim cigarTest ramSpeedTest
+	aioRWTest watchDisks flipBits indiDisks trim cigarTest ramSpeedTest aioMulti
 
 readSpeedTest: readSpeedTest.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
@@ -47,6 +47,9 @@ flushTestReader: flushTestReader.o utils.o logSpeed.o
 
 aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o
 	gcc $^ -o $@ -lm -laio
+
+aioMulti: aioMulti.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o
+	gcc $^ -o $@ -lm -laio -lpthread
 
 positions.o: positions.c utils.h
 
