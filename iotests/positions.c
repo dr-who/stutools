@@ -103,9 +103,9 @@ void dumpPositions(const char *name, positionType *positions, size_t num, size_t
       if (action == 0) action = ' ';
       fprintf(fp, "%8d\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\n", positions[i].fd, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes));
       if (flushEvery && (i >= flushEvery)) {
-	if ((i % flushEvery) == 0) {
-	  fprintf(fp, "%8d\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\n", positions[i].fd, 0, 0.0, 0.0, 'F', 0, bdSizeBytes, 0.0);
-	}
+        if ((i % flushEvery) == 0) {
+          fprintf(fp, "%8d\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\n", positions[i].fd, (size_t)0, 0.0, 0.0, 'F', (size_t)0, bdSizeBytes, 0.0);
+        }
       }
     }
     fclose(fp);
