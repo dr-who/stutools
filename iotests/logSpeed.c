@@ -19,10 +19,11 @@ double logSpeedInit(volatile logSpeedType *l) {
 }
 
 void logSpeedReset(logSpeedType *l) {
-  assert(l);
-  l->starttime = timedouble();
-  l->lasttime = l->starttime;
-  l->num = 0;
+  if (l) {
+    l->starttime = timedouble();
+    l->lasttime = l->starttime;
+    l->num = 0;
+  }
 }
 
 
