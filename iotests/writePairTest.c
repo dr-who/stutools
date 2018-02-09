@@ -94,7 +94,7 @@ size_t benchmark(threadInfoType *threadContext, const size_t num, volatile size_
       int allrunning = 1;
       for (size_t i = 0; i < num; i++) {
 	if (running[i]) {
-	  if ((logSpeedN(&threadContext[i].logspeed) < 50) || (logSpeedTotal(&threadContext[i].logspeed) < skippingFirstMB *1024*1024)) { // 50 writes plus 64MB written 
+	  if (threadContext[i].logspeed.num < 50) { // 50 writes plus 64MB written 
 	    allrunning = 0;
 	    break;
 	  }
@@ -125,9 +125,9 @@ size_t benchmark(threadInfoType *threadContext, const size_t num, volatile size_
 	pthread_join(pt[i], NULL);
 	allbytes += threadContext[i].total;
 
-	double median = logSpeedMedian(&threadContext[i].logspeed);
+	double mean = logSpeedMean(&threadContext[i].logspeed);
 	//	fprintf(stderr,"%f %f %f\n", five/1024.0/1024, median/1024.0/1024, ninetyfive/1024.0/1024);
-	speedmb += median / 1024.0 / 1024;
+	speedmb += TOMiB(mean);
 
 	logSpeedFree(&threadContext[i].logspeed);
       }

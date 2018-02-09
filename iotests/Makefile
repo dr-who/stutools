@@ -6,12 +6,18 @@ DRIVE=/dev/loop3
 %.o : %.c %.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-all: readSpeedTest writeSpeedTest writePairTest checkDisks flushTestWriter flushTestReader \
+all: writePairTest checkDisks flushTestWriter flushTestReader \
 	aioRWTest watchDisks flipBits indiDisks trim cigarTest ramSpeedTest aioMulti \
 	flushTester
 
-readSpeedTest: readSpeedTest.o utils.o logSpeed.o 
-	gcc $^ -o $@ -lpthread -lm
+readSpeedTest:
+	@echo use aioRWTest -r
+
+writeSpeedTest:
+	@echo use aioRWTest -w
+
+#readSpeedTest: readSpeedTest.o utils.o logSpeed.o 
+#	gcc $^ -o $@ -lpthread -lm
 
 watchDisks: watchDisks.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
@@ -22,8 +28,8 @@ flushTester: flushTester.o utils.o logSpeed.o
 flipBits: flipBits.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
 
-writeSpeedTest: writeSpeedTest.o utils.o logSpeed.o
-	gcc $^ -o $@ -lpthread -lm
+#writeSpeedTest: writeSpeedTest.o utils.o logSpeed.o
+#	gcc $^ -o $@ -lpthread -lm
 
 writePairTest: writePairTest.o utils.o logSpeed.o
 	gcc $^ -o $@ -lpthread -lm
@@ -66,6 +72,7 @@ cigar.o: cigar.c cigar.h
 logSpeedTest: logSpeedTest.o utils.o logSpeed.o
 
 cigarTest: cigarTest.o cigar.o
+	gcc $^ -o $@ -lm
 
 ramSpeedTest: ramSpeedTest.c utils.o logSpeed.o
 
@@ -74,6 +81,7 @@ test:
 
 clean:
 	git clean -xdf
+	/bin/rm -f writeSpeedTest readSpeedTest
 
 graph: aioRWTest
 	./aioRWTest -f $(DRIVE) -s 1 -j0 -t1 -z -L x -v && gnuplot <gnustub && /bin/mv -f a.png s1j0.png

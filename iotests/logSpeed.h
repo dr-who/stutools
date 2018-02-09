@@ -11,15 +11,10 @@ typedef struct {
   double starttime;
   size_t num;
   size_t alloc;
-  double total;
-  double rawtot;
-  double checkpoint;
   double *rawtime;
   double *rawvalues;
   size_t *rawcount;
-  double *values;
   double lasttime;
-  int    sorted;
 } logSpeedType;
 
 double logSpeedInit(volatile logSpeedType *l);

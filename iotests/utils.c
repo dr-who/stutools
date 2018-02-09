@@ -87,7 +87,7 @@ double loadAverage() {
 }
 
 
-void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, float limitGBToProcess) {
+/*void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int writeAction, int sequential, int direct, int verifyWrites, float flushEverySecs, float limitGBToProcess) {
 
   // check
   //  if (loadAverage() > 10.0) {
@@ -218,17 +218,10 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
       logSpeedCheckpoint(l); // tag the current total so mean
       if ((logSpeedN(&previousSpeeds) >= resetTime) && (resetCount > 0)) { // at least 10 data points before a reset
 	if (keepRunning) {
-	  /*double low = logSpeedRank(&previousSpeeds, .1);
-	  double high = logSpeedRank(&previousSpeeds, .9);
-	  double mean = logSpeedMean(&previousSpeeds);
-	  	  if ((high / low > 1.05) && (mean < low || mean > high) && (resetCount > 0)) { // must be over 5% difference
-	    fprintf(stderr,"  [ %.1lf < %.1lf MiB/s < %.1lf ]\n", TOMiB(low), TOMiB(mean), TOMiB(high));
-	    fprintf(stderr,"resetting due to volatile timings (%d resets remain)\n", resetCount); */
 	    resetCount--;
 	    startTime = tt;
 	    logSpeedReset(l);
 	    logSpeedReset(&previousSpeeds);
-	    //	    }
 	}
       }
     }
@@ -267,9 +260,9 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
     syslog(LOG_INFO, "%s - %s", user, s);
     free(user);
     free(osr);
-    /*  } else {
-    fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
-    }*/
+    //   } else {
+    //fprintf(stderr,"error: results too volatile. Perhaps the machine is busy?\n");
+    //    }
 
   // dump all values to a log file
     //  char s[1000];
@@ -319,14 +312,14 @@ void doChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTim
   //  logSpeedHistogram(&previousSpeeds);
   logSpeedFree(&previousSpeeds);
 }
-
+*/
 
 void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess, int verifyWrites, float flushEverySecs) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, resetTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs, limitGBToProcess);
+  //  doChunks(fd, label, chunkSizes, numChunks, maxTime, resetTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs, limitGBToProcess);
 }
 
 void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess) {
-  doChunks(fd, label, chunkSizes, numChunks, maxTime, resetTime, l, maxBufSize, outputEvery, 0, seq, direct, 0, 0, limitGBToProcess);
+  //  doChunks(fd, label, chunkSizes, numChunks, maxTime, resetTime, l, maxBufSize, outputEvery, 0, seq, direct, 0, 0, limitGBToProcess);
 }
 
 
