@@ -74,6 +74,7 @@ size_t aioMultiplePositions( positionType *positions,
   double start = timedouble();
   double last = start, gt = start;
   logSpeedReset(benchl);
+  logSpeedReset(alll);
   size_t submitted = 0;
   size_t received = 0;
 
