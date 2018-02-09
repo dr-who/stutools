@@ -95,14 +95,14 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format) {
     for (size_t i = 0; i < l->num; i++) {
       valuetotal += l->rawvalues[i];
       counttotal += l->rawcount[i];
-      fprintf(fp, "%.6lf\t%.6lf\t%.1lf\t%.1lf\t%zd\t%zd\n", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], valuetotal, l->rawcount[i], counttotal);
+      fprintf(fp, "%.6lf\t%.6lf\t%.2lf\t%.2lf\t%zd\t%zd\n", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], valuetotal, l->rawcount[i], counttotal);
     }
   } else if (format == JSON) {
     fprintf(fp,"[\n");
     for (size_t i = 0; i < l->num; i++) {
       valuetotal += l->rawvalues[i];
       counttotal += l->rawcount[i];
-      fprintf(fp, "{\"time\":\"%.6lf\", \"globaltime\":\"%.6lf\", \"MiB\":\"%.1lf\", \"SumMiB\":\"%.1lf\", \"IOs\":\"%zd\", \"SumIOs\":\"%zd\"}", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], valuetotal, l->rawcount[i], counttotal);
+      fprintf(fp, "{\"time\":\"%.6lf\", \"globaltime\":\"%.6lf\", \"MiB\":\"%.2lf\", \"SumMiB\":\"%.2lf\", \"IOs\":\"%zd\", \"SumIOs\":\"%zd\"}", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], valuetotal, l->rawcount[i], counttotal);
       if (i < l->num-1) fprintf(fp,",");
       fprintf(fp,"\n");
     }
