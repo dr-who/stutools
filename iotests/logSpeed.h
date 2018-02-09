@@ -16,17 +16,18 @@ typedef struct {
   double checkpoint;
   double *rawtime;
   double *rawvalues;
-  double *rawtotal;
+  size_t *rawcount;
   double *values;
   double lasttime;
   int    sorted;
 } logSpeedType;
 
-void   logSpeedInit(volatile logSpeedType *l);
+double logSpeedInit(volatile logSpeedType *l);
 void   logSpeedFree(logSpeedType *l);
 void   logSpeedReset(logSpeedType *l);
 
 int    logSpeedAdd(logSpeedType *l, double value);
+int    logSpeedAdd2(logSpeedType *l, double value, size_t count);
 
 double logSpeedTime(logSpeedType *l);
 

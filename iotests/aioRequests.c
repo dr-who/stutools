@@ -73,6 +73,7 @@ size_t aioMultiplePositions( positionType *positions,
 
   double start = timedouble();
   double last = start, gt = start;
+  logSpeedReset(benchl);
   size_t submitted = 0;
   size_t received = 0;
 
@@ -80,9 +81,9 @@ size_t aioMultiplePositions( positionType *positions,
   size_t totalReadBytes = 0;
   //  double mbps = 0;
   
-  size_t lastBytes = 0;
+  size_t lastBytes = 0, lastIOCount = 0;
   
-  while (1) {
+  while (keepRunning) {
     if (inFlight < QD) {
       
       // submit requests, one at a time
@@ -136,8 +137,9 @@ size_t aioMultiplePositions( positionType *positions,
 
 	if (gt - last >= DISPLAYEVERY) {
 	  const double speed = 1.0*(totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024;
-	  if (benchl) logSpeedAdd(benchl, TOMiB(totalReadBytes + totalWriteBytes - lastBytes));
+	  if (benchl) logSpeedAdd2(benchl, TOMiB(totalReadBytes + totalWriteBytes - lastBytes), (submitted - lastIOCount));
 	  lastBytes = totalReadBytes + totalWriteBytes;
+	  lastIOCount = submitted;
 	  if (!tableMode) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
 	  last = gt;
 	  if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
@@ -187,10 +189,6 @@ size_t aioMultiplePositions( positionType *positions,
 	}
       }
 	//}
-      
-	/*      if (l) {
-	logSpeedAdd(alll, ret * len);
-	}*/
 	
       inFlight -= ret;
       received += ret;

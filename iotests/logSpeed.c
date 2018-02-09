@@ -7,7 +7,7 @@
 #include "utils.h"
 
 
-void logSpeedInit(volatile logSpeedType *l) {
+double logSpeedInit(volatile logSpeedType *l) {
   l->starttime = timedouble();
   l->lasttime = l->starttime;
   l->num = 0;
@@ -15,11 +15,11 @@ void logSpeedInit(volatile logSpeedType *l) {
   l->total = 0;
   l->sorted = 0;
   l->checkpoint = 0;
-  l->rawtot = 0;
   CALLOC(l->values, l->alloc, sizeof(double));
   CALLOC(l->rawtime, l->alloc, sizeof(double));
   CALLOC(l->rawvalues, l->alloc, sizeof(double));
-  CALLOC(l->rawtotal, l->alloc, sizeof(double));
+  CALLOC(l->rawcount, l->alloc, sizeof(size_t));
+  return l->starttime;
 }
 
 void logSpeedReset(logSpeedType *l) {
@@ -48,8 +48,13 @@ double logSpeedTime(logSpeedType *l) {
 }
 
 
-
+// if no count
 int logSpeedAdd(logSpeedType *l, double value) {
+  return logSpeedAdd2(l, value, 0);
+}
+
+
+int logSpeedAdd2(logSpeedType *l, double value, size_t count) {
   assert(l);
   const double thistime = timedouble();
   const double timegap = thistime - l->lasttime;
@@ -65,16 +70,15 @@ int logSpeedAdd(logSpeedType *l, double value) {
     l->values = realloc(l->values, l->alloc * sizeof(double)); if (!l->values) {fprintf(stderr,"OOM! realloc failed\n");exit(1);}
     l->rawtime = realloc(l->rawtime, l->alloc * sizeof(double));
     l->rawvalues = realloc(l->rawvalues, l->alloc * sizeof(double));
-    l->rawtotal = realloc(l->rawtotal, l->alloc * sizeof(double));
+    l->rawcount = realloc(l->rawcount, l->alloc * sizeof(size_t));
     //    fprintf(stderr,"skipping...\n"); sleep(1);
     //    fprintf(stderr,"new size %zd\n", l->num);
   } 
   // fprintf(stderr,"it's been %zd bytes in %lf time, is %lf, total %zd, %lf,  %lf sec\n", value, timegap, value/timegap, l->total, l->total/logSpeedTime(l), logSpeedTime(l));
   l->values[l->num] = v;
   l->rawtime[l->num] = thistime;
-  l->rawtotal[l->num] = l->rawtot;
   l->rawvalues[l->num] = value;
-  l->rawtot += value;
+  l->rawcount[l->num] = count;
   l->sorted = 0;
   l->num++;
   //  } else {
@@ -152,11 +156,9 @@ void logSpeedFree(logSpeedType *l) {
   free(l->values);
   free(l->rawtime);
   free(l->rawvalues);
-  free(l->rawtotal);
   l->values = NULL;
   l->rawtime = NULL;
   l->rawvalues = NULL;
-  l->rawtotal = NULL;
 }
 
 
@@ -166,14 +168,20 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format) {
   //    fprintf(stderr, "*info* logSpeedDump format %d\n", format);
   //  }
   FILE *fp = fopen(fn, "wt");
+  double valuetotal = 0;
+  size_t counttotal = 0;
   if (!format) {// if no format
     for (size_t i = 0; i < l->num; i++) {
-      fprintf(fp, "%.6lf\t%.0lf\t%.6lf\t%.0lf\n", l->rawtime[i] - l->starttime, l->rawtotal[i], l->rawtime[i], l->rawvalues[i]);
+      valuetotal += l->rawvalues[i];
+      counttotal += l->rawcount[i];
+      fprintf(fp, "%.6lf\t%.6lf\t%.0lf\t%.0lf\t%zd\t%zd\n", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], valuetotal, l->rawcount[i], counttotal);
     }
   } else if (format == JSON) {
     fprintf(fp,"[\n");
     for (size_t i = 0; i < l->num; i++) {
-      fprintf(fp, "{\"time\":\"%.6lf\", \"sum\":\"%.0lf\", \"value\":\"%.0lf\"}", l->rawtime[i] - l->starttime, l->rawtotal[i], l->values[i]);
+      valuetotal += l->rawvalues[i];
+      counttotal += l->rawcount[i];
+      fprintf(fp, "{\"time\":\"%.6lf\", \"globaltime\":\"%.6lf\", \"MiB\":\"%.0lf\", \"SumMiB\":\"%.0lf\", \"IOs\":\"%zd\", \"SumIOs\":\"%zd\"}", l->rawtime[i] - l->starttime, l->rawtime[i], l->values[i], valuetotal, l->rawcount[i], counttotal);
       if (i < l->num-1) fprintf(fp,",");
       fprintf(fp,"\n");
     }

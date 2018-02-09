@@ -225,8 +225,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'p':
       readRatio = atof(optarg);
-      if (readRatio < 0) readRatio = 0;
-      if (readRatio > 1) readRatio = 1;
+      if (readRatio < 0 || readRatio > 1) {fprintf(stderr,"*error* -p should be in the range [0..1]. Maybe you meant -P\n"); exit(-1);}
       rrSpecified = 1;
       break;
     case 'f':
@@ -652,15 +651,14 @@ int main(int argc, char *argv[]) {
       dumpPositions(logPositions, positions, maxPositions, bdSize);
     }
 
-    logSpeedType l;
-    logSpeedInit(&l);
 
     logSpeedType benchl;
     logSpeedInit(&benchl);
 
-    
     diskStatStart(&dst); // grab the sector counts
-    double start = timedouble();
+
+    logSpeedType l;
+    double start = logSpeedInit(&l);
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
     aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes, oneShot);
