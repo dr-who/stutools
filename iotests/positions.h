@@ -14,7 +14,7 @@ typedef struct {
 positionType *createPositions(size_t num);
 
 void checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes);
-void dumpPositions(const char *name, positionType *positions, size_t num, size_t bdSizeBytes);
+void dumpPositions(const char *name, positionType *positions, size_t num, size_t bdSizeBytes, size_t flushEvery);
 
 void setupPositions(positionType *positions,
 		    size_t *num,

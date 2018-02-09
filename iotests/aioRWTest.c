@@ -648,7 +648,7 @@ int main(int argc, char *argv[]) {
 
     if (logPositions) {
       fprintf(stderr, "*info* writing predefined positions to '%s'\n", logPositions);
-      dumpPositions(logPositions, positions, maxPositions, bdSize);
+      dumpPositions(logPositions, positions, maxPositions, bdSize, flushEvery);
     }
 
 
