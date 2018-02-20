@@ -624,11 +624,12 @@ int main(int argc, char *argv[]) {
 	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot);
 	    }
 	    if (verbose) {
-	      fprintf(stderr,"*info* calling fsync()\n");
+	      fprintf(stderr,"*info* calling fsync()..."); fflush(stderr);
 	    }
 	    for (size_t f = 0; f < fdLen; f++) {
 	      fsync(fdArray[f]); // should be parallel sync
 	    }
+	    fprintf(stderr,"\n");
 
 	    elapsed = timedouble() - start;
 	      
