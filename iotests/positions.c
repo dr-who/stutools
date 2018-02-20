@@ -229,8 +229,8 @@ void setupPositions(positionType *positions,
       poss[count].pos -= maxBlockBytes;
     }
 
-    assert(poss[count].pos <= maxBlockBytes);
-    //poss[count].pos = poss[count].pos % (maxBlock * bs);
+    //assert(poss[count].pos <= maxBlockBytes);
+    poss[count].pos = poss[count].pos % (maxBlock * bs);
 
     
     
