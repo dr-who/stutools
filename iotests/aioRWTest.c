@@ -309,6 +309,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # Use CIGAR format for R/W/X actions. '100R' '200X' '10R100W50X'\n");
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, variable sizes '~R' '@W' ':W' '~R@W:W'\n");
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, 'B' repeats the previous, 'S' skip\n");
+    fprintf(stderr,"  ./aioRWTest -S file -f /dev/nbd0               # the random block to write is from the file 'file'\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(-1);
