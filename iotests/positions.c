@@ -140,8 +140,10 @@ void setupPositions(positionType *positions,
     return;
   }
 
-  if (startAtZero != -1) {
-    fprintf(stderr,"*info* startAtZero is %zd\n", startAtZero);
+  if (verbose) {
+    if (startAtZero != -1) {
+      fprintf(stderr,"*info* startAtZero is %zd\n", startAtZero);
+    }
   }
 
   // list of possibles positions
@@ -159,47 +161,44 @@ void setupPositions(positionType *positions,
     //  if (toalloc < 1) toalloc = 1;
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(origStart, toalloc, sizeof(size_t));
-  size_t maxBlock = (bdSizeBytes / bs) - 1;
-  if (maxBlock < 1) maxBlock = 1;
-  const size_t maxBlockBytes = maxBlock * bs;
+  size_t maxBlockIncl = (bdSizeBytes / bs) - 1;
+  if (verbose >= 2) {
+    fprintf(stderr,"bdSizeBytes %zd (%.2lf), bs %zd, maxBlockIncl %zd\n", bdSizeBytes, TOGiB(bdSizeBytes), bs, maxBlockIncl);
+  }
+  if (maxBlockIncl < 1) maxBlockIncl = 1;
+  const size_t maxBlockBytes = maxBlockIncl * bs; // [0..maxBlockIncl] inclusive
   if (verbose >= 1) {
     fprintf(stderr,"*info* maxBlockBytes: %zd\n", maxBlockBytes);
   }
-  size_t stBlock = lrand48() % (maxBlock + 1); //0..maxblock
+  size_t stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock
   if ((sf == 0) || (startAtZero != -1)) {
     stBlock = startAtZero; // start from 0
   }
   
-  const double blockGap = (maxBlock + 1) * 1.0 / toalloc; // need to be a floating point for large -s
+  const double blockGap = (maxBlockIncl + 1) * 1.0 / toalloc; // need to be a floating point for large -s
   if (blockGap < 1) {
     fprintf(stderr,"*error* can't generate that many sequences %d\n", toalloc);
     exit(-1);
   }
-  const size_t blockGapBytes = blockGap * bs;
-  if (verbose >= 2) {
-    fprintf(stderr,"*info* maxBlockBytes %zd, blockGapBytes %zd (bs %zd)\n", maxBlockBytes, blockGapBytes, bs); 
-  }
 
   for (size_t i = 0; i < toalloc; i++) {
     positionsStart[i] = (stBlock) + (size_t) (i * blockGap); // initially in block
-    positionsStart[i] = positionsStart[i] * bs;     // now in bytes
-    if (positionsStart[i] > maxBlockBytes) {
-      positionsStart[i] -= maxBlockBytes;
-    }
-    origStart[i] = positionsStart[i];
+    positionsStart[i] = positionsStart[i] % (maxBlockIncl + 1); // don't seek past maxBlockIncl
+    positionsStart[i] = positionsStart[i] * bs; // now in bytes
+    origStart[i] = positionsStart[i]; // copy of start
+
+    assert(positionsStart[i] <= maxBlockBytes);
     if (verbose >= 2) {
-      assert(positionsStart[i] <= maxBlockBytes);
-      fprintf(stderr,"*info* alignment start %zd: %zd\n", i, positionsStart[i]);
+      fprintf(stderr,"*info* alignment start %zd: %zd (block %zd/max %zd)\n", i, positionsStart[i], positionsStart[i] / bs, maxBlockIncl);
     }
-    if (verbose >= 2)
-      fprintf(stderr,"*info* positionStart[%zd]: %zd\n", i, positionsStart[i]);
   }
 
-  //    fprintf(stderr,"sf %d, %zd\n", sf, origStart[0]);
   // setup the -P positions
   while (count < *num) {
     const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
-    //    fprintf(stderr,"%zd   %zd.... %zd\n", origStart[(count) % toalloc], origStart[(count+1) % toalloc], poss[count].pos);
+    assert(thislen >= lowbs);
+    assert(thislen <= bs);
+    assert(((size_t)(thislen / 2)) * 2 == thislen);
 
     if (count >= possAlloc) {
       possAlloc = possAlloc * 4 / 3 + 1; // grow by a 1/3 each time
@@ -225,17 +224,9 @@ void setupPositions(positionType *positions,
       }
     }
 
-    if (poss[count].pos > maxBlockBytes) { // wrap
-      poss[count].pos -= maxBlockBytes;
+    if (poss[count].pos > maxBlockBytes) { // wrap back to 0
+      poss[count].pos = 0;
     }
-
-    //assert(poss[count].pos <= maxBlockBytes);
-    poss[count].pos = poss[count].pos % ((maxBlock - 1) * bs);
-
-    
-    
-    //    poss[count].pos = (poss[count].pos >> alignbits) << alignbits; // check aligned
-    //    assert (poss[count].pos % alignment == 0);
 
     size_t l = 0;
     if (sf >= 0) {
@@ -243,8 +234,8 @@ void setupPositions(positionType *positions,
       l = positionsStart[count % toalloc];
       l += thislen;
       l += (jumpStep * lowbs);
-      while (l >= (maxBlock * bs)) {
-	l -= (maxBlock * bs);
+      while (l >= (maxBlockIncl * bs)) {
+	l -= (maxBlockIncl * bs);
 	//	l = 0;
       }
     } else {
@@ -253,21 +244,21 @@ void setupPositions(positionType *positions,
       if (l >= thislen) {
 	l -= thislen;
       } else {
-	l = (maxBlock * bs);
+	l = (maxBlockIncl * bs);
       }
 
       if (l >= jumpStep * lowbs) {
 	l -= (jumpStep * lowbs);
       } else {
-	l = (maxBlock * bs) - (jumpStep * lowbs);
+	l = (maxBlockIncl * bs) - (jumpStep * lowbs);
       }
     }
     assert(l>=0);
-    assert(l <= maxBlock * bs);
+    assert(l <= maxBlockIncl * bs);
     positionsStart[count % toalloc] = (size_t) l;
     
     totalLen += thislen;
-    if (totalLen > maxBlock * bs) { // if total length written is too much
+    if (totalLen > maxBlockIncl * bs) { // if total length written is too much
       break;
     }
 
@@ -295,7 +286,7 @@ void setupPositions(positionType *positions,
   } // find a position across the disks
 
   if (verbose >= 1) {
-    fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(maxBlock * bs));
+    fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(maxBlockIncl * bs));
   }
   if (*num > count) {
     if (verbose > 1) {
@@ -314,7 +305,7 @@ void setupPositions(positionType *positions,
       } else {
 	// wrap
 	//	fprintf(stderr,"wrap %zd\n", positions[i].pos);
-	positions[i].pos = (maxBlock * bs) - positions[i].pos + (blockOffset * bs);
+	positions[i].pos = (maxBlockIncl * bs) - positions[i].pos + (blockOffset * bs);
       }
     } else {
       positions[i].pos = poss[i].pos + (blockOffset*bs);
