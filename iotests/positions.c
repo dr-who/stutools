@@ -162,13 +162,10 @@ void setupPositions(positionType *positions,
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(origStart, toalloc, sizeof(size_t));
   size_t maxBlockIncl = (bdSizeBytes / bs) - 1;
-  if (verbose >= 2) {
-    fprintf(stderr,"bdSizeBytes %zd (%.2lf), bs %zd, maxBlockIncl %zd\n", bdSizeBytes, TOGiB(bdSizeBytes), bs, maxBlockIncl);
-  }
   if (maxBlockIncl < 1) maxBlockIncl = 1;
   const size_t maxBlockBytes = maxBlockIncl * bs; // [0..maxBlockIncl] inclusive
   if (verbose >= 1) {
-    fprintf(stderr,"*info* maxBlockBytes: %zd\n", maxBlockBytes);
+    fprintf(stderr,"*info* byteSeekLoc: %zd, blockSeek [0..%zd], bdSizeBytes %zd (%.2lf GiB)\n", maxBlockBytes, maxBlockIncl, bdSizeBytes, TOGiB(bdSizeBytes));
   }
   size_t stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock
   if ((sf == 0) || (startAtZero != -1)) {
@@ -234,9 +231,8 @@ void setupPositions(positionType *positions,
       l = positionsStart[count % toalloc];
       l += thislen;
       l += (jumpStep * lowbs);
-      while (l >= (maxBlockIncl * bs)) {
-	l -= (maxBlockIncl * bs);
-	//	l = 0;
+      if (l > maxBlockBytes) {
+	l = 0;
       }
     } else {
       // negative sequential
@@ -244,7 +240,7 @@ void setupPositions(positionType *positions,
       if (l >= thislen) {
 	l -= thislen;
       } else {
-	l = (maxBlockIncl * bs);
+	l = (maxBlockIncl * bs); // go back to max seek position
       }
 
       if (l >= jumpStep * lowbs) {
