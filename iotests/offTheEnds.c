@@ -21,7 +21,7 @@ int keepRunning = 1;
 int seekTest(int fd, const size_t pos, const size_t bdsize, const size_t len) {
   char *buf;
 
-  fprintf(stderr,"*info* location %8zd/%8zd, size %6zd -- write\n", pos, bdsize, len);
+  fprintf(stderr,"*info* location %10zd / %9zd, size %6zd -- write\n", pos, bdsize, len);
   
   CALLOC(buf, len, sizeof(char));
 
@@ -56,6 +56,10 @@ int main(int argc, char *argv[]) {
     int fd = open(argv[i], O_RDWR | O_EXCL );
     if (fd >= 0) {
       size_t bdsize = blockDeviceSizeFromFD(fd);
+      if (bdsize == 0) {
+	fprintf(stderr,"*error* a zero byte device????\n");
+	exit(-1);
+      }
       fprintf(stderr,"*info* opened '%s', size %zd bytes (%.2lf GiB)\n", argv[i], bdsize, TOGiB(bdsize));
       //      trimDevice(fd, argv[i], 0, bdsize); // only sending 1GiB for now
       shouldbe(seekTest(fd, 0, bdsize, 65536), 0);
