@@ -59,7 +59,7 @@ void ramTest_test(char *ram, size_t numBlocks, size_t blockSize, float secs) {
 
 
 int main(int argc, char *argv[]) {
-  size_t bytes = 2L*1024*1024*1024;
+  size_t bytes = 512UL*1024*1024*1024;
   size_t sec = 7;
 
 #define TESTS 5
