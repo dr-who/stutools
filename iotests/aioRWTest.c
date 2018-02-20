@@ -684,12 +684,13 @@ int main(int argc, char *argv[]) {
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
     aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes, oneShot);
-    if (verbose) {
-      fprintf(stderr,"*info* calling fsync()\n");
-    }
+    //if (verbose) {
+    fprintf(stderr,"*info* calling fsync()...");fflush(stderr);
+      //    }
     for (size_t f = 0; f < fdLen; f++) {
       fsync(fdArray[f]); // should be parallel sync
     }
+    fprintf(stderr,"\n");
     
     double elapsed = timedouble() - start;
 
