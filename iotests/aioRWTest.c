@@ -437,6 +437,12 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
 
       //      fprintf(stderr,"nnn %s\n", newpath);
       actualBlockDeviceSize = blockDeviceSize(newpath);
+
+      // if too small then exit
+      if (actualBlockDeviceSize <=1 ) {
+	exit(-1);
+      }
+      
       //      fprintf(stderr,"nnn %s\n", newpath);
       if (verbose >= 2) 
 	fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
@@ -504,6 +510,7 @@ int main(int argc, char *argv[]) {
   size_t fdLen = 0;
   CALLOC(fdArray, pathLen, sizeof(size_t));
   size_t actualBlockDeviceSize = openArrayPaths(pathArray, pathLen, fdArray, &fdLen, sendTrim, maxSizeGB);
+  
 
   if (alignment == 0) {
     alignment = LOWBLKSIZE;

@@ -64,7 +64,7 @@ size_t blockDeviceSize(const char *path) {
   fsync(fd);
   close(fd);
   if (file_size_in_bytes == 0) {
-    fprintf(stderr,"*warning*: size is %d bytes?\n", 0);
+    fprintf(stderr,"*warning*: block device '%s' has a size of %d bytes.\n", path, 0);
     file_size_in_bytes = 1; // make it 1 to avoid DBZ
   }
   return file_size_in_bytes;
