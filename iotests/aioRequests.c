@@ -104,7 +104,7 @@ size_t aioMultiplePositions( positionType *positions,
 	      totalReadBytes += len;
 	    } else {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
-	      assert(randomBuffer[0] == 's'); // from stutools
+	      //assert(randomBuffer[0] == 's'); // from stutools
 	      io_prep_pwrite(cbs[0], positions[pos].fd, randomBuffer, len, newpos);
 	      positions[pos].success = 1;
 	      totalWriteBytes += len;

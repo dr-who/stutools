@@ -58,6 +58,7 @@ long int seed;
 char*  cigarPattern = NULL;
 cigartype cigar;
 int    oneShot = 0;
+char   *randomBufferFile = NULL;
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
@@ -108,7 +109,7 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -199,6 +200,10 @@ void handle_args(int argc, char *argv[]) {
     case 's':
       seqFiles = atoi(optarg);
       seqFilesSpecified = 1;
+      break;
+    case 'S':
+      randomBufferFile = strdup(optarg);
+      fprintf(stderr,"*info* randomBufferFromFile '%s'\n", randomBufferFile);
       break;
     case 'b':
       blocksFromEnd = atoi(optarg);
@@ -294,7 +299,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -k1 -G0.1      # write 1KiB buffers from 100 MiB (100k unique). Cache testing.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -P 10000 -f /dev/nbd0 -k1   # Use 10,000 positions. Cache testing.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX           # Triple X does not use O_EXCL. For multiple simultaneous *CARE*\n");
-    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z        # Start the first position at position zero instead of random.\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z        # Start the first position at position zero instead of random (-Z 0).\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB instead of the default 4KiB\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -Z 100         # start at block 100\n");
     fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump planned locations and operations to 'locations'\n");
@@ -525,7 +530,18 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"\n");
 
   char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
-  generateRandomBuffer(randomBuffer, BLKSIZE);
+  memset(randomBuffer, 0, BLKSIZE);
+  
+  if (!randomBufferFile) {
+    generateRandomBuffer(randomBuffer, BLKSIZE);
+  } else {
+    int f = open(randomBufferFile, O_RDONLY);
+    if (f < 0) {perror(randomBufferFile);exit(-1);}
+    int fr = read(f, randomBuffer, BLKSIZE);
+    if (fr < BLKSIZE) {
+      fprintf(stderr,"*warning* file size is less than %zd. Truncating.\n", BLKSIZE);
+    }
+  }
 
   if (maxPositions < 0) maxPositions = 0;
   
