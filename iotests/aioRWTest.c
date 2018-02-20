@@ -49,7 +49,7 @@ size_t noops = 1;
 int    verifyWrites = 0;
 char*  specifiedDevices = NULL;
 int    sendTrim = 0;
-int    startAtZero = 0;
+size_t startAtZero = (size_t)-1;
 size_t maxPositions = 10*1000*1000;
 size_t dontUseExclusive = 0;
 int    blocksFromEnd = 0;
@@ -103,11 +103,12 @@ size_t loadSpecifiedFiles(const char *fn) {
 
 void handle_args(int argc, char *argv[]) {
   int opt;
-  seed = (long int) (timedouble() * 1000);
+  seed = (long int) (timedouble());
   if (seed < 0) seed=-seed;
+  seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVSF0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -141,7 +142,10 @@ void handle_args(int argc, char *argv[]) {
       }
       break;
     case 'z':
-      startAtZero = 1;
+      startAtZero = 0;
+      break;
+    case 'Z':
+      startAtZero = atol(optarg);
       break;
     case 'M':
       sendTrim = 1;
@@ -292,6 +296,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX           # Triple X does not use O_EXCL. For multiple simultaneous *CARE*\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z        # Start the first position at position zero instead of random.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB instead of the default 4KiB\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -Z 100         # start at block 100\n");
     fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump planned locations and operations to 'locations'\n");
     fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0    # log *block* timing and total data to 'timedata' (TSV format)\n");
     fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to 'timedata' (JSON)\n");

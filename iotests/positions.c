@@ -140,6 +140,10 @@ void setupPositions(positionType *positions,
     return;
   }
 
+  if (startAtZero != -1) {
+    fprintf(stderr,"*info* startAtZero is %zd\n", startAtZero);
+  }
+
   // list of possibles positions
   positionType *poss = NULL, *poss2 = NULL;
   size_t possAlloc = 1024*10, count = 0, totalLen = 0;
@@ -162,8 +166,8 @@ void setupPositions(positionType *positions,
     fprintf(stderr,"*info* maxBlockBytes: %zd\n", maxBlockBytes);
   }
   size_t stBlock = lrand48() % (maxBlock + 1); //0..maxblock
-  if ((sf == 0) || startAtZero) {
-    stBlock = 0; // start from 0
+  if ((sf == 0) || (startAtZero != -1)) {
+    stBlock = startAtZero; // start from 0
   }
   
   const double blockGap = (maxBlock + 1) * 1.0 / toalloc; // need to be a floating point for large -s
