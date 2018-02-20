@@ -541,7 +541,7 @@ int main(int argc, char *argv[]) {
     if (f < 0) {perror(randomBufferFile);exit(-1);}
     int fr = read(f, randomBuffer, BLKSIZE);
     if (fr < BLKSIZE) {
-      fprintf(stderr,"*warning* file size is less than %zd. Truncating.\n", BLKSIZE);
+      fprintf(stderr,"*warning* file size of '%s' is less than %zd. Filling with 0x00.\n", randomBufferFile, BLKSIZE);
     }
   }
 
