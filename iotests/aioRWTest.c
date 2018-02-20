@@ -440,6 +440,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
 
       // if too small then exit
       if (actualBlockDeviceSize <=1 ) {
+	fprintf(stderr,"*fatal* block device is too small/missing.\n");
 	exit(-1);
       }
       
@@ -490,6 +491,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
 
 int main(int argc, char *argv[]) {
 
+  fprintf(stderr,"*info*: stutools %s %s\n", argv[0], VERSION);
   handle_args(argc, argv);
   if (exitAfterSeconds < 0) {
     exitAfterSeconds = 99999999;
