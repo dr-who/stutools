@@ -8,7 +8,7 @@ DRIVE=/dev/loop3
 
 all: writePairTest checkDisks flushTestWriter flushTestReader \
 	aioRWTest watchDisks flipBits indiDisks trim cigarTest ramSpeedTest aioMulti \
-	flushTester
+	flushTester offTheEnds
 
 readSpeedTest:
 	@echo use aioRWTest -r
@@ -20,6 +20,9 @@ writeSpeedTest:
 #	gcc $^ -o $@ -lpthread -lm
 
 watchDisks: watchDisks.o utils.o logSpeed.o 
+	gcc $^ -o $@ -lpthread -lm
+
+offTheEnds: offTheEnds.o utils.o logSpeed.o
 	gcc $^ -o $@ -lpthread -lm
 
 flushTester: flushTester.o utils.o logSpeed.o
