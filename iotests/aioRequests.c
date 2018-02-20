@@ -249,7 +249,7 @@ int aioVerifyWrites(int *fdArray,
   fprintf(stderr,"*info* sorting verification array\n");
   qsort(positions, maxpos, sizeof(positionType), poscompare);
 
-  size_t errors = 0, checked = 0;
+  size_t errors = 0, checked = 0, ioerrors = 0;
   char *buffer = aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(-1);}
 
   size_t bytesToVerify = 0, posTOV = 0;
@@ -290,31 +290,30 @@ int aioVerifyWrites(int *fdArray,
 	const int bytesRead = read(positions[i].fd, buffer, len);
 
 	if ((size_t)bytesRead != len) {
-	  errors++;
-	  fprintf(stderr,"[%zd/%zd][position %zd] verify read truncated bytesRead=%d instead of len=%zd\n", checked, maxpos, pos, bytesRead, len);
+	  ioerrors++;
+	  if (ioerrors < 10) 
+	    fprintf(stderr,"[%zd/%zd][position %zd] verify read truncated bytesRead=%d instead of len=%zd\n", checked, maxpos, pos, bytesRead, len);
 	} else {
 	  assert(bytesRead == len);
 	  assert((len % alignment) == 0);
 	  if (strncmp(buffer, randomBuffer, bytesRead) != 0) {
-	    errors++;
+	    errors++;	
 	    size_t firstprint = 0;
-	    char *bufferp = buffer;
-	    char *randomp = (char*)randomBuffer;
-	    for (size_t p = 0; p < bytesRead; p++) {
-	      if (*bufferp != *randomp) {
-		//	      if (buffer[p] != randomBuffer[p]) {
-		if (firstprint < 1) {
-		  fprintf(stderr,"[%zd/%zd][position %zd] verify error [size=%zd, read=%d] at location (%zd).  '%c'   '%c' \n", checked, maxpos, pos, len, bytesRead, p, buffer[p], randomBuffer[p]);
-		  firstprint++;
+	    if (errors < 10) {
+	      char *bufferp = buffer;
+	      char *randomp = (char*)randomBuffer;
+	      for (size_t p = 0; p < bytesRead; p++) {
+		if (*bufferp != *randomp) {
+		  //	      if (buffer[p] != randomBuffer[p]) {
+		  if (firstprint < 1) {
+		    fprintf(stderr,"[%zd/%zd][position %zd] verify error [size=%zd, read=%d] at location (%zd).  '%c'   '%c' \n", checked, maxpos, pos, len, bytesRead, p, buffer[p], randomBuffer[p]);
+		    firstprint++;
+		  }
 		}
+		bufferp++;
+		randomp++;
 	      }
-	      bufferp++;
-	      randomp++;
 	    }
-	    /*	    if (errors <= 1) {
-	      fprintf(stderr,"Shouldbe: \n%s\n", randomBuffer);
-	      fprintf(stderr,"ondisk:   \n%s\n", buffer);
-	      }*/
 	  } else {
 	    if (verbose >= 2) {
 	      fprintf(stderr,"[%zd] verified ok location %zd, size %zd\n", checked, pos, len);
@@ -325,7 +324,7 @@ int aioVerifyWrites(int *fdArray,
     }
   }
   double elapsed = timedouble() - start;
-  fprintf(stderr,"verified %zd/%zd blocks, number of errors %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, posTOV, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
+  fprintf(stderr,"verified %zd/%zd blocks, io errors %zd, differences %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, posTOV, ioerrors, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
 
   
   free(buffer);
