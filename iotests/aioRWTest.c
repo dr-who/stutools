@@ -261,6 +261,7 @@ void handle_args(int argc, char *argv[]) {
       }
       break;
     case '1':
+      fprintf(stderr,"*info* write to locations only once\n");
       oneShot = 1;
       break;
     default:
