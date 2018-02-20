@@ -217,7 +217,6 @@ void setupPositions(positionType *positions,
 	if (verbose) {
 	  fprintf(stderr,"*warning* got to the end, count %zd\n", count);
 	}
-	//	break;
       }
     }
 
@@ -254,30 +253,10 @@ void setupPositions(positionType *positions,
     positionsStart[count % toalloc] = (size_t) l;
     
     totalLen += thislen;
-    if (totalLen > maxBlockIncl * bs) { // if total length written is too much
+    if (totalLen >= ((maxBlockIncl +1) * bs)) { // if total length written is too much
       break;
     }
 
-    /*
-    if (abs(sf) >= 2) { // if more than two parallel regions, check they don't overlap with the next one
-      size_t thispos = positionsStart[count % toalloc];
-      size_t dontgo;
-      if (sf > 0)
-	dontgo = origStart[(count+1) % toalloc];
-      else 
-	dontgo = origStart[(toalloc+count-1) % toalloc];
-      
-      size_t diff = DIFF(thispos, dontgo);
-      if (diff ==0) {
-	if (verbose >= 2) {
-	  fprintf(stderr,"*info* breaking after %zd positions, %zd %zd (diff %zd)\n", count, thispos, dontgo, diff);
-	}
-	break;
-      }
-    }
-    */
-
-    
     count++;
   } // find a position across the disks
 
