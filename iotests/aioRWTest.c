@@ -629,7 +629,9 @@ int main(int argc, char *argv[]) {
 	    for (size_t f = 0; f < fdLen; f++) {
 	      fsync(fdArray[f]); // should be parallel sync
 	    }
-	    fprintf(stderr,"\n");
+	    if (verbose) {
+	      fprintf(stderr,"\n");
+	    }
 
 	    elapsed = timedouble() - start;
 	      
