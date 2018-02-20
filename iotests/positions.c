@@ -230,7 +230,7 @@ void setupPositions(positionType *positions,
     }
 
     //assert(poss[count].pos <= maxBlockBytes);
-    poss[count].pos = poss[count].pos % (maxBlock * bs);
+    poss[count].pos = poss[count].pos % ((maxBlock - 1) * bs);
 
     
     
