@@ -191,6 +191,7 @@ void setupPositions(positionType *positions,
   }
 
   // setup the -P positions
+  size_t fdPos = 0;
   while (count < *num) {
     const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
     assert(thislen >= lowbs);
@@ -210,6 +211,7 @@ void setupPositions(positionType *positions,
     }
     
     poss[count].len = thislen;
+    poss[count].fd = fdArray[fdPos];
     poss[count].pos = positionsStart[count % toalloc];
 
     if (abs(sf) <= 1) {
@@ -223,39 +225,46 @@ void setupPositions(positionType *positions,
     if (poss[count].pos > maxBlockBytes) { // wrap back to 0
       poss[count].pos = 0;
     }
-
-    size_t l = 0;
-    if (sf >= 0) {
-      // +ve sequential
-      l = positionsStart[count % toalloc];
-      l += thislen;
-      l += (jumpStep * lowbs);
-      if (l > maxBlockBytes) {
-	l = 0;
-      }
-    } else {
-      // negative sequential
-      l = positionsStart[count % toalloc];
-      if (l >= thislen) {
-	l -= thislen;
-      } else {
-	l = (maxBlockIncl * bs); // go back to max seek position
-      }
-
-      if (l >= jumpStep * lowbs) {
-	l -= (jumpStep * lowbs);
-      } else {
-	l = (maxBlockIncl * bs) - (jumpStep * lowbs);
-      }
+    fdPos++;
+    if (fdPos >= fdSize) {
+      fdPos = 0;
     }
-    assert(l>=0);
-    assert(l <= maxBlockIncl * bs);
-    positionsStart[count % toalloc] = (size_t) l;
+    if (fdPos == 0) {
+      size_t l = 0;
+      if (sf >= 0) {
+	// +ve sequential
+	l = positionsStart[count % toalloc];
+	l += thislen;
+	l += (jumpStep * lowbs);
+	if (l > maxBlockBytes) {
+	  l = 0;
+	}
+      } else {
+	// negative sequential
+	l = positionsStart[count % toalloc];
+	if (l >= thislen) {
+	  l -= thislen;
+	} else {
+	  l = (maxBlockIncl * bs); // go back to max seek position
+	}
+	
+	if (l >= jumpStep * lowbs) {
+	  l -= (jumpStep * lowbs);
+	} else {
+	  l = (maxBlockIncl * bs) - (jumpStep * lowbs);
+	}
+      }
+      assert(l>=0);
+      assert(l <= maxBlockIncl * bs);
+      positionsStart[count % toalloc] = (size_t) l;
+
+      totalLen += thislen;
+      if (totalLen >= ((maxBlockIncl +1) * bs)) { // if total length written is too much
+	break;
+      }
+
+    }
     
-    totalLen += thislen;
-    if (totalLen >= ((maxBlockIncl +1) * bs)) { // if total length written is too much
-      break;
-    }
 
     count++;
   } // find a position across the disks
@@ -271,34 +280,10 @@ void setupPositions(positionType *positions,
   }
 
   // distribute among multiple FDs, do block offset
-  size_t fdPos = 0;
-  for (size_t i = 0; i < *num - fdSize + 1; i += fdSize) {
-    positions[i].pos = poss[i].pos;
-    if (blockOffset < 0) {
-      if (positions[i].pos >= (-blockOffset*bs) ) {
-	positions[i].pos += (blockOffset*bs);
-      } else {
-	// wrap
-	//	fprintf(stderr,"wrap %zd\n", positions[i].pos);
-	positions[i].pos = (maxBlockIncl * bs) - positions[i].pos + (blockOffset * bs);
-      }
-    } else {
-      positions[i].pos = poss[i].pos + (blockOffset*bs);
-    }
-    positions[i].len = poss[i].len;
-    positions[i].fd = fdArray[fdPos++];
-    if (fdPos >= fdSize) fdPos = 0;
-
-    //    fprintf(stderr,"%zd %zd %d\n", positions[i].pos, positions[i].len, positions[i].fd);
-    
-    for (size_t j=1 ; j < fdSize;j++) {
-      positions[i+j].pos = positions[i].pos;
-      positions[i+j].len = positions[i].len;
-      positions[i+j].fd  = fdArray[fdPos++];
-      //      fprintf(stderr,"--%zd %zd %d\n", positions[j+i].pos, positions[j+i].len, positions[j+i].fd);
-      if (fdPos >= fdSize) fdPos = 0;
-    }
+  for (size_t i = 0; i < *num ; i++) {
+    positions[i] = poss[i];
   }
+  //  }*/
   
   // if randomise then reorder
   if (/*(0) &&*/ (sf == 0)) {
