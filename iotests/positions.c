@@ -135,7 +135,6 @@ void setupPositions(positionType *positions,
   assert(positions);
   assert(fdArray);
 
-  fprintf(stderr,"%d jump\n", jumpStep);
   if (bdSizeBytes < bs) {
     fprintf(stderr, "*warning* size of device is less than block size!\n");
     return;
