@@ -14,13 +14,16 @@
 #include <syslog.h>
 
 #include "utils.h"
-#include "aioOperations.h"
+#include "aioRequests.h"
+#include "positions.h"
 #include "logSpeed.h"
 
+int    verbose = 0;
 int    keepRunning = 1;       // have we been interrupted
 int    readySetGo = 0;
 size_t blockSize = 64*1024; // default to 1MiB
 double exitAfterSeconds = 0.7; // default timeout
+int    flushEvery = 0;
 
 typedef struct {
   int threadid;
@@ -47,18 +50,37 @@ void process(int argc, char ** argv, int num) {
     if (sz) {
 
       fprintf(stdout,"%s\t", argv[i]); fflush(stdout);
+      size_t num = 1000000;
+
+      int fd = open(argv[i], O_RDWR | O_EXCL | O_DIRECT);
+      if (fd < 0) {
+	perror("");
+	continue;
+      }
+#define BLKSIZE 65536
+      
+      char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+      memset(randomBuffer, 0, BLKSIZE);
+      
+      generateRandomBuffer(randomBuffer, BLKSIZE);
+      
+      
+      positionType *posRead = createPositions(num);
+      setupPositions(posRead, &num, &fd, 1, sz, 1, 1, BLKSIZE, BLKSIZE, 4096, 0, 0, 0, sz, 0, NULL);
+      positionType *posWrite = createPositions(num);
+      setupPositions(posWrite, &num, &fd, 1, sz, 1, 0, BLKSIZE, BLKSIZE, 4096, 0, 0, 0, sz, 0, NULL);
+      
+      size_t ios = 0, trb = 0, twb = 0;
 
       double starttime = timedouble();
-      long ret = writeNonBlocking(argv[i], blockSize, sz, exitAfterSeconds, 1);
+      size_t ret = aioMultiplePositions(posWrite, sz, 1, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
       double elapsed = timedouble() - starttime;
-
-      fprintf(stderr,"ret %ld\n", ret);
       fprintf(stdout, "%7.1lf", TOMiB(ret / elapsed)); fflush(stdout);
-      sleep(1);
+      
       starttime = timedouble();
-      ret = readNonBlocking(argv[i], blockSize, sz, exitAfterSeconds, 1);
+      ret = aioMultiplePositions(posRead, sz, 1, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
       elapsed = timedouble() - starttime;
-      fprintf(stdout, "%7.1lf\n", TOMiB(ret / elapsed));
+      fprintf(stdout, "\t%7.1lf\n", TOMiB(ret / elapsed));
     } else {
       fprintf(stderr, "skipping: %s\n", argv[i]);
     }
@@ -87,8 +109,8 @@ int handle_args(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
   int num = handle_args(argc, argv);
-  signal(SIGTERM, intHandler);
-  signal(SIGINT, intHandler);
+  //  signal(SIGTERM, intHandler);
+  //  signal(SIGINT, intHandler);
   fprintf(stderr,"checking disks: blocksize=%zd (%zd KiB), timeout=%0.1lf (device, write MB/s, read MB/s)\n", blockSize, blockSize/1024, exitAfterSeconds);
 
   process(argc, argv, num);

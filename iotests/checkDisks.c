@@ -14,15 +14,20 @@
 #include <syslog.h>
 
 #include "utils.h"
-#include "aioOperations.h"
+#include "aioRequests.h"
+#include "positions.h"
 #include "logSpeed.h"
 
 int    keepRunning = 1;       // have we been interrupted
 int    readySetGo = 0;
-size_t blockSize = 1024*1024; // default to 1MiB
+#define BLKSIZE 1024*1024
+size_t blockSize = BLKSIZE; // default to 1MiB
 int    exitAfterSeconds = 10; // default timeout
 size_t minMBPerSec = 10;
 size_t maxMBPerSec = 3000;
+int    flushEvery = 0;
+int    verbose = 0;
+
 
 typedef struct {
   int threadid;
@@ -52,13 +57,37 @@ static void *readThread(void *arg) {
     //    fprintf(stderr,"empty\n");
     return NULL;
   }
+
+  char *path = threadContext->path;
   
-  long ret = readNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds, 1);
+  int fd = open(path, O_RDWR | O_EXCL | O_DIRECT);
+  if (fd < 0) {
+    perror("");
+    return NULL;
+  }
+  
+  char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+  memset(randomBuffer, 0, BLKSIZE);
+  
+  generateRandomBuffer(randomBuffer, BLKSIZE);
+
+  size_t num = 1000000;
+  
+  positionType *posWrite = createPositions(num);
+  setupPositions(posWrite, &num, &fd, 1, sz, 1, 0, BLKSIZE, BLKSIZE, 4096, 0, 0, 0, sz, 0, NULL);
+  
+  size_t ios = 0, trb = 0, twb = 0;
+  
+  //  double starttime = timedouble();
+  long ret = aioMultiplePositions(posWrite, sz, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
+  //  double elapsed = timedouble() - starttime;
+
   if (ret > 0) {
     threadContext->total = ret;
   } else {
     threadContext->total = 0;
   }
+  close(fd);
 
   return NULL;
 }
@@ -78,13 +107,38 @@ static void *writeThread(void *arg) {
     return NULL;
   }
 
-  long ret = writeNonBlocking(threadContext->path, blockSize, sz, exitAfterSeconds, 1);
+  char *path = threadContext->path;
+  
+  int fd = open(path, O_RDWR | O_EXCL | O_DIRECT);
+  if (fd < 0) {
+    perror("");
+    return NULL;
+  }
+  
+  char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+  memset(randomBuffer, 0, BLKSIZE);
+  
+  generateRandomBuffer(randomBuffer, BLKSIZE);
+
+  size_t num = 1000000;
+  
+  positionType *posRead = createPositions(num);
+  setupPositions(posRead, &num, &fd, 1, sz, 1, 1, BLKSIZE, BLKSIZE, 4096, 0, 0, 0, sz, 0, NULL);
+  
+  size_t ios = 0, trb = 0, twb = 0;
+  
+  //  double starttime = timedouble();
+  long ret = aioMultiplePositions(posRead, sz, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
+  //  double elapsed = timedouble() - starttime;
+
   if (ret > 0) {
     threadContext->total = ret;
   } else {
     threadContext->total = 0;
   }
-  
+
+  close(fd);
+
   return NULL;
 }
 
@@ -197,10 +251,11 @@ void startThreads(int argc, char *argv[], int start) {
 	if (l >= 1) {
 	  abs[l] = 0;
 	} else {
-	  if (threadContext->path) strcpy(abs, threadContext->path);
+	  strcpy(abs, argv[i]);
 	}
 
 	char *suffix = getSuffix(abs);
+	//	fprintf(stderr,"suffix %s %s\n", abs, suffix);
 	char *qt = getScheduler(suffix);
 
 	//	char *qt = queueType(abs);
