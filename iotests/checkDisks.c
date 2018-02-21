@@ -242,7 +242,7 @@ void startThreads(int argc, char *argv[], int start) {
     if (fp == NULL) {perror("ok.txt");exit(1);}
 
     // post thread join
-    fprintf(stdout, "Path     \tGB\trMB\trMB/s\twMB\twMB/s\tQueue\n");
+    fprintf(stdout, "Path     \tGB\trMB/s\twMB/s\tQueue\n");
     for (size_t i = start; i < argc; i++) {
       if (threadContext[i].threadid >= 0) {
 
@@ -260,7 +260,7 @@ void startThreads(int argc, char *argv[], int start) {
 
 	//	char *qt = queueType(abs);
 
-	fprintf(stdout, "%s\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%.0lf\t%-10s", argv[i], blockSz[i] / 1024.0 / 1024 / 1024, readTotal[i]/1024.0/1024,readSpeeds[i], writeTotal[i]/1024.0/1024,writeSpeeds[i], qt);
+	fprintf(stdout, "%s\t%.0lf\t%.0lf\t%.0lf\t%-10s", argv[i], TOGiB(blockSz[i]), readSpeeds[i], writeSpeeds[i], qt);
 	fflush(stderr);
 	free(qt);
 	if ((readSpeeds[i] > minMBPerSec) && (readSpeeds[i] < maxMBPerSec) && (writeSpeeds[i] > minMBPerSec) && (writeSpeeds[i] < maxMBPerSec)) {
