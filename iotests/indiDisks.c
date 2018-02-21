@@ -66,9 +66,9 @@ void process(int argc, char ** argv, int num) {
       
       
       positionType *posRead = createPositions(num);
-      setupPositions(posRead, &num, &fd, 1, sz, 1, 1, BLKSIZE, BLKSIZE, 4096, 0, 0, 0, sz, 0, NULL);
+      setupPositions(posRead, &num, &fd, 1, sz, 1, 1, BLKSIZE, BLKSIZE, 4096, 0, 0, 1, sz, 0, NULL);
       positionType *posWrite = createPositions(num);
-      setupPositions(posWrite, &num, &fd, 1, sz, 1, 0, BLKSIZE, BLKSIZE, 4096, 0, 0, 0, sz, 0, NULL);
+      setupPositions(posWrite, &num, &fd, 1, sz, 1, 0, BLKSIZE, BLKSIZE, 4096, 0, 0, 1, sz, 0, NULL);
       
       size_t ios = 0, trb = 0, twb = 0;
 
