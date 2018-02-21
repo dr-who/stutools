@@ -186,7 +186,7 @@ size_t aioMultiplePositions( positionType *positions,
 	  
 	if ((events[j].res <= 0) || (events[j].res2 != 0)) { // if return of bytes written or read
 	  fprintf(stderr,"failure: %ld bytes\n", events[j].res);
-	  break;
+	  goto endoffunction;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	}
       }
