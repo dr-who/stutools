@@ -184,8 +184,9 @@ size_t aioMultiplePositions( positionType *positions,
 	//	struct iocb *my_iocb = events[j].obj;
 	if (alll) logSpeedAdd2(alll, TOMiB(events[j].res), 1);
 	  
-	if (events[j].res <= 0) { // if return of bytes written or read
+	if ((events[j].res <= 0) || (events[j].res2 != 0)) { // if return of bytes written or read
 	  fprintf(stderr,"failure: %ld bytes\n", events[j].res);
+	  break;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	}
       }
