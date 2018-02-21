@@ -135,6 +135,7 @@ void setupPositions(positionType *positions,
   assert(positions);
   assert(fdArray);
 
+  fprintf(stderr,"%d jump\n", jumpStep);
   if (bdSizeBytes < bs) {
     fprintf(stderr, "*warning* size of device is less than block size!\n");
     return;
@@ -163,9 +164,9 @@ void setupPositions(positionType *positions,
   CALLOC(origStart, toalloc, sizeof(size_t));
   size_t maxBlockIncl = (bdSizeBytes / bs) - 1;
   if (maxBlockIncl < 1) maxBlockIncl = 1;
-  const size_t maxBlockBytes = maxBlockIncl * bs; // [0..maxBlockIncl] inclusive
+  const size_t byteSeekMaxLoc = maxBlockIncl * bs; // [0..maxBlockIncl] inclusive
   if (verbose >= 1) {
-    fprintf(stderr,"*info* byteSeekLoc: %zd, blockSeek [0..%zd], bdSizeBytes %zd (%.2lf GiB)\n", maxBlockBytes, maxBlockIncl, bdSizeBytes, TOGiB(bdSizeBytes));
+    fprintf(stderr,"*info* byteSeekMaxLoc: %zd, blockSeek [0..%zd], bdSizeBytes %zd (%.2lf GiB)\n", byteSeekMaxLoc, maxBlockIncl, bdSizeBytes, TOGiB(bdSizeBytes));
   }
   size_t stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock
   if ((sf == 0) || (startAtZero != -1)) {
@@ -184,7 +185,7 @@ void setupPositions(positionType *positions,
     positionsStart[i] = positionsStart[i] * bs; // now in bytes
     origStart[i] = positionsStart[i]; // copy of start
 
-    assert(positionsStart[i] <= maxBlockBytes);
+    assert(positionsStart[i] <= byteSeekMaxLoc);
     if (verbose >= 2) {
       fprintf(stderr,"*info* alignment start %zd: %zd (block %zd/max %zd)\n", i, positionsStart[i], positionsStart[i] / bs, maxBlockIncl);
     }
@@ -215,14 +216,14 @@ void setupPositions(positionType *positions,
     poss[count].pos = positionsStart[count % toalloc];
 
     if (abs(sf) <= 1) {
-      if (poss[count].pos > maxBlockBytes) {
+      if (poss[count].pos > byteSeekMaxLoc) {
 	if (verbose) {
 	  fprintf(stderr,"*warning* got to the end, count %zd\n", count);
 	}
       }
     }
 
-    if (poss[count].pos > maxBlockBytes) { // wrap back to 0
+    if (poss[count].pos > byteSeekMaxLoc) { // wrap back to 0
       poss[count].pos = 0;
     }
     fdPos++;
@@ -234,10 +235,20 @@ void setupPositions(positionType *positions,
       if (sf >= 0) {
 	// +ve sequential
 	l = positionsStart[count % toalloc];
-	l += thislen;
-	l += (jumpStep * lowbs);
-	if (l > maxBlockBytes) {
-	  l = 0;
+	if (jumpStep >= 0) {
+	  // +ve jumping
+	  l += thislen;
+	  l += (jumpStep * lowbs);
+	  if (l > byteSeekMaxLoc) {
+	    l = 0;
+	  }
+	} else {
+	  // -ve jumping
+	  if (l >= thislen * ABS(jumpStep)) {
+	    l -= (thislen * ABS(jumpStep));
+	  } else {
+	    l = (maxBlockIncl * bs) + bs - thislen; //
+	  }
 	}
       } else {
 	// negative sequential
@@ -245,13 +256,13 @@ void setupPositions(positionType *positions,
 	if (l >= thislen) {
 	  l -= thislen;
 	} else {
-	  l = (maxBlockIncl * bs); // go back to max seek position
+	  l = (maxBlockIncl * bs) + bs - thislen; // go back to max seek position
 	}
 	
-	if (l >= jumpStep * lowbs) {
-	  l -= (jumpStep * lowbs);
+	if (l >= ABS(jumpStep) * lowbs) {
+	  l -= (ABS(jumpStep) * lowbs);
 	} else {
-	  l = (maxBlockIncl * bs) - (jumpStep * lowbs);
+	  l = (maxBlockIncl * bs) + bs - thislen;
 	}
       }
       assert(l>=0);
