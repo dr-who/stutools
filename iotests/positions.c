@@ -198,7 +198,7 @@ void setupPositions(positionType *positions,
     assert(((size_t)(thislen / 2)) * 2 == thislen);
 
     if (count >= possAlloc) {
-      possAlloc = possAlloc * 4 / 3 + 1; // grow by a 1/3 each time
+      possAlloc = possAlloc * 2 + fdSize; // grow by a 1/3 each time
       poss2 = realloc(poss, possAlloc * sizeof(positionType));
       if (!poss) {fprintf(stderr,"OOM: breaking from setup array\n");break;}
       else {
@@ -272,7 +272,7 @@ void setupPositions(positionType *positions,
 
   // distribute among multiple FDs, do block offset
   size_t fdPos = 0;
-  for (size_t i = 0; i < *num; i++) {
+  for (size_t i = 0; i < *num - fdSize + 1; i += fdSize) {
     positions[i].pos = poss[i].pos;
     if (blockOffset < 0) {
       if (positions[i].pos >= (-blockOffset*bs) ) {
@@ -288,6 +288,16 @@ void setupPositions(positionType *positions,
     positions[i].len = poss[i].len;
     positions[i].fd = fdArray[fdPos++];
     if (fdPos >= fdSize) fdPos = 0;
+
+    //    fprintf(stderr,"%zd %zd %d\n", positions[i].pos, positions[i].len, positions[i].fd);
+    
+    for (size_t j=1 ; j < fdSize;j++) {
+      positions[i+j].pos = positions[i].pos;
+      positions[i+j].len = positions[i].len;
+      positions[i+j].fd  = fdArray[fdPos++];
+      //      fprintf(stderr,"--%zd %zd %d\n", positions[j+i].pos, positions[j+i].len, positions[j+i].fd);
+      if (fdPos >= fdSize) fdPos = 0;
+    }
   }
   
   // if randomise then reorder

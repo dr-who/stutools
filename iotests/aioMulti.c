@@ -37,7 +37,7 @@ static void *runThread(void *arg) {
 
   size_t ios, trb, twb;
   size_t qd = 256;
-  aioMultiplePositions(threadContext->positions, threadContext->numpositions, 10, qd, 0, 0, NULL, NULL, randomBuffer, blockSize, blockSize, &ios, &trb, &twb, 0);
+  aioMultiplePositions(threadContext->positions, threadContext->numpositions, 100, qd, 0, 0, NULL, NULL, randomBuffer, blockSize, blockSize, &ios, &trb, &twb, 0);
 
   return NULL;
 }
@@ -49,9 +49,11 @@ void startThreads(positionType **positions, size_t *numpositions, size_t num) {
   
   pthread_t *pt;
   CALLOC(pt, num, sizeof(pthread_t));
+  assert(pt);
 
   threadInfoType *threadContext;
   CALLOC(threadContext, num, sizeof(threadInfoType));
+  assert(threadContext);
 
   for (size_t i = 0; i < num; i++) {
     threadContext[i].id = i;
@@ -99,11 +101,12 @@ int main(int argc, char *argv[]) {
   int opt = handle_args(argc, argv);
 
   size_t *fdArray;
-  CALLOC(fdArray, 100, sizeof(size_t));
+  CALLOC(fdArray, 1000, sizeof(size_t));
   int fdCount = 0;
   for (size_t i = opt; i < argc; i++) {
     // add device
     int fd = open(argv[i], O_RDWR | O_DIRECT | O_TRUNC | O_EXCL);
+	fprintf(stderr,"%s\n", argv[i]);
     assert(fd>=0);
     fdArray[fdCount++] = fd;
   }
@@ -118,7 +121,7 @@ int main(int argc, char *argv[]) {
     size_t bdsize = blockDeviceSizeFromFD(fdArray[i]);
     //    fprintf(stderr,"%zd: %zd\n", i, bdsize);
 
-    positionsNum[i] = 10000000 + i;
+    positionsNum[i] = 1000000 + i;
     positions[i] = createPositions(positionsNum[i]);
 
     int fdA[1];
@@ -128,6 +131,10 @@ int main(int argc, char *argv[]) {
   }
 
   startThreads(positions, positionsNum, fdCount);
+
+  free(positions);
+  free(positionsNum);
+  free(fdArray);
 
   // create numDevices threads, call aioOperations per thread/device
 

@@ -19,7 +19,7 @@
 
 int    keepRunning = 1;       // have we been interrupted
 int    readySetGo = 0;
-size_t blockSize = 1024*1024; // default to 1MiB
+size_t blockSize = 64*1024; // default to 1MiB
 double exitAfterSeconds = 0.7; // default timeout
 
 typedef struct {
@@ -52,6 +52,7 @@ void process(int argc, char ** argv, int num) {
       long ret = writeNonBlocking(argv[i], blockSize, sz, exitAfterSeconds, 1);
       double elapsed = timedouble() - starttime;
 
+      fprintf(stderr,"ret %ld\n", ret);
       fprintf(stdout, "%7.1lf", TOMiB(ret / elapsed)); fflush(stdout);
       sleep(1);
       starttime = timedouble();
