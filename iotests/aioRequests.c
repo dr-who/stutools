@@ -141,7 +141,9 @@ size_t aioMultiplePositions( positionType *positions,
 	  if (benchl) logSpeedAdd2(benchl, TOMiB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
 	  lastBytes = totalReadBytes + totalWriteBytes;
 	  lastIOCount = received;
-	  if (!tableMode) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
+	  if (!tableMode) {
+	    if (verbose != -1) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
+	  }
 	  last = gt;
 	  if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
 	    //	    	  fprintf(stderr,"timeout\n");
@@ -184,8 +186,9 @@ size_t aioMultiplePositions( positionType *positions,
 	//	struct iocb *my_iocb = events[j].obj;
 	if (alll) logSpeedAdd2(alll, TOMiB(events[j].res), 1);
 	  
-	if (events[j].res <= 0) { // if return of bytes written or read
+	if ((events[j].res <= 0) || (events[j].res2 != 0)) { // if return of bytes written or read
 	  fprintf(stderr,"failure: %ld bytes\n", events[j].res);
+	  goto endoffunction;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	}
       }

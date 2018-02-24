@@ -59,6 +59,7 @@ char*  cigarPattern = NULL;
 cigartype cigar;
 int    oneShot = 0;
 char   *randomBufferFile = NULL;
+int    fsyncAfterWriting = 0;
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
@@ -109,11 +110,14 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:N")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
       if (alignment < 1024) alignment = 1024;
+      break;
+    case 'N':
+      fsyncAfterWriting = 1;
       break;
     case 'J':
       dataLogFormat = JSON;
@@ -311,16 +315,12 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, variable sizes '~R' '@W' ':W' '~R@W:W'\n");
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, 'B' repeats the previous, 'S' skip\n");
     fprintf(stderr,"  ./aioRWTest -S file -f /dev/nbd0               # the random block to write is from the file 'file'\n");
+    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -N                    # call fsync() after writing (default is to skip fsync())\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(-1);
   }
-
 }
-
-
-
-
 
 
 size_t testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer, const size_t randomBufferSize) {
@@ -708,13 +708,14 @@ int main(int argc, char *argv[]) {
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
     aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes, oneShot);
-    //if (verbose) {
-    fprintf(stderr,"*info* calling fsync()...");fflush(stderr);
-      //    }
-    for (size_t f = 0; f < fdLen; f++) {
-      fsync(fdArray[f]); // should be parallel sync
+
+    if (fsyncAfterWriting && shouldWriteBytes) { // only fsync if we are told to AND we have written something
+      fprintf(stderr,"*info* calling fsync()...");fflush(stderr);
+      for (size_t f = 0; f < fdLen; f++) {
+	fsync(fdArray[f]); // should be parallel sync
+      }
+      fprintf(stderr,"\n");
     }
-    fprintf(stderr,"\n");
     
     double elapsed = timedouble() - start;
 

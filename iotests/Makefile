@@ -43,13 +43,13 @@ mtWriteSpeedTest: mtWriteSpeedTest.o utils.o logSpeed.o
 mtReadSpeedTest: mtReadSpeedTest.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
 
-checkDisks: checkDisks.o utils.o logSpeed.o aioOperations.o
+checkDisks: checkDisks.o utils.o logSpeed.o aioRequests.o positions.o cigar.o
 	gcc $^ -o $@ -lpthread -lm -laio
 
 trim: trim.o utils.o logSpeed.o
 	gcc $^ -o $@ -lm 
 
-indiDisks: indiDisks.o utils.o logSpeed.o aioOperations.o
+indiDisks: indiDisks.o utils.o logSpeed.o aioRequests.o positions.o cigar.o
 	gcc $^ -o $@ -lpthread -lm -laio
 
 flushTestWriter: flushTestWriter.o utils.o logSpeed.o 
