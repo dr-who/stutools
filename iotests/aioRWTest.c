@@ -512,6 +512,11 @@ int main(int argc, char *argv[]) {
   size_t fdLen = 0;
   CALLOC(fdArray, pathLen, sizeof(size_t));
   size_t actualBlockDeviceSize = openArrayPaths(pathArray, pathLen, fdArray, &fdLen, sendTrim, maxSizeGB);
+  if (fdLen < 1) {
+    fprintf(stderr,"*error* there are no valid block devices\n");
+    exit(-1);
+  }
+  
 
   if ((maxPositions % fdLen) != 0) {
     size_t newmp = (maxPositions / fdLen) + 1;
