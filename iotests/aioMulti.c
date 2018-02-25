@@ -62,7 +62,7 @@ static void *runThread(void *arg) {
   
   size_t ios, trb, twb;
   ready++;
-  while (ready != threadContext->max) {
+  while (ready != threadContext->max && keepRunning) {
     usleep(100);
   }
   if (threadContext->id == 0) {
