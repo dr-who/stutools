@@ -151,7 +151,13 @@ int main(int argc, char *argv[]) {
   int fdCount = 0;
   for (size_t i = opt; i < argc; i++) {
     // add device
-    int fd = open(argv[i], O_RDWR | O_DIRECT | O_TRUNC | O_EXCL);
+    int fd = 0;
+    if (readRatio < 1) { // writes
+      fd = open(argv[i], O_RDWR | O_DIRECT | O_TRUNC | O_EXCL);
+    } else { // only reads
+      fd = open(argv[i], O_RDONLY | O_DIRECT | O_EXCL);
+    }
+	    
     //	fprintf(stderr,"%s\n", argv[i]);
     if (fd <= 0) {
       perror(argv[i]);
