@@ -108,7 +108,7 @@ void startThreads(size_t *fdArray, size_t num, size_t qd, float rr) {
   for (size_t i = 0; i <num;i++) {
     sum += threadContext[i].total;
   }
-  fprintf(stderr,"*info* summary: readRatio %.1lf, total bytes %zd, %.1lf secs, %.2lf GiB/s\n", rr, sum, elapsed, TOGiB(sum) / elapsed);
+  fprintf(stderr,"*info* summary: %zd devices, readRatio %.1lf, total bytes %zd, %.1lf secs, %.1lf GiB/s (%.0f MiB/s/device)\n", num, rr, sum, elapsed, TOGiB(sum) / elapsed, TOMiB(sum) / elapsed/num);
   free(threadContext);
   free(pt);
 }
