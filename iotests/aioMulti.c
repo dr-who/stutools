@@ -20,6 +20,7 @@
 int keepRunning = 1;
 int verbose = 0;
 int flushEvery = 0;
+double MAXRAM = 2L*1024*1024*1024 ; // 2GB
 
 typedef struct {
   size_t fd;
@@ -30,7 +31,7 @@ typedef struct {
   size_t total;
 } threadInfoType;
 
-static size_t blockSize = 65536*4;
+static size_t blockSize = 65536;
 
 volatile int ready = 0;
 double startTime = 0;
@@ -47,8 +48,10 @@ static void *runThread(void *arg) {
   
   size_t bdsize = blockDeviceSizeFromFD(threadContext->fd);
   //  fprintf(stderr,"[thread %zd] bdSize %zd (%.2lf GiB)\n", threadContext->id, bdsize, TOGiB(bdsize));
-  
-  size_t positionsNum = 100000;
+
+  double RAM = MAXRAM / threadContext->max;
+  size_t positionsNum = (RAM / blockSize) + 1;
+  fprintf(stderr,"*info* %.1lf GiB in thread %zd (%.1lf GiB total)/ %zd, bdsize = %zd, positions %zd\n", TOGiB(RAM), threadContext->id, TOGiB(MAXRAM), threadContext->max, blockSize, positionsNum);
   positionType *positions = createPositions(positionsNum);
   
   int fdA[1];
@@ -119,12 +122,15 @@ double readRatio = 1;
 int handle_args(int argc, char *argv[]) {
 
   if (argc <= 1) {
-    fprintf(stderr,"./aioMulti [-r (default)] [-w] ...devices...\n");
+    fprintf(stderr,"./aioMulti [-R ramInGiB] [-r (default)] [-w] ...devices...\n");
     exit(-1);
   } else {
     int opt;
-    while ((opt = getopt(argc, argv, "rw")) != -1) {
+    while ((opt = getopt(argc, argv, "rwR:")) != -1) {
       switch (opt) {
+      case 'R':
+	MAXRAM = atoi(optarg) * 1024L * 1024L * 1024L;
+	break;
       case 'r':
 	readRatio = 1;
 	break;
@@ -144,6 +150,8 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
+  MAXRAM =totalRAM() /2 ;
+
   int opt = handle_args(argc, argv);
 
   size_t *fdArray;
@@ -155,7 +163,7 @@ int main(int argc, char *argv[]) {
     if (readRatio < 1) { // writes
       fd = open(argv[i], O_RDWR | O_DIRECT | O_TRUNC | O_EXCL);
     } else { // only reads
-      fd = open(argv[i], O_RDONLY | O_DIRECT | O_EXCL);
+      fd = open(argv[i], O_RDONLY | O_DIRECT);
     }
 	    
     //	fprintf(stderr,"%s\n", argv[i]);
@@ -167,7 +175,7 @@ int main(int argc, char *argv[]) {
   }
 
   const size_t qd = 30000 / fdCount;
-  fprintf(stderr,"*info* readRatio %.1f, %d devices, each with qd=%zd (30,000/%d)\n", readRatio, fdCount, qd, fdCount);
+  fprintf(stderr,"*info* maxRam %.1lf GiB, readRatio %.1f, %d devices, each with qd=%zd (30,000/%d)\n", TOGiB(MAXRAM), readRatio, fdCount, qd, fdCount);
   
   startThreads(fdArray, fdCount, qd, readRatio);
 
