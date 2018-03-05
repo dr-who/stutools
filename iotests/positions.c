@@ -354,11 +354,11 @@ void setupPositions(positionType *positions,
       p->success = 0;
       p++;
       thepos++;
-    } else if (action == 'S') {
-      thepos++;
+      //    } else if (action == 'S') {
+      //      thepos++;
     } else if (action == 'B') {
       if (thepos > 1) thepos--;
-    } else if (action == 'R' || action == 'W') {
+    } else if (action == 'R' || action == 'W' || action == 'S') {
       p->action = action;
       p->pos = positions[thepos].pos;
       p->len = positions[thepos].len;
@@ -376,6 +376,10 @@ void setupPositions(positionType *positions,
     if (thepos >= *num) {
       thepos = 0;
     }
+
+    //    assert(p->pos <= byteSeekMaxLoc);
+    assert(thepos <= *num);
+    assert(p -positions <= *num);
   }
 
   if (verbose >= 1) {
