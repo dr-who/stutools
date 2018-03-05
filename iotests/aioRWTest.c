@@ -460,7 +460,11 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     } else {
       fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL); // if a file
       if (fdArray[i] < 0) {
-	perror(newpath); goto cont;
+	fdArray[i] = open(newpath, O_RDWR | O_EXCL); // if a file
+	if (fdArray[i] < 0) {
+	  perror(newpath); goto cont;
+	}
+	fprintf(stderr,"*warning* couldn't open in O_DIRECT mode (filesystem constraints)\n");
       }
 
       actualBlockDeviceSize = fileSize(fdArray[i]);
