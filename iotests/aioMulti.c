@@ -21,6 +21,7 @@ int keepRunning = 1;
 int verbose = 0;
 int flushEvery = 0;
 double MAXRAM = 2L*1024*1024*1024 ; // 2GB
+int tripleX = 0;
 
 typedef struct {
   size_t fd;
@@ -74,6 +75,7 @@ static void *runThread(void *arg) {
   //  fprintf(stderr,"go(%zd)\n",threadContext->id);
   threadContext->total = aioMultiplePositions(positions, positionsNum, 100, threadContext->qd, 0, 0, NULL, NULL, randomBuffer, blockSize, blockSize, &ios, &trb, &twb, 0);
 
+  free(randomBuffer);
   free(positions);
 
 
@@ -126,7 +128,7 @@ int handle_args(int argc, char *argv[]) {
     exit(-1);
   } else {
     int opt;
-    while ((opt = getopt(argc, argv, "rwR:")) != -1) {
+    while ((opt = getopt(argc, argv, "rwR:X")) != -1) {
       switch (opt) {
       case 'R':
 	MAXRAM = atoi(optarg) * 1024L * 1024L * 1024L;
@@ -136,6 +138,9 @@ int handle_args(int argc, char *argv[]) {
 	break;
       case 'w':
 	readRatio = 0;
+	break;
+      case 'X':
+	tripleX++;
 	break;
       default:
 	break;
@@ -155,7 +160,7 @@ int main(int argc, char *argv[]) {
   int opt = handle_args(argc, argv);
 
   size_t *fdArray;
-  CALLOC(fdArray, 1000, sizeof(size_t));
+  CALLOC(fdArray, argc+1, sizeof(size_t));
   int fdCount = 0;
   for (size_t i = opt; i < argc; i++) {
     // add device
@@ -163,7 +168,11 @@ int main(int argc, char *argv[]) {
     if (readRatio < 1) { // writes
       fd = open(argv[i], O_RDWR | O_DIRECT | O_TRUNC | O_EXCL);
     } else { // only reads
-      fd = open(argv[i], O_RDONLY | O_DIRECT);
+      if (tripleX >= 3) {
+	fd = open(argv[i], O_RDONLY | O_DIRECT);
+      } else {
+	fd = open(argv[i], O_RDONLY | O_DIRECT | O_EXCL);
+      }
     }
 	    
     //	fprintf(stderr,"%s\n", argv[i]);
