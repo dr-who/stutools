@@ -320,8 +320,13 @@ void setupPositions(positionType *positions,
   positionType *p = positions;
   size_t cl = 0;
   if (cigar) cl = cigar_len(cigar);
+
+
+  // p left, thepos right
+  size_t thepos = 0; // position
   
-  for (size_t j = 0; j < *num; j++) {
+  
+  for (size_t j = 0; j < *num; j++) { // do the right number
     char action;
     if (cl > 0) { // if we have a CIGAR
       if (sf != 0) {
@@ -332,6 +337,8 @@ void setupPositions(positionType *positions,
     } else {
       action = 'X';
     }
+
+    //    fprintf(stderr,"pre j %zd, action %c, index %zd, pos %zd\n", p - positions, action, thepos, positions[thepos].pos);
     
     if (action == 'X') {
       if (drand48() <= readorwrite) {
@@ -339,24 +346,33 @@ void setupPositions(positionType *positions,
       } else {
 	p->action = 'W';
       }
+      p->pos = positions[thepos].pos;
+      p->len = positions[thepos].len;
+      p->success = 0;
+      p++;
+      thepos++;
     } else if (action == 'S') {
-      p->action = action; // skip
+      thepos++;
     } else if (action == 'B') {
-      // backwards
-      p->action = positions[j-1].action;
-      p->pos = positions[j-1].pos;
-      p->len = positions[j-1].len;
+      thepos--;
     } else if (action == 'R' || action == 'W') {
       p->action = action;
+      p->pos = positions[thepos].pos;
+      p->len = positions[thepos].len;
+      p->success = 0;
+      p++;
+      thepos++;
     } else {
       fprintf(stderr,"*error* unknown CIGAR action '%c'\n", action);
       exit(-1);
     }
-    p->success = 0;
+    //    fprintf(stderr,"  post j %zd, action %c, index %zd, pos %zd\n", p- positions, action, thepos, positions[thepos].pos);
     assert(p->len); // can't be zero
     assert(p->len >= lowbs);
     assert(p->len <= bs);
-    p++;
+    if (thepos >= *num) {
+      thepos = 0;
+    }
   }
 
   if (verbose >= 1) {
