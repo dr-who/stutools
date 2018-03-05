@@ -348,6 +348,9 @@ void setupPositions(positionType *positions,
       }
       p->pos = positions[thepos].pos;
       p->len = positions[thepos].len;
+      assert(p->len); // can't be zero
+      assert(p->len >= lowbs);
+      assert(p->len <= bs);
       p->success = 0;
       p++;
       thepos++;
@@ -359,6 +362,9 @@ void setupPositions(positionType *positions,
       p->action = action;
       p->pos = positions[thepos].pos;
       p->len = positions[thepos].len;
+      assert(p->len); // can't be zero
+      assert(p->len >= lowbs);
+      assert(p->len <= bs);
       p->success = 0;
       p++;
       thepos++;
@@ -367,9 +373,6 @@ void setupPositions(positionType *positions,
       exit(-1);
     }
     //    fprintf(stderr,"  post j %zd, action %c, index %zd, pos %zd\n", p- positions, action, thepos, positions[thepos].pos);
-    assert(p->len); // can't be zero
-    assert(p->len >= lowbs);
-    assert(p->len <= bs);
     if (thepos >= *num) {
       thepos = 0;
     }
