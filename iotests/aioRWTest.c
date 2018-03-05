@@ -175,7 +175,7 @@ void handle_args(int argc, char *argv[]) {
       if (readRatio < 0) readRatio = 0;
       break;
     case 'R':
-      seed = atoi(optarg);
+      seed = atol(optarg);
       srand48(seed);
       break;
     case 'F':
