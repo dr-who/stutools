@@ -357,7 +357,7 @@ void setupPositions(positionType *positions,
     } else if (action == 'S') {
       thepos++;
     } else if (action == 'B') {
-      thepos--;
+      if (thepos > 1) thepos--;
     } else if (action == 'R' || action == 'W') {
       p->action = action;
       p->pos = positions[thepos].pos;
