@@ -25,17 +25,29 @@ static int poscompare(const void *p1, const void *p2)
 
 positionType *createPositions(size_t num) {
   positionType *p;
+  if (num < 1 || num > ((size_t)-1) / 2) {
+    fprintf(stderr,"*warning* createPositions num was 0?\n");
+    num=1;
+  }
   CALLOC(p, num, sizeof(positionType));
   return p;
 }
 
+void freePositions(positionType *p) {
+  free(p);
+  p = NULL;
+}
 
-void checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes) {
+
+int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes) {
   //  fprintf(stderr,"... checking\n");
   size_t rcount = 0, wcount = 0;
   size_t sizelow = -1, sizehigh = 0;
   positionType *p = (positionType *)positions;
   for (size_t j = 0; j < num; j++) {
+    if (p->len == 0) {
+      return 1;
+    }
     if (p->len < sizelow) {
       sizelow = p->len;
     }
@@ -50,18 +62,27 @@ void checkPositionArray(const positionType *positions, size_t num, size_t bdSize
     p++;
   }
 
+  if (sizelow <= 0) {
+    return 1;
+  }
   // check all positions are aligned to low and high lengths
   p = (positionType *) positions;
   if (sizelow > 0) {
     for (size_t j = 0; j < num; j++) {
+      if (p->len == 0) {
+	fprintf(stderr,"*error* len of 0\n"); return 1;
+      }
+      if ((p->len %sizelow) != 0) {
+	fprintf(stderr,"*error* len not aligned\n"); return 1;
+      }
       if (p->pos + sizehigh > bdSizeBytes) {
-	fprintf(stderr,"eek off the end of the array %zd!\n", p->pos);
+	fprintf(stderr,"*error* off the end of the array %zd!\n", p->pos); return 1;
       }
       if ((p->pos % sizelow) != 0) {
-	fprintf(stderr,"eek no %zd aligned position at %zd!\n", sizelow, p->pos);
+	fprintf(stderr,"*error* no %zd aligned position at %zd!\n", sizelow, p->pos); return 1;
       }
       if ((p->pos % sizehigh) != 0) {
-	fprintf(stderr,"eek no %zd aligned position at %zd!\n", sizehigh, p->pos);
+	fprintf(stderr,"*error* no %zd aligned position at %zd!\n", sizehigh, p->pos); return 1;
       }
       p++;
     }
@@ -88,6 +109,7 @@ void checkPositionArray(const positionType *positions, size_t num, size_t bdSize
   free(copy);
 
   fprintf(stderr,"action summary: reads %zd, writes %zd, checked ratio %.1lf, len [%zd, %zd], unique positions %zd\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh, unique);
+  return 0;
 }
 
 
@@ -126,8 +148,8 @@ void setupPositions(positionType *positions,
 		    const size_t alignment,
 		    const size_t singlePosition,
 		    const int    jumpStep,
-		    const size_t startAtZero,
-		    const size_t actualBlockDeviceSize2,
+		    const long startingBlock,
+		    const size_t actualBlockDeviceSize,
 		    const int blockOffset,
 		    cigartype *cigar
 		    ) {
@@ -141,8 +163,8 @@ void setupPositions(positionType *positions,
   }
 
   if (verbose) {
-    if (startAtZero != -1) {
-      fprintf(stderr,"*info* startAtZero is %zd\n", startAtZero);
+    if (startingBlock != -99999) {
+      fprintf(stderr,"*info* startingBlock is %zd\n", startingBlock);
     }
   }
 
@@ -167,9 +189,13 @@ void setupPositions(positionType *positions,
   if (verbose >= 1) {
     fprintf(stderr,"*info* byteSeekMaxLoc: %zd, blockSeek [0..%zd], bdSizeBytes %zd (%.2lf GiB)\n", byteSeekMaxLoc, maxBlockIncl, bdSizeBytes, TOGiB(bdSizeBytes));
   }
-  size_t stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock
-  if ((sf == 0) || (startAtZero != -1)) {
-    stBlock = startAtZero; // start from 0
+  size_t stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock, if it's not -99999 then set it.
+  if ((sf == 0) || (startingBlock != -99999)) {
+    if (startingBlock < 0) {
+      stBlock = maxBlockIncl + 1 + startingBlock;
+    } else {
+      stBlock = startingBlock; // start from 0
+    }
   }
   
   const double blockGap = (maxBlockIncl + 1) * 1.0 / toalloc; // need to be a floating point for large -s
@@ -394,14 +420,26 @@ void setupPositions(positionType *positions,
 }
 
 
-/*int main() {
-  const size_t num = 10*1024*1024;
-  positionType *p = createPositions(num);
+void simpleSetupPositions(positionType *positions,
+			  size_t *num,
+			  const int *fdArray,
+			  const size_t fdSize,
+			  const long startingBlock,
+			  const size_t bdSizeBytes,
+			  const size_t bs)
+{
+  setupPositions(positions, num, fdArray, fdSize, bdSizeBytes,
+		 1, // sequential single
+		 1, // read
+		 bs, bs, // block range
+		 bs, // alignment
+		 0,
+		 0,
+		 startingBlock,
+		 bdSizeBytes,
+		 0,
+		 NULL);
+}
 
-  size_t bdSizeBytes = 2uL*1024uL*1024uL*1024uL -1;
-  createLinearPositions(p, num, 65536, bdSizeBytes, 0, 10000000, 1.0, 1);
-  createParallelPositions(p, num, 65536, bdSizeBytes, 10, 1.0, 10);
-
-  //  checkPositionArray(p, num, bdSizeBytes);
-  dumpPositions(p, num, bdSizeBytes);
-  }*/
+		 
+		 

@@ -8,7 +8,8 @@ DRIVE=/dev/loop3
 
 all: writePairTest checkDisks flushTestWriter flushTestReader \
 	aioRWTest watchDisks flipBits indiDisks trim cigarTest ramSpeedTest aioMulti \
-	flushTester offTheEnds
+	flushTester offTheEnds \
+	positionsTest
 
 readSpeedTest:
 	@echo use aioRWTest -r
@@ -18,6 +19,9 @@ writeSpeedTest:
 
 #readSpeedTest: readSpeedTest.o utils.o logSpeed.o 
 #	gcc $^ -o $@ -lpthread -lm
+
+positionsTest: positionsTest.o positions.o cigar.o utils.o
+	gcc $^ -o $@ -lpthread -lm
 
 watchDisks: watchDisks.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
@@ -80,7 +84,7 @@ cigarTest: cigarTest.o cigar.o
 ramSpeedTest: ramSpeedTest.c utils.o logSpeed.o
 
 test:
-	./test.sh $(DRIVE)
+	./positionsTest
 
 clean:
 	git clean -xdf

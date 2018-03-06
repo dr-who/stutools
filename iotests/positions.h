@@ -13,7 +13,7 @@ typedef struct {
 
 positionType *createPositions(size_t num);
 
-void checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes);
+int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes);
 void dumpPositions(const char *name, positionType *positions, size_t num, size_t bdSizeBytes, size_t flushEvery);
 
 void setupPositions(positionType *positions,
@@ -28,11 +28,22 @@ void setupPositions(positionType *positions,
 		    const size_t alignment,
 		    const size_t singlePosition,
 		    const int    jumpStep,
-		    const size_t startAtZero,
+		    const long startingBlock,
 		    const size_t actualBlockDeviceSize,
 		    const int blockOffset,
 		    cigartype *cigar);
 
+void simpleSetupPositions(positionType *positions,
+			  size_t *num,
+			  const int *fdArray,
+			  const size_t fdSize,
+			  const long startingBlock,
+			  const size_t bdSizeBytes,
+			  const size_t bs);
+
+
+
+void freePositions(positionType *p);
 
 
 #endif
