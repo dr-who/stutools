@@ -145,7 +145,7 @@ void setupPositions(positionType *positions,
 		    const double readorwrite,
 		    const size_t lowbs,
 		    const size_t bs,
-		    const size_t alignment,
+		    size_t alignment,
 		    const size_t singlePosition,
 		    const int    jumpStep,
 		    const long startingBlock,
@@ -162,6 +162,10 @@ void setupPositions(positionType *positions,
     return;
   }
 
+  if (*num == 0) {
+    fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");
+  }
+
   if (verbose) {
     if (startingBlock != -99999) {
       fprintf(stderr,"*info* startingBlock is %zd\n", startingBlock);
@@ -173,7 +177,11 @@ void setupPositions(positionType *positions,
   size_t possAlloc = 1024*10, count = 0, totalLen = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
 
-  const int alignbits = (int)(log(alignment)/log(2) + 0.01);    assert((1<<alignbits) == alignment);
+  const int alignbits = (int)(log(alignment)/log(2) + 0.01);
+  if (1<<alignbits != alignment) {
+    fprintf(stderr,"*error* alignment of %zd not suitable, changing to %d\n", alignment, 1<<alignbits);
+    alignment = 1<< alignbits;
+  }//assert((1<<alignbits) == alignment);
 
 
   // setup the start positions for the parallel files
@@ -249,7 +257,7 @@ void setupPositions(positionType *positions,
     }
 
     if (poss[count].pos > byteSeekMaxLoc) { // wrap back to 0
-      poss[count].pos = 0;
+      poss[count].pos = poss[count].pos % bdSizeBytes;
     }
     fdPos++;
     if (fdPos >= fdSize) {
@@ -265,28 +273,34 @@ void setupPositions(positionType *positions,
 	  l += thislen;
 	  l += (jumpStep * lowbs);
 	  if (l > byteSeekMaxLoc) {
-	    l = 0;
+	    l = l % bdSizeBytes;
 	  }
 	} else {
 	  // -ve jumping
 	  if (l >= thislen * ABS(jumpStep)) {
 	    l -= (thislen * ABS(jumpStep));
 	  } else {
-	    l = (maxBlockIncl * bs) + bs - thislen; //
+	    //	    fprintf(stderr,"wrapping %zd6\n", l);
+	    l = l + bdSizeBytes - (ABS(jumpStep))*bs;
+	    //	    l = (maxBlockIncl * bs) + bs - thislen; //
 	  }
 	}
       } else {
 	// negative sequential
 	l = positionsStart[count % toalloc];
 	if (l >= thislen) {
+	  fprintf(stderr,"underflow4\n");
 	  l -= thislen;
 	} else {
+	  fprintf(stderr,"underflow\n");
 	  l = (maxBlockIncl * bs) + bs - thislen; // go back to max seek position
 	}
 	
 	if (l >= ABS(jumpStep) * lowbs) {
+	  fprintf(stderr,"underflow3\n");
 	  l -= (ABS(jumpStep) * lowbs);
 	} else {
+	  fprintf(stderr,"underflow2\n");
 	  l = (maxBlockIncl * bs) + bs - thislen;
 	}
       }

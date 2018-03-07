@@ -83,7 +83,7 @@ cigarTest: cigarTest.o cigar.o
 
 ramSpeedTest: ramSpeedTest.c utils.o logSpeed.o
 
-test:
+test: positionsTest
 	./positionsTest
 
 clean:

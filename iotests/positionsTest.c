@@ -15,7 +15,11 @@ void pass() {
   passed++;
   fprintf(stderr,"*test* test %d passed\n", passed);
 }
-  
+
+void yay() {
+  fprintf(stderr,"*test* ALL TESTS PASSED.\n");
+}
+
 
 int main() {
 
@@ -144,8 +148,9 @@ int main() {
   assert(fdArray);
 
   size_t bdSize = 1024*1024;
-  
-  simpleSetupPositions(p, &num, fdArray, 1, 0, bdSize, 1<<10);
+
+  size_t start = 0;
+  simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, 1<<10);
   assert(num == 1023); // last block
   //  fprintf(stderr,"num %zd\n", num);
   for (size_t i = 0; i < num; i++) {
@@ -154,19 +159,22 @@ int main() {
   }
   pass();
 
-  size_t start = 1;
+  size_t bs = 1 << 10;
+  start = 1;
   simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, 1<<10);
   for (size_t i = 0; i < num; i++) {
-    //        fprintf(stderr,"%zd, %zd\n", i, p[i].pos);
-    assert(p[i].pos == (i+start) * (1<<10));
+    size_t shouldbe = (i + start) * bs + bdSize;
+    //    fprintf(stderr,"jump %d: %zd, %zd (should be %zd), pos modulo %zd\n", 0, i, p[i].pos, shouldbe, shouldbe % (bdSize));
+    assert(p[i].pos == shouldbe % (bdSize));
   }
   pass();
 
   start = -1;
-  simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, 1<<10);
+  simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, bs);
   for (size_t i = 0; i < num; i++) {
-    //    fprintf(stderr,"%zd, %zd\n", i, p[i].pos);
-    assert(p[i].pos == (((i+start) * (1<<10)) + bdSize) % bdSize);
+    size_t shouldbe = (i + start) * bs + bdSize;
+    //    fprintf(stderr,"jump %d: %zd, %zd (should be %zd), pos modulo %zd\n", 0, i, p[i].pos, shouldbe, shouldbe % (bdSize));
+    assert(p[i].pos == shouldbe % (bdSize));
   }
   pass();
 
@@ -180,7 +188,90 @@ int main() {
   pass();
 
 
+  start = 0;
+  bs = 1 << 9;
+  num = 100000; // big number
+  simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, bs);
+  assert(num == bdSize/bs - 1); // last block
+  for (size_t i = 0; i < num; i++) {
+    assert(p[i].pos == i * bs);
+  }
+  pass();
+
+  bs = 1<<8; // 256
+  num = 100000;
+  simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, bs);
+  assert(num == bdSize/bs - 1); // last block
+  for (size_t i = 0; i < num; i++) {
+    assert(p[i].pos == i * bs);
+  }
+  pass();
+
+  bs = 1<<18; // 256KiB
+  num = 4;
+  simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, bs);
+  assert(num==3);
+  assert(num == bdSize/bs - 1); // last block
+  for (size_t i = 0; i < num; i++) {
+    assert(p[i].pos == i * bs);
+  }
+  pass();
+
+  // less positions
+  bs = 1<<18; // 256KiB
+  num = 0;
+  simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, bs);
+  assert(num==0);
+  for (size_t i = 0; i < num; i++) {
+    assert(p[i].pos == i * bs);
+  }
+  pass();
+
+  // less positions
+  for (size_t bits=1; bits < 20; bits++) {
+    bs = 1<<bits;
+    for (long startO = -100; startO < 1000; startO++) {
+      num = 1;
+      simpleSetupPositions(p, &num, fdArray, 1, startO, bdSize, bs);
+      assert(num==1);
+      for (size_t i = 0; i < num; i++) {
+	assert(p[i].pos == ((i + startO) * bs + bdSize) % bdSize);
+      }
+    }
+    pass();
+  }
+
+  bs = 1<<10; // 256KiB
+  num = 10000;
+  setupPositions(p, &num, fdArray, 1, bdSize, 1, 1, bs, bs, bs+1, 0, 0, 0, bdSize, 0, NULL);
+  assert(num == bdSize/bs - 1); // last block
+  setupPositions(p, &num, fdArray, 1, bdSize, 1, 1, bs, bs, bs/2+1, 0, 0, 0, bdSize, 0, NULL);
+  assert(num == bdSize/bs - 1); // last block
+  for (size_t i = 0; i < num; i++) {
+    assert(p[i].pos == i * bs);
+  }
+  pass();
+
+  bs = 1<<10; // 256KiB
+  for (int jump = -1000; jump < 1000; jump++) if (jump != 0) {
+    num = 10000;
+    setupPositions(p, &num, fdArray, 1, bdSize, 1, 1, bs, bs, bs, 0, jump, 0, bdSize, 0, NULL);
+    //    fprintf(stderr,"num %zd\n", num);
+    assert(num == bdSize/bs - 1); // last block
+    for (size_t i = 0; i < num; i++) {
+      size_t shouldbe = 0;
+      if (jump > 0) {
+	shouldbe = (((jump+1)*i) * bs + bdSize + bdSize) % bdSize;
+      } else {
+	shouldbe = (((jump)*i) * bs + bdSize + bdSize) % bdSize;
+      }
+      //      fprintf(stderr,"jump %d: %zd, %zd (should be %zd), pos modulo %zd\n", jump, i, p[i].pos, shouldbe, shouldbe % bdSize);
+      assert(p[i].pos == shouldbe % bdSize);
+    }
+  }
+  pass();
 
 
+  yay();
   return 0;
 }
