@@ -134,12 +134,10 @@ void dumpPositions(const char *name, positionType *positions, size_t num, size_t
   }
 }
 
-
 // create the position array
-void setupPositions(positionType *positions,
+void setupPositions1(positionType *positions,
 		    size_t *num,
-		    const int *fdArray,
-		    const size_t fdSize,
+		     const int fd,
 		    const size_t bdSizeBytes,
 		    const int sf,
 		    const double readorwrite,
@@ -155,7 +153,6 @@ void setupPositions(positionType *positions,
 		    ) {
   assert(lowbs <= bs);
   assert(positions);
-  assert(fdArray);
 
   if (bdSizeBytes < bs) {
     fprintf(stderr, "*warning* size of device is less than block size!\n");
@@ -168,7 +165,7 @@ void setupPositions(positionType *positions,
 
   if (verbose) {
     if (startingBlock != -99999) {
-      fprintf(stderr,"*info* startingBlock is %zd\n", startingBlock);
+      fprintf(stderr,"*info* startingBlock is %zd on fd %d\n", startingBlock, fd);
     }
   }
 
@@ -232,7 +229,7 @@ void setupPositions(positionType *positions,
   }
 
   // setup the -P positions
-  size_t fdPos = 0;
+
   while (count < *num) {
     const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
     assert(thislen >= lowbs);
@@ -240,7 +237,7 @@ void setupPositions(positionType *positions,
     assert(((size_t)(thislen / 2)) * 2 == thislen);
 
     if (count >= possAlloc) {
-      possAlloc = possAlloc * 2 + fdSize; // grow by a 1/3 each time
+      possAlloc = possAlloc * 2 + 1; // grow by a 1/3 each time
       poss2 = realloc(poss, possAlloc * sizeof(positionType));
       if (!poss) {fprintf(stderr,"OOM: breaking from setup array\n");break;}
       else {
@@ -250,88 +247,71 @@ void setupPositions(positionType *positions,
 	poss = poss2; // point to the new array
       }
     }
-    
+
     poss[count].len = thislen;
-    poss[count].fd = fdArray[fdPos];
+    poss[count].fd = fd;
     poss[count].pos = positionsStart[count % toalloc];
 
-    if (abs(sf) <= 1) {
-      if (poss[count].pos > byteSeekMaxLoc) {
-	if (verbose) {
-	  fprintf(stderr,"*warning* got to the end, count %zd\n", count);
-	}
-      }
-    }
-
-    //    if (poss[count].pos > byteSeekMaxLoc) { // wrap back to 0
-    //      poss[count].pos = poss[count].pos % bdSizeBytes;
-    //    }
-    fdPos++;
-    if (fdPos >= fdSize) {
-      fdPos = 0;
-    }
-    if (fdPos == 0) {
-      size_t l = 0;
-      if (sf >= 0) {
-	// +ve sequential
-	l = positionsStart[count % toalloc];
-	if (jumpStep >= 0) {
-	  // +ve jumping
-	  l += thislen;
-	  l += (jumpStep * lowbs);
-	  if (l > byteSeekMaxLoc) {
-	    l = l - byteSeekMaxLoc - thislen;
-	    //l = l % bdSizeBytes;
-	  }
-	  assert(l>=0);
-      //      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
-	  assert(l <= maxBlockIncl * bs);
-
-	} else {
-	  // -ve jumping
-	  if (l >= thislen * ABS(jumpStep)) {
-	    l -= (thislen * ABS(jumpStep));
-	  } else {
-	    //	    fprintf(stderr,"wrapping %zd6\n", l);
-	    l = l + bdSizeBytes - (ABS(jumpStep))*bs;
-	    //	    l = (maxBlockIncl * bs) + bs - thislen; //
-	  }
+    long l = 0;
+    if (sf >= 0) {
+      // +ve sequential
+      l = positionsStart[count % toalloc];
+      if (jumpStep >= 0) {
+	// +ve jumping
+	l += thislen;
+	l += (jumpStep * lowbs);
+	if (l > byteSeekMaxLoc) {
+	  l = l - byteSeekMaxLoc - lowbs;
+	  //l = l % bdSizeBytes;
 	}
 	assert(l>=0);
-      //      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
+	//	      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
 	assert(l <= maxBlockIncl * bs);
 
       } else {
-	// negative sequential
-	l = positionsStart[count % toalloc];
-	if (l >= thislen) {
-	  fprintf(stderr,"underflow4\n");
-	  l -= thislen;
+	// -ve jumping
+	if (l >= thislen * ABS(jumpStep)) {
+	  l -= (thislen * ABS(jumpStep));
 	} else {
-	  fprintf(stderr,"underflow\n");
-	  l = (maxBlockIncl * bs) + bs - thislen; // go back to max seek position
-	}
-	
-	if (l >= ABS(jumpStep) * lowbs) {
-	  fprintf(stderr,"underflow3\n");
-	  l -= (ABS(jumpStep) * lowbs);
-	} else {
-	  fprintf(stderr,"underflow2\n");
-	  l = (maxBlockIncl * bs) + bs - thislen;
+	  //	    fprintf(stderr,"wrapping %zd6\n", l);
+	  l = l + bdSizeBytes - (ABS(jumpStep))*bs;
+	  //	    l = (maxBlockIncl * bs) + bs - thislen; //
 	}
       }
       assert(l>=0);
       //      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
       assert(l <= maxBlockIncl * bs);
-      positionsStart[count % toalloc] = (size_t) l;
 
-      totalLen += thislen;
-      if (totalLen >= ((maxBlockIncl +1) * bs)) { // if total length written is too much
-	break;
+    } else {
+      // negative sequential
+      l = positionsStart[count % toalloc];
+      if (l >= thislen) {
+	fprintf(stderr,"underflow4\n");
+	l -= thislen;
+      } else {
+	fprintf(stderr,"underflow\n");
+	l = (maxBlockIncl * bs) + bs - thislen; // go back to max seek position
       }
-
+	
+      if (l >= ABS(jumpStep) * lowbs) {
+	fprintf(stderr,"underflow3\n");
+	l -= (ABS(jumpStep) * lowbs);
+      } else {
+	fprintf(stderr,"underflow2\n");
+	l = (maxBlockIncl * bs) + bs - thislen;
+      }
     }
-    
+    assert(l>=0);
+    //      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
+    assert(l <= maxBlockIncl * bs);
+    positionsStart[count % toalloc] = (size_t) l;
+      
+	
+    totalLen += thislen;
+    if (totalLen >= ((maxBlockIncl +1) * bs)) { // if total length written is too much
+      break;
+    }
+
 
     count++;
   } // find a position across the disks
@@ -346,7 +326,7 @@ void setupPositions(positionType *positions,
     *num = count;
   }
 
-  // distribute among multiple FDs, do block offset
+  // copy to positions
   for (size_t i = 0; i < *num ; i++) {
     positions[i] = poss[i];
   }
@@ -439,6 +419,82 @@ void setupPositions(positionType *positions,
     assert(p -positions <= *num);
   }
 
+  /*  if (verbose >= 1) {
+    fprintf(stderr,"*info* unique positions: %zd\n", *num);
+    for (size_t i = 0; i < MIN(*num, 30); i++) {
+      fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].fd);
+    }
+    }*/
+
+
+  free(poss); // free the possible locations
+  free(positionsStart);
+  free(origStart);
+}
+
+
+
+// create the position array
+void setupPositions(positionType *positions,
+		    size_t *num,
+		    const int *fdArray,
+		    const size_t fdSize,
+		    const size_t bdSizeBytes,
+		    const int sf,
+		    const double readorwrite,
+		    const size_t lowbs,
+		    const size_t bs,
+		    size_t alignment,
+		    const size_t singlePosition,
+		    const int    jumpStep,
+		    const long startingBlock,
+		    const size_t actualBlockDeviceSize,
+		    const int blockOffset,
+		    cigartype *cigar
+		    ) {
+  positionType **flatpositions;
+  size_t *flatnum;
+  CALLOC(flatpositions, fdSize, sizeof(positionType *));
+  CALLOC(flatnum, fdSize, sizeof(size_t));
+  
+  flatnum[0] = *num;
+  flatpositions[0] = createPositions(flatnum[0]);
+  assert(flatpositions[0]);
+  setupPositions1(flatpositions[0], &(flatnum[0]), fdArray[0], bdSizeBytes, sf, readorwrite, lowbs, bs, alignment, singlePosition, jumpStep, startingBlock, actualBlockDeviceSize, blockOffset, cigar);
+  
+  for (size_t i = 1; i < fdSize; i++) {
+    flatnum[i] = flatnum[0];
+    flatpositions[i] = createPositions(flatnum[i]);
+    for (size_t j = 0; j < flatnum[i]; j++) {
+      flatpositions[i][j] = flatpositions[0][j];
+      flatpositions[i][j].fd = fdArray[i];
+    }
+  }
+
+  // merge them
+  size_t outcount = 0;
+  //  fprintf(stderr,"starting num %zd\n", *num);
+  for (size_t i = 0; i < *num; i++) {
+    for (size_t fd = 0; fd < fdSize; fd++) {
+      positions[outcount++] = flatpositions[fd][i];
+      if ((outcount >= *num) || (outcount >= flatnum[fd] * fdSize)) {
+	//	fprintf(stderr,"*warning* finished at %zd\n", flatnum[fd]);
+	fd = fdSize;
+	i = *num;
+	break;
+      }
+    }
+  }
+      
+  *num = outcount;
+  //  fprintf(stderr,"num = %zd\n", *num);
+  
+  for (size_t i = 0; i < fdSize; i++) {
+    freePositions(flatpositions[i]);
+  }
+  free(flatnum);
+  free(flatpositions);
+
   if (verbose >= 1) {
     fprintf(stderr,"*info* unique positions: %zd\n", *num);
     for (size_t i = 0; i < MIN(*num, 30); i++) {
@@ -447,8 +503,9 @@ void setupPositions(positionType *positions,
   }
 
 
-  free(poss); // free the possible locations
+
 }
+
 
 
 void simpleSetupPositions(positionType *positions,
