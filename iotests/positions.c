@@ -192,19 +192,26 @@ void setupPositions(positionType *positions,
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(origStart, toalloc, sizeof(size_t));
   size_t maxBlockIncl = (bdSizeBytes / bs) - 1;
+  //  assert (startBlock <= maxBlockIncl);
   if (maxBlockIncl < 1) maxBlockIncl = 1;
   const size_t byteSeekMaxLoc = maxBlockIncl * bs; // [0..maxBlockIncl] inclusive
   if (verbose >= 1) {
     fprintf(stderr,"*info* byteSeekMaxLoc: %zd, blockSeek [0..%zd], bdSizeBytes %zd (%.2lf GiB)\n", byteSeekMaxLoc, maxBlockIncl, bdSizeBytes, TOGiB(bdSizeBytes));
   }
-  size_t stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock, if it's not -99999 then set it.
-  if ((sf == 0) || (startingBlock != -99999)) {
-    if (startingBlock < 0) {
-      stBlock = maxBlockIncl + 1 + startingBlock;
-    } else {
-      stBlock = startingBlock; // start from 0
+  long stBlock = 0;
+  if (startingBlock == -99999) {
+    stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock, if it's not -99999 then set it.
+    if (verbose) {
+      fprintf(stderr,"*info* setting random block start to block %zd\n", stBlock);
     }
+  } else if (startingBlock < 0) {
+    stBlock = maxBlockIncl + 1 + startingBlock;
+  } else {
+    stBlock = startingBlock; // start from 0
   }
+  stBlock = stBlock % (maxBlockIncl+1);
+  assert (stBlock <= maxBlockIncl);
+  assert (stBlock >= 0);
   
   const double blockGap = (maxBlockIncl + 1) * 1.0 / toalloc; // need to be a floating point for large -s
   if (blockGap < 1) {
@@ -256,9 +263,9 @@ void setupPositions(positionType *positions,
       }
     }
 
-    if (poss[count].pos > byteSeekMaxLoc) { // wrap back to 0
-      poss[count].pos = poss[count].pos % bdSizeBytes;
-    }
+    //    if (poss[count].pos > byteSeekMaxLoc) { // wrap back to 0
+    //      poss[count].pos = poss[count].pos % bdSizeBytes;
+    //    }
     fdPos++;
     if (fdPos >= fdSize) {
       fdPos = 0;
@@ -273,8 +280,13 @@ void setupPositions(positionType *positions,
 	  l += thislen;
 	  l += (jumpStep * lowbs);
 	  if (l > byteSeekMaxLoc) {
-	    l = l % bdSizeBytes;
+	    l = l - byteSeekMaxLoc - thislen;
+	    //l = l % bdSizeBytes;
 	  }
+	  assert(l>=0);
+      //      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
+	  assert(l <= maxBlockIncl * bs);
+
 	} else {
 	  // -ve jumping
 	  if (l >= thislen * ABS(jumpStep)) {
@@ -285,6 +297,10 @@ void setupPositions(positionType *positions,
 	    //	    l = (maxBlockIncl * bs) + bs - thislen; //
 	  }
 	}
+	assert(l>=0);
+      //      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
+	assert(l <= maxBlockIncl * bs);
+
       } else {
 	// negative sequential
 	l = positionsStart[count % toalloc];
@@ -305,6 +321,7 @@ void setupPositions(positionType *positions,
 	}
       }
       assert(l>=0);
+      //      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
       assert(l <= maxBlockIncl * bs);
       positionsStart[count % toalloc] = (size_t) l;
 

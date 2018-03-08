@@ -149,7 +149,7 @@ int main() {
 
   size_t bdSize = 1024*1024;
 
-  size_t start = 0;
+  long start = 0;
   simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, 1<<10);
   assert(num == 1023); // last block
   //  fprintf(stderr,"num %zd\n", num);
@@ -170,17 +170,24 @@ int main() {
   pass();
 
   start = -1;
+  num = 10000;
   simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, bs);
-  for (size_t i = 0; i < num; i++) {
-    size_t shouldbe = (i + start) * bs + bdSize;
-    //    fprintf(stderr,"jump %d: %zd, %zd (should be %zd), pos modulo %zd\n", 0, i, p[i].pos, shouldbe, shouldbe % (bdSize));
-    assert(p[i].pos == shouldbe % (bdSize));
+  for (long i = 0; i < num; i++) {
+    long shouldbe = 0;
+    if (i + start < 0) {
+      shouldbe = (i + num+1 + start) * bs;
+    } else {
+      shouldbe = ((i + start) % (num+1)) * bs;
+    }
+    //        fprintf(stderr,"jump %d: %zd, %zd (should be %zd), pos modulo %zd\n", 0, i, p[i].pos, shouldbe, shouldbe % (bdSize));
+    assert(p[i].pos == (shouldbe % bdSize));
   }
   pass();
 
   start = -99999;
+  num = 10000;
   simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, 1<<10);
-  start = 392;
+  start = 13;
   for (size_t i = 0; i < num; i++) {
     //fprintf(stderr,"%zd, %zd\n", i, p[i].pos);
     assert(p[i].pos == (((i+start) * (1<<10)) + bdSize) % bdSize);
