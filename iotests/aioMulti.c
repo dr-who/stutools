@@ -20,7 +20,7 @@
 int keepRunning = 1;
 int verbose = 0;
 int flushEvery = 0;
-double MAXRAM = 2L*1024*1024*1024 ; // 2GB
+double MAXRAM = 2.0*1024*1024*1024 ; // 2GB
 int tripleX = 0;
 
 typedef struct {
@@ -52,8 +52,8 @@ static void *runThread(void *arg) {
 
     
   size_t maxBlocks = bdsize / blockSize;
-  if (bdsize > 1024L*1024L*1024*1024L) { // if over 1TiB 
-    maxBlocks = 1024L*1024L*1024*1024L / blockSize;
+  if (bdsize > 1024.0*1024*1024*1024) { // if over 1TiB 
+    maxBlocks = (size_t) (1024.0*1024*1024*1024 / blockSize);
   }
   double RAM = MAXRAM / threadContext->max;
   //  fprintf(stderr,"max ram %lf\n", RAM);

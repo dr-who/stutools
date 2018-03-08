@@ -165,7 +165,7 @@ void setupPositions1(positionType *positions,
 
   if (verbose) {
     if (startingBlock != -99999) {
-      fprintf(stderr,"*info* startingBlock is %zd on fd %d\n", startingBlock, fd);
+      fprintf(stderr,"*info* startingBlock is %ld on fd %d\n", startingBlock, fd);
     }
   }
 
@@ -199,7 +199,7 @@ void setupPositions1(positionType *positions,
   if (startingBlock == -99999) {
     stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock, if it's not -99999 then set it.
     if (verbose) {
-      fprintf(stderr,"*info* setting random block start to block %zd\n", stBlock);
+      fprintf(stderr,"*info* setting random block start to block %ld\n", stBlock);
     }
   } else if (startingBlock < 0) {
     stBlock = maxBlockIncl + 1 + startingBlock;
