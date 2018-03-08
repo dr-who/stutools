@@ -581,9 +581,9 @@ int main(int argc, char *argv[]) {
     size_t bsArray[]={BLKSIZE};
     double *rrArray = NULL;
     if(rrSpecified){
-      rrSpecified = 2;
+      rrSpecified = 1;
       CALLOC(rrArray, rrSpecified, sizeof(double));
-      rrArray[0] = readRatio; rrArray[1] = 1.0 - readRatio;
+      rrArray[0] = readRatio;
     } else {
       rrSpecified = 3;
       CALLOC(rrArray, rrSpecified, sizeof(double));
