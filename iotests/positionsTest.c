@@ -144,20 +144,69 @@ int main() {
   assert(p); pass();
 
   int *fdArray = NULL;
-  CALLOC(fdArray, 1, sizeof(int));
+  CALLOC(fdArray, 100, sizeof(int));
   assert(fdArray);
+  for (size_t i = 0; i < 100 ;i++) { //100
+    fdArray[i] = i+3;
+  }
 
   size_t bdSize = 1024*1024;
 
   long start = 0;
   simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, 1<<10);
+  fprintf(stderr,"num %zd\n", num);
   assert(num == 1023); // last block
-  //  fprintf(stderr,"num %zd\n", num);
   for (size_t i = 0; i < num; i++) {
     //    fprintf(stderr,"%zd, %zd\n", i, p[i].pos);
     assert(p[i].pos == i * (1<<10));
   }
   pass();
+
+  start = 0;
+
+  // sequential in parallel on lots of disks
+  for (size_t fdArraySize = 1; fdArraySize < 3; fdArraySize++) {
+    num = 100000;
+    simpleSetupPositions(p, &num, fdArray, fdArraySize, start, bdSize, 1<<10);
+    assert(num == 1023 * fdArraySize); // last block
+    //  fprintf(stderr,"num %zd\n", num);
+    for (size_t i = 0; i < num; i++) {
+      //      fprintf(stderr,"%zd, %zd, fd %d\n", i, p[i].pos, p[i].fd);
+      assert(p[i].pos == (i/fdArraySize) * (1<<10));
+      
+      assert(p[i].fd == fdArray[i % fdArraySize]);
+    }
+    pass();
+  }
+
+  
+  // sequential in parallel, with multiple files on multiple disks
+  for (size_t fdArraySize = 2; fdArraySize < 3; fdArraySize++) {
+    int sf = 3;
+    num = 100000;
+    int jump = 0;
+    size_t bs = 1 << 10;
+    int mult = sf * fdArraySize;
+    
+    setupPositions(p, &num, fdArray, fdArraySize, bdSize, sf, 1, bs, bs, bs, 0, jump, 0, bdSize, 0, NULL);
+
+    assert(num == 1023 * fdArraySize ); // limit will now be num as multiple disks
+    for (size_t i = 0; i < num - (sf * fdArraySize); i+= (sf*fdArraySize)) {
+      //      fprintf(stderr,"%zd, %zd, fd %d\n", i, p[i].pos, p[i].fd);
+      for (size_t j = 0; j < fdArraySize; j++) {
+	assert(p[i + j].pos == (i/mult) * (1<<10));
+      }
+    }
+
+    for (size_t i = 0; i < num - (sf * fdArraySize); i+= (sf*fdArraySize)) {
+      //      fprintf(stderr,"%zd, %zd, fd %d\n", i, p[i].pos, p[i].fd);
+      for (size_t j = 0; j < sf; j++) {
+	assert(p[i + j * fdArraySize].pos == p[j*fdArraySize].pos + (i/mult) * (1<<10));
+      }
+    }
+
+    pass();
+  }
 
   size_t bs = 1 << 10;
   start = 1;
@@ -181,16 +230,6 @@ int main() {
     }
     //        fprintf(stderr,"jump %d: %zd, %zd (should be %zd), pos modulo %zd\n", 0, i, p[i].pos, shouldbe, shouldbe % (bdSize));
     assert(p[i].pos == (shouldbe % bdSize));
-  }
-  pass();
-
-  start = -99999;
-  num = 10000;
-  simpleSetupPositions(p, &num, fdArray, 1, start, bdSize, 1<<10);
-  start = 13;
-  for (size_t i = 0; i < num; i++) {
-    //fprintf(stderr,"%zd, %zd\n", i, p[i].pos);
-    assert(p[i].pos == (((i+start) * (1<<10)) + bdSize) % bdSize);
   }
   pass();
 
@@ -277,6 +316,12 @@ int main() {
     }
   }
   pass();
+
+
+
+  free(fdArray);
+  freePositions(p);
+  
 
 
   yay();
