@@ -50,7 +50,11 @@ static void *runThread(void *arg) {
   size_t bdsize = blockDeviceSizeFromFD(threadContext->fd);
   //  fprintf(stderr,"[thread %zd] bdSize %zd (%.2lf GiB)\n", threadContext->id, bdsize, TOGiB(bdsize));
 
+    
   size_t maxBlocks = bdsize / blockSize;
+  if (bdsize > 1024L*1024L*1024*1024L) { // if over 1TiB 
+    maxBlocks = 1024L*1024L*1024*1024L / blockSize;
+  }
   double RAM = MAXRAM / threadContext->max;
   //  fprintf(stderr,"max ram %lf\n", RAM);
   size_t positionsNum = (RAM / sizeof(positionType)) + 1;
