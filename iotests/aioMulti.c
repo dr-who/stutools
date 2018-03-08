@@ -58,7 +58,7 @@ static void *runThread(void *arg) {
   int fdA[1];
   fdA[0] = threadContext->fd;
   //    fprintf(stderr,"fd %d\n", fdA[0]);
-  setupPositions(positions, &positionsNum, fdA, 1, bdsize, 1, threadContext->readRatio, blockSize, blockSize, blockSize, 0, 0, 1, bdsize, 0, NULL);
+  setupPositions(positions, &positionsNum, fdA, 1, bdsize, 1, threadContext->readRatio, blockSize, blockSize, blockSize, 0, 0, 0, bdsize, 0, NULL);
   
   
   char *randomBuffer = aligned_alloc(blockSize, blockSize); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
@@ -128,8 +128,11 @@ int handle_args(int argc, char *argv[]) {
     exit(-1);
   } else {
     int opt;
-    while ((opt = getopt(argc, argv, "rwR:X")) != -1) {
+    while ((opt = getopt(argc, argv, "rwR:XV")) != -1) {
       switch (opt) {
+      case 'V':
+	verbose++;
+	break;
       case 'R':
 	MAXRAM = atoi(optarg) * 1024L * 1024L * 1024L;
 	break;
