@@ -50,9 +50,13 @@ static void *runThread(void *arg) {
   size_t bdsize = blockDeviceSizeFromFD(threadContext->fd);
   //  fprintf(stderr,"[thread %zd] bdSize %zd (%.2lf GiB)\n", threadContext->id, bdsize, TOGiB(bdsize));
 
+  size_t maxBlocks = bdsize / blockSize;
   double RAM = MAXRAM / threadContext->max;
-  size_t positionsNum = (RAM / blockSize) + 1;
-  fprintf(stderr,"*info* %.1lf GiB in thread %zd (%.1lf GiB total)/ %zd, bdsize = %zd, positions %zd\n", TOGiB(RAM), threadContext->id, TOGiB(MAXRAM), threadContext->max, blockSize, positionsNum);
+  //  fprintf(stderr,"max ram %lf\n", RAM);
+  size_t positionsNum = (RAM / sizeof(positionType)) + 1;
+  if (positionsNum > maxBlocks) positionsNum = maxBlocks;
+  //  fprintf(stderr,"max positions %zd\n", positionsNum);
+  fprintf(stderr,"*info* %.1lf GiB in thread %zd (%.1lf GiB total)/ %zd, bdsize = %zd, positions %zd (%.1lf GiB covered)\n", TOGiB(RAM), threadContext->id, TOGiB(MAXRAM), threadContext->max, blockSize, positionsNum, TOGiB(blockSize * positionsNum));
   positionType *positions = createPositions(positionsNum);
   
   int fdA[1];
