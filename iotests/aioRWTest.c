@@ -318,6 +318,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -S file -f /dev/nbd0               # the random block to write is from the file 'file'\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -N                    # call fsync() after writing (default is to skip fsync())\n");
     fprintf(stderr,"  ./aioRWTest -f filename -G10                   # if 'filename' doesn't exist, create it as a 10GiB file\n");
+    fprintf(stderr,"  ./aioRWTest -f /mnt/test/ramdisk -G10          # mkdir /mnt/test; mount -t tmpfs -o size=10G tmpfs /mnt/test ...\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(-1);
