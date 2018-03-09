@@ -218,7 +218,7 @@ void handle_args(int argc, char *argv[]) {
       jumpStep = atoi(optarg); 
       break;
     case 'G':
-      if ((strlen(optarg)>=2) && (optarg[strlen(optarg)-1] == 'R')) {
+      if ((strlen(optarg)>=1) && (optarg[strlen(optarg)-1] == 'R')) {
 	maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * atof(optarg);
 	if (maxSizeGB < 1) maxSizeGB = 1;
 	fprintf(stderr,"*info* setting -G to be %.1lf GiB\n", maxSizeGB);
