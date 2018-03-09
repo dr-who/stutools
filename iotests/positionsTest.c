@@ -23,8 +23,6 @@ void yay() {
 
 int main() {
 
-  srand48(0);
-  
   positionType *p = createPositions(0);
   assert(p);
   freePositions(p);

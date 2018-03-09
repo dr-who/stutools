@@ -8,8 +8,7 @@ DRIVE=/dev/loop3
 
 all: writePairTest checkDisks flushTestWriter flushTestReader \
 	aioRWTest watchDisks flipBits indiDisks trim cigarTest ramSpeedTest aioMulti \
-	flushTester offTheEnds \
-	positionsTest
+	flushTester offTheEnds 
 
 readSpeedTest:
 	@echo use aioRWTest -r
@@ -84,6 +83,9 @@ cigarTest: cigarTest.o cigar.o
 ramSpeedTest: ramSpeedTest.c utils.o logSpeed.o
 
 test: positionsTest
+	./positionsTest
+
+vtest: positionsTest
 	valgrind --leak-check=full ./positionsTest
 
 clean:
