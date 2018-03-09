@@ -218,7 +218,13 @@ void handle_args(int argc, char *argv[]) {
       jumpStep = atoi(optarg); 
       break;
     case 'G':
-      maxSizeGB = atof(optarg);
+      if ((strlen(optarg)>=2) && (optarg[strlen(optarg)-1] == 'R')) {
+	maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * atof(optarg);
+	if (maxSizeGB < 1) maxSizeGB = 1;
+	fprintf(stderr,"*info* setting -G to be %.1lf GiB\n", maxSizeGB);
+      } else {
+	maxSizeGB = atof(optarg);
+      }
       break;
     case 'k': {
       char *ndx = index(optarg, '-');
@@ -318,6 +324,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -S file -f /dev/nbd0               # the random block to write is from the file 'file'\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -N                    # call fsync() after writing (default is to skip fsync())\n");
     fprintf(stderr,"  ./aioRWTest -f filename -G10                   # if 'filename' doesn't exist, create it as a 10GiB file\n");
+    fprintf(stderr,"  ./aioRWTest -f filename -G 4R                  # append R (for RAM) to the -G option and it'll be 4x the RAM\n");
     fprintf(stderr,"  ./aioRWTest -f /mnt/test/ramdisk -G10          # mkdir /mnt/test; mount -t tmpfs -o size=10G tmpfs /mnt/test ...\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
@@ -531,7 +538,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
 
 int main(int argc, char *argv[]) {
 
-  fprintf(stderr,"*info*: stutools %s %s\n", argv[0], VERSION);
+  fprintf(stderr,"*info* stutools %s %s\n", argv[0], VERSION);
   handle_args(argc, argv);
   if (exitAfterSeconds < 0) {
     exitAfterSeconds = 99999999;
