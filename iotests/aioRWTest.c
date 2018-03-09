@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <limits.h>
+#include <errno.h>
 #include <assert.h>
 
 #include "aioRequests.h"
@@ -316,6 +317,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, 'B' repeats the previous, 'S' skip\n");
     fprintf(stderr,"  ./aioRWTest -S file -f /dev/nbd0               # the random block to write is from the file 'file'\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -N                    # call fsync() after writing (default is to skip fsync())\n");
+    fprintf(stderr,"  ./aioRWTest -f filename -G10                   # if 'filename' doesn't exist, create it as a 10GiB file\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(-1);
@@ -359,6 +361,24 @@ int similarNumbers(double a, double b) {
 }
 
 
+int createFile(const char *filename, const size_t GiB) {
+  FILE *fp = fopen(filename, "wb");
+  if (!fp) {perror(filename);return 1;}
+
+  char *buf=malloc(1024*1024); if (!buf) {fprintf(stderr,"createFile OOM\n");exit(-1);}
+  size_t towriteMiB = GiB * 1024;
+  while (towriteMiB > 0) {
+    if (fwrite(buf, 1024*1024, 1, fp) != 1) {
+      perror("createFile");free(buf);return 1;
+    }
+    towriteMiB--;
+  }
+  fclose(fp);
+  free(buf);
+  return 0;
+}
+
+
 size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim, const size_t maxSizeGB) {
   size_t retBD = 0;
   size_t actualBlockDeviceSize = 0 ;
@@ -373,7 +393,21 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     // follow a symlink
     fdArray[i] = -1;
     char * ret = realpath(p[i], newpath);
-    if (!ret) {perror("realpath");}
+    if (!ret) {
+      if (errno == ENOENT) {
+	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.1lf GiB...", p[i], maxSizeGB*1.0);
+	fflush(stderr);
+	int rv = createFile(p[i], maxSizeGB);
+	if (rv != 0) {
+	  fprintf(stderr,"*error* couldn't create file '%s'\n", p[i]);
+	  exit(-1);
+	}
+	fprintf(stderr,"\n");
+	strcpy(newpath, p[i]);
+      } else {
+	perror(p[i]);
+      }
+    }
 
 
     if (verbose >= 2) {
@@ -462,6 +496,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       if (fdArray[i] < 0) {
 	fdArray[i] = open(newpath, O_RDWR | O_EXCL); // if a file
 	if (fdArray[i] < 0) {
+	  //	  fprintf(stderr,"maybe a file to create?\n");
 	  perror(newpath); goto cont;
 	}
 	fprintf(stderr,"*warning* couldn't open in O_DIRECT mode (filesystem constraints)\n");
