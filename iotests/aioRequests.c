@@ -83,12 +83,16 @@ size_t aioMultiplePositions( positionType *positions,
   //  double mbps = 0;
   
   size_t lastBytes = 0, lastIOCount = 0;
+  struct timespec timeout;
+  timeout.tv_sec = 0;
+  timeout.tv_nsec = 1*1000*1000; // 0.001 seconds
+
   
   while (keepRunning) {
     if (inFlight < QD) {
       
       // submit requests, one at a time
-      for (size_t i = 0; i < MIN(QD - inFlight, 1); i++) {
+      for (size_t i = 0; i < MAX(QD - inFlight, 1); i++) {
 	if (sz && positions[pos].action != 'S') { // if we have some positions
 	  long long newpos = positions[pos].pos;
 	  const size_t len = positions[pos].len;
@@ -167,8 +171,8 @@ size_t aioMultiplePositions( positionType *positions,
 	}
       }
     }
-    
-    ret = io_getevents(ctx, 0, QD, events, NULL);
+
+    ret = io_getevents(ctx, 1, QD, events, &timeout); 
 
     // if stop running or been running long enough
     if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
@@ -180,7 +184,6 @@ size_t aioMultiplePositions( positionType *positions,
     }
 
     if (ret > 0) {
-
       // verify it's all ok
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
@@ -192,17 +195,12 @@ size_t aioMultiplePositions( positionType *positions,
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	}
       }
-	//}
-	
       inFlight -= ret;
       received += ret;
-    } else {
-      // busy loop, no pausing here
-      //      usleep(1);
     }
     //	  ret = io_destroy(ctx);
     if (ret < 0) {
-      perror("io_destroy");
+      //      perror("io_destroy");
       break;
     }
   }
@@ -210,12 +208,8 @@ size_t aioMultiplePositions( positionType *positions,
   //  mbps = received* BLKSIZE / (timedouble() - start)/1024.0/1024.0;
   
  endoffunction:
-  //  fdatasync(fd);
   free(events);
   free(cbs[0]);
-  /*  for (size_t i = 0; i <QD; i++) {
-    free(data[i]);
-    }*/
   free(data[0]);
   io_destroy(ctx);
 
@@ -223,7 +217,6 @@ size_t aioMultiplePositions( positionType *positions,
 
   *totalWB = totalWriteBytes;
   *totalRB = totalReadBytes;
-    
   
   return *totalWB + *totalRB;
 }
