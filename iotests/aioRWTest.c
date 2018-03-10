@@ -170,10 +170,12 @@ void handle_args(int argc, char *argv[]) {
     case 'r':
       readRatio += 0.5;
       if (readRatio > 1) readRatio = 1;
+      rrSpecified = 1;
       break;
     case 'w':
       readRatio -= 0.5;
       if (readRatio < 0) readRatio = 0;
+      rrSpecified = 1;
       break;
     case 'R':
       seed = atol(optarg);
