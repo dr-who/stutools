@@ -169,6 +169,10 @@ int main(int argc, char *argv[]) {
   MAXRAM =totalRAM() /2 ;
 
   int opt = handle_args(argc, argv);
+  if (argc - opt <= 0) {
+    fprintf(stderr,"*error* no devices specified\n");
+    exit(-1);
+  }
 
   size_t *fdArray;
   CALLOC(fdArray, argc+1, sizeof(size_t));
