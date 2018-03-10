@@ -172,7 +172,11 @@ size_t aioMultiplePositions( positionType *positions,
       }
     }
 
-    ret = io_getevents(ctx, 1, QD, events, &timeout); 
+    if (QD < 5) { // then poll
+      ret = io_getevents(ctx, 1, QD, events, NULL);
+    } else {
+      ret = io_getevents(ctx, 1, QD, events, &timeout);
+    }
 
     // if stop running or been running long enough
     if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
