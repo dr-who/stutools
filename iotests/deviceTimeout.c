@@ -148,7 +148,16 @@ void handle_args(int argc, char *argv[]) {
 
 
 void usage() {
-  fprintf(stderr,"./deviceTimeout -I ok.txt -m parity -t timeout -a after_ms -b before_ms\n");
+  fprintf(stderr,"./deviceTimeout -I ok.txt -m parity -t timeout -a after_ms -b before_ms\n\n");
+  fprintf(stderr,"Generates a permutation of up to m parity drives and sets the timeouts.\n\n");
+  fprintf(stderr,"Example:\n");
+  fprintf(stderr,"   ./deviceTimeout -I 4drives.txt -m 2\n");
+  fprintf(stderr,"   drives 1 2 set to 0 sec timeout, pause then back to 30 sec\n");
+  fprintf(stderr,"   drives 1 3 set to 0 timeout, pause then back to 30\n");
+  fprintf(stderr,"   drives 1 4 set to 0 timeout, pause then back to 30\n");
+  fprintf(stderr,"   drives 2 3 set to 0 timeout, pause then back to 30\n");
+  fprintf(stderr,"   drives 2 4 set to 0 timeout, pause then back to 30\n");
+  fprintf(stderr,"   drives 3 4 set to 0 timeout, pause then back to 30\n");
 }
 
 int main(int argc, char *argv[]) {
