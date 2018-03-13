@@ -78,7 +78,7 @@ int addDeviceToAnalyse(const char *fn) {
   sprintf(buf, DEVICE_STRING, str);
   fdArray[drives] = open(buf, O_RDWR);
   if (fdArray[drives] < 0) {
-    perror(fn);
+    perror(buf);
     return 1;
   }
   fprintf(stderr,"*info* opened '%s' for O_RDWR (fd %d)\n", buf, fdArray[drives]);
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
 
   if (fdArray) {
     CALLOC(data, parity, sizeof(int)); 
-    fprintf(stderr,"*info* drives %d, parity %d, timeout %d secs (before %d ms, after %d ms)\n", drives, parity, timeoutSec, delaybeforeMS, delayafterMS);
+    fprintf(stderr,"*info* drives %d, parity %d, timeout %d secs (default %d s) (before %d ms, after %d ms)\n", drives, parity, timeoutSec, DEFAULT_TIMEOUT, delaybeforeMS, delayafterMS);
     permute(fdArray, data, 0, drives-1, 0, parity, timeoutSec, delaybeforeMS, delayafterMS);
   } else {
     usage();
