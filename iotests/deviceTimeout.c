@@ -28,7 +28,11 @@ void timeoutArray(int *fdArray, const int len, const int timeoutSec) {
       perror(buf);
       exit(-1);
     }
-    lseek(fdArray[i], 0, SEEK_SET); // rewind
+    off_t ot = lseek(fdArray[i], 0, SEEK_SET); // rewind
+    if (ot < 0) {
+      perror(buf);
+      exit(-1);
+    }
   }
   fprintf(stderr,"  -> %d\n", timeoutSec);
 }
@@ -70,7 +74,7 @@ int addDeviceToAnalyse(const char *fn) {
     perror(fn);
     return 1;
   }
-  fprintf(stderr,"*info* can open O_EXCL '%s'\n", fn);
+  fprintf(stderr,"*info* device can be opened with O_EXCL '%s'\n", fn);
   close(fdArray[drives]);
 
   char *str = getSuffix(fn);
@@ -180,6 +184,14 @@ int main(int argc, char *argv[]) {
       fprintf(stderr,"\n");
     }
     permute(fdArray, data, 0, drives-1, 0, parity, timeoutSec, delaybeforeMS, delayafterMS);
+    for (size_t i = 0; i < drives; i++) {
+      int c = close(fdArray[i]);
+      if (c < 0) {
+	perror("closing");
+	exit(-1);
+      }
+    }
+
   } else {
     usage();
   }
