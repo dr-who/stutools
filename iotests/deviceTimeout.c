@@ -118,6 +118,7 @@ size_t loadSpecifiedFiles(const char *fn) {
 
 
 int parity = 1;
+int initialPause = 15;
 int timeoutSec = 0;
 int delaybeforeMS = 100;
 int delayafterMS = 1000;
@@ -125,8 +126,11 @@ int delayafterMS = 1000;
 void handle_args(int argc, char *argv[]) {
   int opt;
   
-  while ((opt = getopt(argc, argv, "I:m:t:a:b:")) != -1) {
+  while ((opt = getopt(argc, argv, "I:m:t:a:b:P:")) != -1) {
     switch (opt) {
+    case 'P':
+      initialPause = atoi(optarg);
+      break;
     case 'I':
       loadSpecifiedFiles(optarg);
       break;
@@ -148,7 +152,7 @@ void handle_args(int argc, char *argv[]) {
 
 
 void usage() {
-  fprintf(stderr,"./deviceTimeout -I ok.txt -m parity -t timeout -a after_ms -b before_ms\n\n");
+  fprintf(stderr,"./deviceTimeout -I ok.txt -m parity -t timeout -a after_ms -b before_ms -P initialPause\n\n");
   fprintf(stderr,"Generates a permutation of up to m parity drives and sets the timeouts.\n\n");
   fprintf(stderr,"Example:\n");
   fprintf(stderr,"   ./deviceTimeout -I 4drives.txt -m 2\n");
@@ -169,6 +173,12 @@ int main(int argc, char *argv[]) {
   if (fdArray) {
     CALLOC(data, parity, sizeof(int)); 
     fprintf(stderr,"*info* drives %d, parity %d, timeout %d secs (default %d s) (before %d ms, after %d ms)\n", drives, parity, timeoutSec, DEFAULT_TIMEOUT, delaybeforeMS, delayafterMS);
+    if (initialPause) {
+      fprintf(stderr,"Waiting for %d seconds to start (time to start your array)...", initialPause);
+      fflush(stderr);
+      sleep(initialPause);
+      fprintf(stderr,"\n");
+    }
     permute(fdArray, data, 0, drives-1, 0, parity, timeoutSec, delaybeforeMS, delayafterMS);
   } else {
     usage();
