@@ -23,7 +23,11 @@ void timeoutArray(int *fdArray, const int len, const int timeoutSec) {
     char buf[100];
     int l = sprintf(buf, "%d", timeoutSec);
 
-    write(fdArray[i], buf, l);
+    int w = write(fdArray[i], buf, l);
+    if (w < 0) {
+      perror(buf);
+      exit(-1);
+    }
     lseek(fdArray[i], 0, SEEK_SET); // rewind
   }
   fprintf(stderr,"  -> %d\n", timeoutSec);
@@ -142,8 +146,12 @@ void handle_args(int argc, char *argv[]) {
   }
 }
 
-int main(int argc, char *argv[]) {
 
+void usage() {
+  fprintf(stderr,"./deviceTimeout -I ok.txt -m parity -t timeout -a after_ms -b before_ms\n");
+}
+
+int main(int argc, char *argv[]) {
 
   int *data = NULL;
   
@@ -151,7 +159,11 @@ int main(int argc, char *argv[]) {
 
   if (fdArray) {
     CALLOC(data, parity, sizeof(int)); 
-    fprintf(stderr,"*info* drives %d, parity %d, timeout %d\n", drives, parity, timeoutSec);
+    fprintf(stderr,"*info* drives %d, parity %d, timeout %d secs (before %d ms, after %d ms)\n", drives, parity, timeoutSec, delaybeforeMS, delayafterMS);
     permute(fdArray, data, 0, drives-1, 0, parity, timeoutSec, delaybeforeMS, delayafterMS);
+  } else {
+    usage();
   }
+
+  return 0;
 }
