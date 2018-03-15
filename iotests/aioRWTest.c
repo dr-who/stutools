@@ -375,25 +375,31 @@ int similarNumbers(double a, double b) {
 }
 
 
-int createFile(const char *filename, const size_t GiB) {
-  FILE *fp = fopen(filename, "wb");
-  if (!fp) {perror(filename);return 1;}
+int createFile(const char *filename, const double GiB) {
+  int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
+  //  FILE *fp = fopen(filename, "wb");
+  if (fd < 0) {perror(filename);return 1;}
 
-  char *buf=malloc(1024*1024); if (!buf) {fprintf(stderr,"createFile OOM\n");exit(-1);}
-  size_t towriteMiB = GiB * 1024;
-  while (towriteMiB > 0) {
-    if (fwrite(buf, 1024*1024, 1, fp) != 1) {
+  char *buf = aligned_alloc(65536, 1024*1024); if (!buf) {fprintf(stderr,"createFile OOM\n");exit(-1);}
+  size_t towriteMiB = (size_t)(GiB * 1024) * 1024 * 1024;
+  while (keepRunning && towriteMiB > 0) {
+    int towrite = MIN(towriteMiB, 1024*1024);
+    if (write(fd, buf, towrite) != towrite) {
       perror("createFile");free(buf);return 1;
     }
-    towriteMiB--;
+    towriteMiB -= towrite;
   }
-  fclose(fp);
+  fsync(fd);
+  close(fd);
   free(buf);
+  if (!keepRunning) {
+    fprintf(stderr,"*warning* file creation interrupted\n");
+  }
   return 0;
 }
 
 
-size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim, const size_t maxSizeGB) {
+size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim, const double maxSizeGB) {
   size_t retBD = 0;
   size_t actualBlockDeviceSize = 0 ;
   
@@ -409,7 +415,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     char * ret = realpath(p[i], newpath);
     if (!ret) {
       if (errno == ENOENT) {
-	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.1lf GiB...", p[i], maxSizeGB*1.0);
+	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.2lf GiB...", p[i], maxSizeGB*1.0);
 	fflush(stderr);
 	int rv = createFile(p[i], maxSizeGB);
 	if (rv != 0) {
@@ -494,7 +500,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       
       //      fprintf(stderr,"nnn %s\n", newpath);
       if (verbose >= 2) 
-	fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
+	fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.2lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
 
       if (sendTrim) {
 	if (maxSizeGB > 0) {
@@ -517,7 +523,7 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       }
 
       actualBlockDeviceSize = fileSize(fdArray[i]);
-      fprintf(stderr,"*info* file: '%s' size %zd bytes (%.1lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
+      fprintf(stderr,"*info* file: '%s' size %zd bytes (%.2lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
     }
     if (i == 0) {
       retBD = actualBlockDeviceSize;
@@ -596,12 +602,12 @@ int main(int argc, char *argv[]) {
   size_t bdSize = actualBlockDeviceSize;
   const size_t origBDSize = bdSize;
   if (maxSizeGB > 0) {
-    bdSize = (size_t) (maxSizeGB * 1024L * 1024 * 1024);
+    bdSize = (size_t) (maxSizeGB * 1024) * 1024 * 1024;
   }
   
   if (bdSize > actualBlockDeviceSize) {
+    fprintf(stderr,"*info* override option too high (%zd > %zd), reducing size to %.1lf GiB\n", bdSize, actualBlockDeviceSize, TOGiB(bdSize));
     bdSize = actualBlockDeviceSize;
-    fprintf(stderr,"*info* override option too high, reducing size to %.1lf GiB\n", TOGiB(bdSize));
   } else if (bdSize < actualBlockDeviceSize) {
     fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", TOGiB(bdSize), TOGiB(actualBlockDeviceSize));
   }
