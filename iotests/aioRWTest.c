@@ -393,7 +393,8 @@ int createFile(const char *filename, const double GiB) {
   close(fd);
   free(buf);
   if (!keepRunning) {
-    fprintf(stderr,"*warning* file creation interrupted\n");
+    fprintf(stderr,"*warning* file creation interrupted. Continuing...\n");
+    keepRunning = 1;
   }
   return 0;
 }
@@ -606,7 +607,7 @@ int main(int argc, char *argv[]) {
   }
   
   if (bdSize > actualBlockDeviceSize) {
-    fprintf(stderr,"*info* override option too high (%zd > %zd), reducing size to %.1lf GiB\n", bdSize, actualBlockDeviceSize, TOGiB(bdSize));
+    fprintf(stderr,"*info* override option too high (%zd > %zd), reducing size to %.1lf GiB\n", bdSize, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
     bdSize = actualBlockDeviceSize;
   } else if (bdSize < actualBlockDeviceSize) {
     fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", TOGiB(bdSize), TOGiB(actualBlockDeviceSize));
