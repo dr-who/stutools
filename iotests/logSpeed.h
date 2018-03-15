@@ -34,7 +34,7 @@ double logSpeedTotal(logSpeedType *l);
 double logSpeedRank(logSpeedType *l, float rank); // between [0...1)
 double logSpeedMax(logSpeedType *l);
 
-void   logSpeedDump(logSpeedType *l, const char *fn, const int format, const char *description, size_t bdSize, size_t origBdSize, const char *cli);
+void   logSpeedDump(logSpeedType *l, const char *fn, const int format, const char *description, size_t bdSize, size_t origBdSize, float rwratio, size_t flushing, size_t seqFiles, size_t lowbs, size_t highbs, const char *cli);
 void logSpeedHistogram(logSpeedType *l);
 void logSpeedCheckpoint(logSpeedType *l);
 double logSpeedGetCheckpoint(logSpeedType *l);

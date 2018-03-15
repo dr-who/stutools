@@ -87,7 +87,7 @@ void logSpeedFree(logSpeedType *l) {
 }
 
 
-void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char *description, size_t bdSize, size_t origBdSize, const char *cli) {
+void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char *description, size_t bdSize, size_t origBdSize, float rwratio, size_t flushing, size_t seqFiles, size_t lowbs, size_t highbs, const char *cli) {
   //  logSpeedMedian(l);
   //  if (format) {
   //    fprintf(stderr, "*info* logSpeedDump format %d\n", format);
@@ -105,13 +105,13 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
     //    sprintf(filename, "/tmp/stutoosmysqlXXXXXX");
     //    int fd = mkstemp(filename);
     //    if (fd < 0) {perror(filename);exit(-1);}
-    fprintf(fp, "create table if not exists runs (id int auto_increment, primary key(id), time datetime, hostname text, domainname text, RAM int, threads int, bdSize float, origBdSize float, cli text, description text);\n"
+    fprintf(fp, "create table if not exists runs (id int auto_increment, primary key(id), time datetime, hostname text, domainname text, RAM int, threads int, bdSize float, origBdSize float, cli text, rw float, flush int, seqFiles int, lowbs int, highbs int, description text);\n"
 		"create table if not exists rawvalues (id int, time double, globaltime double, MiB int, SumMiB int, IOs int, SumIOs int);\n");
 
     char hostname[1000], domainname[1000];
     int w = gethostname(hostname, 1000); if (w != 0) {hostname[0] = 0;}
     w = getdomainname(domainname, 1000); if (w != 0) {domainname[0] = 0;}
-    fprintf(fp, "start transaction; insert into runs(description, time, hostname, domainname, RAM, threads, bdSize, origBdSize, cli) values (\"%s\", NOW(), \"%s\", \"%s\", %zd, %zd, %.1lf, %.1lf, \"%s\");\n", (description==NULL)?"":description, hostname, domainname, (size_t)(TOGiB(totalRAM()) + 0.5), numThreads(), TOGiB(bdSize), TOGiB(origBdSize), cli);
+    fprintf(fp, "start transaction; insert into runs(description, time, hostname, domainname, RAM, threads, bdSize, origBdSize, rw, flush, seqFiles, lowbs, highbs, cli) values (\"%s\", NOW(), \"%s\", \"%s\", %zd, %zd, %.1lf, %.1lf, %.1lf, %zd, %zd, %zd, %zd, \"%s\");\n", (description==NULL)?"":description, hostname, domainname, (size_t)(TOGiB(totalRAM()) + 0.5), numThreads(), TOGiB(bdSize), TOGiB(origBdSize), rwratio, flushing, seqFiles, lowbs, highbs, cli);
 
     for (size_t i = 0; i < l->num; i++) {
       valuetotal += l->rawvalues[i];
