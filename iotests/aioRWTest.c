@@ -61,6 +61,7 @@ cigartype cigar;
 int    oneShot = 0;
 char   *randomBufferFile = NULL;
 int    fsyncAfterWriting = 0;
+char   *description = NULL;
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
@@ -111,11 +112,15 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:N")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
       if (alignment < 1024) alignment = 1024;
+      break;
+    case 'd':
+      description = strdup(optarg);
+      fprintf(stderr,"*info* description: '%s'\n", description);
       break;
     case 'N':
       fsyncAfterWriting = 1;
@@ -154,7 +159,7 @@ void handle_args(int argc, char *argv[]) {
       startAtZero = atol(optarg);
       break;
     case 'M':
-      sendTrim = 1;
+      dataLogFormat = MYSQL;
       break;
     case 'T':
       table = 1;
@@ -309,7 +314,6 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s 1 -j 10 -f /dev/sdc -V          #  contiguous access, jumping 10 blocks at a time\n");
     fprintf(stderr,"  ./aioRWTest -s -8 -f /dev/sdc -V               # reverse contiguous 8 regions in parallel\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -O ok                 # use a list of devices in ok.txt for disk stats/amplification\n");
-    fprintf(stderr,"  ./aioRWTest -M -f /dev/nbd0 -G20               # -M sends trim/discard command, using -G range if specified\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -k1 -G0.1      # write 1KiB buffers from 100 MiB (100k unique). Cache testing.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -P 10000 -f /dev/nbd0 -k1   # Use 10,000 positions. Cache testing.\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX           # Triple X does not use O_EXCL. For multiple simultaneous *CARE*\n");
@@ -319,7 +323,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump planned locations and operations to 'locations'\n");
     fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0    # log *block* timing and total data to 'timedata' (TSV format)\n");
     fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to 'timedata' (JSON)\n");
-    fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0   # log *per second* benching timing (add -J for JSON)\n");
+    fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0   # log *per second* benching timing (add -J for JSON, -M for MySQL)\n");
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # Use CIGAR format for R/W/X actions. '100R' '200X' '10R100W50X'\n");
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, variable sizes '~R' '@W' ':W' '~R@W:W'\n");
     fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, 'B' repeats the previous, 'S' skip\n");
@@ -716,7 +720,7 @@ int main(int argc, char *argv[]) {
 	      efficiency = 100;
 	    }
 
-	    logSpeedDump(&l, filename, dataLogFormat);
+	    logSpeedDump(&l, filename, dataLogFormat, NULL, 0, 0, NULL);
 	    logSpeedFree(&l);
 	    
 	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
@@ -770,12 +774,23 @@ int main(int argc, char *argv[]) {
 
     if (dataLog) {
       fprintf(stderr, "*info* writing per-block timing to '%s'\n", dataLog);
-      logSpeedDump(&l, dataLog, dataLogFormat);
+      logSpeedDump(&l, dataLog, dataLogFormat, NULL, 0,0, NULL);
     }
 
     if (benchLog) {
       fprintf(stderr, "*info* writing per-second benchmark speeds to '%s'\n", benchLog);
-      logSpeedDump(&benchl, benchLog, dataLogFormat);
+
+      char *cli = (char *)malloc(1);
+      cli[0] = 0;
+      
+      for(size_t i = 0; i < argc; i++) {
+        cli = (char *)realloc(cli, strlen(cli) + strlen(argv[i]) + 2); // space 0 
+        strcat(cli, argv[i]);
+        strcat(cli, " ");
+      }
+      logSpeedDump(&benchl, benchLog, dataLogFormat, description, bdSize, origBDSize, cli);
+      free(cli);
+      
     }
 
     logSpeedFree(&l);
@@ -803,7 +818,7 @@ int main(int argc, char *argv[]) {
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
     if (verifyWrites && readRatio < 1) {
       keepRunning = 1;
-      int numerrors = aioVerifyWrites(fdArray, fdLen, positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
+      int numerrors = aioVerifyWrites(fdArray, fdLen, positions, 0, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
       if (numerrors) {
 	exitcode = MIN(numerrors, 254);
       }
@@ -833,6 +848,6 @@ int main(int argc, char *argv[]) {
   if (specifiedDevices) free(specifiedDevices);
   if (logPositions) free(logPositions);
   if (cigarPattern) free(cigarPattern);
-  
+  if (description) free(description);
   return exitcode;
 }

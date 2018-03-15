@@ -1,6 +1,9 @@
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <unistd.h>
 #include <assert.h>
 
 #include "logSpeed.h"
@@ -84,15 +87,39 @@ void logSpeedFree(logSpeedType *l) {
 }
 
 
-void logSpeedDump(logSpeedType *l, const char *fn, const int format) {
+void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char *description, size_t bdSize, size_t origBdSize, const char *cli) {
   //  logSpeedMedian(l);
   //  if (format) {
   //    fprintf(stderr, "*info* logSpeedDump format %d\n", format);
   //  }
-  FILE *fp = fopen(fn, "wt");
   double valuetotal = 0;
   size_t counttotal = 0;
-  if (!format) {// if no format
+
+  FILE *fp = fopen(fn, "wt");
+  if (!fp) {perror(fn); exit(-1);}
+
+  if (format == MYSQL) {
+    // first dump to MySQL format
+    // dump to file, mysql -D database -h hostname <file.mysql
+    //    char *filename = malloc(100);
+    //    sprintf(filename, "/tmp/stutoosmysqlXXXXXX");
+    //    int fd = mkstemp(filename);
+    //    if (fd < 0) {perror(filename);exit(-1);}
+    fprintf(fp, "create table if not exists runs (id int auto_increment, primary key(id), time datetime, hostname text, domainname text, RAM int, threads int, bdSize float, origBdSize float, cli text, description text);\n"
+		"create table if not exists rawvalues (id int, time double, globaltime double, MiB int, SumMiB int, IOs int, SumIOs int);\n");
+
+    char hostname[1000], domainname[1000];
+    int w = gethostname(hostname, 1000); if (w != 0) {hostname[0] = 0;}
+    w = getdomainname(domainname, 1000); if (w != 0) {domainname[0] = 0;}
+    fprintf(fp, "start transaction; insert into runs(description, time, hostname, domainname, RAM, threads, bdSize, origBdSize, cli) values (\"%s\", NOW(), \"%s\", \"%s\", %zd, %zd, %.1lf, %.1lf, \"%s\");\n", (description==NULL)?"":description, hostname, domainname, (size_t)(TOGiB(totalRAM()) + 0.5), numThreads(), TOGiB(bdSize), TOGiB(origBdSize), cli);
+
+    for (size_t i = 0; i < l->num; i++) {
+      valuetotal += l->rawvalues[i];
+      counttotal += l->rawcount[i];
+      fprintf(fp, "insert into rawvalues(id, time,globaltime,MiB,SumMiB,IOs,SumIOs) VALUES(last_insert_id(), %.6lf,%.6lf,%.2lf,%.2lf,%zd,%zd);\n", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], valuetotal, l->rawcount[i], counttotal);
+    }
+    fprintf(fp,"commit;\n");
+  } else if (format != JSON) {// if plain format
     for (size_t i = 0; i < l->num; i++) {
       valuetotal += l->rawvalues[i];
       counttotal += l->rawcount[i];
