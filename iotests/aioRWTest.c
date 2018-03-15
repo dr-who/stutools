@@ -549,6 +549,16 @@ int main(int argc, char *argv[]) {
   if (exitAfterSeconds < 0) {
     exitAfterSeconds = 99999999;
   }
+
+  char *cli = (char *)malloc(1);
+  cli[0] = 0;
+  
+  for(size_t i = 0; i < argc; i++) {
+    cli = (char *)realloc(cli, strlen(cli) + strlen(argv[i]) + 2); // space 0 
+    strcat(cli, argv[i]);
+    strcat(cli, " ");
+  }
+
   if (!table) { // if not table mode then install ^c handlers
     signal(SIGTERM, intHandler);
     signal(SIGINT, intHandler);
@@ -720,7 +730,7 @@ int main(int argc, char *argv[]) {
 	      efficiency = 100;
 	    }
 
-	    logSpeedDump(&l, filename, dataLogFormat, NULL, 0, 0, 0, 0, 0, 0,0 , NULL);
+	    logSpeedDump(&l, filename, dataLogFormat, description, bdSize, actualBlockDeviceSize, rrArray[rrindex], flushEvery, ssArray[ssindex], bsArray[bsindex], bsArray[bsindex], cli);
 	    logSpeedFree(&l);
 	    
 	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
@@ -774,23 +784,12 @@ int main(int argc, char *argv[]) {
 
     if (dataLog) {
       fprintf(stderr, "*info* writing per-block timing to '%s'\n", dataLog);
-      logSpeedDump(&l, dataLog, dataLogFormat, NULL, 0,0, 0, 0, 0,0,0, NULL);
+      logSpeedDump(&l, dataLog, dataLogFormat, description, bdSize, origBDSize, readRatio, flushEvery, seqFiles, LOWBLKSIZE, BLKSIZE, cli);
     }
 
     if (benchLog) {
       fprintf(stderr, "*info* writing per-second benchmark speeds to '%s'\n", benchLog);
-
-      char *cli = (char *)malloc(1);
-      cli[0] = 0;
-      
-      for(size_t i = 0; i < argc; i++) {
-        cli = (char *)realloc(cli, strlen(cli) + strlen(argv[i]) + 2); // space 0 
-        strcat(cli, argv[i]);
-        strcat(cli, " ");
-      }
       logSpeedDump(&benchl, benchLog, dataLogFormat, description, bdSize, origBDSize, readRatio, flushEvery, seqFiles, LOWBLKSIZE, BLKSIZE, cli);
-      free(cli);
-      
     }
 
     logSpeedFree(&l);
@@ -849,5 +848,7 @@ int main(int argc, char *argv[]) {
   if (logPositions) free(logPositions);
   if (cigarPattern) free(cigarPattern);
   if (description) free(description);
+  if (cli) free(cli);
+  
   return exitcode;
 }
