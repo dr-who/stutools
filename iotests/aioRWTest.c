@@ -720,7 +720,7 @@ int main(int argc, char *argv[]) {
 	      efficiency = 100;
 	    }
 
-	    logSpeedDump(&l, filename, dataLogFormat, NULL, 0, 0, NULL);
+	    logSpeedDump(&l, filename, dataLogFormat, NULL, 0, 0, 0, 0, 0, 0,0 , NULL);
 	    logSpeedFree(&l);
 	    
 	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
@@ -774,7 +774,7 @@ int main(int argc, char *argv[]) {
 
     if (dataLog) {
       fprintf(stderr, "*info* writing per-block timing to '%s'\n", dataLog);
-      logSpeedDump(&l, dataLog, dataLogFormat, NULL, 0,0, NULL);
+      logSpeedDump(&l, dataLog, dataLogFormat, NULL, 0,0, 0, 0, 0,0,0, NULL);
     }
 
     if (benchLog) {
@@ -788,7 +788,7 @@ int main(int argc, char *argv[]) {
         strcat(cli, argv[i]);
         strcat(cli, " ");
       }
-      logSpeedDump(&benchl, benchLog, dataLogFormat, description, bdSize, origBDSize, cli);
+      logSpeedDump(&benchl, benchLog, dataLogFormat, description, bdSize, origBDSize, readRatio, flushEvery, seqFiles, LOWBLKSIZE, BLKSIZE, cli);
       free(cli);
       
     }
@@ -818,7 +818,7 @@ int main(int argc, char *argv[]) {
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
     if (verifyWrites && readRatio < 1) {
       keepRunning = 1;
-      int numerrors = aioVerifyWrites(fdArray, fdLen, positions, 0, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
+      int numerrors = aioVerifyWrites(fdArray, fdLen, positions, 0, maxPositions, BLKSIZE, alignment, randomBuffer);
       if (numerrors) {
 	exitcode = MIN(numerrors, 254);
       }
