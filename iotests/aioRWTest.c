@@ -376,9 +376,15 @@ int similarNumbers(double a, double b) {
 
 
 int createFile(const char *filename, const double GiB) {
-  int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
-  //  FILE *fp = fopen(filename, "wb");
-  if (fd < 0) {perror(filename);return 1;}
+  int fd = 0;
+  fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
+  if (fd < 0) {
+    //    fprintf(stderr,"*info* creating the file with O_DIRECT didn't work...\n");
+    fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+      perror(filename);return 1;
+    }
+  }
 
   char *buf = aligned_alloc(65536, 1024*1024); if (!buf) {fprintf(stderr,"createFile OOM\n");exit(-1);}
   size_t towriteMiB = (size_t)(GiB * 1024) * 1024 * 1024;
