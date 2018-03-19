@@ -830,7 +830,7 @@ int main(int argc, char *argv[]) {
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
     if (verifyWrites && readRatio < 1) {
       keepRunning = 1;
-      int numerrors = aioVerifyWrites(fdArray, fdLen, positions, 0, maxPositions, BLKSIZE, alignment, randomBuffer);
+      int numerrors = aioVerifyWrites(fdArray, fdLen, positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
       if (numerrors) {
 	exitcode = MIN(numerrors, 254);
       }
