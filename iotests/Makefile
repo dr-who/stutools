@@ -85,8 +85,15 @@ cigarTest: cigarTest.o cigar.o
 
 ramSpeedTest: ramSpeedTest.c utils.o logSpeed.o
 
+TESTDB=/dev/loop0
+
 test: positionsTest
 	./positionsTest
+	sudo ./aioRWTest -w -f $(TESTDB) -t2 -v 
+	sudo ./aioRWTest -rw -f $(TESTDB) -t2 -v 
+	sudo ./aioRWTest -rw -s0 -f $(TESTDB) -t2 -v 
+	sudo ./aioRWTest -rw -s1 -f $(TESTDB) -t2 -v 
+	sudo ./aioRWTest -rw -s128 -f $(TESTDB) -t2 -v 
 
 vtest: positionsTest
 	valgrind --leak-check=full ./positionsTest

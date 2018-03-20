@@ -828,11 +828,15 @@ int main(int argc, char *argv[]) {
     diskStatSummary(&dst, &trb, &twb, &util, shouldReadBytes, shouldWriteBytes, 1, elapsed);
 
     // if we want to verify, we iterate through the successfully completed IO events, and verify the writes
-    if (verifyWrites && readRatio < 1) {
-      keepRunning = 1;
-      int numerrors = aioVerifyWrites(fdArray, fdLen, positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
-      if (numerrors) {
-	exitcode = MIN(numerrors, 254);
+    if (verifyWrites) {
+      exitcode = 0;
+      if (readRatio < 1) {
+	keepRunning = 1;
+	int numerrors = aioVerifyWrites(fdArray, fdLen, positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
+	if (numerrors) {
+	  exitcode = MIN(numerrors, 254);
+	  if (exitcode) {fprintf(stderr,"*warning* exit code %d\n", exitcode);}
+	}
       }
     } else {
       // not verify so set exit code. The result is 100 = 10 GB/s, 10 = 1 GB/s, 1 = 0.100 GB/s
