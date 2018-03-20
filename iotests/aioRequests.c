@@ -35,13 +35,16 @@ size_t aioMultiplePositions( positionType *positions,
 			     ) {
   int ret;
   io_context_t ctx;
-  struct iocb *cbs[1];
+  struct iocb **cbs;
   struct io_event *events;
 
   assert(QD);
 
   CALLOC(events, QD, sizeof(struct io_event));
-  CALLOC(cbs[0], 1, sizeof(struct iocb));
+  CALLOC(cbs, QD, sizeof(struct iocb*));
+  for (size_t i = 0; i < QD; i++) {
+    CALLOC(cbs[i], 1, sizeof(struct iocb));
+ }
   
   ctx = 0;
   // set the queue depth
@@ -50,13 +53,16 @@ size_t aioMultiplePositions( positionType *positions,
   if (ret != 0) {perror("io_setup");abort();}
 
   /* setup I/O control block, randomised just for this run. So we can check verification afterwards */
-  char **data = NULL;
+  char **data = NULL, **dataread = NULL;
   CALLOC(data, QD, sizeof(char*));
+  CALLOC(dataread, QD, sizeof(char*));
 
   // setup the buffers to be contiguous
   data[0] = aligned_alloc(alignment, randomBufferSize * QD); if (!data[0]) {perror("oom"); exit(-1);}
+  dataread[0] = aligned_alloc(alignment, randomBufferSize * QD); if (!dataread[0]) {perror("oom"); exit(-1);}
   for (size_t i = 0; i <QD; i++) {
     data[i] = data[0] + (randomBufferSize * i);
+    dataread[i] = dataread[0] + (randomBufferSize * i);
   }
 
   // copy the randomBuffer to each data[]
@@ -65,6 +71,7 @@ size_t aioMultiplePositions( positionType *positions,
       fprintf(stderr,"randomBuffer[%zd]: %p\n", i, (void*)data[i]);
     }
     strncpy(data[i], randomBuffer, randomBufferSize);
+    strncpy(dataread[i], randomBuffer, randomBufferSize);
   }
 
   size_t inFlight = 0;
@@ -92,6 +99,7 @@ size_t aioMultiplePositions( positionType *positions,
     if (inFlight < QD) {
       
       // submit requests, one at a time
+      //      fprintf(stderr,"max %zd\n", MAX(QD - inFlight, 1));
       for (size_t i = 0; i < MAX(QD - inFlight, 1); i++) {
 	if (sz && positions[pos].action != 'S') { // if we have some positions
 	  long long newpos = positions[pos].pos;
@@ -103,20 +111,24 @@ size_t aioMultiplePositions( positionType *positions,
 	  if (positions[pos].fd >= 0) {
 	    if (read) {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-	      io_prep_pread(cbs[0], positions[pos].fd, data[i%QD], len, newpos);
+	      io_prep_pread(cbs[submitted%QD], positions[pos].fd, dataread[submitted%QD], len, newpos);
 	      positions[pos].success = 1;
 	      totalReadBytes += len;
 	    } else {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
 	      //assert(randomBuffer[0] == 's'); // from stutools
-	      io_prep_pwrite(cbs[0], positions[pos].fd, randomBuffer, len, newpos);
+	      io_prep_pwrite(cbs[submitted%QD], positions[pos].fd, data[submitted%QD], len, newpos);
 	      positions[pos].success = 1;
 	      totalWriteBytes += len;
 	    }
-	    //    cbs[0]->u.c.offset = sz;
+	    //
+	    //cbs[submitted%QD]->u.c.offset = sz;
 	    //	fprintf(stderr,"submit...\n");
 	    
-	    ret = io_submit(ctx, 1, cbs);
+
+	    //	    size_t rpos = (char*)data[submitted%QD] - (char*)data[0];
+	    //fprintf(stderr,"*info*submit %zd\n", rpos / randomBufferSize);
+	    ret = io_submit(ctx, 1, &cbs[submitted%QD]);
 	    if (ret > 0) {
 	      inFlight++;
 	      submitted++;
@@ -197,6 +209,9 @@ size_t aioMultiplePositions( positionType *positions,
 	  fprintf(stderr,"failure: %ld bytes\n", events[j].res);
 	  goto endoffunction;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
+	} else {
+	  //	  struct iocb *my_iocb = events[j].obj;
+	  //fprintf(stderr,"returned %zd\n", (char*)my_iocb->u.c.buf - (char*)(data[0]));
 	}
       }
       inFlight -= ret;
@@ -213,8 +228,13 @@ size_t aioMultiplePositions( positionType *positions,
   
  endoffunction:
   free(events);
-  free(cbs[0]);
+  for (size_t i = 0; i < QD; i++) {
+    free(cbs[i]);
+  }
   free(data[0]);
+  free(data);
+  free(dataread[0]);
+  free(dataread);
   io_destroy(ctx);
 
   *ios = received;
