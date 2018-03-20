@@ -105,20 +105,38 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
     //    sprintf(filename, "/tmp/stutoosmysqlXXXXXX");
     //    int fd = mkstemp(filename);
     //    if (fd < 0) {perror(filename);exit(-1);}
-    fprintf(fp, "create table if not exists runs (id int auto_increment, primary key(id), time datetime, hostname text, domainname text, RAM int, threads int, bdSize float, origBdSize float, cli text, rw float, flush int, seqFiles int, lowbs int, highbs int, description text);\n"
+    fprintf(fp, "create table if not exists runs (id int auto_increment, primary key(id), time datetime, hostname text, domainname text, RAM int, threads int, bdSize float, origBdSize float,rw float, flush int, seqFiles int, lowbs int, highbs int, runtime float, mib float, iops int, description text, cli text);\n"
 		"create table if not exists rawvalues (id int, time double, globaltime double, MiB int, SumMiB int, IOs int, SumIOs int);\n");
+
+    fprintf(fp, "start transaction;\n");
+
+    
 
     char hostname[1000], domainname[1000];
     int w = gethostname(hostname, 1000); if (w != 0) {hostname[0] = 0;}
     w = getdomainname(domainname, 1000); if (w != 0) {domainname[0] = 0;}
-    fprintf(fp, "start transaction; insert into runs(description, time, hostname, domainname, RAM, threads, bdSize, origBdSize, rw, flush, seqFiles, lowbs, highbs, cli) values (\"%s\", NOW(), \"%s\", \"%s\", %zd, %zd, %.1lf, %.1lf, %.1lf, %zd, %zd, %zd, %zd, \"%s\");\n", (description==NULL)?"":description, hostname, domainname, (size_t)(TOGiB(totalRAM()) + 0.5), numThreads(), TOGiB(bdSize), TOGiB(origBdSize), rwratio, flushing, seqFiles, lowbs, highbs, cli);
+
+
+    float runtime = 0;
+    size_t mib = 0;
+    size_t iops = 0;
 
     for (size_t i = 0; i < l->num; i++) {
       valuetotal += l->rawvalues[i];
       counttotal += l->rawcount[i];
       fprintf(fp, "insert into rawvalues(id, time,globaltime,MiB,SumMiB,IOs,SumIOs) VALUES(last_insert_id(), %.6lf,%.6lf,%.2lf,%.2lf,%zd,%zd);\n", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], valuetotal, l->rawcount[i], counttotal);
+      runtime = l->rawtime[i] - l->starttime;
+      mib = valuetotal / runtime;
+      iops = counttotal / runtime;
+      
     }
+
+    
+    fprintf(fp, "insert into runs(description, time, hostname, domainname, RAM, threads, bdSize, origBdSize, rw, flush, seqFiles, lowbs, highbs, cli, runtime, mib, iops) values (\"%s\", NOW(), \"%s\", \"%s\", %zd, %zd, %.1lf, %.1lf, %.1lf, %zd, %zd, %zd, %zd, \"%s\", %.1lf, %zd, %zd);\n",
+	    (description==NULL)?"":description, hostname, domainname, (size_t)(TOGiB(totalRAM()) + 0.5), numThreads(), TOGiB(bdSize), TOGiB(origBdSize), rwratio, flushing, seqFiles, lowbs, highbs, cli, runtime, mib, iops);
     fprintf(fp,"commit;\n");
+
+  
   } else if (format != JSON) {// if plain format
     for (size_t i = 0; i < l->num; i++) {
       valuetotal += l->rawvalues[i];
@@ -135,9 +153,10 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
       fprintf(fp,"\n");
     }
     fprintf(fp,"]\n");
-  } else {
-    assert(0); // no idea
   }
+
+
+      
   fclose(fp);
 }
 
