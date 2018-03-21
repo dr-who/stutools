@@ -108,7 +108,7 @@ size_t aioMultiplePositions( positionType *positions,
 	}
       }
       for (size_t i = 0; i < submitCycles; i++) {
-	if (sz && positions[pos].action != 'S') { // if we have some positions
+	if (sz && positions[pos].action != 'S') { // if we have some positions, sz > 0
 	  long long newpos = positions[pos].pos;
 	  const size_t len = positions[pos].len;
 
@@ -133,7 +133,6 @@ size_t aioMultiplePositions( positionType *positions,
 	    //cbs[submitted%QD]->u.c.offset = sz;
 	    //	fprintf(stderr,"submit...\n");
 	    
-
 	    //	    size_t rpos = (char*)data[submitted%QD] - (char*)data[0];
 	    //fprintf(stderr,"*info*submit %zd\n", rpos / randomBufferSize);
 	    ret = io_submit(ctx, 1, &cbs[submitted%QD]);
@@ -180,6 +179,8 @@ size_t aioMultiplePositions( positionType *positions,
 	  //      fprintf(stderr,"red %d\n", ret);
 	  }*/
       } // for loop i
+
+      if (!sz) flushPos++; // if no positions, then increase flushPos anyway
       
       if (flushEvery) {
 	if (flushPos >= flushEvery) {

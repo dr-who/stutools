@@ -171,6 +171,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case '0':
       noops = 0;
+      maxPositions = 0;
       break;
     case 'r':
       readRatio += 0.5;
