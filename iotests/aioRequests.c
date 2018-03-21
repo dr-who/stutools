@@ -83,6 +83,7 @@ size_t aioMultiplePositions( positionType *positions,
   logSpeedReset(benchl);
   logSpeedReset(alll);
   size_t submitted = 0;
+  size_t flushPos = 0;
   size_t received = 0;
 
   size_t totalWriteBytes = 0; 
@@ -100,7 +101,13 @@ size_t aioMultiplePositions( positionType *positions,
       
       // submit requests, one at a time
       //      fprintf(stderr,"max %zd\n", MAX(QD - inFlight, 1));
-      for (size_t i = 0; i < MAX(QD - inFlight, 1); i++) {
+      int submitCycles = MAX(QD - inFlight, 1);
+      if (flushEvery) {
+	if (flushEvery < submitCycles) {
+	  submitCycles = flushEvery;
+	}
+      }
+      for (size_t i = 0; i < submitCycles; i++) {
 	if (sz && positions[pos].action != 'S') { // if we have some positions
 	  long long newpos = positions[pos].pos;
 	  const size_t len = positions[pos].len;
@@ -120,6 +127,7 @@ size_t aioMultiplePositions( positionType *positions,
 	      io_prep_pwrite(cbs[submitted%QD], positions[pos].fd, data[submitted%QD], len, newpos);
 	      positions[pos].success = 1;
 	      totalWriteBytes += len;
+	      flushPos++;
 	    }
 	    //
 	    //cbs[submitted%QD]->u.c.offset = sz;
@@ -174,8 +182,8 @@ size_t aioMultiplePositions( positionType *positions,
       } // for loop i
       
       if (flushEvery) {
-	if ((pos % flushEvery) == 0) {
-	  // sync whenever the queue is full
+	if (flushPos >= flushEvery) {
+	  flushPos = flushPos - flushEvery;
 	  if (verbose >= 2) {
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
