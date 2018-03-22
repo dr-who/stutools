@@ -95,6 +95,9 @@ size_t aioMultiplePositions( positionType *positions,
   timeout.tv_sec = 0;
   timeout.tv_nsec = 1*1000*1000; // 0.001 seconds
 
+  double flush_totaltime = 0, flush_mintime = 9e99, flush_maxtime = 0;
+  size_t flush_count = 0;
+
   
   while (keepRunning) {
     if (inFlight < QD) {
@@ -166,6 +169,9 @@ size_t aioMultiplePositions( positionType *positions,
 	  lastIOCount = received;
 	  if (!tableMode) {
 	    if (verbose != -1) fprintf(stderr,"[%.1lf] submitted %.1lf GiB, in flight/queue: %zd, received=%zd, index=%zd, %.0lf IO/sec, %.1lf MiB/sec\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
+	    if (verbose) {
+	      if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
+	    }
 	  }
 	  last = gt;
 	  if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
@@ -188,10 +194,17 @@ size_t aioMultiplePositions( positionType *positions,
 	  if (verbose >= 2) {
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
+	  double start_f = timedouble(); // time and store
 	  fsync(positions[pos].fd);
+	  double elapsed_f = timedouble() - start_f;
+
+	  flush_totaltime += (elapsed_f);
+	  flush_count++;
+	  if (elapsed_f < flush_mintime) flush_mintime = elapsed_f;
+	  if (elapsed_f > flush_maxtime) flush_maxtime = elapsed_f;
 	}
       }
-    }
+  }
 
     if (QD < 5) { // then poll
       ret = io_getevents(ctx, 1, QD, events, NULL);
