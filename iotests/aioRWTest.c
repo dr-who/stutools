@@ -406,7 +406,7 @@ int createFile(const char *filename, const double GiB) {
 }
 
 
-size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim, const double maxSizeGB) {
+size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim, double maxSizeGB) {
   size_t retBD = 0;
   size_t actualBlockDeviceSize = 0 ;
   
@@ -422,6 +422,9 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
     char * ret = realpath(p[i], newpath);
     if (!ret) {
       if (errno == ENOENT) {
+	if (maxSizeGB == 0) {
+	  fprintf(stderr,"*info* defaulting to 1 GiB size\n"); maxSizeGB = 1;
+	}
 	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.2lf GiB...", p[i], maxSizeGB*1.0);
 	fflush(stderr);
 	int rv = createFile(p[i], maxSizeGB);
@@ -765,7 +768,7 @@ int main(int argc, char *argv[]) {
   } else {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
-    fprintf(stderr,"*info* readWriteRatio: %.2lf, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n", readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
+    fprintf(stderr,"*info* sequential %d, readWriteRatio: %.1g, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n", seqFiles, readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
     fprintf(stderr,"*info* flushEvery %d, max bdSize %.2lf GiB, blockoffset %d\n", flushEvery, TOGiB(bdSize), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(origBDSize), TOGiB(totl), 100.0*totl/origBDSize - 100);
