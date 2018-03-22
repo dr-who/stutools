@@ -30,7 +30,7 @@ typedef struct {
   char  *block;
 } threadInfoType;
 
-volatile int ready = 0;
+volatile size_t ready = 0;
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
@@ -41,15 +41,23 @@ void intHandler(int d) {
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
   
+  ready++;
+
   if (threadContext->fd) {
     int w = write(threadContext->fd, threadContext->block, threadContext->size);
     if (w != threadContext->size) {perror("write");}
   }
   
-  ready++;
-  while (ready != threadContext->max && keepRunning) {
-    usleep(1);
-  }
+  //while (ready != threadContext->max && keepRunning) {
+    //    if (threadContext->id == 0) {
+    //      fprintf(stderr,"%zd ", ready);fflush(stderr);
+    //    }
+  //    usleep(10000);
+  //  }
+  //  if (threadContext->id == 0) {
+  //    fprintf(stderr,"\n");
+  //  }
+  
   if (threadContext->fd) {
     if (threadContext->id == 0) {
       fprintf(stderr,"fsync()... sent from %zd threads...", threadContext->max);
