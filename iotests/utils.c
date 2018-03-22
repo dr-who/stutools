@@ -71,6 +71,35 @@ size_t blockDeviceSize(const char *path) {
 }
 
 
+size_t totalSwap() {
+
+  FILE *fp = fopen("/proc/swaps", "rt");
+  if (fp == NULL) {perror("/proc/swaps");return 0;}
+  
+  size_t ts= 0;
+
+  char *line = NULL;
+  size_t len = 0;
+  ssize_t read = 0;
+  
+  while ((read = getline(&line, &len, fp)) != -1) {
+    if (line[0] == '/') {
+      // a /dev line
+      size_t size;
+      char name[1000], part[1000];
+      int s = sscanf(line, "%s %s %zd", name, part, &size);
+      if (s == 3) {
+	// in /proc the size is in KiB
+	ts += (size << 10);
+      }
+    }
+  }
+  
+  free(line);
+
+  return ts;
+}
+
 
 double loadAverage() {
   FILE *fp = fopen("/proc/loadavg", "rt");
