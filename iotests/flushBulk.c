@@ -18,8 +18,9 @@
 
 int keepRunning = 1;
 int verbose = 0;
-size_t maxThreads = 1000;
+size_t maxThreads = 100;
 size_t blockSize = 0;
+size_t exitOnReady = 0;
 
 typedef struct {
   size_t fd;
@@ -39,24 +40,24 @@ void intHandler(int d) {
 }
 
 static void *runThread(void *arg) {
-  threadInfoType *threadContext = (threadInfoType*)arg;
+  volatile threadInfoType *threadContext = (threadInfoType*)arg;
   
-  ready++;
 
   if (threadContext->fd) {
     int w = write(threadContext->fd, threadContext->block, threadContext->size);
     if (w != threadContext->size) {perror("write");}
   }
-  
-  //while (ready != threadContext->max && keepRunning) {
-    //    if (threadContext->id == 0) {
-    //      fprintf(stderr,"%zd ", ready);fflush(stderr);
-    //    }
-  //    usleep(10000);
-  //  }
-  //  if (threadContext->id == 0) {
-  //    fprintf(stderr,"\n");
-  //  }
+  ready++;
+
+  size_t count = 0;
+  while (ready != threadContext->max && keepRunning && count < 10000) {
+    count++;
+    usleep(100);
+  }
+  if (exitOnReady && threadContext->id==0) {
+    fprintf(stderr,"*exiting on ready*\n");
+    exit(0);
+  }
   
   if (threadContext->fd) {
     if (threadContext->id == 0) {
@@ -111,12 +112,18 @@ void startThreads(size_t *fdArray, size_t num, size_t numThreads, size_t blocksi
 int handle_args(int argc, char *argv[]) {
 
   if (argc <= 1) {
-    fprintf(stderr,"./flushBulk [-b byteBlockSize -T threads] ... devices\n");
+    fprintf(stderr,"./flushBulk [-b byteBlockSize -T threads -V -E] ... devices\n");
     exit(-1);
   } else {
     int opt;
-    while ((opt = getopt(argc, argv, "T:b:")) != -1) {
+    while ((opt = getopt(argc, argv, "T:b:VE")) != -1) {
       switch (opt) {
+      case 'V':
+	verbose++;
+	break;
+      case 'E':
+	exitOnReady = 1;
+	break;
       case 'T':
 	maxThreads = atoi(optarg);
 	break;
@@ -142,28 +149,35 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  fprintf(stderr,"*info* flushBulk: %d devices, blockSize %zd, maxThreads %zd\n", argc-opt, blockSize, maxThreads);
 
   size_t *fdArray;
   CALLOC(fdArray, maxThreads, sizeof(size_t));
   //  [opt, argc)
-  int fdCount = 0;
-  for (size_t i = 0; i < maxThreads; i++) {
+  size_t fdCount = 0, count = 0;
+  while (fdCount < maxThreads && count < 10000) {
     int fd = 0;
-    int index = opt + (i%(argc-opt));
-    //    fprintf(stderr,"Index %zd is %d\n", i, index);
+    int index = opt + (count%(argc-opt));
+    //        fprintf(stderr,"Index %zd is %d %s\n", fdCount, index, argv[index]);
     fd = open(argv[index], O_RDWR | O_DIRECT | O_TRUNC);
     if (fd <= 0) {
-      perror(argv[index]); // keep going
-      fdArray[fdCount] = 0;
+      if (verbose) {
+	perror(argv[index]); // keep going
+      }
+      //      fdArray[fdCount] = 0;
     } else {
-      //      fprintf(stderr,"opened %s ok\n", argv[index]);
-      fdArray[fdCount] = fd;
+      if (verbose) {
+	fprintf(stderr,"[drive %zd] opened %s ok\n", fdCount+1, argv[index]);
+      }
+      fdArray[fdCount++] = fd;
     }
-    fdCount++;
+    count++;
   }
-
-  startThreads(fdArray, fdCount, maxThreads, blockSize);
+  if (fdCount != maxThreads) {
+    fprintf(stderr,"*error* can't open enough files. %zd %zd\n", fdCount, maxThreads);
+  } else {
+    fprintf(stderr,"*info* flushBulk: %zd devices, blockSize %zd, maxThreads %zd, exitOnReady %zd\n", fdCount, blockSize, maxThreads, exitOnReady);
+    startThreads(fdArray, fdCount, maxThreads, blockSize);
+  }
 
   free(fdArray);
 
