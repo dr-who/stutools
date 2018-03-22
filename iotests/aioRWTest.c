@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <getopt.h>
 #include <sys/types.h>
 #include <syslog.h>
@@ -559,10 +558,14 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
 int main(int argc, char *argv[]) {
 
   fprintf(stderr,"*info* stutools %s %s\n", argv[0], VERSION);
+    
   handle_args(argc, argv);
   if (exitAfterSeconds < 0) {
     exitAfterSeconds = 99999999;
   }
+
+  size_t swap = totalSwap();
+  if (swap) {fprintf(stderr,"*warning* swap is enabled (%.1lf GiB). This isn't ideal for benchmarking.\n", TOGiB(swap));}
 
   char *cli = (char *)malloc(1);
   cli[0] = 0;
