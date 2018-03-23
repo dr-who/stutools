@@ -24,10 +24,10 @@ int main(int argc, char *argv[]) {
   //  signal(SIGINT, intHandler);
 
   for (size_t i = index; i < argc; i++) {
-    int fd = open(argv[i], O_WRONLY | O_EXCL | O_DIRECT);
+    int fd = open(argv[i], O_RDWR | O_EXCL | O_DIRECT );
     if (fd >= 0) {
       size_t bdsize = blockDeviceSizeFromFD(fd);
-      trimDevice(fd, argv[i], 0, bdsize); // only sending 1GiB for now
+      trimDevice(fd, argv[i], 0, bdsize - 512); 
       close(fd);
     } else {
       perror("open");
