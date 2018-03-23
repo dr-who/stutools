@@ -24,6 +24,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* overcommit_memory is %zd\n", value);
   }
   fclose(fp);
+  if (value != 2) {fprintf(stderr,"*error* the value needs to be 2. \n  echo 2 > /proc/sys/vm/overcommit_memory\n");exit(-1);}
   
   fp = fopen("/proc/sys/vm/overcommit_ratio", "rt");
   if (!fp) {perror("overcommit_ratio");exit(-1);}
@@ -33,6 +34,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* overcommit_ratio is %zd\n", value);
   }
   fclose(fp);
+  if (value != 100) {fprintf(stderr,"*error* the value needs to be 100\n  echo 100 > /proc/sys/vm/overcommit_ratio\n");exit(-1);}
 
   size_t maxArrays = 1024*1024;
   void **p;
@@ -46,22 +48,25 @@ int main(int argc, char *argv[]) {
   size_t index = 0;
   while (1) {
     
-    size_t size = 128*1024;
+    size_t size = 1024, oldsize = size;
     while (1) {
+      fprintf(stderr,"[Index %zd]: virtual allocation with size %zd, total %0.lf GiB\n", index, size, TOGiB(globalTotal));
+      
       p[index] = realloc(p[index], size);
-      memset(p[index], 'x', size);
       if (p[index]) {
-	globalTotal += size;
-	fprintf(stderr,"[Index %zd]: virtual allocation %.0lf GiB, total %0.lf GiB\n", index, TOGiB(size), TOGiB(globalTotal));
+	memset(p[index] + oldsize, 'x', size-oldsize);
+	globalTotal += (size - oldsize);
       } else {
 	break;
       }
-      
-      size = size * 2;
+
+      oldsize = size;
+      size = size * 5/4;
+      //      if (size > 1024*1024*1024) break;
     }
     index++;
     if (index >= maxArrays) {
-      usleep(10);
+      //      usleep(10);
       index--;
     }
   }

@@ -35,7 +35,7 @@ double loadAverage();
 size_t numThreads();
 size_t totalRAM();
 char *OSRelease();
-size_t totalSwap();
+size_t swapTotal();
 
 size_t fileSize(int fd);
 

@@ -567,7 +567,7 @@ int main(int argc, char *argv[]) {
     exitAfterSeconds = 99999999;
   }
 
-  size_t swap = totalSwap();
+  size_t swap = swapTotal();
   if (swap) {fprintf(stderr,"*warning* swap is enabled (%.1lf GiB). This isn't ideal for benchmarking.\n", TOGiB(swap));}
 
   char *cli = (char *)malloc(1);

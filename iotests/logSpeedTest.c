@@ -2,24 +2,20 @@
 
 #include "logSpeed.h"
 
+int keepRunning = 1;
 
 int main() {
   logSpeedType l;
 
   logSpeedInit(&l);
 
-  sleep(1);
-  logSpeedAdd(&l, 1000);
-  sleep(1);
-  logSpeedAdd(&l, 500);
-  sleep(1);
-  logSpeedAdd(&l, 10000);
-  sleep(1);
-  logSpeedAdd(&l, 95000);
-  sleep(1);
-  logSpeedAdd(&l, 20000);
+  logSpeedAdd(&l, 0.2);
+  logSpeedAdd(&l, 0.3);
+  logSpeedAdd(&l, 0.2);
+  logSpeedAdd(&l, 0.4);
+  logSpeedAdd(&l, 10);
 
-  fprintf(stderr,"%f\n", logSpeedMedian(&l));
+  fprintf(stderr,"%f\n", logSpeedMean(&l));
 
   logSpeedFree(&l);
 
