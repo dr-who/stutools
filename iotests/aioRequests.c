@@ -376,5 +376,5 @@ int aioVerifyWrites(int *fdArray,
   
   free(buffer);
 
-  return errors;
+  return ioerrors + errors;
 }
