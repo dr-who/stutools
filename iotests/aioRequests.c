@@ -371,7 +371,7 @@ int aioVerifyWrites(int *fdArray,
     }
   }
   double elapsed = timedouble() - start;
-  fprintf(stderr,"verified %zd/%zd blocks, io errors %zd, differences %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, posTOV, ioerrors, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
+  fprintf(stderr,"checked %zd/%zd blocks, I/O errors %zd, errors/incorrect %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, posTOV, ioerrors, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
 
   
   free(buffer);
