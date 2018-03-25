@@ -79,7 +79,7 @@ size_t aioMultiplePositions( positionType *positions,
   size_t pos = 0;
 
   double start = timedouble();
-  double last = start, gt = start;
+  double last = start, gt = start, lastsubmit =start, lastreceive = start;
   logSpeedReset(benchl);
   logSpeedReset(alll);
   size_t submitted = 0;
@@ -140,6 +140,7 @@ size_t aioMultiplePositions( positionType *positions,
 	    //fprintf(stderr,"*info*submit %zd\n", rpos / randomBufferSize);
 	    ret = io_submit(ctx, 1, &cbs[submitted%QD]);
 	    if (ret > 0) {
+	      lastsubmit = timedouble(); // last good submit
 	      inFlight++;
 	      submitted++;
 	      if (verbose >= 2 || (newpos % alignment != 0)) {
@@ -231,10 +232,14 @@ size_t aioMultiplePositions( positionType *positions,
 	int rescode2 = events[j].res2;
 
 	if ((rescode <= 0) || (rescode2 != 0)) { // if return of bytes written or read
-	  fprintf(stderr,"*error* AIO failure codes: res=%d and res2=%d\n", rescode, rescode2);
+	  fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s)\n", rescode, strerror(rescode), rescode2, strerror(rescode2));
+	  fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
+	  fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
 	  goto endoffunction;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	} else {
+	  lastreceive = timedouble(); // last good receive
+
 	  // all ok
 	  //	  struct iocb *my_iocb = events[j].obj;
 	  //fprintf(stderr,"returned %zd\n", (char*)my_iocb->u.c.buf - (char*)(data[0]));
@@ -331,7 +336,10 @@ int aioVerifyWrites(int *fdArray,
 	assert((pos % alignment) == 0);
 	
 	if (lseek(positions[i].fd, pos, SEEK_SET) == -1) {
-	  perror("cannot seek");
+	  if (ioerrors < 10) {
+	    fprintf(stderr,"*error* seeking to pos %zd: ", pos);
+	    perror("cannot seek");
+	  }
 	}
 	//	buffer[0] = 256 - randomBuffer[0] ^ 0xff; // make sure the first char is different
 	const int bytesRead = read(positions[i].fd, buffer, len);
