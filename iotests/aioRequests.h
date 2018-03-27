@@ -1,6 +1,8 @@
 #ifndef _AIOREADS_H
 #define _AIOREADS_H
 
+#include <libaio.h>
+
 #include "logSpeed.h"
 #include "positions.h"
 
@@ -28,5 +30,13 @@ int aioVerifyWrites(int *fdArray,
 		    const size_t alignment,
 		    const int verbose,
 		    const char *randomBuffer);
+
+void aioSetup(io_context_t *ctx, size_t QD);
+struct iocb * aioGetContext();
+int aioRead(io_context_t *ctx, struct iocb *cbs, int fd, void* data, size_t len, size_t pos);
+
+
+int aioGet(io_context_t *ctx);
+
 
 #endif

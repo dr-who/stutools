@@ -8,7 +8,7 @@ DRIVE=/dev/loop3
 
 all: writePairTest checkDisks flushTestWriter flushTestReader \
 	aioRWTest watchDisks flipBits indiDisks trim cigarTest ramSpeedTest aioMulti \
-	flushTester offTheEnds deviceTimeout flushBulk ramEater
+	flushTester offTheEnds deviceTimeout flushBulk ramEater aioExample
 
 readSpeedTest:
 	@echo use aioRWTest -r
@@ -71,6 +71,9 @@ flushTestReader: flushTestReader.o utils.o logSpeed.o
 	gcc $^ -o $@ -lpthread -lm
 
 aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o
+	gcc $^ -o $@ -lm -laio -lpthread
+
+aioExample: aioExample.o aioRequests.o logSpeed.o utils.o 
 	gcc $^ -o $@ -lm -laio -lpthread
 
 aioMulti: aioMulti.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o

@@ -104,7 +104,7 @@ size_t aioMultiplePositions( positionType *positions,
       
       // submit requests, one at a time
       //      fprintf(stderr,"max %zd\n", MAX(QD - inFlight, 1));
-      int submitCycles = MAX(QD - inFlight, 1);
+      int submitCycles = MIN(QD - inFlight, 1);
       if (flushEvery) {
 	if (flushEvery < submitCycles) {
 	  submitCycles = flushEvery;
@@ -386,3 +386,38 @@ int aioVerifyWrites(int *fdArray,
 
   return ioerrors + errors;
 }
+
+
+
+void aioSetup(io_context_t *ctx, size_t QD) {
+  assert(QD);
+
+  *ctx = 0;
+  int ret = io_setup(QD, ctx);
+  if (ret != 0) {perror("io_setup");abort();}
+}
+
+struct iocb * aioGetContext() {
+  struct iocb *cbs = calloc(1, sizeof(struct iocb));
+  return cbs;
+}
+
+int aioRead(io_context_t *ctx, struct iocb *cbs, int fd, void* data, size_t len, size_t pos) {
+  io_prep_pread(cbs, fd, data, len, pos);
+  int ret = io_submit(*ctx, 1, &cbs);
+  if (ret <= 0) {
+    //    fprintf(stderr,"problem\n"); // queue full
+    return 0;
+  }
+  return ret;
+}
+
+
+int aioGet(io_context_t *ctx) {
+  struct io_event event[1];
+  int ret = io_getevents(*ctx, 0, 1, &event[0], NULL);
+  return ret;
+}
+
+
+  
