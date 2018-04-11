@@ -121,19 +121,28 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
     size_t mib = 0;
     size_t iops = 0;
 
+
+    // calc the 
+    for (size_t i = 0; i < l->num; i++) {
+      valuetotal += l->rawvalues[i];
+      counttotal += l->rawcount[i];
+      runtime = l->rawtime[i] - l->starttime;
+      mib = valuetotal / runtime;
+      iops = counttotal / runtime;
+    }
+	
+    fprintf(fp, "insert into runs(description, time, hostname, domainname, RAM, threads, bdSize, origBdSize, rw, flush, seqFiles, lowbs, highbs, cli, runtime, mib, iops) values (\"%s\", NOW(), \"%s\", \"%s\", %zd, %zd, %.1lf, %.1lf, %.1lf, %zd, %zd, %zd, %zd, \"%s\", %.1lf, %zd, %zd);\n",
+	    (description==NULL)?"":description, hostname, domainname, (size_t)(TOGiB(totalRAM()) + 0.5), numThreads(), TOGiB(bdSize), TOGiB(origBdSize), rwratio, flushing, seqFiles, lowbs, highbs, cli, runtime, mib, iops);
+
+    valuetotal = 0;
+    counttotal = 0;
     for (size_t i = 0; i < l->num; i++) {
       valuetotal += l->rawvalues[i];
       counttotal += l->rawcount[i];
       fprintf(fp, "insert into rawvalues(id, time,globaltime,MiB,SumMiB,IOs,SumIOs) VALUES(last_insert_id(), %.6lf,%.6lf,%.2lf,%.2lf,%zd,%zd);\n", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], valuetotal, l->rawcount[i], counttotal);
-      runtime = l->rawtime[i] - l->starttime;
-      mib = valuetotal / runtime;
-      iops = counttotal / runtime;
-      
     }
 
     
-    fprintf(fp, "insert into runs(description, time, hostname, domainname, RAM, threads, bdSize, origBdSize, rw, flush, seqFiles, lowbs, highbs, cli, runtime, mib, iops) values (\"%s\", NOW(), \"%s\", \"%s\", %zd, %zd, %.1lf, %.1lf, %.1lf, %zd, %zd, %zd, %zd, \"%s\", %.1lf, %zd, %zd);\n",
-	    (description==NULL)?"":description, hostname, domainname, (size_t)(TOGiB(totalRAM()) + 0.5), numThreads(), TOGiB(bdSize), TOGiB(origBdSize), rwratio, flushing, seqFiles, lowbs, highbs, cli, runtime, mib, iops);
     fprintf(fp,"commit;\n");
 
   
