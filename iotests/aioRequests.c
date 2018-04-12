@@ -336,7 +336,7 @@ int aioVerifyWrites(int *fdArray,
 	assert((pos % alignment) == 0);
 	
 	if (lseek(positions[i].fd, pos, SEEK_SET) == -1) {
-	  if (ioerrors < 10) {
+	  if (errors + ioerrors < 10) {
 	    fprintf(stderr,"*error* seeking to pos %zd: ", pos);
 	    perror("cannot seek");
 	  }
