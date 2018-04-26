@@ -522,8 +522,9 @@ size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, c
       }
 
     } else {
-      fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL); // if a file
+      fdArray[i] = open(newpath, O_RDWR | O_EXCL); // if a file
       if (fdArray[i] < 0) {
+	fprintf(stderr,"*info* opened file\n");
 	fdArray[i] = open(newpath, O_RDWR | O_EXCL); // if a file
 	if (fdArray[i] < 0) {
 	  //	  fprintf(stderr,"maybe a file to create?\n");
