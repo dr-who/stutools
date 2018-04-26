@@ -104,7 +104,7 @@ size_t aioMultiplePositions( positionType *positions,
       
       // submit requests, one at a time
       //      fprintf(stderr,"max %zd\n", MAX(QD - inFlight, 1));
-      int submitCycles = MIN(QD - inFlight, 1);
+      int submitCycles = MAX(QD - inFlight, 1);
       if (flushEvery) {
 	if (flushEvery < submitCycles) {
 	  submitCycles = flushEvery;
