@@ -74,7 +74,7 @@ static void *readThread(void *arg) {
   size_t num = 100000;
   
   positionType *posWrite = createPositions(num);
-  setupPositions(posWrite, &num, &fd, 1, sz, 1, 0, BLKSIZE, BLKSIZE, 4096, 0, 0, 1, sz, 0, NULL);
+  setupPositions(posWrite, &num, &fd, 1, sz, 1, 0, BLKSIZE, BLKSIZE, 4096, 0, 0, 0, sz, 0, NULL);
   
   size_t ios = 0, trb = 0, twb = 0;
   
