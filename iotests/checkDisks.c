@@ -20,7 +20,7 @@
 
 int    keepRunning = 1;       // have we been interrupted
 int    readySetGo = 0;
-#define BLKSIZE 1024*1024
+#define BLKSIZE 64*1024
 size_t blockSize = BLKSIZE; // default to 1MiB
 int    exitAfterSeconds = 10; // default timeout
 size_t minMBPerSec = 10;
@@ -71,7 +71,7 @@ static void *readThread(void *arg) {
   
   generateRandomBuffer(randomBuffer, BLKSIZE);
 
-  size_t num = 1000000;
+  size_t num = 100000;
   
   positionType *posWrite = createPositions(num);
   setupPositions(posWrite, &num, &fd, 1, sz, 1, 0, BLKSIZE, BLKSIZE, 4096, 0, 0, 1, sz, 0, NULL);
