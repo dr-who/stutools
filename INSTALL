@@ -1,0 +1,8 @@
+You need to install the development libraries for aio
+
+# apt install libaio-dev
+
+Then simply build
+
+# cd iotests
+# make
