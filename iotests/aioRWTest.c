@@ -371,7 +371,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"\n");
 
   char *randomBuffer;
-  posix_memalign((void**)&randomBuffer, alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+  int pm = posix_memalign((void**)&randomBuffer, alignment, BLKSIZE); if (pm) {fprintf(stderr,"oom!\n");exit(-1);}
   // = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
   memset(randomBuffer, 0, BLKSIZE);
   

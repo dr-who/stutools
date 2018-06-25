@@ -72,7 +72,7 @@ static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
 
   char *buf = NULL;
-  posix_memalign((void**)&buf, threadContext->blocksize, threadContext->blocksize); if (!buf) {fprintf(stderr,"oom!\n");exit(-1);}
+  int pm = posix_memalign((void**)&buf, threadContext->blocksize, threadContext->blocksize); if (pm) {fprintf(stderr,"oom!\n");exit(-1);}
 
   //    fprintf(stderr,"*info* id %d, [%ld, %ld),.... \n", threadContext->id, threadContext->startInc, threadContext->endExc);
   positionType *positions = threadContext->positions;
