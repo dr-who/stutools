@@ -1,18 +1,12 @@
+#define _POSIX_C_SOURCE 200809L
 #define _DEFAULT_SOURCE
-#define _GNU_SOURCE
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 #include <getopt.h>
-#include <sys/types.h>
 #include <syslog.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <limits.h>
-#include <errno.h>
 #include <assert.h>
 
 #include "aioRequests.h"
@@ -21,16 +15,16 @@
 #include "diskStats.h"
 #include "positions.h"
 #include "cigar.h"
+#include "devices.h"
+#include "blockVerify.h"
 
 int    keepRunning = 1;       // have we been interrupted
 double exitAfterSeconds = 60;
 int    qd = 256;
 int    qdSpecified = 0;
-char   **pathArray = NULL;
 char   *dataLog = NULL;
 char   *benchLog = NULL;
 int    dataLogFormat = 0;
-size_t pathLen = 0;
 int    seqFiles = 1;
 int    seqFilesSpecified = 0;
 double maxSizeGB = 0;
@@ -45,7 +39,6 @@ char   *logFNPrefix = NULL;
 int    verbose = 0;
 int    singlePosition = 0;
 int    flushEvery = 0;
-size_t noops = 1;
 int    verifyWrites = 0;
 char*  specifiedDevices = NULL;
 int    sendTrim = 0;
@@ -62,46 +55,14 @@ char   *randomBufferFile = NULL;
 int    fsyncAfterWriting = 0;
 char   *description = NULL;
 
+deviceDetails *deviceList = NULL;
+size_t deviceCount = 0;
+
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
   keepRunning = 0;
 }
 
-
-void addDeviceToAnalyse(const char *fn) {
-  pathArray = (char**)realloc(pathArray, (pathLen + 1) * sizeof(char *));
-  pathArray[pathLen] = strdup(fn);
-  if (verbose >= 2) {
-    fprintf(stderr,"*info* adding -f '%s'\n", pathArray[pathLen]);
-  }
-  pathLen++;
-}
-
-size_t loadSpecifiedFiles(const char *fn) {
-  size_t add = 0;
-  FILE *fp = fopen(fn, "rt");
-  if (!fp) {
-    perror(fn);
-    return add;
-  }
-
-  char *line = NULL;
-  size_t len = 0;
-  ssize_t read;
-  
-  while ((read = getline(&line, &len, fp)) != -1) {
-    //    printf("Retrieved line of length %zu :\n", read);
-    line[strlen(line)-1] = 0; // erase the \n
-    addDeviceToAnalyse(line);
-    add++;
-    //    printf("%s", line);
-  }
-  
-  free(line);
-
-  fclose(fp);
-  return add;
-}
 
 
 void handle_args(int argc, char *argv[]) {
@@ -115,7 +76,7 @@ void handle_args(int argc, char *argv[]) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
-      if (alignment < 1024) alignment = 1024;
+      if (alignment >0 && alignment < 1024) alignment = 1024;
       break;
     case 'd':
       description = strdup(optarg);
@@ -138,7 +99,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'I':
       {}
-      size_t added = loadSpecifiedFiles(optarg);
+      size_t added = loadDeviceDetails(optarg, &deviceList, &deviceCount);
       fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
       //      inputFilenames = strdup(optarg);
       break;
@@ -169,7 +130,6 @@ void handle_args(int argc, char *argv[]) {
       }
       break;
     case '0':
-      noops = 0;
       maxPositions = 0;
       break;
     case 'r':
@@ -256,14 +216,7 @@ void handle_args(int argc, char *argv[]) {
       rrSpecified = 1;
       break;
     case 'f':
-      addDeviceToAnalyse(optarg);
-      /*      pathArray = (char**)realloc(pathArray, (pathLen + 1) * sizeof(char *));
-      pathArray[pathLen] = strdup(optarg);
-      if (verbose >= 2) {
-	fprintf(stderr,"*info* adding -f '%s'\n", pathArray[pathLen]);
-      }
-      pathLen++;*/
-      //      path = optarg;
+      addDeviceDetails(optarg,  &deviceList, &deviceCount);
       break;
     case 'C':
       cigarPattern = strdup(optarg);
@@ -286,7 +239,7 @@ void handle_args(int argc, char *argv[]) {
       exit(-1);
     }
   }
-  if (pathLen < 1) {
+  if (deviceCount < 1) {
     fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0            # 50/50 read/write test, seq r/w\n");
@@ -320,7 +273,8 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z        # Start the first position at position zero instead of random (-Z 0).\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB instead of the default 4KiB\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -Z 100         # start at block 100\n");
-    fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump planned locations and operations to 'locations'\n");
+    fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump locations and operations to 'locations'\n");
+    fprintf(stderr,"  ./verify < locations                           # read every write operation and verify\n");
     fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0    # log *block* timing and total data to 'timedata' (TSV format)\n");
     fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to 'timedata' (JSON)\n");
     fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0   # log *per second* benching timing (add -J for JSON, -M for MySQL)\n");
@@ -339,226 +293,6 @@ void handle_args(int argc, char *argv[]) {
 }
 
 
-size_t testReadLocation(int fd, size_t b, size_t blksize, positionType *positions, size_t num, char *randomBuffer, const size_t randomBufferSize) {
-  size_t pospos = ((size_t) b / blksize) * blksize;
-  fprintf(stderr,"position %6.2lf GiB: ", TOGiB(pospos));
-  positionType *pos = positions;
-  size_t posondisk = pospos;
-  for (size_t i = 0; i < num; i++) {
-    pos->pos = posondisk;  pos->action = 'R'; pos->success = 0; pos->len = BLKSIZE;
-    posondisk += (BLKSIZE);
-    if (posondisk > b + 512*1024*1024L) {
-      posondisk = b;
-    }
-    pos++;
-  }
-      
-  double start = timedouble();
-  size_t ios = 0, totalRB = 0, totalWB = 0;
-  size_t br = aioMultiplePositions(positions, num, exitAfterSeconds, qd, verbose, 1, NULL, NULL, randomBuffer, randomBufferSize, alignment, &ios, &totalRB, &totalWB, oneShot);
-  double elapsed = timedouble() - start;
-  //ios = ios / elapsed;
-  fprintf(stderr,"ios %.1lf %.1lf MiB/s\n", ios/elapsed, TOMiB(br/elapsed));
-
-  return br;
-}
-
-
-int similarNumbers(double a, double b) {
-  double f = MIN(a, b) * 1.0 / MAX(a, b);
-  //  fprintf(stderr,"similar %lf %lf,  f %lf\n", a, b, f);
-  if ((f > 0.8) && (f < 1.2)) {
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
-
-int createFile(const char *filename, const double GiB) {
-  int fd = 0;
-  fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
-  if (fd < 0) {
-    //    fprintf(stderr,"*info* creating the file with O_DIRECT didn't work...\n");
-    fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (fd < 0) {
-      perror(filename);return 1;
-    }
-  }
-
-  char *buf = aligned_alloc(65536, 1024*1024); if (!buf) {fprintf(stderr,"createFile OOM\n");exit(-1);}
-  size_t towriteMiB = (size_t)(GiB * 1024) * 1024 * 1024;
-  while (keepRunning && towriteMiB > 0) {
-    int towrite = MIN(towriteMiB, 1024*1024);
-    if (write(fd, buf, towrite) != towrite) {
-      perror("createFile");free(buf);return 1;
-    }
-    towriteMiB -= towrite;
-  }
-  fsync(fd);
-  close(fd);
-  free(buf);
-  if (!keepRunning) {
-    fprintf(stderr,"*warning* file creation interrupted. Continuing...\n");
-    keepRunning = 1;
-  }
-  return 0;
-}
-
-
-size_t openArrayPaths(char **p, size_t const len, int *fdArray, size_t *fdLen, const size_t sendTrim, double maxSizeGB) {
-  size_t retBD = 0;
-  size_t actualBlockDeviceSize = 0 ;
-  
-  //  int error = 0;
-  
-  char newpath[4096];
-  //  CALLOC(newpath, 4096, sizeof(char));
-    
-  for (size_t i = 0; i < len; i++) {
-    memset(newpath, 0, 4096);
-    // follow a symlink
-    fdArray[i] = -1;
-    char * ret = realpath(p[i], newpath);
-    if (!ret) {
-      if (errno == ENOENT) {
-	if (maxSizeGB == 0) {
-	  fprintf(stderr,"*info* defaulting to 1 GiB size\n"); maxSizeGB = 1;
-	}
-	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.2lf GiB...", p[i], maxSizeGB*1.0);
-	fflush(stderr);
-	int rv = createFile(p[i], maxSizeGB);
-	if (rv != 0) {
-	  fprintf(stderr,"*error* couldn't create file '%s'\n", p[i]);
-	  exit(-1);
-	}
-	fprintf(stderr,"\n");
-	strcpy(newpath, p[i]);
-      } else {
-	perror(p[i]);
-      }
-    }
-
-
-    if (verbose >= 2) {
-      fprintf(stderr,"*info* processing path %s\n", newpath);
-    }
-
-    size_t phy, log;
-    if (isBlockDevice(newpath)) {
-      /* -- From a Google search
-	 The physical block size is the smallest size the device can
-	 handle atomically. The smalles block it can handle without needing
-	 to do a read-modify-write cycle. Applications should try to write
-	 in multiples of that (and they do) but are not required to.
-
-	 The logical block size on the other hand is the smallest size the
-	 device can handle at all. Applications must write in multiples of
-	 that.
-      */
-									
-      char *suffix = getSuffix(newpath);
-      char *sched = getScheduler(suffix);
-      if (verbose >= 2) {
-	fprintf(stderr,"  *info* scheduler for %s (%s) is [%s]\n", newpath, suffix, sched);
-      }
-    
-      getPhyLogSizes(suffix, &phy, &log);
-      if (verbose >= 2) {
-	fprintf(stderr,"  *info* physical_block_size %zd, logical_block_size %zd\n", phy, log);
-      }
-
-      if (LOWBLKSIZE < log) {
-	fprintf(stderr,"  *warning* the block size is lower than the device logical block size\n");
-	LOWBLKSIZE = log;
-	if (LOWBLKSIZE > BLKSIZE) BLKSIZE=LOWBLKSIZE;
-      }
-      
-      // various warnings and informational comments
-      if (LOWBLKSIZE < alignment) {
-	LOWBLKSIZE = alignment;
-	if (LOWBLKSIZE > BLKSIZE) BLKSIZE = LOWBLKSIZE;
-	fprintf(stderr,"*warning* setting -k [%zd-%zd] because of the alignment of %zd bytes\n", LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
-      }
-
-
-      free(sched); sched = NULL;
-      free(suffix); suffix = NULL;
-      
-      if (readRatio < 1) { // if any writes
-	if (dontUseExclusive < 3) { // specify at least -XXX to turn off exclusive
-	  fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_EXCL | O_TRUNC);
-	} else {
-	  fprintf(stderr,"  *warning* opening %s without O_EXCL\n", newpath);
-	  fdArray[i] = open(newpath, O_RDWR | O_DIRECT | O_TRUNC);
-	}
-      } else { // only reads
-	fdArray[i] = open(newpath, O_RDONLY | O_DIRECT); // if no writes, don't need write access
-      }
-      if (fdArray[i] < 0) {
-	perror(newpath); goto cont;
-      }
-
-      //      fprintf(stderr,"nnn %s\n", newpath);
-      actualBlockDeviceSize = blockDeviceSize(newpath);
-
-      // if too small then exit
-      if (actualBlockDeviceSize <=1 ) {
-	fprintf(stderr,"*fatal* block device is too small/missing.\n");
-	exit(-1);
-      }
-      
-      //      fprintf(stderr,"nnn %s\n", newpath);
-      if (verbose >= 2) 
-	fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.2lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
-
-      if (sendTrim) {
-	if (maxSizeGB > 0) {
-	  trimDevice(fdArray[i], newpath, 0, maxSizeGB*1024*1024*1024);
-	} else {
-	  fprintf(stderr,"*info* limiting to 10GiB... ");
-	  trimDevice(fdArray[i], newpath, 0, 1L*1024*1024*1024);
-	}
-      }
-
-    } else {
-      fdArray[i] = open(newpath, O_RDWR | O_EXCL); // if a file
-      if (fdArray[i] < 0) {
-	fprintf(stderr,"*info* opened file\n");
-	fdArray[i] = open(newpath, O_RDWR | O_EXCL); // if a file
-	if (fdArray[i] < 0) {
-	  //	  fprintf(stderr,"maybe a file to create?\n");
-	  perror(newpath); goto cont;
-	}
-	fprintf(stderr,"*warning* couldn't open in O_DIRECT mode (filesystem constraints)\n");
-      }
-
-      actualBlockDeviceSize = fileSize(fdArray[i]);
-      fprintf(stderr,"*info* file: '%s' size %zd bytes (%.2lf GiB)\n", newpath, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
-    }
-    if (i == 0) {
-      retBD = actualBlockDeviceSize;
-    } else {
-      if (actualBlockDeviceSize < retBD) {
-	retBD = actualBlockDeviceSize;
-      }
-    }
-    
-    (*fdLen)++;
-
-  cont: {}
-    
-  } // i
-
-  /*  if (error) {
-    exit(-1);
-    }*/
-
-  return retBD;
-}
-
-  
-
 int main(int argc, char *argv[]) {
 
   fprintf(stderr,"*info* stutools %s %s\n", argv[0], VERSION);
@@ -567,6 +301,7 @@ int main(int argc, char *argv[]) {
   if (exitAfterSeconds < 0) {
     exitAfterSeconds = 99999999;
   }
+
 
   size_t swap = swapTotal();
   if (swap) {fprintf(stderr,"*warning* swap is enabled (%.1lf GiB). This isn't ideal for benchmarking.\n", TOGiB(swap));}
@@ -592,19 +327,31 @@ int main(int argc, char *argv[]) {
     diskStatFromFilelist(&dst, specifiedDevices, verbose);
   }
   
-  int *fdArray;
-  size_t fdLen = 0;
-  CALLOC(fdArray, pathLen, sizeof(size_t));
-  size_t actualBlockDeviceSize = openArrayPaths(pathArray, pathLen, fdArray, &fdLen, sendTrim, maxSizeGB);
-  if (fdLen < 1) {
+  size_t bdSizeWeAreUsing = openDevices(deviceList, deviceCount, sendTrim, maxSizeGB, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
+  if (verbose >= 1) {
+    fprintf(stderr,"*info* using bdSize of %zd (%.3lf GiB)\n", bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing));
+  }
+  
+  int anyopen = 0;
+  for (size_t j = 0; j < deviceCount; j++) {
+    if (deviceList[j].fd > 0) {
+      anyopen = 1;
+    }
+  }
+  if (!anyopen) {
     fprintf(stderr,"*error* there are no valid block devices\n");
     exit(-1);
   }
+
+  if (verbose >= 1) {
+    infoDevices(deviceList, deviceCount);
+  }
+
   
 
-  if ((maxPositions % fdLen) != 0) {
-    size_t newmp = (maxPositions / fdLen) + 1;
-    newmp *= fdLen;
+  if ((maxPositions % deviceCount) != 0) {
+    size_t newmp = (maxPositions / deviceCount) + 1;
+    newmp *= deviceCount;
     fprintf(stderr,"*info* changing %zd to be %zd\n", maxPositions, newmp);
     maxPositions = newmp;
   }
@@ -614,18 +361,6 @@ int main(int argc, char *argv[]) {
   }
 
   // using the -G option to reduce the max position on the block device
-  size_t bdSize = actualBlockDeviceSize;
-  const size_t origBDSize = bdSize;
-  if (maxSizeGB > 0) {
-    bdSize = (size_t) (maxSizeGB * 1024) * 1024 * 1024;
-  }
-  
-  if (bdSize > actualBlockDeviceSize) {
-    fprintf(stderr,"*info* override option too high (%zd > %zd), reducing size to %.1lf GiB\n", bdSize, actualBlockDeviceSize, TOGiB(actualBlockDeviceSize));
-    bdSize = actualBlockDeviceSize;
-  } else if (bdSize < actualBlockDeviceSize) {
-    fprintf(stderr,"*info* size limited %.4lf GiB (original size %.2lf GiB)\n", TOGiB(bdSize), TOGiB(actualBlockDeviceSize));
-  }
 
   fprintf(stderr,"*info* seed = %ld", seed);
   if (cigar_len(&cigar)) {
@@ -635,11 +370,13 @@ int main(int argc, char *argv[]) {
   }
   fprintf(stderr,"\n");
 
-  char *randomBuffer = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+  char *randomBuffer;
+  posix_memalign((void**)&randomBuffer, alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+  // = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
   memset(randomBuffer, 0, BLKSIZE);
   
   if (!randomBufferFile) {
-    generateRandomBuffer(randomBuffer, BLKSIZE);
+    generateRandomBuffer(randomBuffer, BLKSIZE, seed);
   } else {
     int f = open(randomBufferFile, O_RDONLY);
     if (f < 0) {perror(randomBufferFile);exit(-1);}
@@ -715,13 +452,13 @@ int main(int argc, char *argv[]) {
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // setup random positions. An value of 0 means random. e.g. zero sequential files
-	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd, &cigar);
+	      setupPositions(positions, &maxPositions, deviceList, deviceCount, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
 
 	      start = timedouble(); // start timing after positions created
 	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot);
 	    } else {
 	      // setup multiple/parallel sequential region
-	      setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd, &cigar);
+	      setupPositions(positions, &maxPositions, deviceList, deviceCount, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
 
 	      
 	      start = timedouble(); // start timing after positions created
@@ -730,8 +467,10 @@ int main(int argc, char *argv[]) {
 	    if (verbose) {
 	      fprintf(stderr,"*info* calling fsync()..."); fflush(stderr);
 	    }
-	    for (size_t f = 0; f < fdLen; f++) {
-	      fsync(fdArray[f]); // should be parallel sync
+	    for (size_t f = 0; f < deviceCount; f++) {
+	      if (deviceList[f].fd > 0) {
+		fsync(deviceList[f].fd); // should be parallel sync
+	      }
 	    }
 	    if (verbose) {
 	      fprintf(stderr,"\n");
@@ -751,7 +490,7 @@ int main(int argc, char *argv[]) {
 	      efficiency = 100;
 	    }
 
-	    logSpeedDump(&l, filename, dataLogFormat, description, bdSize, actualBlockDeviceSize, rrArray[rrindex], flushEvery, ssArray[ssindex], bsArray[bsindex], bsArray[bsindex], cli);
+	    logSpeedDump(&l, filename, dataLogFormat, description, bdSizeWeAreUsing, bdSizeWeAreUsing, rrArray[rrindex], flushEvery, ssArray[ssindex], bsArray[bsindex], bsArray[bsindex], cli);
 	    logSpeedFree(&l);
 	    
 	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
@@ -770,16 +509,19 @@ int main(int argc, char *argv[]) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
     fprintf(stderr,"*info* sequential %d, readWriteRatio: %.1g, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n", seqFiles, readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
-    fprintf(stderr,"*info* flushEvery %d, max bdSize %.2lf GiB, blockoffset %d\n", flushEvery, TOGiB(bdSize), blocksFromEnd);
+    fprintf(stderr,"*info* flushEvery %d, max bdSizeWeAreUsing %.2lf GiB, blockoffset %d\n", flushEvery, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
     if (totl > 0) {
-      fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(origBDSize), TOGiB(totl), 100.0*totl/origBDSize - 100);
+      fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);
     }
-    setupPositions(positions, &maxPositions, fdArray, fdLen, bdSize, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, actualBlockDeviceSize, blocksFromEnd, &cigar);
+    setupPositions(positions, &maxPositions, deviceList, deviceCount, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
+    if (verbose >= 1) {
+      positionStats(positions, maxPositions, deviceList, deviceCount);
+    }
 
-    if (logPositions) {
-      fprintf(stderr, "*info* writing predefined positions to '%s'\n", logPositions);
-      dumpPositions(logPositions, positions, maxPositions, bdSize, flushEvery);
-    }
+    /* if (logPositions) { */
+    /*   fprintf(stderr, "*info* writing predefined positions to '%s'\n", logPositions); */
+    /*   savePositions(logPositions, pathArray, pathLen, positions, maxPositions, bdSizeWeAreUsing, flushEvery, seed); */
+    /* } */
 
 
     logSpeedType benchl;
@@ -795,22 +537,29 @@ int main(int argc, char *argv[]) {
 
     if (fsyncAfterWriting && shouldWriteBytes) { // only fsync if we are told to AND we have written something
       fprintf(stderr,"*info* calling fsync()...");fflush(stderr);
-      for (size_t f = 0; f < fdLen; f++) {
-	fsync(fdArray[f]); // should be parallel sync
+      for (size_t f = 0; f < deviceCount; f++) {
+	if (deviceList[f].fd > 0) 
+	  fsync(deviceList[f].fd); // should be parallel sync
       }
       fprintf(stderr,"\n");
     }
     
     double elapsed = timedouble() - start;
 
+    if (logPositions) { 
+      fprintf(stderr, "*info* writing positions to '%s'\n", logPositions); 
+      savePositions(logPositions, positions, maxPositions, flushEvery); 
+    } 
+    
+
     if (dataLog) {
       fprintf(stderr, "*info* writing per-block timing to '%s'\n", dataLog);
-      logSpeedDump(&l, dataLog, dataLogFormat, description, bdSize, origBDSize, readRatio, flushEvery, seqFiles, LOWBLKSIZE, BLKSIZE, cli);
+      logSpeedDump(&l, dataLog, dataLogFormat, description, bdSizeWeAreUsing, bdSizeWeAreUsing, readRatio, flushEvery, seqFiles, LOWBLKSIZE, BLKSIZE, cli);
     }
 
     if (benchLog) {
       fprintf(stderr, "*info* writing per-second benchmark speeds to '%s'\n", benchLog);
-      logSpeedDump(&benchl, benchLog, dataLogFormat, description, bdSize, origBDSize, readRatio, flushEvery, seqFiles, LOWBLKSIZE, BLKSIZE, cli);
+      logSpeedDump(&benchl, benchLog, dataLogFormat, description, bdSizeWeAreUsing, bdSizeWeAreUsing, readRatio, flushEvery, seqFiles, LOWBLKSIZE, BLKSIZE, cli);
     }
 
     logSpeedFree(&l);
@@ -822,7 +571,7 @@ int main(int argc, char *argv[]) {
     char s[1000];
     sprintf(s, "total read %.2lf GiB, %.0lf MiB/s, total write = %.2lf GiB, %.0lf MiB/s, %.1lf s, qd %d, bs %zd-%zd, seq %d, drives %zd, testSize %.2lf GiB",
 	    TOGiB(shouldReadBytes), TOMiB(shouldReadBytes)/elapsed,
-	    TOGiB(shouldWriteBytes), TOMiB(shouldWriteBytes)/elapsed, elapsed, qd, LOWBLKSIZE, BLKSIZE, seqFiles, fdLen, TOGiB(actualBlockDeviceSize));
+	    TOGiB(shouldWriteBytes), TOMiB(shouldWriteBytes)/elapsed, elapsed, qd, LOWBLKSIZE, BLKSIZE, seqFiles, deviceCount, TOGiB(bdSizeWeAreUsing));
     fprintf(stderr,"*info* %s\n", s);
 
     char *user = username();
@@ -840,7 +589,12 @@ int main(int argc, char *argv[]) {
       exitcode = 0;
       if (readRatio < 1) {
 	keepRunning = 1;
-	int numerrors = aioVerifyWrites(fdArray, fdLen, positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
+	//	int numerrors = aioVerifyWrites(positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
+	size_t correct = 0, incorrect = 0, ioerrors = 0, lenerrors = 0;
+	int numerrors = verifyPositions(positions, maxPositions, randomBuffer, 256, seed, BLKSIZE, &correct, &incorrect, &ioerrors, &lenerrors);
+
+	fprintf(stderr,"*info* verify stats: total %zd, correct %zd, incorrect %zd, ioerrors %zd, lenerrors %zd\n", correct+incorrect+ioerrors+lenerrors, correct, incorrect, ioerrors, lenerrors);
+	
 	if (numerrors) {
 	  exitcode = MIN(numerrors, 254);
 	  if (exitcode) {fprintf(stderr,"*warning* exit code %d\n", exitcode);}
@@ -851,8 +605,9 @@ int main(int argc, char *argv[]) {
       exitcode = (int) (((TOMiB(shouldReadBytes) + TOMiB(shouldWriteBytes)) / elapsed) / 100.0 + 0.5);
     }
 
-    for (size_t f = 0; f < fdLen; f++) {
-      close(fdArray[f]); // should be parallel sync
+    for (size_t f = 0; f < deviceCount; f++) {
+      if (deviceList[f].fd > 0)
+	close(deviceList[f].fd); // should be parallel sync
     }
 
   } // end single run
@@ -860,12 +615,13 @@ int main(int argc, char *argv[]) {
   diskStatFree(&dst);
   free(positions);
   free(randomBuffer);
-  if (fdArray) free(fdArray);
-  if (pathLen) {
-    for(size_t i = 0; i < pathLen;i++)
-      free(pathArray[i]);
-  }
-  if (pathArray) free(pathArray);
+  freeDeviceDetails(deviceList, deviceCount);
+  //  if (fdArray) free(fdArray);
+  //  if (pathLen) {
+  //    for(size_t i = 0; i < pathLen;i++)
+  //      free(pathArray[i]);
+  //  }
+  //  if (pathArray) free(pathArray);
   if (logFNPrefix) free(logFNPrefix);
   if (dataLog) free(dataLog);
   if (benchLog) free(benchLog);

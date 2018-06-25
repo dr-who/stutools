@@ -63,14 +63,18 @@ static void *runThread(void *arg) {
   fprintf(stderr,"*info* %.1lf GiB in thread %zd (%.1lf GiB total)/ %zd, bdsize = %zd, positions %zd (%.1lf GiB covered)\n", TOGiB(RAM), threadContext->id, TOGiB(MAXRAM), threadContext->max, blockSize, positionsNum, TOGiB(blockSize * positionsNum));
   positionType *positions = createPositions(positionsNum);
   
-  int fdA[1];
-  fdA[0] = threadContext->fd;
+  //  int fdA[1];
+  //  fdA[0] = threadContext->fd;
+
+  deviceDetails devs[1];
+  devs[0].fd = threadContext->fd;
+  const size_t devCount = 1;
   //    fprintf(stderr,"fd %d\n", fdA[0]);
-  setupPositions(positions, &positionsNum, fdA, 1, bdsize, 1, threadContext->readRatio, blockSize, blockSize, blockSize, 0, 0, 0, bdsize, 0, NULL);
+  setupPositions(positions, &positionsNum, devs, devCount, 1, threadContext->readRatio, blockSize, blockSize, blockSize, 0, 0, 0, bdsize, 0, NULL, 0);
   
   
   char *randomBuffer = aligned_alloc(blockSize, blockSize); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
-  generateRandomBuffer(randomBuffer, blockSize);
+  generateRandomBuffer(randomBuffer, blockSize, 0);
   
   size_t ios, trb, twb;
   ready++;

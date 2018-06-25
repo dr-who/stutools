@@ -20,9 +20,7 @@
 #include "devices.h"
 #include "utils.h"
 
-int verbose = 0;
-int keepRunning = 1;
-
+extern int keepRunning;
 
 typedef struct {
   int id;
@@ -79,7 +77,8 @@ static void *runThread(void *arg) {
   //    fprintf(stderr,"*info* id %d, [%ld, %ld),.... \n", threadContext->id, threadContext->startInc, threadContext->endExc);
   positionType *positions = threadContext->positions;
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
-    if (positions[i].action == 'R') {
+    if (!keepRunning) {break;}
+    if (positions[i].action == 'W' && positions[i].success) {
       threadContext->bytesRead += positions[i].len;
       int ret = verifyPosition(&positions[i], threadContext->randomBuffer, buf, positions[i].len, positions[i].pos);
       switch (ret) {
@@ -101,17 +100,18 @@ static void *runThread(void *arg) {
 
 
   
-
 /**
  *
  *
  */
-void verifyPositions(positionType *positions, size_t numPositions,char *randomBuffer, size_t threads, long seed, size_t blocksize, size_t *correct, size_t *incorrect, size_t *ioerrors, size_t *lenerrors) {
+int verifyPositions(positionType *positions, size_t numPositions,char *randomBuffer, size_t threads, long seed, size_t blocksize, size_t *correct, size_t *incorrect, size_t *ioerrors, size_t *lenerrors) {
+
+  fprintf(stderr,"*info* starting verify...\n");
+  
   pthread_t *pt = NULL;
   CALLOC(pt, threads, sizeof(pthread_t));
   threadInfoType *threadContext;
   CALLOC(threadContext, threads, sizeof(threadInfoType));
-
 
   double start = timedouble();
     
@@ -146,12 +146,14 @@ void verifyPositions(positionType *positions, size_t numPositions,char *randomBu
     (*lenerrors) += threadContext[i].lenerrors;
     tr += threadContext[i].bytesRead;
   }
+  size_t ops = (*correct) + (*incorrect) + (*ioerrors) + (*lenerrors);
 
-  fprintf(stderr,"*info* %zd bytes (%.2lf GiB) verified in %.2lf seconds = %.1lf MiB/s\n", tr, TOGiB(tr), elapsed, TOMiB(tr)/elapsed);
+  fprintf(stderr,"*info* verify speed: %zd operations, %zd bytes (%.2lf GiB) verified in %.2lf seconds = %.1lf MiB/s\n", ops, tr, TOGiB(tr), elapsed, TOMiB(tr)/elapsed);
 
-  free(randomBuffer);
   free(pt);
   free(threadContext);
+
+  return (*ioerrors) + (*lenerrors) + (*incorrect);
 }
 
 

@@ -62,7 +62,7 @@ void process(int argc, char ** argv, int num) {
       char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
       memset(randomBuffer, 0, BLKSIZE);
       
-      generateRandomBuffer(randomBuffer, BLKSIZE);
+      generateRandomBuffer(randomBuffer, BLKSIZE, 0);
       
       
       positionType *posRead = createPositions(num);

@@ -22,9 +22,7 @@ size_t aioMultiplePositions( positionType *positions,
 			     size_t *totalWB,
 			     const size_t oneShot);
 
-int aioVerifyWrites(int *fdArray,
-		    const size_t fdLen,
-		    positionType *positions,
+int aioVerifyWrites(positionType *positions,
 		    const size_t maxpos,
 		    const size_t maxBufferSize,
 		    const size_t alignment,

@@ -17,6 +17,7 @@
 #include "aioRequests.h"
 #include "positions.h"
 #include "logSpeed.h"
+#include "devices.h"
 
 int    keepRunning = 1;       // have we been interrupted
 int    readySetGo = 0;
@@ -51,35 +52,35 @@ static void *readThread(void *arg) {
 
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
 
-  size_t sz = blockDeviceSize(threadContext->path);
-
-  if (sz == 0) {
+  deviceDetails *deviceList = NULL;
+  size_t deviceCount = 0;
+  addDeviceDetails(threadContext->path, &deviceList, &deviceCount);
+  deviceList[0].fd = open(deviceList[0].devicename, O_RDWR | O_EXCL | O_DIRECT);
+  if (deviceList[0].fd < 0) {
+    perror("");
+    return NULL;
+  }
+  deviceList[0].bdSize = blockDeviceSizeFromFD(deviceList[0].fd);
+  if (deviceList[0].bdSize == 0) {
     //    fprintf(stderr,"empty\n");
     return NULL;
   }
 
-  char *path = threadContext->path;
-  
-  int fd = open(path, O_RDWR | O_EXCL | O_DIRECT);
-  if (fd < 0) {
-    perror("");
-    return NULL;
-  }
   
   char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
   memset(randomBuffer, 0, BLKSIZE);
   
-  generateRandomBuffer(randomBuffer, BLKSIZE);
+  generateRandomBuffer(randomBuffer, BLKSIZE, 0);
 
   size_t num = 100000;
   
   positionType *posWrite = createPositions(num);
-  setupPositions(posWrite, &num, &fd, 1, sz, 1, 0, BLKSIZE, BLKSIZE, 4096, 0, 0, 0, sz, 0, NULL);
+  setupPositions(posWrite, &num, deviceList, deviceCount, 1, 0, BLKSIZE, BLKSIZE, 4096, 0, 0, 0, deviceList[0].bdSize, 0, NULL, 0);
   
   size_t ios = 0, trb = 0, twb = 0;
   
   //  double starttime = timedouble();
-  long ret = aioMultiplePositions(posWrite, sz, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
+  long ret = aioMultiplePositions(posWrite, num, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
   //  double elapsed = timedouble() - starttime;
 
   if (ret > 0) {
@@ -87,7 +88,7 @@ static void *readThread(void *arg) {
   } else {
     threadContext->total = 0;
   }
-  close(fd);
+  close(deviceList[0].fd);
 
   return NULL;
 }
@@ -101,34 +102,36 @@ static void *writeThread(void *arg) {
 
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
 
-  size_t sz = blockDeviceSize(threadContext->path);
-  if (sz == 0) {
+
+  
+  deviceDetails *deviceList = NULL;
+  size_t deviceCount = 0;
+  addDeviceDetails(threadContext->path, &deviceList, &deviceCount);
+  deviceList[0].fd = open(deviceList[0].devicename, O_RDWR | O_EXCL | O_DIRECT);
+  if (deviceList[0].fd < 0) {
+    perror("");
+    return NULL;
+  }
+  deviceList[0].bdSize = blockDeviceSizeFromFD(deviceList[0].fd);
+  if (deviceList[0].bdSize == 0) {
     //    fprintf(stderr,"empty\n");
     return NULL;
   }
 
-  char *path = threadContext->path;
-  
-  int fd = open(path, O_RDWR | O_EXCL | O_DIRECT);
-  if (fd < 0) {
-    perror("");
-    return NULL;
-  }
-  
-  char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+    char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
   memset(randomBuffer, 0, BLKSIZE);
   
-  generateRandomBuffer(randomBuffer, BLKSIZE);
+  generateRandomBuffer(randomBuffer, BLKSIZE, 0);
 
   size_t num = 1000000;
   
   positionType *posRead = createPositions(num);
-  setupPositions(posRead, &num, &fd, 1, sz, 1, 1, BLKSIZE, BLKSIZE, 4096, 0, 0, 1, sz, 0, NULL);
+  setupPositions(posRead, &num, deviceList, deviceCount, 1, 1, BLKSIZE, BLKSIZE, 4096, 0, 0, 1, deviceList[0].bdSize, 0, NULL, 0);
   
   size_t ios = 0, trb = 0, twb = 0;
   
   //  double starttime = timedouble();
-  long ret = aioMultiplePositions(posRead, sz, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
+  long ret = aioMultiplePositions(posRead, num, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
   //  double elapsed = timedouble() - starttime;
 
   if (ret > 0) {
@@ -137,7 +140,7 @@ static void *writeThread(void *arg) {
     threadContext->total = 0;
   }
 
-  close(fd);
+  close(deviceList[0].fd);
 
   return NULL;
 }

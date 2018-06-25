@@ -30,11 +30,12 @@ int main() {
 
   p = createPositions(1);
   assert(p);
-  assert(p[0].fd == 0);
   assert(p[0].pos == 0);
   assert(p[0].action == 0);
   assert(p[0].len == 0);
   assert(p[0].success == 0);
+  assert(p[0].seed == 0);
+  assert(p[0].dev == NULL);
   freePositions(p);
   pass();
 

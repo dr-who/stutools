@@ -96,6 +96,7 @@ size_t swapTotal() {
   }
   
   free(line);
+  fclose(fp);
 
   return ts;
 }
@@ -527,19 +528,22 @@ int trimDevice(int fd, char *path, unsigned long low, unsigned long high) {
 }
 
 // the block size random buffer. Nice ASCII
-void generateRandomBuffer(char *buffer, size_t size) {
+void generateRandomBuffer(char *buffer, size_t size, long seed) {
 
-  time_t timer;
-  char timebuffer[26];
-  struct tm* tm_info;
+  //  time_t timer;
+  //  char timebuffer[26];
+  //  struct tm* tm_info;
   
-  time(&timer);
-  tm_info = localtime(&timer);
+  //  time(&timer);
+  //  tm_info = localtime(&timer);
   
-  strftime(timebuffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+  //  strftime(timebuffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
 
   //  fprintf(stderr,"*info* start %s localtime\n", timebuffer);
-      
+
+  //fprintf(stderr,"*info* generating random size %zd, seed %ld\n", size, seed);
+  
+  srand48(seed);
   char *user = username();
 
   const char verystartpoint = ' ' + (lrand48() % 15);
@@ -554,7 +558,7 @@ void generateRandomBuffer(char *buffer, size_t size) {
   }
   buffer[size - 1] = 0; // end of string to help printing
   char s[1000];
-  const size_t topr = sprintf(s, "stutools - %s - %s\n", user, timebuffer);
+  const size_t topr = sprintf(s, "stutools - %s - %ld\n", user, seed);
   strncpy(buffer, s, topr);
 
   free(user);
@@ -587,7 +591,7 @@ char *getScheduler(const char *suffix) {
     sprintf(s, "/sys/block/%s/queue/scheduler", suffix);
     FILE *fp = fopen(s, "rt"); 
     if (!fp) {
-      perror(s);
+      //      perror(s);
       return strdup("problem");
     }
     //    fprintf(stderr,"opened %s\n", s);
@@ -612,7 +616,7 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
     int d, ret;
     FILE *fp = fopen(s, "rt"); 
     if (!fp) {
-      fprintf(stderr,"*error* problem opening %s: returning 512\n", s);
+      //      fprintf(stderr,"*error* problem opening %s: returning 512\n", s);
     } else {
     //    fprintf(stderr,"opened %s\n", s);
       ret = fscanf(fp, "%d", &d);
@@ -626,7 +630,7 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
     sprintf(s, "/sys/block/%s/queue/logical_block_size", suffix);
     fp = fopen(s, "rt"); 
     if (!fp) {
-      fprintf(stderr,"*error* problem opening %s: returning 512\n", s);
+      //      fprintf(stderr,"*error* problem opening %s: returning 512\n", s);
       *log = 512;
     } else {
       //    fprintf(stderr,"opened %s\n", s);
@@ -655,7 +659,7 @@ size_t alignedNumber(size_t num, size_t alignment) {
 // return the blockSize
 inline size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits) {
   assert(alignmentbits < 100);
-  
+
   size_t lowbs_k = lowbsBytes >> alignmentbits; // 1 / 4096 = 0
   if (lowbs_k < 1) lowbs_k = 1;
   size_t highbs_k = highbsBytes >> alignmentbits;   // 8 / 4096 = 2

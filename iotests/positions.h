@@ -2,25 +2,30 @@
 #define _POSITIONS_H
 
 #include "cigar.h"
+#include "devices.h"
 
 typedef struct {
-  int    fd;
   size_t pos;
   char   action; // 'R' or 'W'
   size_t len;
   int    success;
+  long   seed;
+  deviceDetails *dev;
 } positionType;
 
 positionType *createPositions(size_t num);
 
 int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes);
-void dumpPositions(const char *name, positionType *positions, size_t num, size_t bdSizeBytes, size_t flushEvery);
+void savePositions(const char *name, positionType *positions, size_t num, size_t flushEvery);
+
+positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs);
+
+void infoPositions(const deviceDetails *devList, const size_t devCount);
 
 void setupPositions(positionType *positions,
 		    size_t *num,
-		    const int *fdArray,
-		    const size_t fdSize,
-		    const size_t bdSizeBytes,
+		    deviceDetails *devList,
+		    const size_t devCount,
 		    const int sf,
 		    const double readorwrite,
 		    const size_t lowbs,
@@ -31,12 +36,13 @@ void setupPositions(positionType *positions,
 		    const long startingBlock,
 		    const size_t actualBlockDeviceSize,
 		    const int blockOffset,
-		    cigartype *cigar);
+		    cigartype *cigar,
+		    long seed);
 
 void simpleSetupPositions(positionType *positions,
 			  size_t *num,
-			  const int *fdArray,
-			  const size_t fdSize,
+			  deviceDetails *devList,
+			  const size_t devCount,
 			  const long startingBlock,
 			  const size_t bdSizeBytes,
 			  const size_t bs);
@@ -44,7 +50,9 @@ void simpleSetupPositions(positionType *positions,
 
 
 void freePositions(positionType *p);
+void positionStats(const positionType *positions, const size_t num, const deviceDetails *devList, const size_t devCount);
 
+void findSeedMaxBlock(positionType *positions, const size_t num, long *seed, size_t *blocksize);
 
 #endif
 

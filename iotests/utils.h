@@ -43,7 +43,7 @@ void majorAndMinor(int fd, unsigned int *major, unsigned int *minor);
 
 int getWriteCacheStatus(int fd);
 int trimDevice(int fd, char *path, unsigned long low, unsigned long high);
-void generateRandomBuffer(char *buffer, size_t size);
+void generateRandomBuffer(char *buffer, size_t size, long seed);
 
 char *getSuffix(const char *path);
 char *getScheduler(const char *path);
