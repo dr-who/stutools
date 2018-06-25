@@ -3,18 +3,22 @@ CC=gcc
 CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g -Ofast
 DRIVE=/dev/loop3
 
-%.o : %.c %.h
+%.o : %.c %.h 
 	$(CC) -c $(CFLAGS) $< -o $@
 
 all: writePairTest checkDisks flushTestWriter flushTestReader \
-	aioRWTest watchDisks flipBits indiDisks trim cigarTest ramSpeedTest aioMulti \
-	flushTester offTheEnds deviceTimeout flushBulk ramEater aioExample
+	aioRWTest watchDisks flipBits trim cigarTest ramSpeedTest aioMulti \
+	flushTester offTheEnds deviceTimeout flushBulk ramEater aioExample \
+	verify
 
 readSpeedTest:
 	@echo use aioRWTest -r
 
 writeSpeedTest:
 	@echo use aioRWTest -w
+
+verify: verify.o positions.o devices.o cigar.o utils.o blockVerify.o
+	gcc $^ -o $@ -lpthread -lm
 
 #readSpeedTest: readSpeedTest.o utils.o logSpeed.o 
 #	gcc $^ -o $@ -lpthread -lm
@@ -55,7 +59,7 @@ mtWriteSpeedTest: mtWriteSpeedTest.o utils.o logSpeed.o
 mtReadSpeedTest: mtReadSpeedTest.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
 
-checkDisks: checkDisks.o utils.o logSpeed.o aioRequests.o positions.o cigar.o
+checkDisks: checkDisks.o utils.o logSpeed.o aioRequests.o positions.o cigar.o devices.o
 	gcc $^ -o $@ -lpthread -lm -laio
 
 trim: trim.o utils.o logSpeed.o
@@ -70,13 +74,13 @@ flushTestWriter: flushTestWriter.o utils.o logSpeed.o
 flushTestReader: flushTestReader.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
 
-aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o
+aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o devices.o blockVerify.o
 	gcc $^ -o $@ -lm -laio -lpthread
 
 aioExample: aioExample.o aioRequests.o logSpeed.o utils.o 
 	gcc $^ -o $@ -lm -laio -lpthread
 
-aioMulti: aioMulti.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o
+aioMulti: aioMulti.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o devices.o
 	gcc $^ -o $@ -lm -laio -lpthread
 
 positions.o: positions.c utils.h
