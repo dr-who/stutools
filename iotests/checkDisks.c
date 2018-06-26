@@ -82,7 +82,7 @@ static void *readThread(void *arg) {
   size_t ios = 0, trb = 0, twb = 0;
   
   //  double starttime = timedouble();
-  long ret = aioMultiplePositions(posWrite, num, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
+  long ret = aioMultiplePositions(posWrite, num, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0, 0);
   //  double elapsed = timedouble() - starttime;
 
   if (ret > 0) {
@@ -135,7 +135,7 @@ static void *writeThread(void *arg) {
   size_t ios = 0, trb = 0, twb = 0;
   
   //  double starttime = timedouble();
-  long ret = aioMultiplePositions(posRead, num, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0);
+  long ret = aioMultiplePositions(posRead, num, exitAfterSeconds, 256, -1, 0, NULL, NULL, randomBuffer, BLKSIZE, BLKSIZE, &ios, &trb, &twb, 0, 0);
   //  double elapsed = timedouble() - starttime;
 
   if (ret > 0) {

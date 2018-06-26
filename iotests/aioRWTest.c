@@ -55,6 +55,7 @@ int    oneShot = 0;
 char   *randomBufferFile = NULL;
 int    fsyncAfterWriting = 0;
 char   *description = NULL;
+int    dontExitOnErrors = 0;
 
 deviceDetails *deviceList = NULL;
 size_t deviceCount = 0;
@@ -73,7 +74,7 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G::p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G::p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:E")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -91,6 +92,9 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'D':
       dataLog = strdup(optarg);
+      break;
+    case 'E':
+      dontExitOnErrors = 1;
       break;
     case 'B':
       benchLog = strdup(optarg);
@@ -287,6 +291,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -f filename -G10                   # if 'filename' doesn't exist, create it as a 10GiB file\n");
     fprintf(stderr,"  ./aioRWTest -f filename -G 4R                  # append R (for RAM) to the -G option and it'll be 4x the RAM\n");
     fprintf(stderr,"  ./aioRWTest -f /mnt/test/ramdisk -G10          # mkdir /mnt/test; mount -t tmpfs -o size=10G tmpfs /mnt/test ...\n");
+    fprintf(stderr,"  ./aioRWTest -E -w -f /dev/nbd0                 # -E don't exit on errors\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(-1);
@@ -469,14 +474,14 @@ int main(int argc, char *argv[]) {
 	      setupPositions(positions, &maxPositions, deviceList, deviceCount, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
 
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot, dontExitOnErrors);
 	    } else {
 	      // setup multiple/parallel sequential region
 	      setupPositions(positions, &maxPositions, deviceList, deviceCount, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
 
 	      
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot, dontExitOnErrors);
 	    }
 	    if (verbose) {
 	      fprintf(stderr,"*info* calling fsync()..."); fflush(stderr);
@@ -547,7 +552,7 @@ int main(int argc, char *argv[]) {
     double start = logSpeedInit(&l);
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
-    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes, oneShot);
+    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes, oneShot, dontExitOnErrors);
 
     if (fsyncAfterWriting && shouldWriteBytes) { // only fsync if we are told to AND we have written something
       fprintf(stderr,"*info* calling fsync()...");fflush(stderr);

@@ -87,7 +87,7 @@ static void *runThread(void *arg) {
     startTime = timedouble();
   }
   //  fprintf(stderr,"go(%zd)\n",threadContext->id);
-  threadContext->total = aioMultiplePositions(positions, positionsNum, 100, threadContext->qd, 0, 0, NULL, NULL, randomBuffer, blockSize, blockSize, &ios, &trb, &twb, 0);
+  threadContext->total = aioMultiplePositions(positions, positionsNum, 100, threadContext->qd, 0, 0, NULL, NULL, randomBuffer, blockSize, blockSize, &ios, &trb, &twb, 0, 0);
 
   free(randomBuffer);
   free(positions);

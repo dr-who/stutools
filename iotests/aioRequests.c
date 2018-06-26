@@ -31,7 +31,8 @@ size_t aioMultiplePositions( positionType *positions,
 			     size_t *ios,
 			     size_t *totalRB,
 			     size_t *totalWB,
-			     const size_t oneShot
+			     const size_t oneShot,
+			     int dontExitOnErrors
 			     ) {
   int ret;
   io_context_t ctx;
@@ -149,7 +150,7 @@ size_t aioMultiplePositions( positionType *positions,
 	      }
 	      
 	    } else {
-	      fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()"); exit(-1);
+	      fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()"); if(!dontExitOnErrors) exit(-1);
 	    }
 	  }
 	  
@@ -181,11 +182,6 @@ size_t aioMultiplePositions( positionType *positions,
 	    goto endoffunction;
 	  }
 	}
-	/*	if (ret != 1) {
-	  fprintf(stderr,"eek i=%zd %d\n", i, ret);
-	} else {
-	  //      fprintf(stderr,"red %d\n", ret);
-	  }*/
       } // for loop i
 
       if (!sz) flushPos++; // if no positions, then increase flushPos anyway
@@ -305,7 +301,6 @@ int aioVerifyWrites(positionType *positions,
   size_t errors = 0, checked = 0, ioerrors = 0;
   char *buffer;
   CALLOC(buffer, maxBufferSize, 1);
-  //= aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(-1);}
 
   size_t bytesToVerify = 0, posTOV = 0;
   for (size_t i = 0; i < maxpos; i++) {

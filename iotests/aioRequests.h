@@ -20,7 +20,8 @@ size_t aioMultiplePositions( positionType *positions,
 			    size_t *ios,
 			    size_t *totalRB,
 			     size_t *totalWB,
-			     const size_t oneShot);
+			     const size_t oneShot,
+			     int dontExitOnErrors);
 
 int aioVerifyWrites(positionType *positions,
 		    const size_t maxpos,
