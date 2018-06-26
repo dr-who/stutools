@@ -1,6 +1,12 @@
 You need to install the development libraries for aio
 
+Under Ubuntu
+
 # apt install libaio-dev
+
+or CentOS
+
+# yum install libaio-devel
 
 Then simply build
 
