@@ -74,7 +74,7 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G::p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:E")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:E")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
