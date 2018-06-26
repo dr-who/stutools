@@ -8,7 +8,7 @@ typedef struct {
   size_t pos;
   char   action; // 'R' or 'W'
   unsigned int len;
-  size_t success:2;
+  char   success;
   long   seed;
   deviceDetails *dev;
 } positionType;
