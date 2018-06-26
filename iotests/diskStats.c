@@ -189,7 +189,7 @@ void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t
   while ((read = getline(&line, &len, fp)) != -1) {
     long mj, mn, s;
     size_t read1, write1, timespentIO;
-    sscanf(line,"%ld %ld %s %ld %ld %zd %ld %ld %ld %zd %ld %ld %zd", &mj, &mn, str, &s, &s, &read1, &s, &s, &s, &write1, &s, &s, &timespentIO);
+    sscanf(line,"%ld %ld %s %ld %ld %zu %ld %ld %ld %zu %ld %ld %zu", &mj, &mn, str, &s, &s, &read1, &s, &s, &s, &write1, &s, &s, &timespentIO);
     if (mj == major && mn == minor) {
       *sread = read1;
       *swritten = write1;

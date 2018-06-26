@@ -95,7 +95,8 @@ void startThreads(size_t *fdArray, size_t num, size_t numThreads, size_t blocksi
     threadContext[i].id = i;
     threadContext[i].max = num;
     threadContext[i].size = blocksize;
-    threadContext[i].block = aligned_alloc(blocksize, blocksize); if (!threadContext[i].block) {fprintf(stderr,"oom!\n");exit(-1);}
+    //    threadContext[i].block = aligned_alloc(blocksize, blocksize); if (!threadContext[i].block) {fprintf(stderr,"oom!\n");exit(-1);}
+    CALLOC(threadContext[i].block, blocksize, 1);
     //    fprintf(stderr,"creating thread %zd\n", i);
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
   }

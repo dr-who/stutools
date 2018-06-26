@@ -47,11 +47,9 @@ static void *runThread(void *arg) {
   }
   //  fprintf(stderr,"opened %s\n", threadContext->path);
 #define BUFSIZE (1024*1024)
-  void *buf = NULL;
-  if (posix_memalign(&buf, 4096, BUFSIZE)) { // O_DIRECT requires aligned memory
-	fprintf(stderr,"memory allocation failed\n");exit(1);
-  }	
-  memset(buf, 0x00, BUFSIZE);
+  char *buf = NULL;
+  CALLOC(buf, BUFSIZE, 1);
+
   int wbytes = 0;
   size_t lastg = 0;
   double starttime = timedouble();

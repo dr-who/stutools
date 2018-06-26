@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <assert.h>
+#include <math.h>
 
 #include "aioRequests.h"
 #include "utils.h"
@@ -72,11 +73,11 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:j:p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G::p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
-      if (alignment >0 && alignment < 1024) alignment = 1024;
+      if (alignment >0 && alignment < 512) alignment = 512;
       break;
     case 'd':
       description = strdup(optarg);
@@ -196,17 +197,17 @@ void handle_args(int argc, char *argv[]) {
     case 'k': {
       char *ndx = index(optarg, '-');
       if (ndx) {
-	int firstnum = atoi(optarg) * 1024;
-	int secondnum = atoi(ndx + 1) * 1024;
+	int firstnum = atof(optarg) * 1024;
+	int secondnum = atof(ndx + 1) * 1024;
 	if (secondnum < firstnum) secondnum = firstnum;
 	if (verbose > 1) {
-	  fprintf(stderr,"*info* specific block range: %d KiB (%d) to %d KiB (%d)\n", firstnum/1024, firstnum, secondnum/1024, secondnum);
+	  fprintf(stderr,"*info* specific block range: %g KiB (%d) to %g KiB (%d)\n", firstnum/1024.0, firstnum, secondnum/1024.0, secondnum);
 	}
 	LOWBLKSIZE = firstnum;
 	BLKSIZE = secondnum;
 	// range
       } else {
-	BLKSIZE = 1024 * atoi(optarg); if (BLKSIZE < 1024) BLKSIZE=1024;
+	BLKSIZE = 1024 * atof(optarg); if (BLKSIZE < 512) BLKSIZE=512;
 	LOWBLKSIZE = BLKSIZE;
       }}
       break;
@@ -261,10 +262,10 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -P1 -F -V -f file.txt   # can also use a single file. Note the file will be destroyed.\n");
     fprintf(stderr,"  ./aioRWTest -P1 -F -F -k4 -f /dev/nbd0  # single position, fsync every 10 ops\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -f /dev/nbd0  # random positions, 50%% R/W, verified after 15 seconds.\n");
-    fprintf(stderr,"  ./aioRWTest -p1 -f/dev/nbd0 -k4 -q64 -s32 -j16 # 100%% reads over entire block device\n");
-    fprintf(stderr,"  ./aioRWTest -p1 -f/dev/nbd0 -k4 -q64 -s32 -j16 # 100%% reads over entire block device\n");
+    //    fprintf(stderr,"  ./aioRWTest -p1 -f/dev/nbd0 -k4 -q64 -s32 -j16 # 100%% reads over entire block device\n");
+    //    fprintf(stderr,"  ./aioRWTest -p1 -f/dev/nbd0 -k4 -q64 -s32 -j16 # 100%% reads over entire block device\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -R 9812 -f /dev/nbd0 # set the starting seed to 9812\n");
-    fprintf(stderr,"  ./aioRWTest -s 1 -j 10 -f /dev/sdc -V          #  contiguous access, jumping 10 blocks at a time\n");
+    //    fprintf(stderr,"  ./aioRWTest -s 1 -j 10 -f /dev/sdc -V          #  contiguous access, jumping 10 blocks at a time\n");
     fprintf(stderr,"  ./aioRWTest -s -8 -f /dev/sdc -V               # reverse contiguous 8 regions in parallel\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -O ok                 # use a list of devices in ok.txt for disk stats/amplification\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -k1 -G0.1      # write 1KiB buffers from 100 MiB (100k unique). Cache testing.\n");
@@ -326,6 +327,19 @@ int main(int argc, char *argv[]) {
   if (specifiedDevices) {
     diskStatFromFilelist(&dst, specifiedDevices, verbose);
   }
+
+  // fix up alignment
+  if (alignment <= 0) {
+    alignment = LOWBLKSIZE;
+  }
+  const int alignbits = (int)(log(alignment)/log(2) + 0.01);
+  if (1<<alignbits != alignment) {
+    fprintf(stderr,"*error* alignment of %zd not suitable, changing to %d\n", alignment, 1<<alignbits);
+    alignment = 1<< alignbits;
+  }
+  if (alignment > LOWBLKSIZE) {
+    alignment = LOWBLKSIZE;
+  }
   
   size_t bdSizeWeAreUsing = openDevices(deviceList, deviceCount, sendTrim, maxSizeGB, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
   if (verbose >= 1) {
@@ -352,7 +366,8 @@ int main(int argc, char *argv[]) {
   if ((maxPositions % deviceCount) != 0) {
     size_t newmp = (maxPositions / deviceCount) + 1;
     newmp *= deviceCount;
-    fprintf(stderr,"*info* changing %zd to be %zd\n", maxPositions, newmp);
+    if (verbose >= 2)
+      fprintf(stderr,"*info* changing %zd to be %zd\n", maxPositions, newmp);
     maxPositions = newmp;
   }
 
@@ -371,8 +386,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"\n");
 
   char *randomBuffer;
-  int pm = posix_memalign((void**)&randomBuffer, alignment, BLKSIZE); if (pm) {fprintf(stderr,"oom!\n");exit(-1);}
-  // = aligned_alloc(alignment, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+  CALLOC(randomBuffer, BLKSIZE, 1);
   memset(randomBuffer, 0, BLKSIZE);
   
   if (!randomBufferFile) {
@@ -508,7 +522,7 @@ int main(int argc, char *argv[]) {
   } else {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
-    fprintf(stderr,"*info* sequential %d, readWriteRatio: %.1g, QD: %d, block size: %zd-%zd KiB (aligned to %zd bytes)\n", seqFiles, readRatio, qd, LOWBLKSIZE/1024, BLKSIZE/1024, alignment);
+    fprintf(stderr,"*info* sequential %d, readWriteRatio: %.1g, QD: %d, block size: %g-%g KiB (aligned to %zd bytes)\n", seqFiles, readRatio, qd, LOWBLKSIZE/1024.0, BLKSIZE/1024.0, alignment);
     fprintf(stderr,"*info* flushEvery %d, max bdSizeWeAreUsing %.2lf GiB, blockoffset %d\n", flushEvery, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);

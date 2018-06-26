@@ -73,7 +73,9 @@ static void *runThread(void *arg) {
   setupPositions(positions, &positionsNum, devs, devCount, 1, threadContext->readRatio, blockSize, blockSize, blockSize, 0, 0, 0, bdsize, 0, NULL, 0);
   
   
-  char *randomBuffer = aligned_alloc(blockSize, blockSize); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+  char *randomBuffer;
+  CALLOC(randomBuffer, blockSize, 1);
+  
   generateRandomBuffer(randomBuffer, blockSize, 0);
   
   size_t ios, trb, twb;

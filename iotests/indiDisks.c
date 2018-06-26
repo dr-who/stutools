@@ -59,8 +59,8 @@ void process(int argc, char ** argv, int num) {
       }
 #define BLKSIZE 65536
       
-      char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
-      memset(randomBuffer, 0, BLKSIZE);
+      char *randomBuffer;
+      CALLOC(randomBuffer, BLKSIZE, 1);
       
       generateRandomBuffer(randomBuffer, BLKSIZE, 0);
       

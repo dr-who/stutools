@@ -45,7 +45,8 @@ static void *runThread(void *arg) {
   }
 
   {
-    char *s = aligned_alloc(4096, 65536);
+    char *s;
+    CALLOC(s, 65536, 1);
     size_t x = 0;
     while (1) {
       x++;

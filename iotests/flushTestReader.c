@@ -43,7 +43,9 @@ static void *runThread(void *arg) {
     return NULL;
   }
 
-  char *haystack = aligned_alloc(4096, READCHUNK); // 10MB to skip superblock
+  char *haystack;
+  CALLOC(haystack, READCHUNK, 1);
+  //= aligned_alloc(4096, READCHUNK); // 10MB to skip superblock
   double lastnum = 0;
   double maxdelta = 0;
   double totaldelta = 0;

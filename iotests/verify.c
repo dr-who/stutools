@@ -40,8 +40,8 @@ int main(int argc, char *argv[]) {
 
   // generate random buffer with the right seed, do this linearly to avoid random numbers running in parallel
   char *randomBuffer = NULL;
-  int pm = posix_memalign((void**)&randomBuffer, blocksize, blocksize); if (pm) {fprintf(stderr,"oom!\n");exit(-1);}
-  memset(randomBuffer, 0, blocksize);
+  CALLOC(randomBuffer, blocksize, 1);
+
   generateRandomBuffer(randomBuffer, blocksize, seed);
   
   // after loading in the positions with the paths, open the files and populate BD sizes etc

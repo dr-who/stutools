@@ -1,13 +1,13 @@
 GIT_VERSION := $(shell git describe --abbrev=7 --dirty --always --tags)
 CC=gcc
-CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g -Ofast
+CFLAGS=-Wall --std=c99 -Werror -DVERSION=\"$(GIT_VERSION)\" -g -pedantic -O2
 DRIVE=/dev/loop3
 
 %.o : %.c %.h 
 	$(CC) -c $(CFLAGS) $< -o $@
 
 all: writePairTest checkDisks flushTestWriter flushTestReader \
-	aioRWTest watchDisks flipBits trim cigarTest ramSpeedTest aioMulti \
+	aioRWTest watchDisks flipBits cigarTest ramSpeedTest aioMulti \
 	flushTester offTheEnds deviceTimeout flushBulk ramEater aioExample \
 	verify
 

@@ -67,8 +67,10 @@ static void *readThread(void *arg) {
   }
 
   
-  char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
-  memset(randomBuffer, 0, BLKSIZE);
+  char *randomBuffer;
+  CALLOC(randomBuffer, BLKSIZE, 1);
+  //= aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+  //  memset(randomBuffer, 0, BLKSIZE);
   
   generateRandomBuffer(randomBuffer, BLKSIZE, 0);
 
@@ -118,8 +120,10 @@ static void *writeThread(void *arg) {
     return NULL;
   }
 
-    char *randomBuffer = aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
-  memset(randomBuffer, 0, BLKSIZE);
+  char *randomBuffer;
+  CALLOC(randomBuffer, BLKSIZE, 1);
+  //= aligned_alloc(4096, BLKSIZE); if (!randomBuffer) {fprintf(stderr,"oom!\n");exit(-1);}
+  //  memset(randomBuffer, 0, BLKSIZE);
   
   generateRandomBuffer(randomBuffer, BLKSIZE, 0);
 

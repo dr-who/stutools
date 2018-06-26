@@ -1,6 +1,9 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
+#include <malloc.h>
+#include <string.h>
+
 #include "logSpeed.h"
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
@@ -9,7 +12,9 @@
 #define TOGiB(x) ((x)/1024.0/1024/1024)
 #define TOMiB(x) ((x)/1024.0/1024)
 
-#define CALLOC(x, y, z) {x = calloc(y, z); if (!(x)) {fprintf(stderr,"ooom!!\n");abort();}}
+/*#define CALLOC(x, y, z) {x = calloc(y, z); if (!(x)) {fprintf(stderr,"ooom!!\n");abort();}}*/
+#define CALLOC(x, y, z) {x = memalign(4096, (((size_t)((y) * (z)))/4096 + 1) * 4096); if(x) memset(x, 0, (((size_t)((y) * (z)))/4096 + 1) * 4096);  if (!(x)) {fprintf(stderr,"ooom!!\n");abort();}}
+
 
 #define DIFF(x,y) ((x) > (y)) ? ((x)-(y)) : ((y) - (x))
 

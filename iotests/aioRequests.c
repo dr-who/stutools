@@ -58,8 +58,9 @@ size_t aioMultiplePositions( positionType *positions,
   CALLOC(dataread, QD, sizeof(char*));
 
   // setup the buffers to be contiguous
-  data[0] = aligned_alloc(alignment, randomBufferSize * QD); if (!data[0]) {perror("oom"); exit(-1);}
-  dataread[0] = aligned_alloc(alignment, randomBufferSize * QD); if (!dataread[0]) {perror("oom"); exit(-1);}
+  CALLOC(data[0], 1, randomBufferSize * QD);
+  CALLOC(dataread[0], 1, randomBufferSize * QD);
+  
   for (size_t i = 0; i <QD; i++) {
     data[i] = data[0] + (randomBufferSize * i);
     dataread[i] = dataread[0] + (randomBufferSize * i);
@@ -148,7 +149,7 @@ size_t aioMultiplePositions( positionType *positions,
 	      }
 	      
 	    } else {
-	      fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()");exit(-1);
+	      fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()"); exit(-1);
 	    }
 	  }
 	  
@@ -302,7 +303,9 @@ int aioVerifyWrites(positionType *positions,
   qsort(positions, maxpos, sizeof(positionType), poscompare);
 
   size_t errors = 0, checked = 0, ioerrors = 0;
-  char *buffer = aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(-1);}
+  char *buffer;
+  CALLOC(buffer, maxBufferSize, 1);
+  //= aligned_alloc(alignment, maxBufferSize); if (!buffer) {fprintf(stderr,"oom!!!\n");exit(-1);}
 
   size_t bytesToVerify = 0, posTOV = 0;
   for (size_t i = 0; i < maxpos; i++) {

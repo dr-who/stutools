@@ -47,7 +47,6 @@ static void *runThread(void *arg) {
   // do stuff
   //  size_t maxread = ((size_t)(1024*1024*1024 * limitToGB) >> 10) << 10; // size needs to be a multiple of 1k;
   //  fprintf(stderr,"fd %d, max read %zd\n", fd, maxread);
-  //  char *buffer = aligned_alloc(65536, maxread); if (!buffer) {fprintf(stderr,"OOM\n");exit(1);}
 
   if (lseek(fd, threadContext->position, SEEK_SET) == -1) {
     perror("cannot seek");
@@ -103,7 +102,7 @@ void startThreads(int argc, char *argv[], int index) {
 	threadContext[i].threadid = i;
 	threadContext[i].position = 0;
 	threadContext[i].datalen = maxread;
-	threadContext[i].data = aligned_alloc(65536, maxread); if (!threadContext[i].data) {fprintf(stderr,"OOM\n");exit(1);}
+	CALLOC(threadContext[i].data, maxread, 1);
 
 	threadContext[i].path = argv[i + index];
 	pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
@@ -128,7 +127,7 @@ void startThreads(int argc, char *argv[], int index) {
 	  nextContext[i].position = 0;
 	  nextContext[i].datalen = maxread;
 	  if (!nextContext[i].data) {
-	    nextContext[i].data = aligned_alloc(65536, maxread); if (!nextContext[i].data) {fprintf(stderr,"OOM\n");exit(1);}
+	    CALLOC(nextContext[i].data, maxread, 1);
 	  }
 	  
 	  nextContext[i].path = argv[i + index];

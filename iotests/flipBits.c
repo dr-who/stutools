@@ -58,7 +58,9 @@ static void *runThread(void *arg) {
 
     //    size_t randd = (((size_t)lrand48() % maxread) >> 10) << 10; // seek to 1K boundary
 
-  char *buffer = aligned_alloc(65536, maxread); if (!buffer) {fprintf(stderr,"OOM\n");exit(1);}
+  char *buffer;
+  CALLOC(buffer, maxread, 1);
+  //aligned_alloc(65536, maxread); if (!buffer) {fprintf(stderr,"OOM\n");exit(1);}
 
   if (lseek(fd, threadContext->position, SEEK_SET) == -1) {
     perror("cannot seek");

@@ -10,8 +10,8 @@ int keepRunning = 1;
 
 char *ramTest_alloc(size_t numBlocks, size_t blockSize) {
   //  fprintf(stderr,"*info* allocating %.1lf GB\n", TOGiB(numBlocks * blockSize));
-  char *data = aligned_alloc(blockSize, numBlocks * blockSize);
-  if (!data) {perror("oom"); exit(1);}
+  char *data;
+  CALLOC(data, numBlocks * blockSize, 1);
 
   return data;
 }

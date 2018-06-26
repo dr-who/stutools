@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
   FILE *fp = fopen("/proc/sys/vm/overcommit_ratio", "rt");
   if (!fp) {perror("overcommit_ratio");exit(-1);}
   size_t value = 0;
-  int f = fscanf(fp,"%zd", &value);
+  int f = fscanf(fp,"%zu", &value);
   if (f==1) {
     fprintf(stderr,"*info* overcommit_ratio is %zd\n", value);
   }
@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
   fp = fopen("/proc/sys/vm/overcommit_memory", "rt");
   if (!fp) {perror("overcommit_memory");exit(-1);}
   value = 0;
-  f = fscanf(fp,"%zd", &value);
+  f = fscanf(fp,"%zu", &value);
   if (f==1) {
     fprintf(stderr,"*info* overcommit_memory is %zd\n", value);
   }
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
       
       p[index] = realloc(p[index], size);
       if (p[index]) {
-	memset(p[index] + oldsize, 'x', size-oldsize);
+	memset((char*)p[index] + oldsize, 'x', size-oldsize);
 	globalTotal += (size - oldsize);
       } else {
 	break;

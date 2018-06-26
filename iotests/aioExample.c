@@ -22,7 +22,8 @@ int main() {
   io_context_t c;
   aioSetup(&c, 32);
 
-  char *data = aligned_alloc(4096, 65536); // alignment, size
+  char *data;
+  CALLOC(data, 65536, 1); // will be aligned to 4KiB by default
 
   size_t total = 0, inFlight = 0;
 

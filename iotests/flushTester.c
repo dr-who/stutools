@@ -103,7 +103,7 @@ int readAndCheck(size_t blocksize, char *buffer, size_t bufferLen, size_t unique
     }
 
     size_t ss = 0, dd = 0;
-    sscanf(buffer,"%zd %zd", &ss, &dd);
+    sscanf(buffer,"%zu %zu", &ss, &dd);
     if (seed == ss) {
       if (dd > globalCounter) {
 	globalCounter = dd;
@@ -159,11 +159,8 @@ int main(int argc, char *argv[]) {
 
 
   if (device) {
-    void *randomBuffer = NULL;
-    int pp = posix_memalign(&randomBuffer, 4096, 65536);
-    if (pp != 0) {
-      fprintf(stderr,"*error* memory error\n");exit(1);
-    }
+    char *randomBuffer = NULL;
+    CALLOC(randomBuffer, 1, 65536);
     if (!verify) {
       writeAndFlush(65536, (char*)randomBuffer, 65536, positions);
     } else {

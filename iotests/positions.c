@@ -31,6 +31,7 @@ positionType *createPositions(size_t num) {
     fprintf(stderr,"*warning* createPositions num was 0?\n");
     num=1;
   }
+  fprintf(stderr,"create positions %zd\n", num);
   CALLOC(p, num, sizeof(positionType));
   return p;
 }
@@ -127,7 +128,7 @@ void savePositions(const char *name, positionType *positions, size_t num, size_t
 	size_t bdSizeBytes = positions[i].dev->bdSize;
 	const char action = positions[i].action;
 	if (action == 'R' || action == 'W') {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%ld\n", positions[i].dev->devicename, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%ld\n", positions[i].dev->devicename, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed);
 	}
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
 	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%ld\n", positions[i].dev->devicename, (size_t)0, 0.0, 0.0, 'F', (size_t)0, bdSizeBytes, 0.0, positions[i].seed);
@@ -188,20 +189,24 @@ void setupPositions1(positionType *positions,
   }//assert((1<<alignbits) == alignment);
 
 
+
+  size_t bdRoundedSizeExcl = ((size_t)((bdSizeBytes) / lowbs)) * lowbs;
+  if (verbose >= 2)
+    fprintf(stderr,"*info* bdRoundedSizeExcl %zd\n", bdRoundedSizeExcl);
+
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
   size_t *positionsStart, *origStart;
   const int toalloc = (sf == 0) ? 1 : abs(sf);
-    //  if (toalloc < 1) toalloc = 1;
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(origStart, toalloc, sizeof(size_t));
-  size_t maxBlockIncl = (bdSizeBytes / bs) - 1;
-  //  assert (startBlock <= maxBlockIncl);
+  
+  size_t maxBlockIncl = (bdRoundedSizeExcl / bs) - 1;
   if (maxBlockIncl < 1) maxBlockIncl = 1;
-  const size_t byteSeekMaxLoc = maxBlockIncl * bs; // [0..maxBlockIncl] inclusive
-  if (verbose >= 1) {
-    fprintf(stderr,"*info* byteSeekMaxLoc: %zd, blockSeek [0..%zd], bdSizeBytes %zd (%.2lf GiB)\n", byteSeekMaxLoc, maxBlockIncl, bdSizeBytes, TOGiB(bdSizeBytes));
-  }
+
+  if (verbose >= 2) 
+    fprintf(stderr,"*info* maxBlock %zd\n", maxBlockIncl);
+
   long stBlock = 0;
   if (startingBlock == -99999) {
     stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock, if it's not -99999 then set it.
@@ -232,7 +237,6 @@ void setupPositions1(positionType *positions,
     
     origStart[i] = positionsStart[i]; // copy of start
 
-    assert(positionsStart[i] <= byteSeekMaxLoc);
     if (verbose >= 2) {
       fprintf(stderr,"*info* alignment start %zd: %zd (block %zd/max %zd)\n", i, positionsStart[i], positionsStart[i] / bs, maxBlockIncl);
     }
@@ -258,55 +262,73 @@ void setupPositions1(positionType *positions,
       }
     }
 
+
+    long l = positionsStart[count % toalloc], nextl = 0;
+
+    //        fprintf(stderr,"starting %ld\n", l);
+
+    if (l + thislen > bdRoundedSizeExcl) {
+      l = l + thislen - bdRoundedSizeExcl; 
+      assert(l>=0);
+      assert(l + thislen <= bdRoundedSizeExcl);
+    }
+    if (l < 0) {
+      l = l + bdRoundedSizeExcl + thislen;
+      //            fprintf(stderr,"  adjusted l2 %ld\n", l);
+      while (l + thislen > bdRoundedSizeExcl) {
+	l-= thislen;
+      }
+      //      fprintf(stderr,"  adjusted l3 %ld\n", l);
+       assert(l>=0);
+      assert(l + thislen <= bdRoundedSizeExcl);
+    }
+
+    //       fprintf(stderr,"  adjusted l %ld\n", l);
+
+    // preconditions are [0..end)
+    if (sf >= 0) {
+      // +ve sequential
+      if (jumpStep >= 0) {
+	// +ve jumping
+	if (l + thislen > bdRoundedSizeExcl) { // if off the end
+	  l = l + thislen - bdRoundedSizeExcl; // wrap
+	  assert(l>=0);
+	}	
+	nextl = l + thislen + (jumpStep * lowbs);
+      } else {
+	if (l - (thislen * ABS(jumpStep)) < 0) {
+	  l = l - (thislen * ABS(jumpStep)) + bdRoundedSizeExcl; 
+	}
+	nextl = l - thislen - (jumpStep * lowbs);
+      }
+    } else {
+      // -ve sequential
+      // the current one is ok (pre condition), next one to the left
+      nextl = l - thislen;
+    }
+    //check
+    assert(l >= 0); // check this position and len are in range
+    assert(l + thislen <= bdRoundedSizeExcl); // 
+
+    // and store
+    poss[count].pos = l;
     poss[count].len = thislen;
     poss[count].dev = dev;
     poss[count].seed = seed;
-    poss[count].pos = positionsStart[count % toalloc];
-
-    long l = 0;
-    if (sf >= 0) {
-      // +ve sequential
-      l = positionsStart[count % toalloc];
-      if (jumpStep >= 0) {
-	// +ve jumping
-	l += thislen;
-	l += (jumpStep * lowbs);
-	if (l > byteSeekMaxLoc) {
-	  l -= (byteSeekMaxLoc);
-	}
-	//	l = l % (byteSeekMaxLoc + lowbs);
-	//assert(l>=0);
-	//    assert(l <= byteSeekMaxLoc);
-      } else {
-	l -= (thislen * ABS(jumpStep));
-	if (l < 0) {
-	  l += (byteSeekMaxLoc);
-	}
-	//	l = l % (byteSeekMaxLoc + alignment);
-	//assert(l>=0);
-	//    assert(l <= byteSeekMaxLoc);
-      }
-    } else {
-      // negative sequential
-      l = positionsStart[count % toalloc];
-      l = l -thislen;
-      if (l < 0) {
-	l += (byteSeekMaxLoc);
-      }
-      //      fprintf(stderr,"%zu.. ",l);
-      //      l = l % (byteSeekMaxLoc + alignment);
-      //            fprintf(stderr,"....%zu.. \n",l);
-      //assert(l>=0);
-      //    assert(l <= byteSeekMaxLoc);
-    }
-    assert(l >= 0);
-    assert(l <= byteSeekMaxLoc);
+    
     //      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
     //    assert(l <= maxBlockIncl * bs);
-    positionsStart[count % toalloc] = (size_t) l;
+    if (nextl >= bdRoundedSizeExcl) {
+      nextl -= bdRoundedSizeExcl;
+    }
+    if (nextl < 0) {
+      nextl += bdRoundedSizeExcl;
+    }
+    positionsStart[count % toalloc] = nextl;
       
 	
     totalLen += thislen;
+    //    fprintf(stderr,"total len %zd\n", totalLen);
     if (totalLen >= ((maxBlockIncl +1) * bs)) { // if total length written is too much
       break;
     }
@@ -455,10 +477,11 @@ void setupPositions(positionType *positions,
   size_t *flatnum;
   CALLOC(flatpositions, devCount, sizeof(positionType *));
   CALLOC(flatnum, devCount, sizeof(size_t));
-  
+
   flatnum[0] = *num;
   flatpositions[0] = createPositions(flatnum[0]);
   assert(flatpositions[0]);
+
   setupPositions1(flatpositions[0], &(flatnum[0]), &devList[0], bdSizeWeAreUsing, sf, readorwrite, lowbs, bs, alignment, singlePosition, jumpStep, startingBlock, bdSizeWeAreUsing, blockOffset, cigar, seed);
   
   for (size_t i = 1; i < devCount; i++) {
@@ -497,7 +520,7 @@ void setupPositions(positionType *positions,
   if (verbose >= 1) {
     fprintf(stderr,"*info* unique positions: %zd\n", *num);
     for (size_t i = 0; i < MIN(*num, 30); i++) {
-      fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].dev->fd);
+      fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8u\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].dev->fd);
     }
   }
 
@@ -546,19 +569,20 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
   
 positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs) {
 
-  char *line = malloc(20000);
-  size_t maxline = 20000;
+  char *line = malloc(200000);
+  size_t maxline = 200000;
   ssize_t read;
-  char path[255], empty1[255], empty2[255], empty3[255], empty4[255], empty5[255], empty6[255];
-  char *origline = line; // store the original pointer, as getline changes it creating an unfreeable area
+  char path[25], empty1[25], empty2[25], empty3[25], empty4[25], empty5[25], empty6[25];
+  //  char *origline = line; // store the original pointer, as getline changes it creating an unfreeable area
   positionType *p = NULL;
   size_t pNum = 0;
   
   while ((read = getline(&line, &maxline, fd)) != -1) {
     size_t pos, len, seed;
+    //    fprintf(stderr,"%zd\n", strlen(line));
     char op;
     
-    int s = sscanf(line, "%s %zd %s %s %s %s %zd %s %s %s %zd", path, &pos, empty1, empty2, empty3, &op, &len, empty4, empty5, empty6, &seed);
+    int s = sscanf(line, "%s %zu %s %s %s %s %zu %s %s %s %zu", path, &pos, empty1, empty2, empty3, &op, &len, empty4, empty5, empty6, &seed);
     if (s>=11) {
       //      fprintf(stderr,"%s %zd %c %zd %zd\n", path, pos, op, len, seed);
       deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
@@ -584,7 +608,7 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
   }
   fflush(stderr);
 
-  free(origline);
+  //  free(line);
 
   *num = pNum;
   return p;

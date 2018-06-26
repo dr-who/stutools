@@ -35,6 +35,7 @@ typedef struct {
   positionType *positions;
   char *randomBuffer;
   size_t bytesRead;
+  double elapsed;
 } threadInfoType;
 
 
@@ -55,11 +56,16 @@ int verifyPosition(positionType *p, char *randomBuffer, char *buf, size_t len, s
       return 0;
     }
   }
-    
-  fprintf(stderr,"*error* block difference at position %zd (div block %zd, remainder %zd)\n", pos, pos / len, pos % len);
+
   for (size_t j = 0; j< len ;j++) {
     if (buf[j] != randomBuffer[j]) {
-      fprintf(stderr,"  byte different at %zd, '%c' '%c'\n", j, buf[j], randomBuffer[j]);
+      char s1[20], s2[20];
+      strncpy(s1, buf, 20);
+      strncpy(s2, randomBuffer, 20);
+      s1[19] = 0;
+      s2[19] = 0;
+      fprintf(stderr,"*error* block difference at position %zd (div block %zd, remainder %zd)\n"
+	      " different starting pos %zd, Should be: '%s', read '%s'\n", pos, pos / len, pos % len, j, s2, s1);
       break;
     }
   }
@@ -72,7 +78,7 @@ static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
 
   char *buf = NULL;
-  int pm = posix_memalign((void**)&buf, threadContext->blocksize, threadContext->blocksize); if (pm) {fprintf(stderr,"oom!\n");exit(-1);}
+  CALLOC(buf, 1, threadContext->blocksize);
 
   //    fprintf(stderr,"*info* id %d, [%ld, %ld),.... \n", threadContext->id, threadContext->startInc, threadContext->endExc);
   positionType *positions = threadContext->positions;
@@ -80,7 +86,16 @@ static void *runThread(void *arg) {
     if (!keepRunning) {break;}
     if (positions[i].action == 'W' && positions[i].success) {
       threadContext->bytesRead += positions[i].len;
+      //      double start = timedouble();
       int ret = verifyPosition(&positions[i], threadContext->randomBuffer, buf, positions[i].len, positions[i].pos);
+
+      if (ret !=0) {
+	int ret2 = verifyPosition(&positions[i], threadContext->randomBuffer, buf, positions[i].len, positions[i].pos);
+	if (ret2 == 0) {
+	  fprintf(stderr,"*info* !surprise! the read worked again the second time!\n");
+	}
+      }
+//      threadContext->elapsed = timedouble() - start;
       switch (ret) {
       case 0: threadContext->correct++; break;
       case -1: threadContext->ioerrors++; break;
@@ -89,9 +104,11 @@ static void *runThread(void *arg) {
       default:
 	break;
       }
+      //      if (ret != 0) {
+      //	fprintf(stderr,"*info* result %d, time taken %.4lf\n", ret, threadContext->elapsed);
+      //      }
     }
   }
-
   free(buf);
 
   return NULL;
@@ -128,7 +145,8 @@ int verifyPositions(positionType *positions, size_t numPositions,char *randomBuf
     threadContext[i].blocksize = blocksize;
     threadContext[i].positions = positions;
     threadContext[i].bytesRead = 0;
-    
+    threadContext[i].elapsed = 0;
+
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
   }
 

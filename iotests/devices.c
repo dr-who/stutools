@@ -12,6 +12,8 @@
 #include "devices.h"
 #include "utils.h"
 
+extern int keepRunning;
+
 deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs) {
   for (size_t i = 0; i < *numDevs; i++) {
     deviceDetails *dcmp = &(*devs)[i];
@@ -25,7 +27,7 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
   *devs = (deviceDetails*) realloc(*devs, (1024 * sizeof(deviceDetails))); // todo, max 1024 drives XXX
   (*devs)[*numDevs].fd = 0;
   (*devs)[*numDevs].bdSize = 0;
-  (*devs)[*numDevs].devicename = (char*)strdup(fn);
+  (*devs)[*numDevs].devicename = strdup(fn);
   (*devs)[*numDevs].exclusive = 0;
   (*devs)[*numDevs].maxSizeGiB = 0;
   (*devs)[*numDevs].isBD = 0;
@@ -87,9 +89,11 @@ int createFile(const char *filename, const double GiB) {
     }
   }
 
-  char *buf = aligned_alloc(65536, 1024*1024); if (!buf) {fprintf(stderr,"createFile OOM\n");exit(-1);}
+  char *buf = NULL;
+  CALLOC(buf, 1, 1024*1024);
+  
   size_t towriteMiB = (size_t)(GiB * 1024) * 1024 * 1024;
-  while (towriteMiB > 0) {
+  while (towriteMiB > 0 && keepRunning) {
     int towrite = MIN(towriteMiB, 1024*1024);
     if (write(fd, buf, towrite) != towrite) {
       perror("createFile");free(buf);return 1;
@@ -99,6 +103,10 @@ int createFile(const char *filename, const double GiB) {
   fsync(fd);
   close(fd);
   free(buf);
+  if (!keepRunning) {
+    fprintf(stderr,"*warning* early size creation termination");
+  }
+  keepRunning = 1;
   return 0;
 }
 
@@ -198,16 +206,6 @@ size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, d
       //      fprintf(stderr,"nnn %s\n", newpath);
       //      if (verbose >= 2) 
       //	fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.2lf GiB)\n", newpath, devs[i].bdSize, TOGiB(devs[i].bdSize));
-
-      if (sendTrim) {
-	if (maxSizeGB > 0) {
-	  trimDevice(devs[i].fd, newpath, 0, maxSizeGB*1024*1024*1024);
-	} else {
-	  fprintf(stderr,"*info* limiting to 10GiB... ");
-	  trimDevice(devs[i].fd, newpath, 0, 1L*1024*1024*1024);
-	}
-      }
-
     } else {
       devs[i].fd = open(newpath, O_RDWR | O_EXCL); // if a file
       if (devs[i].fd < 0) {
