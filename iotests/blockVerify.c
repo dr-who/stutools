@@ -49,7 +49,7 @@ int verifyPosition(positionType *p, char *randomBuffer, char *buf, size_t len, s
     perror("pread");
     return -1;
   } else if (ret != len) {
-    fprintf(stderr,"*error* wrong len %ld instead of %zd\n", ret, len);
+    fprintf(stderr,"*error* wrong len %zd instead of %zd\n", ret, len);
     return -2;
   } else {
     if (memcmp(randomBuffer, buf, len) == 0) {
