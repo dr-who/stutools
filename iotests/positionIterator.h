@@ -4,6 +4,7 @@
 #define EMPTYTYPE 0
 #define RANDOMTYPE 1
 #define LINEARTYPE 2
+#define HOPTYPE 3
 
 typedef struct {
   int type;
@@ -13,8 +14,10 @@ typedef struct {
   size_t BDSize;
   size_t originalBDSize;
   size_t maxAlignedBlocks;
-  int seed;
   size_t lastpos;
+  int seed;
+  int jumplow;
+  int jumphigh;
 } positionIteratorType;
 
 

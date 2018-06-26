@@ -31,15 +31,26 @@ void positionRandom(positionIteratorType *p, int seed) {
   srand48(seed);
 }
 
-void positionLinear(positionIteratorType *p, int start) { // start in alignment blocks
+void positionLinear(positionIteratorType *p, int start, int jump) { // start in alignment blocks
   p->type = LINEARTYPE;
+  p->jumplow = jump;
+  p->jumphigh = jump;
+  assert(jump != 0);
+  p->lastpos = start << p->alignbits;
+}
+
+void positionHop(positionIteratorType *p, int start, int lowhops, int highhops) { // start in alignment blocks
+  p->type = HOPTYPE;
+  p->jumplow = lowhops;
+  p->jumphigh = highhops;
+  assert(p->jumplow <= highhops);
   p->lastpos = start << p->alignbits;
 }
 
 size_t positionNext(positionIteratorType *p, size_t *pos, size_t *len) {
   assert(p->type != EMPTYTYPE);
   const size_t thislen = randomBlockSize(p->low_bs, p->high_bs, p->alignbits);
-  size_t b = 0;
+  long b = 0;
 
   switch (p->type) {
   case RANDOMTYPE:
@@ -54,11 +65,21 @@ size_t positionNext(positionIteratorType *p, size_t *pos, size_t *len) {
     *pos = p->lastpos;
     *len = thislen;
 
-    b = *pos + thislen;
-    if (b >= p->BDSize) {
-      b = b - p->BDSize;
+    if (*pos + thislen > p->BDSize) {
+      *pos = 0;
     }
-    p->lastpos = b;
+    p->lastpos = *pos + (p->jumplow * thislen);
+    break;
+  case HOPTYPE:
+    for (size_t hops = p->jumplow; hops < p->jumplow + 1+ (lrand48() % (p->jumphigh - p->jumplow+ 1)) ;hops++) {
+      *pos = p->lastpos;
+      *len = thislen;
+      
+      if (*pos + thislen > p->BDSize) {
+	*pos = 0;
+      }
+      p->lastpos = *pos + thislen;
+    }
     break;
   }
       
@@ -69,26 +90,42 @@ size_t positionNext(positionIteratorType *p, size_t *pos, size_t *len) {
 
 int main() {
   positionIteratorType p;
-  positionIteratorInit(&p, 1024, 1024*1024, 1024*1024, 4096, 65536);
+  positionIteratorInit(&p, 1, 1024*1024, 1024*1024, 1, 1);
   positionRandom(&p, 1);
   size_t pos, len;
-  for (size_t i = 0; i < 2000000; i++) {
+  for (size_t i = 0; i < 1; i++) {
     positionNext(&p, &pos, &len);
+
+
     assert(pos + len <= 1024*1024);
-    assert(len >= 4096);
+    //    assert(len >= 2048);
     assert(len <= 65536);
-    assert( (size_t)(len / 1024) * 1024 == len);
+    //    assert( (size_t)(len / 1024) * 1024 == len);
     
     //    fprintf(stdout, "%zd %zd\n", pos, len);
   }
 
-  positionLinear(&p, 0);
+  positionLinear(&p, 0, 2);
   for (size_t i = 0; i < 2000000; i++) {
     positionNext(&p, &pos, &len);
     assert(pos + len <= 1024*1024);
-    assert(len >= 4096);
+    assert(pos >= 0);
+    //    assert(len >= 2048);
     assert(len <= 65536);
-    fprintf(stdout, "%zd %zd\n", pos, len);
+    //        fprintf(stdout, "%zd %zd\n", pos, len);
+  }
+
+  long lastpos = -1;
+  positionHop(&p, 0, 2, 20);
+  for (size_t i = 0; i < 2000000; i++) {
+    positionNext(&p, &pos, &len);
+    //    assert(pos != lastpos);
+    lastpos = pos;
+    assert(pos + len <= 1024*1024);
+    assert(pos >= 0);
+    //    assert(len >= 2048);
+    assert(len <= 65536);
+        fprintf(stdout, "%zd %zd\n", pos, len);
   }
 
   return 1;
