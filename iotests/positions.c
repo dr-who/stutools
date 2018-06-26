@@ -31,7 +31,7 @@ positionType *createPositions(size_t num) {
     fprintf(stderr,"*warning* createPositions num was 0?\n");
     num=1;
   }
-  fprintf(stderr,"create positions %zd\n", num);
+  //fprintf(stderr,"create positions %zd\n", num);
   CALLOC(p, num, sizeof(positionType));
   return p;
 }
