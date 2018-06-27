@@ -78,7 +78,7 @@ void handle_args(int argc, char *argv[]) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
-      if (alignment >0 && alignment < 512) alignment = 512;
+      alignment = (alignment >> 1) << 1;
       break;
     case 'd':
       description = strdup(optarg);
@@ -201,8 +201,8 @@ void handle_args(int argc, char *argv[]) {
     case 'k': {
       char *ndx = index(optarg, '-');
       if (ndx) {
-	int firstnum = atof(optarg) * 1024;
-	int secondnum = atof(ndx + 1) * 1024;
+	int firstnum = 1 << (int)log2(atof(optarg) * 1024);
+	int secondnum = 1 << (int)log2(atof(ndx+1) * 1024);
 	if (secondnum < firstnum) secondnum = firstnum;
 	if (verbose > 1) {
 	  fprintf(stderr,"*info* specific block range: %g KiB (%d) to %g KiB (%d)\n", firstnum/1024.0, firstnum, secondnum/1024.0, secondnum);
@@ -211,7 +211,7 @@ void handle_args(int argc, char *argv[]) {
 	BLKSIZE = secondnum;
 	// range
       } else {
-	BLKSIZE = 1024 * atof(optarg); if (BLKSIZE < 512) BLKSIZE=512;
+	BLKSIZE = 1 << (int)log2(atof(optarg) * 1024);
 	LOWBLKSIZE = BLKSIZE;
       }}
       break;
@@ -527,7 +527,7 @@ int main(int argc, char *argv[]) {
   } else {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
-    fprintf(stderr,"*info* sequential %d, readWriteRatio: %.1g, QD: %d, block size: %g-%g KiB (aligned to %zd bytes)\n", seqFiles, readRatio, qd, LOWBLKSIZE/1024.0, BLKSIZE/1024.0, alignment);
+    fprintf(stderr,"*info* sequential %d, readWriteRatio: %.1g, QD: %d, block size: %zd-%zd bytes (aligned to %zd bytes)\n", seqFiles, readRatio, qd, LOWBLKSIZE, BLKSIZE, alignment);
     fprintf(stderr,"*info* flushEvery %d, max bdSizeWeAreUsing %.2lf GiB, blockoffset %d\n", flushEvery, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);

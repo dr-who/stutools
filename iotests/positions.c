@@ -248,7 +248,7 @@ void setupPositions1(positionType *positions,
     const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
     assert(thislen >= lowbs);
     assert(thislen <= bs);
-    assert(((size_t)(thislen / 2)) * 2 == thislen);
+    //    assert(((size_t)(thislen / 2)) * 2 == thislen);
 
     if (count >= possAlloc) {
       possAlloc = possAlloc * 2 + 1; // grow by a 1/3 each time

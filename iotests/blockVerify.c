@@ -59,11 +59,11 @@ int verifyPosition(positionType *p, char *randomBuffer, char *buf, size_t len, s
 
   for (size_t j = 0; j< len ;j++) {
     if (buf[j] != randomBuffer[j]) {
-      char s1[20], s2[20];
-      strncpy(s1, buf, 20);
-      strncpy(s2, randomBuffer, 20);
-      s1[19] = 0;
-      s2[19] = 0;
+      char s1[30], s2[30];
+      strncpy(s1, buf, 30);
+      strncpy(s2, randomBuffer, 30);
+      s1[29] = 0;
+      s2[29] = 0;
       fprintf(stderr,"*error* block difference at position %zd (div block %zd, remainder %zd)\n"
 	      " different starting pos %zd, Should be: '%s', read '%s'\n", pos, pos / len, pos % len, j, s2, s1);
       break;
