@@ -54,6 +54,13 @@ int main(int argc, char *argv[]) {
   // display
   infoDevices(devices, numDevices);
 
+  int numOpen = numOpenDevices(devices, numDevices);
+
+  if (numOpen <= 0) {
+    fprintf(stderr,"*error* no devices can be opened\n");
+    exit(-1);
+  }
+
   fprintf(stderr,"*info* numPositions %zd\n", numPositions);
   // save to do a rough check
   //  savePositions("test.log", positions, numPositions, 0);

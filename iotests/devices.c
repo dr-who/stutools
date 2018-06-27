@@ -110,6 +110,15 @@ int createFile(const char *filename, const double GiB) {
   return 0;
 }
 
+size_t numOpenDevices(deviceDetails *devs, size_t numDevs) {
+  size_t count = 0;
+  for (size_t i = 0; i < numDevs; i++) {
+    if (devs[i].fd > 0) {
+      count++;
+    }
+  }
+  return count;
+}
 
 size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, double maxSizeGB, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive) {
   size_t retBD = 0;

@@ -54,6 +54,12 @@ int main(int argc, char *argv[]) {
   openDevices(devices, numDevices, 0, 0, blocksize, blocksize, blocksize, 1, 0); // the 1 is "need to write"
   // display
   infoDevices(devices, numDevices);
+  int numOpen = numOpenDevices(devices, numDevices);
+
+  if (numOpen <= 0) {
+    fprintf(stderr,"*error* no devices can be opened\n");
+    exit(-1);
+  }
 
   fprintf(stderr,"*info* numPositions %zd\n", numPositions);
 
