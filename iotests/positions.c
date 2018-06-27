@@ -329,7 +329,8 @@ void setupPositions1(positionType *positions,
 	
     totalLen += thislen;
     //    fprintf(stderr,"total len %zd\n", totalLen);
-    if (totalLen >= ((maxBlockIncl +1) * bs)) { // if total length written is too much
+    //    if (totalLen >= ((maxBlockIncl +1) * bs)) { // if total length written is too much
+    if (totalLen >= bdRoundedSizeExcl - bs) { // if total length written is too much
       break;
     }
 
