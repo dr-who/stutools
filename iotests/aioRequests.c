@@ -150,7 +150,7 @@ size_t aioMultiplePositions( positionType *positions,
 	      }
 	      
 	    } else {
-	      fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()"); if(!dontExitOnErrors) exit(-1);
+	      fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()"); if(!dontExitOnErrors) abort();
 	    }
 	  }
 	  
@@ -273,7 +273,7 @@ size_t aioMultiplePositions( positionType *positions,
   *totalWB = totalWriteBytes;
   *totalRB = totalReadBytes;
   
-  return *totalWB + *totalRB;
+  return (*totalWB) + (*totalRB);
 }
 
 
