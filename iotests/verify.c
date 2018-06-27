@@ -32,6 +32,11 @@ int main(int argc, char *argv[]) {
 
   // load in all the positions, generation from the -L filename option from aioRWTest
   positions = loadPositions(stdin, &numPositions, &devices, &numDevices);
+  if (!positions) {
+    fprintf(stderr,"*warning* no valid positions\n");
+    freeDeviceDetails(devices, numDevices);
+    exit(-1);
+  }
 
   // find block and seed
   long seed;

@@ -320,7 +320,8 @@ void generateRandomBuffer(char *buffer, size_t size, long seed) {
   strncpy(buffer, s, topr);
 
   free(user);
-  buffer[size - 1] = 0;
+  if (size > 0)
+    buffer[size - 1] = 0;
 
   //  fprintf(stderr,"size: %zd, jump %d, '%s'\n", size, jump, buffer);
 }

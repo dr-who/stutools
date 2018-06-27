@@ -572,7 +572,8 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
   char *line = malloc(200000);
   size_t maxline = 200000;
   ssize_t read;
-  char path[200], empty1[200], empty2[200], empty3[200], empty4[200], empty5[200], empty6[200];
+  char *path;
+  CALLOC(path, 1000, 1);
   //  char *origline = line; // store the original pointer, as getline changes it creating an unfreeable area
   positionType *p = NULL;
   size_t pNum = 0;
@@ -582,8 +583,8 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
     //    fprintf(stderr,"%zd\n", strlen(line));
     char op;
     
-    int s = sscanf(line, "%s %zu %s %s %s %s %zu %s %s %s %zu", path, &pos, empty1, empty2, empty3, &op, &len, empty4, empty5, empty6, &seed);
-    if (s>=11) {
+    int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %*s %*s %*s %zu", path, &pos, &op, &len, &seed);
+    if (s >= 5) {
       //      fprintf(stderr,"%s %zd %c %zd %zd\n", path, pos, op, len, seed);
       deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
       pNum++;
@@ -608,8 +609,9 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
   }
   fflush(stderr);
 
-  //  free(line);
+  free(line);
 
+  free(path);
   *num = pNum;
   return p;
 }
