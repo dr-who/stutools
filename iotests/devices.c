@@ -236,8 +236,11 @@ size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, d
     devs[i].exclusive = !dontUseExclusive;
     devs[i].maxSizeGiB = maxSizeGB;
 
-    assert(devs[i].fd > 0);
-    assert(devs[i].fd < 256);
+    if (devs[i].fd <= 0) {
+      fprintf(stderr,"*error* can't open device %s\n", devs[i].devicename);
+    }
+    //    assert(devs[i].fd > 0);
+    //    assert(devs[i].fd < 256);
 
   } // i
 
