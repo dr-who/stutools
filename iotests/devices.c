@@ -138,14 +138,13 @@ size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, d
 	if (maxSizeGB == 0) {
 	  fprintf(stderr,"*info* defaulting to 1 GiB size\n"); maxSizeGB = 1;
 	}
-	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.2lf GiB...", devs[i].devicename, maxSizeGB*1.0);
+	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.2lf GiB...\n", devs[i].devicename, maxSizeGB*1.0);
 	fflush(stderr);
 	int rv = createFile(devs[i].devicename, maxSizeGB);
 	if (rv != 0) {
 	  fprintf(stderr,"*error* couldn't create file '%s'\n", devs[i].devicename);
 	  exit(-1);
 	}
-	fprintf(stderr,"\n");
 	strcpy(newpath, devs[i].devicename);
       } else {
 	perror(devs[i].devicename);
