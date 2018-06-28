@@ -248,38 +248,36 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] -f blockdevice\n");
     fprintf(stderr,"\nExample:\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0            # 50/50 read/write test, seq r/w\n");
-    fprintf(stderr,"  ./aioRWTest -I devicelist.txt       # 50/50 read/write test, seq r/w from a file\n");
+    fprintf(stderr,"  ./aioRWTest -I devicelist.txt       # 50/50 read/write test, from a file\n");
     fprintf(stderr,"  ./aioRWTest -r -f /dev/nbd0         # read test\n");
     fprintf(stderr,"  ./aioRWTest -w -f /dev/nbd0         # write test\n");
     fprintf(stderr,"  ./aioRWTest -w -FF -f /dev/nbd0     # write test, flush every 10 writes.\n");
     fprintf(stderr,"  ./aioRWTest -w -v -f /dev/nbd0      # write test with verify\n");
-    fprintf(stderr,"  ./aioRWTest -w -V -f /dev/nbd0      # write test, verbosity, including showing the first N positions\n");
+    fprintf(stderr,"  ./aioRWTest -w -V -f /dev/nbd0      # same including showing the 1st N pos\n");
     fprintf(stderr,"  ./aioRWTest -r -s1 -I devs.txt      # read test, single contiguous region\n");
-    fprintf(stderr,"  ./aioRWTest -w -s128 -f /dev/nbd0   # write test, 128 parallel contiguous regions\n");
-    fprintf(stderr,"  ./aioRWTest -P1 -F -f /dev/nbd0     # single static position, fsync after every op\n");
+    fprintf(stderr,"  ./aioRWTest -w -s128 -f /dev/nbd0   # 128 parallel contiguous regions\n");
+    fprintf(stderr,"  ./aioRWTest -P1 -F -f /dev/nbd0     # single static position, fsync after\n");
     fprintf(stderr,"  ./aioRWTest -p0.25 -f /dev/nbd0     # 25%% read, and 75%% write\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -G100      # limit actions to first 100GiB\n");
-    fprintf(stderr,"  ./aioRWTest -p0.1 -f/dev/nbd0 -G3   # 10%% reads, 90%% writes, limited to first 3GiB of device\n");
+    fprintf(stderr,"  ./aioRWTest -p0.1 -f/dev/nbd0 -G3   # 10%% r/w ratio, limit to 3 GiB\n");
     fprintf(stderr,"  ./aioRWTest -t30 -f/dev/nbd0        # test for 30 seconds\n");
-    fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0      # send no operations, then flush. Basically, fast flush loop\n");
+    fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0      # send no operations, then flush. \n");
     fprintf(stderr,"  ./aioRWTest -P1 -F -V -f /dev/nbd0  # verbose that shows every operation\n");
-    fprintf(stderr,"  ./aioRWTest -P1 -F -V -f file.txt   # can also use a single file. Note the file will be destroyed.\n");
-    fprintf(stderr,"  ./aioRWTest -P1 -F -F -k4 -f /dev/nbd0  # single position, fsync every 10 ops\n");
-    fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -f /dev/nbd0  # random positions, 50%% R/W, verified after 15 seconds.\n");
-    //    fprintf(stderr,"  ./aioRWTest -p1 -f/dev/nbd0 -k4 -q64 -s32 -j16 # 100%% reads over entire block device\n");
-    //    fprintf(stderr,"  ./aioRWTest -p1 -f/dev/nbd0 -k4 -q64 -s32 -j16 # 100%% reads over entire block device\n");
-    fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -R 9812 -f /dev/nbd0 # set the starting seed to 9812\n");
+    fprintf(stderr,"  ./aioRWTest -P1 -F -V -f file.txt   # can also use a single file.\n");
+    fprintf(stderr,"  ./aioRWTest -P1 -F -F -k4 -f /dev/nbd0  # single pos, fsync every 10 ops\n");
+    fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -f /dev/nbd0  # random pos, 50%% R/W, verified\n");
+    fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -R 9812 -f /dev/nbd0 # set the seed to 9812\n");
     //    fprintf(stderr,"  ./aioRWTest -s 1 -j 10 -f /dev/sdc -V          #  contiguous access, jumping 10 blocks at a time\n");
-    fprintf(stderr,"  ./aioRWTest -s -8 -f /dev/sdc -V               # reverse contiguous 8 regions in parallel\n");
-    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -O ok                 # use a list of devices in ok.txt for disk stats/amplification\n");
-    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -k1 -G0.1      # write 1KiB buffers from 100 MiB (100k unique). Cache testing.\n");
-    fprintf(stderr,"  ./aioRWTest -s1 -w -P 10000 -f /dev/nbd0 -k1   # Use 10,000 positions. Cache testing.\n");
-    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX           # Triple X does not use O_EXCL. For multiple simultaneous *CARE*\n");
-    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z        # Start the first position at position zero instead of random (-Z 0).\n");
-    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB instead of the default 4KiB\n");
+    fprintf(stderr,"  ./aioRWTest -s -8 -f /dev/sdc -V    # reverse contiguous 8 regions in parallel\n");
+    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -O ok      # list of devs in ok.txt for disk stats/\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -k1 -G0.1      # write 1KiB into 100 MiB\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -P 10000 -f /dev/nbd0 -k1   # Use 10,000 positions.\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX           # Triple X skips O_EXCL!\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z        # 1st pos at 0\n");
+    fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -Z 100         # start at block 100\n");
-    fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump locations and operations to 'locations'\n");
-    fprintf(stderr,"  ./verify < locations                           # read every write operation and verify\n");
+    fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump ops to 'locations'\n");
+    fprintf(stderr,"  ./verify < locations                           # verify write operation \n");
     fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0    # log *block* timing and total data to 'timedata' (TSV format)\n");
     fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to 'timedata' (JSON)\n");
     fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0   # log *per second* benching timing (add -J for JSON, -M for MySQL)\n");
@@ -527,7 +525,7 @@ int main(int argc, char *argv[]) {
   } else {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
-    fprintf(stderr,"*info* sequential %d, readWriteRatio: %.1g, QD: %d, block size: %zd-%zd bytes (aligned to %zd bytes)\n", seqFiles, readRatio, qd, LOWBLKSIZE, BLKSIZE, alignment);
+    fprintf(stderr,"*info* seq: %d, r/w Ratio: %.1g, qd: %d, block size: %zd-%zd bytes\n*info* aligned to %zd bytes\n", seqFiles, readRatio, qd, LOWBLKSIZE, BLKSIZE, alignment);
     fprintf(stderr,"*info* flushEvery %d, max bdSizeWeAreUsing %.2lf GiB, blockoffset %d\n", flushEvery, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);
@@ -588,11 +586,13 @@ int main(int argc, char *argv[]) {
     diskStatFinish(&dst); // and sector counts when finished
 
     char s[1000];
-    sprintf(s, "total read %.2lf GiB, %.0lf MiB/s, total write = %.2lf GiB, %.0lf MiB/s, %.1lf s, qd %d, bs %zd-%zd, seq %d, drives %zd, testSize %.2lf GiB",
+    sprintf(s, "r: %.1lf GiB, %.0lf MiB/s, w: %.1lf GiB, %.0lf MiB/s, %.1lf s, qd %d, bs %zd-%zd, seq %d, drives %zd (%.1lf GiB)",
 	    TOGiB(shouldReadBytes), TOMiB(shouldReadBytes)/elapsed,
 	    TOGiB(shouldWriteBytes), TOMiB(shouldWriteBytes)/elapsed, elapsed, qd, LOWBLKSIZE, BLKSIZE, seqFiles, deviceCount, TOGiB(bdSizeWeAreUsing));
-    fprintf(stderr,"*info* %s\n", s);
 
+    fprintf(stderr,"*info* r: %.1lf GiB, %.0lf MiB/s, w: %.1lf GiB, %.0lf MiB/s, %.1lf s\n", TOGiB(shouldReadBytes), TOMiB(shouldReadBytes)/elapsed,
+	    TOGiB(shouldWriteBytes), TOMiB(shouldWriteBytes)/elapsed, elapsed);
+    
     char *user = username();
     syslog(LOG_INFO, "%s - %s stutools %s", s, user, VERSION);
     free(user);
@@ -610,9 +610,9 @@ int main(int argc, char *argv[]) {
 	keepRunning = 1;
 	//	int numerrors = aioVerifyWrites(positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
 	size_t correct = 0, incorrect = 0, ioerrors = 0, lenerrors = 0;
-	int numerrors = verifyPositions(positions, maxPositions, randomBuffer, 8192, seed, BLKSIZE, &correct, &incorrect, &ioerrors, &lenerrors);
+	int numerrors = verifyPositions(positions, maxPositions, randomBuffer, 2048, seed, BLKSIZE, &correct, &incorrect, &ioerrors, &lenerrors);
 
-	fprintf(stderr,"*info* verify stats: total %zd, correct %zd, incorrect %zd, ioerrors %zd, lenerrors %zd\n", correct+incorrect+ioerrors+lenerrors, correct, incorrect, ioerrors, lenerrors);
+	fprintf(stderr,"*info* verify: total %zd, ok %zd, wrong %zd, ioerrors %zd, lenerrors %zd\n", correct+incorrect+ioerrors+lenerrors, correct, incorrect, ioerrors, lenerrors);
 	
 	if (numerrors) {
 	  exitcode = MIN(numerrors, 254);

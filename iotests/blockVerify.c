@@ -166,7 +166,7 @@ int verifyPositions(positionType *positions, size_t numPositions,char *randomBuf
   }
   size_t ops = (*correct) + (*incorrect) + (*ioerrors) + (*lenerrors);
 
-  fprintf(stderr,"*info* verify speed: %zd operations, %zd bytes (%.2lf GiB) verified in %.2lf seconds (%zd threads)= %.1lf MiB/s\n", ops, tr, TOGiB(tr), elapsed, threads, TOMiB(tr)/elapsed);
+  fprintf(stderr,"*info* verify: %zd ops, %.1lf GiB, %.1lf s (t=%zd), %.1lf MiB/s\n", ops, TOGiB(tr), elapsed, threads, TOMiB(tr)/elapsed);
 
   free(pt);
   free(threadContext);

@@ -264,7 +264,7 @@ size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, d
 
 void infoDevices(const deviceDetails *devList, const size_t devCount) {
   for (size_t f = 0; f < devCount; f++) {
-    fprintf(stderr,"*info* device[%zd], isBD %d, path %s, fd %d, bdSize = %zd bytes (%.3lf GiB), excl %d, maxSizeGiB override %.3g\n", f, devList[f].isBD, devList[f].devicename, devList[f].fd, devList[f].bdSize, TOGiB(devList[f].bdSize), devList[f].exclusive, devList[f].maxSizeGiB);
+    fprintf(stderr,"*info* [%zd], BD %d, '%s', fd %d, %zd bytes (%.2lf GiB), E %d, -G %.2g GiB\n", f, devList[f].isBD, devList[f].devicename, devList[f].fd, devList[f].bdSize, TOGiB(devList[f].bdSize), devList[f].exclusive, devList[f].maxSizeGiB);
   }
 }
 
