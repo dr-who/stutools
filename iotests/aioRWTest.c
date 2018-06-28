@@ -245,7 +245,7 @@ void handle_args(int argc, char *argv[]) {
     }
   }
   if (deviceCount < 1) {
-    fprintf(stderr,"./aioRWTest [-s sequentialFiles] [-k blocksizeKB] [-q queueDepth] [-t 30 secs] -f blockdevice\n");
+    fprintf(stderr,"./aioRWTest -f device\n");
     fprintf(stderr,"\nExample:\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0            # 50/50 read/write test, seq r/w\n");
     fprintf(stderr,"  ./aioRWTest -I devicelist.txt       # 50/50 read/write test, from a file\n");
@@ -264,7 +264,13 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -0 -F -f /dev/nbd0      # send no operations, then flush. \n");
     fprintf(stderr,"  ./aioRWTest -P1 -F -V -f /dev/nbd0  # verbose that shows every operation\n");
     fprintf(stderr,"  ./aioRWTest -P1 -F -V -f file.txt   # can also use a single file.\n");
-    fprintf(stderr,"  ./aioRWTest -P1 -F -F -k4 -f /dev/nbd0  # single pos, fsync every 10 ops\n");
+    //    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0   # Use CIGAR format for R/W/X actions. '100R' '200X' '10R100W50X'\n");
+    //    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0   # more examples, variable sizes '~R' '@W' ':W' '~R@W:W'\n");
+    //    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0   # more examples, 'B' repeats the previous, 'S' skip\n");
+    fprintf(stderr,"  ./aioRWTest -S file -f /dev/nbd0    # specify the block from 'S'\n");
+    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -N         # call fsync() after writing\n");
+    fprintf(stderr,"  ./aioRWTest -f filename -G10        # create a 10GiB file if not present\n");
+    fprintf(stderr,"  ./aioRWTest -f filename -G 4R       # append R and it'll be 4x the RAM\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -f /dev/nbd0  # random pos, 50%% R/W, verified\n");
     fprintf(stderr,"  ./aioRWTest -v -t15 -p0.5 -R 9812 -f /dev/nbd0 # set the seed to 9812\n");
     //    fprintf(stderr,"  ./aioRWTest -s 1 -j 10 -f /dev/sdc -V          #  contiguous access, jumping 10 blocks at a time\n");
@@ -276,20 +282,11 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -XXX -z        # 1st pos at 0\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -P10000 -z -a1 # align operations to 1KiB\n");
     fprintf(stderr,"  ./aioRWTest -s1 -w -f /dev/nbd0 -Z 100         # start at block 100\n");
+    fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0    # log *block* timing and total\n");
+    fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # JSON format block timing\n");
+    fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0   # log *per second* timing\n");
     fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump ops to 'locations'\n");
     fprintf(stderr,"  ./verify < locations                           # verify write operation \n");
-    fprintf(stderr,"  ./aioRWTest -D timedata -s1 -w -f /dev/nbd0    # log *block* timing and total data to 'timedata' (TSV format)\n");
-    fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # log timing and total data to 'timedata' (JSON)\n");
-    fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0   # log *per second* benching timing (add -J for JSON, -M for MySQL)\n");
-    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # Use CIGAR format for R/W/X actions. '100R' '200X' '10R100W50X'\n");
-    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, variable sizes '~R' '@W' ':W' '~R@W:W'\n");
-    fprintf(stderr,"  ./aioRWTest -C CIGAR -f /dev/nbd0              # more examples, 'B' repeats the previous, 'S' skip\n");
-    fprintf(stderr,"  ./aioRWTest -S file -f /dev/nbd0               # the random block to write is from the file 'file'\n");
-    fprintf(stderr,"  ./aioRWTest -f /dev/nbd0 -N                    # call fsync() after writing (default is to skip fsync())\n");
-    fprintf(stderr,"  ./aioRWTest -f filename -G10                   # if 'filename' doesn't exist, create it as a 10GiB file\n");
-    fprintf(stderr,"  ./aioRWTest -f filename -G 4R                  # append R (for RAM) to the -G option and it'll be 4x the RAM\n");
-    fprintf(stderr,"  ./aioRWTest -f /mnt/test/ramdisk -G10          # mkdir /mnt/test; mount -t tmpfs -o size=10G tmpfs /mnt/test ...\n");
-    fprintf(stderr,"  ./aioRWTest -E -w -f /dev/nbd0                 # -E don't exit on errors\n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
     exit(-1);
