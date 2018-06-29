@@ -2,9 +2,13 @@
 cmake_minimum_required (VERSION 2.6)
 project (stutools)
 
-add_executable(aioRWTest aioRWTest.c aioRequests.c logSpeed.c utils.c diskStats.c positions.c cigar.c devices.c blockVerify.c)
-target_link_libraries(aioRWTest m aio pthread)
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wall -pedantic --std=c99" )
 
-add_executable(verify verify.c positions.c devices.c cigar.c utils.c blockVerify.c)
-target_link_libraries(verify m aio pthread)
+add_library(common STATIC positions.c devices.c cigar.c utils.c blockVerify.c diskStats.c logSpeed.c aioRequests.c)
+
+add_executable(aioRWTest aioRWTest.c)
+target_link_libraries(aioRWTest common m aio pthread)
+
+add_executable(verify verify.c)
+target_link_libraries(verify common m aio pthread)
 
