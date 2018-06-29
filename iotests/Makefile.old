@@ -20,8 +20,14 @@ writeSpeedTest:
 verify: verify.o positions.o devices.o cigar.o utils.o blockVerify.o
 	gcc $^ -o $@ -lpthread -lm
 
+blockVerify.o: blockVerify.c positions.h devices.h utils.h
+
+utils.o: utils.c logSpeed.h
+
 repeat: repeat.o positions.o devices.o cigar.o utils.o blockVerify.o aioRequests.o logSpeed.o
 	gcc $^ -o $@ -lpthread -lm -laio
+
+aioRequests.o: aioRequests.c logSpeed.h positions.h
 
 #readSpeedTest: readSpeedTest.o utils.o logSpeed.o 
 #	gcc $^ -o $@ -lpthread -lm
@@ -65,6 +71,8 @@ mtReadSpeedTest: mtReadSpeedTest.o utils.o logSpeed.o
 checkDisks: checkDisks.o utils.o logSpeed.o aioRequests.o positions.o cigar.o devices.o
 	gcc $^ -o $@ -lpthread -lm -laio
 
+devices.o: devices.c cigar.h
+
 trim: trim.o utils.o logSpeed.o
 	gcc $^ -o $@ -lm 
 
@@ -77,7 +85,7 @@ flushTestWriter: flushTestWriter.o utils.o logSpeed.o
 flushTestReader: flushTestReader.o utils.o logSpeed.o 
 	gcc $^ -o $@ -lpthread -lm
 
-aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o devices.o blockVerify.o
+aioRWTest: aioRWTest.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o devices.o blockVerify.o 
 	gcc $^ -o $@ -lm -laio -lpthread
 
 aioExample: aioExample.o aioRequests.o logSpeed.o utils.o 
@@ -86,7 +94,7 @@ aioExample: aioExample.o aioRequests.o logSpeed.o utils.o
 aioMulti: aioMulti.o aioRequests.o logSpeed.o utils.o diskStats.o positions.o cigar.o devices.o
 	gcc $^ -o $@ -lm -laio -lpthread
 
-positions.o: positions.c utils.h
+positions.o: positions.c utils.h devices.h positions.h cigar.h
 
 logSpeed.o: logSpeed.c logSpeed.h utils.h
 
