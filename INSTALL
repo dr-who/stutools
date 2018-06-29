@@ -10,6 +10,4 @@ or CentOS
 
 Then simply build
 
-# cd iotests
-# cmake .
-# make
+# cmake . && make
