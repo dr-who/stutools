@@ -11,4 +11,5 @@ or CentOS
 Then simply build
 
 # cd iotests
+# cmake .
 # make

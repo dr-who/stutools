@@ -295,7 +295,9 @@ void handle_args(int argc, char *argv[]) {
 
 
 int main(int argc, char *argv[]) {
-
+#ifndef VERSION
+#define VERSION __TIMESTAMP__
+#endif
   fprintf(stderr,"*info* stutools %s %s\n", argv[0], VERSION);
     
   handle_args(argc, argv);
