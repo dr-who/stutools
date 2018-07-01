@@ -282,7 +282,7 @@ void startThreads(int argc, char *argv[], int start) {
     fclose(fp);
 
     char *user = username();
-    syslog(LOG_INFO, "%s - has %zd drives in ok.txt (stutools %s)", user, numok, VERSION);
+    syslog(LOG_INFO, "%s - has %zd drives in ok.txt", user, numok);
     free(user);
 
     
