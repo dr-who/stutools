@@ -296,7 +296,7 @@ void setupPositions1(positionType *positions,
 	}	
 	nextl = l + thislen + (jumpStep * lowbs);
       } else {
-	if (l - (thislen * ABS(jumpStep)) < 0) {
+	if (l - (long)(thislen * ABS(jumpStep)) < 0) {
 	  l = l - (thislen * ABS(jumpStep)) + bdRoundedSizeExcl; 
 	}
 	nextl = l - thislen - (jumpStep * lowbs);
@@ -502,7 +502,7 @@ void setupPositions(positionType *positions,
       positions[outcount++] = flatpositions[fd][i];
       if ((outcount >= *num) || (outcount >= flatnum[fd] * devCount)) {
 	//	fprintf(stderr,"*warning* finished at %zd\n", flatnum[fd]);
-	fd = devCount;
+	//fd = devCount;
 	i = *num;
 	break;
       }

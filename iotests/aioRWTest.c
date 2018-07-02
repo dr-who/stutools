@@ -401,8 +401,6 @@ int main(int argc, char *argv[]) {
       fprintf(stderr,"*warning* file size of '%s' is less than %zd. Filling with 0x00.\n", randomBufferFile, BLKSIZE);
     }
   }
-
-  if (maxPositions < 0) maxPositions = 0;
   
   positionType *positions = createPositions(maxPositions);
 

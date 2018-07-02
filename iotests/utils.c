@@ -330,7 +330,7 @@ void generateRandomBuffer(char *buffer, size_t size, long seed) {
 /* creates a new string */
 char *getSuffix(const char *path) {
   int found = -1;
-  for (size_t i = strlen(path)-1; i >= 0; i--) {
+  for (size_t i = strlen(path)-1; i > 0; i--) {
     if (path[i] == '/') {
       found = i + 1;
       break;

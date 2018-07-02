@@ -347,7 +347,6 @@ int aioVerifyWrites(positionType *positions,
 	    //	    perror("cannot seek");
 	  }
 	}
-	bytesRead = read(positions[i].dev->fd, buffer, len);
 
 	if ((size_t)bytesRead != len) {
 	  ioerrors++;
