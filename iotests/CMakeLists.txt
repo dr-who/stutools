@@ -2,7 +2,7 @@
 cmake_minimum_required (VERSION 2.6)
 project (stutools)
 
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wall -pedantic --std=c99" )
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wall -pedantic --std=c99 -O2" )
 
 add_library(stutools STATIC positions.c devices.c cigar.c utils.c blockVerify.c diskStats.c logSpeed.c aioRequests.c)
 
