@@ -87,7 +87,7 @@ int startsWith(const char *pre, const char *str)
 int createFile(const char *filename, const double GiB) {
   int fd = 0;
   if (startsWith("/dev/", filename)) {
-    fprintf(stderr,"*error* user error, I am not going to create a file '%s' in the directory /dev/\n", filename);
+    fprintf(stderr,"*error* path error, will not create a file '%s' in the directory /dev/\n", filename);
     exit(-1);
   }
   fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
