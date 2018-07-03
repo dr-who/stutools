@@ -342,8 +342,20 @@ int main(int argc, char *argv[]) {
   if (alignment > LOWBLKSIZE) {
     alignment = LOWBLKSIZE;
   }
+
+  openDevices(deviceList, deviceCount, sendTrim, maxSizeGB, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
+
+  // prune closed, char or too small
+  deviceDetails *dd2 = prune(deviceList, &deviceCount, BLKSIZE);
+  freeDeviceDetails(deviceList, deviceCount);
+  deviceList = dd2;
+
+  size_t bdSizeWeAreUsing = smallestBDSize(deviceList, deviceCount);
+  if (maxSizeGB > 0 && (bdSizeWeAreUsing > maxSizeGB*1024*1024*1024)) {
+    bdSizeWeAreUsing = maxSizeGB*1024*1024*1024;
+  }
+  infoDevices(deviceList, deviceCount);
   
-  size_t bdSizeWeAreUsing = openDevices(deviceList, deviceCount, sendTrim, maxSizeGB, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
   if (verbose >= 1) {
     fprintf(stderr,"*info* using bdSize of %zd (%.3lf GiB)\n", bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing));
   }

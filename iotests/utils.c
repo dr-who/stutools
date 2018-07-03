@@ -131,11 +131,25 @@ void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxT
 
 int isBlockDevice(const char *name) {
   struct stat sb;
+  int ret;
 
-  if (stat(name, &sb) == -1) {
+  if ((ret = stat(name, &sb)) == -1) {
+    fprintf(stderr,"*warning* isBlockDevice '%s' returned %d\n", name, ret);
     return 0;
   }
-  return (S_ISBLK(sb.st_mode));
+
+  switch (sb.st_mode & S_IFMT) { // check the filetype bits
+  case S_IFBLK:  ret=1; break; //printf("block device\n");            break;
+  case S_IFCHR:  ret=0; break; // printf("character device\n");        break;
+  case S_IFDIR:  ret=0; break; // printf("directory\n");               break;
+  case S_IFIFO:  ret=0; break; // printf("FIFO/pipe\n");               break;
+  case S_IFLNK:  ret=0; break; // retprintf("symlink\n");                 break;
+  case S_IFREG:  ret=2; break; // printf("regular file\n");            break;
+  case S_IFSOCK: ret=0; break ; //printf("socket\n");                  break;
+  default:   ret=0; break; //    printf("unknown?\n");                break;
+  }
+    
+  return ret;
 }
 
 

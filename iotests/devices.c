@@ -128,8 +128,7 @@ size_t numOpenDevices(deviceDetails *devs, size_t numDevs) {
   return count;
 }
 
-size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, double maxSizeGB, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive) {
-  size_t retBD = 0;
+void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, double maxSizeGB, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive) {
   
   //  int error = 0;
   
@@ -160,7 +159,8 @@ size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, d
     }
 
     size_t phy, log;
-    if (isBlockDevice(newpath)) {
+    devs[i].isBD = isBlockDevice(newpath);
+    if (devs[i].isBD == 1) {
       /* -- From a Google search
 	 The physical block size is the smallest size the device can
 	 handle atomically. The smalles block it can handle without needing
@@ -211,7 +211,6 @@ size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, d
 	perror(newpath); goto cont;
       }
 
-      devs[i].isBD = 1;
       devs[i].bdSize = blockDeviceSizeFromFD(devs[i].fd);
       // if too small then exit
       if (devs[i].bdSize <=1 ) {
@@ -222,7 +221,7 @@ size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, d
       //      fprintf(stderr,"nnn %s\n", newpath);
       //      if (verbose >= 2) 
       //	fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.2lf GiB)\n", newpath, devs[i].bdSize, TOGiB(devs[i].bdSize));
-    } else {
+    } else if (devs[i].isBD == 2) { // file
       if (startsWith("/dev/", newpath)) {
 	fprintf(stderr,"*warning* high chance of critical problem, the path '%s' is a file (NOT a block device)\n", newpath);
       }
@@ -236,45 +235,72 @@ size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, d
 	}
 	fprintf(stderr,"*warning* couldn't open in O_DIRECT mode (filesystem constraints)\n");
       }
-      devs[i].isBD = 0;
       devs[i].bdSize = fileSize(devs[i].fd);
 
       //      fprintf(stderr,"*info* file: '%s' size %zd bytes (%.2lf GiB)\n", newpath, devs[i].bdSize, TOGiB(devs[i].bdSize));
-    }
-    
-    if (i == 0) {
-      retBD = devs[i].bdSize;
     } else {
-      if (devs[i].bdSize < retBD) {
-	retBD = devs[i].bdSize;
-      }
+      fprintf(stderr,"*info* %s is neither a file nor block device\n", newpath);
+      goto cont;
     }
     
   cont: {}
 
     devs[i].exclusive = !dontUseExclusive;
     devs[i].maxSizeGiB = maxSizeGB;
-
-    if (devs[i].fd <= 0) {
-      fprintf(stderr,"*error* can't open device %s\n", devs[i].devicename);
-    }
-    //    assert(devs[i].fd > 0);
-    //    assert(devs[i].fd < 256);
-
   } // i
 
-  if (maxSizeGB > 0) {
-    if (retBD > maxSizeGB*1024*1024*1024) {
-      retBD = maxSizeGB*1024*1024*1024;
-    }
-  }
-
-  return retBD;
 }
 
 void infoDevices(const deviceDetails *devList, const size_t devCount) {
   for (size_t f = 0; f < devCount; f++) {
-    fprintf(stderr,"*info* [%zd], BD %d, '%s', fd %d, %zd bytes (%.2lf GiB), E %d, -G %.2g GiB\n", f, devList[f].isBD, devList[f].devicename, devList[f].fd, devList[f].bdSize, TOGiB(devList[f].bdSize), devList[f].exclusive, devList[f].maxSizeGiB);
+    
+    fprintf(stderr,"*info* [%zd], BD ", f);
+    switch (devList[f].isBD) {
+    case 0: fprintf(stderr,"n/a"); break;
+    case 1: fprintf(stderr,"block"); break;
+    case 2: fprintf(stderr,"file"); break;
+    default:
+      fprintf(stderr,"ERR");
+      break;
+    }
+    fprintf(stderr," '%s', fd %d, %zd bytes (%.2lf GiB), exclusive %d, -G %.2g GiB\n", devList[f].devicename, devList[f].fd, devList[f].bdSize, TOGiB(devList[f].bdSize), devList[f].exclusive, devList[f].maxSizeGiB);
   }
 }
 
+
+deviceDetails *prune(deviceDetails *devList, size_t *devCount, const size_t blockSize) {
+  deviceDetails *dd = NULL;
+
+  int count = 0;
+  for (size_t f = 0; f < *devCount; f++) {
+    if (devList[f].fd > 0 && devList[f].bdSize >= blockSize) {
+      count++;
+    }
+  }
+  CALLOC(dd, count, sizeof(deviceDetails));
+  count = 0;
+  for (size_t f = 0; f < *devCount; f++) {
+    if (devList[f].fd > 0 && devList[f].bdSize >= blockSize) {
+      dd[count] = devList[f];
+      dd[count].devicename = strdup(dd[count].devicename);
+      count++;
+    } else {
+      fprintf(stderr,"*info* skipping '%s'\n", devList[f].devicename);
+    }
+  }
+
+  *devCount = count;
+  return dd;
+}
+
+size_t smallestBDSize(deviceDetails *devList, size_t devCount) {
+  size_t min = 0;
+  
+  for (size_t f = 0; f < devCount; f++) {
+    if ((f == 0) || (devList[f].bdSize < min)) {
+      min = devList[f].bdSize;
+    }
+  }
+  fprintf(stderr,"*info* min BD Size = %.3lf GiB\n", TOGiB(min));
+  return min;
+}
