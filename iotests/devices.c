@@ -78,8 +78,18 @@ size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs) 
   return add;
 }
 
+int startsWith(const char *pre, const char *str)
+{
+  size_t lenpre = strlen(pre), lenstr = strlen(str);
+  return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
+}
+
 int createFile(const char *filename, const double GiB) {
   int fd = 0;
+  if (startsWith("/dev/", filename)) {
+    fprintf(stderr,"*error* user error, I am not going to create a file call '%s' in the directory /dev/\n", filename);
+    exit(-1);
+  }
   fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
   if (fd < 0) {
     fprintf(stderr,"*info* creating the file with O_DIRECT didn't work...\n");
