@@ -301,6 +301,6 @@ size_t smallestBDSize(deviceDetails *devList, size_t devCount) {
       min = devList[f].bdSize;
     }
   }
-  fprintf(stderr,"*info* min BD Size = %.3lf GiB\n", TOGiB(min));
+  // fprintf(stderr,"*info* min BD Size = %.3lf GiB\n", TOGiB(min));
   return min;
 }
