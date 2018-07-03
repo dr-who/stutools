@@ -436,3 +436,10 @@ inline size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes,
   //  fprintf(stderr,"random bytes %zd\n", randombs);
   return randombs;
 }
+
+int startsWith(const char *pre, const char *str)
+{
+  size_t lenpre = strlen(pre), lenstr = strlen(str);
+  return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
+}
+
