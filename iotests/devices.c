@@ -223,6 +223,9 @@ size_t openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, d
       //      if (verbose >= 2) 
       //	fprintf(stderr,"*info* block device: '%s' size %zd bytes (%.2lf GiB)\n", newpath, devs[i].bdSize, TOGiB(devs[i].bdSize));
     } else {
+      if (startsWith("/dev/", newpath)) {
+	fprintf(stderr,"*warning* high chance of critical problem, the path '%s' is a file (NOT a block device)\n", newpath);
+      }
       devs[i].fd = open(newpath, O_RDWR | O_EXCL); // if a file
       if (devs[i].fd < 0) {
 	fprintf(stderr,"*info* opened file\n");

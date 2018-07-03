@@ -120,7 +120,7 @@ size_t aioMultiplePositions( positionType *positions,
 	  int read = (positions[pos].action == 'R');
 	  
 	  // setup the request
-	  if (positions[pos].dev->fd >= 0) {
+	  if (positions[pos].dev && (positions[pos].dev->fd >= 0)) {
 	    if (read) {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
 	      io_prep_pread(cbs[submitted%QD], positions[pos].dev->fd, dataread[submitted%QD], len, newpos);
