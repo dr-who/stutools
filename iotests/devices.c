@@ -86,8 +86,11 @@ int createFile(const char *filename, const double GiB) {
     exit(-1);
   }
   fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
-  if (fd < 0) {
-    fprintf(stderr,"*info* creating the file with O_DIRECT didn't work...\n");
+  if (fd >= 0) {
+    fprintf(stderr,"*info* created file with O_DIRECT\n");
+  } else {
+    fprintf(stderr,"*warning* creating file with O_DIRECT failed (no filesystem support?)\n");
+    fprintf(stderr,"*warning* parts of the file will be in the page cache/RAM.\n");
     fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd < 0) {
       perror(filename);return 1;
