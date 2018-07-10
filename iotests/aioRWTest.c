@@ -455,7 +455,7 @@ int main(int argc, char *argv[]) {
       ssArray[0] = 0; ssArray[1] = 1; ssArray[2] = 32; ssArray[3] = 128;
     }
 
-    fprintf(stderr," blkSz\t numSq\tQueueD\t   R/W\t  IOPS\t MiB/s\t Ampli\t Disk%%\n");
+    fprintf(stderr," blkSz   numSq  QueueD     R/W    IOPS  MiB/s  Ampli   Disk%%\n");
     
     for (size_t rrindex=0; rrindex < rrSpecified; rrindex++) {
       for (size_t ssindex=0; ssindex < seqFilesSpecified; ssindex++) {
@@ -474,7 +474,7 @@ int main(int argc, char *argv[]) {
 
 	    diskStatStart(&dst); // reset the counts
 	    
-	    fprintf(stderr,"%6zd\t%6zd\t%6zd\t%6.2f\t", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
+	    fprintf(stderr,"%6zd  %6zd  %6zd  %6g ", bsArray[bsindex], ssArray[ssindex], qdArray[qdindex], rrArray[rrindex]);
 	    
 	    if (ssArray[ssindex] == 0) {
 	      // setup random positions. An value of 0 means random. e.g. zero sequential files
@@ -512,14 +512,18 @@ int main(int argc, char *argv[]) {
 	    size_t shouldHaveBytes = rb;
 	    size_t didBytes = trb + twb;
 	    double efficiency = didBytes *100.0/shouldHaveBytes;
-	    if (!specifiedDevices) {
-	      efficiency = 100;
-	    }
 
 	    logSpeedDump(&l, filename, dataLogFormat, description, bdSizeWeAreUsing, bdSizeWeAreUsing, rrArray[rrindex], flushEvery, ssArray[ssindex], bsArray[bsindex], bsArray[bsindex], cli);
 	    logSpeedFree(&l);
 	    
-	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
+	    //	    fprintf(stderr,"%6.0lf\t%6.0lf\t%6.0lf\t%6.0lf\n", ios/elapsed, TOMiB(ios*BLKSIZE/elapsed), efficiency, util);
+	    fprintf(stderr," %6.0lf %6.0lf ", ios/elapsed, TOMiB(ios * BLKSIZE/elapsed));
+	    if (specifiedDevices) {
+	      fprintf(stderr,"%6.0lf", efficiency);
+	    } else {
+	      fprintf(stderr,"   n/a");
+	    }
+	    fprintf(stderr, " %7.0lf\n", util);
 	    row++;
 	    if (row > 1) {
 	      //	      rrindex=99999;ssindex=99999;qdindex=99999;bsindex=99999;
