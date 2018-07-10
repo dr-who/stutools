@@ -263,7 +263,7 @@ void infoDevices(const deviceDetails *devList, const size_t devCount) {
       fprintf(stderr,"ERR");
       break;
     }
-    fprintf(stderr," '%s', fd %d, %zd bytes (%.2lf GiB), exclusive %d, -G %.2g GiB\n", devList[f].devicename, devList[f].fd, devList[f].bdSize, TOGiB(devList[f].bdSize), devList[f].exclusive, devList[f].maxSizeGiB);
+    fprintf(stderr," '%s', %zd bytes (%.2lf GiB), excl=%d, G=%.2g GiB\n", devList[f].devicename, devList[f].bdSize, TOGiB(devList[f].bdSize), devList[f].exclusive, devList[f].maxSizeGiB);
   }
 }
 
@@ -273,14 +273,14 @@ deviceDetails *prune(deviceDetails *devList, size_t *devCount, const size_t bloc
 
   int count = 0;
   for (size_t f = 0; f < *devCount; f++) {
-    if (devList[f].fd > 0 && devList[f].bdSize >= blockSize) {
+    if (devList[f].fd > 0 && devList[f].bdSize > 2*blockSize) {
       count++;
     }
   }
   CALLOC(dd, count, sizeof(deviceDetails));
   count = 0;
   for (size_t f = 0; f < *devCount; f++) {
-    if (devList[f].fd > 0 && devList[f].bdSize >= blockSize) {
+    if (devList[f].fd > 0 && devList[f].bdSize > 2*blockSize) {
       dd[count] = devList[f];
       dd[count].devicename = strdup(dd[count].devicename);
       count++;

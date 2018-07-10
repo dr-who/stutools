@@ -27,9 +27,9 @@ static int poscompare(const void *p1, const void *p2)
 
 positionType *createPositions(size_t num) {
   positionType *p;
-  if (num < 1 || num > ((size_t)-1) / 2) {
+  if (num == 0) {
     fprintf(stderr,"*warning* createPositions num was 0?\n");
-    num=1;
+    return NULL;
   }
   //fprintf(stderr,"create positions %zd\n", num);
   CALLOC(p, num, sizeof(positionType));
@@ -338,14 +338,16 @@ void setupPositions1(positionType *positions,
     count++;
   } // find a position across the disks
 
-  //  if (verbose >= 1) {
-  //    fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(bdSizeTotal));
-  //  }
+  if (verbose >= 1) {
+        fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(bdSizeTotal));
+  }
+  
   if (*num > count) {
     if (verbose > 1) {
       fprintf(stderr,"*warning* there are %zd unique positions on the device\n", count);
     }
     *num = count;
+    //    assert (*num > 0);
   }
 
   // copy to positions
@@ -474,59 +476,59 @@ void setupPositions(positionType *positions,
 		    cigartype *cigar,
 		    long seed
 		    ) {
-  positionType **flatpositions;
-  size_t *flatnum;
-  CALLOC(flatpositions, devCount, sizeof(positionType *));
-  CALLOC(flatnum, devCount, sizeof(size_t));
 
-  flatnum[0] = *num;
-  flatpositions[0] = createPositions(flatnum[0]);
-  assert(flatpositions[0]);
+  if (positions) {
+    positionType **flatpositions;
+    size_t *flatnum;
+    CALLOC(flatpositions, devCount, sizeof(positionType *));
+    CALLOC(flatnum, devCount, sizeof(size_t));
 
-  setupPositions1(flatpositions[0], &(flatnum[0]), &devList[0], bdSizeWeAreUsing, sf, readorwrite, lowbs, bs, alignment, singlePosition, jumpStep, startingBlock, bdSizeWeAreUsing, blockOffset, cigar, seed);
+    flatnum[0] = *num;
+    flatpositions[0] = createPositions(flatnum[0]);
+    assert(flatpositions[0]);
+    assert(flatnum[0] >= 1);
+
+    setupPositions1(flatpositions[0], &(flatnum[0]), &devList[0], bdSizeWeAreUsing, sf, readorwrite, lowbs, bs, alignment, singlePosition, jumpStep, startingBlock, bdSizeWeAreUsing, blockOffset, cigar, seed);
   
-  for (size_t i = 1; i < devCount; i++) {
-    flatnum[i] = flatnum[0];
-    flatpositions[i] = createPositions(flatnum[i]);
-    for (size_t j = 0; j < flatnum[i]; j++) {
-      flatpositions[i][j] = flatpositions[0][j];
-      flatpositions[i][j].dev = &(devList[i]);
+    for (size_t i = 1; i < devCount; i++) {
+      flatnum[i] = flatnum[0];
+      flatpositions[i] = createPositions(flatnum[i]);
+      for (size_t j = 0; j < flatnum[i]; j++) {
+	flatpositions[i][j] = flatpositions[0][j];
+	flatpositions[i][j].dev = &(devList[i]);
+      }
     }
-  }
 
-  // merge them
-  size_t outcount = 0;
-  //  fprintf(stderr,"starting num %zd\n", *num);
-  for (size_t i = 0; i < *num; i++) {
-    for (size_t fd = 0; fd < devCount; fd++) {
-      positions[outcount++] = flatpositions[fd][i];
-      if ((outcount >= *num) || (outcount >= flatnum[fd] * devCount)) {
-	//	fprintf(stderr,"*warning* finished at %zd\n", flatnum[fd]);
-	//fd = devCount;
-	i = *num;
-	break;
+    // merge them
+    size_t outcount = 0;
+    //      fprintf(stderr,"starting num %zd\n", *num);
+    for (size_t i = 0; i < *num; i++) {
+      for (size_t fd = 0; fd < devCount; fd++) {
+	positions[outcount++] = flatpositions[fd][i];
+	if ((outcount >= *num) || (outcount >= flatnum[fd] * devCount)) {
+	  //	fprintf(stderr,"*warning* finished at %zd\n", flatnum[fd]);
+	  //fd = devCount;
+	  i = *num;
+	  break;
+	}
+      }
+    }
+      
+    *num = outcount;
+  
+    for (size_t i = 0; i < devCount; i++) {
+      freePositions(flatpositions[i]);
+    }
+    free(flatnum);
+    free(flatpositions);
+
+    if (verbose >= 1) {
+      fprintf(stderr,"*info* unique positions: %zd\n", *num);
+      for (size_t i = 0; i < MIN(*num, 30); i++) {
+	fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8u\t%c\t%s\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].dev->devicename);
       }
     }
   }
-      
-  *num = outcount;
-  //  fprintf(stderr,"num = %zd\n", *num);
-  
-  for (size_t i = 0; i < devCount; i++) {
-    freePositions(flatpositions[i]);
-  }
-  free(flatnum);
-  free(flatpositions);
-
-  if (verbose >= 1) {
-    fprintf(stderr,"*info* unique positions: %zd\n", *num);
-    for (size_t i = 0; i < MIN(*num, 30); i++) {
-      fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8u\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].dev->fd);
-    }
-  }
-
-
-
 }
 
 

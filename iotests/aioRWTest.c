@@ -439,9 +439,9 @@ int main(int argc, char *argv[]) {
       CALLOC(qdArray, qdSpecified, sizeof(size_t));
       qdArray[0] = qd;
     } else {
-      qdSpecified = 4;
+      qdSpecified = 3;
       CALLOC(qdArray, qdSpecified, sizeof(size_t));
-      qdArray[0] = 1; qdArray[1] = 8; qdArray[2] = 32; qdArray[3] = 256;
+      qdArray[0] = 1; qdArray[1] = 32; qdArray[2] = 256;
     }
       
     size_t *ssArray = NULL; 
@@ -450,9 +450,9 @@ int main(int argc, char *argv[]) {
       CALLOC(ssArray, seqFilesSpecified, sizeof(size_t));
       ssArray[0] = seqFiles;
     } else { // otherwise an array of values
-      seqFilesSpecified = 5;
+      seqFilesSpecified = 4;
       CALLOC(ssArray, seqFilesSpecified, sizeof(size_t));
-      ssArray[0] = 0; ssArray[1] = 1; ssArray[2] = 8; ssArray[3] = 32; ssArray[4] = 128;
+      ssArray[0] = 0; ssArray[1] = 1; ssArray[2] = 32; ssArray[3] = 128;
     }
 
     fprintf(stderr," blkSz\t numSq\tQueueD\t   R/W\t  IOPS\t MiB/s\t Ampli\t Disk%%\n");
@@ -535,10 +535,11 @@ int main(int argc, char *argv[]) {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
     fprintf(stderr,"*info* seq: %d, r/w Ratio: %.1g, qd: %d, block size: %zd-%zd bytes\n*info* aligned to %zd bytes\n", seqFiles, readRatio, qd, LOWBLKSIZE, BLKSIZE, alignment);
-    fprintf(stderr,"*info* flushEvery %d, max bdSizeWeAreUsing %.2lf GiB, blockoffset %d\n", flushEvery, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
+    fprintf(stderr,"*info* flushEvery %d, max bdSizeWeAreUsing %zd (%.2lf GiB), blockoffset %d\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);
     }
+    assert(maxPositions > 0);
     setupPositions(positions, &maxPositions, deviceList, deviceCount, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
     if (verbose >= 1) {
       positionStats(positions, maxPositions, deviceList, deviceCount);
