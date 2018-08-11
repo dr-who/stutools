@@ -143,7 +143,8 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
     if (!ret) {
       if (errno == ENOENT) {
 	if (maxSizeGB == 0) {
-	  fprintf(stderr,"*info* defaulting to 1 GiB size\n"); maxSizeGB = 1;
+	  maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * 2;
+	  fprintf(stderr,"*info* defaulting to 2 x RAM = %.0lf GiB (override with -G option)\n", maxSizeGB); 
 	}
 	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.2lf GiB...\n", devs[i].devicename, maxSizeGB*1.0);
 	fflush(stderr);
