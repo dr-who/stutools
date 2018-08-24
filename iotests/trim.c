@@ -11,7 +11,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
-
+#include <linux/fs.h>
+#include <sys/ioctl.h>
 #include "utils.h"
 #include "logSpeed.h"
 
