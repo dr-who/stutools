@@ -342,10 +342,10 @@ int main(int argc, char *argv[]) {
   if (alignment > LOWBLKSIZE) {
     alignment = LOWBLKSIZE;
   }
- 
+
   expandDevices(&deviceList, &deviceCount, &seqFiles, &maxSizeGB); // if files and -s then expand
 
-  openDevices(deviceList, deviceCount, sendTrim, maxSizeGB, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
+  openDevices(deviceList, deviceCount, sendTrim, &maxSizeGB, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
 
   // prune closed, char or too small
   deviceDetails *dd2 = prune(deviceList, &deviceCount, BLKSIZE);

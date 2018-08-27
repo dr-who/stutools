@@ -146,6 +146,10 @@ size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, doubl
       devs[i]->isBD = isBlockDevice(newpath);
       if (devs[i]->isBD != 1) {
 	// expand
+	if (*maxSizeGiB == 0) {
+	  *maxSizeGiB = (int)(TOGiB(totalRAM())+0.5) * 2;
+	}
+
 	for (int j=1 ; j <= sf ; j++) {
 	  char name[1000];
 	  if (j==1) {
@@ -176,7 +180,7 @@ size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, doubl
 }
 
 
-void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, double maxSizeGB, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive) {
+void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, double *maxSizeGB, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive) {
   
   //  int error = 0;
   
@@ -190,13 +194,13 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
     char * ret = realpath(devs[i].devicename, newpath);
     if (!ret) {
       if (errno == ENOENT) {
-	if (maxSizeGB == 0) {
-	  maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * 2;
-	  fprintf(stderr,"*info* defaulting to 2 x RAM = %.0lf GiB (override with -G option)\n", maxSizeGB); 
+	if (*maxSizeGB == 0) {
+	  *maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * 2;
+	  fprintf(stderr,"*info* defaulting to 2 x RAM = %.0lf GiB (override with -G option)\n", *maxSizeGB); 
 	}
-	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.2lf GiB...\n", devs[i].devicename, maxSizeGB*1.0);
+	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.2lf GiB...\n", devs[i].devicename, *maxSizeGB*1.0);
 	fflush(stderr);
-	int rv = createFile(devs[i].devicename, maxSizeGB);
+	int rv = createFile(devs[i].devicename, *maxSizeGB);
 	if (rv != 0) {
 	  fprintf(stderr,"*error* couldn't create file '%s'\n", devs[i].devicename);
 	  exit(-1);
@@ -295,7 +299,7 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
   cont: {}
 
     devs[i].exclusive = !dontUseExclusive;
-    devs[i].maxSizeGiB = maxSizeGB;
+    devs[i].maxSizeGiB = *maxSizeGB;
   } // i
 
 }
