@@ -128,6 +128,54 @@ size_t numOpenDevices(deviceDetails *devs, size_t numDevs) {
   return count;
 }
 
+
+size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, double *maxSizeGiB) {
+
+  int sf = *seqFiles;
+  if (sf > 1) {
+
+    size_t nd = *numDevs;
+    char newpath[4096];
+    for (size_t i = 0; i < nd; i++) {
+      memset(newpath, 0, 4096);
+      // follow a symlink
+      devs[i]->fd = -1;
+      char * ret = realpath(devs[i]->devicename, newpath);
+
+      assert(ret || !ret);
+      devs[i]->isBD = isBlockDevice(newpath);
+      if (devs[i]->isBD != 1) {
+	// expand
+	for (int j=1 ; j <= sf ; j++) {
+	  char name[1000];
+	  if (j==1) {
+	    sprintf(name,"%s", newpath);
+	  } else {
+	    sprintf(name,"%s_%d", newpath, j);
+	  }
+	  int fd = open(name, O_RDONLY, S_IRUSR | S_IWUSR);
+	  if (fileSize(fd) != (size_t)(*maxSizeGiB*1024)*1024*1024/sf) {
+	    unlink(name);
+	  }
+	  close(fd);
+
+	  //	  fprintf(stderr,"adding %s...\n", name);
+	  if (j == 1) {
+	    devs[i]->devicename = strdup(name);
+	  } else {
+	    addDeviceDetails(name, devs, numDevs);
+	  }
+	}
+      }
+    }
+    *maxSizeGiB = *maxSizeGiB / *seqFiles;
+    *seqFiles = 1;
+    return 1;
+  }
+  return 0;
+}
+
+
 void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, double maxSizeGB, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive) {
   
   //  int error = 0;
