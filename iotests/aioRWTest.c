@@ -342,6 +342,8 @@ int main(int argc, char *argv[]) {
   if (alignment > LOWBLKSIZE) {
     alignment = LOWBLKSIZE;
   }
+ 
+  expandDevices(&deviceList, &deviceCount, &seqFiles, &maxSizeGB); // if files and -s then expand
 
   openDevices(deviceList, deviceCount, sendTrim, maxSizeGB, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
 
@@ -538,6 +540,8 @@ int main(int argc, char *argv[]) {
   } else {
     // just execute a single run
     size_t totl = diskStatTotalDeviceSize(&dst);
+
+      
     fprintf(stderr,"*info* seq: %d, r/w Ratio: %.1g, qd: %d, block size: %zd-%zd bytes\n*info* aligned to %zd bytes\n", seqFiles, readRatio, qd, LOWBLKSIZE, BLKSIZE, alignment);
     fprintf(stderr,"*info* flushEvery %d, max bdSizeWeAreUsing %zd (%.2lf GiB), blockoffset %d\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
     if (totl > 0) {
