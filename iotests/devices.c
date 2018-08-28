@@ -299,7 +299,8 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
   cont: {}
 
     devs[i].exclusive = !dontUseExclusive;
-    devs[i].maxSizeGiB = *maxSizeGB;
+    if (maxSizeGB) 
+      devs[i].maxSizeGiB = *maxSizeGB;
   } // i
 
 }
