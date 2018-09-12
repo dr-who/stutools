@@ -40,7 +40,7 @@ typedef struct {
 
 
 
-int verifyPosition(positionType *p, char *randomBuffer, char *buf, size_t len, size_t pos) {
+int verifyPosition(positionType *p, const char *randomBuffer, char *buf, size_t len, size_t pos) {
   assert (p->dev->fd > 0);
   //  fprintf(stdout,"%s %d %zd\n", p->dev->devicename, p->dev->fd, pos);
   ssize_t ret = pread(p->dev->fd, buf, len, pos); // use pread as it's thread safe as you pass in the fd, size and offset
@@ -57,18 +57,21 @@ int verifyPosition(positionType *p, char *randomBuffer, char *buf, size_t len, s
     }
   }
 
+  int diff = 0;
   for (size_t j = 0; j< len ;j++) {
     if (buf[j] != randomBuffer[j]) {
-      char s1[30], s2[30];
-      strncpy(s1, buf, 30);
-      strncpy(s2, randomBuffer, 30);
-      s1[29] = 0;
-      s2[29] = 0;
-      fprintf(stderr,"*error* block difference at position %zd (div block %zd, remainder %zd)\n"
-	      " different starting pos %zd, Should be: '%s', read '%s'\n", pos, pos / len, pos % len, j, s2, s1);
-      break;
+      //      char s1[4097], s2[4097];
+      //      strncpy(s1, buf, 4096);
+      //      strncpy(s2, randomBuffer, 4096);
+      //      s1[len+1] = 0;
+      //      s2[len+1] = 0;
+      fprintf(stderr,"*error* block difference at position %zd in block (size %zd, div block %zd, remainder %zd)\n"
+	      " different starting pos %zd, should be: char %d '%c' and %d '%c'\n", j, len, pos / len, pos % len, j, (int)buf[j], buf[j], (int)randomBuffer[j], randomBuffer[j]);
+      diff++;
+      //      break;
     }
   }
+  fprintf(stderr,"total diff %d\n", diff);
   return -3;
 }
 

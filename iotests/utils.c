@@ -18,6 +18,8 @@
 #include <unistd.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
+#include <sys/types.h>
+#include <pwd.h>
 #include <linux/hdreg.h>
 #include <assert.h>
 
@@ -190,10 +192,14 @@ char* queueType(char *path) {
 
 
 char *username() {
-  char *buf = NULL;
-  CALLOC(buf, 200, sizeof(char));
-  getlogin_r(buf, 200);
-  return buf;
+
+  return strdup(getpwuid(geteuid())->pw_name);
+    
+  //  char *buf = NULL;
+  //  CALLOC(buf, 200, sizeof(char));
+  //  getlogin_r(buf, 200);
+  //  buf = cuserid(buf);
+  //  return buf;
 }
 
 
@@ -327,15 +333,15 @@ void generateRandomBuffer(char *buffer, size_t size, long seed) {
       startpoint = verystartpoint;
     }
   }
-  buffer[size - 1] = 0; // end of string to help printing
+  //  buffer[size - 1] = 0; // end of string to help printing
   char s[1000];
   memset(s, 0, 1000);
   const size_t topr = sprintf(s, "stutools - %s - %ld\n", user == NULL ? "" : user, seed);
   strncpy(buffer, s, topr);
 
   free(user);
-  if (size > 0)
-    buffer[size - 1] = 0;
+  //  if (size > 0)
+  //    buffer[size - 1] = 0;
 
   //  fprintf(stderr,"size: %zd, jump %d, '%s'\n", size, jump, buffer);
 }
