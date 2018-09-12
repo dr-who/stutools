@@ -65,8 +65,11 @@ int verifyPosition(positionType *p, const char *randomBuffer, char *buf, size_t 
       //      strncpy(s2, randomBuffer, 4096);
       //      s1[len+1] = 0;
       //      s2[len+1] = 0;
-      fprintf(stderr,"*error* block difference at position %zd in block (size %zd, div block %zd, remainder %zd)\n"
+      if (diff < 10) {
+	fprintf(stderr,"*error* block difference at position %zd in block (size %zd, div block %zd, remainder %zd)\n"
 	      " different starting pos %zd, should be: char %d '%c' and %d '%c'\n", j, len, pos / len, pos % len, j, (int)buf[j], buf[j], (int)randomBuffer[j], randomBuffer[j]);
+	fflush(stderr);
+      }
       diff++;
       //      break;
     }
