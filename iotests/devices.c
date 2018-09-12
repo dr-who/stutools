@@ -192,6 +192,7 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
     devs[i].fd = -1;
     char * ret = realpath(devs[i].devicename, newpath);
     if (!ret) {
+      
       if (errno == ENOENT) {
 	if (*maxSizeGB == 0) {
 	  *maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * 2;
@@ -211,23 +212,6 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
       }
     } else {
       // file exists, if wrong size create with right size
-      int fd = open(devs[i].devicename, O_RDWR, S_IRUSR | S_IWUSR);
-      size_t sz = fileSize(fd);
-      if (sz != devs[i].bdSize) {
-	fprintf(stderr,"File '%s' exists but wrong size (%zd should be %zd)\n", newpath, sz, devs[i].bdSize);
-	//	if (unlink(devs[i].devicename)) {
-	//	  perror(devs[i].devicename);
-	//	  exit(-1);
-	//	}
-	close(fd);
-	int rv = createFile(newpath, devs[i].bdSize);
-	if (rv != 0) {
-	  fprintf(stderr,"*error* couldn't create file '%s'\n", devs[i].devicename);
-	  exit(-1);
-	}
-      } else {
-	close(fd);
-      }
     }
       
 
