@@ -196,8 +196,13 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
       if (errno == ENOENT) {
 	if (*maxSizeGB == 0) {
 	  *maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * 2;
+	  devs[i].bdSize = *maxSizeGB;
 	  fprintf(stderr,"*info* defaulting to 2 x RAM = %.0lf GiB (override with -G option)\n", *maxSizeGB); 
 	}
+	if (devs[i].bdSize == 0) {
+	  devs[i].bdSize = (*maxSizeGB) * 1024*1024*1024;
+	}
+
 	fprintf(stderr,"*info* no file with that name, creating '%s' with size %zd...\n", devs[i].devicename, devs[i].bdSize);
 	fflush(stderr);
 	int rv = createFile(devs[i].devicename, devs[i].bdSize);
@@ -312,7 +317,7 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
 void infoDevices(const deviceDetails *devList, const size_t devCount) {
   for (size_t f = 0; f < devCount; f++) {
     
-    fprintf(stderr,"*info* [%zd], BD ", f);
+    fprintf(stderr,"*info* [%d], BD ", devList[f].fd);
     switch (devList[f].isBD) {
     case 0: fprintf(stderr,"NOT_OPEN"); break;
     case 1: fprintf(stderr,"block"); break;
