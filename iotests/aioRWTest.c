@@ -343,7 +343,23 @@ int main(int argc, char *argv[]) {
     alignment = LOWBLKSIZE;
   }
 
-  expandDevices(&deviceList, &deviceCount, &seqFiles, &maxSizeGB); // if files and -s then expand
+  //  expandDevices(&deviceList, &deviceCount, &seqFiles, &maxSizeGB); // if files and -s then expand
+  if (seqFiles > 1) {
+    size_t origdc = deviceCount;
+    for (size_t i = 0; i < origdc; i++) {
+      if (isBlockDevice(deviceList[i].devicename) != 1) {
+	char str[1000];
+	size_t sz = alignedNumber((long)(maxSizeGB * 1024*1024*1024)/ seqFiles, 1<<16);
+	deviceList[i].bdSize = sz;
+	for (size_t j = 2; j <= seqFiles; j++) {
+	  sprintf(str, "%s_%zd", deviceList[i].devicename, j);
+	  deviceDetails *d = addDeviceDetails(str, &deviceList, &deviceCount);
+	  d->bdSize = sz;
+	  //	  fprintf(stderr,"*info* expanding %s, %zd\n", d->devicename, d->bdSize);
+	}
+      }
+    }
+  }
 
   openDevices(deviceList, deviceCount, sendTrim, &maxSizeGB, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
 
@@ -353,8 +369,8 @@ int main(int argc, char *argv[]) {
   deviceList = dd2;
 
   size_t bdSizeWeAreUsing = smallestBDSize(deviceList, deviceCount);
-  if (maxSizeGB > 0 && (bdSizeWeAreUsing > maxSizeGB*1024*1024*1024)) {
-    bdSizeWeAreUsing = maxSizeGB*1024*1024*1024;
+  if (maxSizeGB > 0 && (bdSizeWeAreUsing > (long)(maxSizeGB*1024*1024*1024))) {
+      bdSizeWeAreUsing = (long)(maxSizeGB*1024*1024*1024);
   }
   infoDevices(deviceList, deviceCount);
   

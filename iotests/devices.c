@@ -23,7 +23,6 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
       return &(*devs)[i];
     }
   }
-  //  fprintf(stderr,"didn't find %s, creating\n", fn);
   *devs = (deviceDetails*) realloc(*devs, (1024 * sizeof(deviceDetails))); // todo, max 1024 drives XXX
   (*devs)[*numDevs].fd = 0;
   (*devs)[*numDevs].bdSize = 0;
@@ -32,9 +31,9 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
   (*devs)[*numDevs].maxSizeGiB = 0;
   (*devs)[*numDevs].isBD = 0;
   
-  //  if (verbose >= 2) {
-  //    fprintf(stderr,"*info* adding -f '%s'\n", (*devs)[*numDevs].devicename);
-  //  }
+  //    if (verbose >= 2) {
+  //      fprintf(stderr,"*info* adding -f '%s'\n", (*devs)[*numDevs].devicename);
+      //    }
 
   deviceDetails *dcmp = &(*devs)[*numDevs];
   (*numDevs)++;
@@ -79,7 +78,7 @@ size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs) 
 }
 
 
-int createFile(const char *filename, const double GiB) {
+int createFile(const char *filename, const size_t sz) {
   int fd = 0;
   if (startsWith("/dev/", filename)) {
     fprintf(stderr,"*error* path error, will not create a file '%s' in the directory /dev/\n", filename);
@@ -87,7 +86,7 @@ int createFile(const char *filename, const double GiB) {
   }
   fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
   if (fd >= 0) {
-    fprintf(stderr,"*info* created file with O_DIRECT\n");
+    fprintf(stderr,"*info* created '%s' with O_DIRECT, size %zd bytes (%g GiB)\n", filename, sz, TOGiB(sz));
   } else {
     fprintf(stderr,"*warning* creating file with O_DIRECT failed (no filesystem support?)\n");
     fprintf(stderr,"*warning* parts of the file will be in the page cache/RAM.\n");
@@ -100,10 +99,10 @@ int createFile(const char *filename, const double GiB) {
   char *buf = NULL;
   CALLOC(buf, 1, 1024*1024);
   
-  size_t towriteMiB = (size_t)(GiB * 1024) * 1024 * 1024;
+  size_t towriteMiB = sz;
   while (towriteMiB > 0 && keepRunning) {
     int towrite = MIN(towriteMiB, 1024*1024);
-    if (write(fd, buf, towrite) != towrite) {
+    if ((write(fd, buf, towrite) != towrite)) {
       perror("createFile");free(buf);return 1;
     }
     towriteMiB -= towrite;
@@ -156,16 +155,16 @@ size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, doubl
 	    sprintf(name,"%s", newpath);
 	  } else {
 	    sprintf(name,"%s_%d", newpath, j);
+	    int fd = open(name, O_RDONLY, S_IRUSR | S_IWUSR);
+	    if (fileSize(fd) != (size_t)(*maxSizeGiB*1024)*1024*1024/sf) {
+	      unlink(name);
+	    }
+	    close(fd);
 	  }
-	  int fd = open(name, O_RDONLY, S_IRUSR | S_IWUSR);
-	  if (fileSize(fd) != (size_t)(*maxSizeGiB*1024)*1024*1024/sf) {
-	    unlink(name);
-	  }
-	  close(fd);
 
-	  //	  fprintf(stderr,"adding %s...\n", name);
+	  fprintf(stderr,"adding %s...\n", name);
 	  if (j == 1) {
-	    devs[i]->devicename = strdup(name);
+	    //  devs[i]->devicename = strdup(name);
 	  } else {
 	    addDeviceDetails(name, devs, numDevs);
 	  }
@@ -198,18 +197,39 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
 	  *maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * 2;
 	  fprintf(stderr,"*info* defaulting to 2 x RAM = %.0lf GiB (override with -G option)\n", *maxSizeGB); 
 	}
-	fprintf(stderr,"*info* no file with that name, creating '%s' with size %.2lf GiB...\n", devs[i].devicename, *maxSizeGB*1.0);
+	fprintf(stderr,"*info* no file with that name, creating '%s' with size %zd...\n", devs[i].devicename, devs[i].bdSize);
 	fflush(stderr);
-	int rv = createFile(devs[i].devicename, *maxSizeGB);
+	int rv = createFile(devs[i].devicename, devs[i].bdSize);
 	if (rv != 0) {
 	  fprintf(stderr,"*error* couldn't create file '%s'\n", devs[i].devicename);
 	  exit(-1);
 	}
 	strcpy(newpath, devs[i].devicename);
       } else {
+
 	perror(devs[i].devicename);
       }
+    } else {
+      // file exists, if wrong size create with right size
+      int fd = open(devs[i].devicename, O_RDWR, S_IRUSR | S_IWUSR);
+      size_t sz = fileSize(fd);
+      if (sz != devs[i].bdSize) {
+	fprintf(stderr,"File '%s' exists but wrong size (%zd should be %zd)\n", newpath, sz, devs[i].bdSize);
+	if (unlink(devs[i].devicename)) {
+	  perror(devs[i].devicename);
+	  exit(-1);
+	}
+	close(fd);
+	int rv = createFile(newpath, devs[i].bdSize);
+	if (rv != 0) {
+	  fprintf(stderr,"*error* couldn't create file '%s'\n", devs[i].devicename);
+	  exit(-1);
+	}
+      } else {
+	close(fd);
+      }
     }
+      
 
     size_t phy, log;
     devs[i].isBD = isBlockDevice(newpath);
@@ -310,7 +330,7 @@ void infoDevices(const deviceDetails *devList, const size_t devCount) {
     
     fprintf(stderr,"*info* [%zd], BD ", f);
     switch (devList[f].isBD) {
-    case 0: fprintf(stderr,"n/a"); break;
+    case 0: fprintf(stderr,"NOT_OPEN"); break;
     case 1: fprintf(stderr,"block"); break;
     case 2: fprintf(stderr,"file"); break;
     default:
@@ -329,6 +349,8 @@ deviceDetails *prune(deviceDetails *devList, size_t *devCount, const size_t bloc
   for (size_t f = 0; f < *devCount; f++) {
     if (devList[f].fd > 0 && devList[f].bdSize > 2*blockSize) {
       count++;
+    } else {
+      fprintf(stderr,"*warning* culling '%s' as the size %zd isn't over %zd\n", devList[f].devicename, devList[f].bdSize, 2*blockSize);
     }
   }
   CALLOC(dd, count, sizeof(deviceDetails));
@@ -339,7 +361,7 @@ deviceDetails *prune(deviceDetails *devList, size_t *devCount, const size_t bloc
       dd[count].devicename = strdup(dd[count].devicename);
       count++;
     } else {
-      fprintf(stderr,"*info* skipping '%s'\n", devList[f].devicename);
+      //      fprintf(stderr,"*info* skipping '%s'\n", devList[f].devicename);
     }
   }
 
@@ -352,9 +374,10 @@ size_t smallestBDSize(deviceDetails *devList, size_t devCount) {
   
   for (size_t f = 0; f < devCount; f++) {
     if ((f == 0) || (devList[f].bdSize < min)) {
+      //      fprintf(stderr,"%zd: -> %zd\n", f, devList[f].bdSize);
       min = devList[f].bdSize;
     }
   }
-  // fprintf(stderr,"*info* min BD Size = %.3lf GiB\n", TOGiB(min));
+  //  fprintf(stderr,"*info* min size is %zd (%.3lf GiB)\n", min, TOGiB(min));
   return min;
 }
