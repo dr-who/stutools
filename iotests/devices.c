@@ -215,10 +215,10 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
       size_t sz = fileSize(fd);
       if (sz != devs[i].bdSize) {
 	fprintf(stderr,"File '%s' exists but wrong size (%zd should be %zd)\n", newpath, sz, devs[i].bdSize);
-	if (unlink(devs[i].devicename)) {
-	  perror(devs[i].devicename);
-	  exit(-1);
-	}
+	//	if (unlink(devs[i].devicename)) {
+	//	  perror(devs[i].devicename);
+	//	  exit(-1);
+	//	}
 	close(fd);
 	int rv = createFile(newpath, devs[i].bdSize);
 	if (rv != 0) {
