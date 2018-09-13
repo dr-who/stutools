@@ -319,83 +319,84 @@ void setupPositions1(positionType *positions,
   }
 
   
-  if (0)
+  if (0) 
     for (size_t j = 0; j < *num; j++) { // do the right number
+      /*
       size_t cl = 0;
       if (cigar) cl = cigar_len(cigar);
       
       
-    for (size_t i = 0; i < *num; i++) {
-      assert(positions[i].len >= 0);
-    }
+      for (size_t i = 0; i < *num; i++) {
+	assert(positions[i].len >= 0);
+	}*/
 
-    char action;
-    if (cl > 0) { // if we have a CIGAR
-      if (sf != 0) {
-	action = cigar_at(cigar, (j / ABS(sf)) % cl); // have the exact the same pattern per contiguous range
+      /*      char action;
+      if (cl > 0) { // if we have a CIGAR
+	if (sf != 0) {
+	  action = cigar_at(cigar, (j / ABS(sf)) % cl); // have the exact the same pattern per contiguous range
+	} else {
+	  action = cigar_at(cigar, j % cl);
+	}
       } else {
-	action = cigar_at(cigar, j % cl);
-      }
-    } else {
-      action = 'X';
-    }
+	action = 'X';
+	}*/
 
-    //    fprintf(stderr,"%zd %d action %c\n", j, positions[j].len, action);
+      //    fprintf(stderr,"%zd %d action %c\n", j, positions[j].len, action);
 
 
-    //    fprintf(stderr,"pre j %zd, action %c, index %zd, pos %zd\n", p - positions, action, thepos, positions[thepos].pos);
+      //    fprintf(stderr,"pre j %zd, action %c, index %zd, pos %zd\n", p - positions, action, thepos, positions[thepos].pos);
 
-    /*
-    if (action == 'X') {
-      if (drand48() <= readorwrite) {
+      /*
+	if (action == 'X') {
+	if (drand48() <= readorwrite) {
 	positions[j].action = 'R';
-      } else {
+	} else {
 	positions[j].action = 'W';
-      }
-      positions[j].pos = positions[thepos].pos;
-      positions[j].len = positions[thepos].len;
-      fprintf(stderr,"the pos j %zd , %zd, positions[j] %zd\n", j, thepos, positions[j].len);
-      assert(positions[j].len); // can't be zero
-      assert(positions[j].len >= lowbs);
-      assert(positions[j].len <= bs);
-      positions[j].success = 0;
-      p++;
-      thepos++;
-      //    } else if (action == 'S') {
-      //      thepos++;
-    } else if (action == 'B') {
-      if (thepos > 1) thepos--;
-    } else if (action == 'R' || action == 'W' || action == 'S') {
-      positions[j].action = action;
-      positions[j].pos = positions[thepos].pos;
-      positions[j].len = positions[thepos].len;
-      assert(positions[j].len); // can't be zero
-      assert(positions[j].len >= lowbs);
-      assert(positions[j].len <= bs);
-      positions[j].success = 0;
-      p++;
-      thepos++;
-    } else {
-      fprintf(stderr,"*error* unknown CIGAR action '%c'\n", action);
-      exit(-1);
-    }
-    //    fprintf(stderr,"  post j %zd, action %c, index %zd, pos %zd\n", p- positions, action, thepos, positions[thepos].pos);
-    if (thepos >= *num) {
-      thepos = 0;
-    }
+	}
+	positions[j].pos = positions[thepos].pos;
+	positions[j].len = positions[thepos].len;
+	fprintf(stderr,"the pos j %zd , %zd, positions[j] %zd\n", j, thepos, positions[j].len);
+	assert(positions[j].len); // can't be zero
+	assert(positions[j].len >= lowbs);
+	assert(positions[j].len <= bs);
+	positions[j].success = 0;
+	p++;
+	thepos++;
+	//    } else if (action == 'S') {
+	//      thepos++;
+	} else if (action == 'B') {
+	if (thepos > 1) thepos--;
+	} else if (action == 'R' || action == 'W' || action == 'S') {
+	positions[j].action = action;
+	positions[j].pos = positions[thepos].pos;
+	positions[j].len = positions[thepos].len;
+	assert(positions[j].len); // can't be zero
+	assert(positions[j].len >= lowbs);
+	assert(positions[j].len <= bs);
+	positions[j].success = 0;
+	p++;
+	thepos++;
+	} else {
+	fprintf(stderr,"*error* unknown CIGAR action '%c'\n", action);
+	exit(-1);
+	}
+	//    fprintf(stderr,"  post j %zd, action %c, index %zd, pos %zd\n", p- positions, action, thepos, positions[thepos].pos);
+	if (thepos >= *num) {
+	thepos = 0;
+	}
 
-    //    assert(p->pos <= byteSeekMaxLoc);
-    assert(thepos <= *num);
-    assert(p -positions <= *num);
-  }
+	//    assert(p->pos <= byteSeekMaxLoc);
+	assert(thepos <= *num);
+	assert(p -positions <= *num);
+	}
 
-  if (verbose >= 1) {
-    fprintf(stderr,"*info* unique positions: %zd\n", *num);
-    for (size_t i = 0; i < MIN(*num, 30); i++) {
-      fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].fd);
+	if (verbose >= 1) {
+	fprintf(stderr,"*info* unique positions: %zd\n", *num);
+	for (size_t i = 0; i < MIN(*num, 30); i++) {
+	fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].fd);
+	}
+      */
     }
-    */
-  }
 
       
   free(poss); // free the possible locations
