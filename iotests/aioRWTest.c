@@ -74,7 +74,7 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:p:Tl:vVS:F0R:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:E")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:p:Tl:vVS:FR:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:E")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -135,9 +135,9 @@ void handle_args(int argc, char *argv[]) {
 	specifiedDevices = strdup(optarg);
       }
       break;
-    case '0':
-      maxPositions = 0;
-      break;
+      //    case '0':
+      //      maxPositions = 0;
+      //      break;
     case 'r':
       readRatio += 0.5;
       if (readRatio > 1) readRatio = 1;
@@ -565,7 +565,7 @@ int main(int argc, char *argv[]) {
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);
     }
-    assert(maxPositions > 0);
+    //    assert(maxPositions > 0);
     setupPositions(positions, &maxPositions, deviceList, deviceCount, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
 
     if (verbose >= 1) {

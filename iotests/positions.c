@@ -12,6 +12,7 @@
 #include "cigar.h"
 
 extern int verbose;
+extern int keepRunning;
 
 // sorting function, used by qsort
 static int poscompare(const void *p1, const void *p2)
@@ -198,12 +199,6 @@ void setupPositions1(positionType *positions,
     alignment = 1<< alignbits;
   }//assert((1<<alignbits) == alignment);
 
-
-
-  size_t bdRoundedSizeExcl = ((size_t)((bdSizeBytes) / lowbs)) * lowbs;
-  if (verbose >= 2)
-    fprintf(stderr,"*info* bdRoundedSizeExcl %zd\n", bdRoundedSizeExcl);
-
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
   size_t *positionsStart, *positionsEnd;
@@ -211,31 +206,13 @@ void setupPositions1(positionType *positions,
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(positionsEnd, toalloc, sizeof(size_t));
   
-  size_t maxBlockIncl = (bdRoundedSizeExcl / bs) - 1;
-  if (maxBlockIncl < 1) maxBlockIncl = 1;
-
-  if (verbose >= 2) 
-    fprintf(stderr,"*info* maxBlock %zd\n", maxBlockIncl);
-
-  
-  const double blockGap = (maxBlockIncl + 1) * 1.0 / toalloc; // need to be a floating point for large -s
-  if (blockGap < 1) {
-    fprintf(stderr,"*error* can't generate that many sequences %d\n", toalloc);
-    exit(-1);
-  }
-
   for (size_t i = 0; i < toalloc; i++) {
-    positionsStart[i] = (size_t) (i * blockGap); // initially in block
-    positionsStart[i] = positionsStart[i] % (maxBlockIncl + 1); // don't seek past maxBlockIncl
-    positionsStart[i] = positionsStart[i] * bs;// now in bytes
+    positionsStart[i] = alignedNumber(i * (bdSizeBytes / toalloc), lowbs); 
     if (i > 0) positionsEnd[i-1] = positionsStart[i];
-    //    if (alignment != lowbs)
-    //      positionsStart[i] += alignment; // start on alignment 
-    
     positionsEnd[toalloc-1] = bdSizeBytes;
 
     if (verbose >= 2) {
-      fprintf(stderr,"*info* alignment start %zd: %zd (block %zd/max %zd)\n", i, positionsStart[i], positionsStart[i] / bs, maxBlockIncl);
+      fprintf(stderr,"*info* alignment start %zd: %zd (block %zd)\n", i, positionsStart[i], positionsStart[i] / bs);
     }
   }
 
@@ -288,9 +265,9 @@ void setupPositions1(positionType *positions,
 
   int offset = 0;
   if (startingBlock == -99999) {
-    offset = (lrand48() % maxBlockIncl);
+    offset = (lrand48() % count);
   } else {
-    offset = startingBlock;
+    offset = startingBlock % count;
   }
 
   // rotate
@@ -300,6 +277,7 @@ void setupPositions1(positionType *positions,
       index -= count;
     }
     positions[i] = poss[index];
+    if (drand48() <= readorwrite) positions[i].action='R'; else positions[i].action='W';
     assert(positions[i].len >= 0);
   }
 
@@ -336,16 +314,26 @@ void setupPositions1(positionType *positions,
   }
 
   // setup R/W
-  positionType *p = positions;
+  //  positionType *p = positions;
   size_t cl = 0;
   if (cigar) cl = cigar_len(cigar);
 
 
   // p left, thepos right
-  size_t thepos = 0; // position
+  //  size_t thepos = 0; // position
+
+    // rotate
+  for (size_t i = 0; i < *num; i++) {
+    assert(positions[i].len >= 0);
+  }
+
   
-  
-  for (size_t j = 0; j < *num; j++) { // do the right number
+  if (0) for (size_t j = 0; j < *num; j++) { // do the right number
+
+    for (size_t i = 0; i < *num; i++) {
+      assert(positions[i].len >= 0);
+    }
+
     char action;
     if (cl > 0) { // if we have a CIGAR
       if (sf != 0) {
@@ -357,20 +345,25 @@ void setupPositions1(positionType *positions,
       action = 'X';
     }
 
+    //    fprintf(stderr,"%zd %d action %c\n", j, positions[j].len, action);
+
+
     //    fprintf(stderr,"pre j %zd, action %c, index %zd, pos %zd\n", p - positions, action, thepos, positions[thepos].pos);
-    
+
+    /*
     if (action == 'X') {
       if (drand48() <= readorwrite) {
-	p->action = 'R';
+	positions[j].action = 'R';
       } else {
-	p->action = 'W';
+	positions[j].action = 'W';
       }
-      p->pos = positions[thepos].pos;
-      p->len = positions[thepos].len;
-      assert(p->len); // can't be zero
-      assert(p->len >= lowbs);
-      assert(p->len <= bs);
-      p->success = 0;
+      positions[j].pos = positions[thepos].pos;
+      positions[j].len = positions[thepos].len;
+      fprintf(stderr,"the pos j %zd , %zd, positions[j] %zd\n", j, thepos, positions[j].len);
+      assert(positions[j].len); // can't be zero
+      assert(positions[j].len >= lowbs);
+      assert(positions[j].len <= bs);
+      positions[j].success = 0;
       p++;
       thepos++;
       //    } else if (action == 'S') {
@@ -378,13 +371,13 @@ void setupPositions1(positionType *positions,
     } else if (action == 'B') {
       if (thepos > 1) thepos--;
     } else if (action == 'R' || action == 'W' || action == 'S') {
-      p->action = action;
-      p->pos = positions[thepos].pos;
-      p->len = positions[thepos].len;
-      assert(p->len); // can't be zero
-      assert(p->len >= lowbs);
-      assert(p->len <= bs);
-      p->success = 0;
+      positions[j].action = action;
+      positions[j].pos = positions[thepos].pos;
+      positions[j].len = positions[thepos].len;
+      assert(positions[j].len); // can't be zero
+      assert(positions[j].len >= lowbs);
+      assert(positions[j].len <= bs);
+      positions[j].success = 0;
       p++;
       thepos++;
     } else {
@@ -401,16 +394,18 @@ void setupPositions1(positionType *positions,
     assert(p -positions <= *num);
   }
 
-  /*  if (verbose >= 1) {
+  if (verbose >= 1) {
     fprintf(stderr,"*info* unique positions: %zd\n", *num);
     for (size_t i = 0; i < MIN(*num, 30); i++) {
       fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8zd\t%c\t%d\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].fd);
     }
-    }*/
+    */
+  }
 
-
+      
   free(poss); // free the possible locations
   free(positionsStart);
+  free(positionsEnd);
 }
 
 
