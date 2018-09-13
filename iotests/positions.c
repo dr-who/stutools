@@ -194,10 +194,10 @@ void setupPositions1(positionType *positions,
   CALLOC(poss, possAlloc, sizeof(positionType));
 
   const int alignbits = (int)(log(alignment)/log(2) + 0.01);
-  if (1<<alignbits != alignment) {
-    fprintf(stderr,"*error* alignment of %zd not suitable, changing to %d\n", alignment, 1<<alignbits);
-    alignment = 1<< alignbits;
-  }//assert((1<<alignbits) == alignment);
+  //  if (1<<alignbits != alignment) {
+  //    fprintf(stderr,"*error* alignment of %zd not suitable, changing to %d\n", alignment, 1<<alignbits);
+  //    alignment = 1<< alignbits;
+  //  }//assert((1<<alignbits) == alignment);
 
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
@@ -264,10 +264,12 @@ void setupPositions1(positionType *positions,
   // make a complete copy and rotate by an offset
 
   int offset = 0;
-  if (startingBlock == -99999) {
-    offset = (lrand48() % count);
-  } else {
-    offset = startingBlock % count;
+  if (count) {
+    if (startingBlock == -99999) {
+      offset = (lrand48() % count);
+    } else {
+      offset = startingBlock % count;
+    }
   }
 
   // rotate
@@ -313,23 +315,18 @@ void setupPositions1(positionType *positions,
     }
   }
 
-  // setup R/W
-  //  positionType *p = positions;
-  size_t cl = 0;
-  if (cigar) cl = cigar_len(cigar);
-
-
-  // p left, thepos right
-  //  size_t thepos = 0; // position
-
-    // rotate
+  // rotate
   for (size_t i = 0; i < *num; i++) {
     assert(positions[i].len >= 0);
   }
 
   
-  if (0) for (size_t j = 0; j < *num; j++) { // do the right number
-
+  if (0)
+    for (size_t j = 0; j < *num; j++) { // do the right number
+      size_t cl = 0;
+      if (cigar) cl = cigar_len(cigar);
+      
+      
     for (size_t i = 0; i < *num; i++) {
       assert(positions[i].len >= 0);
     }
