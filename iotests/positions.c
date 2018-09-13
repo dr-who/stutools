@@ -249,6 +249,7 @@ void setupPositions1(positionType *positions,
       size_t j = positionsStart[i]; // while in the range
       if (j <= positionsEnd[i]) {
 	const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
+	assert(thislen >= 0);
 
 	// grow destination array
 	if (count >= possAlloc) {
@@ -268,6 +269,7 @@ void setupPositions1(positionType *positions,
 
 	poss[count].pos = j;
 	poss[count].len = thislen;
+	assert(poss[count].len >= 0);
 	poss[count].dev = dev;
 	poss[count].seed = seed;
 	
@@ -280,6 +282,7 @@ void setupPositions1(positionType *positions,
     }
     if (nochange) break;
   }
+  *num = count;
 
   // make a complete copy and rotate by an offset
 
@@ -297,6 +300,7 @@ void setupPositions1(positionType *positions,
       index -= count;
     }
     positions[i] = poss[index];
+    assert(positions[i].len >= 0);
   }
 
   if (verbose >= 1) {
