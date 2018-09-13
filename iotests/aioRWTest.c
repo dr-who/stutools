@@ -122,7 +122,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'Z':
       startAtZero = atol(optarg);
-      if (startAtZero < 0 && startAtZero != -99999) startAtZero = abs(startAtZero);
+      if (startAtZero < 0 && startAtZero != -99999) startAtZero = labs(startAtZero);
       break;
     case 'M':
       dataLogFormat = MYSQL;
