@@ -224,7 +224,7 @@ void setupPositions1(positionType *positions,
     int nochange = 1;
     for (size_t i = 0; i < toalloc; i++) {
       size_t j = positionsStart[i]; // while in the range
-      if (j <= positionsEnd[i]) {
+      if (j < positionsEnd[i]) {
 	const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
 	assert(thislen >= 0);
 
@@ -259,6 +259,11 @@ void setupPositions1(positionType *positions,
     }
     if (nochange) break;
   }
+  if (count < *num) {
+    if (verbose > 1) {
+      fprintf(stderr,"*warning* there are %zd unique positions on the device\n", count);
+    }
+  }
   *num = count;
 
   // make a complete copy and rotate by an offset
@@ -287,15 +292,8 @@ void setupPositions1(positionType *positions,
         fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(bdSizeTotal));
   }
   
-  if (*num > count) {
-    if (verbose > 1) {
-      fprintf(stderr,"*warning* there are %zd unique positions on the device\n", count);
-    }
-    *num = count;
-  }
-
   // if randomise then reorder
-  if (/*(0) &&*/ (sf == 0)) {
+  if (sf == 0) {
     for (size_t shuffle = 0; shuffle < 1; shuffle++) {
       if (verbose >= 1) {
 	fprintf(stderr,"*info* shuffling the array %zd\n", count);
