@@ -357,7 +357,7 @@ int main(int argc, char *argv[]) {
 	  sprintf(str, "%s_%zd", deviceList[i].devicename, j);
 	  deviceDetails *d = addDeviceDetails(str, &deviceList, &deviceCount);
 	  d->bdSize = sz;
-	  	  fprintf(stderr,"*info* expanding %s, %zd\n", d->devicename, d->bdSize);
+	  if (verbose >= 2) fprintf(stderr,"*info* expanding %s, %zd\n", d->devicename, d->bdSize);
 	}
       }
     }

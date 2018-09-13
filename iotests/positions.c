@@ -206,11 +206,10 @@ void setupPositions1(positionType *positions,
 
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
-  size_t *positionsStart, *origStart, *positionsEnd;
+  size_t *positionsStart, *positionsEnd;
   const int toalloc = (sf == 0) ? 1 : abs(sf);
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(positionsEnd, toalloc, sizeof(size_t));
-  CALLOC(origStart, toalloc, sizeof(size_t));
   
   size_t maxBlockIncl = (bdRoundedSizeExcl / bs) - 1;
   if (maxBlockIncl < 1) maxBlockIncl = 1;
@@ -233,7 +232,6 @@ void setupPositions1(positionType *positions,
     //    if (alignment != lowbs)
     //      positionsStart[i] += alignment; // start on alignment 
     
-    origStart[i] = positionsStart[i]; // copy of start
     positionsEnd[toalloc-1] = bdSizeBytes;
 
     if (verbose >= 2) {
@@ -269,10 +267,6 @@ void setupPositions1(positionType *positions,
 	if (j + thislen > positionsEnd[i]) {positionsStart[i] += thislen; break;}
 
 	poss[count].pos = j;
-	
-	//	if (poss[count].pos >= bdSizeBytes) {
-	//	  poss[count].pos 
-	//	}
 	poss[count].len = thislen;
 	poss[count].dev = dev;
 	poss[count].seed = seed;
@@ -413,7 +407,6 @@ void setupPositions1(positionType *positions,
 
   free(poss); // free the possible locations
   free(positionsStart);
-  free(origStart);
 }
 
 
