@@ -43,7 +43,7 @@ int    flushEvery = 0;
 int    verifyWrites = 0;
 char*  specifiedDevices = NULL;
 int    sendTrim = 0;
-size_t startAtZero = (size_t)-99999; // -99999 is a special case for random start
+long   startAtZero = -99999; // -99999 is a special case for random start
 size_t maxPositions = 10*1000*1000;
 size_t dontUseExclusive = 0;
 int    blocksFromEnd = 0;
@@ -122,6 +122,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'Z':
       startAtZero = atol(optarg);
+      if (startAtZero < 0 && startAtZero != -99999) startAtZero = abs(startAtZero);
       break;
     case 'M':
       dataLogFormat = MYSQL;
@@ -349,13 +350,14 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < origdc; i++) {
       if (isBlockDevice(deviceList[i].devicename) != 1) {
 	char str[1000];
+	if (maxSizeGB == 0) {maxSizeGB = TOGiB(totalRAM()) * 2;}
 	size_t sz = alignedNumber((long)(maxSizeGB * 1024*1024*1024)/ seqFiles, 1<<16);
 	deviceList[i].bdSize = sz;
 	for (size_t j = 2; j <= seqFiles; j++) {
 	  sprintf(str, "%s_%zd", deviceList[i].devicename, j);
 	  deviceDetails *d = addDeviceDetails(str, &deviceList, &deviceCount);
 	  d->bdSize = sz;
-	  //	  fprintf(stderr,"*info* expanding %s, %zd\n", d->devicename, d->bdSize);
+	  	  fprintf(stderr,"*info* expanding %s, %zd\n", d->devicename, d->bdSize);
 	}
       }
     }
@@ -565,6 +567,7 @@ int main(int argc, char *argv[]) {
     }
     assert(maxPositions > 0);
     setupPositions(positions, &maxPositions, deviceList, deviceCount, seqFiles, readRatio, LOWBLKSIZE, BLKSIZE, alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
+
     if (verbose >= 1) {
       positionStats(positions, maxPositions, deviceList, deviceCount);
     }

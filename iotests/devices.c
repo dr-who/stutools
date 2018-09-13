@@ -111,7 +111,7 @@ int createFile(const char *filename, const size_t sz) {
   close(fd);
   free(buf);
   if (!keepRunning) {
-    fprintf(stderr,"*warning* early size creation termination");
+    fprintf(stderr,"*warning* early size creation termination\n");
   }
   keepRunning = 1;
   return 0;
@@ -146,7 +146,7 @@ size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, doubl
       if (devs[i]->isBD != 1) {
 	// expand
 	if (*maxSizeGiB == 0) {
-	  *maxSizeGiB = (int)(TOGiB(totalRAM())+0.5) * 2;
+	  *maxSizeGiB = (size_t)(totalRAM() * 2);
 	}
 
 	for (int j=1 ; j <= sf ; j++) {
@@ -195,12 +195,12 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
       
       if (errno == ENOENT) {
 	if (*maxSizeGB == 0) {
-	  *maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * 2;
+	  *maxSizeGB = (totalRAM() * 2);
 	  devs[i].bdSize = *maxSizeGB;
 	  fprintf(stderr,"*info* defaulting to 2 x RAM = %.0lf GiB (override with -G option)\n", *maxSizeGB); 
 	}
 	if (devs[i].bdSize == 0) {
-	  devs[i].bdSize = (*maxSizeGB) * 1024*1024*1024;
+	  devs[i].bdSize = (*maxSizeGB * 1024*1024*1024);
 	}
 
 	fprintf(stderr,"*info* no file with that name, creating '%s' with size %zd...\n", devs[i].devicename, devs[i].bdSize);

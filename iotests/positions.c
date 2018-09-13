@@ -43,7 +43,10 @@ void freePositions(positionType *p) {
 
 
 int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes) {
-  //  fprintf(stderr,"... checking\n");
+  if (verbose) {
+    fprintf(stderr,"*info*... checking position array with %zd values...\n", num);
+  }
+  
   size_t rcount = 0, wcount = 0;
   size_t sizelow = -1, sizehigh = 0;
   positionType *p = (positionType *)positions;
@@ -66,31 +69,31 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
   }
 
   if (sizelow <= 0) {
-    return 1;
+    abort();
+    //    return 1;
   }
   // check all positions are aligned to low and high lengths
   p = (positionType *) positions;
   if (sizelow > 0) {
     for (size_t j = 0; j < num; j++) {
       if (p->len == 0) {
-	fprintf(stderr,"*error* len of 0\n"); return 1;
+	fprintf(stderr,"*error* len of 0\n"); 
       }
-      if ((p->len %sizelow) != 0) {
-	fprintf(stderr,"*error* len not aligned\n"); return 1;
+      //      if ((p->len %sizelow) != 0) {
+      //	fprintf(stderr,"*error* len not aligned\n"); 
+      //      }
+      if (p->pos + p->len > bdSizeBytes) {
+	fprintf(stderr,"*error* off the end of the array %zd + %d is %zd (%zd)!\n", p->pos, p->len, p->pos + p->len, bdSizeBytes); 
       }
-      if (p->pos + sizehigh > bdSizeBytes) {
-	fprintf(stderr,"*error* off the end of the array %zd!\n", p->pos); return 1;
-      }
-      if ((p->pos % sizelow) != 0) {
-	fprintf(stderr,"*error* no %zd aligned position at %zd!\n", sizelow, p->pos); return 1;
-      }
-      if ((p->pos % sizehigh) != 0) {
-	fprintf(stderr,"*error* no %zd aligned position at %zd!\n", sizehigh, p->pos); return 1;
-      }
+      //      if ((p->pos % sizelow) != 0) {
+      //	fprintf(stderr,"*error* no %zd aligned position at %zd!\n", sizelow, p->pos); 
+      //      }
+      //      if ((p->pos % sizehigh) != 0) {
+      //	fprintf(stderr,"*error* no %zd aligned position at %zd!\n", sizehigh, p->pos); 
+      //      }
       p++;
     }
   }
-
   // duplicate, sort the array. Count unique positions
   positionType *copy;
   CALLOC(copy, num, sizeof(positionType));
@@ -99,6 +102,7 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
   // check order
   size_t unique = 0;
   for (size_t i = 1; i <num; i++) {
+    //    fprintf(stderr,"-----%zd %zd\n", i, copy[i].pos);
     if (copy[i].pos != copy[i-1].pos) {
       unique++;
       if (i==1) { // if the first number checked is different then really it's 2 unique values.
@@ -107,11 +111,17 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
     }
     if (copy[i].pos < copy[i-1].pos) {
       fprintf(stderr,"not sorted %zd %zd, unique %zd\n",i, copy[i].pos, unique);
+      abort();
+    }
+    if (copy[i-1].pos + copy[i-1].len > copy[i].pos) {
+      fprintf(stderr,"eerk overlapping %zd %zd %d \n",i, copy[i].pos, copy[i].len);
+      abort();
     }
   }
   free(copy);
 
-  fprintf(stderr,"action summary: reads %zd, writes %zd, checked ratio %.1lf, len [%zd, %zd], unique positions %zd\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh, unique);
+  if (verbose)
+    fprintf(stderr,"*info* action summary: reads %zd, writes %zd, checked ratio %.1lf, len [%zd, %zd], unique positions %zd\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh, unique);
   return 0;
 }
 
@@ -178,7 +188,7 @@ void setupPositions1(positionType *positions,
   }
 
   // list of possibles positions
-  positionType *poss = NULL, *poss2 = NULL;
+  positionType *poss = NULL;
   size_t possAlloc = 1024*10, count = 0, totalLen = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
 
@@ -196,9 +206,10 @@ void setupPositions1(positionType *positions,
 
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
-  size_t *positionsStart, *origStart;
+  size_t *positionsStart, *origStart, *positionsEnd;
   const int toalloc = (sf == 0) ? 1 : abs(sf);
   CALLOC(positionsStart, toalloc, sizeof(size_t));
+  CALLOC(positionsEnd, toalloc, sizeof(size_t));
   CALLOC(origStart, toalloc, sizeof(size_t));
   
   size_t maxBlockIncl = (bdRoundedSizeExcl / bs) - 1;
@@ -207,20 +218,6 @@ void setupPositions1(positionType *positions,
   if (verbose >= 2) 
     fprintf(stderr,"*info* maxBlock %zd\n", maxBlockIncl);
 
-  long stBlock = 0;
-  if (startingBlock == -99999) {
-    stBlock = lrand48() % (maxBlockIncl + 1); //0..maxblock, if it's not -99999 then set it.
-    if (verbose) {
-      fprintf(stderr,"*info* setting random block start to block %ld\n", stBlock);
-    }
-  } else if (startingBlock < 0) {
-    stBlock = maxBlockIncl + 1 + startingBlock;
-  } else {
-    stBlock = startingBlock; // start from 0
-  }
-  stBlock = stBlock % (maxBlockIncl+1);
-  assert (stBlock <= maxBlockIncl);
-  assert (stBlock >= 0);
   
   const double blockGap = (maxBlockIncl + 1) * 1.0 / toalloc; // need to be a floating point for large -s
   if (blockGap < 1) {
@@ -229,13 +226,15 @@ void setupPositions1(positionType *positions,
   }
 
   for (size_t i = 0; i < toalloc; i++) {
-    positionsStart[i] = (stBlock) + (size_t) (i * blockGap); // initially in block
+    positionsStart[i] = (size_t) (i * blockGap); // initially in block
     positionsStart[i] = positionsStart[i] % (maxBlockIncl + 1); // don't seek past maxBlockIncl
     positionsStart[i] = positionsStart[i] * bs;// now in bytes
-    if (alignment != bs)
-      positionsStart[i] += alignment; // start on alignment 
+    if (i > 0) positionsEnd[i-1] = positionsStart[i];
+    //    if (alignment != lowbs)
+    //      positionsStart[i] += alignment; // start on alignment 
     
     origStart[i] = positionsStart[i]; // copy of start
+    positionsEnd[toalloc-1] = bdSizeBytes;
 
     if (verbose >= 2) {
       fprintf(stderr,"*info* alignment start %zd: %zd (block %zd/max %zd)\n", i, positionsStart[i], positionsStart[i] / bs, maxBlockIncl);
@@ -244,99 +243,67 @@ void setupPositions1(positionType *positions,
 
   // setup the -P positions
 
+  // do it nice
+  count = 0;
   while (count < *num) {
-    const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
-    assert(thislen >= lowbs);
-    assert(thislen <= bs);
-    //    assert(((size_t)(thislen / 2)) * 2 == thislen);
+    int nochange = 1;
+    for (size_t i = 0; i < toalloc; i++) {
+      size_t j = positionsStart[i]; // while in the range
+      if (j <= positionsEnd[i]) {
+	const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
 
-    if (count >= possAlloc) {
-      possAlloc = possAlloc * 2 + 1; // grow by a 1/3 each time
-      poss2 = realloc(poss, possAlloc * sizeof(positionType));
-      if (!poss) {fprintf(stderr,"OOM: breaking from setup array\n");break;}
-      else {
-	if (verbose >= 2) {
-	  fprintf(stderr,"*info*: new position size %.1lf MB array\n", TOMiB(possAlloc * sizeof(positionType)));
+	// grow destination array
+	if (count >= possAlloc) {
+	  possAlloc = possAlloc * 2 + 1; // grow by a 1/3 each time
+	  positionType *poss2 = realloc(poss, possAlloc * sizeof(positionType));
+	  if (!poss) {fprintf(stderr,"OOM: breaking from setup array\n");break;}
+	  else {
+	    if (verbose >= 2) {
+	      fprintf(stderr,"*info*: new position size %.1lf MB array\n", TOMiB(possAlloc * sizeof(positionType)));
+	    }
+	    poss = poss2; // point to the new array
+	  }
 	}
-	poss = poss2; // point to the new array
-      }
-    }
 
+	// if we have gone over the end of the range
+	if (j + thislen > positionsEnd[i]) {positionsStart[i] += thislen; break;}
 
-    long l = positionsStart[count % toalloc], nextl = 0;
-
-    //        fprintf(stderr,"starting %ld\n", l);
-
-    if (l + thislen > bdRoundedSizeExcl) {
-      l = l + thislen - bdRoundedSizeExcl; 
-      assert(l>=0);
-      assert(l + thislen <= bdRoundedSizeExcl);
-    }
-    if (l < 0) {
-      l = l + bdRoundedSizeExcl + thislen;
-      //            fprintf(stderr,"  adjusted l2 %ld\n", l);
-      while (l + thislen > bdRoundedSizeExcl) {
-	l-= thislen;
-      }
-      //      fprintf(stderr,"  adjusted l3 %ld\n", l);
-       assert(l>=0);
-      assert(l + thislen <= bdRoundedSizeExcl);
-    }
-
-    //       fprintf(stderr,"  adjusted l %ld\n", l);
-
-    // preconditions are [0..end)
-    if (sf >= 0) {
-      // +ve sequential
-      if (jumpStep >= 0) {
-	// +ve jumping
-	if (l + thislen > bdRoundedSizeExcl) { // if off the end
-	  l = l + thislen - bdRoundedSizeExcl; // wrap
-	  assert(l>=0);
-	}	
-	nextl = l + thislen + (jumpStep * lowbs);
-      } else {
-	if (l - (long)(thislen * ABS(jumpStep)) < 0) {
-	  l = l - (thislen * ABS(jumpStep)) + bdRoundedSizeExcl; 
-	}
-	nextl = l - thislen - (jumpStep * lowbs);
-      }
-    } else {
-      // -ve sequential
-      // the current one is ok (pre condition), next one to the left
-      nextl = l - thislen;
-    }
-    //check
-    assert(l >= 0); // check this position and len are in range
-    assert(l + thislen <= bdRoundedSizeExcl); // 
-
-    // and store
-    poss[count].pos = l;
-    poss[count].len = thislen;
-    poss[count].dev = dev;
-    poss[count].seed = seed;
-    
-    //      fprintf(stderr,"l %zd, bsm %zd (bdSize %zd), maxBlock*bs %zd\n", l, byteSeekMaxLoc, bdSizeBytes, maxBlockIncl * bs);
-    //    assert(l <= maxBlockIncl * bs);
-    if (nextl >= bdRoundedSizeExcl) {
-      nextl -= bdRoundedSizeExcl;
-    }
-    if (nextl < 0) {
-      nextl += bdRoundedSizeExcl;
-    }
-    positionsStart[count % toalloc] = nextl;
-      
+	poss[count].pos = j;
 	
-    totalLen += thislen;
-    //    fprintf(stderr,"total len %zd\n", totalLen);
-    //    if (totalLen >= ((maxBlockIncl +1) * bs)) { // if total length written is too much
-    if (totalLen >= bdRoundedSizeExcl - bs) { // if total length written is too much
-      break;
+	//	if (poss[count].pos >= bdSizeBytes) {
+	//	  poss[count].pos 
+	//	}
+	poss[count].len = thislen;
+	poss[count].dev = dev;
+	poss[count].seed = seed;
+	
+	positionsStart[i] += thislen;
+	
+	count++;
+	nochange = 0;
+	if (count >= *num) break; // if too many break
+      }
     }
+    if (nochange) break;
+  }
 
+  // make a complete copy and rotate by an offset
 
-    count++;
-  } // find a position across the disks
+  int offset = 0;
+  if (startingBlock == -99999) {
+    offset = (lrand48() % maxBlockIncl);
+  } else {
+    offset = startingBlock;
+  }
+
+  // rotate
+  for (size_t i = 0; i < count; i++) {
+    int index = i + offset;
+    if (index >= count) {
+      index -= count;
+    }
+    positions[i] = poss[index];
+  }
 
   if (verbose >= 1) {
         fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(bdSizeTotal));
@@ -347,15 +314,8 @@ void setupPositions1(positionType *positions,
       fprintf(stderr,"*warning* there are %zd unique positions on the device\n", count);
     }
     *num = count;
-    //    assert (*num > 0);
   }
 
-  // copy to positions
-  for (size_t i = 0; i < *num ; i++) {
-    positions[i] = poss[i];
-  }
-  //  }*/
-  
   // if randomise then reorder
   if (/*(0) &&*/ (sf == 0)) {
     for (size_t shuffle = 0; shuffle < 1; shuffle++) {
@@ -489,6 +449,8 @@ void setupPositions(positionType *positions,
     assert(flatnum[0] >= 1);
 
     setupPositions1(flatpositions[0], &(flatnum[0]), &devList[0], bdSizeWeAreUsing, sf, readorwrite, lowbs, bs, alignment, singlePosition, jumpStep, startingBlock, bdSizeWeAreUsing, blockOffset, cigar, seed);
+
+    checkPositionArray(flatpositions[0], flatnum[0], bdSizeWeAreUsing);
   
     for (size_t i = 1; i < devCount; i++) {
       flatnum[i] = flatnum[0];
