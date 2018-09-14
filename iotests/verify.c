@@ -40,8 +40,8 @@ int main(int argc, char *argv[]) {
 
   // find block and seed
   long seed;
-  size_t blocksize;
-  findSeedMaxBlock(positions, numPositions, &seed, &blocksize);
+  size_t minbs, blocksize;
+  findSeedMaxBlock(positions, numPositions, &seed, &minbs, &blocksize);
 
   // generate random buffer with the right seed, do this linearly to avoid random numbers running in parallel
   char *randomBuffer = NULL;
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
   generateRandomBuffer(randomBuffer, blocksize, seed);
   
   // after loading in the positions with the paths, open the files and populate BD sizes etc
-  openDevices(devices, numDevices, 0, 0, blocksize, blocksize, blocksize, 0, 0);
+  openDevices(devices, numDevices, 0, 0, minbs, blocksize, minbs, 0, 0);
   // display
   infoDevices(devices, numDevices);
 

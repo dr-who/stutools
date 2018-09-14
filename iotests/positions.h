@@ -52,7 +52,7 @@ void simpleSetupPositions(positionType *positions,
 void freePositions(positionType *p);
 void positionStats(const positionType *positions, const size_t num, const deviceDetails *devList, const size_t devCount);
 
-void findSeedMaxBlock(positionType *positions, const size_t num, long *seed, size_t *blocksize);
+void findSeedMaxBlock(positionType *positions, const size_t num, long *seed, size_t *minbs, size_t *blocksize);
 
 #endif
 

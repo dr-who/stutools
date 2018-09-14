@@ -15,7 +15,7 @@
 #include "utils.h"
 #include "aioRequests.h"
   
-int verbose = 2;
+int verbose = 0;
 int keepRunning = 1;
 int flushEvery = 0;
     
@@ -41,8 +41,8 @@ int main(int argc, char *argv[]) {
 
   // find block and seed
   long seed;
-  size_t blocksize;
-  findSeedMaxBlock(positions, numPositions, &seed, &blocksize);
+  size_t minbs, blocksize;
+  findSeedMaxBlock(positions, numPositions, &seed, &minbs, &blocksize);
 
   // generate random buffer with the right seed, do this linearly to avoid random numbers running in parallel
   char *randomBuffer = NULL;
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
   generateRandomBuffer(randomBuffer, blocksize, seed);
   
   // after loading in the positions with the paths, open the files and populate BD sizes etc
-  openDevices(devices, numDevices, 0, 0, blocksize, blocksize, blocksize, 1, 0); // the 1 is "need to write"
+  openDevices(devices, numDevices, 0, 0, minbs, blocksize, minbs, 1, 0); // the 1 is "need to write"
   // display
   infoDevices(devices, numDevices);
   int numOpen = numOpenDevices(devices, numDevices);
@@ -61,14 +61,14 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  fprintf(stderr,"*info* numPositions %zd\n", numPositions);
+  fprintf(stderr,"*info* numPositions %zd, min block size %ld, block size %zd, alignment %zd\n", numPositions, minbs, blocksize, minbs);
 
   size_t rb = 0, ios = 0, totalRB = 0, totalWB = 0;
   double start = timedouble();
   if (positions) {
     logSpeedType l;
     logSpeedInit(&l);
-    rb = aioMultiplePositions(positions, numPositions, 100000, 256, 1, 0, &l, NULL, randomBuffer, blocksize, blocksize, &ios, &totalRB, &totalWB, 1, 0);
+    rb = aioMultiplePositions(positions, numPositions, 100000, 256, verbose, 0, &l, NULL, randomBuffer, blocksize, minbs, &ios, &totalRB, &totalWB, 1, 0);
     logSpeedFree(&l);
   }
   double elapsed = timedouble() - start;

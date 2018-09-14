@@ -569,12 +569,20 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
   return p;
 }
 
-void findSeedMaxBlock(positionType *positions, const size_t num, long *seed, size_t *blocksize) {
+void findSeedMaxBlock(positionType *positions, const size_t num, long *seed, size_t *minbs, size_t *blocksize) {
   *blocksize = 0;
+  *minbs = 0;
   for (size_t i = 0; i < num; i++) {
+    if (i==0) {
+      *minbs = positions[i].len;
+      *blocksize = *minbs;
+    }
     *seed = positions[i].seed;
-    if (*blocksize < positions[i].len) {
+    if (positions[i].len > *blocksize) {
       *blocksize = positions[i].len;
+    }
+    if (positions[i].len < *minbs) {
+      *minbs = positions[i].len;
     }
   }
 }
