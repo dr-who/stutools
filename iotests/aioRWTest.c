@@ -39,7 +39,7 @@ size_t table = 0;
 char   *logFNPrefix = NULL;
 int    verbose = 0;
 int    singlePosition = 0;
-int    flushEvery = 0;
+size_t    flushEvery = 0;
 int    verifyWrites = 0;
 char*  specifiedDevices = NULL;
 int    sendTrim = 0;
@@ -157,6 +157,9 @@ void handle_args(int argc, char *argv[]) {
 	flushEvery = 1;
       } else {
 	flushEvery = 10 * flushEvery;
+      }
+      if (flushEvery > 1L<<30) {
+	flushEvery = 1L<<30;
       }
       break;
     case 'v':
@@ -561,7 +564,7 @@ int main(int argc, char *argv[]) {
 
       
     fprintf(stderr,"*info* seq: %d, r/w Ratio: %.1g, qd: %d, block size: %zd-%zd bytes\n*info* aligned to %zd bytes\n", seqFiles, readRatio, qd, LOWBLKSIZE, BLKSIZE, alignment);
-    fprintf(stderr,"*info* flushEvery %d, max bdSizeWeAreUsing %zd (%.2lf GiB), blockoffset %d\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
+    fprintf(stderr,"*info* flushEvery %zd, max bdSizeWeAreUsing %zd (%.2lf GiB), blockoffset %d\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);
     }
