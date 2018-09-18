@@ -136,7 +136,7 @@ int isBlockDevice(const char *name) {
   int ret;
 
   if ((ret = stat(name, &sb)) == -1) {
-    fprintf(stderr,"*warning* isBlockDevice '%s' returned %d\n", name, ret);
+    //    fprintf(stderr,"*warning* isBlockDevice '%s' returned %d\n", name, ret);
     return 0;
   }
 

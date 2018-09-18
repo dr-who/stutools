@@ -87,11 +87,13 @@ int createFile(const char *filename, const size_t sz) {
   }
   fd = open(filename, O_RDONLY, S_IRUSR | S_IWUSR);
   if (fd) {
-    size_t fsz = fileSize(fd);
+    long fsz = fileSize(fd);
     close(fd);
     if (fsz != sz) {
-      fprintf(stderr,"*warning* deleting old file '%s' as size was %zd\n", filename, fsz);
-      unlink(filename);
+      if (fsz != -1) {
+	fprintf(stderr,"*warning* deleting old file '%s' as size was %zd\n", filename, fsz);
+	unlink(filename);
+      }
     } else {
       return 0;
     }
@@ -124,6 +126,7 @@ int createFile(const char *filename, const size_t sz) {
   free(buf);
   if (!keepRunning) {
     fprintf(stderr,"*warning* early size creation termination\n");
+    exit(-1);
   }
   keepRunning = 1;
   return 0;
@@ -199,6 +202,7 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
   //  CALLOC(newpath, 4096, sizeof(char));
     
   for (size_t i = 0; i < numDevs; i++) {
+    if (!keepRunning) exit(-1);
     memset(newpath, 0, 4096);
     // follow a symlink
     devs[i].fd = -1;
