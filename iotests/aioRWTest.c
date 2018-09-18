@@ -592,7 +592,7 @@ int main(int argc, char *argv[]) {
 
       
     fprintf(stderr,"*info* seq: %d, r/w Ratio: %.1g, qd: %d, block size: %zd-%zd bytes\n*info* aligned to %zd bytes\n", seqFiles, readRatio, qd, LOWBLKSIZE, BLKSIZE, alignment);
-    fprintf(stderr,"*info* flushEvery %zd, max bdSizeWeAreUsing %zd (%.2lf GiB), blockoffset %d, G override %d\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd, sizeOverride);
+    fprintf(stderr,"*info* flushEvery %zd, max bdSizeWeAreUsing %zd (%.2lf GiB), blockoffset %d\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);
     }
