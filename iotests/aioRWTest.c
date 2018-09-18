@@ -355,12 +355,14 @@ int main(int argc, char *argv[]) {
 	char str[1000];
 	if (maxSizeGB == 0) {maxSizeGB = TOGiB(totalRAM()) * 2;}
 	size_t sz = alignedNumber((long)(maxSizeGB * 1024*1024*1024)/ seqFiles, 1<<16);
-	deviceList[i].bdSize = sz;
+	//	deviceList[i].bdSize = sz;
+	deviceList[i].shouldBeSize = sz;
 	for (size_t j = 2; j <= seqFiles; j++) {
 	  sprintf(str, "%s_%zd", deviceList[i].devicename, j);
 	  deviceDetails *d = addDeviceDetails(str, &deviceList, &deviceCount);
-	  d->bdSize = sz;
-	  if (verbose >= 2) fprintf(stderr,"*info* expanding %s, %zd\n", d->devicename, d->bdSize);
+	  //d->bdSize = sz;
+	  d->shouldBeSize = sz;
+	  if (verbose >= 2) fprintf(stderr,"*info* expanding %s, %zd\n", d->devicename, d->shouldBeSize);
 	}
       }
     }
@@ -661,7 +663,8 @@ int main(int argc, char *argv[]) {
       }
     } else {
       // not verify so set exit code. The result is 100 = 10 GB/s, 10 = 1 GB/s, 1 = 0.100 GB/s
-      exitcode = (int) (((TOMiB(shouldReadBytes) + TOMiB(shouldWriteBytes)) / elapsed) / 100.0 + 0.5);
+      //      exitcode = (int) (((TOMiB(shouldReadBytes) + TOMiB(shouldWriteBytes)) / elapsed) / 100.0 + 0.5);
+      exitcode = 0; // if not verify, always exit with error code of 0
     }
 
     for (size_t f = 0; f < deviceCount; f++) {
