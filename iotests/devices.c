@@ -26,6 +26,7 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
   *devs = (deviceDetails*) realloc(*devs, (1024 * sizeof(deviceDetails))); // todo, max 1024 drives XXX
   (*devs)[*numDevs].fd = 0;
   (*devs)[*numDevs].bdSize = 0;
+  (*devs)[*numDevs].shouldBeSize = 0;
   (*devs)[*numDevs].devicename = strdup(fn);
   (*devs)[*numDevs].exclusive = 0;
   (*devs)[*numDevs].maxSizeGiB = 0;
@@ -83,6 +84,17 @@ int createFile(const char *filename, const size_t sz) {
   if (startsWith("/dev/", filename)) {
     fprintf(stderr,"*error* path error, will not create a file '%s' in the directory /dev/\n", filename);
     exit(-1);
+  }
+  fd = open(filename, O_RDONLY, S_IRUSR | S_IWUSR);
+  if (fd) {
+    size_t fsz = fileSize(fd);
+    close(fd);
+    if (fsz != sz) {
+      fprintf(stderr,"*warning* deleting old file '%s' as size was %zd\n", filename, fsz);
+      unlink(filename);
+    } else {
+      return 0;
+    }
   }
   fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
   if (fd >= 0) {
@@ -150,7 +162,7 @@ size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, doubl
 	}
 
 	for (int j=1 ; j <= sf ; j++) {
-	  char name[1000];
+	  char name[4196];
 	  if (j==1) {
 	    sprintf(name,"%s", newpath);
 	  } else {
@@ -182,7 +194,7 @@ size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, doubl
 void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, double *maxSizeGB, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive) {
   
   //  int error = 0;
-  
+  assert(maxSizeGB);
   char newpath[4096];
   //  CALLOC(newpath, 4096, sizeof(char));
     
@@ -191,34 +203,23 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
     // follow a symlink
     devs[i].fd = -1;
     char * ret = realpath(devs[i].devicename, newpath);
-    if (!ret) {
-      
-      if (errno == ENOENT) {
-	if (*maxSizeGB == 0) {
-	  *maxSizeGB = (totalRAM() * 2);
-	  devs[i].bdSize = *maxSizeGB;
-	  fprintf(stderr,"*info* defaulting to 2 x RAM = %.0lf GiB (override with -G option)\n", *maxSizeGB); 
-	}
-	if (devs[i].bdSize == 0) {
-	  devs[i].bdSize = (*maxSizeGB * 1024*1024*1024);
-	}
-
-	fprintf(stderr,"*info* no file with that name, creating '%s' with size %zd...\n", devs[i].devicename, devs[i].bdSize);
-	fflush(stderr);
-	int rv = createFile(devs[i].devicename, devs[i].bdSize);
-	if (rv != 0) {
-	  fprintf(stderr,"*error* couldn't create file '%s'\n", devs[i].devicename);
-	  exit(-1);
-	}
-	strcpy(newpath, devs[i].devicename);
-      } else {
-
-	perror(devs[i].devicename);
+    if (!ret) { // if the file doesn't exists, set defaults
+      if (*maxSizeGB == 0) {
+	*maxSizeGB = (totalRAM() * 2);
+	devs[i].bdSize = *maxSizeGB;
+	fprintf(stderr,"*info* defaulting to 2 x RAM = %.0lf GiB (override with -G option)\n", *maxSizeGB); 
       }
-    } else {
-      // file exists, if wrong size create with right size
+      if (devs[i].bdSize == 0) {
+	devs[i].bdSize = (*maxSizeGB * 1024*1024*1024);
+      }
     }
-      
+    // try and create it, or skip if it's already there
+    int rv = createFile(devs[i].devicename, devs[i].shouldBeSize);
+    if (rv != 0) {
+      fprintf(stderr,"*error* couldn't create file '%s'\n", devs[i].devicename);
+      exit(-1);
+    }
+    strcpy(newpath, devs[i].devicename);
 
     size_t phy, log;
     devs[i].isBD = isBlockDevice(newpath);
@@ -317,16 +318,16 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, dou
 void infoDevices(const deviceDetails *devList, const size_t devCount) {
   for (size_t f = 0; f < devCount; f++) {
     
-    fprintf(stderr,"*info* [%d], BD ", devList[f].fd);
+    fprintf(stderr,"*info*[%2d] ", devList[f].fd);
     switch (devList[f].isBD) {
-    case 0: fprintf(stderr,"NOT_OPEN"); break;
-    case 1: fprintf(stderr,"block"); break;
-    case 2: fprintf(stderr,"file"); break;
+    case 0: fprintf(stderr,"?"); break;
+    case 1: fprintf(stderr,"B"); break;
+    case 2: fprintf(stderr,"F"); break;
     default:
-      fprintf(stderr,"ERR");
+      fprintf(stderr,"x");
       break;
     }
-    fprintf(stderr," '%s', %zd bytes (%.2lf GiB), excl=%d, G=%.2g GiB\n", devList[f].devicename, devList[f].bdSize, TOGiB(devList[f].bdSize), devList[f].exclusive, devList[f].maxSizeGiB);
+    fprintf(stderr," '%s'\t%zd (%.1lf/%.1lf GiB), e=%d, G=%.2g GiB\n", devList[f].devicename, devList[f].bdSize, TOGiB(devList[f].bdSize), TOGiB(devList[f].shouldBeSize), devList[f].exclusive, devList[f].maxSizeGiB);
   }
 }
 

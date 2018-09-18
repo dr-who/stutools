@@ -5,6 +5,7 @@
 typedef struct {
   int fd;
   size_t bdSize;
+  size_t shouldBeSize;
   char *devicename;
   int exclusive;
   double maxSizeGiB;
