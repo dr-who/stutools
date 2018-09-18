@@ -28,7 +28,7 @@ char   *benchLog = NULL;
 int    dataLogFormat = 0;
 int    seqFiles = 1;
 int    seqFilesSpecified = 0;
-double maxSizeGB = 0;
+size_t maxSizeInBytes = 0;
 size_t alignment = 0;
 size_t LOWBLKSIZE = 65536;
 size_t BLKSIZE = 65536;
@@ -56,6 +56,7 @@ char   *randomBufferFile = NULL;
 int    fsyncAfterWriting = 0;
 char   *description = NULL;
 int    dontExitOnErrors = 0;
+int    sizeOverride = 0;
 
 deviceDetails *deviceList = NULL;
 size_t deviceCount = 0;
@@ -194,12 +195,13 @@ void handle_args(int argc, char *argv[]) {
       jumpStep = atoi(optarg); 
       break;
     case 'G':
+      sizeOverride = 1;
       if ((strlen(optarg)>=1) && (optarg[strlen(optarg)-1] == 'R')) {
-	maxSizeGB = (int)(TOGiB(totalRAM())+0.5) * atof(optarg);
-	if (maxSizeGB < 1) maxSizeGB = 1;
-	fprintf(stderr,"*info* setting -G to be %.1lf GiB\n", maxSizeGB);
+	maxSizeInBytes = totalRAM() * atof(optarg);
+	if (maxSizeInBytes < 1) maxSizeInBytes = 1*1024*1024*1024;
+	fprintf(stderr,"*info* setting -G to be %.1lf GiB\n", TOGiB(maxSizeInBytes));
       } else {
-	maxSizeGB = atof(optarg);
+	maxSizeInBytes = atof(optarg) * 1024*1024*1024;
       }
       break;
     case 'k': {
@@ -248,6 +250,7 @@ void handle_args(int argc, char *argv[]) {
       exit(-1);
     }
   }
+
   if (deviceCount < 1) {
     fprintf(stderr,"./aioRWTest -f device\n");
     fprintf(stderr,"\nExample:\n");
@@ -302,13 +305,16 @@ int main(int argc, char *argv[]) {
 #ifndef VERSION
 #define VERSION __TIMESTAMP__
 #endif
-  fprintf(stderr,"*info* stutools %s %s\n", argv[0], VERSION);
+  fprintf(stderr,"*info* stutools %s %s \n", argv[0], VERSION);
     
   handle_args(argc, argv);
   if (exitAfterSeconds < 0) {
     exitAfterSeconds = 99999999;
   }
 
+  if (maxSizeInBytes == 0) {maxSizeInBytes = totalRAM() * 2;}
+  if (verbose)
+    fprintf(stderr,"*info* sizeOverride %d, maxSizeInBytes: %zd\n", sizeOverride, maxSizeInBytes);
 
   size_t swap = swapTotal();
   if (swap) {fprintf(stderr,"*warning* swap is enabled (%.1lf GiB). This isn't ideal for benchmarking.\n", TOGiB(swap));}
@@ -347,28 +353,48 @@ int main(int argc, char *argv[]) {
     alignment = LOWBLKSIZE;
   }
 
-  //  expandDevices(&deviceList, &deviceCount, &seqFiles, &maxSizeGB); // if files and -s then expand
-  if (seqFiles > 1) {
-    size_t origdc = deviceCount;
-    for (size_t i = 0; i < origdc; i++) {
-      if (isBlockDevice(deviceList[i].devicename) != 1) {
-	char str[1000];
-	if (maxSizeGB == 0) {maxSizeGB = TOGiB(totalRAM()) * 2;}
-	size_t sz = alignedNumber((long)(maxSizeGB * 1024*1024*1024)/ seqFiles, 1<<16);
-	//	deviceList[i].bdSize = sz;
-	deviceList[i].shouldBeSize = sz;
-	for (size_t j = 2; j <= seqFiles; j++) {
-	  sprintf(str, "%s_%zd", deviceList[i].devicename, j);
-	  deviceDetails *d = addDeviceDetails(str, &deviceList, &deviceCount);
-	  //d->bdSize = sz;
-	  d->shouldBeSize = sz;
-	  if (verbose >= 2) fprintf(stderr,"*info* expanding %s, %zd\n", d->devicename, d->shouldBeSize);
+  //  expandDevices(&deviceList, &deviceCount, &seqFiles, &maxSizeInBytes); // if files and -s then expand
+
+  
+  size_t sz = 0;
+  if (seqFiles == 0) {
+    sz = alignedNumber((size_t)(maxSizeInBytes), 1<<16);
+  } else {
+    sz = alignedNumber((size_t)(maxSizeInBytes/seqFiles), 1<<16);
+  }
+
+  size_t origdc = deviceCount;
+  for (size_t i = 0; i < origdc; i++) {
+    if (sizeOverride) {
+      deviceList[i].shouldBeSize = sz;
+    } else {
+      // get from size
+      deviceList[i].shouldBeSize = maxSizeInBytes;
+      if (fileExists(deviceList[i].devicename)) {
+	int isBD = isBlockDevice(deviceList[i].devicename);
+	if (isBD == 1) {
+	  deviceList[i].shouldBeSize = blockDeviceSize(deviceList[i].devicename);
+	} else if (isBD == 2) {
+	  deviceList[i].shouldBeSize = fileSizeFromName(deviceList[i].devicename);
 	}
+	//	fprintf(stderr,"%d...%zd %zd %zd\n", isBD, i, deviceList[i].shouldBeSize, maxSizeInBytes);
+      }
+    }
+    if (isBlockDevice(deviceList[i].devicename) != 1) {
+      char str[1000];
+      for (size_t j = 2; j <= seqFiles; j++) {
+	sprintf(str, "%s_%zd", deviceList[i].devicename, j);
+	deviceDetails *d = addDeviceDetails(str, &deviceList, &deviceCount);
+	//d->bdSize = sz;
+	d->shouldBeSize = sz;
+	if (verbose >= 2) fprintf(stderr,"*info* expanding %s, %zd\n", d->devicename, d->shouldBeSize);
       }
     }
   }
 
-  openDevices(deviceList, deviceCount, sendTrim, &maxSizeGB, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
+  //    infoDevices(deviceList, deviceCount);
+
+  openDevices(deviceList, deviceCount, sendTrim, &maxSizeInBytes, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
 
   // prune closed, char or too small
   deviceDetails *dd2 = prune(deviceList, &deviceCount, BLKSIZE);
@@ -376,8 +402,8 @@ int main(int argc, char *argv[]) {
   deviceList = dd2;
 
   size_t bdSizeWeAreUsing = smallestBDSize(deviceList, deviceCount);
-  if (maxSizeGB > 0 && (bdSizeWeAreUsing > (long)(maxSizeGB*1024*1024*1024))) {
-      bdSizeWeAreUsing = (long)(maxSizeGB*1024*1024*1024);
+  if (maxSizeInBytes > 0 && (bdSizeWeAreUsing > maxSizeInBytes)) {
+    bdSizeWeAreUsing = maxSizeInBytes;
   }
   infoDevices(deviceList, deviceCount);
   
@@ -566,7 +592,7 @@ int main(int argc, char *argv[]) {
 
       
     fprintf(stderr,"*info* seq: %d, r/w Ratio: %.1g, qd: %d, block size: %zd-%zd bytes\n*info* aligned to %zd bytes\n", seqFiles, readRatio, qd, LOWBLKSIZE, BLKSIZE, alignment);
-    fprintf(stderr,"*info* flushEvery %zd, max bdSizeWeAreUsing %zd (%.2lf GiB), blockoffset %d\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
+    fprintf(stderr,"*info* flushEvery %zd, max bdSizeWeAreUsing %zd (%.2lf GiB), blockoffset %d, G override %d\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd, sizeOverride);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);
     }
