@@ -193,6 +193,7 @@ size_t aioMultiplePositions( positionType *positions,
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
 	  double start_f = timedouble(); // time and store
+	  assert(positions[pos].dev);
 	  fsync(positions[pos].dev->fd);
 	  double elapsed_f = timedouble() - start_f;
 
