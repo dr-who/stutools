@@ -48,7 +48,25 @@ size_t fileSize(int fd) {
   lseek(fd, 0L, SEEK_SET);
   return sz;
 }
-  
+
+size_t fileSizeFromName(const char *path) {
+  int fd = open(path, O_RDONLY);
+  size_t sz = lseek(fd, 0L, SEEK_END);
+  lseek(fd, 0L, SEEK_SET);
+  close(fd);
+  return sz;
+}
+
+size_t fileExists(const char *path) {
+  int fd = open(path, O_RDONLY);
+  if (fd >= 0) {
+    close(fd);
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 size_t blockDeviceSizeFromFD(const int fd) {
   size_t file_size_in_bytes = 0;
   ioctl(fd, BLKGETSIZE64, &file_size_in_bytes);

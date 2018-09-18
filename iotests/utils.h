@@ -43,6 +43,8 @@ char *OSRelease();
 size_t swapTotal();
 
 size_t fileSize(int fd);
+size_t fileSizeFromName(const char *path);
+size_t fileExists(const char *path);
 
 void majorAndMinor(int fd, unsigned int *major, unsigned int *minor);
 
