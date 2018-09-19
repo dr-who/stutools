@@ -401,6 +401,7 @@ int main(int argc, char *argv[]) {
 
   //    infoDevices(deviceList, deviceCount);
 
+  if (contextCount > deviceCount) contextCount = deviceCount;
   openDevices(deviceList, deviceCount, sendTrim, &maxSizeInBytes, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive, qd, contextCount);
 
   // prune closed, char or too small
