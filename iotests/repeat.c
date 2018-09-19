@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
   generateRandomBuffer(randomBuffer, blocksize, seed);
   
   // after loading in the positions with the paths, open the files and populate BD sizes etc
-  openDevices(devices, numDevices, 0, 0, minbs, blocksize, minbs, 1, 0); // the 1 is "need to write"
+  openDevices(devices, numDevices, 0, 0, minbs, blocksize, minbs, 1, 0, 256, 1); // the 1 is "need to write"
   // display
   infoDevices(devices, numDevices);
   int numOpen = numOpenDevices(devices, numDevices);

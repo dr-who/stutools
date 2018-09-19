@@ -57,6 +57,7 @@ int    fsyncAfterWriting = 0;
 char   *description = NULL;
 int    dontExitOnErrors = 0;
 int    sizeOverride = 0;
+size_t contextCount = 1;
 
 deviceDetails *deviceList = NULL;
 size_t deviceCount = 0;
@@ -75,7 +76,7 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:p:Tl:vVS:FR:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:E")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:p:Tl:vVS:FR:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:Ec:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -242,6 +243,10 @@ void handle_args(int argc, char *argv[]) {
 	//        fprintf(stderr,"\n");
       }
       break;
+    case 'c':
+      contextCount = atoi(optarg);
+      if (contextCount < 1) contextCount = 1;
+      break;
     case '1':
       fprintf(stderr,"*info* write to locations only once\n");
       oneShot = 1;
@@ -255,6 +260,8 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"./aioRWTest -f device\n");
     fprintf(stderr,"\nExample:\n");
     fprintf(stderr,"  ./aioRWTest -f /dev/nbd0            # 50/50 read/write test, seq r/w\n");
+    fprintf(stderr,"  ./aioRWTest -q 128 -f /dev/device   # set the queue depth to 128\n");
+    fprintf(stderr,"  ./aioRWTest -c 8 -f /dev/device     # change the number of IO contexts to 8\n");
     fprintf(stderr,"  ./aioRWTest -I devicelist.txt       # 50/50 read/write test, from a file\n");
     fprintf(stderr,"  ./aioRWTest -r -f /dev/nbd0         # read test\n");
     fprintf(stderr,"  ./aioRWTest -w -f /dev/nbd0         # write test\n");
@@ -394,7 +401,7 @@ int main(int argc, char *argv[]) {
 
   //    infoDevices(deviceList, deviceCount);
 
-  openDevices(deviceList, deviceCount, sendTrim, &maxSizeInBytes, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive);
+  openDevices(deviceList, deviceCount, sendTrim, &maxSizeInBytes, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive, qd, contextCount);
 
   // prune closed, char or too small
   deviceDetails *dd2 = prune(deviceList, &deviceCount, BLKSIZE);
@@ -592,7 +599,7 @@ int main(int argc, char *argv[]) {
 
       
     fprintf(stderr,"*info* seq: %d, r/w Ratio: %.1g, qd: %d, block size: %zd-%zd bytes\n*info* aligned to %zd bytes\n", seqFiles, readRatio, qd, LOWBLKSIZE, BLKSIZE, alignment);
-    fprintf(stderr,"*info* flushEvery %zd, max bdSizeWeAreUsing %zd (%.2lf GiB), blockoffset %d\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd);
+    fprintf(stderr,"*info* flush %zd, max bdSizeWeAreUsing %zd (%.2lf GiB), off %d, contexts %zd\n", flushEvery, bdSizeWeAreUsing, TOGiB(bdSizeWeAreUsing), blocksFromEnd, contextCount);
     if (totl > 0) {
       fprintf(stderr,"*info* origBDSize %.3lf GiB, sum rawDiskSize %.3lf GiB (overhead %.1lf%%)\n", TOGiB(bdSizeWeAreUsing), TOGiB(totl), 100.0*totl/bdSizeWeAreUsing - 100);
     }

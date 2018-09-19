@@ -35,7 +35,7 @@ size_t aioMultiplePositions( positionType *positions,
 			     int dontExitOnErrors
 			     ) {
   int ret;
-  io_context_t ctx;
+  //  io_context_t ctx = positions[0].dev->ctx;
   struct iocb **cbs;
   struct io_event *events;
 
@@ -47,11 +47,11 @@ size_t aioMultiplePositions( positionType *positions,
     CALLOC(cbs[i], 1, sizeof(struct iocb));
  }
   
-  ctx = 0;
+  //  ctx = 0;
   // set the queue depth
 
-  ret = io_setup(QD, &ctx);
-  if (ret != 0) {perror("io_setup");abort();}
+  //  ret = io_setup(QD, &ctx);
+  //  if (ret != 0) {perror("io_setup");abort();}
 
   /* setup I/O control block, randomised just for this run. So we can check verification afterwards */
   char **data = NULL, **dataread = NULL;
@@ -140,12 +140,13 @@ size_t aioMultiplePositions( positionType *positions,
 	    
 	    //	    size_t rpos = (char*)data[submitted%QD] - (char*)data[0];
 	    //fprintf(stderr,"*info*submit %zd\n", rpos / randomBufferSize);
-	    ret = io_submit(ctx, 1, &cbs[submitted%QD]);
+	    //	    fprintf(stderr,"submit %p\n", (void*)positions[pos].dev->ctx);
+	    ret = io_submit(positions[pos].dev->ctx, 1, &cbs[submitted%QD]);
 	    if (ret > 0) {
 	      lastsubmit = timedouble(); // last good submit
 	      inFlight++;
 	      submitted++;
-	      if (verbose >= 2 || (newpos % alignment != 0)) {
+	      if (verbose >= 2 || (newpos & (alignment-1))) {
 		fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", positions[pos].dev->fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 	      }
 	      
@@ -206,9 +207,9 @@ size_t aioMultiplePositions( positionType *positions,
   }
 
     if (QD < 5) { // then poll
-      ret = io_getevents(ctx, 1, QD, events, NULL);
+      ret = io_getevents(positions[pos].dev->ctx, 1, QD, events, NULL);
     } else {
-      ret = io_getevents(ctx, 1, QD, events, &timeout);
+      ret = io_getevents(positions[pos].dev->ctx, 1, QD, events, &timeout);
     }
 
     // if stop running or been running long enough
@@ -266,7 +267,7 @@ size_t aioMultiplePositions( positionType *positions,
   free(data);
   free(dataread[0]);
   free(dataread);
-  io_destroy(ctx);
+  //  io_destroy(ctx);
   
 
   *ios = received;
@@ -324,15 +325,12 @@ int aioVerifyWrites(positionType *positions,
     if (positions[i].success) {
       if (positions[i].action == 'W') {
 	//	assert(positions[i].len >= 1024);
-	//	assert(positions[i].len % 1024 == 0);
 	//	fprintf(stderr,"\n%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
 	checked++;
 	const size_t pos = positions[i].pos;
 	const size_t len = positions[i].len;
-	assert((len % alignment) == 0);
 	assert(len <= maxBufferSize);
 	assert(len > 0);
-	assert((pos % alignment) == 0);
 	
 	if (lseek(positions[i].dev->fd, pos, SEEK_SET) == -1) {
 	  if (errors + ioerrors < 10) {
@@ -357,7 +355,6 @@ int aioVerifyWrites(positionType *positions,
 	  }
 	} else {
 	  assert(bytesRead == len);
-	  assert((len % alignment) == 0);
 	  if (strncmp(buffer, randomBuffer, bytesRead) != 0) {
 	    errors++;	
 	    if (errors < 10) {

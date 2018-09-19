@@ -30,6 +30,7 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
   (*devs)[*numDevs].devicename = strdup(fn);
   (*devs)[*numDevs].exclusive = 0;
   (*devs)[*numDevs].isBD = 0;
+  (*devs)[*numDevs].ctx = 0;
   
   //    if (verbose >= 2) {
   //      fprintf(stderr,"*info* adding -f '%s'\n", (*devs)[*numDevs].devicename);
@@ -145,9 +146,11 @@ size_t numOpenDevices(deviceDetails *devs, size_t numDevs) {
 }
 
 
-void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, size_t *maxSizeInBytes, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive) {
+void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, size_t *maxSizeInBytes, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive, size_t qd, size_t contextCount) {
   
   //  int error = 0;
+  assert(contextCount > 0);
+    
   assert(maxSizeInBytes);
   char newpath[4096];
   //  CALLOC(newpath, 4096, sizeof(char));
@@ -283,6 +286,20 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, siz
     
   cont: {}
 
+
+    // setup aio
+    if (i==0) {
+      io_setup(qd, &devs[i].ctx);
+    } else {
+      if (i < contextCount) {
+	io_setup(qd, &devs[i].ctx);
+      } else {
+	devs[i].ctx = devs[i % contextCount].ctx;
+      }
+    }
+
+	
+    
     devs[i].exclusive = !dontUseExclusive;
   } // i
 

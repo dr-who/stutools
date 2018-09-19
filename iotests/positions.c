@@ -475,7 +475,7 @@ void setupPositions(positionType *positions,
     if (verbose >= 1) {
       fprintf(stderr,"*info* unique positions: %zd\n", *num);
       for (size_t i = 0; i < MIN(*num, 30); i++) {
-	fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8u\t%c\t%s\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].dev->devicename);
+	fprintf(stderr,"*info* [%zd]:\t%14zd\t%14.2lf GB\t%8u\t%c\t%s\t%p\n", i, positions[i].pos, TOGiB(positions[i].pos), positions[i].len, positions[i].action, positions[i].dev->devicename, (void*)positions[i].dev->ctx);
       }
     }
   }
