@@ -403,6 +403,12 @@ int main(int argc, char *argv[]) {
 
   if (contextCount > deviceCount) contextCount = deviceCount;
   openDevices(deviceList, deviceCount, sendTrim, &maxSizeInBytes, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive, qd, contextCount);
+  // if we have specified bigger than the BD then don't set it too high
+  for (size_t i = 0; i <deviceCount; i++) {
+    if (deviceList[i].shouldBeSize > deviceList[i].bdSize) {
+      deviceList[i].shouldBeSize = deviceList[i].bdSize;
+    }
+  }
 
   // prune closed, char or too small
   deviceDetails *dd2 = prune(deviceList, &deviceCount, BLKSIZE);

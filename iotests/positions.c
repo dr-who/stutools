@@ -136,7 +136,7 @@ void savePositions(const char *name, positionType *positions, size_t num, size_t
     }
     for (size_t i = 0; i <num; i++) {
       if (positions[i].success) {
-	size_t bdSizeBytes = positions[i].dev->bdSize;
+	size_t bdSizeBytes = positions[i].dev->shouldBeSize;
 	const char action = positions[i].action;
 	if (action == 'R' || action == 'W') {
 	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%ld\n", positions[i].dev->devicename, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed);
@@ -520,7 +520,7 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
 }
     
   
-positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs) {
+positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxSize) {
 
   char *line = malloc(200000);
   size_t maxline = 200000;
@@ -532,11 +532,11 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
   size_t pNum = 0;
   
   while ((read = getline(&line, &maxline, fd)) != -1) {
-    size_t pos, len, seed;
+    size_t pos, len, seed, tmpsize;
     //    fprintf(stderr,"%zd\n", strlen(line));
     char op;
     
-    int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %*s %*s %*s %zu", path, &pos, &op, &len, &seed);
+    int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %zu %*s %*s %zu", path, &pos, &op, &len, &tmpsize, &seed);
     if (s >= 5) {
       //      fprintf(stderr,"%s %zd %c %zd %zd\n", path, pos, op, len, seed);
       deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
@@ -551,6 +551,9 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
       p[pNum-1].action = op;
       p[pNum-1].success = 1;
       p[pNum-1].seed = seed;
+      if (tmpsize > *maxSize) {
+	*maxSize = tmpsize;
+      }
 
       //      fprintf(stderr,"added %p\n", p[pNum-1].dev);
       

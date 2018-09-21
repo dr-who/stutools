@@ -18,7 +18,7 @@ positionType *createPositions(size_t num);
 int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes);
 void savePositions(const char *name, positionType *positions, size_t num, size_t flushEvery);
 
-positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs);
+positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxsize);
 
 void infoPositions(const deviceDetails *devList, const size_t devCount);
 

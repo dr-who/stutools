@@ -31,11 +31,15 @@ int main(int argc, char *argv[]) {
   size_t numPositions = 0;
 
   // load in all the positions, generation from the -L filename option from aioRWTest
-  positions = loadPositions(stdin, &numPositions, &devices, &numDevices);
+  size_t maxsize = 0;
+  positions = loadPositions(stdin, &numPositions, &devices, &numDevices, &maxsize);
   if (!positions) {
     fprintf(stderr,"*warning* no valid positions\n");
     freeDeviceDetails(devices, numDevices);
     exit(-1);
+  }
+  for (size_t i = 0; i <numDevices; i++) {
+    devices[i].shouldBeSize = maxsize;
   }
 
   // find block and seed
@@ -50,7 +54,7 @@ int main(int argc, char *argv[]) {
   generateRandomBuffer(randomBuffer, blocksize, seed);
   
   // after loading in the positions with the paths, open the files and populate BD sizes etc
-  openDevices(devices, numDevices, 0, 0, minbs, blocksize, minbs, 0, 0, 256, 1);
+  openDevices(devices, numDevices, 0, &maxsize, minbs, blocksize, minbs, 0, 0, 256, 1);
   // display
   infoDevices(devices, numDevices);
 
