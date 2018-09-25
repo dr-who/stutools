@@ -94,6 +94,7 @@ int deleteFile(const char *filename) {
   int fd = open(filename, O_RDONLY, S_IRUSR | S_IWUSR);
   if (fd) { // if open
     int isFile = (isBlockDevice(filename) == 2);
+    close(fd);
     if (isFile) {
       //      fprintf(stderr,"*warning* deleting old file '%s'\n", filename);
       unlink(filename);
