@@ -50,6 +50,17 @@ void freeDeviceDetails(deviceDetails *devs, size_t numDevs) {
   free(devs);
 }
 
+void destroyContexts(deviceDetails *devs, size_t numDevs, size_t numC) {
+  size_t closed = 0;
+  for (size_t f = 0; f < numDevs; f++) {
+    if (devs[f].ctx) {
+      io_destroy(devs[f].ctx);
+      closed++;
+      if (closed >= numC) break;
+    }
+  }
+}
+
       
 size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs) {
   size_t add = 0;
@@ -361,3 +372,4 @@ size_t smallestBDSize(deviceDetails *devList, size_t devCount) {
   //  fprintf(stderr,"*info* min size is %zd (%.3lf GiB)\n", min, TOGiB(min));
   return min;
 }
+

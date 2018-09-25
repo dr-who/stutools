@@ -717,6 +717,7 @@ int main(int argc, char *argv[]) {
   diskStatFree(&dst);
   free(positions);
   free(randomBuffer);
+  destroyContexts(deviceList, deviceCount, contextCount);
   freeDeviceDetails(deviceList, deviceCount);
   //  if (fdArray) free(fdArray);
   //  if (pathLen) {

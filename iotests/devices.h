@@ -26,6 +26,7 @@ void infoDevices(const deviceDetails *devList, const size_t devCount);
 size_t numOpenDevices(deviceDetails *devs, size_t numDevs);
 size_t smallestBDSize(deviceDetails *devList, size_t devCount);
 size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, double *maxSizeGiB);
+void destroyContexts(deviceDetails *devs, size_t numDevs, size_t numC);
 
 
 #endif
