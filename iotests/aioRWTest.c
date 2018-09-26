@@ -244,7 +244,7 @@ void handle_args(int argc, char *argv[]) {
       }
       break;
     case 'c':
-      contextCount = atoi(optarg);
+      //      contextCount = atoi(optarg);
       if (contextCount < 1) contextCount = 1;
       break;
     case '1':
