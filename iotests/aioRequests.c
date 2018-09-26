@@ -20,7 +20,7 @@ extern int flushEvery;
 size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
 			     const float secTimeout,
-			     const size_t QD,
+			     const size_t origQD,
 			     const int verbose,
 			     const int tableMode, 
 			     logSpeedType *alll,
@@ -39,6 +39,7 @@ size_t aioMultiplePositions( positionType *positions,
   int ret;
   struct iocb **cbs;
   struct io_event *events;
+  size_t QD = origQD * contextCount;
 
   assert(QD);
 
@@ -148,11 +149,10 @@ size_t aioMultiplePositions( positionType *positions,
 	    //	    fprintf(stderr,"submit %p\n", (void*)positions[pos].dev->ctx);
 	    //	    fprintf(stderr,"%d\n", positions[pos].dev->ctxIndex);
 	    //	    fprintf(stderr,"%p\n", (void*)ioc[positions[pos].dev->ctxIndex]);
-	    inFlightPer[positions[pos].dev->ctxIndex]++;
-	    inFlight++;
-	    
 	    ret = io_submit(ioc[positions[pos].dev->ctxIndex], 1, &cbs[submitted%QD]);
 	    if (ret > 0) {
+	      inFlightPer[positions[pos].dev->ctxIndex]++;
+	      inFlight++;
 	      lastsubmit = timedouble(); // last good submit
 	      submitted++;
 	      if (verbose >= 2 || (newpos & (alignment-1))) {
@@ -160,7 +160,7 @@ size_t aioMultiplePositions( positionType *positions,
 	      }
 	      
 	    } else {
-	      fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()"); if(!dontExitOnErrors) abort();
+	      fprintf(stderr,"io_submit() failed, ret = %d\n", ret); perror("io_submit()"); if(!dontExitOnErrors) abort();
 	    }
 	  }
 	}
