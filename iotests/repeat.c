@@ -55,8 +55,11 @@ int main(int argc, char *argv[]) {
 
   generateRandomBuffer(randomBuffer, blocksize, seed);
   
+  const size_t qd = 256, contextCount = 1;
+  io_context_t *ioc = createContexts(contextCount, qd);
+  setupContexts(ioc, contextCount, qd);
   // after loading in the positions with the paths, open the files and populate BD sizes etc
-  openDevices(devices, numDevices, 0, &maxsize, minbs, blocksize, minbs, 1, 0, 256, 1); // the 1 is "need to write"
+  openDevices(devices, numDevices, 0, &maxsize, minbs, blocksize, minbs, 1, 0, qd, contextCount); // the 1 is "need to write"
   // display
   infoDevices(devices, numDevices);
   int numOpen = numOpenDevices(devices, numDevices);
@@ -73,13 +76,14 @@ int main(int argc, char *argv[]) {
   if (positions) {
     logSpeedType l;
     logSpeedInit(&l);
-    rb = aioMultiplePositions(positions, numPositions, 100000, 256, verbose, 0, &l, NULL, randomBuffer, blocksize, minbs, &ios, &totalRB, &totalWB, 1, 0);
+    rb = aioMultiplePositions(positions, numPositions, 100000, 256, verbose, 0, &l, NULL, randomBuffer, blocksize, minbs, &ios, &totalRB, &totalWB, 1, 0, ioc, contextCount);
     logSpeedFree(&l);
   }
   double elapsed = timedouble() - start;
   fprintf(stderr,"*info* %zd bytes (%.3lf GiB), read %.3lf GiB, write %.3lf GiB in %.1lf seconds. Total speed %.1lf MiB/sec\n", rb, TOGiB(rb), TOGiB(totalRB), TOGiB(totalWB), elapsed, TOMiB(rb) / elapsed);
   
   freeDeviceDetails(devices, numDevices);
+  freeContexts(ioc, contextCount);
   free(positions);
   free(randomBuffer);
 

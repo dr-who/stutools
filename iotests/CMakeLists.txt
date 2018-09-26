@@ -16,8 +16,8 @@ target_link_libraries(repeat stutools m aio pthread)
 add_executable(aioMulti aioMulti.c)
 target_link_libraries(aioMulti stutools m aio pthread)
 
-add_executable(checkDisks checkDisks.c)
-target_link_libraries(checkDisks stutools m aio pthread)
+#add_executable(checkDisks checkDisks.c)
+#target_link_libraries(checkDisks stutools m aio pthread)
 
 add_executable(ramEater ramEater.c)
 target_link_libraries(ramEater stutools)

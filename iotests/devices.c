@@ -30,7 +30,7 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
   (*devs)[*numDevs].devicename = strdup(fn);
   (*devs)[*numDevs].exclusive = 0;
   (*devs)[*numDevs].isBD = 0;
-  (*devs)[*numDevs].ctx = 0;
+  (*devs)[*numDevs].ctxIndex = 0;
   
   //    if (verbose >= 2) {
   //      fprintf(stderr,"*info* adding -f '%s'\n", (*devs)[*numDevs].devicename);
@@ -50,18 +50,6 @@ void freeDeviceDetails(deviceDetails *devs, size_t numDevs) {
   free(devs);
 }
 
-void destroyContexts(deviceDetails *devs, size_t numDevs, size_t numC) {
-  size_t closed = 0;
-  for (size_t f = 0; f < numDevs; f++) {
-    if (devs[f].ctx) {
-      io_destroy(devs[f].ctx);
-      closed++;
-      if (closed >= numC) break;
-    }
-  }
-}
-
-      
 size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs) {
   size_t add = 0;
   FILE *fp = fopen(fn, "rt");
@@ -91,7 +79,7 @@ size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs) 
 
 
 int deleteFile(const char *filename) {
-  int fd = open(filename, O_RDONLY, S_IRUSR | S_IWUSR);
+  int fd = open(filename, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
   if (fd) { // if open
     int isFile = (isBlockDevice(filename) == 2);
     close(fd);
@@ -158,7 +146,7 @@ size_t numOpenDevices(deviceDetails *devs, size_t numDevs) {
 }
 
 
-void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, size_t *maxSizeInBytes, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive, size_t qd, size_t contextCount) {
+void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, size_t *maxSizeInBytes, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive, size_t qd, const size_t contextCount) {
   
   //  int error = 0;
   assert(contextCount > 0);
@@ -301,12 +289,12 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, siz
 
     // setup aio
     if (i==0) {
-      io_setup(qd, &devs[i].ctx);
+      devs[i].ctxIndex = i;
     } else {
       if (i < contextCount) {
-	io_setup(qd, &devs[i].ctx);
+	devs[i].ctxIndex = i;
       } else {
-	devs[i].ctx = devs[i % contextCount].ctx;
+	devs[i].ctxIndex = i % contextCount;
       }
     }
 
@@ -374,3 +362,23 @@ size_t smallestBDSize(deviceDetails *devList, size_t devCount) {
   return min;
 }
 
+io_context_t *createContexts(const size_t count, const size_t qd) {
+
+  io_context_t *p;
+  CALLOC(p, count, sizeof(io_context_t));
+  return p;
+}
+
+void setupContexts(io_context_t *p, const size_t count, const size_t qd) {
+
+  for (size_t i = 0; i < count; i++) {
+    io_setup(qd, &p[i]);
+  }
+}
+
+void freeContexts(io_context_t *p, const size_t count) {
+  for(size_t i = 0; i < count; i++) {
+    io_destroy(p[i]);
+  }
+  free(p);
+}

@@ -32,10 +32,11 @@ size_t aioMultiplePositions( positionType *positions,
 			     size_t *totalRB,
 			     size_t *totalWB,
 			     const size_t oneShot,
-			     int dontExitOnErrors
+			     int dontExitOnErrors,
+			     io_context_t *ioc,
+			     size_t contextCount
 			     ) {
   int ret;
-  //  io_context_t ctx = positions[0].dev->ctx;
   struct iocb **cbs;
   struct io_event *events;
 
@@ -45,7 +46,14 @@ size_t aioMultiplePositions( positionType *positions,
   CALLOC(cbs, QD, sizeof(struct iocb*));
   for (size_t i = 0; i < QD; i++) {
     CALLOC(cbs[i], 1, sizeof(struct iocb));
- }
+  }
+
+  if (verbose) {
+    for (size_t i = 0; i < contextCount; i++) {
+      fprintf(stderr,"*info* io_context[%zd] = %p\n", i, (void*)ioc[i]);
+    }
+  }
+  
   
   //  ctx = 0;
   // set the queue depth
@@ -77,6 +85,8 @@ size_t aioMultiplePositions( positionType *positions,
   }
 
   size_t inFlight = 0;
+  size_t *inFlightPer;
+  CALLOC(inFlightPer, contextCount, sizeof(size_t));
 
   size_t pos = 0;
 
@@ -84,13 +94,9 @@ size_t aioMultiplePositions( positionType *positions,
   double last = start, gt = start, lastsubmit =start, lastreceive = start;
   logSpeedReset(benchl);
   logSpeedReset(alll);
-  size_t submitted = 0;
-  size_t flushPos = 0;
-  size_t received = 0;
 
-  size_t totalWriteBytes = 0; 
-  size_t totalReadBytes = 0;
-  //  double mbps = 0;
+  size_t submitted = 0, flushPos = 0, received = 0;
+  size_t totalWriteBytes = 0, totalReadBytes = 0;
   
   size_t lastBytes = 0, lastIOCount = 0;
   struct timespec timeout;
@@ -99,14 +105,13 @@ size_t aioMultiplePositions( positionType *positions,
 
   double flush_totaltime = 0, flush_mintime = 9e99, flush_maxtime = 0;
   size_t flush_count = 0;
-
   
   while (keepRunning) {
-    if (inFlight < QD) {
+    if (inFlightPer[positions[pos].dev->ctxIndex] < QD) {
       
       // submit requests, one at a time
       //      fprintf(stderr,"max %zd\n", MAX(QD - inFlight, 1));
-      int submitCycles = MAX(QD - inFlight, 1);
+      int submitCycles = MAX(QD - inFlightPer[positions[pos].dev->ctxIndex], 1);
       if (flushEvery) {
 	if (flushEvery < submitCycles) {
 	  submitCycles = flushEvery;
@@ -141,9 +146,12 @@ size_t aioMultiplePositions( positionType *positions,
 	    //	    size_t rpos = (char*)data[submitted%QD] - (char*)data[0];
 	    //fprintf(stderr,"*info*submit %zd\n", rpos / randomBufferSize);
 	    //	    fprintf(stderr,"submit %p\n", (void*)positions[pos].dev->ctx);
-	    ret = io_submit(positions[pos].dev->ctx, 1, &cbs[submitted%QD]);
+	    //	    fprintf(stderr,"%d\n", positions[pos].dev->ctxIndex);
+	    //	    fprintf(stderr,"%p\n", (void*)ioc[positions[pos].dev->ctxIndex]);
+	    ret = io_submit(ioc[positions[pos].dev->ctxIndex], 1, &cbs[submitted%QD]);
 	    if (ret > 0) {
 	      lastsubmit = timedouble(); // last good submit
+	      inFlightPer[positions[pos].dev->ctxIndex]++;
 	      inFlight++;
 	      submitted++;
 	      if (verbose >= 2 || (newpos & (alignment-1))) {
@@ -155,13 +163,6 @@ size_t aioMultiplePositions( positionType *positions,
 	    }
 	  }
 	  
-	}
-	pos++;
-	if (pos >= sz) {
-	  if (oneShot) {
-	    goto endoffunction; // only go through once
-	  }
-	  pos = 0; // don't go over the end of the array
 	}
 	
 	gt = timedouble();
@@ -206,10 +207,10 @@ size_t aioMultiplePositions( positionType *positions,
       }
   }
 
-    if (QD < 5) { // then poll
-      ret = io_getevents(positions[pos].dev->ctx, 1, QD, events, NULL);
+    if (inFlightPer[positions[pos].dev->ctxIndex] < 5) { // then don't timeout
+      ret = io_getevents(ioc[positions[pos].dev->ctxIndex], 1, QD, events, NULL);
     } else {
-      ret = io_getevents(positions[pos].dev->ctx, 1, QD, events, &timeout);
+      ret = io_getevents(ioc[positions[pos].dev->ctxIndex], 1, QD, events, &timeout);
     }
 
     // if stop running or been running long enough
@@ -244,20 +245,36 @@ size_t aioMultiplePositions( positionType *positions,
 	  //fprintf(stderr,"returned %zd\n", (char*)my_iocb->u.c.buf - (char*)(data[0]));
 	}
       }
+      inFlightPer[positions[pos].dev->ctxIndex] -= ret;
       inFlight -= ret;
       received += ret;
     }
-    //	  ret = io_destroy(ctx);
     if (ret < 0) {
       //      fprintf(stderr,"eek\n");
       //    perror("io_destroy");
       break;
     }
+
+    pos++;
+    if (pos >= sz) {
+      if (oneShot) {
+	goto endoffunction; // only go through once
+      }
+      pos = 0; // don't go over the end of the array
+    }
   }
 
-  //  mbps = received* BLKSIZE / (timedouble() - start)/1024.0/1024.0;
   
  endoffunction:
+  // receive outstanding I/Os
+  for (size_t i = 0; i < contextCount; i++) {
+    if (verbose || inFlight)
+      fprintf(stderr,"*info* inflight[%zd] = %zd\n", i, inFlightPer[i]);
+    if (inFlightPer[i]) {
+      io_getevents(ioc[i], inFlightPer[i], inFlightPer[i], events, NULL);
+    }
+  }
+
   free(events);
   for (size_t i = 0; i < QD; i++) {
     free(cbs[i]);
@@ -389,35 +406,3 @@ int aioVerifyWrites(positionType *positions,
 
 
 
-void aioSetup(io_context_t *ctx, size_t QD) {
-  assert(QD);
-
-  *ctx = 0;
-  int ret = io_setup(QD, ctx);
-  if (ret != 0) {perror("io_setup");abort();}
-}
-
-struct iocb * aioGetContext() {
-  struct iocb *cbs = calloc(1, sizeof(struct iocb));
-  return cbs;
-}
-
-int aioRead(io_context_t *ctx, struct iocb *cbs, int fd, void* data, size_t len, size_t pos) {
-  io_prep_pread(cbs, fd, data, len, pos);
-  int ret = io_submit(*ctx, 1, &cbs);
-  if (ret <= 0) {
-    //    fprintf(stderr,"problem\n"); // queue full
-    return 0;
-  }
-  return ret;
-}
-
-
-int aioGet(io_context_t *ctx) {
-  struct io_event event[1];
-  int ret = io_getevents(*ctx, 0, 1, &event[0], NULL);
-  return ret;
-}
-
-
-  

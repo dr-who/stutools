@@ -399,9 +399,12 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  //    infoDevices(deviceList, deviceCount);
-
   if (contextCount > deviceCount) contextCount = deviceCount;
+  if (verbose) {
+    fprintf(stderr,"*info* contextCount = %zd, deviceCount = %zd\n", contextCount, deviceCount);
+  }
+  io_context_t *ioc = createContexts(contextCount, qd);
+  setupContexts(ioc, contextCount, qd);
   openDevices(deviceList, deviceCount, sendTrim, &maxSizeInBytes, LOWBLKSIZE, BLKSIZE, alignment, readRatio < 1, dontUseExclusive, qd, contextCount);
   // if we have specified bigger than the BD then don't set it too high
   for (size_t i = 0; i <deviceCount; i++) {
@@ -546,14 +549,14 @@ int main(int argc, char *argv[]) {
 	      setupPositions(positions, &maxPositions, deviceList, deviceCount, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
 
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot, dontExitOnErrors);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot, dontExitOnErrors, ioc, contextCount);
 	    } else {
 	      // setup multiple/parallel sequential region
 	      setupPositions(positions, &maxPositions, deviceList, deviceCount, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
 
 	      
 	      start = timedouble(); // start timing after positions created
-	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot, dontExitOnErrors);
+	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot, dontExitOnErrors, ioc, contextCount);
 	    }
 	    if (verbose) {
 	      fprintf(stderr,"*info* calling fsync()..."); fflush(stderr);
@@ -632,7 +635,7 @@ int main(int argc, char *argv[]) {
     double start = logSpeedInit(&l);
 
     size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
-    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes, oneShot, dontExitOnErrors);
+    aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qd, verbose, 0, dataLog ? (&l) : NULL, &benchl, randomBuffer, BLKSIZE, alignment, &ios, &shouldReadBytes, &shouldWriteBytes, oneShot, dontExitOnErrors, ioc, contextCount);
 
     if (fsyncAfterWriting && shouldWriteBytes) { // only fsync if we are told to AND we have written something
       fprintf(stderr,"*info* calling fsync()...");fflush(stderr);
@@ -717,7 +720,7 @@ int main(int argc, char *argv[]) {
   diskStatFree(&dst);
   free(positions);
   free(randomBuffer);
-  destroyContexts(deviceList, deviceCount, contextCount);
+  freeContexts(ioc, contextCount);
   freeDeviceDetails(deviceList, deviceCount);
   //  if (fdArray) free(fdArray);
   //  if (pathLen) {

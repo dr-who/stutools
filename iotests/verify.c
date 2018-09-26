@@ -52,9 +52,12 @@ int main(int argc, char *argv[]) {
   CALLOC(randomBuffer, blocksize, 1);
 
   generateRandomBuffer(randomBuffer, blocksize, seed);
-  
+
+  const size_t qd = 256, contextCount = 1;
+  io_context_t *ioc = createContexts(contextCount, qd);
+  setupContexts(ioc, contextCount, qd);
   // after loading in the positions with the paths, open the files and populate BD sizes etc
-  openDevices(devices, numDevices, 0, &maxsize, minbs, blocksize, minbs, 0, 0, 256, 1);
+  openDevices(devices, numDevices, 0, &maxsize, minbs, blocksize, minbs, 0, 0, qd, contextCount);
   // display
   infoDevices(devices, numDevices);
 
@@ -78,6 +81,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"*info* total %zd, correct %zd, incorrect %zd, ioerrors %zd, lenerrors %zd\n", correct+incorrect+ioerrors+lenerrors, correct, incorrect, ioerrors, lenerrors);
 
   freeDeviceDetails(devices, numDevices);
+  freeContexts(ioc, contextCount);
   free(positions);
   free(randomBuffer);
 

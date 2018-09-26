@@ -16,11 +16,12 @@
 #include "aioRequests.h"
 #include "positions.h"
 #include "utils.h"
+#include "devices.h"
 
 int keepRunning = 1;
 int verbose = 0;
 int flushEvery = 0;
-double MAXRAM = 2.0*1024*1024*1024 ; // 2GB
+double MAXRAM = 1.0*1024*1024*1024 ; // 2GB
 int tripleX = 0;
 
 typedef struct {
@@ -30,6 +31,8 @@ typedef struct {
   size_t max;
   float readRatio;
   size_t total;
+  io_context_t *ioc;
+  size_t contextCount;
 } threadInfoType;
 
 static size_t blockSize = 65536;
@@ -87,7 +90,7 @@ static void *runThread(void *arg) {
     startTime = timedouble();
   }
   //  fprintf(stderr,"go(%zd)\n",threadContext->id);
-  threadContext->total = aioMultiplePositions(positions, positionsNum, 100, threadContext->qd, 0, 0, NULL, NULL, randomBuffer, blockSize, blockSize, &ios, &trb, &twb, 0, 0);
+  threadContext->total = aioMultiplePositions(positions, positionsNum, 100, threadContext->qd, 0, 0, NULL, NULL, randomBuffer, blockSize, blockSize, &ios, &trb, &twb, 0, 0, threadContext->ioc, threadContext->contextCount);
 
   free(randomBuffer);
   free(positions);
@@ -99,7 +102,7 @@ static void *runThread(void *arg) {
 
 
 
-void startThreads(size_t *fdArray, size_t num, size_t qd, float rr) {
+void startThreads(deviceDetails *deviceList, size_t num, size_t qd, float rr, io_context_t *ioc, const size_t contextCount) {
   
   pthread_t *pt;
   CALLOC(pt, num, sizeof(pthread_t));
@@ -110,8 +113,10 @@ void startThreads(size_t *fdArray, size_t num, size_t qd, float rr) {
   assert(threadContext);
 
   for (size_t i = 0; i < num; i++) {
-    threadContext[i].fd = fdArray[i];
+    threadContext[i].fd = deviceList[i].fd;
     threadContext[i].id = i;
+    threadContext[i].ioc = ioc;
+    threadContext[i].contextCount = contextCount;
     threadContext[i].readRatio = rr;
     threadContext[i].qd = qd;
     threadContext[i].max = num;
@@ -169,6 +174,9 @@ int handle_args(int argc, char *argv[]) {
 
 
 int main(int argc, char *argv[]) {
+  deviceDetails *deviceList = NULL;
+  size_t deviceCount = 0;
+
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
@@ -180,38 +188,26 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  size_t *fdArray;
-  CALLOC(fdArray, argc+1, sizeof(size_t));
-  int fdCount = 0;
   for (size_t i = opt; i < argc; i++) {
-    // add device
-    int fd = 0;
-    if (readRatio < 1) { // writes
-      fd = open(argv[i], O_RDWR | O_DIRECT | O_TRUNC | O_EXCL);
-    } else { // only reads
-      if (tripleX >= 3) {
-	fd = open(argv[i], O_RDONLY | O_DIRECT);
-      } else {
-	fd = open(argv[i], O_RDONLY | O_DIRECT | O_EXCL);
-      }
-    }
-	    
-    //	fprintf(stderr,"%s\n", argv[i]);
-    if (fd <= 0) {
-      perror(argv[i]);
-      exit(-1);
-    }
-    fdArray[fdCount++] = fd;
+    addDeviceDetails(argv[i], &deviceList, &deviceCount);
   }
 
-  const size_t qd = 30000 / fdCount;
-  fprintf(stderr,"*info* maxRam %.1lf GiB, readRatio %.1f, %d devices, each with qd=%zd (30,000/%d)\n", TOGiB(MAXRAM), readRatio, fdCount, qd, fdCount);
-  
-  startThreads(fdArray, fdCount, qd, readRatio);
+  const size_t qd = 1024 / deviceCount;
+  size_t contextCount = deviceCount;
+  io_context_t *ioc = createContexts(contextCount, qd);
+  setupContexts(ioc, contextCount, qd);
 
-  free(fdArray);
+  fprintf(stderr,"*info* maxRam %.1lf GiB, readRatio %.1f, %zd devices, each with qd=%zd (30,000/%zd)\n", TOGiB(MAXRAM), readRatio, deviceCount, qd, deviceCount);
 
-  // create numDevices threads, call aioOperations per thread/device
+  size_t maxSizeInBytes = 0;
+  openDevices(deviceList, deviceCount, 0, &maxSizeInBytes, 65536, 65536, 4096, readRatio, 0, qd, contextCount);
+
+  // do stuff
+  startThreads(deviceList, deviceCount, qd, readRatio, ioc, contextCount);
+
+  freeContexts(ioc, contextCount);
+  freeDeviceDetails(deviceList, deviceCount);
+
 
   return 0;
 }
