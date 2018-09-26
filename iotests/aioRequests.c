@@ -232,6 +232,7 @@ size_t aioMultiplePositions( positionType *positions,
 
     if (ret > 0) {
       // verify it's all ok
+      int printed = 0;
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
 	if (alll) logSpeedAdd2(alll, TOMiB(events[j].res), 1);
@@ -240,10 +241,12 @@ size_t aioMultiplePositions( positionType *positions,
 	int rescode2 = events[j].res2;
 
 	if ((rescode <= 0) || (rescode2 != 0)) { // if return of bytes written or read
-	  fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s)\n", rescode, strerror(rescode), rescode2, strerror(rescode2));
-	  fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
-	  fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
-	  goto endoffunction;
+	  if (!printed) {
+	    fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s)\n", rescode, strerror(rescode), rescode2, strerror(rescode2));
+	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
+	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
+	  }
+	  printed = 1;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	} else {
 	  lastreceive = timedouble(); // last good receive
