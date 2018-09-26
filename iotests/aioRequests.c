@@ -268,11 +268,17 @@ size_t aioMultiplePositions( positionType *positions,
   
  endoffunction:
   // receive outstanding I/Os
-  for (size_t i = 0; i < contextCount; i++) {
-    if (verbose || inFlight)
-      fprintf(stderr,"*info* inflight[%zd] = %zd\n", i, inFlightPer[i]);
-    if (inFlightPer[i]) {
-      io_getevents(ioc[i], inFlightPer[i], inFlightPer[i], events, NULL);
+  while (inFlight) {
+    for (size_t i = 0; i < contextCount; i++) {
+      if (verbose || inFlight)
+	fprintf(stderr,"*info* inflight[%zd] = %zd\n", i, inFlightPer[i]);
+      if (inFlightPer[i]) {
+	int ret = io_getevents(ioc[i], inFlightPer[i], inFlightPer[i], events, NULL);
+	if (ret > 0) {
+	  inFlightPer[i] -= ret;
+	  inFlight -= ret;
+	}
+      }
     }
   }
 
