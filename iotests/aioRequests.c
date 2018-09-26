@@ -162,7 +162,14 @@ size_t aioMultiplePositions( positionType *positions,
 	      fprintf(stderr,"io_submit() failed.\n"); perror("io_submit()"); if(!dontExitOnErrors) abort();
 	    }
 	  }
-	  
+	}
+	// onto the next one
+	pos++;
+	if (pos >= sz) {
+	  if (oneShot) {
+	    goto endoffunction; // only go through once
+	  }
+	  pos = 0; // don't go over the end of the array
 	}
 	
 	gt = timedouble();
@@ -255,13 +262,6 @@ size_t aioMultiplePositions( positionType *positions,
       break;
     }
 
-    pos++;
-    if (pos >= sz) {
-      if (oneShot) {
-	goto endoffunction; // only go through once
-      }
-      pos = 0; // don't go over the end of the array
-    }
   }
 
   
