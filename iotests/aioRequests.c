@@ -148,11 +148,12 @@ size_t aioMultiplePositions( positionType *positions,
 	    //	    fprintf(stderr,"submit %p\n", (void*)positions[pos].dev->ctx);
 	    //	    fprintf(stderr,"%d\n", positions[pos].dev->ctxIndex);
 	    //	    fprintf(stderr,"%p\n", (void*)ioc[positions[pos].dev->ctxIndex]);
+	    inFlightPer[positions[pos].dev->ctxIndex]++;
+	    inFlight++;
+	    
 	    ret = io_submit(ioc[positions[pos].dev->ctxIndex], 1, &cbs[submitted%QD]);
 	    if (ret > 0) {
 	      lastsubmit = timedouble(); // last good submit
-	      inFlightPer[positions[pos].dev->ctxIndex]++;
-	      inFlight++;
 	      submitted++;
 	      if (verbose >= 2 || (newpos & (alignment-1))) {
 		fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", positions[pos].dev->fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
