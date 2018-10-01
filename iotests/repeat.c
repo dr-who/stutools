@@ -18,6 +18,7 @@
 int verbose = 0;
 int keepRunning = 1;
 int flushEvery = 0;
+size_t waitEvery = 0;
     
 /**
  * main

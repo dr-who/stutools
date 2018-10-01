@@ -17,7 +17,7 @@
   
 int verbose = 1;
 int keepRunning = 1;
-    
+size_t waitEvery = 0;    
 /**
  * main
  *

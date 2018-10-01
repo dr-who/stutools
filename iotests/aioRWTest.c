@@ -58,6 +58,7 @@ char   *description = NULL;
 int    dontExitOnErrors = 0;
 int    sizeOverride = 0;
 size_t contextCount = 1;
+size_t waitEvery = 0;
 
 deviceDetails *deviceList = NULL;
 size_t deviceCount = 0;
@@ -76,7 +77,7 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:p:Tl:vVS:FR:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:Ec:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:p:Tl:vVS:FR:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:Ec:W:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -163,6 +164,9 @@ void handle_args(int argc, char *argv[]) {
       if (flushEvery > 1L<<30) {
 	flushEvery = 1L<<30;
       }
+      break;
+    case 'W':
+      waitEvery = atoi(optarg);
       break;
     case 'v':
       verifyWrites = 1;
@@ -300,6 +304,8 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -J -D timedata -s1 -w -f /dev/nbd0 # JSON format block timing\n");
     fprintf(stderr,"  ./aioRWTest -B benchmark -s1 -w -f /dev/nbd0   # log *per second* timing\n");
     fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump ops to 'locations'\n");
+    fprintf(stderr,"  ./aioRWTest -G 10 -w -t-1 -1                   # -1 write 10GiB once then stop\n");
+    fprintf(stderr,"  ./aioRWTest -W 2                               # -W wait for 2 seconds between ops\n");
     fprintf(stderr,"  ./verify < locations                           # verify write operation \n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");

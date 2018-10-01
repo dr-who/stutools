@@ -23,6 +23,7 @@ int verbose = 0;
 int flushEvery = 0;
 double MAXRAM = 1.0*1024*1024*1024 ; // 2GB
 int tripleX = 0;
+size_t waitEvery = 0;    
 
 typedef struct {
   size_t fd;

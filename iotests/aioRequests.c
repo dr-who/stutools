@@ -14,6 +14,7 @@
 extern int keepRunning;
 extern int singlePosition;
 extern int flushEvery;
+extern size_t waitEvery;
 
 #define DISPLAYEVERY 1
 
@@ -161,6 +162,13 @@ size_t aioMultiplePositions( positionType *positions,
 	      
 	    } else {
 	      fprintf(stderr,"io_submit() failed, ret = %d\n", ret); perror("io_submit()"); if(!dontExitOnErrors) abort();
+	    }
+	    if (waitEvery) {
+	      if (verbose >= 2) {
+		fprintf(stderr,"*info* sleeping for %zd seconds\n", waitEvery);
+		fflush(stdout); fflush(stderr);
+	      }
+	      sleep(waitEvery);
 	    }
 	  }
 	}
