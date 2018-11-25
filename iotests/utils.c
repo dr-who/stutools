@@ -322,21 +322,15 @@ int getWriteCacheStatus(int fd) {
 }
 
 
+
 // the block size random buffer. Nice ASCII
-void generateRandomBuffer(char *buffer, size_t size, long seed) {
+void generateRandomBufferCyclic(char *buffer, size_t size, long seed, size_t cyclic) {
 
-  //  time_t timer;
-  //  char timebuffer[26];
-  //  struct tm* tm_info;
-  
-  //  time(&timer);
-  //  tm_info = localtime(&timer);
-  
-  //  strftime(timebuffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+  if (cyclic > size || cyclic == 0) cyclic = size;
 
-  //  fprintf(stderr,"*info* start %s localtime\n", timebuffer);
-
-  //fprintf(stderr,"*info* generating random size %zd, seed %ld\n", size, seed);
+  if (cyclic != size) {
+    fprintf(stderr,"*info* generating a random buffer with a size %zd bytes, cyclic %zd bytes\n", size, cyclic);
+  }
   
   srand48(seed);
   char *user = username();
@@ -344,24 +338,30 @@ void generateRandomBuffer(char *buffer, size_t size, long seed) {
   const char verystartpoint = ' ' + (lrand48() % 15);
   const char jump = (lrand48() % 3) + 1;
   char startpoint = verystartpoint;
-  for (size_t j = 0; j < size; j++) {
+  for (size_t j = 0; j < cyclic; j++) {
     buffer[j] = startpoint;
     startpoint += jump;
     if (startpoint > 'z') {
       startpoint = verystartpoint;
     }
   }
-  //  buffer[size - 1] = 0; // end of string to help printing
+
   char s[1000];
   memset(s, 0, 1000);
   const size_t topr = sprintf(s, "stutools - %s - %ld\n", user == NULL ? "" : user, seed);
   strncpy(buffer, s, topr);
 
-  free(user);
-  //  if (size > 0)
-  //    buffer[size - 1] = 0;
+  for (size_t j = cyclic; j < size; j++) {
+    buffer[j] = buffer[j % cyclic];
+  }
 
-  //  fprintf(stderr,"size: %zd, jump %d, '%s'\n", size, jump, buffer);
+
+  free(user);
+}
+
+
+void generateRandomBuffer(char *buffer, size_t size, long seed) {
+  generateRandomBufferCyclic(buffer, size, seed, size);
 }
 
 

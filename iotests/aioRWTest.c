@@ -59,6 +59,7 @@ int    dontExitOnErrors = 0;
 int    sizeOverride = 0;
 size_t contextCount = 1;
 size_t waitEvery = 0;
+size_t cyclick = 0;
 
 deviceDetails *deviceList = NULL;
 size_t deviceCount = 0;
@@ -77,7 +78,7 @@ void handle_args(int argc, char *argv[]) {
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
   
-  while ((opt = getopt(argc, argv, "t:k:o:q:f:s:G:p:Tl:vVS:FR:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:Ec:W:")) != -1) {
+  while ((opt = getopt(argc, argv, "t:k:K:o:q:f:s:G:p:Tl:vVS:FR:O:rwb:MgzP:Xa:L:I:D:JB:C:1Z:Nd:Ec:W:")) != -1) {
     switch (opt) {
     case 'a':
       alignment = atoi(optarg) * 1024;
@@ -226,6 +227,9 @@ void handle_args(int argc, char *argv[]) {
 	LOWBLKSIZE = BLKSIZE;
       }}
       break;
+    case 'K':
+      cyclick = atoi(optarg);
+      break;
     case 'p':
       readRatio = atof(optarg);
       if (readRatio < 0 || readRatio > 1) {fprintf(stderr,"*error* -p should be in the range [0..1]. Maybe you meant -P\n"); exit(-1);}
@@ -306,6 +310,7 @@ void handle_args(int argc, char *argv[]) {
     fprintf(stderr,"  ./aioRWTest -L locations -s1 -w -f /dev/nbd0   # dump ops to 'locations'\n");
     fprintf(stderr,"  ./aioRWTest -G 10 -w -t-1 -1                   # -1 write 10GiB once then stop\n");
     fprintf(stderr,"  ./aioRWTest -W 2                               # -W wait for 2 seconds between ops\n");
+    fprintf(stderr,"  ./aioRWTest -k 4 -K 512                        # 4 kiB random buffer, 512 bytes cycle\n");
     fprintf(stderr,"  ./verify < locations                           # verify write operation \n");
     fprintf(stderr,"\nTable summary:\n");
     fprintf(stderr,"  ./aioRWTest -T -t 2 -f /dev/nbd0  # table of various parameters\n");
@@ -478,7 +483,7 @@ int main(int argc, char *argv[]) {
   memset(randomBuffer, 0, BLKSIZE);
   
   if (!randomBufferFile) {
-    generateRandomBuffer(randomBuffer, BLKSIZE, seed);
+    generateRandomBufferCyclic(randomBuffer, BLKSIZE, seed, cyclick);
   } else {
     int f = open(randomBufferFile, O_RDONLY);
     if (f < 0) {perror(randomBufferFile);exit(-1);}
