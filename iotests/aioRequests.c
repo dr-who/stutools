@@ -183,17 +183,22 @@ size_t aioMultiplePositions( positionType *positions,
 	
 	gt = timedouble();
 
-	if (gt - last >= DISPLAYEVERY) {
-	  const double speed = 1.0*(totalReadBytes + totalWriteBytes) / (gt - start)/1024.0/1024;
+	double timeelapsed = gt - last;
+	if (timeelapsed >= DISPLAYEVERY) {
+	  const double speed = 1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed / 1024.0 / 1024;
+	  const double IOspeed = 1.0*(received - lastIOCount) / timeelapsed;
 	  if (benchl) logSpeedAdd2(benchl, TOMiB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
-	  lastBytes = totalReadBytes + totalWriteBytes;
-	  lastIOCount = received;
 	  if (!tableMode) {
-	    if (verbose != -1) fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
+	    if (verbose != -1) {
+	      //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
+	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
+	    }
 	    if (verbose) {
 	      if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
 	    }
 	  }
+	  lastBytes = totalReadBytes + totalWriteBytes;
+	  lastIOCount = received;
 	  last = gt;
 	  if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
 	    //	    	  fprintf(stderr,"timeout\n");
