@@ -120,65 +120,67 @@ size_t aioMultiplePositions( positionType *positions,
 	}
       }
       for (size_t i = 0; i < submitCycles; i++) {
-	if (sz && positions[pos].action != 'S') { // if we have some positions, sz > 0
-	  long long newpos = positions[pos].pos;
-	  const size_t len = positions[pos].len;
+	if (sz) {
+	  if (positions[pos].action != 'S') { // if we have some positions, sz > 0
+	    long long newpos = positions[pos].pos;
+	    const size_t len = positions[pos].len;
 
-	  int read = (positions[pos].action == 'R');
+	    int read = (positions[pos].action == 'R');
 	  
-	  // setup the request
-	  if (positions[pos].dev && (positions[pos].dev->fd >= 0)) {
-	    if (read) {
-	      if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-	      io_prep_pread(cbs[submitted%QD], positions[pos].dev->fd, dataread[submitted%QD], len, newpos);
-	      positions[pos].success = 1;
-	      totalReadBytes += len;
-	    } else {
-	      if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
-	      //assert(randomBuffer[0] == 's'); // from stutools
-	      io_prep_pwrite(cbs[submitted%QD], positions[pos].dev->fd, data[submitted%QD], len, newpos);
-	      positions[pos].success = 1;
-	      totalWriteBytes += len;
-	      flushPos++;
-	    }
-	    //
-	    //cbs[submitted%QD]->u.c.offset = sz;
-	    //	fprintf(stderr,"submit...\n");
+	    // setup the request
+	    if (positions[pos].dev && (positions[pos].dev->fd >= 0)) {
+	      if (read) {
+		if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
+		io_prep_pread(cbs[submitted%QD], positions[pos].dev->fd, dataread[submitted%QD], len, newpos);
+		positions[pos].success = 1;
+		totalReadBytes += len;
+	      } else {
+		if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
+		//assert(randomBuffer[0] == 's'); // from stutools
+		io_prep_pwrite(cbs[submitted%QD], positions[pos].dev->fd, data[submitted%QD], len, newpos);
+		positions[pos].success = 1;
+		totalWriteBytes += len;
+		flushPos++;
+	      }
+	      //
+	      //cbs[submitted%QD]->u.c.offset = sz;
+	      //	fprintf(stderr,"submit...\n");
 	    
-	    //	    size_t rpos = (char*)data[submitted%QD] - (char*)data[0];
-	    //fprintf(stderr,"*info*submit %zd\n", rpos / randomBufferSize);
-	    //	    fprintf(stderr,"submit %p\n", (void*)positions[pos].dev->ctx);
-	    //	    fprintf(stderr,"%d\n", positions[pos].dev->ctxIndex);
-	    //	    fprintf(stderr,"%p\n", (void*)ioc[positions[pos].dev->ctxIndex]);
-	    ret = io_submit(ioc[positions[pos].dev->ctxIndex], 1, &cbs[submitted%QD]);
-	    if (ret > 0) {
-	      inFlightPer[positions[pos].dev->ctxIndex]++;
-	      inFlight++;
-	      lastsubmit = timedouble(); // last good submit
-	      submitted++;
-	      if (verbose >= 2 || (newpos & (alignment-1))) {
-		fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", positions[pos].dev->fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
-	      }
+	      //	    size_t rpos = (char*)data[submitted%QD] - (char*)data[0];
+	      //fprintf(stderr,"*info*submit %zd\n", rpos / randomBufferSize);
+	      //	    fprintf(stderr,"submit %p\n", (void*)positions[pos].dev->ctx);
+	      //	    fprintf(stderr,"%d\n", positions[pos].dev->ctxIndex);
+	      //	    fprintf(stderr,"%p\n", (void*)ioc[positions[pos].dev->ctxIndex]);
+	      ret = io_submit(ioc[positions[pos].dev->ctxIndex], 1, &cbs[submitted%QD]);
+	      if (ret > 0) {
+		inFlightPer[positions[pos].dev->ctxIndex]++;
+		inFlight++;
+		lastsubmit = timedouble(); // last good submit
+		submitted++;
+		if (verbose >= 2 || (newpos & (alignment-1))) {
+		  fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", positions[pos].dev->fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+		}
 	      
-	    } else {
-	      fprintf(stderr,"io_submit() failed, ret = %d\n", ret); perror("io_submit()"); if(!dontExitOnErrors) abort();
-	    }
-	    if (waitEvery) {
-	      if (verbose >= 2) {
-		fprintf(stderr,"*info* sleeping for %zd seconds\n", waitEvery);
-		fflush(stdout); fflush(stderr);
+	      } else {
+		fprintf(stderr,"io_submit() failed, ret = %d\n", ret); perror("io_submit()"); if(!dontExitOnErrors) abort();
 	      }
-	      sleep(waitEvery);
+	      if (waitEvery) {
+		if (verbose >= 2) {
+		  fprintf(stderr,"*info* sleeping for %zd seconds\n", waitEvery);
+		  fflush(stdout); fflush(stderr);
+		}
+		sleep(waitEvery);
+	      }
 	    }
 	  }
-	}
-	// onto the next one
-	pos++;
-	if (pos >= sz) {
-	  if (oneShot) {
-	    goto endoffunction; // only go through once
+	  // onto the next one
+	  pos++;
+	  if (pos >= sz) {
+	    if (oneShot) {
+	      goto endoffunction; // only go through once
+	    }
+	    pos = 0; // don't go over the end of the array
 	  }
-	  pos = 0; // don't go over the end of the array
 	}
 	
 	gt = timedouble();

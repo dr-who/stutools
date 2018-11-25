@@ -117,6 +117,7 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'P':
       maxPositions = atoi(optarg);
+      if (maxPositions < 1) maxPositions = 1;
       if (verbose) {
 	fprintf(stderr,"*info* hard coded maximum number of positions %zd\n", maxPositions);
       }
