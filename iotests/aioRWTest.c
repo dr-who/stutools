@@ -455,7 +455,10 @@ int main(int argc, char *argv[]) {
     infoDevices(deviceList, deviceCount);
   }
 
-  
+  if (sizeOverride) {
+    maxPositions = maxSizeInBytes / BLKSIZE;
+    fprintf(stderr,"*info* maximum position count set to %ld (%.3f GiB / %zd bytes)\n", maxPositions, TOGiB(maxSizeInBytes), BLKSIZE);
+  }
 
   if ((maxPositions % deviceCount) != 0) {
     size_t newmp = (maxPositions / deviceCount) + 1;
