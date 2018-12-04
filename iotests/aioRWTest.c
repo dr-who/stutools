@@ -44,7 +44,7 @@ int    verifyWrites = 0;
 char*  specifiedDevices = NULL;
 int    sendTrim = 0;
 long   startAtZero = -99999; // -99999 is a special case for random start
-size_t maxPositions = 10*1000*1000;
+size_t maxPositions = 0;
 size_t dontUseExclusive = 0;
 int    blocksFromEnd = 0;
 char*  logPositions = NULL;
@@ -117,10 +117,8 @@ void handle_args(int argc, char *argv[]) {
       break;
     case 'P':
       maxPositions = atoi(optarg);
-      if (maxPositions < 1) maxPositions = 1;
-      if (verbose) {
+      if (maxPositions > 0) 
 	fprintf(stderr,"*info* hard coded maximum number of positions %zd\n", maxPositions);
-      }
       break;
     case 'z':
       startAtZero = 0;
@@ -455,9 +453,12 @@ int main(int argc, char *argv[]) {
     infoDevices(deviceList, deviceCount);
   }
 
-  if (sizeOverride) {
+  if (maxPositions == 0) {
+    // not set yet, figure it out
     maxPositions = maxSizeInBytes / BLKSIZE;
     fprintf(stderr,"*info* maximum position count set to %ld (%.3f GiB / %zd bytes)\n", maxPositions, TOGiB(maxSizeInBytes), BLKSIZE);
+  } else {
+    fprintf(stderr,"*info* maximum position count set to %ld\n", maxPositions);
   }
 
   if ((maxPositions % deviceCount) != 0) {
