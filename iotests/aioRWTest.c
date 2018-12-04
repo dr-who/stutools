@@ -457,6 +457,14 @@ int main(int argc, char *argv[]) {
     // not set yet, figure it out
     maxPositions = maxSizeInBytes / BLKSIZE;
     fprintf(stderr,"*info* maximum position count set to %ld (%.3f GiB / %zd bytes)\n", maxPositions, TOGiB(maxSizeInBytes), BLKSIZE);
+    if (maxPositions > 1000000*exitAfterSeconds) {
+      maxPositions = 1000000*exitAfterSeconds;
+      fprintf(stderr,"*info* positions limited to %ld assuming max 1M IOPS for %.0lf seconds\n", maxPositions, exitAfterSeconds);
+    }
+    if (maxPositions*sizeof(positionType) > totalRAM() / 4) {
+      maxPositions = totalRAM() / 4 / sizeof(positionType);
+      fprintf(stderr,"*info* positions limited to %ld due to RAM constraints\n", maxPositions);
+    }
   } else {
     fprintf(stderr,"*info* maximum position count set to %ld\n", maxPositions);
   }
