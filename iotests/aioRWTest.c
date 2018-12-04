@@ -461,8 +461,8 @@ int main(int argc, char *argv[]) {
       maxPositions = 1000000*exitAfterSeconds;
       fprintf(stderr,"*info* positions limited to %ld assuming max 1M IOPS for %.0lf seconds\n", maxPositions, exitAfterSeconds);
     }
-    if (maxPositions*sizeof(positionType) > totalRAM() / 4) {
-      maxPositions = totalRAM() / 4 / sizeof(positionType);
+    if (maxPositions*sizeof(positionType) > totalRAM() / 8) {
+      maxPositions = totalRAM() / 8 / sizeof(positionType);
       fprintf(stderr,"*info* positions limited to %ld due to RAM constraints\n", maxPositions);
     }
   } else {
