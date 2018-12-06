@@ -117,6 +117,7 @@ void usage() {
   fprintf(stderr,"  spit -j 32                    # duplicate all the commands 32 times\n");
   fprintf(stderr,"  spit -d 10                    # dump the first 10 positions per command\n");
   fprintf(stderr,"  spit -c rD0                   # 'D' turns off O_DIRECT\n");
+  fprintf(stderr,"  spit -c w -cW4rs0             # one thread seq write, one thread wait 4 then random read\n");
   exit(-1);
 }
 
