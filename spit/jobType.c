@@ -79,7 +79,7 @@ static void *runThread(void *arg) {
 
   //  setupPositions(threadContext->pos, &threadContext->mp, 0, 1, 4096, 4096, 4096, 0, threadContext->bdSize, NULL, threadContext->id);
 
-  //    dumpPositions(threadContext->pos.positions, threadContext->pos.string, threadContext->pos.sz, 10);
+  //      dumpPositions(threadContext->pos.positions, threadContext->pos.string, threadContext->pos.sz, 10);
 
   logSpeedType benchl;
   logSpeedInit(&benchl);
@@ -187,7 +187,7 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
     if (strchr(j->strings[i], 'r')) {
       rw += 0.5;
     } else if (strchr(j->strings[i], 'w')) {
-      rw -= 0.0;
+      rw -= 0.5;
     }
 
     int seqFiles = 1;
