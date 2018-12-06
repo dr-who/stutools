@@ -79,7 +79,7 @@ static void *runThread(void *arg) {
 
   //  setupPositions(threadContext->pos, &threadContext->mp, 0, 1, 4096, 4096, 4096, 0, threadContext->bdSize, NULL, threadContext->id);
 
-  //  dumpPositions(threadContext->pos.positions, threadContext->pos.string, threadContext->pos.sz, 10);
+  //    dumpPositions(threadContext->pos.positions, threadContext->pos.string, threadContext->pos.sz, 10);
 
   logSpeedType benchl;
   logSpeedInit(&benchl);
@@ -217,7 +217,7 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
     }
 
     positionContainerSetup(&threadContext[i].pos, mp, j->devices[i], j->strings[i]);
-    setupPositions(threadContext[i].pos.positions, &mp, seqFiles, rw, bs, bs, bs, 0, threadContext[i].bdSize, NULL, threadContext[i].id);
+    setupPositions(threadContext[i].pos.positions, &mp, seqFiles, rw, bs, bs, bs, -99999, threadContext[i].bdSize, NULL, threadContext[i].id);
   }
   
     

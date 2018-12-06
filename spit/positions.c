@@ -258,6 +258,7 @@ void setupPositions(positionType *positions,
 
   // make a complete copy and rotate by an offset
 
+  //  fprintf(stderr,"starting Block %ld, count %zd\n", startingBlock, count);
   int offset = 0;
   if (count) {
     if (startingBlock == -99999) {
@@ -266,6 +267,7 @@ void setupPositions(positionType *positions,
       offset = startingBlock % count;
     }
   }
+  //  fprintf(stderr,"starting offset %d\n", offset);
 
   // rotate
   for (size_t i = 0; i < count; i++) {
