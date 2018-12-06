@@ -204,12 +204,17 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
   for (size_t i = 0; i < num; i++) {
 
-    size_t bs = 4096;
+    size_t bs = 4096, highbs = 4096;
     char *charBS = strchr(job->strings[i], 'k');
     if (charBS && *(charBS+1)) {
-      bs = 1024 * atof(charBS+1);
+
+      char *endp = NULL;
+      bs = 1024 * strtol(charBS+1, &endp, 10);
+      if (*endp != 0) {
+	highbs = 1024 * atoi(endp+1);
+      }
       if (verbose >= 2) {
-	fprintf(stderr,"*info* setting blockSize to be %zd\n", bs);
+	fprintf(stderr,"*info* setting blockSize to be [%zd, %zd]\n", bs, highbs);
       }
     }
 
@@ -271,7 +276,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
 
     positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-    setupPositions(threadContext[i].pos.positions, &mp, seqFiles, rw, bs, bs, bs, -99999, threadContext[i].bdSize, NULL, threadContext[i].id);
+    setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, -99999, threadContext[i].bdSize, NULL, threadContext[i].id);
   }
   
     
