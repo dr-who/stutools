@@ -1,0 +1,2 @@
+/usr/bin/ar qc libspitlib.a  CMakeFiles/spitlib.dir/positions.c.o CMakeFiles/spitlib.dir/devices.c.o CMakeFiles/spitlib.dir/cigar.c.o CMakeFiles/spitlib.dir/utils.c.o CMakeFiles/spitlib.dir/blockVerify.c.o CMakeFiles/spitlib.dir/diskStats.c.o CMakeFiles/spitlib.dir/logSpeed.c.o CMakeFiles/spitlib.dir/aioRequests.c.o CMakeFiles/spitlib.dir/jobType.c.o
+/usr/bin/ranlib libspitlib.a

@@ -1,0 +1,1 @@
+/usr/bin/cc  -g -Werror -Wall -pedantic --std=c99 -O2  -rdynamic CMakeFiles/verify.dir/verify.c.o  -o verify libstutools.a -lm -laio -lpthread 

@@ -1,0 +1,1 @@
+/usr/bin/cc  -g -Werror -Wall -pedantic --std=c99 -O2  -rdynamic CMakeFiles/aioMulti.dir/aioMulti.c.o  -o aioMulti libstutools.a -lm -laio -lpthread 
