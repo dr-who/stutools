@@ -116,6 +116,7 @@ void usage() {
   fprintf(stderr,"  spit -t 50                    # run for 50 seconds\n");
   fprintf(stderr,"  spit -j 32                    # duplicate all the commands 32 times\n");
   fprintf(stderr,"  spit -d 10                    # dump the first 10 positions per command\n");
+  fprintf(stderr,"  spit -c rD0                   # 'D' turns off O_DIRECT\n");
   exit(-1);
 }
 
