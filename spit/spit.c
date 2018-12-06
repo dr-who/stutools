@@ -81,13 +81,15 @@ void handle_args(int argc, char *argv[], jobType *j, deviceDetails **deviceList,
 
 void usage() {
   fprintf(stderr,"\nExamples: \n");
-  fprintf(stderr,"  spit -f device -c r\n");
-  fprintf(stderr,"  spit -f device -c w\n");
-  fprintf(stderr,"  spit -f device -c rs0    # random\n");
-  fprintf(stderr,"  spit -f device -c ws128  # 128 parallel writes\n");
+  fprintf(stderr,"  spit -f device -c ... -c ... -c ... # defaults to 10 seconds\n");
+  fprintf(stderr,"  spit -f device -c r           # seq 1 read\n");
+  fprintf(stderr,"  spit -f device -c w           # seq 1 write\n");
+  fprintf(stderr,"  spit -f device -c rs0         # random\n");
+  fprintf(stderr,"  spit -f device -c ws128       # 128 parallel writes\n");
+  fprintf(stderr,"  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
-  fprintf(stderr,"  spit -f device -c r -G 1 # 1 GiB device size\n");
-  fprintf(stderr,"  spit -t 50               # run for 50 seconds\n");
+  fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
+  fprintf(stderr,"  spit -t 50                    # run for 50 seconds\n");
   exit(-1);
 }
 
