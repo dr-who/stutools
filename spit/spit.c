@@ -62,7 +62,17 @@ void handle_args(int argc, char *argv[], jobType *j, deviceDetails **deviceList,
     (*deviceList)[i].shouldBeSize = *maxSizeInBytes;
   }
 
-  openDevices(*deviceList, *deviceCount, 0, maxSizeInBytes, *lowbs, *lowbs, *lowbs, 0, 0, 256, 1);
+  openDevices(*deviceList, *deviceCount, 0, maxSizeInBytes, *lowbs, *lowbs, *lowbs, 1, 0, 256, 1);
+  int anyopen = 0;
+  for (size_t j = 0; j < *deviceCount; j++) {
+    if ((*deviceList[j]).fd > 0) {
+      anyopen = 1;
+    }
+  }
+  if (!anyopen) {
+    fprintf(stderr,"*error* there are no valid block devices\n");
+    exit(-1);
+  }
 
   infoDevices(*deviceList, *deviceCount);
 

@@ -148,6 +148,8 @@ size_t numOpenDevices(deviceDetails *devs, size_t numDevs) {
 
 
 void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, size_t *maxSizeInBytes, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive, size_t qd, const size_t contextCount) {
+
+  //  fprintf(stderr,"needToWrite %d\n", needToWrite);
   
   //  int error = 0;
   assert(contextCount > 0);
