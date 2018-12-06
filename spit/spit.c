@@ -98,7 +98,6 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
     }
   }
 
-  fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB)\n", *maxSizeInBytes, TOGiB(*maxSizeInBytes));
 }
 
 void usage() {
@@ -142,6 +141,7 @@ int main(int argc, char *argv[]) {
     usage();
   }
 
+  fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB)\n", maxSizeInBytes, TOGiB(maxSizeInBytes));
   jobRunThreads(j, j->count, maxSizeInBytes, lowbs, timetorun, dumpPositions);
 
   jobFree(j);
