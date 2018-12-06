@@ -80,11 +80,6 @@ static void *runThread(void *arg) {
   fprintf(stderr,"*info* thread id %zd, job is '%s'\n", threadContext->id, threadContext->pos.string);
 
 
-  if (threadContext->waitfor) {
-    fprintf(stderr,"*info* thread %zd waiting for %zd seconds\n", threadContext->id, threadContext->waitfor);
-    sleep(threadContext->waitfor);
-  }
-
   //  threadContext->pos = createPositions(threadContext->mp);
 
   //  setupPositions(threadContext->pos, &threadContext->mp, 0, 1, 4096, 4096, 4096, 0, threadContext->bdSize, NULL, threadContext->id);
@@ -109,6 +104,13 @@ static void *runThread(void *arg) {
   if (fd < 0) {
     perror(threadContext->jobdevice); return 0;
   }
+
+  
+  if (threadContext->waitfor) {
+    fprintf(stderr,"*info* thread %zd waiting for %zd seconds\n", threadContext->id, threadContext->waitfor);
+    sleep(threadContext->waitfor);
+  }
+
 
   aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->timetorun, 256, -1, 0, NULL, &benchl, randomBuffer, 4096, 4096, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 0, fd);
 
