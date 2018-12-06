@@ -206,21 +206,21 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
     } else if (strchr(j->strings[i], 'w')) {
       rw -= 0.5;
     }
-
+    
     int seqFiles = 1;
     char *sf = strchr(j->strings[i], 's');
-    if (sf) {
+    if (sf && *(sf+1)) {
       seqFiles = atoi(sf+1);
     }
 
     int bs = 4096;
     char *bschar = strchr(j->strings[i], 'k');
-    if (bschar) {
+    if (bschar && *(bschar+1)) {
       bs = 1024 * atoi(bschar + 1);
     }
 
     char *pChar = strchr(j->strings[i], 'P');
-    if (pChar) {
+    if (pChar && *(pChar+1)) {
       size_t newmp = atoi(pChar + 1);
       if (newmp < mp) {
 	mp = newmp;
@@ -228,7 +228,7 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
     }
 
     char *Wchar = strchr(j->strings[i], 'W');
-    if (Wchar) {
+    if (Wchar && *(Wchar+1)) {
       size_t waitfor = atoi(Wchar + 1);
       threadContext[i].waitfor = waitfor;
       threadContext[i].timetorun -= waitfor;
