@@ -50,18 +50,18 @@ void diskStatAddDrive(diskStatType *d, int fd) {
   d->numDevices++;
 }
 
-void diskStatAddStart(diskStatType *d, size_t readSectors, size_t writeSectors) {
-  d->startSecRead += readSectors;
-  d->startSecWrite += writeSectors;
+void diskStatAddStart(diskStatType *d, size_t reads, size_t writes) {
+  d->startSecRead += reads;
+  d->startSecWrite += writes;
 }
 
-void diskStatAddFinish(diskStatType *d, size_t readSectors, size_t writeSectors) {
-  d->finishSecRead += readSectors;
-  d->finishSecWrite += writeSectors;
+void diskStatAddFinish(diskStatType *d, size_t reads, size_t writes) {
+  d->finishSecRead += reads;
+  d->finishSecWrite += writes;
 }
 
 
-void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, double *util, size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed) {
+void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, size_t *totalReadIO, size_t *totalWriteIO, double *util, size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed) {
   if (d->startSecRead > d->finishSecRead) {
     fprintf(stderr,"start more than fin!\n");
   } 
@@ -70,6 +70,9 @@ void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWrite
   } 
   *totalReadBytes = (d->finishSecRead - d->startSecRead) * 512L;
   *totalWriteBytes =(d->finishSecWrite - d->startSecWrite) * 512L;
+  *totalReadIO = (d->finishIORead - d->startIORead);
+  *totalWriteIO = (d->finishIOWrite - d->startIOWrite);
+  
   *util = 100.0 * ((d->finishSecTimeio - d->startSecTimeio)/1000.0 / d->numDevices) / elapsed;
   
   if (verbose && (shouldReadBytes || shouldWriteBytes)) {
@@ -92,7 +95,7 @@ size_t diskStatTotalDeviceSize(diskStatType *d) {
 
 
 
-void diskStatSectorUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite1, int verbose) {
+void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite1, int verbose) {
   *sread = 0;
   *swritten = 0;
   *stimeio = 0;
@@ -150,7 +153,7 @@ void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
 void diskStatStart(diskStatType *d) {
   diskStatClear(d);
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
-  diskStatSectorUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
+  diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
   d->startSecRead = sread;
   d->startSecWrite = swritten;
   d->startSecTimeio = stimeio;
@@ -160,7 +163,7 @@ void diskStatStart(diskStatType *d) {
 
 void diskStatFinish(diskStatType *d) {
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
-  diskStatSectorUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
+  diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
   d->finishSecRead = sread;
   d->finishSecWrite = swritten;
   d->finishSecTimeio = stimeio;

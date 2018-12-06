@@ -180,13 +180,13 @@ static void *runThreadTimer(void *arg) {
     sleep(1);
     
     diskStatFinish(&d);
-    size_t trb = 0, twb = 0;
+    size_t trb = 0, twb = 0, tri = 0, twi = 0;
     double util = 0;
     thistime = timedouble();
     double elapsed = thistime - start;
-    diskStatSummary(&d, &trb, &twb, &util, 0, 0, 0, thistime - last);
+    diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
 
-    fprintf(stderr,"[%.1lf] read %.0lf MiB/s, write %.0lf MiB/s, util %.0lf %%\n", elapsed, TOMiB(trb), TOMiB(twb), util);
+    fprintf(stderr,"[%.1lf] read %.0lf MiB/s (%zd IOPS), write %.0lf MiB/s (%zd), util %.0lf %%\n", elapsed, TOMiB(trb), tri, TOMiB(twb), twi, util);
     last = thistime;
     
     i++;

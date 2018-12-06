@@ -27,7 +27,7 @@ typedef struct {
 void diskStatSetup(diskStatType *d);
 void diskStatAddStart(diskStatType *d, size_t readSectors, size_t writeSectors);
 void diskStatAddFinish(diskStatType *d, size_t readSectors, size_t writeSectors);
-void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, double *util,size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed);
+void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, size_t *totalReadIO, size_t *totalWriteIO, double *util, size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed);
 void diskStatAddDrive(diskStatType *d, int fd);
 void diskStatSectorUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite, int verbose);
 void diskStatFromFilelist(diskStatType *d, const char *path, int verbose);
