@@ -33,7 +33,7 @@ size_t aioMultiplePositions( positionType *positions,
 			     size_t *totalRB,
 			     size_t *totalWB,
 			     const size_t oneShot,
-			     int dontExitOnErrors,
+			     const int dontExitOnErrors,
 			     const int fd
 			     ) {
   int ret;
