@@ -199,10 +199,10 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes, con
     threadContext[i].bdSize = maxSizeInBytes;
     size_t mp = (size_t) (threadContext[i].bdSize / lowbs);
     //    fprintf(stderr,"file size %zd, positions %zd\n", fs, mp);
-    if (maxSizeInBytes) {
-      if (maxSizeInBytes < mp) {
-	mp = maxSizeInBytes;
-      }
+    size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
+    if (mp > fitinram) {
+      mp = fitinram;
+      fprintf(stderr,"*warning* limited to %zd because of RAM\n", mp);
     }
       
     threadContext[i].id = i;
