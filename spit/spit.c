@@ -123,6 +123,7 @@ void usage() {
   fprintf(stderr,"  spit -d 10                    # dump the first 10 positions per command\n");
   fprintf(stderr,"  spit -c rD0                   # 'D' turns off O_DIRECT\n");
   fprintf(stderr,"  spit -c w -cW4rs0             # one thread seq write, one thread wait 4 then random read\n");
+  fprintf(stderr,"  spit -c wR42                  # set the per command seed with R\n");
   exit(-1);
 }
 

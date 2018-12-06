@@ -139,7 +139,10 @@ static void *runThread(void *arg) {
   }
 
 
-  fprintf(stderr,"*info [thread %zd] starting '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
+  fprintf(stderr,"*info [thread %zd] starting '%s' with ", threadContext->id, threadContext->jobstring);
+  commaPrint0dp(stderr, threadContext->pos.sz);
+  fprintf(stderr," positions\n");
+  
   aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, 256, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd);
   fprintf(stderr,"*info [thread %zd] finished '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
   close(fd);
@@ -186,9 +189,13 @@ static void *runThreadTimer(void *arg) {
     double elapsed = thistime - start;
     diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
 
-    fprintf(stderr,"[%2.0lf] read %.0lf MiB/s (", elapsed, TOMiB(trb));
+    fprintf(stderr,"[%2.0lf] read ", elapsed);
+    commaPrint0dp(stderr, TOMiB(trb));
+    fprintf(stderr," MiB/s (");
     commaPrint0dp(stderr, tri);
-    fprintf(stderr," IOPS), write %.0lf MiB/s (", TOMiB(twb));
+    fprintf(stderr," IOPS), write ");
+    commaPrint0dp(stderr, TOMiB(twb));
+    fprintf(stderr," MiB/s (");
     commaPrint0dp(stderr, twi);
     fprintf(stderr," IOPS), util %.0lf %%\n", util);
 
@@ -288,6 +295,13 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
 
+    size_t seed = i;
+    char *RChar = strchr(job->strings[i], 'R');
+    if (RChar && *(RChar+1)) {
+      size_t seed = atoi(RChar + 1);
+      srand48(seed);
+    }
+
     char *Wchar = strchr(job->strings[i], 'W');
     if (Wchar && *(Wchar+1)) {
       size_t waitfor = atoi(Wchar + 1);
@@ -300,7 +314,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
 
     positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-    setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, -99999, threadContext[i].bdSize, NULL, threadContext[i].id);
+    setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, -99999, threadContext[i].bdSize, NULL, seed);
   }
   
     

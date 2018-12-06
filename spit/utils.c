@@ -541,9 +541,9 @@ void commaPrint0dp(FILE *fp, double d) {
     if (d >= 1000000) {
       fprintf(fp,"%.0lf,%03zd,%03zd", d/1000000, dd % 1000000, dd % 1000);
     } else {
-      fprintf(fp,"%zd,%03zd", dd / 1000, dd % 1000);
+      fprintf(fp,"%3zd,%03zd", dd / 1000, dd % 1000);
     }
   } else {
-    fprintf(fp,"%.0lf", d);
+    fprintf(fp,"%3.0lf", d);
   }
 }
