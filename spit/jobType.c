@@ -119,7 +119,7 @@ static void *runThreadTimer(void *arg) {
     double elapsed = thistime - start;
     diskStatSummary(&d, &trb, &twb, &util, 0, 0, 0, thistime - last);
 
-    fprintf(stderr,"[%.1lf] trb %.1lf, twb %.1lf, util %.3lf\n", elapsed, TOMiB(trb), TOMiB(twb), util);
+    fprintf(stderr,"[%.1lf] read %.0lf MiB/s, write %.0lf MiB/s, util %.3lf %%\n", elapsed, TOMiB(trb), TOMiB(twb), util);
     last = thistime;
     
     i++;
