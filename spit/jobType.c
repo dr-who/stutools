@@ -99,10 +99,16 @@ static void *runThread(void *arg) {
 
   size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
   int fd ;
+  int direct = O_DIRECT;
+  if (strchr(threadContext->jobstring, 'D')) {
+    fprintf(stderr,"*info* thread[%zd] turning off O_DIRECT\n", threadContext->id);
+    direct = 0; // don't use O_DIRECT if the user specifes 'D'
+  }
+
   if (strchr(threadContext->jobstring,'w')) {
-    fd = open(threadContext->jobdevice, O_RDWR | O_DIRECT);
+    fd = open(threadContext->jobdevice, O_RDWR | direct);
   } else {
-    fd = open(threadContext->jobdevice, O_RDONLY | O_DIRECT);
+    fd = open(threadContext->jobdevice, O_RDONLY | direct);
   }
   if (fd < 0) {
     perror(threadContext->jobdevice); return 0;
