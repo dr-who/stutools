@@ -19,6 +19,7 @@
 #include "diskStats.h"
 
 extern int keepRunning;
+extern int verbose;
 
 void jobInit(jobType *job) {
   job->count = 0;
@@ -81,12 +82,15 @@ typedef struct {
   char *jobstring;
   char *jobdevice;
   int dumpPositions;
+  size_t blockSize;
 } threadInfoType;
 
 
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
-  fprintf(stderr,"*info* thread[%zd] job is '%s'\n", threadContext->id, threadContext->pos.string);
+  if (verbose >= 2) {
+    fprintf(stderr,"*info* thread[%zd] job is '%s'\n", threadContext->id, threadContext->pos.string);
+  }
 
 
   //  threadContext->pos = createPositions(threadContext->mp);
@@ -101,9 +105,9 @@ static void *runThread(void *arg) {
   logSpeedInit(&benchl);
 
   char *randomBuffer;
-  CALLOC(randomBuffer, 4096, 1);
-  memset(randomBuffer, 0, 4096);
-  generateRandomBufferCyclic(randomBuffer, 4096, 0, 4096);
+  CALLOC(randomBuffer, threadContext->blockSize, 1);
+  memset(randomBuffer, 0, threadContext->blockSize);
+  generateRandomBufferCyclic(randomBuffer, threadContext->blockSize, 0, 4096);
 
   size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
   int fd ;
@@ -124,12 +128,14 @@ static void *runThread(void *arg) {
 
   
   if (threadContext->waitfor) {
-    fprintf(stderr,"*info* thread[%zd] waiting for %zd seconds\n", threadContext->id, threadContext->waitfor);
+    if (verbose >= 2) {
+      fprintf(stderr,"*info* thread[%zd] waiting for %zd seconds\n", threadContext->id, threadContext->waitfor);
+    }
     sleep(threadContext->waitfor);
   }
 
 
-  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->timetorun, 256, -1, 0, NULL, &benchl, randomBuffer, 4096, 4096, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 0, fd);
+  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->timetorun, 256, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, 4096, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 0, fd);
 
   close(fd);
 
@@ -185,7 +191,7 @@ static void *runThreadTimer(void *arg) {
 
 
 
-void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes, const size_t lowbs,
+void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPositions) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -195,14 +201,27 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes, con
 
   for (size_t i = 0; i < num; i++) {
 
+    size_t bs = 4096;
+    char *charBS = strchr(job->strings[i], 'k');
+    if (charBS && *(charBS+1)) {
+      bs = 1024 * atof(charBS+1);
+      if (verbose >= 2) {
+	fprintf(stderr,"*info* setting blockSize to be %zd\n", bs);
+      }
+    }
+
+    
     //    size_t fs = fileSizeFromName(job->devices[i]);
     threadContext[i].bdSize = maxSizeInBytes;
-    size_t mp = (size_t) (threadContext[i].bdSize / lowbs);
+    size_t mp = (size_t) (threadContext[i].bdSize / bs);
     //    fprintf(stderr,"file size %zd, positions %zd\n", fs, mp);
     size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
+    //    fprintf(stderr,"fit into ram %zd, currently %zd\n", fitinram, mp);
     if (mp > fitinram) {
       mp = fitinram;
-      fprintf(stderr,"*warning* limited to %zd because of RAM\n", mp);
+      if (verbose >= 2) {
+	fprintf(stderr,"*warning* limited to %zd because of RAM\n", mp);
+      }
     }
       
     threadContext[i].id = i;
@@ -212,6 +231,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes, con
     threadContext[i].timetorun = timetorun;
     threadContext[i].waitfor = 0;
     threadContext[i].dumpPositions = dumpPositions;
+    threadContext[i].blockSize = bs;
 
     // do this here to allow repeatable random numbers
     float rw = 0.5;
@@ -225,12 +245,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes, con
     char *sf = strchr(job->strings[i], 's');
     if (sf && *(sf+1)) {
       seqFiles = atoi(sf+1);
-    }
-
-    int bs = 4096;
-    char *bschar = strchr(job->strings[i], 'k');
-    if (bschar && *(bschar+1)) {
-      bs = 1024 * atoi(bschar + 1);
     }
 
     char *pChar = strchr(job->strings[i], 'P');

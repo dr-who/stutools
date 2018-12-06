@@ -21,17 +21,16 @@ size_t waitEvery = 0;
 size_t flushEvery = 0;
 
 
-void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *lowbs, size_t *timetorun,
+void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun,
 		 size_t *dumpPositions) {
   int opt;
 
-  *lowbs = 4096;
   char *device = NULL;
   int extraparalleljobs = 0, isAFile = 0;
   
   jobInit(j);
   
-  while ((opt = getopt(argc, argv, "c:f:G:k:t:j:d:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:V")) != -1) {
     switch (opt) {
     case 'c':
       jobAdd(j, optarg);
@@ -58,15 +57,14 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
       }
       break;
     case 'G':
-      *maxSizeInBytes = (*lowbs) * (size_t)(atof(optarg) * 1024 * 1024 * 1024 / (*lowbs));
+      *maxSizeInBytes = 1024 * (size_t)(atof(optarg) * 1024 * 1024);
+      break;
+    case 'V':
+      verbose++;
       break;
     case 'j':
       extraparalleljobs = atoi(optarg) - 1;
       if (extraparalleljobs < 0) extraparalleljobs = 0;
-      break;
-    case 'k':
-      *lowbs = 1024 * atoi(optarg);
-      if (*lowbs < 512) *lowbs = 512;
       break;
     case 't':
       *timetorun = atoi(optarg);
@@ -140,17 +138,17 @@ int main(int argc, char *argv[]) {
 #endif
 
   jobType *j = malloc(sizeof(jobType));
-  size_t maxSizeInBytes = 0, timetorun = 10, lowbs = 4096, dumpPositions = 0;
+  size_t maxSizeInBytes = 0, timetorun = 20, dumpPositions = 0;
   
   fprintf(stderr,"*info* spit %s %s (Stu's parallel I/O tester)\n", argv[0], VERSION);
   
-  handle_args(argc, argv, j, &maxSizeInBytes, &lowbs, &timetorun, &dumpPositions);
+  handle_args(argc, argv, j, &maxSizeInBytes, &timetorun, &dumpPositions);
   if (j->count == 0) {
     usage();
   }
 
   fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB)\n", maxSizeInBytes, TOGiB(maxSizeInBytes));
-  jobRunThreads(j, j->count, maxSizeInBytes, lowbs, timetorun, dumpPositions);
+  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions);
 
   jobFree(j);
   free(j);

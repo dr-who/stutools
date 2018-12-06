@@ -329,7 +329,7 @@ void generateRandomBufferCyclic(char *buffer, size_t size, long seed, size_t cyc
   if (cyclic > size || cyclic == 0) cyclic = size;
 
   if (cyclic != size) {
-    fprintf(stderr,"*info* generating a random buffer with a size %zd bytes, cyclic %zd bytes\n", size, cyclic);
+    //fprintf(stderr,"*info* generating a random buffer with a size %zd bytes, cyclic %zd bytes\n", size, cyclic);
   }
   
   srand48(seed);
