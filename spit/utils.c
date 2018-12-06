@@ -535,3 +535,15 @@ int createFile(const char *filename, const size_t sz) {
   return 0;
 }
 
+void commaPrint0dp(FILE *fp, double d) {
+  if (d >= 1000) {
+    size_t dd = d;
+    if (d >= 1000000) {
+      fprintf(fp,"%.0lf,%03zd,%03zd", d/1000000, dd % 1000000, dd % 1000);
+    } else {
+      fprintf(fp,"%zd,%03zd", dd / 1000, dd % 1000);
+    }
+  } else {
+    fprintf(fp,"%.0lf", d);
+  }
+}

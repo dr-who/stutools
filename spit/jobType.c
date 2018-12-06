@@ -139,9 +139,9 @@ static void *runThread(void *arg) {
   }
 
 
-  fprintf(stderr,"[%zd] starting '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
+  fprintf(stderr,"*info [thread %zd] starting '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
   aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, 256, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd);
-  fprintf(stderr,"[%zd] finished '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
+  fprintf(stderr,"*info [thread %zd] finished '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
   close(fd);
 
   //  char name[1000];
@@ -186,7 +186,14 @@ static void *runThreadTimer(void *arg) {
     double elapsed = thistime - start;
     diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
 
-    fprintf(stderr,"[%.1lf] read %.0lf MiB/s (%zd IOPS), write %.0lf MiB/s (%zd), util %.0lf %%\n", elapsed, TOMiB(trb), tri, TOMiB(twb), twi, util);
+    fprintf(stderr,"[%2.0lf] read %.0lf MiB/s (", elapsed, TOMiB(trb));
+    commaPrint0dp(stderr, tri);
+    fprintf(stderr," IOPS), write %.0lf MiB/s (", TOMiB(twb));
+    commaPrint0dp(stderr, twi);
+    fprintf(stderr," IOPS), util %.0lf %%\n", util);
+
+    //    fprintf(stderr,"[%2.0lf] read %.0lf MiB/s (%zd IOPS), write %.0lf MiB/s (%zd IOPS), util %.0lf %%\n", elapsed, TOMiB(trb), tri, TOMiB(twb), twi, util);
+
     last = thistime;
     
     i++;
