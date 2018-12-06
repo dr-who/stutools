@@ -20,48 +20,56 @@
 
 extern int keepRunning;
 
-void jobInit(jobType *j) {
-  j->count = 0;
-  j->strings = NULL;
-  j->devices = NULL;
+void jobInit(jobType *job) {
+  job->count = 0;
+  job->strings = NULL;
+  job->devices = NULL;
 }
 
-void jobAdd(jobType *j, char *device, char *jobstring) {
-  j->strings = realloc(j->strings, (j->count+1) * sizeof(char*));
-  j->devices = realloc(j->devices, (j->count+1) * sizeof(char*));
-  j->strings[j->count] = strdup(jobstring);
-  j->devices[j->count] = strdup(device);
-  j->count++;
+void jobAddBoth(jobType *job, char *device, char *jobstring) {
+  job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
+  job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
+  job->strings[job->count] = strdup(jobstring);
+  job->devices[job->count] = strdup(device);
+  job->count++;
 }
 
-void jobMultiply(jobType *j, const size_t extrajobs) {
-  const int origcount = j->count;
+void jobAdd(jobType *job, const char *jobstring) {
+  job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
+  job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
+  job->strings[job->count] = strdup(jobstring);
+  job->devices[job->count] = NULL;
+  job->count++;
+}
+
+void jobMultiply(jobType *job, const size_t extrajobs) {
+  const int origcount = job->count;
   for (size_t i = 0; i < origcount; i++) {
     for (size_t n = 0; n < extrajobs; n++) {
-      jobAdd(j, strdup(j->devices[i]), strdup(j->strings[i]));
+      jobAddBoth(job, job->devices[i], job->strings[i]);
     }
   }
 }
   
 
-void jobDump(jobType *j) {
-  for (size_t i = 0; i < j->count; i++) {
-    fprintf(stderr,"*info* job %zd, device %s, string %s\n", i, j->devices[i], j->strings[i]);
+void jobDump(jobType *job) {
+  for (size_t i = 0; i < job->count; i++) {
+    fprintf(stderr,"*info* job %zd, device %s, string %s\n", i, job->devices[i], job->strings[i]);
   }
 }
 
-void jobDumpAll(jobType *j) {
-  for (size_t i = 0; i < j->count; i++) {
-    fprintf(stderr,"*info* job %zd, string %s\n", i, j->strings[i]);
+void jobDumpAll(jobType *job) {
+  for (size_t i = 0; i < job->count; i++) {
+    fprintf(stderr,"*info* job %zd, string %s\n", i, job->strings[i]);
   }
 }
 
-void jobFree(jobType *j) {
-  for (size_t i = 0; i < j->count; i++) {
-    free(j->strings[i]);
+void jobFree(jobType *job) {
+  for (size_t i = 0; i < job->count; i++) {
+    free(job->strings[i]);
   }
-  free(j->strings);
-  jobInit(j);
+  free(job->strings);
+  jobInit(job);
 }
 
 typedef struct {
@@ -177,7 +185,7 @@ static void *runThreadTimer(void *arg) {
 
 
 
-void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const size_t lowbs,
+void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes, const size_t lowbs,
 		   const size_t timetorun, const size_t dumpPositions) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -187,7 +195,7 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
 
   for (size_t i = 0; i < num; i++) {
 
-    //    size_t fs = fileSizeFromName(j->devices[i]);
+    //    size_t fs = fileSizeFromName(job->devices[i]);
     threadContext[i].bdSize = maxSizeInBytes;
     size_t mp = (size_t) (threadContext[i].bdSize / lowbs);
     //    fprintf(stderr,"file size %zd, positions %zd\n", fs, mp);
@@ -198,8 +206,8 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
     }
       
     threadContext[i].id = i;
-    threadContext[i].jobstring = strdup(j->strings[i]);
-    threadContext[i].jobdevice = strdup(j->devices[i]);
+    threadContext[i].jobstring = strdup(job->strings[i]);
+    threadContext[i].jobdevice = strdup(job->devices[i]);
     positionContainerInit(&threadContext[i].pos);
     threadContext[i].timetorun = timetorun;
     threadContext[i].waitfor = 0;
@@ -207,25 +215,25 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
 
     // do this here to allow repeatable random numbers
     float rw = 0.5;
-    if (strchr(j->strings[i], 'r')) {
+    if (strchr(job->strings[i], 'r')) {
       rw += 0.5;
-    } else if (strchr(j->strings[i], 'w')) {
+    } else if (strchr(job->strings[i], 'w')) {
       rw -= 0.5;
     }
     
     int seqFiles = 1;
-    char *sf = strchr(j->strings[i], 's');
+    char *sf = strchr(job->strings[i], 's');
     if (sf && *(sf+1)) {
       seqFiles = atoi(sf+1);
     }
 
     int bs = 4096;
-    char *bschar = strchr(j->strings[i], 'k');
+    char *bschar = strchr(job->strings[i], 'k');
     if (bschar && *(bschar+1)) {
       bs = 1024 * atoi(bschar + 1);
     }
 
-    char *pChar = strchr(j->strings[i], 'P');
+    char *pChar = strchr(job->strings[i], 'P');
     if (pChar && *(pChar+1)) {
       size_t newmp = atoi(pChar + 1);
       if (newmp < mp) {
@@ -233,7 +241,7 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
       }
     }
 
-    char *Wchar = strchr(j->strings[i], 'W');
+    char *Wchar = strchr(job->strings[i], 'W');
     if (Wchar && *(Wchar+1)) {
       size_t waitfor = atoi(Wchar + 1);
       threadContext[i].waitfor = waitfor;
@@ -243,7 +251,7 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
       }
     }
 
-    positionContainerSetup(&threadContext[i].pos, mp, j->devices[i], j->strings[i]);
+    positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
     setupPositions(threadContext[i].pos.positions, &mp, seqFiles, rw, bs, bs, bs, -99999, threadContext[i].bdSize, NULL, threadContext[i].id);
   }
   
@@ -264,4 +272,9 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
 }
 
 
-  
+void jobAddDeviceToAll(jobType *job, const char *device) {
+  for (size_t i = 0; i < job->count; i++) {
+    job->devices[i] = strdup(device);
+  }
+}
+    

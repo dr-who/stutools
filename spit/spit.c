@@ -34,7 +34,7 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
   while ((opt = getopt(argc, argv, "c:f:G:k:t:j:d:")) != -1) {
     switch (opt) {
     case 'c':
-      jobAdd(j, device, optarg);
+      jobAdd(j, optarg);
       break;
     case 'd':
       *dumpPositions = atoi(optarg);
@@ -77,6 +77,14 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
     }
   }
 
+  if (!device) {
+    fprintf(stderr,"*error* you are missing the -f device\n");
+    exit(1);
+  }
+
+  // first assign the device
+  jobAddDeviceToAll(j, device);
+  
   // scale up using the -j option
   if (extraparalleljobs) {
     jobMultiply(j, extraparalleljobs);
