@@ -68,8 +68,10 @@ void jobDumpAll(jobType *job) {
 void jobFree(jobType *job) {
   for (size_t i = 0; i < job->count; i++) {
     free(job->strings[i]);
+    free(job->devices[i]);
   }
   free(job->strings);
+  free(job->devices);
   jobInit(job);
 }
 
@@ -186,6 +188,7 @@ static void *runThreadTimer(void *arg) {
     i++;
     diskStatStart(&d);
   }
+  diskStatFree(&d);
   return NULL;
 }
 
@@ -225,8 +228,8 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
       
     threadContext[i].id = i;
-    threadContext[i].jobstring = strdup(job->strings[i]);
-    threadContext[i].jobdevice = strdup(job->devices[i]);
+    threadContext[i].jobstring = job->strings[i];
+    threadContext[i].jobdevice = job->devices[i];
     positionContainerInit(&threadContext[i].pos);
     threadContext[i].timetorun = timetorun;
     threadContext[i].waitfor = 0;
@@ -259,8 +262,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     if (Wchar && *(Wchar+1)) {
       size_t waitfor = atoi(Wchar + 1);
       threadContext[i].waitfor = waitfor;
-      threadContext[i].timetorun -= waitfor;
-      if (threadContext[i].timetorun < 0) {
+      if (threadContext[i].timetorun > waitfor) {
+	threadContext[i].timetorun -= waitfor;
+      } else {
 	threadContext[i].timetorun = 0;
       }
     }
