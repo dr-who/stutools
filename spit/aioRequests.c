@@ -301,7 +301,7 @@ size_t aioMultiplePositions( positionType *positions,
     free(cbs[i]);
   }
   free(cbs);
-  free(data[0]);
+  //  free(data[0]);
   free(data);
   free(dataread[0]);
   free(dataread);

@@ -215,17 +215,23 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   
   for (size_t i = 0; i < num; i++) {
 
-    size_t bs = 4096, highbs = 4096;
+    int bs = 4096, highbs = 4096;
     char *charBS = strchr(job->strings[i], 'k');
     if (charBS && *(charBS+1)) {
 
       char *endp = NULL;
       bs = 1024 * strtol(charBS+1, &endp, 10);
       if (*endp != 0) {
-	highbs = 1024 * atoi(endp+1);
+	int nextv = atoi(endp+1);
+	if (nextv > 0) {
+	  highbs = 1024 * nextv;
+	}
+      }
+      if (highbs < bs) {
+	highbs = bs;
       }
       if (verbose >= 2) {
-	fprintf(stderr,"*info* setting blockSize to be [%zd, %zd]\n", bs, highbs);
+	fprintf(stderr,"*info* setting blockSize to be [%d, %d]\n", bs, highbs);
       }
     }
 

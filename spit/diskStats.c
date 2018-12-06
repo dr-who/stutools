@@ -15,9 +15,14 @@ void diskStatClear(diskStatType *d) {
   d->startSecRead = 0;
   d->startSecWrite = 0;
   d->startSecTimeio = 0 ;
+  d->startIORead = 0;
+  d->startIOWrite = 0;
+  
   d->finishSecRead = 0;
   d->finishSecWrite = 0;
   d->finishSecTimeio = 0;
+  d->finishIORead = 0;
+  d->finishIOWrite = 0;
 }
   
 void diskStatSetup(diskStatType *d) {
@@ -87,19 +92,23 @@ size_t diskStatTotalDeviceSize(diskStatType *d) {
 
 
 
-void diskStatSectorUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, int verbose) {
+void diskStatSectorUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite1, int verbose) {
   *sread = 0;
   *swritten = 0;
   *stimeio = 0;
+  *ioread = 0;
+  *iowrite1 = 0;
   for (size_t i = 0; i < d->numDevices; i++) {
-    size_t sr = 0, sw = 0, sio = 0;
-    getProcDiskstats(d->majorArray[i], d->minorArray[i], &sr, &sw, &sio);
+    size_t sr = 0, sw = 0, sio = 0, readscompl = 0, writescompl = 0;
+    getProcDiskstats(d->majorArray[i], d->minorArray[i], &sr, &sw, &sio, &readscompl, &writescompl);
     if (verbose) {
       fprintf(stderr,"*info* major %d minor %d sectorsRead %zd sectorsWritten %zd\n", d->majorArray[i], d->minorArray[i], sr, sw);
     }
     *sread = (*sread) + sr;
     *swritten = (*swritten) + sw;
     *stimeio = (*stimeio) + sio;
+    *ioread = (*ioread) + readscompl;
+    *iowrite1 = (*iowrite1) + writescompl;
   }
 }
 
@@ -140,19 +149,23 @@ void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
 
 void diskStatStart(diskStatType *d) {
   diskStatClear(d);
-  size_t sread = 0, swritten = 0, stimeio = 0;
-  diskStatSectorUsage(d, &sread, &swritten, &stimeio, 0);
+  size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
+  diskStatSectorUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
   d->startSecRead = sread;
   d->startSecWrite = swritten;
   d->startSecTimeio = stimeio;
+  d->startIORead = ioread;
+  d->startIOWrite = iowrite;
 }
 
 void diskStatFinish(diskStatType *d) {
-  size_t sread = 0, swritten = 0, stimeio = 0;
-  diskStatSectorUsage(d, &sread, &swritten, &stimeio, 0);
+  size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
+  diskStatSectorUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
   d->finishSecRead = sread;
   d->finishSecWrite = swritten;
   d->finishSecTimeio = stimeio;
+  d->finishIORead = ioread;
+  d->finishIOWrite = iowrite;
 }
 
 void diskStatFree(diskStatType *d) {
@@ -176,7 +189,7 @@ void majorAndMinor(int fd, unsigned int *major, unsigned int *minor) {
   }
 }
   
-void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten, size_t *stimeIO) {
+void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten, size_t *stimeIO, size_t *readcompl, size_t *writecompl) {
   FILE *fp = fopen("/proc/diskstats", "rt");
   if (!fp) {
     fprintf(stderr,"can't open diskstats!\n");
@@ -189,12 +202,14 @@ void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t
   CALLOC(str, 1000, 1);
   while ((read = getline(&line, &len, fp)) != -1) {
     long mj, mn, s;
-    size_t read1, write1, timespentIO;
-    sscanf(line,"%ld %ld %s %ld %ld %zu %ld %ld %ld %zu %ld %ld %zu", &mj, &mn, str, &s, &s, &read1, &s, &s, &s, &write1, &s, &s, &timespentIO);
+    size_t read1, write1, timespentIO, readcompl1, writecompl1;
+    sscanf(line,"%ld %ld %s %lu %ld %zu %ld %lu %ld %zu %ld %ld %zu", &mj, &mn, str, &readcompl1, &s, &read1, &s, &writecompl1, &s, &write1, &s, &s, &timespentIO);
     if (mj == major && mn == minor) {
       *sread = read1;
       *swritten = write1;
       *stimeIO = timespentIO;
+      *readcompl = readcompl1;
+      *writecompl = writecompl1;
       break;
       //      printf("Retrieved line of length (%u %u) (%zd %zd) :\n", mj, mn, *sread, *swritten);
       //      printf("%s", line);

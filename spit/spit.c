@@ -70,7 +70,7 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
       *timetorun = atoi(optarg);
       break;
     default:
-      fprintf(stderr,"nope\n");
+      exit(1);
       break;
     }
   }
