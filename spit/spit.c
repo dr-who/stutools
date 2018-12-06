@@ -109,6 +109,8 @@ void usage() {
   fprintf(stderr,"  spit -f device -c rs0         # random\n");
   fprintf(stderr,"  spit -f device -c ws128       # 128 parallel writes\n");
   fprintf(stderr,"  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions\n");
+  fprintf(stderr,"  spit -f device -c k8          # set block size to 8 KiB\n");
+  fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
   fprintf(stderr,"  spit -t 50                    # run for 50 seconds\n");
@@ -131,7 +133,7 @@ int main(int argc, char *argv[]) {
   jobType *j = malloc(sizeof(jobType));
   size_t maxSizeInBytes = 0, timetorun = 10, lowbs = 4096, dumpPositions = 0;
   
-  fprintf(stderr,"*info* spit %s %s \n", argv[0], VERSION);
+  fprintf(stderr,"*info* spit %s %s (Stu's parallel I/O tester)\n", argv[0], VERSION);
   
   handle_args(argc, argv, j, &maxSizeInBytes, &lowbs, &timetorun, &dumpPositions);
   if (j->count == 0) {
