@@ -11,7 +11,7 @@
 #include "logSpeed.h"
 #include "aioRequests.h"
 
-extern int keepRunning;
+extern volatile int keepRunning;
 extern int singlePosition;
 extern int flushEvery;
 extern size_t waitEvery;
@@ -20,7 +20,7 @@ extern size_t waitEvery;
 
 size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
-			     const float secTimeout,
+			     const float finishtime,
 			     const size_t origQD,
 			     const int verbose,
 			     const int tableMode, 
@@ -108,7 +108,7 @@ size_t aioMultiplePositions( positionType *positions,
   double flush_totaltime = 0, flush_mintime = 9e99, flush_maxtime = 0;
   size_t flush_count = 0;
   
-  while (keepRunning) {
+  while (keepRunning && timedouble() < finishtime) {
     if (inFlight < QD) {
       
       // submit requests, one at a time
@@ -176,6 +176,7 @@ size_t aioMultiplePositions( positionType *positions,
 	  pos++;
 	  if (pos >= sz) {
 	    if (oneShot) {
+	      	      fprintf(stderr,"end of function one shot\n");
 	      goto endoffunction; // only go through once
 	    }
 	    pos = 0; // don't go over the end of the array
@@ -201,10 +202,10 @@ size_t aioMultiplePositions( positionType *positions,
 	  lastBytes = totalReadBytes + totalWriteBytes;
 	  lastIOCount = received;
 	  last = gt;
-	  if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
-	    //	    	  fprintf(stderr,"timeout\n");
-	    goto endoffunction;
-	  }
+	  //	  if ((!keepRunning) || (gt >= finishtime)) {
+	    //	    fprintf(stderr,"timeout %lf ... %lf\n", gt, finishtime);
+	  //	    goto endoffunction;
+	  //	  }
 	}
       } // for loop i
 
@@ -235,13 +236,13 @@ size_t aioMultiplePositions( positionType *positions,
     }
 
     // if stop running or been running long enough
-    if ((!keepRunning) || ((long)(gt - start) >= secTimeout)) {
-      if (gt - last > 1) { // if it's been over a second since per-second output
-	if (received > 0) {
-	  break;
-	}
-      }
-    }
+    //    if ((!keepRunning) || (gt >= finishtime)) {
+    //      if (gt - last > 1) { // if it's been over a second since per-second output
+    //	if (received > 0) {
+    //	  break;
+    //	}
+    //      }
+    //  }
 
     if (ret > 0) {
       // verify it's all ok
@@ -273,7 +274,7 @@ size_t aioMultiplePositions( positionType *positions,
       received += ret;
     }
     if (ret < 0) {
-      //      fprintf(stderr,"eek\n");
+      fprintf(stderr,"eek\n");
       //    perror("io_destroy");
       break;
     }

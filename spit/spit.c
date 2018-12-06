@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
     usage();
   }
 
-  fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB)\n", maxSizeInBytes, TOGiB(maxSizeInBytes));
+  fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB), time to run %zd sec\n", maxSizeInBytes, TOGiB(maxSizeInBytes), timetorun);
   jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions);
 
   jobFree(j);
