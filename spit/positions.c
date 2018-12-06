@@ -512,14 +512,14 @@ void dumpPositions(positionType *positions, const char *prefix, const size_t num
 void positionContainerInit(positionContainer *pc) {
   pc->sz = 0;
   pc->positions = NULL;
-  pc->dev = NULL;
+  pc->device = NULL;
   pc->string = NULL;
 }
 
-void positionContainerSetup(positionContainer *pc, size_t sz, deviceDetails *dev, char *string) {
+void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString, char *string) {
   pc->sz = sz;
   pc->positions = createPositions(sz);
-  pc->dev = dev;
+  pc->device = deviceString;
   pc->string = string;
 }
 
@@ -529,7 +529,7 @@ void positionContainerFree(positionContainer *pc) {
 
 
 // lots of checks
-void positionContainerSave(const positionContainer *pc, const char *name, const size_t flushEvery) {
+/*void positionContainerSave(const positionContainer *pc, const char *name, const size_t flushEvery) {
   if (name) {
     FILE *fp = fopen(name, "wt");
     if (!fp) {
@@ -551,4 +551,4 @@ void positionContainerSave(const positionContainer *pc, const char *name, const 
   }
 }
 
-
+*/

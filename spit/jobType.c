@@ -1,15 +1,19 @@
+#define _GNU_SOURCE
 #define _POSIX_C_SOURCE 200809L
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <pthread.h>
 
 #include "jobType.h"
 #include "positions.h"
 #include "utils.h"
-#include "devices.h"
 
 #include "aioRequests.h"
 #include "diskStats.h"
@@ -19,16 +23,20 @@ extern int keepRunning;
 void jobInit(jobType *j) {
   j->count = 0;
   j->strings = NULL;
+  j->devices = NULL;
 }
 
-void jobAdd(jobType *j, char *str) {
+void jobAdd(jobType *j, char *device, char *jobstring) {
   j->strings = realloc(j->strings, (j->count+1) * sizeof(char*));
-  j->strings[j->count++] = strdup(str);
+  j->devices = realloc(j->devices, (j->count+1) * sizeof(char*));
+  j->strings[j->count] = strdup(jobstring);
+  j->devices[j->count] = strdup(device);
+  j->count++;
 }
 
 void jobDump(jobType *j) {
   for (size_t i = 0; i < j->count; i++) {
-    fprintf(stderr,"*info* job %zd, string %s\n", i, j->strings[i]);
+    fprintf(stderr,"*info* job %zd, device %s, string %s\n", i, j->devices[i], j->strings[i]);
   }
 }
 
@@ -48,12 +56,12 @@ void jobFree(jobType *j) {
 
 typedef struct {
   size_t id;
-  deviceDetails *dev;
   positionContainer pos;
   size_t bdSize;
   size_t timetorun;
   size_t waitfor;
   char *jobstring;
+  char *jobdevice;
 } threadInfoType;
 
 
@@ -82,11 +90,23 @@ static void *runThread(void *arg) {
   generateRandomBufferCyclic(randomBuffer, 4096, 0, 4096);
 
   size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
-  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->timetorun, 256, -1, 0, NULL, &benchl, randomBuffer, 4096, 4096, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 0, threadContext->pos.dev);
+  int fd ;
+  if (strchr(threadContext->jobstring,'w')) {
+    fd = open(threadContext->jobdevice, O_RDWR | O_DIRECT | O_EXCL);
+  } else {
+    fd = open(threadContext->jobdevice, O_RDONLY | O_DIRECT);
+  }
+  if (fd < 0) {
+    perror(threadContext->jobdevice); return 0;
+  }
 
-  char name[1000];
-  sprintf(name,"bob.%zd", threadContext->id);
-  positionContainerSave(&threadContext->pos, name, 0);
+  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->timetorun, 256, -1, 0, NULL, &benchl, randomBuffer, 4096, 4096, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 0, fd);
+
+  close(fd);
+
+  //  char name[1000];
+  //  sprintf(name,"bob.%zd", threadContext->id);
+  //  positionContainerSave(&threadContext->pos, name, 0);
   
 
 
@@ -105,7 +125,13 @@ static void *runThreadTimer(void *arg) {
   size_t i = 0;
   diskStatType d;
   diskStatSetup(&d);
-  diskStatAddDrive(&d, threadContext->dev->fd);
+  int fd = open(threadContext->jobdevice, O_RDONLY);
+  if (fd < 0) {
+    perror("diskstats"); return NULL;
+  }
+  diskStatAddDrive(&d, fd);
+  close(fd);
+  
   diskStatStart(&d);
 
   double start = timedouble(), last = start, thistime;
@@ -119,7 +145,7 @@ static void *runThreadTimer(void *arg) {
     double elapsed = thistime - start;
     diskStatSummary(&d, &trb, &twb, &util, 0, 0, 0, thistime - last);
 
-    fprintf(stderr,"[%.1lf] read %.0lf MiB/s, write %.0lf MiB/s, util %.3lf %%\n", elapsed, TOMiB(trb), TOMiB(twb), util);
+    fprintf(stderr,"[%.1lf] read %.0lf MiB/s, write %.0lf MiB/s, util %.0lf %%\n", elapsed, TOMiB(trb), TOMiB(twb), util);
     last = thistime;
     
     i++;
@@ -130,20 +156,29 @@ static void *runThreadTimer(void *arg) {
 
 
 
-void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const size_t lowbs, deviceDetails *dev, size_t timetorun) {
+void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const size_t lowbs, size_t timetorun) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
   threadInfoType *threadContext;
   CALLOC(threadContext, num+1, sizeof(threadInfoType));
 
-  size_t maxPositions = (int)(maxSizeInBytes / lowbs);
   for (size_t i = 0; i < num; i++) {
+
+    size_t fs = fileSizeFromName(j->devices[i]);
+    threadContext[i].bdSize = fs;
+    size_t mp = (size_t) (fs / lowbs);
+    //    fprintf(stderr,"file size %zd, positions %zd\n", fs, mp);
+    if (maxSizeInBytes) {
+      if (maxSizeInBytes < mp) {
+	mp = maxSizeInBytes;
+      }
+    }
+      
     threadContext[i].id = i;
-    threadContext[i].dev = dev;
-    threadContext[i].jobstring = j->strings[i];
+    threadContext[i].jobstring = strdup(j->strings[i]);
+    threadContext[i].jobdevice = strdup(j->devices[i]);
     positionContainerInit(&threadContext[i].pos);
-    threadContext[i].bdSize = maxSizeInBytes;
     threadContext[i].timetorun = timetorun;
     threadContext[i].waitfor = 0;
 
@@ -169,18 +204,20 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
 
     char *pChar = strchr(j->strings[i], 'P');
     if (pChar) {
-      maxPositions = 1024 * atoi(pChar + 1);
+      size_t newmp = 1024 * atoi(pChar + 1);
+      if (newmp < mp) {
+	mp = newmp;
+      }
     }
 
-    char *Wchar = strchr(threadContext->jobstring, 'W');
+    char *Wchar = strchr(j->strings[i], 'W');
     if (Wchar) {
       size_t waitfor = atoi(Wchar + 1);
       threadContext[i].waitfor = waitfor;
-  }
+    }
 
-
-    positionContainerSetup(&threadContext[i].pos, maxPositions, dev, j->strings[i]);
-    setupPositions(threadContext[i].pos.positions, &maxPositions, seqFiles, rw, bs, bs, bs, 0, threadContext[i].bdSize, NULL, threadContext[i].id);
+    positionContainerSetup(&threadContext[i].pos, mp, j->devices[i], j->strings[i]);
+    setupPositions(threadContext[i].pos.positions, &mp, seqFiles, rw, bs, bs, bs, 0, threadContext[i].bdSize, NULL, threadContext[i].id);
   }
   
     

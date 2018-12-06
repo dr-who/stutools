@@ -5,7 +5,6 @@
 
 #include "logSpeed.h"
 #include "positions.h"
-#include "devices.h"
 
 size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
@@ -23,7 +22,7 @@ size_t aioMultiplePositions( positionType *positions,
 			     size_t *totalWB,
 			     const size_t oneShot,
 			     int dontExitOnErrors,
-			     deviceDetails *dev);
+			     const int fd);
 
 int aioVerifyWrites(positionType *positions,
 		    const size_t maxpos,
@@ -31,6 +30,6 @@ int aioVerifyWrites(positionType *positions,
 		    const size_t alignment,
 		    const int verbose,
 		    const char *randomBuffer,
-		    deviceDetails *dev);
+		    const int fd);
 
 #endif

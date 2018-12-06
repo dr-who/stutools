@@ -12,7 +12,6 @@
 #include <string.h>
 
 #include "positions.h"
-#include "devices.h"
 #include "utils.h"
 #include "blockVerify.h"
   
@@ -22,20 +21,21 @@ size_t waitEvery = 0;
 size_t flushEvery = 0;
 
 
-void handle_args(int argc, char *argv[], jobType *j, deviceDetails **deviceList, size_t *deviceCount, size_t *maxSizeInBytes, size_t *lowbs, size_t *timetorun) {
+void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *lowbs, size_t *timetorun) {
   int opt;
 
   *lowbs = 4096;
+  char *device = NULL;
   
   jobInit(j);
   
   while ((opt = getopt(argc, argv, "c:f:G:k:t:")) != -1) {
     switch (opt) {
     case 'c':
-      jobAdd(j, optarg);
+      jobAdd(j, device, optarg);
       break;
     case 'f':
-      addDeviceDetails(optarg,  deviceList, deviceCount);
+      device = optarg;
       break;
     case 'G':
       *maxSizeInBytes = (*lowbs) * (size_t)(atof(optarg) * 1024 * 1024 * 1024 / (*lowbs));
@@ -53,30 +53,6 @@ void handle_args(int argc, char *argv[], jobType *j, deviceDetails **deviceList,
     }
   }
   //  jobDump(j);
-
-  if (*maxSizeInBytes == 0) {
-    *maxSizeInBytes = totalRAM() * 2;
-  }
-
-  for (size_t i = 0; i < *deviceCount; i++) {
-    (*deviceList)[i].shouldBeSize = *maxSizeInBytes;
-  }
-
-  openDevices(*deviceList, *deviceCount, 0, maxSizeInBytes, *lowbs, *lowbs, *lowbs, 1, 0, 256, 1);
-  int anyopen = 0;
-  for (size_t j = 0; j < *deviceCount; j++) {
-    if ((*deviceList[j]).fd > 0) {
-      anyopen = 1;
-    }
-  }
-  if (!anyopen) {
-    fprintf(stderr,"*error* there are no valid block devices\n");
-    exit(-1);
-  }
-
-  infoDevices(*deviceList, *deviceCount);
-
-
 }
 
 void usage() {
@@ -105,24 +81,22 @@ int main(int argc, char *argv[]) {
 #endif
 
   jobType *j = malloc(sizeof(jobType));
-  deviceDetails *deviceList = NULL;
-  size_t deviceCount = 0, maxSizeInBytes = 0, timetorun = 10;
-
-  size_t lowbs = 4096;
+  size_t maxSizeInBytes = 0, timetorun = 10, lowbs = 4096;
   
   fprintf(stderr,"*info* spit %s %s \n", argv[0], VERSION);
-  handle_args(argc, argv, j, &deviceList, &deviceCount, &maxSizeInBytes, &lowbs, &timetorun);
-  if (j->count == 0 || deviceCount == 0) {
+  handle_args(argc, argv, j, &maxSizeInBytes, &lowbs, &timetorun);
+  if (j->count == 0) {
     usage();
   }
-  fprintf(stderr,"*info* maxSizeInBytes %zd\n", maxSizeInBytes);
+  if (maxSizeInBytes) {
+    // if not 0 then override
+    fprintf(stderr,"*info* maxSizeInBytes %zd\n", maxSizeInBytes);
+  }
 
-  jobRunThreads(j, j->count, maxSizeInBytes, lowbs, &(deviceList[0]), timetorun);
+  jobRunThreads(j, j->count, maxSizeInBytes, lowbs, timetorun);
 
   jobFree(j);
   free(j);
-  freeDeviceDetails(deviceList, deviceCount);
-
 
   exit(0);
 }

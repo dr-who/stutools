@@ -15,8 +15,8 @@ typedef struct {
 typedef struct {
   positionType *positions;
   size_t sz;
-  deviceDetails *dev;
   char *string;
+  char *device;
 } positionContainer;
 
 positionType *createPositions(size_t num);
@@ -58,7 +58,7 @@ void findSeedMaxBlock(positionType *positions, const size_t num, long *seed, siz
 void dumpPositions(positionType *positions, const char *prefix, const size_t num, const size_t countToShow);
 
 void positionContainerInit(positionContainer *pc);
-void positionContainerSetup(positionContainer *pc, size_t sz, deviceDetails *dev, char *string);
+void positionContainerSetup(positionContainer *pc, size_t sz, char *device, char *string);
 void positionContainerFree(positionContainer *pc);
 
 void positionContainerSave(const positionContainer *pc, const char *name, const size_t flushEvery);

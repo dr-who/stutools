@@ -10,7 +10,6 @@
 #include "utils.h"
 #include "logSpeed.h"
 #include "aioRequests.h"
-#include "devices.h"
 
 extern int keepRunning;
 extern int singlePosition;
@@ -35,7 +34,7 @@ size_t aioMultiplePositions( positionType *positions,
 			     size_t *totalWB,
 			     const size_t oneShot,
 			     int dontExitOnErrors,
-			     deviceDetails *dev
+			     const int fd
 			     ) {
   int ret;
   struct iocb **cbs;
@@ -129,16 +128,16 @@ size_t aioMultiplePositions( positionType *positions,
 	    int read = (positions[pos].action == 'R');
 	  
 	    // setup the request
-	    if (dev->fd >= 0) {
+	    if (fd >= 0) {
 	      if (read) {
 		if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-		io_prep_pread(cbs[submitted%QD], dev->fd, dataread[submitted%QD], len, newpos);
+		io_prep_pread(cbs[submitted%QD], fd, dataread[submitted%QD], len, newpos);
 		positions[pos].success = 1;
 		totalReadBytes += len;
 	      } else {
 		if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
 		//assert(randomBuffer[0] == 's'); // from stutools
-		io_prep_pwrite(cbs[submitted%QD], dev->fd, data[submitted%QD], len, newpos);
+		io_prep_pwrite(cbs[submitted%QD], fd, data[submitted%QD], len, newpos);
 		positions[pos].success = 1;
 		totalWriteBytes += len;
 		flushPos++;
@@ -158,7 +157,7 @@ size_t aioMultiplePositions( positionType *positions,
 		lastsubmit = timedouble(); // last good submit
 		submitted++;
 		if (verbose >= 2 || (newpos & (alignment-1))) {
-		  fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", dev->fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+		  fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 		}
 	      
 	      } else {
@@ -218,7 +217,7 @@ size_t aioMultiplePositions( positionType *positions,
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
 	  double start_f = timedouble(); // time and store
-	  fsync(dev->fd);
+	  fsync(fd);
 	  double elapsed_f = timedouble() - start_f;
 
 	  flush_totaltime += (elapsed_f);
@@ -312,6 +311,8 @@ size_t aioMultiplePositions( positionType *positions,
 
   *totalWB = totalWriteBytes;
   *totalRB = totalReadBytes;
+
+  close(fd);
   
   return (*totalWB) + (*totalRB);
 }
@@ -334,7 +335,8 @@ int aioVerifyWrites(positionType *positions,
 		    const size_t alignment,
 		    const int verbose,
 		    const char *randomBuffer,
-		    deviceDetails *dev) {
+		    const int fd) {
+
 
   fprintf(stderr,"*info* sorting verification array\n");
   qsort(positions, maxpos, sizeof(positionType), poscompare);
@@ -371,15 +373,15 @@ int aioVerifyWrites(positionType *positions,
 	assert(len <= maxBufferSize);
 	assert(len > 0);
 	
-	if (lseek(dev->fd, pos, SEEK_SET) == -1) {
+	if (lseek(fd, pos, SEEK_SET) == -1) {
 	  if (errors + ioerrors < 10) {
 	    fprintf(stderr,"*error* seeking to pos %zd: ", pos);
 	    //	    perror("cannot seek");
 	  }
 	}
 	//	buffer[0] = 256 - randomBuffer[0] ^ 0xff; // make sure the first char is different
-	int bytesRead = read(dev->fd, buffer, len);
-	if (lseek(dev->fd, pos, SEEK_SET) == -1) {
+	int bytesRead = read(fd, buffer, len);
+	if (lseek(fd, pos, SEEK_SET) == -1) {
 	  if (errors + ioerrors < 10) {
 	    fprintf(stderr,"*error* seeking to pos %zd: ", pos);
 	    //	    perror("cannot seek");
@@ -420,7 +422,8 @@ int aioVerifyWrites(positionType *positions,
   double elapsed = timedouble() - start;
   fprintf(stderr,"checked %zd/%zd blocks, I/O errors %zd, errors/incorrect %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, posTOV, ioerrors, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
 
-  
+
+  close(fd);
   free(buffer);
 
   return ioerrors + errors;
