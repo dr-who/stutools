@@ -204,7 +204,7 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
 
     char *pChar = strchr(j->strings[i], 'P');
     if (pChar) {
-      size_t newmp = 1024 * atoi(pChar + 1);
+      size_t newmp = atoi(pChar + 1);
       if (newmp < mp) {
 	mp = newmp;
       }
