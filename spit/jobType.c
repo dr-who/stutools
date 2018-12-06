@@ -34,6 +34,16 @@ void jobAdd(jobType *j, char *device, char *jobstring) {
   j->count++;
 }
 
+void jobMultiply(jobType *j, const size_t extrajobs) {
+  const int origcount = j->count;
+  for (size_t i = 0; i < origcount; i++) {
+    for (size_t n = 0; n < extrajobs; n++) {
+      jobAdd(j, strdup(j->devices[i]), strdup(j->strings[i]));
+    }
+  }
+}
+  
+
 void jobDump(jobType *j) {
   for (size_t i = 0; i < j->count; i++) {
     fprintf(stderr,"*info* job %zd, device %s, string %s\n", i, j->devices[i], j->strings[i]);
@@ -92,7 +102,7 @@ static void *runThread(void *arg) {
   size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
   int fd ;
   if (strchr(threadContext->jobstring,'w')) {
-    fd = open(threadContext->jobdevice, O_RDWR | O_DIRECT | O_EXCL);
+    fd = open(threadContext->jobdevice, O_RDWR | O_DIRECT);
   } else {
     fd = open(threadContext->jobdevice, O_RDONLY | O_DIRECT);
   }

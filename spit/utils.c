@@ -481,3 +481,12 @@ int startsWith(const char *pre, const char *str)
   return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
 }
 
+
+int canOpenExclusively(const char *fn) {
+  int fd = open(fn, O_RDWR | O_EXCL);
+  if (fd < 0) {
+    return 0;
+  }
+  close(fd);
+  return 1;
+}

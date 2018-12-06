@@ -26,19 +26,29 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
 
   *lowbs = 4096;
   char *device = NULL;
+  int extraparalleljobs = 0;
   
   jobInit(j);
   
-  while ((opt = getopt(argc, argv, "c:f:G:k:t:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:k:t:j:")) != -1) {
     switch (opt) {
     case 'c':
       jobAdd(j, device, optarg);
       break;
     case 'f':
-      device = optarg;
+      if (canOpenExclusively(optarg)) {
+	device = optarg;
+      } else {
+	fprintf(stderr,"*error* can't open '%s' exclusively\n", optarg);
+	exit(-1);
+      }
       break;
     case 'G':
       *maxSizeInBytes = (*lowbs) * (size_t)(atof(optarg) * 1024 * 1024 * 1024 / (*lowbs));
+      break;
+    case 'j':
+      extraparalleljobs = atoi(optarg) - 1;
+      if (extraparalleljobs < 0) extraparalleljobs = 0;
       break;
     case 'k':
       *lowbs = 1024 * atoi(optarg);
@@ -52,7 +62,10 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
       break;
     }
   }
-  //  jobDump(j);
+
+  if (extraparalleljobs) {
+    jobMultiply(j, extraparalleljobs);
+  }
 }
 
 void usage() {

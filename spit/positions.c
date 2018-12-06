@@ -280,7 +280,7 @@ void setupPositions(positionType *positions,
     assert(positions[i].len >= 0);
   }
 
-  if (verbose >= 1) {
+  if (verbose >= 2) {
         fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(bdSizeTotal));
   }
   
