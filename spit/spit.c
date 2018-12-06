@@ -77,26 +77,28 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
     }
   }
 
+  // scale up using the -j option
   if (extraparalleljobs) {
     jobMultiply(j, extraparalleljobs);
   }
 
+  // check the file, create or resize
   size_t fsize = fileSizeFromName(device);
   if (isAFile) {
-    if (*maxSizeInBytes == 0) {
+    if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
       *maxSizeInBytes = totalRAM() * 2;
     }
-    if (fsize != *maxSizeInBytes) {
+    if (fsize != *maxSizeInBytes) { // check the on disk size
       createFile(device, *maxSizeInBytes);
     }
   } else {
+    // if you specify -G too big or it's 0 then set it to the existing file size
     if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
       *maxSizeInBytes = fsize;
     }
   }
 
   fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB)\n", *maxSizeInBytes, TOGiB(*maxSizeInBytes));
-
 }
 
 void usage() {
