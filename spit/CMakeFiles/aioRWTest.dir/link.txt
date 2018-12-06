@@ -1,1 +1,0 @@
-/usr/bin/cc  -g -Werror -Wall -pedantic --std=c99 -O2  -rdynamic CMakeFiles/aioRWTest.dir/aioRWTest.c.o  -o aioRWTest libstutools.a -lm -laio -lpthread 

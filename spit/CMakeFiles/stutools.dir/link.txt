@@ -1,2 +1,0 @@
-/usr/bin/ar qc libstutools.a  CMakeFiles/stutools.dir/positions.c.o CMakeFiles/stutools.dir/devices.c.o CMakeFiles/stutools.dir/cigar.c.o CMakeFiles/stutools.dir/utils.c.o CMakeFiles/stutools.dir/blockVerify.c.o CMakeFiles/stutools.dir/diskStats.c.o CMakeFiles/stutools.dir/logSpeed.c.o CMakeFiles/stutools.dir/aioRequests.c.o
-/usr/bin/ranlib libstutools.a

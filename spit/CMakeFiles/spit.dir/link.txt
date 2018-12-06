@@ -1,1 +1,0 @@
-/usr/bin/cc  -g -Werror -Wall -pedantic --std=c99 -O2  -rdynamic CMakeFiles/spit.dir/spit.c.o  -o spit libspitlib.a -lm -laio -lpthread 

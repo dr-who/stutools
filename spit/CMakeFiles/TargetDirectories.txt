@@ -1,4 +1,0 @@
-/home/stu/stutools/spit/CMakeFiles/rebuild_cache.dir
-/home/stu/stutools/spit/CMakeFiles/edit_cache.dir
-/home/stu/stutools/spit/CMakeFiles/spitlib.dir
-/home/stu/stutools/spit/CMakeFiles/spit.dir
