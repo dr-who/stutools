@@ -66,6 +66,7 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log);
 
 int startsWith(const char *pre, const char *str);
 int canOpenExclusively(const char *fn);
+int createFile(const char *filename, const size_t sz);
 
 #endif
 

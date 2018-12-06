@@ -77,7 +77,7 @@ typedef struct {
 
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
-  fprintf(stderr,"*info* thread id %zd, job is '%s'\n", threadContext->id, threadContext->pos.string);
+  fprintf(stderr,"*info* thread[%zd] job is '%s'\n", threadContext->id, threadContext->pos.string);
 
 
   //  threadContext->pos = createPositions(threadContext->mp);
@@ -107,7 +107,7 @@ static void *runThread(void *arg) {
 
   
   if (threadContext->waitfor) {
-    fprintf(stderr,"*info* thread %zd waiting for %zd seconds\n", threadContext->id, threadContext->waitfor);
+    fprintf(stderr,"*info* thread[%zd] waiting for %zd seconds\n", threadContext->id, threadContext->waitfor);
     sleep(threadContext->waitfor);
   }
 
@@ -177,9 +177,9 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
 
   for (size_t i = 0; i < num; i++) {
 
-    size_t fs = fileSizeFromName(j->devices[i]);
-    threadContext[i].bdSize = fs;
-    size_t mp = (size_t) (fs / lowbs);
+    //    size_t fs = fileSizeFromName(j->devices[i]);
+    threadContext[i].bdSize = maxSizeInBytes;
+    size_t mp = (size_t) (threadContext[i].bdSize / lowbs);
     //    fprintf(stderr,"file size %zd, positions %zd\n", fs, mp);
     if (maxSizeInBytes) {
       if (maxSizeInBytes < mp) {
@@ -226,6 +226,10 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
     if (Wchar) {
       size_t waitfor = atoi(Wchar + 1);
       threadContext[i].waitfor = waitfor;
+      threadContext[i].timetorun -= waitfor;
+      if (threadContext[i].timetorun < 0) {
+	threadContext[i].timetorun = 0;
+      }
     }
 
     positionContainerSetup(&threadContext[i].pos, mp, j->devices[i], j->strings[i]);

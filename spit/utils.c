@@ -490,3 +490,47 @@ int canOpenExclusively(const char *fn) {
   close(fd);
   return 1;
 }
+
+int createFile(const char *filename, const size_t sz) {
+  assert(sz);
+
+  if (startsWith("/dev/", filename)) {
+    fprintf(stderr,"*error* path error, will not create a file '%s' in the directory /dev/\n", filename);
+    exit(-1);
+  }
+  
+  int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
+  if (fd >= 0) {
+    fprintf(stderr,"*info* created '%s' with O_DIRECT, size %zd bytes (%.3g GiB)\n", filename, sz, TOGiB(sz));
+  } else {
+    fprintf(stderr,"*warning* creating file with O_DIRECT failed (no filesystem support?)\n");
+    fprintf(stderr,"*warning* parts of the file will be in the page cache/RAM.\n");
+    fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+      perror(filename);return 1;
+    }
+  }
+
+  char *buf = NULL;
+  CALLOC(buf, 1, 1024*1024);
+  
+  size_t towriteMiB = sz;
+  while (towriteMiB > 0 && keepRunning) {
+    int towrite = MIN(towriteMiB, 1024*1024);
+    int wrote = write(fd, buf, towrite);
+    if (wrote < 0) {
+      perror("createFile");free(buf);return 1;
+    }
+    towriteMiB -= towrite;
+  }
+  fsync(fd);
+  close(fd);
+  free(buf);
+  if (!keepRunning) {
+    fprintf(stderr,"*warning* early size creation termination\n");
+    exit(-1);
+  }
+  keepRunning = 1;
+  return 0;
+}
+

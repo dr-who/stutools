@@ -26,7 +26,7 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
 
   *lowbs = 4096;
   char *device = NULL;
-  int extraparalleljobs = 0;
+  int extraparalleljobs = 0, isAFile = 0;
   
   jobInit(j);
   
@@ -36,11 +36,21 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
       jobAdd(j, device, optarg);
       break;
     case 'f':
-      if (canOpenExclusively(optarg)) {
-	device = optarg;
+      device = optarg;
+      if (!fileExists(device)) { // nothing is there, create a file
+	fprintf(stderr,"*warning* will need to create '%s'\n", device);
+	isAFile = 1;
       } else {
-	fprintf(stderr,"*error* can't open '%s' exclusively\n", optarg);
-	exit(-1);
+	// it's there
+	if (isBlockDevice(device) == 2) {
+	  // it's a file
+	  isAFile = 1;
+	} 
+	
+	if (!canOpenExclusively(device)) {
+	  fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
+	  exit(-1);
+	}
       }
       break;
     case 'G':
@@ -66,6 +76,23 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
   if (extraparalleljobs) {
     jobMultiply(j, extraparalleljobs);
   }
+
+  size_t fsize = fileSizeFromName(device);
+  if (isAFile) {
+    if (*maxSizeInBytes == 0) {
+      *maxSizeInBytes = totalRAM() * 2;
+    }
+    if (fsize != *maxSizeInBytes) {
+      createFile(device, *maxSizeInBytes);
+    }
+  } else {
+    if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
+      *maxSizeInBytes = fsize;
+    }
+  }
+
+  fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB)\n", *maxSizeInBytes, TOGiB(*maxSizeInBytes));
+
 }
 
 void usage() {
@@ -100,10 +127,6 @@ int main(int argc, char *argv[]) {
   handle_args(argc, argv, j, &maxSizeInBytes, &lowbs, &timetorun);
   if (j->count == 0) {
     usage();
-  }
-  if (maxSizeInBytes) {
-    // if not 0 then override
-    fprintf(stderr,"*info* maxSizeInBytes %zd\n", maxSizeInBytes);
   }
 
   jobRunThreads(j, j->count, maxSizeInBytes, lowbs, timetorun);

@@ -287,7 +287,7 @@ void setupPositions(positionType *positions,
   // if randomise then reorder
   if (sf == 0) {
     for (size_t shuffle = 0; shuffle < 1; shuffle++) {
-      if (verbose >= 1) {
+      if (verbose >= 2) {
 	fprintf(stderr,"*info* shuffling the array %zd\n", count);
       }
       for (size_t i = 0; i < count; i++) {
