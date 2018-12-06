@@ -119,10 +119,10 @@ static void *runThread(void *arg) {
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
   }
 
-  if (strchr(threadContext->jobstring,'w')) {
-    fd = open(threadContext->jobdevice, O_RDWR | direct);
-  } else {
+  if (strchr(threadContext->jobstring,'r')) {
     fd = open(threadContext->jobdevice, O_RDONLY | direct);
+  } else {
+    fd = open(threadContext->jobdevice, O_RDWR | direct);
   }
   if (fd < 0) {
     perror(threadContext->jobdevice); return 0;
@@ -137,7 +137,7 @@ static void *runThread(void *arg) {
   }
 
 
-  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->timetorun, 256, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, 4096, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 0, fd);
+  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->timetorun, 256, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd);
 
   close(fd);
 
@@ -240,7 +240,8 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     float rw = 0.5;
     if (strchr(job->strings[i], 'r')) {
       rw += 0.5;
-    } else if (strchr(job->strings[i], 'w')) {
+    }
+    if (strchr(job->strings[i], 'w')) {
       rw -= 0.5;
     }
     
@@ -284,6 +285,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     pthread_join(pt[i], NULL);
     positionContainerFree(&threadContext[i].pos);
   }
+  pthread_join(pt[num], NULL);
 
   free(threadContext);
   free(pt);
