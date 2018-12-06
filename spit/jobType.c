@@ -84,7 +84,6 @@ typedef struct {
   size_t waitfor;
   char *jobstring;
   char *jobdevice;
-  int dumpPositions;
   size_t blockSize;
 } threadInfoType;
 
@@ -100,9 +99,6 @@ static void *runThread(void *arg) {
 
   //  setupPositions(threadContext->pos, &threadContext->mp, 0, 1, 4096, 4096, 4096, 0, threadContext->bdSize, NULL, threadContext->id);
 
-  if (threadContext->dumpPositions) {
-    dumpPositions(threadContext->pos.positions, threadContext->pos.string, threadContext->pos.sz, threadContext->dumpPositions);
-  }
 
   logSpeedType benchl;
   logSpeedInit(&benchl);
@@ -215,7 +211,7 @@ static void *runThreadTimer(void *arg) {
 
 
 void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
-		   const size_t timetorun, const size_t dumpPositions) {
+		   const size_t timetorun, const size_t dumpPositionsN) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -269,7 +265,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     positionContainerInit(&threadContext[i].pos);
     threadContext[i].finishtime = finishtime;
     threadContext[i].waitfor = 0;
-    threadContext[i].dumpPositions = dumpPositions;
     threadContext[i].blockSize = bs;
 
     // do this here to allow repeatable random numbers
@@ -315,6 +310,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
     positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
     setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, -99999, threadContext[i].bdSize, NULL, seed);
+
+    if (dumpPositionsN) {
+      dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPositionsN);
+    }
+    
   }
   
     

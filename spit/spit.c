@@ -148,6 +148,14 @@ int main(int argc, char *argv[]) {
     usage();
   }
 
+  /*  double d = 0.5;
+  for (size_t i = 0; i < 20; i++) {
+    commaPrint0dp(stderr,d);
+    fprintf(stderr,"\n");
+    d=d*2;
+  }
+  */
+
   fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB), time to run %zd sec\n", maxSizeInBytes, TOGiB(maxSizeInBytes), timetorun);
   jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions);
 

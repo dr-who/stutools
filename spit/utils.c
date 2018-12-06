@@ -544,6 +544,6 @@ void commaPrint0dp(FILE *fp, double d) {
       fprintf(fp,"%3zd,%03zd", dd / 1000, dd % 1000);
     }
   } else {
-    fprintf(fp,"%3.0lf", d);
+    fprintf(fp,"%7.0lf", d);
   }
 }
