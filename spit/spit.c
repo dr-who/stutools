@@ -15,13 +15,14 @@
 #include "utils.h"
 #include "blockVerify.h"
   
-int verbose = 1;
+int verbose = 0;
 int keepRunning = 1;
 size_t waitEvery = 0;
 size_t flushEvery = 0;
 
 
-void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *lowbs, size_t *timetorun) {
+void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *lowbs, size_t *timetorun,
+		 size_t *dumpPositions) {
   int opt;
 
   *lowbs = 4096;
@@ -30,10 +31,13 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
   
   jobInit(j);
   
-  while ((opt = getopt(argc, argv, "c:f:G:k:t:j:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:k:t:j:d:")) != -1) {
     switch (opt) {
     case 'c':
       jobAdd(j, device, optarg);
+      break;
+    case 'd':
+      *dumpPositions = atoi(optarg);
       break;
     case 'f':
       device = optarg;
@@ -106,6 +110,8 @@ void usage() {
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
   fprintf(stderr,"  spit -t 50                    # run for 50 seconds\n");
+  fprintf(stderr,"  spit -j 32                    # duplicate all the commands 32 times\n");
+  fprintf(stderr,"  spit -d 10                    # dump the first 10 positions per command\n");
   exit(-1);
 }
 
@@ -121,15 +127,16 @@ int main(int argc, char *argv[]) {
 #endif
 
   jobType *j = malloc(sizeof(jobType));
-  size_t maxSizeInBytes = 0, timetorun = 10, lowbs = 4096;
+  size_t maxSizeInBytes = 0, timetorun = 10, lowbs = 4096, dumpPositions = 0;
   
   fprintf(stderr,"*info* spit %s %s \n", argv[0], VERSION);
-  handle_args(argc, argv, j, &maxSizeInBytes, &lowbs, &timetorun);
+  
+  handle_args(argc, argv, j, &maxSizeInBytes, &lowbs, &timetorun, &dumpPositions);
   if (j->count == 0) {
     usage();
   }
 
-  jobRunThreads(j, j->count, maxSizeInBytes, lowbs, timetorun);
+  jobRunThreads(j, j->count, maxSizeInBytes, lowbs, timetorun, dumpPositions);
 
   jobFree(j);
   free(j);

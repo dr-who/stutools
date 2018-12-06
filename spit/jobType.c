@@ -72,6 +72,7 @@ typedef struct {
   size_t waitfor;
   char *jobstring;
   char *jobdevice;
+  int dumpPositions;
 } threadInfoType;
 
 
@@ -84,7 +85,9 @@ static void *runThread(void *arg) {
 
   //  setupPositions(threadContext->pos, &threadContext->mp, 0, 1, 4096, 4096, 4096, 0, threadContext->bdSize, NULL, threadContext->id);
 
-  //      dumpPositions(threadContext->pos.positions, threadContext->pos.string, threadContext->pos.sz, 10);
+  if (threadContext->dumpPositions) {
+    dumpPositions(threadContext->pos.positions, threadContext->pos.string, threadContext->pos.sz, threadContext->dumpPositions);
+  }
 
   logSpeedType benchl;
   logSpeedInit(&benchl);
@@ -168,7 +171,8 @@ static void *runThreadTimer(void *arg) {
 
 
 
-void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const size_t lowbs, size_t timetorun) {
+void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const size_t lowbs,
+		   const size_t timetorun, const size_t dumpPositions) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -193,6 +197,7 @@ void jobRunThreads(jobType *j, const int num, const size_t maxSizeInBytes, const
     positionContainerInit(&threadContext[i].pos);
     threadContext[i].timetorun = timetorun;
     threadContext[i].waitfor = 0;
+    threadContext[i].dumpPositions = dumpPositions;
 
     // do this here to allow repeatable random numbers
     float rw = 0.5;
