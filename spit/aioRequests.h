@@ -8,7 +8,7 @@
 
 size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
-			     const float finishtime,
+			     const double finishtime,
 			     const size_t QD,
 			     const int verbose,
 			     const int tableMode,

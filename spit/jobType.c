@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <assert.h>
 #include <pthread.h>
 
 #include "jobType.h"
@@ -18,7 +19,7 @@
 #include "aioRequests.h"
 #include "diskStats.h"
 
-extern int keepRunning;
+extern volatile int keepRunning;
 extern int verbose;
 
 void jobInit(jobType *job) {
@@ -79,7 +80,7 @@ typedef struct {
   size_t id;
   positionContainer pos;
   size_t bdSize;
-  size_t timetorun;
+  double finishtime;
   size_t waitfor;
   char *jobstring;
   char *jobdevice;
@@ -125,6 +126,7 @@ static void *runThread(void *arg) {
     fd = open(threadContext->jobdevice, O_RDWR | direct);
   }
   if (fd < 0) {
+    fprintf(stderr,"problem!!\n");
     perror(threadContext->jobdevice); return 0;
   }
 
@@ -137,8 +139,9 @@ static void *runThread(void *arg) {
   }
 
 
-  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->timetorun, 256, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd);
-
+  fprintf(stderr,"[%zd] starting '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
+  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, 256, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd);
+  fprintf(stderr,"[%zd] finished '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
   close(fd);
 
   //  char name[1000];
@@ -150,6 +153,7 @@ static void *runThread(void *arg) {
   free(randomBuffer);
 
   logSpeedFree(&benchl);
+  //  fprintf(stderr,"finished thread %zd\n", threadContext->id);
 
   return NULL;
 }
@@ -171,8 +175,8 @@ static void *runThreadTimer(void *arg) {
   
   diskStatStart(&d);
 
-  double start = timedouble(), last = start, thistime;
-  while (keepRunning) {
+  double start = timedouble(), last = start, thistime = start;
+  while (timedouble() < threadContext->finishtime) {
     sleep(1);
     
     diskStatFinish(&d);
@@ -189,6 +193,8 @@ static void *runThreadTimer(void *arg) {
     diskStatStart(&d);
   }
   diskStatFree(&d);
+  //  fprintf(stderr,"finished thread timer\n");
+  keepRunning = 0;
   return NULL;
 }
 
@@ -202,6 +208,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   threadInfoType *threadContext;
   CALLOC(threadContext, num+1, sizeof(threadInfoType));
 
+  double currenttime = timedouble();
+  double finishtime = currenttime + timetorun;
+  assert (finishtime >= currenttime + timetorun);
+  keepRunning = 1;
+  
   for (size_t i = 0; i < num; i++) {
 
     size_t bs = 4096, highbs = 4096;
@@ -236,7 +247,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
     positionContainerInit(&threadContext[i].pos);
-    threadContext[i].timetorun = timetorun;
+    threadContext[i].finishtime = finishtime;
     threadContext[i].waitfor = 0;
     threadContext[i].dumpPositions = dumpPositions;
     threadContext[i].blockSize = bs;
@@ -267,12 +278,12 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     char *Wchar = strchr(job->strings[i], 'W');
     if (Wchar && *(Wchar+1)) {
       size_t waitfor = atoi(Wchar + 1);
-      threadContext[i].waitfor = waitfor;
-      if (threadContext[i].timetorun > waitfor) {
-	threadContext[i].timetorun -= waitfor;
-      } else {
-	threadContext[i].timetorun = 0;
+      if (waitfor > timetorun) {
+	waitfor = timetorun;
+	fprintf(stderr,"*warning* waiting decreased to %zd\n", waitfor);
       }
+      
+      threadContext[i].waitfor = waitfor;
     }
 
     positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);

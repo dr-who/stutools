@@ -20,7 +20,7 @@ extern size_t waitEvery;
 
 size_t aioMultiplePositions( positionType *positions,
 			     const size_t sz,
-			     const float finishtime,
+			     const double finishtime,
 			     const size_t origQD,
 			     const int verbose,
 			     const int tableMode, 
