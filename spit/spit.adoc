@@ -1,0 +1,97 @@
+= spit(1)
+Stuart Inglis, Ph.D.
+:doctype: manpage
+:man manual: spit manual
+:man source: spit 1.0
+:page-layout: base
+
+== NAME
+
+spit - Stu's parallel I/O tester
+
+== SYNOPSIS
+
+*spit* [_OPTION_]... _FILE_...
+
+== DESCRIPTION
+
+The spit(1) performs various I/O. The *-c* command spins up a command string on a dedicated thread. 
+
+== OPTIONS
+
+*spit* -c _commands_ -c _commands_ -c _commands_
+
+=== Parallel commands
+
+A command is a single contiguous string. Spaces are ignored if the entire string is quoted. An example of a command string may look like: *spit* -c *rk64P1000s3* -f /dev/device
+
+The command options are described below:
+
+ *r*::
+   Performs reads
+
+ *w*::
+   Performs writes
+
+ *j N*::
+   Multiply the number of commands (*-c*) by N
+   
+ *k N*::
+   Block size
+
+ *P N*::
+   Maximum number of positions
+   
+ *q N*::
+   Queue depth
+
+ *R N*::
+   Seed
+
+ *s N*::
+   number of contiguous sequence regions
+
+ *W N*::
+   Wait for N seconds
+
+=== Examples
+
+
+
+*spit* -f /dev/device -c r 
+
+  Performs a single thread/job that performs reads.
+
+*spit* -f /dev/device -c w 
+
+  Performs a single thread/job that performs write.
+
+*spit* -f /dev/device -c wk64P80 
+
+  Performs a single thread/job that performs write, with a 64 KiB
+  block size limited to 80 positions.
+
+*spit* -f /dev/device -c w -c rW10 -c rW20
+
+  Start three commands/jobs, one a sequential writer, one a sequential
+  reader that initially pauses for 10 seconds, and a final sequential
+  read that initially pauses for 20 seconds.
+  
+
+== EXIT STATUS
+
+*0*::
+  Success.
+
+*1*::
+  Failure (syntax of usage error).
+  
+
+== BUGS
+
+Bugs will be rewarded by choc fish.
+
+
+
+
+  

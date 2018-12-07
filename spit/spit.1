@@ -1,0 +1,153 @@
+'\" t
+.\"     Title: spit
+.\"    Author: Stuart Inglis, Ph.D.
+.\" Generator: Asciidoctor 1.5.5
+.\"      Date: 2018-12-07
+.\"    Manual: spit manual
+.\"    Source: spit 1.0
+.\"  Language: English
+.\"
+.TH "SPIT" "1" "2018-12-07" "spit 1.0" "spit manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\\$2 \(laURL: \\$1 \(ra\\$3
+..
+.if \n[.g] .mso www.tmac
+.LINKSTYLE blue R < >
+.SH "NAME"
+spit \- Stu\(aqs parallel I/O tester
+.SH "SYNOPSIS"
+.sp
+\fBspit\fP [\fIOPTION\fP]... \fIFILE\fP...
+.SH "DESCRIPTION"
+.sp
+The spit(1) performs various I/O. The \fB\-c\fP command spins up a command string on a dedicated thread.
+.SH "OPTIONS"
+.sp
+\fBspit\fP \-c \fIcommands\fP \-c \fIcommands\fP \-c \fIcommands\fP
+.SS "Parallel commands"
+.sp
+A command is a single contiguous string. Spaces are ignored if the entire string is quoted. An example of a command string may look like: \fBspit\fP \-c \fBrk64P1000s3\fP \-f /dev/device
+.sp
+The command options are described below:
+.sp
+\fBr\fP
+.RS 4
+Performs reads
+.RE
+.sp
+\fBw\fP
+.RS 4
+Performs writes
+.RE
+.sp
+\fBj N\fP
+.RS 4
+Multiply the number of commands (\fB\-c\fP) by N
+.RE
+.sp
+\fBk N\fP
+.RS 4
+Block size
+.RE
+.sp
+\fBP N\fP
+.RS 4
+Maximum number of positions
+.RE
+.sp
+\fBq N\fP
+.RS 4
+Queue depth
+.RE
+.sp
+\fBR N\fP
+.RS 4
+Seed
+.RE
+.sp
+\fBs N\fP
+.RS 4
+number of contiguous sequence regions
+.RE
+.sp
+\fBW N\fP
+.RS 4
+Wait for N seconds
+.RE
+.SS "Examples"
+.sp
+\fBspit\fP \-f /dev/device \-c r
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Performs a single thread/job that performs reads.
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+\fBspit\fP \-f /dev/device \-c w
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Performs a single thread/job that performs write.
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+\fBspit\fP \-f /dev/device \-c wk64P80
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Performs a single thread/job that performs write, with a 64 KiB
+block size limited to 80 positions.
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+\fBspit\fP \-f /dev/device \-c w \-c rW10 \-c rW20
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Start three commands/jobs, one a sequential writer, one a sequential
+reader that initially pauses for 10 seconds, and a final sequential
+read that initially pauses for 20 seconds.
+.fi
+.if n \{\
+.RE
+.\}
+.SH "EXIT STATUS"
+.sp
+\fB0\fP
+.RS 4
+Success.
+.RE
+.sp
+\fB1\fP
+.RS 4
+Failure (syntax of usage error).
+.RE
+.SH "BUGS"
+.sp
+Bugs will be rewarded by choc fish.
+.SH "AUTHOR(S)"
+.sp
+\fBStuart Inglis, Ph.D.\fP
+.RS 4
+Author(s).
+.RE
