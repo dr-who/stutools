@@ -136,7 +136,7 @@ static void *runThread(void *arg) {
   }
 
 
-  fprintf(stderr,"*info [thread %zd] starting '%s' with ", threadContext->id, threadContext->jobstring);
+  fprintf(stderr,"*info* [thread %zd] starting '%s' with ", threadContext->id, threadContext->jobstring);
   commaPrint0dp(stderr, threadContext->pos.sz);
   fprintf(stderr," positions, qd=%zd\n", threadContext->queueDepth);
   
