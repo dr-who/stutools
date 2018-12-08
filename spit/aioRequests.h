@@ -22,7 +22,8 @@ size_t aioMultiplePositions( positionType *positions,
 			     size_t *totalWB,
 			     const size_t oneShot,
 			     const int dontExitOnErrors,
-			     const int fd);
+			     const int fd,
+			     int flushEvery);
 
 int aioVerifyWrites(positionType *positions,
 		    const size_t maxpos,

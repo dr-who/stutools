@@ -86,6 +86,7 @@ typedef struct {
   char *jobdevice;
   size_t blockSize;
   size_t queueDepth;
+  size_t flushEvery;
 } threadInfoType;
 
 
@@ -138,9 +139,9 @@ static void *runThread(void *arg) {
 
   fprintf(stderr,"*info* [thread %zd] starting '%s' with ", threadContext->id, threadContext->jobstring);
   commaPrint0dp(stderr, threadContext->pos.sz);
-  fprintf(stderr," positions, qd=%zd\n", threadContext->queueDepth);
+  fprintf(stderr," positions, qd=%zd, flushEvery=%zd\n", threadContext->queueDepth, threadContext->flushEvery);
   
-  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd);
+  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   close(fd);
 
@@ -276,6 +277,18 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     if (strchr(job->strings[i], 'w')) {
       rw -= 0.5;
     }
+
+    int flushEvery = 0;
+    for (size_t k = 0; k < strlen(job->strings[i]); k++) {
+      if (job->strings[i][k] == 'F') {
+	if (flushEvery == 0) {
+	  flushEvery = 1;
+	} else {
+	  flushEvery *= 10;
+	}
+      }
+    }
+    threadContext[i].flushEvery = flushEvery;
     
     int seqFiles = 1;
     {

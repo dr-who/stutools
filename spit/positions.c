@@ -558,7 +558,7 @@ void positionContainerFree(positionContainer *pc) {
 void positionLatencyStats(positionContainer *pc, const int threadid) {
   size_t count = 0;
 
-  double starttime = timedouble(), finishtime = timedouble(), slowest = 0;
+  double starttime = timedouble(), finishtime = timedouble(), slowestread = 0, slowestwrite = 0;
   size_t failed = 0;
   
   for (size_t i = 0; i < pc->sz;i++) {
@@ -568,13 +568,19 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
       if (pc->positions[i].finishtime < starttime) starttime = pc->positions[i].finishtime;
       if (pc->positions[i].finishtime > finishtime) finishtime = pc->positions[i].finishtime;
       double delta = pc->positions[i].finishtime - pc->positions[i].submittime;
-      if (delta > slowest) slowest = delta;
+      char action = pc->positions[i].action;
+      if (action == 'R') {
+	if (delta > slowestread) slowestread = delta;
+      } else if (action == 'W') {
+	if (delta > slowestwrite) slowestwrite = delta;
+      }
+	
     } else {
       if (pc->positions[i].submittime) {
 	failed++;
       }
     }
   }
-  fprintf(stderr,"*info* [thread %d] '%s': success: %zd, elapsed %.1lf seconds, slowest %.4g seconds, failed %zd\n", threadid, pc->string, count, finishtime - starttime, slowest, failed);
+  fprintf(stderr,"*info* [thread %d] '%s': success: %zd, elapsed %.1lf seconds, slowest read %.4g, slowest write %.4g seconds, failed %zd\n", threadid, pc->string, count, finishtime - starttime, slowestread, slowestwrite, failed);
 }
   

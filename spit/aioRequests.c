@@ -12,7 +12,6 @@
 #include "aioRequests.h"
 
 extern volatile int keepRunning;
-extern int flushEvery;
 
 #define DISPLAYEVERY 1
 
@@ -32,7 +31,8 @@ size_t aioMultiplePositions( positionType *positions,
 			     size_t *totalWB,
 			     const size_t oneShot,
 			     const int dontExitOnErrors,
-			     const int fd
+			     const int fd,
+			     int flushEvery
 			     ) {
   int ret;
   struct iocb **cbs;
@@ -220,7 +220,7 @@ size_t aioMultiplePositions( positionType *positions,
 	      //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
 	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", thistime - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
 	    }
-	    if (verbose) {
+	    if (verbose >= 2) {
 	      if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
 	    }
 	  }
