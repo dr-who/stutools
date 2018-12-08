@@ -581,6 +581,9 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
       }
     }
   }
-  fprintf(stderr,"*info* [thread %d] '%s': success: %zd, elapsed %.1lf seconds, slowest read %.4g, slowest write %.4g seconds, failed %zd\n", threadid, pc->string, count, finishtime - starttime, slowestread, slowestwrite, failed);
+  fprintf(stderr,"*info* [thread %d] '%s': success: %zd, elapsed %.1lf seconds, slowest read %.4g, slowest write %.4g seconds\n", threadid, pc->string, count, finishtime - starttime, slowestread, slowestwrite);
+  if (verbose >= 2) {
+    fprintf(stderr,"*failed or not finished* %zd\n", failed);
+  }
 }
   
