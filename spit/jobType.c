@@ -141,7 +141,7 @@ static void *runThread(void *arg) {
   fprintf(stderr," positions, qd=%zd\n", threadContext->queueDepth);
   
   aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd);
-  fprintf(stderr,"*info [thread %zd] finished '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
+  fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   close(fd);
 
   //  char name[1000];
