@@ -139,10 +139,10 @@ void savePositions(const char *name, positionType *positions, size_t num, size_t
 	size_t bdSizeBytes = 1; // XXX positions[i].dev->shouldBeSize;
 	const char action = positions[i].action;
 	if (action == 'R' || action == 'W') {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%ld\n", "test" /*positions[i].dev->devicename XXX*/, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\n", "test" /*positions[i].dev->devicename XXX*/, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed);
 	}
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%ld\n", "test" /*positions[i].dev->devicename XXX*/, (size_t)0, 0.0, 0.0, 'F', (size_t)0, bdSizeBytes, 0.0, positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", "test" /*positions[i].dev->devicename XXX*/, (size_t)0, 0.0, 0.0, 'F', (size_t)0, bdSizeBytes, 0.0, positions[i].seed);
 	}
       }
     }
@@ -554,3 +554,27 @@ void positionContainerFree(positionContainer *pc) {
 }
 
 */
+
+void positionLatencyStats(positionContainer *pc, const int threadid) {
+  size_t count = 0;
+
+  double starttime = timedouble(), finishtime = timedouble(), slowest = 0;
+  size_t failed = 0;
+  
+  for (size_t i = 0; i < pc->sz;i++) {
+    if (pc->positions[i].success) {
+      count++;
+      //      fprintf(stderr,"[%zd], %lf %lf\n", i, pc->positions[i].submittime, pc->positions[i].finishtime);
+      if (pc->positions[i].finishtime < starttime) starttime = pc->positions[i].finishtime;
+      if (pc->positions[i].finishtime > finishtime) finishtime = pc->positions[i].finishtime;
+      double delta = pc->positions[i].finishtime - pc->positions[i].submittime;
+      if (delta > slowest) slowest = delta;
+    } else {
+      if (pc->positions[i].submittime) {
+	failed++;
+      }
+    }
+  }
+  fprintf(stderr,"*info* [thread %d] '%s': success: %zd, elapsed %.1lf seconds, slowest %.4g seconds, failed %zd\n", threadid, pc->string, count, finishtime - starttime, slowest, failed);
+}
+  

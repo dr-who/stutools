@@ -85,6 +85,7 @@ typedef struct {
   char *jobstring;
   char *jobdevice;
   size_t blockSize;
+  size_t queueDepth;
 } threadInfoType;
 
 
@@ -137,9 +138,9 @@ static void *runThread(void *arg) {
 
   fprintf(stderr,"*info [thread %zd] starting '%s' with ", threadContext->id, threadContext->jobstring);
   commaPrint0dp(stderr, threadContext->pos.sz);
-  fprintf(stderr," positions\n");
+  fprintf(stderr," positions, qd=%zd\n", threadContext->queueDepth);
   
-  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, 256, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd);
+  aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd);
   fprintf(stderr,"*info [thread %zd] finished '%s' with %zd positions\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
   close(fd);
 
@@ -277,24 +278,40 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
     
     int seqFiles = 1;
-    char *sf = strchr(job->strings[i], 's');
-    if (sf && *(sf+1)) {
-      seqFiles = atoi(sf+1);
+    {
+      char *sf = strchr(job->strings[i], 's');
+      if (sf && *(sf+1)) {
+	seqFiles = atoi(sf+1);
+      }
     }
 
+    int qDepth = 256;
+    {
+      char *qdd = strchr(job->strings[i], 'q');
+      if (qdd && *(qdd+1)) {
+	qDepth = atoi(qdd+1);
+      }
+    }
+    if (qDepth < 1) qDepth = 1;
+    threadContext[i].queueDepth = qDepth;
+    
     char *pChar = strchr(job->strings[i], 'P');
-    if (pChar && *(pChar+1)) {
-      size_t newmp = atoi(pChar + 1);
-      if (newmp < mp) {
-	mp = newmp;
+    {
+      if (pChar && *(pChar+1)) {
+	size_t newmp = atoi(pChar + 1);
+	if (newmp < mp) {
+	  mp = newmp;
+	}
       }
     }
 
     size_t seed = i;
-    char *RChar = strchr(job->strings[i], 'R');
-    if (RChar && *(RChar+1)) {
-      size_t seed = atoi(RChar + 1);
-      srand48(seed);
+    {
+      char *RChar = strchr(job->strings[i], 'R');
+      if (RChar && *(RChar+1)) {
+	size_t seed = atoi(RChar + 1);
+	srand48(seed);
+      }
     }
 
     char *Wchar = strchr(job->strings[i], 'W');
@@ -310,6 +327,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
     positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
     setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, -99999, threadContext[i].bdSize, NULL, seed);
+    if (checkPositionArray(threadContext[i].pos.positions, mp, threadContext[i].bdSize)) {
+      abort();
+    }
 
     if (dumpPositionsN) {
       dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPositionsN);
@@ -317,18 +337,25 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     
   }
   
-    
+  // use the device and timing info from context[0]
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[0]));
   for (size_t i = 0; i < num; i++) {
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
   }
 
-
+  // wait for all threads
   for (size_t i = 0; i < num; i++) {
     pthread_join(pt[i], NULL);
+  }
+  // now wait for the timer thread (probably don't need this)
+  pthread_join(pt[num], NULL);
+
+  // print stats and free
+  for (size_t i = 0; i < num; i++) {
+    positionLatencyStats(&threadContext[i].pos, i);
     positionContainerFree(&threadContext[i].pos);
   }
-  pthread_join(pt[num], NULL);
+
 
   free(threadContext);
   free(pt);

@@ -5,11 +5,12 @@
 #include "devices.h"
 
 typedef struct {
-  size_t pos;
-  char   action; // 'R' or 'W'
-  unsigned int len;
-  char   success;
-  long   seed;
+  size_t pos;          // 8
+  double submittime, finishtime; // 8
+  unsigned int len;  // 4;
+  unsigned short seed; // 2
+  char  action;        // 1: 'R' or 'W'
+  char  success;       // 1 
 } positionType;
 
 typedef struct {
@@ -63,6 +64,8 @@ void positionContainerFree(positionContainer *pc);
 
 void positionContainerSave(const positionContainer *pc, const char *name, const size_t flushEvery);
 void positionContainerLoad(positionContainer *pc, const char *fn);
+
+void positionLatencyStats(positionContainer *pc, const int threadid);
 
 
 #endif
