@@ -53,7 +53,8 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
   positionType *p = (positionType *)positions;
   for (size_t j = 0; j < num; j++) {
     if (p->len == 0) {
-      return 1;
+      fprintf(stderr,"len is 0!\n");
+      abort();
     }
     if (p->len < sizelow) {
       sizelow = p->len;
@@ -70,8 +71,8 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
   }
 
   if (sizelow <= 0) {
+    fprintf(stderr,"size low 0!\n");
     abort();
-    //    return 1;
   }
   // check all positions are aligned to low and high lengths
   p = (positionType *) positions;
@@ -562,9 +563,8 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   size_t failed = 0;
   
   for (size_t i = 0; i < pc->sz;i++) {
-    if (pc->positions[i].success) {
+    if (pc->positions[i].success && pc->positions[i].finishtime) {
       count++;
-      //      fprintf(stderr,"[%zd], %lf %lf\n", i, pc->positions[i].submittime, pc->positions[i].finishtime);
       if (pc->positions[i].finishtime < starttime) starttime = pc->positions[i].finishtime;
       if (pc->positions[i].finishtime > finishtime) finishtime = pc->positions[i].finishtime;
       double delta = pc->positions[i].finishtime - pc->positions[i].submittime;
@@ -574,6 +574,7 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
       } else if (action == 'W') {
 	if (delta > slowestwrite) slowestwrite = delta;
       }
+      //      fprintf(stderr,"[%zd] %c %lf %lf\n", i, pc->positions[i].action, pc->positions[i].finishtime, delta);
 	
     } else {
       if (pc->positions[i].submittime) {
@@ -581,7 +582,9 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
       }
     }
   }
-  fprintf(stderr,"*info* [thread %d] '%s': success: %zd, elapsed %.1lf seconds, slowest read %.4g, slowest write %.4g seconds\n", threadid, pc->string, count, finishtime - starttime, slowestread, slowestwrite);
+  double elapsed = finishtime - starttime;
+
+  fprintf(stderr,"*info* [thread %d] '%s': %zd IOs (%.0lf IO/s) in %.1lf secs, slowest read %.3g, slowest write %.3g seconds\n", threadid, pc->string, count, count/elapsed, elapsed, slowestread, slowestwrite);
   if (verbose >= 2) {
     fprintf(stderr,"*failed or not finished* %zd\n", failed);
   }

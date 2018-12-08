@@ -154,7 +154,6 @@ size_t aioMultiplePositions( positionType *positions,
 
 	    // setup the request
 	    if (fd >= 0) {
-	      positions[pos].submittime = thistime;
 	      if (read) {
 		if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
 		io_prep_pread(cbs[qdIndex], fd, dataread[qdIndex], len, newpos);
@@ -172,7 +171,6 @@ size_t aioMultiplePositions( positionType *positions,
 		if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
 		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
 
-		positions[pos].submittime = thistime;
 
 		const long offset = data[qdIndex] - data[0];
 		assert(offset < randomBufferSize * QD);
@@ -186,6 +184,9 @@ size_t aioMultiplePositions( positionType *positions,
 	      }
 	      
 	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
+	      thistime = timedouble();
+	      positions[pos].submittime = thistime;
+
 	      if (ret > 0) {
 		inFlight++;
 		lastsubmit = thistime; // last good submit
@@ -259,6 +260,7 @@ size_t aioMultiplePositions( positionType *positions,
     } else {
       ret = io_getevents(ioc, 1, QD, events, &timeout);
     }
+    lastreceive = timedouble(); // last good receive
 
     // if stop running or been running long enough
     //    if ((!keepRunning) || (gt >= finishtime)) {
@@ -272,7 +274,6 @@ size_t aioMultiplePositions( positionType *positions,
     if (ret > 0) {
       // verify it's all ok
       int printed = 0;
-      lastreceive = timedouble(); // last good receive
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
 	if (alll) logSpeedAdd2(alll, TOMiB(events[j].res), 1);

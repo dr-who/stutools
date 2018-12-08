@@ -85,6 +85,7 @@ typedef struct {
   char *jobstring;
   char *jobdevice;
   size_t blockSize;
+  size_t highBlockSize;
   size_t queueDepth;
   size_t flushEvery;
   float rw;
@@ -140,7 +141,7 @@ static void *runThread(void *arg) {
 
   fprintf(stderr,"*info* [thread %zd] starting '%s' with ", threadContext->id, threadContext->jobstring);
   commaPrint0dp(stderr, threadContext->pos.sz);
-  fprintf(stderr," positions, qd=%zd, R/w=%.2g, flushEvery=%zd\n", threadContext->queueDepth, threadContext->rw, threadContext->flushEvery);
+  fprintf(stderr," positions, qd=%zd, R/w=%.2g, flushEvery=%zd, k=[%zd,%zd]\n", threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize);
   
   aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
@@ -233,19 +234,17 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     if (charBS && *(charBS+1)) {
 
       char *endp = NULL;
-      bs = 1024 * strtol(charBS+1, &endp, 10);
+      bs = 1024 * strtod(charBS+1, &endp);
+      highbs = bs;
       if (*endp != 0) {
 	int nextv = atoi(endp+1);
 	if (nextv > 0) {
 	  highbs = 1024 * nextv;
 	}
       }
-      if (highbs < bs) {
-	highbs = bs;
-      }
-      if (verbose >= 2) {
-	fprintf(stderr,"*info* setting blockSize to be [%d, %d]\n", bs, highbs);
-      }
+    }
+    if (highbs < bs) {
+      highbs = bs;
     }
 
     
@@ -269,6 +268,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     threadContext[i].finishtime = finishtime;
     threadContext[i].waitfor = 0;
     threadContext[i].blockSize = bs;
+    threadContext[i].highBlockSize = highbs;
 
     // do this here to allow repeatable random numbers
     int rcount = 0, wcount = 0, rwtotal = 0;
