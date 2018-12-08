@@ -139,9 +139,7 @@ static void *runThread(void *arg) {
   }
 
 
-  fprintf(stderr,"*info* [thread %zd] starting '%s' with ", threadContext->id, threadContext->jobstring);
-  commaPrint0dp(stderr, threadContext->pos.sz);
-  fprintf(stderr," positions, qd=%zd, R/w=%.2g, flushEvery=%zd, k=[%zd,%zd]\n", threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize);
+  fprintf(stderr,"*info* [thread %zd] starting '%s' with %zd positions, qd=%zd, R/w=%.2g, flushEvery=%zd, k=[%zd,%zd]\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize);
   
   aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
@@ -246,7 +244,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     if (highbs < bs) {
       highbs = bs;
     }
-
     
     //    size_t fs = fileSizeFromName(job->devices[i]);
     threadContext[i].bdSize = maxSizeInBytes;
@@ -351,7 +348,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
     positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
     setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, -99999, threadContext[i].bdSize, NULL, seed);
-    if (checkPositionArray(threadContext[i].pos.positions, mp, threadContext[i].bdSize)) {
+    if (checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize)) {
       abort();
     }
 
