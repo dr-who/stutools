@@ -298,7 +298,7 @@ size_t aioMultiplePositions( positionType *positions,
 	  // then map the queue position back to the position
 	  struct iocb *my_iocb = events[j].obj;
 	  long offset = (char*)my_iocb->u.c.buf - (char*)(dataread[0]);
-	  size_t requestpos, qd_indx;
+	  size_t requestpos, qd_indx = 0;
 	  if (offset>=0 && offset < randomBufferSize * QD) {
 	    // read range
 	    qd_indx = pointtoposread[offset];
@@ -310,6 +310,7 @@ size_t aioMultiplePositions( positionType *positions,
 	    } else {
 	      // maybe a flush
 	      fprintf(stderr,"flish\n");
+	      abort();
 
 	    }
 	  }
