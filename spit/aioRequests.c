@@ -244,6 +244,7 @@ size_t aioMultiplePositions( positionType *positions,
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
 	  double start_f = timedouble(); // time and store
+	  //	  io_prep_fsync(cbs[qdIndex], fd);
 	  fsync(fd);
 	  double elapsed_f = timedouble() - start_f;
 
@@ -304,7 +305,13 @@ size_t aioMultiplePositions( positionType *positions,
 	  } else {
 	    // write range
 	    offset = (char*)my_iocb->u.c.buf - (char*)(data[0]);
-	    qd_indx = pointtopos[offset];
+	    if (offset >= 0 && offset < randomBufferSize * QD) {
+	      qd_indx = pointtopos[offset];
+	    } else {
+	      // maybe a flush
+	      fprintf(stderr,"flish\n");
+
+	    }
 	  }
 	  requestpos = posInFlight[qd_indx];
 	  //	  fprintf(stderr,"returned offset %ld, %ld, original request pos %zd\n", offset, pointtopos[offset], requestpos);
