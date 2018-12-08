@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "jobType.h"
+#include <signal.h>
 
 /**
  * spit.c
@@ -127,6 +128,10 @@ void usage() {
 }
 
 
+void intHandler(int d) {
+  fprintf(stderr,"got signal\n");
+  keepRunning = 0;
+}
 
 /**
  * main
@@ -154,6 +159,9 @@ int main(int argc, char *argv[]) {
     d=d*2;
   }
   */
+
+  signal(SIGTERM, intHandler);
+  signal(SIGINT, intHandler);
 
   fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB), time to run %zd sec\n", maxSizeInBytes, TOGiB(maxSizeInBytes), timetorun);
   jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions);

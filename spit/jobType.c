@@ -176,7 +176,7 @@ static void *runThreadTimer(void *arg) {
   diskStatStart(&d);
 
   double start = timedouble(), last = start, thistime = start;
-  while (timedouble() < threadContext->finishtime) {
+  while (keepRunning && timedouble() < threadContext->finishtime) {
     sleep(1);
     
     diskStatFinish(&d);
