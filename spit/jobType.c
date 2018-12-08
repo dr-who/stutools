@@ -87,6 +87,7 @@ typedef struct {
   size_t blockSize;
   size_t queueDepth;
   size_t flushEvery;
+  float rw;
 } threadInfoType;
 
 
@@ -118,10 +119,10 @@ static void *runThread(void *arg) {
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
   }
 
-  if (strchr(threadContext->jobstring,'r')) {
-    fd = open(threadContext->jobdevice, O_RDONLY | direct);
-  } else {
+  if (strchr(threadContext->jobstring,'w')) {
     fd = open(threadContext->jobdevice, O_RDWR | direct);
+  } else {
+    fd = open(threadContext->jobdevice, O_RDONLY | direct);
   }
   if (fd < 0) {
     fprintf(stderr,"problem!!\n");
@@ -139,7 +140,7 @@ static void *runThread(void *arg) {
 
   fprintf(stderr,"*info* [thread %zd] starting '%s' with ", threadContext->id, threadContext->jobstring);
   commaPrint0dp(stderr, threadContext->pos.sz);
-  fprintf(stderr," positions, qd=%zd, flushEvery=%zd\n", threadContext->queueDepth, threadContext->flushEvery);
+  fprintf(stderr," positions, qd=%zd, R/w=%.2g, flushEvery=%zd\n", threadContext->queueDepth, threadContext->rw, threadContext->flushEvery);
   
   aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
@@ -270,13 +271,23 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     threadContext[i].blockSize = bs;
 
     // do this here to allow repeatable random numbers
-    float rw = 0.5;
-    if (strchr(job->strings[i], 'r')) {
-      rw += 0.5;
+    int rcount = 0, wcount = 0, rwtotal = 0;
+    float rw = 0;
+    for (size_t k = 0; k < strlen(job->strings[i]); k++) {
+      if (job->strings[i][k] == 'r') {
+	rcount++;
+	rwtotal++;
+      } else if (job->strings[i][k] == 'w') {
+	wcount++;
+	rwtotal++;
+      }
     }
-    if (strchr(job->strings[i], 'w')) {
-      rw -= 0.5;
+    if (rwtotal == 0) {
+      rw = 0.5; // default to 50/50 mix read/write
+    } else {
+      rw = rcount * 1.0 / rwtotal;
     }
+    threadContext[i].rw = rw;
 
     int flushEvery = 0;
     for (size_t k = 0; k < strlen(job->strings[i]); k++) {

@@ -124,6 +124,9 @@ void usage() {
   fprintf(stderr,"  spit -c rD0                   # 'D' turns off O_DIRECT\n");
   fprintf(stderr,"  spit -c w -cW4rs0             # one thread seq write, one thread wait 4 then random read\n");
   fprintf(stderr,"  spit -c wR42                  # set the per command seed with R\n");
+  fprintf(stderr,"  spit -c wF                    # flush after every write of FF for 10, FFF for 100 ...\n");
+  fprintf(stderr,"  spit -c rrrrw                 # do 4 reads for every write\n");
+  fprintf(stderr,"  spit -c rw                    # mix 50/50 reads/writes\n");
   exit(-1);
 }
 
