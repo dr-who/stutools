@@ -14,11 +14,9 @@
 
 #include "positions.h"
 #include "utils.h"
-#include "blockVerify.h"
   
 int verbose = 0;
 int keepRunning = 1;
-size_t flushEvery = 0;
 
 
 int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun,
