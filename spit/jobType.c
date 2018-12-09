@@ -90,6 +90,7 @@ typedef struct {
   size_t flushEvery;
   float rw;
   size_t random;
+  size_t continuousReseed;
 } threadInfoType;
 
 
@@ -134,11 +135,18 @@ static void *runThread(void *arg) {
   if (threadContext->random > 0) {
     size_t s = threadContext->id + threadContext->pos.sz;
     positionType *p = createPositions(threadContext->random);
+    int didItOnce = 0;
     while (keepRunning && timedouble() < threadContext->finishtime) {
-      setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s++);
-      if (verbose >= 2) {
-	fprintf(stderr,"*info* generating random %zd\n", threadContext->random);
-	dumpPositions(p, "random", threadContext->random, 10);
+      if (!didItOnce || threadContext->continuousReseed) {
+	if (verbose >= 2) {
+	  fprintf(stderr,"*info* reseeding random positions and actions\n");
+	}
+	setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s++);
+	if (verbose >= 2) {
+	  fprintf(stderr,"*info* generating random %zd\n", threadContext->random);
+	  dumpPositions(p, "random", threadContext->random, 10);
+	}
+	didItOnce = 1;
       }
 
       aioMultiplePositions(p, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
@@ -267,6 +275,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     threadContext[i].blockSize = bs;
     threadContext[i].highBlockSize = highbs;
     threadContext[i].random = 0;
+    threadContext[i].continuousReseed = 0;
 
     // do this here to allow repeatable random numbers
     int rcount = 0, wcount = 0, rwtotal = 0;
@@ -312,10 +321,12 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       char *iR = strchr(job->strings[i], 'n');
       if (iR) {// && *(iR+1)) {
 	iRandom = 10000;
+	threadContext[i].continuousReseed = 1;
 	//	iRandom = atoi(iR+1);
       }
     }
     threadContext[i].random = iRandom;
+
 
     int qDepth = 256;
     {
@@ -336,6 +347,16 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	}
       }
     }
+
+    // M option is n with 1000 locations both reading and writing the same places
+    {
+      char *iR = strchr(job->strings[i], 'M');
+      if (iR) {// && *(iR+1)) {
+	threadContext[i].random = 1000;
+	threadContext[i].continuousReseed = 0;
+      }
+    }
+
 
     long startingBlock = -99999;
 
@@ -389,7 +410,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
   // print stats and free
   for (size_t i = 0; i < num; i++) {
-    positionLatencyStats(&threadContext[i].pos, i);
+    if (!threadContext[i].random) {
+      positionLatencyStats(&threadContext[i].pos, i);
+    }
     positionContainerFree(&threadContext[i].pos);
   }
 
