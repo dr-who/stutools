@@ -112,7 +112,7 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
 
 void usage() {
   fprintf(stderr,"\nExamples: \n");
-  fprintf(stderr,"  spit -f device -c ... -c ... -c ... # defaults to 10 seconds\n");
+  fprintf(stderr,"  spit -f device -c ... -c ... -c ... # defaults to 20 seconds\n");
   fprintf(stderr,"  spit -f device -c r           # seq read (s1)\n");
   fprintf(stderr,"  spit -f device -c w           # seq write (s1)\n");
   fprintf(stderr,"  spit -f device -c rs0         # random\n");
@@ -122,7 +122,7 @@ void usage() {
   fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
-  fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds\n");
+  fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds (-t 0 is forever)\n");
   fprintf(stderr,"  spit -f ... -j 32             # duplicate all the commands 32 times\n");
   fprintf(stderr,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stderr,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
