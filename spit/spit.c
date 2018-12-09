@@ -133,6 +133,7 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c rw             # mix 50/50 reads/writes\n");
   fprintf(stderr,"  spit -f ... -c rn -t0         # generate ra(n)dom positions with collisions\n");
   fprintf(stderr,"  spit -f ... -t 0              # -t 0 is run forever\n");
+  fprintf(stderr,"  spit -f ... -c wz             # sequentially write from block 0 (instead of random position)\n");
   
   exit(-1);
 }
