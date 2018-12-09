@@ -111,7 +111,8 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
 }
 
 void usage() {
-  fprintf(stderr,"\nExamples: \n");
+  fprintf(stderr,"\nUsage:\n  spit [-f device] [-c string] [-c string] ... [-c string]\n");
+    fprintf(stderr,"\nExamples:\n");
   fprintf(stderr,"  spit -f device -c ... -c ... -c ... # defaults to 20 seconds\n");
   fprintf(stderr,"  spit -f device -c r           # seq read (s1)\n");
   fprintf(stderr,"  spit -f device -c w           # seq write (s1)\n");
