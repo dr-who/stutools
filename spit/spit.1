@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 1.5.5
-.\"      Date: 2018-12-07
+.\"      Date: 2018-12-09
 .\"    Manual: spit manual
 .\"    Source: spit 1.0
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2018-12-07" "spit 1.0" "spit manual"
+.TH "SPIT" "1" "2018-12-09" "spit 1.0" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -50,14 +50,19 @@ Performs writes
 Multiply the number of commands (\fB\-c\fP) by N
 .RE
 .sp
-\fBk N\fP
+\fBk N\fP or \fBklowBS\-highBS\fP
 .RS 4
-Block size
+Block size or \fIlowblocksize\fP to \fIhighblocksize\fP range.
 .RE
 .sp
 \fBP N\fP
 .RS 4
 Maximum number of positions
+.RE
+.sp
+\fBn\fP
+.RS 4
+Use random positions with replacement
 .RE
 .sp
 \fBq N\fP
@@ -78,6 +83,11 @@ number of contiguous sequence regions
 \fBW N\fP
 .RS 4
 Wait for N seconds
+.RE
+.sp
+\fBz\fP
+.RS 4
+Start sequential reads from block 0
 .RE
 .SS "Examples"
 .sp

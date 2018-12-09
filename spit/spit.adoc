@@ -36,11 +36,14 @@ The command options are described below:
  *j N*::
    Multiply the number of commands (*-c*) by N
    
- *k N*::
-   Block size
+ *k N* or *klowBS-highBS*::
+   Block size or _lowblocksize_ to _highblocksize_ range.
 
  *P N*::
    Maximum number of positions
+
+ *n*::
+   Use random positions with replacement
    
  *q N*::
    Queue depth
@@ -53,6 +56,9 @@ The command options are described below:
 
  *W N*::
    Wait for N seconds
+
+ *z*::
+   Start sequential reads from block 0
 
 === Examples
 
