@@ -418,12 +418,15 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
   }
 
+  // now wait for the timer thread (probably don't need this)
+  pthread_join(pt[num], NULL);
+  if (verbose) {
+    fprintf(stderr,"*info* timer finished... waiting for command threads\n");
+  }
   // wait for all threads
   for (size_t i = 0; i < num; i++) {
     pthread_join(pt[i], NULL);
   }
-  // now wait for the timer thread (probably don't need this)
-  pthread_join(pt[num], NULL);
 
   // print stats and free
   for (size_t i = 0; i < num; i++) {
