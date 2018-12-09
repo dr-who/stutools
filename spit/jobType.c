@@ -114,11 +114,7 @@ static void *runThread(void *arg) {
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
   }
 
-  if (strchr(threadContext->jobstring,'w')) {
-    fd = open(threadContext->jobdevice, O_RDWR | direct);
-  } else {
-    fd = open(threadContext->jobdevice, O_RDONLY | direct);
-  }
+  fd = open(threadContext->jobdevice, O_RDWR | direct);
   if (fd < 0) {
     fprintf(stderr,"problem!!\n");
     perror(threadContext->jobdevice); return 0;
