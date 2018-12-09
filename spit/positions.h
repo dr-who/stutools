@@ -1,7 +1,8 @@
 #ifndef _POSITIONS_H
 #define _POSITIONS_H
 
-#include "cigar.h"
+#include <stdio.h>
+
 #include "devices.h"
 
 typedef struct {
@@ -38,7 +39,6 @@ void setupPositions(positionType *positions,
 		    size_t alignment,
 		    const long startingBlock,
 		    const size_t actualBlockDeviceSize,
-		    cigartype *cigar,
 		    long seed);
 
 void simpleSetupPositions(positionType *positions,

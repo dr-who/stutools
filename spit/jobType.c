@@ -402,7 +402,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
     if (!iRandom) {
       positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-      setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, NULL, threadContext[i].seed);
+      setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
       if (checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize)) {
 	abort();
       }
