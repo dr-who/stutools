@@ -135,8 +135,9 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c rn -t0         # generate ra(n)dom positions with collisions\n");
   fprintf(stderr,"  spit -f ... -t 0              # -t 0 is run forever\n");
   fprintf(stderr,"  spit -f ... -c wz             # sequentially write from block 0 (instead of random position)\n");
-  fprintf(stderr,"  spit -f ... -c n              # n is for random positions with replacement, reseeding continuously\n");
-  fprintf(stderr,"  spit -f ... -c M              # M simulates meta-data, 1000 positions, with replacement, no reseeding\n");
+  fprintf(stderr,"  spit -f ... -c n              # n is for random positions with replacement, with reseeding\n");
+  fprintf(stderr,"  spit -f ... -c M              # M simulates filesystem meta-data, 1000 locations with replacement, no reseeding\n");
+  fprintf(stderr,"  spit -f ... -c ws32 -c rs0 -c M -j32  # busy file system test, 32 x 3 threads\n");
   exit(-1);
 }
 
