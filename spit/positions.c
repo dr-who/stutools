@@ -599,29 +599,37 @@ void setupRandomPositions(positionType *pos,
 			  const size_t highbs,
 			  const size_t alignment,
 			  const size_t bdSize,
-			  const size_t seedin) {
+			  const size_t seedin,
+			  const int onlyOnce) {
   unsigned int seed = seedin;
   const int alignbits = (int)(log(alignment)/log(2) + 0.01);
   const int bdSizeBits = (bdSize-highbs) >> alignbits;
 
+  for (size_t i = 0; i < num; i++) {
+    if (!onlyOnce && (i == num/2)) {
+      seed = seedin; // reseed way way through 
+    }
+    long low = rand_r(&seed);
+    long randVal = rand_r(&seed);
+    randVal = (randVal << 31) | low;
+
+    size_t randPos = (randVal % (bdSizeBits+1)) << alignbits;
+    assert (randPos + bs  <= bdSize); // clearly a bug
+    pos[i].pos = randPos;
+  }
+
+  
   for (size_t i = 0; i < num; i++) {
     long low = rand_r(&seed);
     long randVal = rand_r(&seed);
     randVal = (randVal << 31) | low;
 
     size_t thislen = randomBlockSize(bs, highbs, alignbits, randVal);
-
-    low = rand_r(&seed);
-    randVal = rand_r(&seed);
-    randVal = (randVal << 31) | low;
-
-    size_t randPos = (randVal % (bdSizeBits+1)) << alignbits;
-
-    //    fprintf(stderr,"randpos %zd len %zd bdSize %zd\n", randPos, thislen, bdSize);
-
-    assert (randPos + thislen <= bdSize); // clearly a bug
-    pos[i].pos = randPos;
+    if (pos[i].pos + thislen > bdSize) {
+      pos[i].pos = bdSize - thislen;
+    }
     pos[i].len = thislen;
+    assert (pos[i].pos + pos[i].len  <= bdSize); // clearly a bug
 
     if (rand_r(&seed) % 100 < 100*rw) {
       pos[i].action = 'R';
@@ -631,7 +639,6 @@ void setupRandomPositions(positionType *pos,
     pos[i].success = 0;
     pos[i].submittime = 0;
     pos[i].finishtime= 0;
-    //    fprintf(stderr,"%zd\t%zd\t%c\n",randPos, thislen, pos[i].action);
   }
   // informational messages
   if (verbose >= 2) {
@@ -656,3 +663,22 @@ void setupRandomPositions(positionType *pos,
   }
 
 }
+
+
+size_t numberOfDuplicates(positionType *pos, size_t const num) {
+  size_t dup = 0, da = 0;
+  for (size_t i = 0; i < num; i++) {
+    for (size_t j = 0; j < num; j++) if (i != j) {
+	if (pos[i].pos == pos[j].pos) {
+	  dup++;
+	  if (pos[i].action != pos[j].action) {
+	    da++;
+	  }
+	}
+      }
+  }
+  fprintf(stderr,"*info* number of duplicate pos %zd, different actions %zd, from a list of %zd\n", dup, da, num);
+  return dup;
+}
+  
+    

@@ -74,7 +74,11 @@ void setupRandomPositions(positionType *pos,
 			  const size_t highbs,
 			  const size_t alignment,
 			  const size_t bdSize,
-			  const size_t seedin);
+			  const size_t seedin,
+			  const int onlyOnce);
+
+
+size_t numberOfDuplicates(positionType *pos, size_t const num);
 
 #endif
 

@@ -141,7 +141,11 @@ static void *runThread(void *arg) {
 	if (verbose >= 2) {
 	  fprintf(stderr,"*info* reseeding random positions and actions\n");
 	}
-	setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s);
+	setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s, threadContext->continuousReseed);
+	if (verbose >= 3) {
+	  numberOfDuplicates(p, threadContext->random);
+	}
+	
 	if (verbose >= 2) {
 	  fprintf(stderr,"*info* generating random %zd, bdSize %zd (%.g GiB), seed %zd\n", threadContext->random, threadContext->bdSize, TOGiB(threadContext->bdSize), s);
 	  dumpPositions(p, "random", threadContext->random, 20);
@@ -363,7 +367,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     {
       char *iR = strchr(job->strings[i], 'M');
       if (iR) {// && *(iR+1)) {
-	threadContext[i].random = 1000;
+	threadContext[i].random = 1000; 
 	threadContext[i].continuousReseed = 0;
       }
     }
