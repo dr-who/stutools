@@ -366,7 +366,8 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     // M option is n with 1000 locations both reading and writing the same places
     {
       char *iR = strchr(job->strings[i], 'M');
-      if (iR) {// && *(iR+1)) {
+      char *iR2 = strchr(job->strings[i], 'm');
+      if (iR || iR2) {// && *(iR+1)) {
 	threadContext[i].random = 1000; 
 	threadContext[i].continuousReseed = 0;
       }
