@@ -103,9 +103,9 @@ static void *runThread(void *arg) {
   logSpeedInit(&benchl);
 
   char *randomBuffer;
-  CALLOC(randomBuffer, threadContext->blockSize, 1);
-  memset(randomBuffer, 0, threadContext->blockSize);
-  generateRandomBufferCyclic(randomBuffer, threadContext->blockSize, 0, 4096);
+  CALLOC(randomBuffer, threadContext->highBlockSize, 1);
+  memset(randomBuffer, 0, threadContext->highBlockSize);
+  generateRandomBufferCyclic(randomBuffer, threadContext->highBlockSize, 0, 1024); // repeat on 1024 boundaries
 
   size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
   int fd,  direct = O_DIRECT;
@@ -145,11 +145,11 @@ static void *runThread(void *arg) {
 	dumpPositions(p, "random", threadContext->random, 10);
       }
 
-      aioMultiplePositions(p, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
+      aioMultiplePositions(p, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
     }
     freePositions(p);
   } else {
-    aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->blockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
+    aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   }
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   close(fd);
@@ -269,8 +269,8 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     threadContext[i].finishtime = finishtime;
     threadContext[i].waitfor = 0;
     threadContext[i].blockSize = bs;
-    threadContext[i].random = 0;
     threadContext[i].highBlockSize = highbs;
+    threadContext[i].random = 0;
 
     // do this here to allow repeatable random numbers
     int rcount = 0, wcount = 0, rwtotal = 0;
