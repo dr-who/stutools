@@ -29,8 +29,8 @@ static int poscompare(const void *p1, const void *p2)
 positionType *createPositions(size_t num) {
   positionType *p;
   if (num == 0) {
-    fprintf(stderr,"*warning* createPositions num was 0?\n");
-    return NULL;
+    fprintf(stderr,"*error* createPositions num was 0. Exiting.\n");
+    exit(1);
   }
   //fprintf(stderr,"create positions %zd\n", num);
   CALLOC(p, num, sizeof(positionType));
@@ -225,7 +225,7 @@ void setupPositions(positionType *positions,
 	  positionType *poss2 = realloc(poss, possAlloc * sizeof(positionType));
 	  if (!poss) {fprintf(stderr,"OOM: breaking from setup array\n");break;}
 	  else {
-	    if (verbose >= 2) {
+	    if (verbose >= 3) {
 	      fprintf(stderr,"*info*: new position size %.1lf MB array\n", TOMiB(possAlloc * sizeof(positionType)));
 	    }
 	    poss = poss2; // point to the new array
@@ -615,9 +615,11 @@ void setupRandomPositions(positionType *pos,
     randVal = rand_r(&seed);
     randVal = (randVal << 31) | low;
 
-    size_t randPos = (randVal % bdSizeBits) << alignbits;
+    size_t randPos = (randVal % (bdSizeBits+1)) << alignbits;
 
-    assert (randPos + thislen <= bdSize);
+    //    fprintf(stderr,"randpos %zd len %zd bdSize %zd\n", randPos, thislen, bdSize);
+
+    assert (randPos + thislen <= bdSize); // clearly a bug
     pos[i].pos = randPos;
     pos[i].len = thislen;
 
@@ -631,4 +633,26 @@ void setupRandomPositions(positionType *pos,
     pos[i].finishtime= 0;
     //    fprintf(stderr,"%zd\t%zd\t%c\n",randPos, thislen, pos[i].action);
   }
+  // informational messages
+  if (verbose >= 2) {
+    int found = 0;
+    for (size_t i = 0; i < num; i++)
+      if (pos[i].pos == 0) {
+	found = 1;
+      }
+    if (!found) {
+      fprintf(stderr,"*warning* unusual that position 0 isn't in the list of positions\n");
+    }
+
+    // look for last
+    found = 0;
+    for (size_t i = 0; i < num; i++)
+      if (pos[i].pos == bdSize - bs) {
+	found = 1;
+      }
+    if (!found) {
+      fprintf(stderr,"*warning* unusual that position %zd isn't in the list of positions\n", bdSize-bs);
+    }
+  }
+
 }

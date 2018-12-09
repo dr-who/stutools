@@ -124,7 +124,7 @@ size_t aioMultiplePositions( positionType *positions,
   size_t lastBytes = 0, lastIOCount = 0;
   struct timespec timeout;
   timeout.tv_sec = 0;
-  timeout.tv_nsec = 1*1000*1000; // 0.001 seconds
+  timeout.tv_nsec = 100*1000; // 0.0001 seconds
 
   double flush_totaltime = 0, flush_mintime = 9e99, flush_maxtime = 0;
   size_t flush_count = 0;
@@ -229,7 +229,7 @@ size_t aioMultiplePositions( positionType *positions,
 	  lastIOCount = received;
 	  last = thistime;
 	  //	  if ((!keepRunning) || (gt >= finishtime)) {
-	    //	    fprintf(stderr,"timeout %lf ... %lf\n", gt, finishtime);
+	  //	    fprintf(stderr,"timeout %lf ... %lf\n", gt, finishtime);
 	  //	    goto endoffunction;
 	  //	  }
 	}
@@ -254,7 +254,7 @@ size_t aioMultiplePositions( positionType *positions,
 	  if (elapsed_f > flush_maxtime) flush_maxtime = elapsed_f;
 	}
       }
-  }
+    }
 
     if (inFlight < 5) { // then don't timeout
       ret = io_getevents(ioc, 1, QD, events, NULL);
@@ -262,15 +262,6 @@ size_t aioMultiplePositions( positionType *positions,
       ret = io_getevents(ioc, 1, QD, events, &timeout);
     }
     lastreceive = timedouble(); // last good receive
-
-    // if stop running or been running long enough
-    //    if ((!keepRunning) || (gt >= finishtime)) {
-    //      if (gt - last > 1) { // if it's been over a second since per-second output
-    //	if (received > 0) {
-    //	  break;
-    //	}
-    //      }
-    //  }
 
     if (ret > 0) {
       // verify it's all ok

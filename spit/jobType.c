@@ -90,6 +90,7 @@ typedef struct {
   size_t flushEvery;
   float rw;
   size_t random;
+  size_t seed;
   size_t continuousReseed;
 } threadInfoType;
 
@@ -130,29 +131,39 @@ static void *runThread(void *arg) {
   }
 
 
-  fprintf(stderr,"*info* [thread %zd] starting '%s' with %zd positions, qd=%zd, R/w=%.2g, flushEvery=%zd, k=[%zd,%zd]\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize);
 
+  int didItOnce = 0;
   if (threadContext->random > 0) {
-    size_t s = threadContext->id + threadContext->pos.sz;
+    size_t s = threadContext->seed;
     positionType *p = createPositions(threadContext->random);
-    int didItOnce = 0;
     while (keepRunning && timedouble() < threadContext->finishtime) {
       if (!didItOnce || threadContext->continuousReseed) {
 	if (verbose >= 2) {
 	  fprintf(stderr,"*info* reseeding random positions and actions\n");
 	}
-	setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s++);
+	setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s);
 	if (verbose >= 2) {
-	  fprintf(stderr,"*info* generating random %zd\n", threadContext->random);
-	  dumpPositions(p, "random", threadContext->random, 10);
+	  fprintf(stderr,"*info* generating random %zd, bdSize %zd (%.g GiB), seed %zd\n", threadContext->random, threadContext->bdSize, TOGiB(threadContext->bdSize), s);
+	  dumpPositions(p, "random", threadContext->random, 20);
 	}
-	didItOnce = 1;
+	s++; // next seed for continuous
       }
 
+      if (!didItOnce) {
+	fprintf(stderr,"*info* [thread %zd] starting '%s' with %zd positions, qd=%zd, R/w=%.2g, flushEvery=%zd, k=[%zd,%zd]\n", threadContext->id, threadContext->jobstring, threadContext->random, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize);
+	didItOnce = 1;
+      }
+	
       aioMultiplePositions(p, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
+
     }
     freePositions(p);
   } else {
+    if (!didItOnce) {
+      fprintf(stderr,"*info* [thread %zd] starting '%s' with %zd positions, qd=%zd, R/w=%.2g, flushEvery=%zd, k=[%zd,%zd]\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize);
+      didItOnce = 1;
+    }
+
     aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1, 0, NULL, &benchl, randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   }
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
@@ -357,35 +368,36 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
 
-
+    // z
     long startingBlock = -99999;
-
     if (strchr(job->strings[i], 'z')) {
       startingBlock = 0;
     }
+
+    // R
     size_t seed = i;
     {
       char *RChar = strchr(job->strings[i], 'R');
       if (RChar && *(RChar+1)) {
-	size_t seed = atoi(RChar + 1);
+	seed = atol(RChar+1);
 	srand48(seed);
       }
     }
+    threadContext[i].seed = seed;
 
-    char *Wchar = strchr(job->strings[i], 'W');
+    char *Wchar = strchr(job->strings[i], 'S');
     if (Wchar && *(Wchar+1)) {
       size_t waitfor = atoi(Wchar + 1);
       if (waitfor > timetorun) {
 	waitfor = timetorun;
 	fprintf(stderr,"*warning* waiting decreased to %zd\n", waitfor);
       }
-      
       threadContext[i].waitfor = waitfor;
     }
 
     if (!iRandom) {
       positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-      setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, NULL, seed);
+      setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, NULL, threadContext[i].seed);
       if (checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize)) {
 	abort();
       }

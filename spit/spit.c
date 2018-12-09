@@ -120,14 +120,14 @@ void usage() {
   fprintf(stderr,"  spit -f device -c ws128       # 128 parallel writes\n");
   fprintf(stderr,"  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions\n");
   fprintf(stderr,"  spit -f device -c k8          # set block size to 8 KiB\n");
-  fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
+  fprintf(stderr,"  spit -f device -c S5          # sleep for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
   fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds (-t 0 is forever)\n");
   fprintf(stderr,"  spit -f ... -j 32             # duplicate all the commands 32 times\n");
   fprintf(stderr,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stderr,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
-  fprintf(stderr,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread wait 4 then random read\n");
+  fprintf(stderr,"  spit -f ... -c w -cS4rs0      # one thread seq write, one thread sleep 4 then random read\n");
   fprintf(stderr,"  spit -f ... -c wR42           # set the per command seed with R\n");
   fprintf(stderr,"  spit -f ... -c wF             # flush after every write of FF for 10, FFF for 100 ...\n");
   fprintf(stderr,"  spit -f ... -c rrrrw          # do 4 reads for every write\n");
