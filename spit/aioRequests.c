@@ -204,7 +204,7 @@ size_t aioMultiplePositions( positionType *positions,
 	  pos++;
 	  if (pos >= sz) {
 	    if (oneShot) {
-	      	      fprintf(stderr,"end of function one shot\n");
+	      //	      	      fprintf(stderr,"end of function one shot\n");
 	      goto endoffunction; // only go through once
 	    }
 	    pos = 0; // don't go over the end of the array
@@ -373,11 +373,16 @@ size_t aioMultiplePositions( positionType *positions,
   }
   free(cbs);
   //  free(data[0]);
+
+  free(data[0]);
   free(data);
   free(dataread[0]);
   free(dataread);
   free(pointtopos);
+  free(pointtoposread);
   free(posInFlight);
+  free(stillInFlight);
+  free(freeQueue);
   //  io_destroy(ctx);
   
 
@@ -386,8 +391,6 @@ size_t aioMultiplePositions( positionType *positions,
   *totalWB = totalWriteBytes;
   *totalRB = totalReadBytes;
 
-  close(fd);
-  
   return (*totalWB) + (*totalRB);
 }
 
@@ -497,7 +500,6 @@ int aioVerifyWrites(positionType *positions,
   fprintf(stderr,"checked %zd/%zd blocks, I/O errors %zd, errors/incorrect %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, posTOV, ioerrors, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
 
 
-  close(fd);
   free(buffer);
 
   return ioerrors + errors;

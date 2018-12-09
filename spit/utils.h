@@ -58,7 +58,7 @@ char *getSuffix(const char *path);
 char *getScheduler(const char *path);
 
 size_t alignedNumber(size_t num, size_t alignment);
-size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits);
+size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits, const size_t randomValue);
 
   
 

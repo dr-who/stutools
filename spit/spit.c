@@ -21,7 +21,7 @@ int keepRunning = 1;
 size_t flushEvery = 0;
 
 
-void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun,
+int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun,
 		 size_t *dumpPositions) {
   int opt;
 
@@ -68,6 +68,9 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
       break;
     case 't':
       *timetorun = atoi(optarg);
+      if (*timetorun == 0) {
+	*timetorun = (size_t)-1; // run for ever
+      }
       break;
     default:
       exit(1);
@@ -76,8 +79,8 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
   }
 
   if (!device) {
-    fprintf(stderr,"*error* you are missing the -f device\n");
-    exit(1);
+    //    fprintf(stderr,"*error* you are missing the -f device\n");
+    return 1;
   }
 
   // first assign the device
@@ -104,6 +107,7 @@ void handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, siz
     }
   }
 
+  return 0;
 }
 
 void usage() {
@@ -118,15 +122,18 @@ void usage() {
   fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
-  fprintf(stderr,"  spit -t 50                    # run for 50 seconds\n");
-  fprintf(stderr,"  spit -j 32                    # duplicate all the commands 32 times\n");
-  fprintf(stderr,"  spit -d 10                    # dump the first 10 positions per command\n");
-  fprintf(stderr,"  spit -c rD0                   # 'D' turns off O_DIRECT\n");
-  fprintf(stderr,"  spit -c w -cW4rs0             # one thread seq write, one thread wait 4 then random read\n");
-  fprintf(stderr,"  spit -c wR42                  # set the per command seed with R\n");
-  fprintf(stderr,"  spit -c wF                    # flush after every write of FF for 10, FFF for 100 ...\n");
-  fprintf(stderr,"  spit -c rrrrw                 # do 4 reads for every write\n");
-  fprintf(stderr,"  spit -c rw                    # mix 50/50 reads/writes\n");
+  fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds\n");
+  fprintf(stderr,"  spit -f ... -j 32             # duplicate all the commands 32 times\n");
+  fprintf(stderr,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
+  fprintf(stderr,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
+  fprintf(stderr,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread wait 4 then random read\n");
+  fprintf(stderr,"  spit -f ... -c wR42           # set the per command seed with R\n");
+  fprintf(stderr,"  spit -f ... -c wF             # flush after every write of FF for 10, FFF for 100 ...\n");
+  fprintf(stderr,"  spit -f ... -c rrrrw          # do 4 reads for every write\n");
+  fprintf(stderr,"  spit -f ... -c rw             # mix 50/50 reads/writes\n");
+  fprintf(stderr,"  spit -f ... -c rn -t0         # generate ra(n)dom positions with collisions\n");
+  fprintf(stderr,"  spit -f ... -t 0              # -t 0 is run forever\n");
+  
   exit(-1);
 }
 

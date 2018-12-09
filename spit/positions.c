@@ -216,7 +216,7 @@ void setupPositions(positionType *positions,
     for (size_t i = 0; i < toalloc; i++) {
       size_t j = positionsStart[i]; // while in the range
       if (j < positionsEnd[i]) {
-	const size_t thislen = randomBlockSize(lowbs, bs, alignbits);
+	const size_t thislen = randomBlockSize(lowbs, bs, alignbits, lrand48());
 	assert(thislen >= 0);
 
 	// grow destination array
@@ -592,3 +592,43 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   }
 }
   
+void setupRandomPositions(positionType *pos,
+			  const size_t num,
+			  const double rw,
+			  const size_t bs,
+			  const size_t highbs,
+			  const size_t alignment,
+			  const size_t bdSize,
+			  const size_t seedin) {
+  unsigned int seed = seedin;
+  const int alignbits = (int)(log(alignment)/log(2) + 0.01);
+  const int bdSizeBits = (bdSize-highbs) >> alignbits;
+
+  for (size_t i = 0; i < num; i++) {
+    long low = rand_r(&seed);
+    long randVal = rand_r(&seed);
+    randVal = (randVal << 31) | low;
+
+    size_t thislen = randomBlockSize(bs, highbs, alignbits, randVal);
+
+    low = rand_r(&seed);
+    randVal = rand_r(&seed);
+    randVal = (randVal << 31) | low;
+
+    size_t randPos = (randVal % bdSizeBits) << alignbits;
+
+    assert (randPos + thislen <= bdSize);
+    pos[i].pos = randPos;
+    pos[i].len = thislen;
+
+    if (rand_r(&seed) % 100 < 100*rw) {
+      pos[i].action = 'R';
+    } else {
+      pos[i].action = 'W';
+    }
+    pos[i].success = 0;
+    pos[i].submittime = 0;
+    pos[i].finishtime= 0;
+    //    fprintf(stderr,"%zd\t%zd\t%c\n",randPos, thislen, pos[i].action);
+  }
+}
