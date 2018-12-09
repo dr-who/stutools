@@ -372,7 +372,6 @@ size_t aioMultiplePositions( positionType *positions,
     free(cbs[i]);
   }
   free(cbs);
-  //  free(data[0]);
 
   free(data[0]);
   free(data);
@@ -383,7 +382,7 @@ size_t aioMultiplePositions( positionType *positions,
   free(posInFlight);
   free(stillInFlight);
   free(freeQueue);
-  //  io_destroy(ctx);
+  io_destroy(ioc);
   
 
   *ios = received;
