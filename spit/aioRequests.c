@@ -25,7 +25,7 @@ size_t aioMultiplePositions( positionType *positions,
 			     logSpeedType *benchl,
 			     char *randomBuffer,
 			     const size_t randomBufferSize,
-			     const size_t alignment,
+			     size_t alignment,
 			     size_t *ios,
 			     size_t *totalRB,
 			     size_t *totalWB,
@@ -43,6 +43,8 @@ size_t aioMultiplePositions( positionType *positions,
   io_setup(QD, &ioc);
   
   assert(QD);
+  if (!alignment) alignment=512;
+  assert(alignment);
 
   CALLOC(events, QD, sizeof(struct io_event));
   CALLOC(cbs, QD, sizeof(struct iocb*));
@@ -150,7 +152,7 @@ size_t aioMultiplePositions( positionType *positions,
 	    int read = (positions[pos].action == 'R');
 
 	    qdIndex = freeQueue[headOfQueue++]; if (headOfQueue >= QD) headOfQueue = 0;
-	    assert(stillInFlight[qdIndex] == 0);
+	    //assert(stillInFlight[qdIndex] == 0);
 
 	    // setup the request
 	    if (fd >= 0) {
@@ -159,7 +161,7 @@ size_t aioMultiplePositions( positionType *positions,
 		io_prep_pread(cbs[qdIndex], fd, dataread[qdIndex], len, newpos);
 
 		const long offset = dataread[qdIndex] - dataread[0];
-		assert(offset < randomBufferSize * QD);
+		assert(offset <= randomBufferSize * QD);
 		pointtoposread[offset] = qdIndex; // from memory offset to qdIndex
 		
 		posInFlight[qdIndex] = pos; // from qdIndex back to the position array
@@ -173,7 +175,7 @@ size_t aioMultiplePositions( positionType *positions,
 
 
 		const long offset = data[qdIndex] - data[0];
-		assert(offset < randomBufferSize * QD);
+		assert(offset <= randomBufferSize * QD);
 		pointtopos[offset] = qdIndex; // from memory offset to qdIndex
 		
 		posInFlight[qdIndex] = pos; // from qdIndex back to the position array
@@ -191,7 +193,7 @@ size_t aioMultiplePositions( positionType *positions,
 		inFlight++;
 		lastsubmit = thistime; // last good submit
 		submitted++;
-		if (verbose >= 2 || (newpos & (alignment-1))) {
+		if (verbose >= 2 || (newpos % alignment)) {
 		  fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 		}
 	      
@@ -274,7 +276,7 @@ size_t aioMultiplePositions( positionType *positions,
 	int rescode = events[j].res;
 	int rescode2 = events[j].res2;
 
-	if ((rescode <= 0) || (rescode2 != 0)) { // if return of bytes written or read
+	if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
 	  if (!printed) {
 	    fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s)\n", rescode, strerror(-rescode), rescode2, strerror(-rescode2));
 	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
@@ -290,13 +292,13 @@ size_t aioMultiplePositions( positionType *positions,
 	  struct iocb *my_iocb = events[j].obj;
 	  long offset = (char*)my_iocb->u.c.buf - (char*)(dataread[0]);
 	  size_t requestpos, qd_indx = 0;
-	  if (offset>=0 && offset < randomBufferSize * QD) {
+	  if (offset>=0 && offset <= randomBufferSize * QD) {
 	    // read range
 	    qd_indx = pointtoposread[offset];
 	  } else {
 	    // write range
 	    offset = (char*)my_iocb->u.c.buf - (char*)(data[0]);
-	    if (offset >= 0 && offset < randomBufferSize * QD) {
+	    if (offset >= 0 && offset <= randomBufferSize * QD) {
 	      qd_indx = pointtopos[offset];
 	    } else {
 	      // maybe a flush
@@ -438,7 +440,7 @@ int aioVerifyWrites(positionType *positions,
 	const size_t pos = positions[i].pos;
 	const size_t len = positions[i].len;
 	assert(len <= maxBufferSize);
-	assert(len > 0);
+	assert(len >= 0);
 	
 	if (lseek(fd, pos, SEEK_SET) == -1) {
 	  if (errors + ioerrors < 10) {

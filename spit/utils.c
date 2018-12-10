@@ -443,19 +443,26 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
 
 
 size_t alignedNumber(size_t num, size_t alignment) {
-  size_t ret = num / alignment;
-  if (num % alignment > num/2) {
-    ret++;
-  }
-  ret = ret * alignment;
+  size_t ret = num;
+  if (alignment) {
+    ret = num / alignment;
+    if (num % alignment > num/2) {
+      ret++;
+    }
+    ret = ret * alignment;
 
-  //  fprintf(stderr,"requested %zd returned %zd\n", num, ret);
+    //  fprintf(stderr,"requested %zd returned %zd\n", num, ret);
+  }
 
   return ret;
 }
 
 // return the blockSize
 inline size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits, size_t randomValue) {
+  if (highbsBytes == 0) {
+    return 0;
+  }
+  
   assert(alignmentbits < 100);
 
   size_t lowbs_k = lowbsBytes >> alignmentbits; // 1 / 4096 = 0

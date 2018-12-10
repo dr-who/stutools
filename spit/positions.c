@@ -52,8 +52,8 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
   positionType *p = (positionType *)positions;
   for (size_t j = 0; j < num; j++) {
     if (p->len == 0) {
-      fprintf(stderr,"len is 0!\n");
-      abort();
+      //      fprintf(stderr,"len is 0!\n");
+      //      abort();
     }
     if (p->len < sizelow) {
       sizelow = p->len;
@@ -70,8 +70,8 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
   }
 
   if (sizelow <= 0) {
-    fprintf(stderr,"size low 0!\n");
-    abort();
+    //    fprintf(stderr,"size low 0!\n");
+    //    abort();
   }
   // check all positions are aligned to low and high lengths
   p = (positionType *) positions;
@@ -183,7 +183,8 @@ void setupPositions(positionType *positions,
   size_t possAlloc = 1024*10, count = 0, totalLen = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
 
-  const int alignbits = (int)(log(alignment)/log(2) + 0.01);
+  int alignbits = 9; // 512 
+  if (alignment) alignbits = (int)(log(alignment)/log(2) + 0.01);
   //  if (1<<alignbits != alignment) {
   //    fprintf(stderr,"*error* alignment of %zd not suitable, changing to %d\n", alignment, 1<<alignbits);
   //    alignment = 1<< alignbits;
@@ -191,6 +192,7 @@ void setupPositions(positionType *positions,
 
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
+
   size_t *positionsStart, *positionsEnd;
   const int toalloc = (sf == 0) ? 1 : abs(sf);
   CALLOC(positionsStart, toalloc, sizeof(size_t));
@@ -202,7 +204,7 @@ void setupPositions(positionType *positions,
     positionsEnd[toalloc-1] = bdSizeTotal;
 
     if (verbose >= 2) {
-      fprintf(stderr,"*info* alignment start %zd: %zd (block %zd)\n", i, positionsStart[i], positionsStart[i] / bs);
+      fprintf(stderr,"*info* alignment start %zd: %zd\n", i, positionsStart[i]);
     }
   }
 
@@ -216,7 +218,7 @@ void setupPositions(positionType *positions,
       size_t j = positionsStart[i]; // while in the range
       if (j < positionsEnd[i]) {
 	const size_t thislen = randomBlockSize(lowbs, bs, alignbits, lrand48());
-	assert(thislen >= 0);
+	//	assert(thislen >= 0);
 
 	// grow destination array
 	if (count >= possAlloc) {
@@ -239,8 +241,13 @@ void setupPositions(positionType *positions,
 	assert(poss[count].len >= 0);
 	//	poss[count].dev = dev;
 	poss[count].seed = seed;
+	poss[count].submittime = 0;
+	poss[count].finishtime = 0;
+	poss[count].success = 0;
+	
 	
 	positionsStart[i] += thislen;
+	if (thislen == 0) {positionsStart[i] += 512;} // if len is 0, still increment
 	
 	count++;
 	nochange = 0;
