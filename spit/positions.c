@@ -159,10 +159,11 @@ void setupPositions(positionType *positions,
 		    const double readorwrite,
 		    const size_t lowbs,
 		    const size_t bs,
-		    size_t alignment,
+		    const size_t alignment,
 		    const long startingBlock,
 		    const size_t bdSizeTotal,
-		    long seed
+		    const long seed,
+		    const size_t skipEvery
 		    ) {
   assert(lowbs <= bs);
   assert(positions);
@@ -312,6 +313,10 @@ void setupPositions(positionType *positions,
   free(poss); // free the possible locations
   free(positionsStart);
   free(positionsEnd);
+
+  if (skipEvery) {
+    skipPositions(positions, *num, skipEvery);
+  }
 }
 
 
@@ -331,6 +336,7 @@ void simpleSetupPositions(positionType *positions,
 		 bs, // alignment
 		 startingBlock,
 		 bdSizeBytes,
+		 0,
 		 0); // seed
 }
 
@@ -421,9 +427,13 @@ void findSeedMaxBlock(positionType *positions, const size_t num, long *seed, siz
   
 void dumpPositions(positionType *positions, const char *prefix, const size_t num, const size_t countToShow) {
   fprintf(stderr,"%s: total number of positions %zd\n", prefix, num);
+  size_t print = 0;
   for (size_t i = 0; i < num; i++) {
-    if (i >= countToShow) break;
-    fprintf(stderr,"%s: [%zd] action %c pos %zd len %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len);
+    if (positions[i].action != 'S') {
+      if (print >= countToShow) break;
+      fprintf(stderr,"%s: [%zd] action %c pos %zd len %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len);
+      print++;
+    }
   }
 }
 
@@ -595,6 +605,19 @@ size_t numberOfDuplicates(positionType *pos, size_t const num) {
   }
   fprintf(stderr,"*info* number of duplicate pos %zd, different actions %zd, from a list of %zd\n", dup, da, num);
   return dup;
+}
+  
+void skipPositions(positionType *pos, const size_t num, const size_t skipEvery) {
+  if (skipEvery >= 2) {
+    for (size_t i = 0; i < num; i++) {
+      if (((i+1) % skipEvery) == 0) {
+	pos[i].action = 'S';
+	if (verbose >= 2) {
+	  fprintf(stderr,"*info* skipping index %zd, position %zd\n", i, pos[i].pos);
+	}
+      }
+    }
+  }
 }
   
     

@@ -36,10 +36,11 @@ void setupPositions(positionType *positions,
 		    const double readorwrite,
 		    const size_t lowbs,
 		    const size_t bs,
-		    size_t alignment,
+		    const size_t alignment,
 		    const long startingBlock,
 		    const size_t actualBlockDeviceSize,
-		    long seed);
+		    const long seed,
+		    const size_t skipEvery);
 
 void simpleSetupPositions(positionType *positions,
 			  size_t *num,
@@ -79,6 +80,7 @@ void setupRandomPositions(positionType *pos,
 
 
 size_t numberOfDuplicates(positionType *pos, size_t const num);
+void skipPositions(positionType *pos, const size_t num, const size_t skipEvery);
 
 #endif
 

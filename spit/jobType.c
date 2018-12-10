@@ -92,6 +92,7 @@ typedef struct {
   size_t random;
   size_t seed;
   size_t continuousReseed;
+  size_t skipEvery;
 } threadInfoType;
 
 
@@ -322,7 +323,31 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
     threadContext[i].flushEvery = flushEvery;
+
+    // a1 skips after each only
+    size_t skipEvery = 0;
+    {
+      char *sE = strchr(job->strings[i], 'a');
+      if (sE && *(sE+1)) {
+	skipEvery = atoi(sE+1);
+	if (skipEvery < 2)
+	  skipEvery = 2;
+      }
+    }
+    threadContext[i].skipEvery = skipEvery;
     
+    // flush
+    for (size_t k = 0; k < strlen(job->strings[i]); k++) {
+      if (job->strings[i][k] == 'F') {
+	if (flushEvery == 0) {
+	  flushEvery = 1;
+	} else {
+	  flushEvery *= 10;
+	}
+      }
+    }
+    threadContext[i].flushEvery = flushEvery;
+
     int seqFiles = 1;
     {
       char *sf = strchr(job->strings[i], 's');
@@ -402,10 +427,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
     if (!iRandom) {
       positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-      setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+      setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed, skipEvery);
       if (checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize)) {
 	abort();
       }
+    } else {
       if (dumpPositionsN) {
 	dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPositionsN);
       }
