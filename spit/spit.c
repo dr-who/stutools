@@ -134,7 +134,7 @@ void usage() {
   fprintf(stderr,"  spit -f ... -t 0              # -t 0 is run forever\n");
   fprintf(stderr,"  spit -f ... -c wz             # sequentially write from block 0 (instead of random position)\n");
   fprintf(stderr,"  spit -f ... -c n              # n is for random positions with replacement, with reseeding\n");
-  fprintf(stderr,"  spit -f ... -c M              # M simulates filesystem meta-data, 1000 locations with replacement, no reseeding\n");
+  fprintf(stderr,"  spit -f ... -c M              # M simulates filesystem meta-data, 100,000 locations with replacement, no reseeding\n");
   fprintf(stderr,"  spit -f ... -c ws32 -c rs0 -c M -j32  # busy file system test, 32 x 3 threads\n");
   fprintf(stderr,"  spit -f ... -c a              # alternate/skip actions. a4 will skip every 4th action\n");
   exit(-1);
