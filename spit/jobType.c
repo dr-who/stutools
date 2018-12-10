@@ -318,7 +318,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	if (flushEvery == 0) {
 	  flushEvery = 1;
 	} else {
-	  flushEvery *= 10;
+	  flushEvery = flushEvery * 10;
 	}
       }
     }
@@ -336,18 +336,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
     threadContext[i].skipEvery = skipEvery;
     
-    // flush
-    for (size_t k = 0; k < strlen(job->strings[i]); k++) {
-      if (job->strings[i][k] == 'F') {
-	if (flushEvery == 0) {
-	  flushEvery = 1;
-	} else {
-	  flushEvery *= 10;
-	}
-      }
-    }
-    threadContext[i].flushEvery = flushEvery;
-
     int seqFiles = 1;
     {
       char *sf = strchr(job->strings[i], 's');
