@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  fprintf(stderr,"*info* numPositions %zd, min block size %ld, block size %zd, alignment %zd\n", numPositions, minbs, blocksize, minbs);
+  fprintf(stderr,"*info* numPositions %zd, min block size %zd, block size %zd, alignment %zd\n", numPositions, minbs, blocksize, minbs);
 
   size_t rb = 0, ios = 0, totalRB = 0, totalWB = 0;
   double start = timedouble();
