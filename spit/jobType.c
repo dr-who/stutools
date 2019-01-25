@@ -129,7 +129,7 @@ static void *runThread(void *arg) {
   }
 
 
-  fprintf(stderr,"*info* [thread %zd] starting '%s' with %zd positions, qd=%zd, R/w=%.2g, flushEvery=%zd, k=[%zd,%zd]\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize);
+  fprintf(stderr,"*info* [thread %zd] starting '%s' with %zd positions, %zd reseeded, qd=%zd, R/w=%.2g, flushEvery=%zd, k=[%zd,%zd]\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->random, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize);
 
   if (threadContext->random > 0) {
     size_t s = threadContext->id + threadContext->pos.sz;
@@ -313,7 +313,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       char *iR = strchr(job->strings[i], 'n');
       if (iR) {// && *(iR+1)) {
 	iRandom = 1000000;
+	//	mp = iRandom;
 	//	iRandom = atoi(iR+1);
+	//	fprintf(stderr,"ir %d mp %zd\n", iRandom, mp);
       }
     }
     threadContext[i].random = iRandom;
