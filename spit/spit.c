@@ -17,6 +17,7 @@
   
 int verbose = 0;
 int keepRunning = 1;
+size_t flushEvery = 0;
 
 
 int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun,
@@ -110,7 +111,7 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
 
 void usage() {
   fprintf(stderr,"\nUsage:\n  spit [-f device] [-c string] [-c string] ... [-c string]\n");
-  fprintf(stderr,"\nExamples:\n");
+    fprintf(stderr,"\nExamples:\n");
   fprintf(stderr,"  spit -f device -c ... -c ... -c ... # defaults to 20 seconds\n");
   fprintf(stderr,"  spit -f device -c r           # seq read (s1)\n");
   fprintf(stderr,"  spit -f device -c w           # seq write (s1)\n");
@@ -118,14 +119,14 @@ void usage() {
   fprintf(stderr,"  spit -f device -c ws128       # 128 parallel writes\n");
   fprintf(stderr,"  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions\n");
   fprintf(stderr,"  spit -f device -c k8          # set block size to 8 KiB\n");
-  fprintf(stderr,"  spit -f device -c S5          # sleep for 5 seconds before commencing I/O\n");
+  fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
   fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds (-t 0 is forever)\n");
   fprintf(stderr,"  spit -f ... -j 32             # duplicate all the commands 32 times\n");
   fprintf(stderr,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stderr,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
-  fprintf(stderr,"  spit -f ... -c w -cS4rs0      # one thread seq write, one thread sleep 4 then random read\n");
+  fprintf(stderr,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread wait 4 then random read\n");
   fprintf(stderr,"  spit -f ... -c wR42           # set the per command seed with R\n");
   fprintf(stderr,"  spit -f ... -c wF             # flush after every write of FF for 10, FFF for 100 ...\n");
   fprintf(stderr,"  spit -f ... -c rrrrw          # do 4 reads for every write\n");
@@ -133,10 +134,6 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c rn -t0         # generate ra(n)dom positions with collisions\n");
   fprintf(stderr,"  spit -f ... -t 0              # -t 0 is run forever\n");
   fprintf(stderr,"  spit -f ... -c wz             # sequentially write from block 0 (instead of random position)\n");
-  fprintf(stderr,"  spit -f ... -c n              # n is for random positions with replacement, with reseeding\n");
-  fprintf(stderr,"  spit -f ... -c M              # M simulates filesystem meta-data, 100,000 locations with replacement, no reseeding\n");
-  fprintf(stderr,"  spit -f ... -c ws32 -c rs0 -c M -j32  # busy file system test, 32 x 3 threads\n");
-  fprintf(stderr,"  spit -f ... -c a              # alternate/skip actions. a4 will skip every 4th action\n");
   exit(-1);
 }
 
@@ -176,7 +173,7 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
-  fprintf(stderr,"*info* maxSizeInBytes %zd (%.3g GiB), time to run %zd sec\n", maxSizeInBytes, TOGiB(maxSizeInBytes), timetorun);
+  fprintf(stderr,"*info* maxSizeInBytes %zd (%.3lf GiB), time to run %zd sec\n", maxSizeInBytes, TOGiB(maxSizeInBytes), timetorun);
   jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions);
 
   jobFree(j);

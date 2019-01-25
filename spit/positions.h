@@ -36,21 +36,11 @@ void setupPositions(positionType *positions,
 		    const double readorwrite,
 		    const size_t lowbs,
 		    const size_t bs,
-		    const size_t alignment,
+		    size_t alignment,
 		    const long startingBlock,
-		    const size_t actualBlockDeviceSize,
-		    const long seed,
-		    const size_t skipEvery);
-
-void simpleSetupPositions(positionType *positions,
-			  size_t *num,
-			  deviceDetails *devList,
-			  const size_t devCount,
-			  const long startingBlock,
-			  const size_t bdSizeBytes,
-			  const size_t bs);
-
-
+		    const size_t bdSizeTotal,
+		    long seed
+		    );
 
 void freePositions(positionType *p);
 void positionStats(const positionType *positions, const size_t num, const deviceDetails *devList, const size_t devCount);
@@ -75,9 +65,7 @@ void setupRandomPositions(positionType *pos,
 			  const size_t highbs,
 			  const size_t alignment,
 			  const size_t bdSize,
-			  const size_t seedin,
-			  const int onlyOnce);
-
+			  const size_t seedin);
 
 size_t numberOfDuplicates(positionType *pos, size_t const num);
 void skipPositions(positionType *pos, const size_t num, const size_t skipEvery);
