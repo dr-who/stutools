@@ -252,22 +252,55 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       highbs = bs;
     }
     
+
+    char *charLimit = strchr(job->strings[i], 'L');
+    size_t limit = (size_t)-1;
+
+    if (charLimit && *(charLimit+1)) {
+      char *endp = NULL;
+      limit = (size_t) (strtod(charLimit+1, &endp) * 1024 * 1024 * 1024);
+      if (limit == 0) limit = (size_t)-1;
+    }
+    
+
     //    size_t fs = fileSizeFromName(job->devices[i]);
     threadContext[i].bdSize = maxSizeInBytes;
-    size_t mp = (size_t) (threadContext[i].bdSize / bs);
-    if (verbose) fprintf(stderr,"*info* file size %zd, maximum positions %zd\n", threadContext[i].bdSize, mp);
+    const size_t avgBS = (bs + highbs) / 2;
+    size_t mp = (size_t) (threadContext[i].bdSize / avgBS);
+    if (verbose) {
+      fprintf(stderr,"*info* file size %.3lf GiB avg size of %zd, maximum ", TOGiB(threadContext[i].bdSize), avgBS);
+      commaPrint0dp(stderr, mp);
+      fprintf(stderr," positions\n");
+    }
+
     size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
-    if (verbose || (fitinram < mp)) fprintf(stderr,"*info* %zd positions fit into %.3lf GiB ram\n", fitinram, TOGiB(totalRAM() / 4 / num));
+    if (verbose || (fitinram < mp)) {
+      fprintf(stderr,"*info* with %.3lf GiB RAM, we can store ", TOGiB(totalRAM() / 4 / num));
+      commaPrint0dp(stderr, fitinram);
+      fprintf(stderr," positions\n");
+    }
+    
     size_t countintime = mp;
     if ((long)timetorun > 0) { // only limit based on time if the time is positive
       countintime = timetorun * 4000000;
-      if (verbose || (countintime < mp)) fprintf(stderr,"*info* at 4 million a second, max positions would be %zd\n", countintime);
+      if (verbose || (countintime < mp)) {
+	fprintf(stderr,"*info* in %zd seconds, at 4 million a second, would have at most ", timetorun);
+	commaPrint0dp(stderr, countintime);
+	fprintf(stderr," positions\n");
+      }
+    }
+    size_t sizeLimitCount = (size_t)-1;
+    if (limit != (size_t)-1) {
+      sizeLimitCount = limit / avgBS;
+      fprintf(stderr,"*info* to limit sum of lengths to %.1lf GiB, with avg size of %zd, requires %zd positions\n", TOGiB(limit), avgBS, sizeLimitCount);
     }
 
-    size_t mp2 = MIN(countintime, MIN(mp, fitinram));
+    size_t mp2 = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));
     if (mp2 != mp) {
       mp = mp2;
-      fprintf(stderr,"*info* positions limited to %zd\n", mp);
+      fprintf(stderr,"*info* positions limited to ");
+      commaPrint0dp(stderr, mp);
+      fprintf(stderr,"\n");
     }
       
     threadContext[i].id = i;

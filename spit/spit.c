@@ -115,10 +115,11 @@ void usage() {
   fprintf(stderr,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
   fprintf(stderr,"  spit -f device -c r           # seq read (s1)\n");
   fprintf(stderr,"  spit -f device -c w           # seq write (s1)\n");
-  fprintf(stderr,"  spit -f device -c rs0         # random\n");
-  fprintf(stderr,"  spit -f device -c ws128       # 128 parallel writes\n");
+  fprintf(stderr,"  spit -f device -c rs0         # random, (s)equential is 0\n");
+  fprintf(stderr,"  spit -f device -c ws128       # 128 parallel (s)equential writes\n");
   fprintf(stderr,"  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions\n");
   fprintf(stderr,"  spit -f device -c k8          # set block size to 8 KiB\n");
+  fprintf(stderr,"  spit -f device -c k4-128      # set block range to 4 to 128 KiB\n");
   fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
@@ -128,14 +129,15 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
   fprintf(stderr,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread wait 4 then random read\n");
   fprintf(stderr,"  spit -f ... -c wR42           # set the per command seed with R\n");
-  fprintf(stderr,"  spit -f ... -c wF             # flush after every write of FF for 10, FFF for 100 ...\n");
+  fprintf(stderr,"  spit -f ... -c wF             # (F)lush after every write of FF for 10, FFF for 100 ...\n");
   fprintf(stderr,"  spit -f ... -c rrrrw          # do 4 reads for every write\n");
   fprintf(stderr,"  spit -f ... -c rw             # mix 50/50 reads/writes\n");
-  fprintf(stderr,"  spit -f ... -c rn -t0         # generate ra(n)dom positions with collisions\n");
+  fprintf(stderr,"  spit -f ... -c rn -t0         # generate (n)on-unique positions positions with collisions\n");
   fprintf(stderr,"  spit -f ... -t 0              # -t 0 is run forever\n");
-  fprintf(stderr,"  spit -f ... -c wz             # sequentially write from block 0 (instead of random position)\n");
-  fprintf(stderr,"  spit -f ... -c m              # 100,000 unique positions, read/write\n");
-  fprintf(stderr,"  spit -f ... -c n              # 100,000 non-unique positions, read/write, reseeding every 100,000\n");
+  fprintf(stderr,"  spit -f ... -c wz             # sequentially (w)rite from block (z)ero (instead of random position)\n");
+  fprintf(stderr,"  spit -f ... -c m              # 100,000 unique positions, read/write like (m)eta-data\n");
+  fprintf(stderr,"  spit -f ... -c n              # 100,000 (n)on-unique positions, read/write, reseeding every 100,000\n");
+  fprintf(stderr,"  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB\n");
   exit(-1);
 }
 

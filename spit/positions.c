@@ -43,7 +43,7 @@ void freePositions(positionType *p) {
 
 
 int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes) {
-  fprintf(stderr,"*info*... checking position array with %zd values...\n", num);
+  fprintf(stderr,"*info*... checking position array with %zd values...\n", num);fflush(stderr);
   
   size_t rcount = 0, wcount = 0;
   size_t sizelow = -1, sizehigh = 0;
@@ -304,8 +304,14 @@ void setupPositions(positionType *positions,
   }
 
   // rotate
-  for (size_t i = 0; i < *num; i++) {
-    assert(positions[i].len >= 0);
+  size_t sum = 0;
+  positionType *p = positions;
+  for (size_t i = 0; i < *num; i++, p++) {
+    sum += p->len;
+    assert(p->len >= 0);
+  }
+  if (verbose) {
+    fprintf(stderr,"*info* sum of %zd lengths is %.1lf GiB\n", *num, TOGiB(sum));
   }
 
   free(poss); // free the possible locations
