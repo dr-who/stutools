@@ -14,11 +14,11 @@
 
 #include "positions.h"
 #include "utils.h"
+
+#define DEFAULTTIME 10
   
 int verbose = 0;
 int keepRunning = 1;
-size_t flushEvery = 0;
-
 
 int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun,
 		 size_t *dumpPositions) {
@@ -111,8 +111,8 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
 
 void usage() {
   fprintf(stderr,"\nUsage:\n  spit [-f device] [-c string] [-c string] ... [-c string]\n");
-    fprintf(stderr,"\nExamples:\n");
-  fprintf(stderr,"  spit -f device -c ... -c ... -c ... # defaults to 20 seconds\n");
+  fprintf(stderr,"\nExamples:\n");
+  fprintf(stderr,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
   fprintf(stderr,"  spit -f device -c r           # seq read (s1)\n");
   fprintf(stderr,"  spit -f device -c w           # seq write (s1)\n");
   fprintf(stderr,"  spit -f device -c rs0         # random\n");
@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   jobType *j = malloc(sizeof(jobType));
-  size_t maxSizeInBytes = 0, timetorun = 20, dumpPositions = 0;
+  size_t maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
   
   fprintf(stderr,"*info* spit %s %s (Stu's parallel I/O tester)\n", argv[0], VERSION);
   
@@ -161,14 +161,6 @@ int main(int argc, char *argv[]) {
   if (j->count == 0) {
     usage();
   }
-
-  /*  double d = 0.5;
-  for (size_t i = 0; i < 20; i++) {
-    commaPrint0dp(stderr,d);
-    fprintf(stderr,"\n");
-    d=d*2;
-  }
-  */
 
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
