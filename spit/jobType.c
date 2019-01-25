@@ -220,9 +220,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   threadInfoType *threadContext;
   CALLOC(threadContext, num+1, sizeof(threadInfoType));
 
-  double currenttime = timedouble();
-  double finishtime = currenttime + timetorun;
-  assert (finishtime >= currenttime + timetorun);
   keepRunning = 1;
   
   int bs = 4096, highbs = 4096;
@@ -232,6 +229,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
       char *endp = NULL;
       bs = 1024 * strtod(charBS+1, &endp);
+      if (bs < 512) bs = 512;
       highbs = bs;
       if (*endp != 0) {
 	int nextv = atoi(endp+1);
@@ -247,21 +245,22 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     //    size_t fs = fileSizeFromName(job->devices[i]);
     threadContext[i].bdSize = maxSizeInBytes;
     size_t mp = (size_t) (threadContext[i].bdSize / bs);
-    //    fprintf(stderr,"file size %zd, positions %zd\n", fs, mp);
+    if (verbose) fprintf(stderr,"*info* file size %zd, maximum positions %zd\n", threadContext[i].bdSize, mp);
     size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
-    //    fprintf(stderr,"fit into ram %zd, currently %zd\n", fitinram, mp);
-    if (mp > fitinram) {
-      mp = fitinram;
-      if (verbose >= 2) {
-	fprintf(stderr,"*warning* limited to %zd because of RAM\n", mp);
-      }
+    if (verbose || (fitinram < mp)) fprintf(stderr,"*info* %zd positions fit into %.3lf GiB ram\n", fitinram, TOGiB(totalRAM() / 4 / num));
+    size_t countintime = timetorun * 4000000;
+    if (verbose || (countintime < mp)) fprintf(stderr,"*info* at 4 million a second, max positions would be %zd\n", countintime);
+
+    size_t mp2 = MIN(countintime, MIN(mp, fitinram));
+    if (mp2 != mp) {
+      mp = mp2;
+      fprintf(stderr,"*warning* positions set to %zd\n", mp);
     }
       
     threadContext[i].id = i;
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
     positionContainerInit(&threadContext[i].pos);
-    threadContext[i].finishtime = finishtime;
     threadContext[i].waitfor = 0;
     threadContext[i].blockSize = bs;
     threadContext[i].highBlockSize = highbs;
@@ -376,6 +375,15 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
   }
+
+  // set the starting time
+  double currenttime = timedouble();
+  double finishtime = currenttime + timetorun;
+  assert (finishtime >= currenttime + timetorun);
+  for (size_t i = 0; i < num; i++) {
+    threadContext[i].finishtime = finishtime;
+  }
+
   
   // use the device and timing info from context[0]
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[0]));

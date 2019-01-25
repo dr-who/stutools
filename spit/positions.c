@@ -163,7 +163,7 @@ void setupPositions(positionType *positions,
 		    long seed
 		    ) {
   assert(lowbs <= bs);
-  assert(positions);
+  //  assert(positions);
 
   if (*num == 0) {
     fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");
