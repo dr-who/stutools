@@ -241,7 +241,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       bs = 1024 * strtod(charBS+1, &endp);
       if (bs < 512) bs = 512;
       highbs = bs;
-      if (*endp != 0) {
+      if (*endp == '-') {
 	int nextv = atoi(endp+1);
 	if (nextv > 0) {
 	  highbs = 1024 * nextv;
@@ -363,6 +363,17 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
     threadContext[i].random = iRandom;
 
+
+
+    size_t repeat = 0;
+    {
+      char *iR = strchr(job->strings[i], 'm');
+      if (iR) {
+	repeat = 1;
+	seqFiles = 0;
+      }
+    }
+
     int qDepth = 256;
     {
       char *qdd = strchr(job->strings[i], 'q');
@@ -412,12 +423,19 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     if (!iRandom) {
       positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
       //      fprintf(stderr,"*info* creating %zd positions...", threadContext[i].pos.sz); fflush(stderr);
-      setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, seed);
+      if (!repeat) {
+	setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, seed);
+      } else {
+	size_t sz1 = threadContext[i].pos.sz / 2;
+	size_t sz2 = threadContext[i].pos.sz / 2;
+	setupPositions(threadContext[i].pos.positions, &sz1, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, seed);
+	setupPositions(threadContext[i].pos.positions + sz1, &sz2, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, seed);
+	threadContext[i].pos.sz = sz1+sz2;
+      }
+	
       //      fprintf(stderr,"\n");
       if (verbose) {
-	if (checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize)) {
-	  abort();
-	}
+	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize, !repeat);
       }
       if (dumpPositionsN) {
 	dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPositionsN);

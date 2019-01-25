@@ -20,7 +20,11 @@ static int poscompare(const void *p1, const void *p2)
   const positionType *pos2 = (positionType*)p2;
   if (pos1->pos < pos2->pos) return -1;
   else if (pos1->pos > pos2->pos) return 1;
-  else return 0;
+  else {
+    if (pos1->action < pos2->action) return -1;
+    else if (pos1->action > pos2->action) return 1;
+    else return 0;
+  }
 }
 
 
@@ -42,12 +46,14 @@ void freePositions(positionType *p) {
 }
 
 
-int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes) {
+int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes, size_t exitonerror) {
   fprintf(stderr,"*info*... checking position array with %zd values...\n", num);fflush(stderr);
   
   size_t rcount = 0, wcount = 0;
   size_t sizelow = -1, sizehigh = 0;
   positionType *p = (positionType *)positions;
+  positionType *copy = NULL;
+  
   for (size_t j = 0; j < num; j++) {
     if (p->len == 0) {
       fprintf(stderr,"len is 0!\n");
@@ -94,33 +100,39 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
     }
   }
   // duplicate, sort the array. Count unique positions
-  positionType *copy;
   CALLOC(copy, num, sizeof(positionType));
   memcpy(copy, positions, num * sizeof(positionType));
   qsort(copy, num, sizeof(positionType), poscompare);
   // check order
-  size_t unique = 0;
-  for (size_t i = 1; i <num; i++) {
-    //    fprintf(stderr,"-----%zd %zd\n", i, copy[i].pos);
-    if (copy[i].pos != copy[i-1].pos) {
+  size_t unique = 0, same = 0;
+  for (size_t i = 0; i <num; i++) {
+    if (verbose >= 3)    fprintf(stderr,"-----%zd %zd '%c'\n", i, copy[i].pos, copy[i].action);
+    if (i==0) continue;
+    
+    if ((copy[i].pos == copy[i-1].pos) && (copy[i].action == copy[i-1].action)) {
+      same++;
+    } else {
       unique++;
       if (i==1) { // if the first number checked is different then really it's 2 unique values.
 	unique++;
       }
     }
+    
     if (copy[i].pos < copy[i-1].pos) {
-      fprintf(stderr,"not sorted %zd %zd, unique %zd\n",i, copy[i].pos, unique);
-      abort();
+      if (exitonerror) abort();
+      //      if (verbose) fprintf(stderr,"not sorted %zd %zd, unique %zd\n",i, copy[i].pos, unique);
     }
     if (copy[i-1].pos + copy[i-1].len > copy[i].pos) {
-      fprintf(stderr,"eerk overlapping %zd %zd %d \n",i, copy[i].pos, copy[i].len);
-      abort();
+      if (exitonerror) abort();
+      //      if (verbose) fprintf(stderr,"eerk overlapping %zd %zd %d \n",i, copy[i].pos, copy[i].len);
     }
   }
+
+  
   free(copy);
 
   if (verbose)
-    fprintf(stderr,"*info* action summary: reads %zd, writes %zd, checked ratio %.1lf, len [%zd, %zd], unique positions %zd\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh, unique);
+    fprintf(stderr,"*info* action summary: reads %zd, writes %zd, checked ratio %.1lf, len [%zd, %zd], same %zd, unique %zd\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh, same, unique);
   return 0;
 }
 
@@ -310,7 +322,7 @@ void setupPositions(positionType *positions,
     sum += p->len;
     assert(p->len >= 0);
   }
-  if (verbose) {
+  if (verbose >= 2) {
     fprintf(stderr,"*info* sum of %zd lengths is %.1lf GiB\n", *num, TOGiB(sum));
   }
 

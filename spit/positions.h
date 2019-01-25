@@ -23,7 +23,7 @@ typedef struct {
 
 positionType *createPositions(size_t num);
 
-int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes);
+int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes, size_t exitonerror);
 void savePositions(const char *name, positionType *positions, size_t num, size_t flushEvery);
 
 positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxsize);
