@@ -234,6 +234,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   
   int bs = 4096, highbs = 4096;
   for (size_t i = 0; i < num; i++) {
+    if (verbose) {
+      fprintf(stderr,"*info* setting up thread %zd\n", i);
+    }
     char *charBS = strchr(job->strings[i], 'k');
     if (charBS && *(charBS+1)) {
 
