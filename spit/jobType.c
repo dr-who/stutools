@@ -248,8 +248,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     if (verbose) fprintf(stderr,"*info* file size %zd, maximum positions %zd\n", threadContext[i].bdSize, mp);
     size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
     if (verbose || (fitinram < mp)) fprintf(stderr,"*info* %zd positions fit into %.3lf GiB ram\n", fitinram, TOGiB(totalRAM() / 4 / num));
-    size_t countintime = timetorun * 4000000;
-    if (verbose || (countintime < mp)) fprintf(stderr,"*info* at 4 million a second, max positions would be %zd\n", countintime);
+    size_t countintime = mp;
+    if ((long)timetorun > 0) { // only limit based on time if the time is positive
+      countintime = timetorun * 4000000;
+      if (verbose || (countintime < mp)) fprintf(stderr,"*info* at 4 million a second, max positions would be %zd\n", countintime);
+    }
 
     size_t mp2 = MIN(countintime, MIN(mp, fitinram));
     if (mp2 != mp) {
