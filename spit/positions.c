@@ -190,6 +190,7 @@ void setupPositions(positionType *positions,
   // with a random starting position, -z sets to 0
   size_t *positionsStart, *positionsEnd;
   const int toalloc = (sf == 0) ? 1 : abs(sf);
+  assert(toalloc);
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(positionsEnd, toalloc, sizeof(size_t));
   

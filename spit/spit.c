@@ -165,7 +165,7 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
-  fprintf(stderr,"*info* maxSizeInBytes %zd (%.3lf GiB), time to run %zd sec\n", maxSizeInBytes, TOGiB(maxSizeInBytes), timetorun);
+  fprintf(stderr,"*info* bdSize %.3lf GiB (%zd bytes, %.3lf PiB), time to run %zd sec\n", TOGiB(maxSizeInBytes), maxSizeInBytes, TOPiB(maxSizeInBytes), timetorun);
   jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions);
 
   jobFree(j);

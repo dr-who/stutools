@@ -175,7 +175,8 @@ static void *runThreadTimer(void *arg) {
   
   diskStatStart(&d);
 
-  double start = timedouble(), last = start, thistime = start;
+  double start = timedouble();
+  double last = start, thistime = start;
   while (keepRunning && timedouble() < threadContext->finishtime) {
     sleep(1);
     //    usleep(500000);
@@ -257,7 +258,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     size_t mp2 = MIN(countintime, MIN(mp, fitinram));
     if (mp2 != mp) {
       mp = mp2;
-      fprintf(stderr,"*warning* positions set to %zd\n", mp);
+      fprintf(stderr,"*info* positions limited to %zd\n", mp);
     }
       
     threadContext[i].id = i;
@@ -334,8 +335,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     {
       if (pChar && *(pChar+1)) {
 	size_t newmp = atoi(pChar + 1);
-	if (newmp < mp) {
+	if (newmp != mp) {
 	  mp = newmp;
+	  fprintf(stderr,"*info* positions overwritten to %zd using 'P'\n", mp);
 	}
       }
     }
@@ -367,9 +369,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
     if (!iRandom) {
       positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-      fprintf(stderr,"*info* creating %zd positions...", threadContext[i].pos.sz); fflush(stderr);
+      //      fprintf(stderr,"*info* creating %zd positions...", threadContext[i].pos.sz); fflush(stderr);
       setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, seed);
-      fprintf(stderr,"\n");
+      //      fprintf(stderr,"\n");
       if (verbose) {
 	if (checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize)) {
 	  abort();
