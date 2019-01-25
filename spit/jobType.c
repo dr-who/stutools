@@ -371,6 +371,8 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       if (iR) {
 	repeat = 1;
 	seqFiles = 0;
+	flushEvery = 1;
+	threadContext[i].flushEvery = flushEvery;
       }
     }
 
