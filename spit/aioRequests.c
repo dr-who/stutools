@@ -37,10 +37,13 @@ size_t aioMultiplePositions( positionType *positions,
   int ret;
   struct iocb **cbs;
   struct io_event *events;
-  size_t QD = origQD;
+  const size_t QD = origQD;
 
   io_context_t ioc = 0;
-  io_setup(QD, &ioc);
+  if (io_setup(QD, &ioc)) {
+    fprintf(stderr,"*error* io_setup failed with %zd\n", QD);
+    exit(-2);
+  }
   
   assert(QD);
   if (!alignment) alignment=512;
@@ -80,14 +83,14 @@ size_t aioMultiplePositions( positionType *positions,
   CALLOC(pointtoposread, randomBufferSize * QD, sizeof(long));
 
   size_t *posInFlight; // the data struction that maps QD index to the positions[] array
-  CALLOC(posInFlight, QD, 1);
+  CALLOC(posInFlight, QD, sizeof(size_t));
   size_t *stillInFlight; // qd collisions
-  CALLOC(stillInFlight, QD, 1);
+  CALLOC(stillInFlight, QD, sizeof(size_t));
 
   size_t *freeQueue; // qd collisions
   size_t headOfQueue = 0;
   size_t tailOfQueue = 0;
-  CALLOC(freeQueue, QD, 1);
+  CALLOC(freeQueue, QD, sizeof(size_t));
   for (size_t i = 0; i < QD; i++) {
     freeQueue[i] = i;
   }
@@ -412,7 +415,7 @@ int aioVerifyWrites(positionType *positions,
 
   size_t errors = 0, checked = 0, ioerrors = 0;
   char *buffer;
-  CALLOC(buffer, maxBufferSize, 1);
+  CALLOC(buffer, maxBufferSize, sizeof(char));
 
   size_t bytesToVerify = 0, posTOV = 0;
   for (size_t i = 0; i < maxpos; i++) {
