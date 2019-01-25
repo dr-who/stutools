@@ -94,7 +94,7 @@ typedef struct {
 
 
 static void *runThread(void *arg) {
-  threadInfoType *threadContext = (threadInfoType*)arg;
+  const threadInfoType *threadContext = (threadInfoType*)arg;
   if (verbose >= 2) {
     fprintf(stderr,"*info* thread[%zd] job is '%s'\n", threadContext->id, threadContext->pos.string);
   }
@@ -160,10 +160,12 @@ static void *runThread(void *arg) {
 
 
 
-static void *runThreadTimer(void *arg) {
-  threadInfoType *threadContext = (threadInfoType*)arg;
+#define TIMEPERLINE 1
 
-  size_t i = 0;
+static void *runThreadTimer(void *arg) {
+  const threadInfoType *threadContext = (threadInfoType*)arg;
+
+  size_t i = 1;
   diskStatType d;
   diskStatSetup(&d);
   int fd = open(threadContext->jobdevice, O_RDONLY);
@@ -175,35 +177,42 @@ static void *runThreadTimer(void *arg) {
   
   diskStatStart(&d);
 
-  double start = timedouble();
+  const double start = timedouble();
   double last = start, thistime = start;
-  while (keepRunning && timedouble() < threadContext->finishtime) {
-    sleep(1);
+  while (keepRunning && (thistime = timedouble())) {
+    usleep(100000);
     //    usleep(500000);
-    
-    diskStatFinish(&d);
-    size_t trb = 0, twb = 0, tri = 0, twi = 0;
-    double util = 0;
-    thistime = timedouble();
-    double elapsed = thistime - start;
-    diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
 
-    fprintf(stderr,"[%2.1lf] read ", elapsed);
-    commaPrint0dp(stderr, TOMiB(trb));
-    fprintf(stderr," MiB/s (");
-    commaPrint0dp(stderr, tri);
-    fprintf(stderr," IOPS / %zd), write ", (tri == 0) ? 0 : trb / tri);
-    commaPrint0dp(stderr, TOMiB(twb));
-    fprintf(stderr," MiB/s (");
-    commaPrint0dp(stderr, twi);
-    fprintf(stderr," IOPS / %zd), util %.0lf %%\n", (twi == 0) ? 0 : twb / twi, util);
+    if (thistime - start >= (i * TIMEPERLINE) && (thistime <= threadContext->finishtime)) {
+      
+      diskStatFinish(&d);
+      size_t trb = 0, twb = 0, tri = 0, twi = 0;
+      double util = 0;
+      diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
+      
+      const double elapsed = thistime - start;
+      fprintf(stderr,"[%2.0lf] read ", elapsed);
+      commaPrint0dp(stderr, TOMiB(trb));
+      fprintf(stderr," MiB/s (");
+      commaPrint0dp(stderr, tri);
+      fprintf(stderr," IOPS / %zd), write ", (tri == 0) ? 0 : trb / tri);
+      commaPrint0dp(stderr, TOMiB(twb));
+      fprintf(stderr," MiB/s (");
+      commaPrint0dp(stderr, twi);
+      fprintf(stderr," IOPS / %zd), util %.0lf %%\n", (twi == 0) ? 0 : twb / twi, util);
+      
+      //    fprintf(stderr,"[%2.0lf] read %.0lf MiB/s (%zd IOPS), write %.0lf MiB/s (%zd IOPS), util %.0lf %%\n", elapsed, TOMiB(trb), tri, TOMiB(twb), twi, util);
+      
+      last = thistime;
+      
+      i++;
+      diskStatStart(&d);
+    }
 
-    //    fprintf(stderr,"[%2.0lf] read %.0lf MiB/s (%zd IOPS), write %.0lf MiB/s (%zd IOPS), util %.0lf %%\n", elapsed, TOMiB(trb), tri, TOMiB(twb), twi, util);
-
-    last = thistime;
-    
-    i++;
-    diskStatStart(&d);
+    if (thistime > threadContext->finishtime + 10) {
+      fprintf(stderr,"*error* still running! watchdog exit\n");
+      exit(-1);
+    }
   }
   diskStatFree(&d);
   //  fprintf(stderr,"finished thread timer\n");
@@ -384,8 +393,8 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   }
 
   // set the starting time
-  double currenttime = timedouble();
-  double finishtime = currenttime + timetorun;
+  const double currenttime = timedouble();
+  const double finishtime = currenttime + timetorun;
   assert (finishtime >= currenttime + timetorun);
   for (size_t i = 0; i < num; i++) {
     threadContext[i].finishtime = finishtime;
@@ -402,6 +411,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   for (size_t i = 0; i < num; i++) {
     pthread_join(pt[i], NULL);
   }
+  keepRunning = 0; // the 
   // now wait for the timer thread (probably don't need this)
   pthread_join(pt[num], NULL);
 

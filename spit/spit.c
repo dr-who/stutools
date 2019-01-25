@@ -134,6 +134,8 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c rn -t0         # generate ra(n)dom positions with collisions\n");
   fprintf(stderr,"  spit -f ... -t 0              # -t 0 is run forever\n");
   fprintf(stderr,"  spit -f ... -c wz             # sequentially write from block 0 (instead of random position)\n");
+  fprintf(stderr,"  spit -f ... -c m              # 100,000 unique positions, read/write\n");
+  fprintf(stderr,"  spit -f ... -c n              # 100,000 non-unique positions, read/write, reseeding every 100,000\n");
   exit(-1);
 }
 
@@ -154,6 +156,12 @@ int main(int argc, char *argv[]) {
 
   jobType *j = malloc(sizeof(jobType));
   size_t maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
+
+  if (swapTotal() > 0) {
+    fprintf(stderr,"*error* spit needs swap to be off for believable numbers. `sudo swapoff -a`\n");
+    exit(-1);
+  }
+
   
   fprintf(stderr,"*info* spit %s %s (Stu's parallel I/O tester)\n", argv[0], VERSION);
   
