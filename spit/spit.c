@@ -135,7 +135,7 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c rn -t0         # generate (n)on-unique positions positions with collisions\n");
   fprintf(stderr,"  spit -f ... -t 0              # -t 0 is run forever\n");
   fprintf(stderr,"  spit -f ... -c wz             # sequentially (w)rite from block (z)ero (instead of random position)\n");
-  fprintf(stderr,"  spit -f ... -c m              # 100,000 unique positions, read/write like (m)eta-data\n");
+  fprintf(stderr,"  spit -f ... -c m              # non-unique positions, read/write/flush like (m)eta-data\n");
   fprintf(stderr,"  spit -f ... -c n              # 100,000 (n)on-unique positions, read/write, reseeding every 100,000\n");
   fprintf(stderr,"  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB\n");
   exit(-1);
