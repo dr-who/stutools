@@ -177,7 +177,7 @@ void setupPositions(positionType *positions,
 
   // list of possibles positions
   positionType *poss = NULL;
-  size_t possAlloc = 1024*10, count = 0, totalLen = 0;
+  size_t possAlloc = *num, count = 0, totalLen = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
 
   const int alignbits = (int)(log(alignment)/log(2) + 0.01);
@@ -217,7 +217,7 @@ void setupPositions(positionType *positions,
 
 	// grow destination array
 	if (count >= possAlloc) {
-	  possAlloc = possAlloc * 2 + 1; // grow by a 1/3 each time
+	  possAlloc = possAlloc * 5 / 4 + 1; // grow 
 	  positionType *poss2 = realloc(poss, possAlloc * sizeof(positionType));
 	  if (!poss) {fprintf(stderr,"OOM: breaking from setup array\n");break;}
 	  else {
