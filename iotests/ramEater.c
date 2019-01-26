@@ -16,26 +16,14 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  FILE *fp = fopen("/proc/sys/vm/overcommit_ratio", "rt");
-  if (!fp) {perror("overcommit_ratio");exit(-1);}
-  size_t value = 0;
-  int f = fscanf(fp,"%zu", &value);
-  if (f==1) {
-    fprintf(stderr,"*info* overcommit_ratio is %zd\n", value);
+  if (swapTotal() > 0) {
+    fprintf(stderr,"*error* ramEater needs swap to be off. `sudo swapoff -a`\n");
+    exit(-1);
   }
-  fclose(fp);
-  if (value != 100) {fprintf(stderr,"*error* the value needs to be 100\n  echo 100 > /proc/sys/vm/overcommit_ratio\n");exit(-1);}
 
-  fp = fopen("/proc/sys/vm/overcommit_memory", "rt");
-  if (!fp) {perror("overcommit_memory");exit(-1);}
-  value = 0;
-  f = fscanf(fp,"%zu", &value);
-  if (f==1) {
-    fprintf(stderr,"*info* overcommit_memory is %zd\n", value);
-  }
+  FILE *fp = fopen("/proc/self/oom_score_adj", "wt");
+  fprintf(fp,"1000\n");
   fclose(fp);
-  if (value != 2) {fprintf(stderr,"*error* the value needs to be 2. \n  echo 2 > /proc/sys/vm/overcommit_memory\n");exit(-1);}
-  
 
   size_t maxArrays = 1024*1024;
   void **p;
@@ -58,12 +46,15 @@ int main(int argc, char *argv[]) {
 	memset((char*)p[index] + oldsize, 'x', size-oldsize);
 	globalTotal += (size - oldsize);
       } else {
-	break;
+	fprintf(stderr,"sleep\n");
+	sleep(10);
+	continue;
+	//	break;
       }
 
       oldsize = size;
-      size = size * 5/4;
-      //      if (size > 1024*1024*1024) break;
+      size = size + (65536*10);
+      if (size > 1024*1024*1024) break;
     }
     index++;
     if (index >= maxArrays) {
