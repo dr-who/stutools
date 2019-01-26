@@ -69,18 +69,11 @@ size_t aioMultiplePositions( positionType *positions,
   //  if (ret != 0) {perror("io_setup");abort();}
 
   /* setup I/O control block, randomised just for this run. So we can check verification afterwards */
-  char **data = NULL, **dataread = NULL;
+  char **data = NULL;
   CALLOC(data, QD, sizeof(char*));
-  CALLOC(dataread, QD, sizeof(char*));
 
   // setup the buffers to be contiguous
   CALLOC(data[0], randomBufferSize * QD, 1);
-  CALLOC(dataread[0], randomBufferSize * QD, 1);
-
-  long *pointtopos; // the data structure that maps the offset back to a QD
-  CALLOC(pointtopos, randomBufferSize * QD, sizeof(long));
-  long *pointtoposread; // the data structure that maps the offset back to a QD
-  CALLOC(pointtoposread, randomBufferSize * QD, sizeof(long));
 
   size_t *posInFlight; // the data struction that maps QD index to the positions[] array
   CALLOC(posInFlight, QD, sizeof(size_t));
@@ -104,7 +97,6 @@ size_t aioMultiplePositions( positionType *positions,
   
   for (size_t i = 0; i <QD; i++) {
     data[i] = data[0] + (randomBufferSize * i);
-    dataread[i] = dataread[0] + (randomBufferSize * i);
   }
 
   // copy the randomBuffer to each data[]
@@ -113,7 +105,6 @@ size_t aioMultiplePositions( positionType *positions,
       fprintf(stderr,"randomBuffer[%zd]: %p\n", i, (void*)data[i]);
     }
     strncpy(data[i], randomBuffer, randomBufferSize);
-    strncpy(dataread[i], randomBuffer, randomBufferSize);
   }
 
   size_t inFlight = 0, pos = 0;
@@ -161,11 +152,11 @@ size_t aioMultiplePositions( positionType *positions,
 	    if (fd >= 0) {
 	      if (read) {
 		if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-		io_prep_pread(cbs[qdIndex], fd, dataread[qdIndex], len, newpos);
+		io_prep_pread(cbs[qdIndex], fd, data[qdIndex], len, newpos);
+		cbs[qdIndex]->data = data[qdIndex];
 
-		const long offset = dataread[qdIndex] - dataread[0];
+		const long offset = data[qdIndex] - data[0];
 		assert(offset <= randomBufferSize * QD);
-		pointtoposread[offset] = qdIndex; // from memory offset to qdIndex
 		
 		posInFlight[qdIndex] = pos; // from qdIndex back to the position array
 		stillInFlight[qdIndex] = 1;
@@ -175,11 +166,12 @@ size_t aioMultiplePositions( positionType *positions,
 	      } else {
 		if (verbose >= 2) {fprintf(stderr,"[%zd] write ", pos);}
 		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
+		cbs[qdIndex]->data = data[qdIndex];
+
 
 
 		const long offset = data[qdIndex] - data[0];
 		assert(offset <= randomBufferSize * QD);
-		pointtopos[offset] = qdIndex; // from memory offset to qdIndex
 		
 		posInFlight[qdIndex] = pos; // from qdIndex back to the position array
 		stillInFlight[qdIndex] = 1;
@@ -293,23 +285,12 @@ size_t aioMultiplePositions( positionType *positions,
 	  // calc the queue position of the result
 	  // then map the queue position back to the position
 	  struct iocb *my_iocb = events[j].obj;
-	  long offset = (char*)my_iocb->u.c.buf - (char*)(dataread[0]);
+	  long offset = (char*)my_iocb->u.c.buf - (char*)(data[0]);
 	  size_t requestpos, qd_indx = 0;
-	  if (offset>=0 && offset <= randomBufferSize * QD) {
-	    // read range
-	    qd_indx = pointtoposread[offset];
-	  } else {
-	    // write range
-	    offset = (char*)my_iocb->u.c.buf - (char*)(data[0]);
-	    if (offset >= 0 && offset <= randomBufferSize * QD) {
-	      qd_indx = pointtopos[offset];
-	    } else {
-	      // maybe a flush
-	      fprintf(stderr,"flish\n");
-	      abort();
+	  //	  fprintf(stderr,"%zd %zd\n", (char*)my_iocb->data - data[0], offset/4096);
 
-	    }
-	  }
+	  qd_indx = offset / randomBufferSize;
+
 	  requestpos = posInFlight[qd_indx];
 	  //	  fprintf(stderr,"returned offset %ld, %ld, original request pos %zd\n", offset, pointtopos[offset], requestpos);
 	  stillInFlight[qd_indx] = 0;
@@ -342,16 +323,10 @@ size_t aioMultiplePositions( positionType *positions,
 	for (int j = 0; j < ret; j++) {
 	  // TODO refactor into the same code as above
 	  struct iocb *my_iocb = events[j].obj;
-	  long offset = (char*)my_iocb->u.c.buf - (char*)(dataread[0]);
+	  long offset = (char*)my_iocb->u.c.buf - (char*)(data[0]);
 	  size_t requestpos, qd_indx;
-	  if (offset>=0 && offset < randomBufferSize * QD) {
-	    // read range
-	    qd_indx = pointtoposread[offset];
-	  } else {
-	    // write range
-	    offset = (char*)my_iocb->u.c.buf - (char*)(data[0]);
-	    qd_indx = pointtopos[offset];
-	  }
+	  qd_indx = offset / randomBufferSize;
+
 	  requestpos = posInFlight[qd_indx];
 	  stillInFlight[qd_indx] = 0;
 	  freeQueue[tailOfQueue++] = qd_indx; if (tailOfQueue >= QD) tailOfQueue = 0;
@@ -371,10 +346,6 @@ size_t aioMultiplePositions( positionType *positions,
 
   free(data[0]);
   free(data);
-  free(dataread[0]);
-  free(dataread);
-  free(pointtopos);
-  free(pointtoposread);
   free(posInFlight);
   free(stillInFlight);
   free(freeQueue);
