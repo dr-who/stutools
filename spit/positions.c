@@ -172,10 +172,10 @@ void setupPositions(positionType *positions,
 		    size_t alignment,
 		    const long startingBlock,
 		    const size_t bdSizeTotal,
-		    size_t seed
+		    unsigned short seed
 		    ) {
   assert(lowbs <= bs);
-  //  assert(positions);
+  srand48(seed); // set the seed, thats why it was passed
 
   if (*num == 0) {
     fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");

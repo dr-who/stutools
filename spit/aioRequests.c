@@ -23,7 +23,7 @@ size_t aioMultiplePositions( positionType *positions,
 			     const int tableMode, 
 			     logSpeedType *alll,
 			     logSpeedType *benchl,
-			     char *randomBuffer,
+			     const char *randomBuffer,
 			     const size_t randomBufferSize,
 			     size_t alignment,
 			     size_t *ios,
@@ -75,8 +75,11 @@ size_t aioMultiplePositions( positionType *positions,
   // setup the buffers to be contiguous
   CALLOC(data[0], randomBufferSize * QD, 1);
 
-  char *readdata = NULL;
-  CALLOC(readdata, randomBufferSize, 1);
+  char **readdata = NULL;
+  CALLOC(readdata, QD, sizeof(char*));
+
+  // setup the buffers to be contiguous
+  CALLOC(readdata[0], randomBufferSize * QD, 1);
 
   size_t *freeQueue; // qd collisions
   size_t headOfQueue = 0;
@@ -95,6 +98,7 @@ size_t aioMultiplePositions( positionType *positions,
   
   for (size_t i = 0; i <QD; i++) {
     data[i] = data[0] + (randomBufferSize * i);
+    readdata[i] = readdata[0] + (randomBufferSize * i);
   }
 
   // copy the randomBuffer to each data[]
@@ -126,7 +130,7 @@ size_t aioMultiplePositions( positionType *positions,
   int qdIndex = 0;
 
   double thetime = timedouble();
-  size_t *uuid = (size_t*) &thetime;
+  size_t uuid = thetime;
   
   while (keepRunning && ((thistime = timedouble()) < finishtime)) {
     if (inFlight < QD) {
@@ -142,7 +146,7 @@ size_t aioMultiplePositions( positionType *positions,
       for (size_t i = 0; i < submitCycles; i++) {
 	if (sz) {
 	  if (positions[pos].action != 'S') { // if we have some positions, sz > 0
-	    long long newpos = positions[pos].pos;
+	    size_t newpos = positions[pos].pos;
 	    const size_t len = positions[pos].len;
 
 	    int read = (positions[pos].action == 'R');
@@ -154,20 +158,21 @@ size_t aioMultiplePositions( positionType *positions,
 	      positions[pos].q = qdIndex;
 
 	      // watermark the block with the position on the device
-	      size_t *p = (size_t*)&data[qdIndex][0];
-	      *p = newpos;
-	      *(p+1) = *uuid;
 
 	      if (read) {
 		if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
-		io_prep_pread(cbs[qdIndex], fd, readdata, len, newpos);
+		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 		cbs[qdIndex]->data = &positions[pos];
 
 		totalReadBytes += len;
 	      } else {
-		if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d ", pos, qdIndex);}
-		//		fprintf(stderr,"%d %d %d\n", qdIndex, data[qdIndex][0], verbose);
+		if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d \n", positions[pos].pos, qdIndex);}
+		
 		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
+
+		memcpy(&data[qdIndex][0], &positions[pos].pos, sizeof(size_t));
+		memcpy(&data[qdIndex][0] + sizeof(size_t), &uuid, sizeof(size_t));
+
 		cbs[qdIndex]->data = &positions[pos];
 
 		totalWriteBytes += len;
@@ -183,7 +188,7 @@ size_t aioMultiplePositions( positionType *positions,
 		lastsubmit = thistime; // last good submit
 		submitted++;
 		if (verbose >= 2 || (newpos % alignment)) {
-		  fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+		  fprintf(stderr,"fd %d, pos %zd (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 		}
 	      
 	      } else {
@@ -325,8 +330,9 @@ size_t aioMultiplePositions( positionType *positions,
 
   free(data[0]);
   free(data);
-  free(freeQueue);
+  free(readdata[0]);
   free(readdata);
+  free(freeQueue);
   io_destroy(ioc);
   
 

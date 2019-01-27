@@ -43,13 +43,11 @@ void setupPositions(positionType *positions,
 		    size_t alignment,
 		    const long startingBlock,
 		    const size_t bdSizeTotal,
-		    size_t seed
+		    unsigned short seed
 		    );
 
 void freePositions(positionType *p);
 void positionStats(const positionType *positions, const size_t num, const deviceDetails *devList, const size_t devCount);
-
-void findSeedMaxBlock(positionType *positions, const size_t num, long *seed, size_t *minbs, size_t *blocksize);
 
 void dumpPositions(positionType *positions, const char *prefix, const size_t num, const size_t countToShow);
 

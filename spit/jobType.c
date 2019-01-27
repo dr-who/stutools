@@ -91,6 +91,7 @@ typedef struct {
   float rw;
   size_t random;
   unsigned short seed;
+  char *randomBuffer;
 } threadInfoType;
 
 
@@ -103,10 +104,7 @@ static void *runThread(void *arg) {
   logSpeedType benchl;
   logSpeedInit(&benchl);
 
-  char *randomBuffer;
-  CALLOC(randomBuffer, threadContext->highBlockSize, 1);
-  memset(randomBuffer, 0, threadContext->highBlockSize);
-  generateRandomBufferCyclic(randomBuffer, threadContext->highBlockSize, threadContext->seed, threadContext->highBlockSize); // repeat on 1024 boundaries
+
 
   size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
   int fd,  direct = O_DIRECT;
@@ -142,18 +140,16 @@ static void *runThread(void *arg) {
 	dumpPositions(p, "random", threadContext->random, 10);
       }
 
-      aioMultiplePositions(p, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1 /*verbose*/, 0, NULL, &benchl, randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
+      aioMultiplePositions(p, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1 /*verbose*/, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
     }
 
 
     freePositions(p);
   } else {
-    aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
+    aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   }
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   close(fd);
-
-  free(randomBuffer);
 
   logSpeedFree(&benchl);
   close(fd);
@@ -419,7 +415,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       if (RChar && *(RChar+1)) {
 	seed = atoi(RChar + 1); // if specified
       } else {
-	seed++; // increase
+	if (i > 0) seed++;
       }
     }
     threadContext[i].seed = seed;
@@ -447,13 +443,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	setupPositions(threadContext[i].pos.positions, &sz1, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
 	setupPositions(threadContext[i].pos.positions + sz1, &sz2, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
 	threadContext[i].pos.sz = sz1+sz2;
-	for (size_t j = sz1; j < threadContext[i].pos.sz; j++) {
-	  if (rand() % 100 < 100*rw) {
-	    threadContext[i].pos.positions[j].action = 'R';
-	  } else {
-	    threadContext[i].pos.positions[j].action = 'W';
-	  }
-	}
       }
       if (newmp && (newmp < threadContext[i].pos.sz)) {
 	fprintf(stderr,"*info* positions overwritten to %zd using 'P'\n", newmp);
@@ -476,6 +465,10 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   assert (finishtime >= currenttime + timetorun);
   for (size_t i = 0; i < num; i++) {
     threadContext[i].finishtime = finishtime;
+
+    CALLOC(threadContext[i].randomBuffer, threadContext[i].highBlockSize, 1);
+    memset(threadContext[i].randomBuffer, 0, threadContext[i].highBlockSize);
+    generateRandomBufferCyclic(threadContext[i].randomBuffer, threadContext[i].highBlockSize, threadContext[i].seed, threadContext[i].highBlockSize); 
   }
 
   
@@ -511,6 +504,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       positionLatencyStats(&threadContext[i].pos, i);
     }
     positionContainerFree(&threadContext[i].pos);
+    free(threadContext[i].randomBuffer);
   }
 
 
