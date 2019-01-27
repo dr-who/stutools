@@ -43,6 +43,7 @@ int main(int argc, char *argv[]) {
   if (!fp) {perror(pc.device);exit(-2);}
 
   size_t correct = 0, incorrect = 0, lastseed = -1, uuid = -1, wrongpos = 0, wronguuid = 0;
+  size_t printed = 0;
   for (size_t i = 0; i < pc.sz; i++) {
     if (pc.positions[i].action == 'W') {
       //      fprintf(stderr,"[%zd] %zd %c\n", i, pc.positions[i].pos, pc.positions[i].action);
@@ -57,7 +58,8 @@ int main(int argc, char *argv[]) {
       // check position
       size_t *p = (size_t*)loadblock;
       if (*p != pc.positions[i].pos) {
-	fprintf(stderr,"position %zd had incorrect stored position of %zd\n", pc.positions[i].pos, *p);
+	if (printed++ < 5) 
+	  fprintf(stderr,"position %zd had incorrect stored position of %zd\n", pc.positions[i].pos, *p);
 	wrongpos++;
 	continue;
       }
@@ -68,7 +70,8 @@ int main(int argc, char *argv[]) {
       } else {
 	size_t *u = (p+1);
 	if (*u != uuid) {
-	  fprintf(stderr,"inconsistent thread uuid at block %zd\n", pc.positions[i].pos);
+	  if (printed++ < 5) 
+	    fprintf(stderr,"inconsistent thread uuid at block %zd\n", pc.positions[i].pos);
 	  wronguuid++;
 	  continue;
 	}
@@ -78,7 +81,8 @@ int main(int argc, char *argv[]) {
       if (strcmp(loadblock+16, buffer+16)==0) {
 	correct++;
       } else {
-	fprintf(stderr,"[%zd, %zd]\n1: %s\n2: %s\n", *p, pc.positions[i].pos, loadblock+16, buffer+16);
+	if (printed++ < 5) 
+	  fprintf(stderr,"[%zd, %zd]\n1: %s\n2: %s\n", *p, pc.positions[i].pos, loadblock+16, buffer+16);
 	incorrect++;
       }
     }
