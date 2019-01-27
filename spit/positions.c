@@ -138,21 +138,21 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
 
 
 // lots of checks
-void savePositions(const char *name, positionType *positions, size_t num, size_t flushEvery) {
+void positionContainerSave(const positionContainer *p, const char *name, const size_t bdSizeBytes, const size_t flushEvery) {
   if (name) {
     FILE *fp = fopen(name, "wt");
     if (!fp) {
       perror(name); return;
     }
-    for (size_t i = 0; i <num; i++) {
+    const positionType *positions = p->positions;
+    for (size_t i = 0; i < p->sz; i++) {
       if (positions[i].success) {
-	size_t bdSizeBytes = 1; // XXX positions[i].dev->shouldBeSize;
 	const char action = positions[i].action;
 	if (action == 'R' || action == 'W') {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\n", "test" /*positions[i].dev->devicename XXX*/, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed);
 	}
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", "test" /*positions[i].dev->devicename XXX*/, (size_t)0, 0.0, 0.0, 'F', (size_t)0, bdSizeBytes, 0.0, positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", p->device, (size_t)0, 0.0, 0.0, 'F', (size_t)0, bdSizeBytes, 0.0, positions[i].seed);
 	}
       }
     }
@@ -172,7 +172,7 @@ void setupPositions(positionType *positions,
 		    size_t alignment,
 		    const long startingBlock,
 		    const size_t bdSizeTotal,
-		    long seed
+		    size_t seed
 		    ) {
   assert(lowbs <= bs);
   //  assert(positions);
@@ -399,24 +399,6 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
   return p;
 }
 
-void findSeedMaxBlock(positionType *positions, const size_t num, long *seed, size_t *minbs, size_t *blocksize) {
-  *blocksize = 0;
-  *minbs = 0;
-  for (size_t i = 0; i < num; i++) {
-    if (i==0) {
-      *minbs = positions[i].len;
-      *blocksize = *minbs;
-    }
-    *seed = positions[i].seed;
-    if (positions[i].len > *blocksize) {
-      *blocksize = positions[i].len;
-    }
-    if (positions[i].len < *minbs) {
-      *minbs = positions[i].len;
-    }
-  }
-}
-    
   
 void dumpPositions(positionType *positions, const char *prefix, const size_t num, const size_t countToShow) {
   fprintf(stderr,"%s: total number of positions %zd\n", prefix, num);
@@ -432,6 +414,9 @@ void positionContainerInit(positionContainer *pc) {
   pc->positions = NULL;
   pc->device = NULL;
   pc->string = NULL;
+  pc->bdSize = 0;
+  pc->minbs = 0;
+  pc->maxbs = 0;
 }
 
 void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString, char *string) {
@@ -547,3 +532,73 @@ void setupRandomPositions(positionType *pos,
     //    fprintf(stderr,"%zd\t%zd\t%c\n",randPos, thislen, pos[i].action);
   }
 }
+
+
+
+void positionContainerLoad(positionContainer *pc, FILE *fd) {
+
+  positionContainerInit(pc);
+  
+  char *line = malloc(200000);
+  size_t maxline = 200000, maxSize = 0, minbs = (size_t)-1, maxbs = 0;
+  ssize_t read;
+  char *path;
+  CALLOC(path, 1000, 1);
+  //  char *origline = line; // store the original pointer, as getline changes it creating an unfreeable area
+  positionType *p = NULL;
+  size_t pNum = 0;
+
+  while ((read = getline(&line, &maxline, fd)) != -1) {
+    size_t pos, len, seed, tmpsize;
+    //    fprintf(stderr,"%zd\n", strlen(line));
+    char op;
+    
+    int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %zu %*s %*s %zu", path, &pos, &op, &len, &tmpsize, &seed);
+    if (s >= 5) {
+      //      fprintf(stderr,"%s %zd %c %zd %zd\n", path, pos, op, len, seed);
+      //      deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
+      pNum++;
+      p = realloc(p, sizeof(positionType) * (pNum));
+      assert(p);
+      //      fprintf(stderr,"%zd\n", pNum);
+      //      p[pNum-1].fd = 0;
+      p[pNum-1].pos = pos;
+      p[pNum-1].len = len;
+      if (len < minbs) minbs = len;
+      if (len > maxbs) maxbs = len;
+      p[pNum-1].action = op;
+      p[pNum-1].success = 1;
+      p[pNum-1].seed = seed;
+      if (tmpsize > maxSize) {
+	maxSize = tmpsize;
+      }
+
+      //      fprintf(stderr,"added %p\n", p[pNum-1].dev);
+      
+    //    addDeviceDetails(line, devs, numDevs);
+    //    addDeviceToAnalyse(line);
+    //    add++;
+    //    printf("%s", line);
+    }
+  }
+  fflush(stderr);
+
+  free(line);
+
+  pc->positions = p;
+  pc->sz = pNum;
+  pc->string = strdup("");
+  pc->device = path;
+  pc->bdSize = maxSize;
+  pc->minbs = minbs;
+  pc->maxbs = maxbs;
+
+  fclose(fd);
+}
+
+void positionContainerInfo(const positionContainer *pc) {
+  fprintf(stderr,"device %s, number of positions %zd, size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->device, pc->sz, pc->bdSize, TOGiB(pc->bdSize), pc->minbs, pc->maxbs);
+}
+
+
+

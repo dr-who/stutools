@@ -237,9 +237,7 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
 
   size_t pos = 0;
   unsigned char *buf = (unsigned char*)rawbuf;
-  //  unsigned long ii = (unsigned long)rawbuf;
   size_t check = 0, ok = 0, error = 0;
-  //  srand(ii);
 
   keepRunning = 1;
   while (keepRunning) {
@@ -325,7 +323,7 @@ int getWriteCacheStatus(int fd) {
 
 
 // the block size random buffer. Nice ASCII
-void generateRandomBufferCyclic(char *buffer, size_t size, long seed, size_t cyclic) {
+void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seed, size_t cyclic) {
 
   if (cyclic > size || cyclic == 0) cyclic = size;
 
@@ -336,7 +334,7 @@ void generateRandomBufferCyclic(char *buffer, size_t size, long seed, size_t cyc
   srand48(seed);
   char *user = username();
 
-  const char verystartpoint = ' ' + (lrand48() % 15);
+  const char verystartpoint = ' ' + (lrand48() % 30);
   const char jump = (lrand48() % 3) + 1;
   char startpoint = verystartpoint;
   for (size_t j = 0; j < cyclic; j++) {
@@ -349,19 +347,22 @@ void generateRandomBufferCyclic(char *buffer, size_t size, long seed, size_t cyc
 
   char s[1000];
   memset(s, 0, 1000);
-  const size_t topr = sprintf(s, "stutools - %s - %ld\n", user == NULL ? "" : user, seed);
+  const size_t topr = sprintf(s, "________________stutools - %s - %u\n", user == NULL ? "" : user, seed);
   strncpy(buffer, s, topr);
+  buffer[cyclic-2] = '\n';
+  buffer[cyclic-1] = 0;
 
   for (size_t j = cyclic; j < size; j++) {
     buffer[j] = buffer[j % cyclic];
   }
 
 
+
   free(user);
 }
 
 
-void generateRandomBuffer(char *buffer, size_t size, long seed) {
+void generateRandomBuffer(char *buffer, size_t size, unsigned short seed) {
   generateRandomBufferCyclic(buffer, size, seed, size);
 }
 

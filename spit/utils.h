@@ -51,8 +51,8 @@ void majorAndMinor(int fd, unsigned int *major, unsigned int *minor);
 
 int getWriteCacheStatus(int fd);
 int trimDevice(int fd, char *path, unsigned long low, unsigned long high);
-void generateRandomBuffer(char *buffer, size_t size, long seed);
-void generateRandomBufferCyclic(char *buffer, size_t size, long seed, size_t cyclic);
+void generateRandomBuffer(char *buffer, size_t size, unsigned short seed);
+void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seed, size_t cyclic);
 
 
 char *getSuffix(const char *path);

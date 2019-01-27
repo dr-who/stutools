@@ -11,7 +11,8 @@ typedef struct {
   unsigned int len;  // 4;
   unsigned short seed; // 2
   char  action;        // 1: 'R' or 'W'
-  char  success;       // 1 
+  char  success;       // 1
+  unsigned short q;
 } positionType;
 
 typedef struct {
@@ -19,12 +20,15 @@ typedef struct {
   size_t sz;
   char *string;
   char *device;
+  size_t bdSize;
+  size_t minbs;
+  size_t maxbs;
 } positionContainer;
 
 positionType *createPositions(size_t num);
 
 int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes, size_t exitonerror);
-void savePositions(const char *name, positionType *positions, size_t num, size_t flushEvery);
+void positionContainerSave(const positionContainer *p, const char *name, const size_t bdSizeBytes, const size_t flushEvery);
 
 positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxsize);
 
@@ -39,7 +43,7 @@ void setupPositions(positionType *positions,
 		    size_t alignment,
 		    const long startingBlock,
 		    const size_t bdSizeTotal,
-		    long seed
+		    size_t seed
 		    );
 
 void freePositions(positionType *p);
@@ -53,8 +57,9 @@ void positionContainerInit(positionContainer *pc);
 void positionContainerSetup(positionContainer *pc, size_t sz, char *device, char *string);
 void positionContainerFree(positionContainer *pc);
 
-void positionContainerSave(const positionContainer *pc, const char *name, const size_t flushEvery);
-void positionContainerLoad(positionContainer *pc, const char *fn);
+void positionContainerLoad(positionContainer *pc, FILE *fp);
+
+void positionContainerInfo(const positionContainer *pc);
 
 void positionLatencyStats(positionContainer *pc, const int threadid);
 
@@ -68,6 +73,8 @@ void setupRandomPositions(positionType *pos,
 			  const size_t seedin);
 
 size_t numberOfDuplicates(positionType *pos, size_t const num);
+
+void positionContainerInfo(const positionContainer *pc);
 void skipPositions(positionType *pos, const size_t num, const size_t skipEvery);
 
 #endif

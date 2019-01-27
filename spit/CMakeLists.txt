@@ -9,3 +9,6 @@ add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c 
 
 add_executable(spit spit.c)
 target_link_libraries(spit spitlib m aio pthread)
+
+add_executable(verify verify.c)
+target_link_libraries(verify spitlib m aio pthread)

@@ -160,10 +160,16 @@ int main(int argc, char *argv[]) {
   jobType *j = malloc(sizeof(jobType));
   size_t maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
 
+  // don't run if swap is on
   if (swapTotal() > 0) {
     fprintf(stderr,"*error* spit needs swap to be off for believable numbers. `sudo swapoff -a`\n");
     exit(-1);
   }
+  // set OOM adjust to 1,000 to make this program be killed first
+  FILE *fp = fopen("/proc/self/oom_score_adj", "wt");
+  fprintf(fp,"1000\n");
+  fclose(fp);
+
 
   
   fprintf(stderr,"*info* spit %s %s (Stu's parallel I/O tester)\n", argv[0], VERSION);
