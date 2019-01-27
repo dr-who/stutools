@@ -428,6 +428,8 @@ void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString
 
 void positionContainerFree(positionContainer *pc) {
   free(pc->positions);
+  free(pc->string);
+  free(pc->device);
 }
 
 

@@ -90,6 +90,11 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr,"*info* total %zd, correct %zd, incorrect %zd, wrong stored pos %zd, wrong thread uuid %zd\n", correct+incorrect+wrongpos+wronguuid, correct, incorrect, wrongpos, wronguuid);
 
+  free(buffer);
+  free(loadblock);
+
+  positionContainerFree(&pc);
+
 
   exit(0);
 }
