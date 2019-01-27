@@ -68,11 +68,11 @@ void jobDumpAll(jobType *job) {
 
 void jobFree(jobType *job) {
   for (size_t i = 0; i < job->count; i++) {
-    free(job->strings[i]);
-    free(job->devices[i]);
+    if (job->strings[i]) {free(job->strings[i]); job->strings[i] = NULL;}
+    if (job->devices[i]) {free(job->devices[i]); job->devices[i] = NULL;}
   }
-  free(job->strings);
-  free(job->devices);
+  free(job->strings); job->strings = NULL;
+  free(job->devices); job->devices = NULL;
   jobInit(job);
 }
 

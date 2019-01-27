@@ -422,14 +422,17 @@ void positionContainerInit(positionContainer *pc) {
 void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString, char *string) {
   pc->sz = sz;
   pc->positions = createPositions(sz);
-  pc->device = deviceString;
-  pc->string = string;
+  pc->device = strdup(deviceString);
+  pc->string = strdup(string);
 }
 
 void positionContainerFree(positionContainer *pc) {
-  free(pc->positions);
-  free(pc->string);
-  free(pc->device);
+  if (pc->positions) free(pc->positions);
+  if (pc->string) free(pc->string);
+  if (pc->device) free(pc->device);
+  pc->positions = NULL;
+  pc->string = NULL;
+  pc->device = NULL;
 }
 
 
