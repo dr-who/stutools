@@ -289,10 +289,11 @@ size_t aioMultiplePositions( positionContainer *p,
 	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
 	  if (pp->verify) {
 	    //check uuid
-	    size_t uucheck;
+	    size_t uucheck, poscheck;
+	    memcpy(&poscheck, &readdata[pp->q][0], sizeof(size_t));
 	    memcpy(&uucheck, &readdata[pp->q][0] + sizeof(size_t), sizeof(size_t));
-	    if (p->UUID != uucheck) {
-	      fprintf(stderr,"position %zd  %d has wrong UUID, should be %zd was %zd\n", pp->pos, pp->verify, p->UUID, uucheck);
+	    if (p->UUID != uucheck || pp->pos != poscheck) {
+	      fprintf(stderr,"position %zd  %d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->pos, pp->verify, p->UUID, uucheck, pp->pos, poscheck);
 	    }
 	  }
 	  pp->finishtime = lastreceive;
