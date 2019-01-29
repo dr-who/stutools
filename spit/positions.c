@@ -245,10 +245,13 @@ void setupPositions(positionType *positions,
 	if (j + thislen > positionsEnd[i]) {positionsStart[i] += thislen; break;}
 
 	poss[count].pos = j;
+	poss[count].submittime = 0;
+	poss[count].finishtime = 0;
 	poss[count].len = thislen;
 	assert(poss[count].len >= 0);
 	//	poss[count].dev = dev;
 	poss[count].seed = seed;
+	poss[count].verify = 0;
 	
 	positionsStart[i] += thislen;
 	
@@ -374,10 +377,14 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
       //      fprintf(stderr,"%zd\n", pNum);
       //      p[pNum-1].fd = 0;
       p[pNum-1].pos = pos;
+      p[pNum-1].submittime = 0;
+      p[pNum-1].finishtime = 0;
       p[pNum-1].len = len;
+      p[pNum-1].seed = seed;
+      p[pNum-1].q = 0;
       p[pNum-1].action = op;
       p[pNum-1].success = 1;
-      p[pNum-1].seed = seed;
+      p[pNum-1].verify = 0;
       if (tmpsize > *maxSize) {
 	*maxSize = tmpsize;
       }
@@ -404,7 +411,7 @@ void dumpPositions(positionType *positions, const char *prefix, const size_t num
   fprintf(stderr,"%s: total number of positions %zd\n", prefix, num);
   for (size_t i = 0; i < num; i++) {
     if (i >= countToShow) break;
-    fprintf(stderr,"%s: [%zd] action %c pos %zd len %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len);
+    fprintf(stderr,"%s: [%2zd] action %c pos %9zd len %6d verify %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len, positions[i].verify);
   }
 }
 
@@ -421,6 +428,8 @@ void positionContainerInit(positionContainer *pc) {
   pc->writtenIOs = 0;
   pc->readBytes = 0;
   pc->readIOs = 0;
+  const double thetime = timedouble();
+  pc->UUID = thetime * 100;
 }
 
 void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString, char *string) {

@@ -6,13 +6,14 @@
 #include "devices.h"
 
 typedef struct {
-  size_t pos;          // 8
-  double submittime, finishtime; // 8
-  unsigned int len;  // 4;
-  unsigned short seed; // 2
-  char  action;        // 1: 'R' or 'W'
-  char  success;       // 1
-  unsigned short q;
+  size_t pos;                    // 8
+  double submittime, finishtime; // 16
+  unsigned int len;              // 4;
+  unsigned short seed;           // 2
+  unsigned short q;              // 2
+  char  action;                  // 1: 'R' or 'W'
+  char  success:4;               // 0.5
+  char  verify:4;                // 0.5
 } positionType;
 
 typedef struct {
@@ -27,6 +28,7 @@ typedef struct {
   size_t writtenIOs;
   size_t readBytes;
   size_t readIOs;
+  size_t UUID;
 } positionContainer;
 
 positionType *createPositions(size_t num);

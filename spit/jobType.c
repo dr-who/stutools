@@ -438,22 +438,37 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       threadContext[i].waitfor = waitfor;
     }
 
+    if (newmp && (newmp < mp)) {
+      fprintf(stderr,"*info* positions overwritten to %zd using 'P'\n", newmp);
+      mp = newmp;
+    }
+
+    
     if (!iRandom) {
-      positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-      //      fprintf(stderr,"*info* creating %zd positions...", threadContext[i].pos.sz); fflush(stderr);
-      if (!repeat) {
+      if (repeat == 0) {
+	fprintf(stderr,"*info* (1) creating %zd positions...", mp); fflush(stderr);
+	positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
 	setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+
       } else {
+	// allocate twice as much
+	fprintf(stderr,"*info* (2) creating 2 x %zd positions...", mp); fflush(stderr);
+	positionContainerSetup(&threadContext[i].pos, 2*mp, job->devices[i], job->strings[i]);
+
 	// split into two halves
-	size_t sz1 = threadContext[i].pos.sz / 2;
-	size_t sz2 = threadContext[i].pos.sz / 2;
+	size_t sz1 = mp; // setup the first 1/2
 	setupPositions(threadContext[i].pos.positions, &sz1, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
-	setupPositions(threadContext[i].pos.positions + sz1, &sz2, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
-	threadContext[i].pos.sz = sz1+sz2;
-      }
-      if (newmp && (newmp < threadContext[i].pos.sz)) {
-	fprintf(stderr,"*info* positions overwritten to %zd using 'P'\n", newmp);
-	threadContext[i].pos.sz = newmp;
+	// copy again
+	for (size_t j = 0; j < sz1; j++) {
+	  positionType *p = &threadContext[i].pos.positions[sz1 + j];
+	  
+	  *p = threadContext[i].pos.positions[j];
+	  if (p->action == 'W') { // it's just a pointer check so check all reads
+	    p->action = 'R'; //
+	    p->verify = 1;
+	  }
+	}
+	threadContext[i].pos.sz = 2 * sz1;
       }
 	
       //      fprintf(stderr,"\n");

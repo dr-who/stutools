@@ -130,9 +130,6 @@ size_t aioMultiplePositions( positionContainer *p,
   double thistime = 0;
   int qdIndex = 0;
 
-  double thetime = timedouble();
-  size_t uuid = thetime;
-  
   while (keepRunning && ((thistime = timedouble()) < finishtime)) {
     if (inFlight < QD) {
       
@@ -177,7 +174,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		p->writtenIOs++;
 
 		memcpy(&data[qdIndex][0], &positions[pos].pos, sizeof(size_t));
-		memcpy(&data[qdIndex][0] + sizeof(size_t), &uuid, sizeof(size_t));
+		memcpy(&data[qdIndex][0] + sizeof(size_t), &p->UUID, sizeof(size_t));
 
 		cbs[qdIndex]->data = &positions[pos];
 
@@ -285,10 +282,19 @@ size_t aioMultiplePositions( positionContainer *p,
 	  printed = 1;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	} else {
+	  //successful result
 	  struct iocb *my_iocb = events[j].obj;
 	  positionType *pp = (positionType*) my_iocb->data;
 
 	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
+	  if (pp->verify) {
+	    //check uuid
+	    size_t uucheck;
+	    memcpy(&uucheck, &readdata[pp->q][0] + sizeof(size_t), sizeof(size_t));
+	    if (p->UUID != uucheck) {
+	      fprintf(stderr,"position %zd  %d has wrong UUID, should be %zd was %zd\n", pp->pos, pp->verify, p->UUID, uucheck);
+	    }
+	  }
 	  pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed
 	}
