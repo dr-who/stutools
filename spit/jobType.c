@@ -291,9 +291,12 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     
     size_t countintime = mp;
     if ((long)timetorun > 0) { // only limit based on time if the time is positive
-      countintime = timetorun * 4000000;
+      
+#define ESTIMATEIOPS 500000
+      
+      countintime = timetorun * ESTIMATEIOPS;
       if (verbose || (countintime < mp)) {
-	fprintf(stderr,"*info* in %zd seconds, at 4 million a second, would have at most ", timetorun);
+	fprintf(stderr,"*info* in %zd seconds, at %d a second, would have at most ", timetorun, ESTIMATEIOPS);
 	commaPrint0dp(stderr, countintime);
 	fprintf(stderr," positions\n");
       }
