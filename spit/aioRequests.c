@@ -15,7 +15,7 @@ extern volatile int keepRunning;
 
 #define DISPLAYEVERY 1
 
-size_t aioMultiplePositions( positionType *positions,
+size_t aioMultiplePositions( positionContainer *p,
 			     const size_t sz,
 			     const double finishtime,
 			     const size_t origQD,
@@ -38,6 +38,7 @@ size_t aioMultiplePositions( positionType *positions,
   struct iocb **cbs;
   struct io_event *events;
   const size_t QD = origQD;
+  positionType *positions = p->positions;
 
   io_context_t ioc = 0;
   if (io_setup(QD, &ioc)) {
@@ -162,6 +163,9 @@ size_t aioMultiplePositions( positionType *positions,
 	      if (read) {
 		if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
 		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
+		p->readBytes += len;
+		p->readIOs++;
+
 		cbs[qdIndex]->data = &positions[pos];
 
 		totalReadBytes += len;
@@ -169,6 +173,8 @@ size_t aioMultiplePositions( positionType *positions,
 		if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d \n", positions[pos].pos, qdIndex);}
 		
 		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
+		p->writtenBytes += len;
+		p->writtenIOs++;
 
 		memcpy(&data[qdIndex][0], &positions[pos].pos, sizeof(size_t));
 		memcpy(&data[qdIndex][0] + sizeof(size_t), &uuid, sizeof(size_t));

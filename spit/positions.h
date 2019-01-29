@@ -23,6 +23,10 @@ typedef struct {
   size_t bdSize;
   size_t minbs;
   size_t maxbs;
+  size_t writtenBytes;
+  size_t writtenIOs;
+  size_t readBytes;
+  size_t readIOs;
 } positionContainer;
 
 positionType *createPositions(size_t num);

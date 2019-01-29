@@ -96,7 +96,7 @@ typedef struct {
 
 
 static void *runThread(void *arg) {
-  const threadInfoType *threadContext = (threadInfoType*)arg;
+  threadInfoType *threadContext = (threadInfoType*)arg;
   if (verbose >= 2) {
     fprintf(stderr,"*info* thread[%zd] job is '%s'\n", threadContext->id, threadContext->pos.string);
   }
@@ -132,7 +132,11 @@ static void *runThread(void *arg) {
 
   if (threadContext->random > 0) {
     size_t s = threadContext->id + threadContext->pos.sz;
+    positionContainer pc;
+    positionContainerInit(&pc);
+    
     positionType *p = createPositions(threadContext->random);
+    pc.positions = p;
     while (keepRunning && timedouble() < threadContext->finishtime) {
       setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s++);
       if (verbose >= 2) {
@@ -140,13 +144,13 @@ static void *runThread(void *arg) {
 	dumpPositions(p, "random", threadContext->random, 10);
       }
 
-      aioMultiplePositions(p, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1 /*verbose*/, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
+      aioMultiplePositions(&pc, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1 /*verbose*/, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
     }
 
 
     freePositions(p);
   } else {
-    aioMultiplePositions(threadContext->pos.positions, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
+    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   }
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   close(fd);
@@ -231,7 +235,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
   keepRunning = 1;
   
-  int bs = 4096, highbs = 4096;
   unsigned short seed = (unsigned short)timedouble();
 
   size_t newmp = 0;
@@ -239,6 +242,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   for (size_t i = 0; i < num; i++) {
 
     int seqFiles = 1;
+    int bs = 4096, highbs = 4096;
 
     if (verbose) {
       fprintf(stderr,"*info* setting up thread %zd\n", i);
@@ -490,6 +494,15 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   pthread_join(pt[num], NULL);
 
 
+
+    
+  // print stats 
+  for (size_t i = 0; i < num; i++) {
+    if (!threadContext[i].random) {
+      positionLatencyStats(&threadContext[i].pos, i);
+    }
+  }
+
   //        if (logPositions) {
   for (size_t i = 0; i < num; i++) {
     char s[1000];
@@ -501,11 +514,8 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
 
   
-  // print stats and free
+  // free
   for (size_t i = 0; i < num; i++) {
-    if (!threadContext[i].random) {
-      positionLatencyStats(&threadContext[i].pos, i);
-    }
     positionContainerFree(&threadContext[i].pos);
     free(threadContext[i].randomBuffer);
   }

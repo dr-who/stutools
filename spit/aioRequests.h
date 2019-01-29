@@ -6,7 +6,7 @@
 #include "logSpeed.h"
 #include "positions.h"
 
-size_t aioMultiplePositions( positionType *positions,
+size_t aioMultiplePositions( positionContainer *p,
 			     const size_t sz,
 			     const double finishtime,
 			     const size_t QD,
