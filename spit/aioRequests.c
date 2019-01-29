@@ -287,15 +287,21 @@ size_t aioMultiplePositions( positionContainer *p,
 	  positionType *pp = (positionType*) my_iocb->data;
 
 	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
-	  if (pp->verify) {
-	    //check uuid
+	  if (pp->verify || pp->action == 'W') {
+	    // if we know we have written we can check, or if we have read a previous write
 	    size_t uucheck, poscheck;
-	    memcpy(&poscheck, &readdata[pp->q][0], sizeof(size_t));
-	    memcpy(&uucheck, &readdata[pp->q][0] + sizeof(size_t), sizeof(size_t));
+	    if (pp->action == 'W') {
+	      memcpy(&poscheck, &data[pp->q][0], sizeof(size_t));
+	      memcpy(&uucheck, &data[pp->q][0] + sizeof(size_t), sizeof(size_t));
+	    } else {
+	      memcpy(&poscheck, &readdata[pp->q][0], sizeof(size_t));
+	      memcpy(&uucheck, &readdata[pp->q][0] + sizeof(size_t), sizeof(size_t));
+	    }
 	    if (p->UUID != uucheck || pp->pos != poscheck) {
 	      fprintf(stderr,"position %zd  %d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->pos, pp->verify, p->UUID, uucheck, pp->pos, poscheck);
 	    }
 	  }
+	
 	  pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed
 	}

@@ -501,7 +501,7 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   }
   double elapsed = finishtime - starttime;
 
-  fprintf(stderr,"*info* [thread %d] '%s': %.0lf MiB/s write (%.0lf IO/s), %.0lf MiB/s read (%.0lf IO/s), %.1lf s, slowest read %.3g, slowest write %.3g s, 1ms_read %zd, 1ms_write %zd\n", threadid, pc->string, TOMiB(pc->writtenBytes/elapsed), pc->writtenIOs/elapsed, TOMiB(pc->readBytes/elapsed), pc->readIOs/elapsed, elapsed, slowestread, slowestwrite, vslowread, vslowwrite);
+  fprintf(stderr,"*info* [thread %d] '%s': %.0lf MiB/s read (%.0lf IO/s), %.0lf MiB/s write (%.0lf IO/s), %.1lf s, slowest read %.3g, slowest write %.3g s, 1ms_read %zd, 1ms_write %zd\n", threadid, pc->string, TOMiB(pc->readBytes/elapsed), pc->readIOs/elapsed, TOMiB(pc->writtenBytes/elapsed), pc->writtenIOs/elapsed, elapsed, slowestread, slowestwrite, vslowread, vslowwrite);
   if (verbose >= 2) {
     fprintf(stderr,"*failed or not finished* %zd\n", failed);
   }
