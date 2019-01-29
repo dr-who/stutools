@@ -475,14 +475,11 @@ void positionContainerFree(positionContainer *pc) {
 */
 
 void positionLatencyStats(positionContainer *pc, const int threadid) {
-  size_t count = 0;
-
   double starttime = timedouble(), finishtime = timedouble(), slowestread = 0, slowestwrite = 0;
   size_t failed = 0, vslowread = 0, vslowwrite = 0;
   
   for (size_t i = 0; i < pc->sz;i++) {
     if (pc->positions[i].success && pc->positions[i].finishtime) {
-      count++;
       if (pc->positions[i].finishtime < starttime) starttime = pc->positions[i].finishtime;
       if (pc->positions[i].finishtime > finishtime) finishtime = pc->positions[i].finishtime;
       double delta = pc->positions[i].finishtime - pc->positions[i].submittime;
@@ -504,7 +501,7 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   }
   double elapsed = finishtime - starttime;
 
-  fprintf(stderr,"*info* [thread %d] '%s': %.0lf MiB/s write, %.0lf MiB/s read, %zd IOs (%.0lf IO/s) in %.1lf s, slowest read %.3g, slowest write %.3g s, 1ms_read %zd, 1ms_write %zd\n", threadid, pc->string, TOMiB(pc->writtenBytes/elapsed), TOMiB(pc->readBytes/elapsed), count, count/elapsed, elapsed, slowestread, slowestwrite, vslowread, vslowwrite);
+  fprintf(stderr,"*info* [thread %d] '%s': %.0lf MiB/s write (%.0lf IO/s), %.0lf MiB/s read (%.0lf IO/s), %.1lf s, slowest read %.3g, slowest write %.3g s, 1ms_read %zd, 1ms_write %zd\n", threadid, pc->string, TOMiB(pc->writtenBytes/elapsed), pc->writtenIOs/elapsed, TOMiB(pc->readBytes/elapsed), pc->readIOs/elapsed, elapsed, slowestread, slowestwrite, vslowread, vslowwrite);
   if (verbose >= 2) {
     fprintf(stderr,"*failed or not finished* %zd\n", failed);
   }

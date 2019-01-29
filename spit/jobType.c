@@ -92,6 +92,8 @@ typedef struct {
   size_t random;
   unsigned short seed;
   char *randomBuffer;
+  size_t numThreads;
+  positionContainer **allPC;
 } threadInfoType;
 
 
@@ -178,38 +180,60 @@ static void *runThreadTimer(void *arg) {
   diskStatAddDrive(&d, fd);
   close(fd);
   
-  diskStatStart(&d);
+  //  diskStatStart(&d);
 
   const double start = timedouble();
-  double last = start, thistime = start;
+  double thistime = start;
+  size_t last_trb = 0, last_twb = 0, last_tri = 0, last_twi = 0;
+  size_t trb = 0, twb = 0, tri = 0, twi = 0;
+
   while (keepRunning && (thistime = timedouble())) {
     usleep(100000);
     //    usleep(500000);
 
     if (thistime - start >= (i * TIMEPERLINE) && (thistime <= threadContext->finishtime)) {
       
-      diskStatFinish(&d);
-      size_t trb = 0, twb = 0, tri = 0, twi = 0;
+      //      diskStatFinish(&d);
+      trb = 0;
+      twb = 0;
+      tri = 0;
+      twi = 0;
       double util = 0;
-      diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
+      //diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
+
+      for (size_t j = 0; j < threadContext->numThreads;j++) {
+	trb += threadContext->allPC[j]->readBytes;
+	tri += threadContext->allPC[j]->readIOs;
+	twb += threadContext->allPC[j]->writtenBytes;
+	twi += threadContext->allPC[j]->writtenIOs;
+      }
       
       const double elapsed = thistime - start;
-      fprintf(stderr,"[%2.0lf] read ", elapsed);
-      commaPrint0dp(stderr, TOMiB(trb));
-      fprintf(stderr," MiB/s (");
-      commaPrint0dp(stderr, tri);
-      fprintf(stderr," IOPS / %zd), write ", (tri == 0) ? 0 : trb / tri);
-      commaPrint0dp(stderr, TOMiB(twb));
-      fprintf(stderr," MiB/s (");
-      commaPrint0dp(stderr, twi);
-      fprintf(stderr," IOPS / %zd), util %.0lf %%\n", (twi == 0) ? 0 : twb / twi, util);
+
       
+
+      fprintf(stderr,"[%2.0lf / %zd] read ", elapsed, threadContext->numThreads);
+      commaPrint0dp(stderr, TOMiB(trb - last_trb));
+      fprintf(stderr," MiB/s (");
+      commaPrint0dp(stderr, tri - last_tri);
+      fprintf(stderr," IOPS / %zd), write ", (tri - last_tri == 0) ? 0 : (trb - last_trb) / (tri - last_tri));
+      commaPrint0dp(stderr, TOMiB(twb - last_twb));
+      fprintf(stderr," MiB/s (");
+      commaPrint0dp(stderr, twi - last_twi);
+      fprintf(stderr," IOPS / %zd), util %.0lf %%\n", (twi - last_twi == 0) ? 0 : (twb - last_twb) / (twi - last_twi), util);
+
+      last_trb = trb;
+      last_tri = tri;
+      last_twb = twb;
+      last_twi = twi;
+      
+
       //    fprintf(stderr,"[%2.0lf] read %.0lf MiB/s (%zd IOPS), write %.0lf MiB/s (%zd IOPS), util %.0lf %%\n", elapsed, TOMiB(trb), tri, TOMiB(twb), twi, util);
       
-      last = thistime;
+      //      last = thistime;
       
       i++;
-      diskStatStart(&d);
+      //      diskStatStart(&d);
     }
 
     if (thistime > threadContext->finishtime + 10) {
@@ -217,7 +241,7 @@ static void *runThreadTimer(void *arg) {
       exit(-1);
     }
   }
-  diskStatFree(&d);
+  //  diskStatFree(&d);
   //  fprintf(stderr,"finished thread timer\n");
   keepRunning = 0;
   return NULL;
@@ -238,6 +262,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   unsigned short seed = (unsigned short)timedouble();
 
   size_t newmp = 0;
+
+  positionContainer **allThreadsPC;
+  CALLOC(allThreadsPC, num, sizeof(positionContainer*));
   
   for (size_t i = 0; i < num; i++) {
 
@@ -446,13 +473,13 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     
     if (!iRandom) {
       if (repeat == 0) {
-	fprintf(stderr,"*info* (1) creating %zd positions...", mp); fflush(stderr);
+	//	fprintf(stderr,"*info* (1) creating %zd positions...\n", mp); fflush(stderr);
 	positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
 	setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
 
       } else {
 	// allocate twice as much
-	fprintf(stderr,"*info* (2) creating 2 x %zd positions...", mp); fflush(stderr);
+	//	fprintf(stderr,"*info* (2) creating 2 x %zd positions...\n", mp); fflush(stderr);
 	positionContainerSetup(&threadContext[i].pos, 2*mp, job->devices[i], job->strings[i]);
 
 	// split into two halves
@@ -479,6 +506,12 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPositionsN);
       }
     }
+
+
+    // add threadContext[i].pos a pointer alias to a pool for the timer
+    allThreadsPC[i] = &threadContext[i].pos;
+    threadContext[i].numThreads = num;
+    threadContext[i].allPC = allThreadsPC;
   }
 
   // set the starting time
