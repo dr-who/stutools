@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <libaio.h>
 #include <assert.h>
+#include <math.h>
 
 #include "utils.h"
 #include "logSpeed.h"
@@ -39,6 +40,11 @@ size_t aioMultiplePositions( positionContainer *p,
   struct io_event *events;
   const size_t QD = origQD;
   positionType *positions = p->positions;
+
+  const double alignbits = log(alignment)/log(2);
+  assert (alignbits == (size_t)alignbits);
+  
+
 
   io_context_t ioc = 0;
   if (io_setup(QD, &ioc)) {
@@ -74,12 +80,18 @@ size_t aioMultiplePositions( positionContainer *p,
   CALLOC(data, QD, sizeof(char*));
 
   // setup the buffers to be contiguous
+  if (randomBufferSize * QD >= totalRAM()) {
+    fprintf(stderr,"*info* can't allocate (block size %zd x QD %zd) bytes\n", randomBufferSize, QD);
+    exit(-1);
+  }
+  if (verbose) fprintf(stderr,"*info* allocating %zd bytes\n", randomBufferSize * QD);
   CALLOC(data[0], randomBufferSize * QD, 1);
 
   char **readdata = NULL;
   CALLOC(readdata, QD, sizeof(char*));
 
   // setup the buffers to be contiguous
+  if (verbose) fprintf(stderr,"*info* allocating %zd bytes\n", randomBufferSize * QD);
   CALLOC(readdata[0], randomBufferSize * QD, 1);
 
   size_t *freeQueue; // qd collisions
@@ -190,8 +202,8 @@ size_t aioMultiplePositions( positionContainer *p,
 		inFlight++;
 		lastsubmit = thistime; // last good submit
 		submitted++;
-		if (verbose >= 2 || (newpos % alignment)) {
-		  fprintf(stderr,"fd %d, pos %zd (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+		if (verbose >= 2 || (newpos & (alignment - 1))) {
+		  fprintf(stderr,"fd %d, pos %zd (%% %zd = %zd ... %s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, alignment, newpos % alignment, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
 		}
 	      
 	      } else {

@@ -146,13 +146,13 @@ static void *runThread(void *arg) {
 	dumpPositions(p, "random", threadContext->random, 10);
       }
 
-      aioMultiplePositions(&pc, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1 /*verbose*/, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
+      aioMultiplePositions(&pc, threadContext->random, threadContext->finishtime, threadContext->queueDepth, -1 /*verbose*/, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, 4096, &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
     }
 
 
     freePositions(p);
   } else {
-    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, threadContext->blockSize, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
+    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, 4096, &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   }
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   close(fd);
@@ -198,7 +198,7 @@ static void *runThreadTimer(void *arg) {
       twb = 0;
       tri = 0;
       twi = 0;
-      double util = 0;
+      //      double util = 0;
       //diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
 
       for (size_t j = 0; j < threadContext->numThreads;j++) {
@@ -220,7 +220,8 @@ static void *runThreadTimer(void *arg) {
       commaPrint0dp(stderr, TOMiB(twb - last_twb));
       fprintf(stderr," MiB/s (");
       commaPrint0dp(stderr, twi - last_twi);
-      fprintf(stderr," IOPS / %zd), util %.0lf %%\n", (twi - last_twi == 0) ? 0 : (twb - last_twb) / (twi - last_twi), util);
+      //      fprintf(stderr," IOPS / %zd), util %.0lf %%\n", (twi - last_twi == 0) ? 0 : (twb - last_twb) / (twi - last_twi), util);
+      fprintf(stderr," IOPS / %zd)\n", (twi - last_twi == 0) ? 0 : (twb - last_twb) / (twi - last_twi));
 
       last_trb = trb;
       last_tri = tri;
