@@ -68,6 +68,8 @@ void positionContainerInfo(const positionContainer *pc);
 
 void positionLatencyStats(positionContainer *pc, const int threadid);
 
+void positionContainerAddMetadataChecks(positionContainer *pc);
+
 size_t setupRandomPositions(positionType *pos,
 			  const size_t num,
 			  const double rw,

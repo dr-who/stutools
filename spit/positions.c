@@ -439,6 +439,26 @@ void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString
   pc->string = strdup(string);
 }
 
+
+void positionContainerAddMetadataChecks(positionContainer *pc) {
+  size_t origsz = pc->sz;
+  pc->positions = realloc(pc->positions, (origsz * 2) * sizeof(positionType));
+  if (!pc->positions) {
+    fprintf(stderr,"*error* can't realloc array to %zd\n", (origsz * 2) * sizeof(positionType));
+    exit(-1);
+  }
+
+  for (size_t i = origsz; i < origsz * 2; i++) {
+    pc->positions[i] = pc->positions[i - origsz];
+    if (pc->positions[i].action == 'W') {
+      pc->positions[i].action = 'R';
+      pc->positions[i].verify = 1;
+    }
+  }
+
+  pc->sz = origsz * 2;
+}
+
 void positionContainerFree(positionContainer *pc) {
   if (pc->positions) free(pc->positions);
   if (pc->string) free(pc->string);

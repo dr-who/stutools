@@ -423,11 +423,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
 
 
-    size_t repeat = 0;
+    size_t metaData = 0;
     {
       char *iR = strchr(job->strings[i], 'm');
       if (iR) {
-	repeat = 1;
+	metaData = 1;
 	seqFiles = 0;
 	flushEvery = 1;
 	threadContext[i].flushEvery = flushEvery;
@@ -452,6 +452,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	  newmp = 0; // ignored
 	}
       }
+    }
+    if (newmp == 0) {
+      newmp = mp;
     }
 
     long startingBlock = -99999;
@@ -481,55 +484,25 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       threadContext[i].waitfor = waitfor;
     }
 
-    /*    if (newmp && (newmp < mp)) {
-      fprintf(stderr,"*info* positions overwritten to %zd using 'P'\n", newmp);
-      mp = newmp;
-      }*/
+    if (!iRandom) { // if iRandom set, then don't setup positions here, do it in the runThread. e.g. -c n
 
-    
-    if (!iRandom) {
-      if (repeat == 0) {
-	//	fprintf(stderr,"*info* (1) creating %zd positions...\n", mp); fflush(stderr);
-	positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-	size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
-	// 'P' override
-	if (newmp && (newmp < mp)) {
-	  threadContext[i].pos.sz = newmp;
-	}
-	threadContext[i].anywrites = anywrites;
+      // allocate the position array space
+      positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
+      // create the positions and the r/w status
+      size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+      threadContext[i].anywrites = anywrites;
+      threadContext[i].pos.sz = newmp;
 
-      } else {
-	// allocate twice as much
-	if (2 * newmp < mp) {
-	  mp = 2*newmp;
+      if (metaData) {
+	if (newmp < threadContext[i].queueDepth) {
+	  threadContext[i].queueDepth = newmp;
 	}
-	fprintf(stderr,"*info* (2) creating %zd positions...\n", mp); 
-	positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-
-	// split into two halves
-	size_t sz1 = mp / 2; // setup the first 1/2
-	size_t anywrites = setupPositions(threadContext[i].pos.positions, &sz1, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
-	threadContext[i].anywrites = anywrites;
-	
-	// copy again
-	for (size_t j = 0; j < sz1; j++) {
-	  positionType *p = &threadContext[i].pos.positions[sz1 + j];
-	  
-	  *p = threadContext[i].pos.positions[j];
-	  if (p->action == 'W') { // it's just a pointer check so check all reads
-	    p->action = 'R'; //
-	    p->verify = 1;
-	  }
-	}
-	threadContext[i].pos.sz = mp;
-	if (mp / 2 < threadContext[i].queueDepth) {
-	  threadContext[i].queueDepth = mp / 2;
-	}
+	positionContainerAddMetadataChecks(&threadContext[i].pos);
+	threadContext[i].pos.sz = 2* newmp; // double if you say P10 then it's 20
       }
-	
-      //      fprintf(stderr,"\n");
+
       if (verbose) {
-	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize, !repeat);
+	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize, !metaData);
       }
       if (dumpPositionsN) {
 	dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPositionsN);
