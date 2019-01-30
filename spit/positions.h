@@ -58,7 +58,7 @@ void positionStats(const positionType *positions, const size_t num, const device
 
 void dumpPositions(positionType *positions, const char *prefix, const size_t num, const size_t countToShow);
 
-void positionContainerInit(positionContainer *pc);
+void positionContainerInit(positionContainer *pc, size_t UUID);
 void positionContainerSetup(positionContainer *pc, size_t sz, char *device, char *string);
 void positionContainerFree(positionContainer *pc);
 

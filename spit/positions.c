@@ -426,14 +426,12 @@ void dumpPositions(positionType *positions, const char *prefix, const size_t num
 }
 
 
-void positionContainerInit(positionContainer *pc) {
+void positionContainerInit(positionContainer *pc, size_t UUID) {
   memset(pc, 0, sizeof(positionContainer));
-  const double thetime = timedouble();
-  pc->UUID = thetime * 100;
+  pc->UUID = UUID;
 }
 
 void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString, char *string) {
-  positionContainerInit(pc);
   pc->sz = sz;
   pc->positions = createPositions(sz);
   pc->device = strdup(deviceString);
@@ -579,7 +577,7 @@ size_t setupRandomPositions(positionType *pos,
 
 void positionContainerLoad(positionContainer *pc, FILE *fd) {
 
-  positionContainerInit(pc);
+  positionContainerInit(pc, 0);
   
   char *line = malloc(200000);
   size_t maxline = 200000, maxSize = 0, minbs = (size_t)-1, maxbs = 0;

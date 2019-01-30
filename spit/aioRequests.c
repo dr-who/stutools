@@ -343,7 +343,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	      uucheck = (size_t*)readdata[pp->q] + 1;
 	    }
 	    
-	    if (p->UUID != *uucheck || pp->pos != *poscheck) {
+	    if ((p->UUID != *uucheck) || (pp->pos != *poscheck)) {
 	      fprintf(stderr,"position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
 	      //	      abort();
 	    }

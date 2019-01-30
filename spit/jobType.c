@@ -95,6 +95,7 @@ typedef struct {
   size_t numThreads;
   positionContainer **allPC;
   size_t anywrites;
+  size_t UUID;
 } threadInfoType;
 
 
@@ -144,7 +145,7 @@ static void *runThread(void *arg) {
   if (threadContext->random) {
     size_t s = threadContext->id + threadContext->pos.sz;
     positionContainer pc;
-    positionContainerInit(&pc);
+    positionContainerInit(&pc, threadContext->UUID);
     
     positionType *p = createPositions(threadContext->random);
     pc.positions = p;
@@ -279,6 +280,10 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
   positionContainer **allThreadsPC;
   CALLOC(allThreadsPC, num, sizeof(positionContainer*));
+
+  const double thetime = timedouble();
+  const size_t UUID = thetime * 10;
+
   
   for (size_t i = 0; i < num; i++) {
 
@@ -363,7 +368,8 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
       
     threadContext[i].id = i;
-    positionContainerInit(&threadContext[i].pos);
+    threadContext[i].UUID = UUID;
+    positionContainerInit(&threadContext[i].pos, threadContext[i].UUID);
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
     threadContext[i].waitfor = 0;
