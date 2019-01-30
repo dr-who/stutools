@@ -29,6 +29,7 @@ typedef struct {
   size_t readBytes;
   size_t readIOs;
   size_t UUID;
+  double elapsedTime;
 } positionContainer;
 
 positionType *createPositions(size_t num);

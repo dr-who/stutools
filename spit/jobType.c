@@ -130,8 +130,9 @@ static void *runThread(void *arg) {
   }
 
 
-  fprintf(stderr,"*info* [thread %zd] '%s' / pos=%zd, |%zd|, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed %u\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->random, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed);
+  fprintf(stderr,"*info* [t%zd] '%s' pos=%zd, |%zd|, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed %u\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->random, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed);
 
+  double start = timedouble();
   if (threadContext->random > 0) {
     size_t s = threadContext->id + threadContext->pos.sz;
     positionContainer pc;
@@ -155,6 +156,8 @@ static void *runThread(void *arg) {
     aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, threadContext->finishtime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, 0, 1, fd, threadContext->flushEvery);
   }
   fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
+  threadContext->pos.elapsedTime = timedouble() - start;
+
   close(fd);
 
   logSpeedFree(&benchl);
@@ -543,8 +546,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   keepRunning = 0; // the 
   // now wait for the timer thread (probably don't need this)
   pthread_join(pt[num], NULL);
-
-
 
     
   // print stats 
