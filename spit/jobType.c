@@ -130,7 +130,7 @@ static void *runThread(void *arg) {
   }
 
 
-  fprintf(stderr,"*info* [thread %zd] starting '%s' with %zd positions, %zd reseeded, qd=%zd, R/w=%.2g, flushEvery=%zd, k=[%zd,%zd], seed %u\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->random, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed);
+  fprintf(stderr,"*info* [thread %zd] '%s' / pos=%zd, |%zd|, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed %u\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->random, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed);
 
   if (threadContext->random > 0) {
     size_t s = threadContext->id + threadContext->pos.sz;
@@ -314,9 +314,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       fprintf(stderr," positions\n");
     }
 
-    size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
+    //    size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
+    size_t useRAM = 2L*1024*1024*1024;
+    size_t fitinram = useRAM / num / sizeof(positionType);
     if (verbose || (fitinram < mp)) {
-      fprintf(stderr,"*info* with %.3lf GiB RAM, we can store ", TOGiB(totalRAM() / 4 / num));
+      fprintf(stderr,"*info* using %.3lf GiB RAM for positions, we can store ", TOGiB(useRAM));
       commaPrint0dp(stderr, fitinram);
       fprintf(stderr," positions\n");
     }

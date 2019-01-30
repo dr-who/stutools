@@ -84,14 +84,14 @@ size_t aioMultiplePositions( positionContainer *p,
     fprintf(stderr,"*info* can't allocate (block size %zd x QD %zd) bytes\n", randomBufferSize, QD);
     exit(-1);
   }
-  if (verbose) fprintf(stderr,"*info* allocating %zd bytes\n", randomBufferSize * QD);
+  //  if (verbose) fprintf(stderr,"*info* allocating %zd bytes\n", randomBufferSize * QD);
   CALLOC(data[0], randomBufferSize * QD, 1);
 
   char **readdata = NULL;
   CALLOC(readdata, QD, sizeof(char*));
 
   // setup the buffers to be contiguous
-  if (verbose) fprintf(stderr,"*info* allocating %zd bytes\n", randomBufferSize * QD);
+  //  if (verbose) fprintf(stderr,"*info* allocating %zd bytes\n", randomBufferSize * QD);
   CALLOC(readdata[0], randomBufferSize * QD, 1);
 
   size_t *freeQueue; // qd collisions
