@@ -393,7 +393,7 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
       p[pNum-1].seed = seed;
       p[pNum-1].q = 0;
       p[pNum-1].action = op;
-      p[pNum-1].success = 1;
+      p[pNum-1].success = 0;
       p[pNum-1].verify = 0;
       if (tmpsize > *maxSize) {
 	*maxSize = tmpsize;

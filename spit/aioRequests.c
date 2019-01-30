@@ -102,9 +102,10 @@ size_t aioMultiplePositions( positionContainer *p,
   size_t *freeQueue; // qd collisions
   size_t headOfQueue = 0;
   size_t tailOfQueue = 0;
-  CALLOC(freeQueue, QD, sizeof(size_t));
+  CALLOC(freeQueue, QD+1, sizeof(size_t));
   for (size_t i = 0; i < QD; i++) {
-    freeQueue[i] = i;
+    freeQueue[headOfQueue++] = i;
+    //    freeQueue[i] = i;
   }
   // grab [headOfQueue], put back onto [tailOfQueue]
 
@@ -158,6 +159,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	  submitCycles = flushEvery;
 	}
       }
+      assert(submitCycles > 0);
       for (size_t i = 0; i < submitCycles; i++) {
 	if (sz) {
 	  if (positions[pos].action != 'S') { // if we have some positions, sz > 0
@@ -166,7 +168,25 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	    int read = (positions[pos].action == 'R');
 
-	    qdIndex = freeQueue[headOfQueue++]; if (headOfQueue >= QD) headOfQueue = 0;
+	    if (0) {
+	      for (size_t q1 = tailOfQueue; q1 < (headOfQueue + 1 + QD) % (QD+1); q1++) {
+		for (size_t q2 = tailOfQueue; q2 < (headOfQueue + 1+ QD) % (QD+1); q2++) if (q1 != q2) {
+		    if ((freeQueue[q1] != -1) && (freeQueue[q1] == freeQueue[q2])) {
+
+		      fprintf(stderr,"eeek tail %zd head %zd,  [%zd]==[%zd] (%zd)\n", tailOfQueue, headOfQueue, q1, q2, freeQueue[q1]);
+		      for (size_t q3 = tailOfQueue; q3 < (headOfQueue + 1+ QD) % (QD+1); q3++) {
+			fprintf(stderr,"%zd ",freeQueue[q3]);
+		      }
+		      fprintf(stderr,"\n");
+			    
+		      abort();
+		    }
+		  }
+	      }
+	    }
+	    
+	    // got one, take of tail
+	    qdIndex = freeQueue[tailOfQueue++]; if (tailOfQueue >= QD + 1) tailOfQueue = 0;
 
 	    // setup the request
 	    if (fd >= 0) {
@@ -175,7 +195,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	      // watermark the block with the position on the device
 
 	      if (read) {
-		if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
+		if (verbose >= 2) {fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);}
 
 		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 		
@@ -186,10 +206,13 @@ size_t aioMultiplePositions( positionContainer *p,
 
 		totalReadBytes += len;
 	      } else {
-		if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d\n", positions[pos].pos, qdIndex);}
-		
-		memcpy(&data[qdIndex][0], &newpos, sizeof(size_t));
-		memcpy(&data[qdIndex][0] + sizeof(size_t), &p->UUID, sizeof(size_t));
+		if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);}
+
+		size_t *posdest = (size_t*)data[qdIndex];
+		*posdest = newpos;
+
+		size_t *uuiddest = (size_t*)data[qdIndex] + 1;
+		*uuiddest = p->UUID;
 
 		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
 
@@ -275,11 +298,11 @@ size_t aioMultiplePositions( positionContainer *p,
       }
     }
 
-    if (inFlight < 5) { // then don't timeout
-      ret = io_getevents(ioc, 1, QD, events, NULL);
-    } else {
+    //    if (inFlight < 5) { // then don't timeout
+    //      ret = io_getevents(ioc, 1, QD, events, NULL);
+    //    } else {
       ret = io_getevents(ioc, 1, QD, events, &timeout);
-    }
+      //    }
     lastreceive = timedouble(); // last good receive
 
     if (ret > 0) {
@@ -306,23 +329,25 @@ size_t aioMultiplePositions( positionContainer *p,
 	  struct iocb *my_iocb = events[j].obj;
 	  positionType *pp = (positionType*) my_iocb->data;
 
-	  if (pp->verify || (pp->action == 'W' && pp->success)) {
+	  if ((pp->verify || pp->action=='W') && (pp->success)) {
+	    //	    fprintf(stderr,"[%d] pos %zd verify %d\n", pp->q, pp->pos, pp->verify);
 	    // if we know we have written we can check, or if we have read a previous write
-	    size_t uucheck, poscheck;
+	    size_t *uucheck , *poscheck;
 	    if (pp->action == 'W') {
-	      memcpy(&poscheck, &data[pp->q][0], sizeof(size_t));
-	      memcpy(&uucheck, &data[pp->q][0] + sizeof(size_t), sizeof(size_t));
+	      poscheck = (size_t*)data[pp->q];
+	      uucheck = (size_t*)data[pp->q] + 1;
 	    } else {
-	      memcpy(&poscheck, &readdata[pp->q][0], sizeof(size_t));
-	      memcpy(&uucheck, &readdata[pp->q][0] + sizeof(size_t), sizeof(size_t));
+	      poscheck = (size_t*)readdata[pp->q];
+	      uucheck = (size_t*)readdata[pp->q] + 1;
 	    }
-	    if (p->UUID != uucheck || pp->pos != poscheck) {
-	      fprintf(stderr,"position %zd  %d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->pos, pp->verify, p->UUID, uucheck, pp->pos, poscheck);
-	      abort();
+	    
+	    if (p->UUID != *uucheck || pp->pos != *poscheck) {
+	      fprintf(stderr,"position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
+	      //	      abort();
 	    }
 	  }
-
-	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
+	  
+	  freeQueue[headOfQueue++] = pp->q; if (headOfQueue >= QD+1) headOfQueue = 0;
 	
 	  pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed
@@ -354,7 +379,8 @@ size_t aioMultiplePositions( positionContainer *p,
 	  struct iocb *my_iocb = events[j].obj;
 	  positionType *pp = (positionType*) my_iocb->data;
 
-	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
+	  freeQueue[headOfQueue++] = pp->q; if (headOfQueue >= QD+1) headOfQueue = 0;
+	  
 	  pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed
 	}

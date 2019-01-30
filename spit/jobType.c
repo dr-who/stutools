@@ -196,7 +196,7 @@ static void *runThreadTimer(void *arg) {
   //  diskStatStart(&d);
 
   const double start = timedouble();
-  double thistime = start;
+  double thistime = 0;
   size_t last_trb = 0, last_twb = 0, last_tri = 0, last_twi = 0;
   size_t trb = 0, twb = 0, tri = 0, twi = 0;
 
@@ -500,11 +500,14 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
       } else {
 	// allocate twice as much
-	//	fprintf(stderr,"*info* (2) creating 2 x %zd positions...\n", mp); fflush(stderr);
-	positionContainerSetup(&threadContext[i].pos, 2*mp, job->devices[i], job->strings[i]);
+	if (2 * newmp < mp) {
+	  mp = 2*newmp;
+	}
+	fprintf(stderr,"*info* (2) creating %zd positions...\n", mp); 
+	positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
 
 	// split into two halves
-	size_t sz1 = mp; // setup the first 1/2
+	size_t sz1 = mp / 2; // setup the first 1/2
 	size_t anywrites = setupPositions(threadContext[i].pos.positions, &sz1, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
 	threadContext[i].anywrites = anywrites;
 	
@@ -518,12 +521,10 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	    p->verify = 1;
 	  }
 	}
-	threadContext[i].pos.sz = 2 * sz1;
-	// 'P'
-	if (newmp && (newmp < mp)) {
-	  threadContext[i].pos.sz = newmp;
+	threadContext[i].pos.sz = mp;
+	if (mp / 2 < threadContext[i].queueDepth) {
+	  threadContext[i].queueDepth = mp / 2;
 	}
-	
       }
 	
       //      fprintf(stderr,"\n");
