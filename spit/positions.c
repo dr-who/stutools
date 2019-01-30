@@ -163,7 +163,7 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
 
 
 // create the position array
-void setupPositions(positionType *positions,
+size_t setupPositions(positionType *positions,
 		    size_t *num,
 		    const int sf,
 		    const double readorwrite,
@@ -174,8 +174,11 @@ void setupPositions(positionType *positions,
 		    const size_t bdSizeTotal,
 		    unsigned short seed
 		    ) {
+
   assert(lowbs <= bs);
   srand48(seed); // set the seed, thats why it was passed
+
+  size_t anywrites = 0;
 
   if (*num == 0) {
     fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");
@@ -252,6 +255,7 @@ void setupPositions(positionType *positions,
 	//	poss[count].dev = dev;
 	poss[count].seed = seed;
 	poss[count].verify = 0;
+	poss[count].q = 0;
 	
 	positionsStart[i] += thislen;
 	
@@ -280,7 +284,7 @@ void setupPositions(positionType *positions,
       offset = startingBlock % count;
     }
   }
-  //  fprintf(stderr,"starting offset %d\n", offset);
+  //    fprintf(stderr,"starting offset %d\n", offset);
 
   // rotate
   for (size_t i = 0; i < count; i++) {
@@ -289,7 +293,12 @@ void setupPositions(positionType *positions,
       index -= count;
     }
     positions[i] = poss[index];
-    if (drand48() <= readorwrite) positions[i].action='R'; else positions[i].action='W';
+    if (drand48() <= readorwrite)
+      positions[i].action='R';
+    else {
+      positions[i].action='W';
+      anywrites = 1;
+    }
     assert(positions[i].len >= 0);
   }
 
@@ -332,6 +341,7 @@ void setupPositions(positionType *positions,
   free(poss); // free the possible locations
   free(positionsStart);
   free(positionsEnd);
+  return anywrites;
 }
 
 
@@ -417,17 +427,7 @@ void dumpPositions(positionType *positions, const char *prefix, const size_t num
 
 
 void positionContainerInit(positionContainer *pc) {
-  pc->sz = 0;
-  pc->positions = NULL;
-  pc->device = NULL;
-  pc->string = NULL;
-  pc->bdSize = 0;
-  pc->minbs = 0;
-  pc->maxbs = 0;
-  pc->writtenBytes = 0;
-  pc->writtenIOs = 0;
-  pc->readBytes = 0;
-  pc->readIOs = 0;
+  memset(pc, 0, sizeof(positionContainer));
   const double thetime = timedouble();
   pc->UUID = thetime * 100;
 }
@@ -507,7 +507,7 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   }
 }
   
-void setupRandomPositions(positionType *pos,
+size_t setupRandomPositions(positionType *pos,
 			  const size_t num,
 			  const double rw,
 			  const size_t bs,
@@ -518,6 +518,7 @@ void setupRandomPositions(positionType *pos,
   unsigned int seed = seedin;
   const int alignbits = (int)(log(alignment)/log(2) + 0.01);
   const int bdSizeBits = (bdSize-highbs) >> alignbits;
+  size_t anywrites = 0;
 
   for (size_t i = 0; i < num; i++) {
     long low = rand_r(&seed);
@@ -540,12 +541,14 @@ void setupRandomPositions(positionType *pos,
       pos[i].action = 'R';
     } else {
       pos[i].action = 'W';
+      anywrites = 1;
     }
     pos[i].success = 0;
     pos[i].submittime = 0;
     pos[i].finishtime= 0;
     //    fprintf(stderr,"%zd\t%zd\t%c\n",randPos, thislen, pos[i].action);
   }
+  return anywrites;
 }
 
 

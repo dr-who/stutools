@@ -94,6 +94,7 @@ typedef struct {
   char *randomBuffer;
   size_t numThreads;
   positionContainer **allPC;
+  size_t anywrites;
 } threadInfoType;
 
 
@@ -115,7 +116,14 @@ static void *runThread(void *arg) {
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
   }
 
-  fd = open(threadContext->jobdevice, O_RDWR | direct);
+  if (threadContext->anywrites) {
+    fd = open(threadContext->jobdevice, O_RDWR | direct);
+    if (verbose >= 2) fprintf(stderr,"*info* open with O_RDWR\n");
+  } else {
+    fd = open(threadContext->jobdevice, O_RDONLY | direct);
+    if (verbose >= 2) fprintf(stderr,"*info* open with O_RDONLY\n");
+  }
+    
   if (fd < 0) {
     fprintf(stderr,"problem!!\n");
     perror(threadContext->jobdevice); return 0;
@@ -141,7 +149,9 @@ static void *runThread(void *arg) {
     positionType *p = createPositions(threadContext->random);
     pc.positions = p;
     while (keepRunning && timedouble() < threadContext->finishtime) {
-      setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s++);
+      size_t anywrites = setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s++);
+      threadContext->anywrites = anywrites;
+      
       if (verbose >= 2) {
 	fprintf(stderr,"*info* generating random %zd\n", threadContext->random);
 	dumpPositions(p, "random", threadContext->random, 10);
@@ -174,13 +184,13 @@ static void *runThreadTimer(void *arg) {
   const threadInfoType *threadContext = (threadInfoType*)arg;
 
   size_t i = 1;
-  diskStatType d;
-  diskStatSetup(&d);
+  //  diskStatType d;
+  //  diskStatSetup(&d);
   int fd = open(threadContext->jobdevice, O_RDONLY);
   if (fd < 0) {
     perror("diskstats"); return NULL;
   }
-  diskStatAddDrive(&d, fd);
+  //  diskStatAddDrive(&d, fd);
   close(fd);
   
   //  diskStatStart(&d);
@@ -471,17 +481,22 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       threadContext[i].waitfor = waitfor;
     }
 
-    if (newmp && (newmp < mp)) {
+    /*    if (newmp && (newmp < mp)) {
       fprintf(stderr,"*info* positions overwritten to %zd using 'P'\n", newmp);
       mp = newmp;
-    }
+      }*/
 
     
     if (!iRandom) {
       if (repeat == 0) {
 	//	fprintf(stderr,"*info* (1) creating %zd positions...\n", mp); fflush(stderr);
 	positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
-	setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+	size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+	// 'P' override
+	if (newmp && (newmp < mp)) {
+	  threadContext[i].pos.sz = newmp;
+	}
+	threadContext[i].anywrites = anywrites;
 
       } else {
 	// allocate twice as much
@@ -490,7 +505,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
 	// split into two halves
 	size_t sz1 = mp; // setup the first 1/2
-	setupPositions(threadContext[i].pos.positions, &sz1, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+	size_t anywrites = setupPositions(threadContext[i].pos.positions, &sz1, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+	threadContext[i].anywrites = anywrites;
+	
 	// copy again
 	for (size_t j = 0; j < sz1; j++) {
 	  positionType *p = &threadContext[i].pos.positions[sz1 + j];
@@ -502,6 +519,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	  }
 	}
 	threadContext[i].pos.sz = 2 * sz1;
+	// 'P'
+	if (newmp && (newmp < mp)) {
+	  threadContext[i].pos.sz = newmp;
+	}
+	
       }
 	
       //      fprintf(stderr,"\n");
@@ -572,7 +594,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     free(threadContext[i].randomBuffer);
   }
 
-
+  free(allThreadsPC);
   free(threadContext);
   free(pt);
 }

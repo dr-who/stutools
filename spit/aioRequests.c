@@ -38,7 +38,12 @@ size_t aioMultiplePositions( positionContainer *p,
   int ret;
   struct iocb **cbs;
   struct io_event *events;
-  const size_t QD = origQD;
+  const size_t QD = MIN(origQD, sz);
+  if (QD != origQD) {
+    if (verbose) {
+      fprintf(stderr,"*warning* queue depth shrunk %zd -> %zd because positions is %zd\n", origQD, QD, sz);
+    }
+  }
   positionType *positions = p->positions;
 
   const double alignbits = log(alignment)/log(2);
@@ -171,7 +176,9 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	      if (read) {
 		if (verbose >= 2) {fprintf(stderr,"[%zd] read ", pos);}
+
 		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
+		
 		p->readBytes += len;
 		p->readIOs++;
 
@@ -179,14 +186,15 @@ size_t aioMultiplePositions( positionContainer *p,
 
 		totalReadBytes += len;
 	      } else {
-		if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d \n", positions[pos].pos, qdIndex);}
+		if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d\n", positions[pos].pos, qdIndex);}
 		
+		memcpy(&data[qdIndex][0], &newpos, sizeof(size_t));
+		memcpy(&data[qdIndex][0] + sizeof(size_t), &p->UUID, sizeof(size_t));
+
 		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
+
 		p->writtenBytes += len;
 		p->writtenIOs++;
-
-		memcpy(&data[qdIndex][0], &positions[pos].pos, sizeof(size_t));
-		memcpy(&data[qdIndex][0] + sizeof(size_t), &p->UUID, sizeof(size_t));
 
 		cbs[qdIndex]->data = &positions[pos];
 
@@ -298,8 +306,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	  struct iocb *my_iocb = events[j].obj;
 	  positionType *pp = (positionType*) my_iocb->data;
 
-	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
-	  if (pp->verify || pp->action == 'W') {
+	  if (pp->verify || (pp->action == 'W' && pp->success)) {
 	    // if we know we have written we can check, or if we have read a previous write
 	    size_t uucheck, poscheck;
 	    if (pp->action == 'W') {
@@ -311,8 +318,11 @@ size_t aioMultiplePositions( positionContainer *p,
 	    }
 	    if (p->UUID != uucheck || pp->pos != poscheck) {
 	      fprintf(stderr,"position %zd  %d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->pos, pp->verify, p->UUID, uucheck, pp->pos, poscheck);
+	      abort();
 	    }
 	  }
+
+	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
 	
 	  pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed

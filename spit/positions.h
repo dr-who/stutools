@@ -41,7 +41,7 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
 
 void infoPositions(const deviceDetails *devList, const size_t devCount);
 
-void setupPositions(positionType *positions,
+size_t setupPositions(positionType *positions,
 		    size_t *num,
 		    const int sf,
 		    const double readorwrite,
@@ -68,7 +68,7 @@ void positionContainerInfo(const positionContainer *pc);
 
 void positionLatencyStats(positionContainer *pc, const int threadid);
 
-void setupRandomPositions(positionType *pos,
+size_t setupRandomPositions(positionType *pos,
 			  const size_t num,
 			  const double rw,
 			  const size_t bs,
