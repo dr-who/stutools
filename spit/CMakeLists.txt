@@ -12,3 +12,6 @@ target_link_libraries(spit spitlib m aio pthread)
 
 add_executable(spitchecker verify.c)
 target_link_libraries(spitchecker spitlib m aio pthread)
+
+add_executable(bdinfo bdinfo.c)
+target_link_libraries(bdinfo spitlib m aio pthread)
