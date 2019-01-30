@@ -433,6 +433,7 @@ void positionContainerInit(positionContainer *pc) {
 }
 
 void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString, char *string) {
+  positionContainerInit(pc);
   pc->sz = sz;
   pc->positions = createPositions(sz);
   pc->device = strdup(deviceString);
@@ -555,7 +556,11 @@ size_t setupRandomPositions(positionType *pos,
 
     assert (randPos + thislen <= bdSize);
     pos[i].pos = randPos;
+    pos[i].submittime = 0;
+    pos[i].finishtime= 0;
     pos[i].len = thislen;
+    pos[i].seed = seedin;
+    pos[i].q = 0;
 
     if (rand_r(&seed) % 100 < 100*rw) {
       pos[i].action = 'R';
@@ -564,8 +569,7 @@ size_t setupRandomPositions(positionType *pos,
       anywrites = 1;
     }
     pos[i].success = 0;
-    pos[i].submittime = 0;
-    pos[i].finishtime= 0;
+    pos[i].verify = 0;
     //    fprintf(stderr,"%zd\t%zd\t%c\n",randPos, thislen, pos[i].action);
   }
   return anywrites;

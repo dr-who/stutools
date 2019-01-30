@@ -38,12 +38,14 @@ size_t aioMultiplePositions( positionContainer *p,
   int ret;
   struct iocb **cbs;
   struct io_event *events;
-  const size_t QD = MIN(origQD, sz);
-  if (QD != origQD) {
+  assert(origQD <= sz);
+  const size_t QD = origQD;
+  assert(sz>0);
+  /*  if (QD != origQD) {
     if (verbose) {
       fprintf(stderr,"*warning* queue depth shrunk %zd -> %zd because positions is %zd\n", origQD, QD, sz);
     }
-  }
+    }*/
   positionType *positions = p->positions;
 
   const double alignbits = log(alignment)/log(2);

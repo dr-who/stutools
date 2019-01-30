@@ -101,7 +101,7 @@ typedef struct {
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
   if (verbose >= 2) {
-    fprintf(stderr,"*info* thread[%zd] job is '%s'\n", threadContext->id, threadContext->pos.string);
+    fprintf(stderr,"*info* thread[%zd] job is '%s'\n", threadContext->id, threadContext->jobstring);
   }
 
   logSpeedType benchl;
@@ -116,7 +116,7 @@ static void *runThread(void *arg) {
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
   }
 
-  if (threadContext->anywrites) {
+  if (threadContext->anywrites || threadContext->random) {
     fd = open(threadContext->jobdevice, O_RDWR | direct);
     if (verbose >= 2) fprintf(stderr,"*info* open with O_RDWR\n");
   } else {
@@ -141,7 +141,7 @@ static void *runThread(void *arg) {
   fprintf(stderr,"*info* [t%zd] '%s' pos=%zd, |%zd|, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed %u\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz, threadContext->random, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed);
 
   double start = timedouble();
-  if (threadContext->random > 0) {
+  if (threadContext->random) {
     size_t s = threadContext->id + threadContext->pos.sz;
     positionContainer pc;
     positionContainerInit(&pc);
@@ -264,7 +264,7 @@ static void *runThreadTimer(void *arg) {
 
 
 void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
-		   const size_t timetorun, const size_t dumpPositionsN) {
+		   const size_t timetorun, const size_t dumpPos) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -363,9 +363,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
       
     threadContext[i].id = i;
+    positionContainerInit(&threadContext[i].pos);
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
-    positionContainerInit(&threadContext[i].pos);
     threadContext[i].waitfor = 0;
     threadContext[i].blockSize = bs;
     threadContext[i].highBlockSize = highbs;
@@ -414,9 +414,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       char *iR = strchr(job->strings[i], 'n');
       if (iR) {// && *(iR+1)) {
 	iRandom = 1000000;
-	//	mp = iRandom;
-	//	iRandom = atoi(iR+1);
-	//	fprintf(stderr,"ir %d mp %zd\n", iRandom, mp);
       }
     }
     threadContext[i].random = iRandom;
@@ -425,6 +422,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
     size_t metaData = 0;
     {
+      // metaData mode is random, verify all writes and flushing
       char *iR = strchr(job->strings[i], 'm');
       if (iR) {
 	metaData = 1;
@@ -434,7 +432,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
 
-    int qDepth = 256;
+    int qDepth = 256; // 256 is the default
     {
       char *qdd = strchr(job->strings[i], 'q');
       if (qdd && *(qdd+1)) {
@@ -453,12 +451,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	}
       }
     }
-    if (newmp == 0) {
+    if (newmp == 0) { // have newmp all set to be the right future value
       newmp = mp;
     }
 
     long startingBlock = -99999;
-
     if (strchr(job->strings[i], 'z')) {
       startingBlock = 0;
     }
@@ -484,29 +481,33 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       threadContext[i].waitfor = waitfor;
     }
 
-    if (!iRandom) { // if iRandom set, then don't setup positions here, do it in the runThread. e.g. -c n
+    
+    if (iRandom == 0) { // if iRandom set, then don't setup positions here, do it in the runThread. e.g. -c n
+      positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
 
       // allocate the position array space
-      positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
+      //positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
       // create the positions and the r/w status
       size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+
       threadContext[i].anywrites = anywrites;
       threadContext[i].pos.sz = newmp;
-
+      
       if (metaData) {
-	if (newmp < threadContext[i].queueDepth) {
-	  threadContext[i].queueDepth = newmp;
-	}
 	positionContainerAddMetadataChecks(&threadContext[i].pos);
-	threadContext[i].pos.sz = 2* newmp; // double if you say P10 then it's 20
+	threadContext[i].pos.sz = 2 * newmp; // double if you say P10 then it's 20
       }
 
       if (verbose) {
 	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize, !metaData);
       }
-      if (dumpPositionsN) {
-	dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPositionsN);
+      if (dumpPos) {
+	dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPos);
       }
+    }
+
+    if (newmp <= threadContext[i].queueDepth) {
+      threadContext[i].queueDepth = newmp;
     }
 
 
