@@ -501,7 +501,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       if (verbose) {
 	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize, !metaData);
       }
-      if (dumpPos) {
+      if (dumpPos && !iRandom) {
 	dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPos);
       }
     }
