@@ -76,11 +76,11 @@ int main(int argc, char *argv[]) {
 	continue;
       }
 
-      if (strcmp((char*)(loadblock+16), (char*)(buffer+16))==0) {
+      if (strncmp((char*)(loadblock+16), (char*)(buffer+16), pc.positions[i].len - 16) == 0) {
 	correct++;
       } else {
 	if (printed++ <= 10) 
-	  fprintf(stderr,"[%zd, %zd]\n1: %s\n2: %s\n", p, pc.positions[i].pos, loadblock+16, buffer+16);
+	  fprintf(stderr,"[%zd, %zd (len %d)]\n1: %s\n2: %s\n", p, pc.positions[i].pos, pc.positions[i].len, loadblock+16, buffer+16);
 	incorrect++;
       }
     }
