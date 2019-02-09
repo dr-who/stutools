@@ -332,7 +332,12 @@ io_context_t *createContexts(const size_t count, const size_t qd) {
 void setupContexts(io_context_t *p, const size_t count, const size_t qd) {
 
   for (size_t i = 0; i < count; i++) {
-    io_setup(qd, &p[i]);
+    int err = io_setup(qd, &p[i]);
+    if( err < 0 )
+    {
+      fprintf(stderr, "io_setup() fail, returned %d", err);
+      abort();
+    }
   }
 }
 
