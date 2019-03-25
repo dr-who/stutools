@@ -439,7 +439,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
 
-    int qDepth = 256; // 256 is the default
+    int qDepth = 1024; // 1024 is the default
     {
       char *qdd = strchr(job->strings[i], 'q');
       if (qdd && *(qdd+1)) {
