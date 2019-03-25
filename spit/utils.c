@@ -35,12 +35,19 @@ extern int keepRunning;
   return now;
   }*/
 
-double timedouble() {
+inline double timedouble() {
   struct timeval now;
   gettimeofday(&now, NULL);
   double tm = ((double)now.tv_sec * 1000000.0) + now.tv_usec;
   assert(tm > 0);
   return tm/1000000.0;
+}
+
+inline double timesec() {
+  struct timeval now;
+  gettimeofday(&now, NULL);
+  double tm = now.tv_sec;
+  return tm;
 }
 
 
