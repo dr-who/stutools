@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
   size_t correct = 0, incorrect = 0, ioerrors = 0, lenerrors = 0;
   if (positions) {
     // lots of threads
-    verifyPositions(positions, numPositions, randomBuffer, 2048, seed, blocksize, &correct, &incorrect, &ioerrors, &lenerrors);
+    verifyPositions(positions, numPositions, randomBuffer, 256, seed, blocksize, &correct, &incorrect, &ioerrors, &lenerrors);
   }
   
   fprintf(stderr,"*info* total %zd, correct %zd, incorrect %zd, ioerrors %zd, lenerrors %zd\n", correct+incorrect+ioerrors+lenerrors, correct, incorrect, ioerrors, lenerrors);
