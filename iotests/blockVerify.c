@@ -153,7 +153,10 @@ int verifyPositions(positionType *positions, size_t numPositions,char *randomBuf
     threadContext[i].bytesRead = 0;
     threadContext[i].elapsed = 0;
 
-    pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
+    if (pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]))) {
+      fprintf(stderr,"*error* can't create a thread\n");
+      exit(-1);
+    }
   }
 
   for (size_t i = 0; i < threads; i++) {
