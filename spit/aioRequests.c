@@ -228,12 +228,10 @@ size_t aioMultiplePositions( positionContainer *p,
 	      }
 	      
 	      thistime = timedouble();
-	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
-
 	      positions[pos].submittime = thistime;
 	      
 	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
-
+	      
 	      if (ret > 0) {
 		inFlight++;
 		lastsubmit = thistime; // last good submit
