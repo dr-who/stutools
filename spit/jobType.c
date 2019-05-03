@@ -14,6 +14,7 @@
 
 #include "jobType.h"
 #include "positions.h"
+#include <math.h>
 #include "utils.h"
 
 #include "aioRequests.h"
@@ -150,7 +151,7 @@ static void *runThread(void *arg) {
     positionType *p = createPositions(threadContext->random);
     pc.positions = p;
     while (keepRunning && timedouble() < threadContext->finishtime) {
-      size_t anywrites = setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, threadContext->blockSize, threadContext->bdSize, s++);
+      size_t anywrites = setupRandomPositions(p, threadContext->random, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, MIN(4096, threadContext->blockSize), threadContext->bdSize, s++);
       threadContext->anywrites = anywrites;
       
       if (verbose >= 2) {
@@ -304,10 +305,10 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	}
       }
     }
+
     if (highbs < bs) {
       highbs = bs;
     }
-    
 
     char *charLimit = strchr(job->strings[i], 'L');
     size_t limit = (size_t)-1;
@@ -434,7 +435,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
 
-    int qDepth = 256; // 256 is the default
+    int qDepth = 1024; // 1024 is the default
     {
       char *qdd = strchr(job->strings[i], 'q');
       if (qdd && *(qdd+1)) {
@@ -488,7 +489,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       // allocate the position array space
       //positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
       // create the positions and the r/w status
-      size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+      size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].bdSize, threadContext[i].seed);
 
       threadContext[i].anywrites = anywrites;
       

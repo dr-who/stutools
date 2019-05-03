@@ -719,7 +719,7 @@ int main(int argc, char *argv[]) {
 	keepRunning = 1;
 	//	int numerrors = aioVerifyWrites(positions, maxPositions, BLKSIZE, alignment, verbose, randomBuffer);
 	size_t correct = 0, incorrect = 0, ioerrors = 0, lenerrors = 0;
-	int numerrors = verifyPositions(positions, maxPositions, randomBuffer, 2048, seed, BLKSIZE, &correct, &incorrect, &ioerrors, &lenerrors);
+	int numerrors = verifyPositions(positions, maxPositions, randomBuffer, 256, seed, BLKSIZE, &correct, &incorrect, &ioerrors, &lenerrors);
 
 	fprintf(stderr,"*info* verify: total %zd, ok %zd, wrong %zd, ioerrors %zd, lenerrors %zd\n", correct+incorrect+ioerrors+lenerrors, correct, incorrect, ioerrors, lenerrors);
 	

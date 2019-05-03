@@ -12,8 +12,8 @@ typedef struct {
   unsigned short seed;           // 2
   unsigned short q;              // 2
   char  action;                  // 1: 'R' or 'W'
-  char  success:4;               // 0.5
-  char  verify:4;                // 0.5
+  unsigned int  success:4;               // 0.5
+  unsigned int  verify:4;                // 0.5
 } positionType;
 
 typedef struct {

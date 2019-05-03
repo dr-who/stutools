@@ -228,6 +228,8 @@ size_t aioMultiplePositions( positionContainer *p,
 	      }
 	      
 	      thistime = timedouble();
+	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
+
 	      positions[pos].submittime = thistime;
 	      
 	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
