@@ -41,8 +41,7 @@ positionType *createPositions(size_t num) {
 }
 
 void freePositions(positionType *p) {
-  free(p);
-  p = NULL;
+  free(p);  p = NULL;
 }
 
 
@@ -129,11 +128,132 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
   }
 
   
-  free(copy);
+  free(copy); copy = NULL;
 
   if (verbose)
     fprintf(stderr,"*info* action summary: reads %zd, writes %zd, checked ratio %.1lf, len [%zd, %zd], same %zd, unique %zd\n", rcount, wcount, rcount*1.0/(rcount+wcount), sizelow, sizehigh, same, unique);
   return 0;
+}
+
+positionContainer positionContainerCollapse(positionContainer merged, size_t *total) {
+  qsort(merged.positions, *total, sizeof(positionType), poscompare);
+  
+  for (size_t i = 0; i < *total; i++) {
+    if (merged.positions[i].action == 'W' && merged.positions[i].finishtime > 0) {
+      if (i>0) assert(merged.positions[i].pos >= merged.positions[i-1].pos);
+      
+      size_t j = i+1;
+      while ((j < *total) && (merged.positions[j].pos < (merged.positions[i].pos + merged.positions[i].len))) {
+	// hit
+      
+	if (merged.positions[j].action=='W' && (merged.positions[j].finishtime > 0)) {
+	
+	  double deltastart = merged.positions[j].submittime - merged.positions[i].submittime;
+	  if (deltastart < 0) deltastart = -deltastart;
+	
+	  if (deltastart < 1000000) { // if they start within 0.1 ms who knows
+	    merged.positions[i].action = 'X'; // exclude from output
+	    merged.positions[j].action = 'X'; // exclude from output
+	  }
+	
+	  if (merged.positions[j].submittime >= merged.positions[i].submittime &&
+	      merged.positions[j].submittime <= merged.positions[i].finishtime ) {
+	    //	fprintf(stderr,"  *error* time overlap\n");
+	    merged.positions[i].action = 'X'; // exclude from output
+	    merged.positions[j].action = 'X'; // exclude from output
+	  }
+	  
+	  if (merged.positions[j].finishtime >= merged.positions[i].submittime &&
+	      merged.positions[j].finishtime <= merged.positions[i].finishtime ) {
+	    merged.positions[i].action = 'X'; // exclude from output
+	    merged.positions[j].action = 'X'; // exclude from output
+	    }
+	}
+	j++;
+      }
+    }
+  }
+  
+  // collapse
+  size_t left = 0;
+  for (size_t i = 0; i < *total; i++) {
+    if (merged.positions[i].action != 'X' && merged.positions[i].finishtime > 0) {
+      left++;
+    }
+  }
+
+  positionContainer shrunk;
+  positionContainerInit(&shrunk, 0);
+  positionContainerSetup(&shrunk, left, merged.device, merged.string);
+  left = 0;
+  for (size_t i = 0; i < *total; i++) {
+    if (merged.positions[i].action != 'X' && merged.positions[i].finishtime > 0) {
+      shrunk.positions[left++] = merged.positions[i];
+    }
+  }
+  *total = left;
+  
+  return shrunk;
+}
+  
+
+
+
+
+positionContainer positionContainerMerge(const positionContainer *p, const size_t numFiles) {
+  size_t total = 0;
+  size_t lastbd = 0;
+
+  if (numFiles > 0) lastbd = p[0].bdSize;
+
+  for (size_t i = 0; i < numFiles; i++) {
+      fprintf(stderr,"*info* input %zd, size %zd, bdSize %zd\n", i, p[i].sz, p[i].bdSize);
+    total += p[i].sz;
+    if (i > 0) {
+      if (p[i].bdSize != lastbd) {
+	fprintf(stderr,"*error* not all the files have the same device size (%zd != %zd)\n", p[i].bdSize, lastbd);
+	exit(1);
+      }
+    }
+    lastbd = p[i].bdSize;
+  }
+  positionContainer merged;
+  positionContainerInit(&merged, 0);
+  positionContainerSetup(&merged, total, p[0].device, p[0].string);
+  merged.bdSize = lastbd;
+  
+  size_t startpos = 0;
+  for (size_t i = 0; i < numFiles; i++) {
+    memcpy(merged.positions + startpos, p[i].positions, p[i].sz * sizeof(positionType));
+    startpos += p[i].sz;
+  }
+  assert(startpos == total);
+
+  positionContainer shrunk = positionContainerCollapse(merged, &total);
+  //  positionContainerFree(&merged);
+
+  merged = shrunk;
+
+  shrunk = positionContainerCollapse(merged, &total);
+  //  positionContainerFree(&merged);
+  merged = shrunk;
+
+  
+
+  // find maxbs
+  // find minbs;
+  size_t maxbs = 0;
+  size_t minbs = 0;
+  if (total > 0) minbs = merged.positions[0].len;
+  for (size_t i = 0; i < total; i++) {
+    if (merged.positions[i].len > maxbs) maxbs = merged.positions[i].len;
+    if (merged.positions[i].len < minbs) minbs = merged.positions[i].len;
+  }
+  merged.maxbs = maxbs;
+  merged.minbs = minbs;
+
+  
+  return merged;
 }
 
 
@@ -146,10 +266,10 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
     }
     const positionType *positions = p->positions;
     for (size_t i = 0; i < p->sz; i++) {
-      if (positions[i].success) {
+      if (positions[i].action == 'W' && positions[i].finishtime > 0) {
 	const char action = positions[i].action;
 	if (action == 'R' || action == 'W') {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed, positions[i].submittime, positions[i].finishtime);
 	}
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
 	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", p->device, (size_t)0, 0.0, 0.0, 'F', (size_t)0, bdSizeBytes, 0.0, positions[i].seed);
@@ -338,9 +458,9 @@ size_t setupPositions(positionType *positions,
     fprintf(stderr,"*info* sum of %zd lengths is %.1lf GiB\n", *num, TOGiB(sum));
   }
 
-  free(poss); // free the possible locations
-  free(positionsStart);
-  free(positionsEnd);
+  free(poss); poss = NULL;// free the possible locations
+  free(positionsStart); positionsStart = NULL;
+  free(positionsEnd); positionsEnd = NULL;
   return anywrites;
 }
 
@@ -371,13 +491,16 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
   //  char *origline = line; // store the original pointer, as getline changes it creating an unfreeable area
   positionType *p = NULL;
   size_t pNum = 0;
+  double starttime, fintime;
   
   while ((read = getline(&line, &maxline, fd)) != -1) {
     size_t pos, len, seed, tmpsize;
     //    fprintf(stderr,"%zd\n", strlen(line));
     char op;
+    starttime = 0;
+    fintime = 0;
     
-    int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %zu %*s %*s %zu", path, &pos, &op, &len, &tmpsize, &seed);
+    int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %zu %*s %*s %zu %lf %lf", path, &pos, &op, &len, &tmpsize, &seed, &starttime, &fintime);
     if (s >= 5) {
       //      fprintf(stderr,"%s %zd %c %zd %zd\n", path, pos, op, len, seed);
       //      deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
@@ -387,8 +510,8 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
       //      fprintf(stderr,"%zd\n", pNum);
       //      p[pNum-1].fd = 0;
       p[pNum-1].pos = pos;
-      p[pNum-1].submittime = 0;
-      p[pNum-1].finishtime = 0;
+      p[pNum-1].submittime = starttime;
+      p[pNum-1].finishtime = fintime;
       p[pNum-1].len = len;
       p[pNum-1].seed = seed;
       p[pNum-1].q = 0;
@@ -409,10 +532,10 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
   }
   fflush(stderr);
 
-  free(line);
-
-  free(path);
+  free(line); line = NULL;
+  free(path); path = NULL;
   *num = pNum;
+  
   return p;
 }
 
@@ -434,8 +557,8 @@ void positionContainerInit(positionContainer *pc, size_t UUID) {
 void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString, char *string) {
   pc->sz = sz;
   pc->positions = createPositions(sz);
-  pc->device = strdup(deviceString);
-  pc->string = strdup(string);
+  pc->device = deviceString;
+  pc->string = string;
 }
 
 
@@ -460,11 +583,7 @@ void positionContainerAddMetadataChecks(positionContainer *pc) {
 
 void positionContainerFree(positionContainer *pc) {
   if (pc->positions) free(pc->positions);
-  if (pc->string) free(pc->string);
-  if (pc->device) free(pc->device);
   pc->positions = NULL;
-  pc->string = NULL;
-  pc->device = NULL;
 }
 
 
@@ -587,19 +706,24 @@ void positionContainerLoad(positionContainer *pc, FILE *fd) {
   //  char *origline = line; // store the original pointer, as getline changes it creating an unfreeable area
   positionType *p = NULL;
   size_t pNum = 0;
+  double starttime, fintime;
 
   while ((read = getline(&line, &maxline, fd)) != -1) {
     size_t pos, len, seed, tmpsize;
     //    fprintf(stderr,"%zd\n", strlen(line));
     char op;
+    starttime = 0;
+    fintime = 0;
     
-    int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %zu %*s %*s %zu", path, &pos, &op, &len, &tmpsize, &seed);
+    int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %zu %*s %*s %zu %lf %lf", path, &pos, &op, &len, &tmpsize, &seed, &starttime, &fintime);
     if (s >= 5) {
       //      fprintf(stderr,"%s %zd %c %zd %zd\n", path, pos, op, len, seed);
       //      deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
       pNum++;
       p = realloc(p, sizeof(positionType) * (pNum));
       assert(p);
+      p[pNum-1].submittime = starttime;
+      p[pNum-1].finishtime = fintime;
       //      fprintf(stderr,"%zd\n", pNum);
       //      p[pNum-1].fd = 0;
       p[pNum-1].pos = pos;
@@ -623,8 +747,8 @@ void positionContainerLoad(positionContainer *pc, FILE *fd) {
   }
   fflush(stderr);
 
-  free(line);
-
+  free(line); line = NULL;
+  
   pc->positions = p;
   pc->sz = pNum;
   pc->string = strdup("");
@@ -632,12 +756,11 @@ void positionContainerLoad(positionContainer *pc, FILE *fd) {
   pc->bdSize = maxSize;
   pc->minbs = minbs;
   pc->maxbs = maxbs;
-
-  fclose(fd);
 }
 
 void positionContainerInfo(const positionContainer *pc) {
-  fprintf(stderr,"device %s, number of positions %zd, size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->device, pc->sz, pc->bdSize, TOGiB(pc->bdSize), pc->minbs, pc->maxbs);
+  assert(pc->device);
+  fprintf(stderr,"device '%s', UUID '%zd', number of positions %zd, device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->device, pc->UUID, pc->sz, pc->bdSize, TOGiB(pc->bdSize), pc->minbs, pc->maxbs);
 }
 
 

@@ -28,25 +28,39 @@ int main(int argc, char *argv[]) {
 
   // load in all the positions, generation from the -L filename option from aioRWTest
 
-  positionContainer pc;
-  
-  positionContainerLoad(&pc, stdin);
-  positionContainerInfo(&pc);
-
-  size_t sum = 0;
-  for (size_t i = 0; i < pc.sz; i++) {
-    sum += pc.positions[i].len;
+  if (argc <= 1) {
+    fprintf(stderr,"*usage* ./verify spit*.txt\n");
+    exit(1);
   }
-  fprintf(stderr,"device covered %zd bytes (%.3lf GiB)\n", sum, TOGiB(sum));
+  
+  size_t numFiles = argc -1;
 
+  positionContainer *origpc;
+  CALLOC(origpc, numFiles, sizeof(positionContainer));
+
+  for (size_t i = 0; i < numFiles; i++) {
+    fprintf(stderr,"*info* position file: %s\n", argv[1 + i]);
+    FILE *fp = fopen(argv[i+1], "rt");
+    if (fp) {
+      positionContainerLoad(&origpc[i], fp);
+      positionContainerInfo(&origpc[i]);
+      fclose(fp);
+    }
+  }
+
+  positionContainer pc = positionContainerMerge(origpc, numFiles);
+
+  //  fprintf(stderr,"*info* combined file: '%s'\n", pc.device);
+  fprintf(stderr,"*info* starting verify\n");
+
+  //  positionContainerSave(&mergedpc, "test", mergedpc.bdSize, 0);
   char *loadblock= NULL;
   char *buffer = NULL;
   
   CALLOC(buffer, pc.maxbs+1, 1);
   CALLOC(loadblock, pc.maxbs+1, 1);
 
-
-  int fd = open(pc.device, O_RDONLY| O_DIRECT);
+  int fd = open(pc.device, O_RDONLY | O_DIRECT);
   if (fd < 0) {perror(pc.device);exit(-2);}
 
   size_t correct = 0, incorrect = 0;
@@ -76,11 +90,19 @@ int main(int argc, char *argv[]) {
 	continue;
       }
 
-      if (strcmp((char*)(loadblock+16), (char*)(buffer+16))==0) {
+      if (strncmp((char*)(loadblock+16), (char*)(buffer+16), pc.minbs-16-2)==0) {
 	correct++;
       } else {
-	if (printed++ <= 10) 
-	  fprintf(stderr,"[%zd, %zd]\n1: %s\n2: %s\n", p, pc.positions[i].pos, loadblock+16, buffer+16);
+	if (printed++ <= 10)  {
+	  fprintf(stderr,"[%zd, %zd]\n", p, pc.positions[i].pos);
+	  char s[1000];
+	  strncpy(s, loadblock+16, 1000);
+	  s[999]=0;
+	  fprintf(stderr,"1: %s\n", s);
+	  strncpy(s, buffer+16, 1000);
+	  s[999]=0;
+	  fprintf(stderr,"2: %s\n", s);
+	}
 	incorrect++;
       }
     }
@@ -90,11 +112,18 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr,"*info* total %zd, correct %zd, incorrect %zd, wrong stored pos %zd, wrong thread uuid %zd\n", correct+incorrect+wrongpos+wronguuid, correct, incorrect, wrongpos, wronguuid);
 
-  free(buffer);
-  free(loadblock);
+  free(buffer); buffer=NULL;
+  free(loadblock); loadblock=NULL;
+
+
+  for (size_t i = 0; i < numFiles; i++) {
+    free(origpc[i].device);
+    free(origpc[i].string);
+    positionContainerFree(&origpc[i]);
+  }
+  free(origpc); origpc=NULL;
 
   positionContainerFree(&pc);
-
 
   exit(0);
 }

@@ -83,6 +83,8 @@ size_t numberOfDuplicates(positionType *pos, size_t const num);
 
 void positionContainerInfo(const positionContainer *pc);
 void skipPositions(positionType *pos, const size_t num, const size_t skipEvery);
+positionContainer positionContainerMerge(const positionContainer *p, const size_t numFiles);
+positionContainer positionContainerCollapse(positionContainer merged, size_t *total);
 
 #endif
 

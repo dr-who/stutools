@@ -172,7 +172,6 @@ static void *runThread(void *arg) {
   close(fd);
 
   logSpeedFree(&benchl);
-  close(fd);
 
   return NULL;
 }
@@ -275,8 +274,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   keepRunning = 1;
   
   unsigned short seed = (unsigned short)timedouble();
-
-  size_t newmp = 0;
 
   positionContainer **allThreadsPC;
   CALLOC(allThreadsPC, num, sizeof(positionContainer*));
@@ -433,8 +430,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       if (iR) {
 	metaData = 1;
 	seqFiles = 0;
-	flushEvery = 1;
-	threadContext[i].flushEvery = flushEvery;
+	threadContext[i].flushEvery = 1;
       }
     }
 
@@ -447,18 +443,16 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
     if (qDepth < 1) qDepth = 1;
     threadContext[i].queueDepth = qDepth;
-    
+
     char *pChar = strchr(job->strings[i], 'P');
     {
       if (pChar && *(pChar+1)) {
-	newmp = atoi(pChar + 1);
-	if (newmp >= mp) {
-	  newmp = 0; // ignored
+	size_t newmp = atoi(pChar + 1);
+	if (newmp < mp) {
+	  mp = newmp;
 	}
+	if (mp < 1) mp = 1;
       }
-    }
-    if (newmp == 0) { // have newmp all set to be the right future value
-      newmp = mp;
     }
 
     long startingBlock = -99999;
@@ -497,11 +491,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, bs, highbs, bs, startingBlock, threadContext[i].bdSize, threadContext[i].seed);
 
       threadContext[i].anywrites = anywrites;
-      threadContext[i].pos.sz = newmp;
       
       if (metaData) {
 	positionContainerAddMetadataChecks(&threadContext[i].pos);
-	threadContext[i].pos.sz = 2 * newmp; // double if you say P10 then it's 20
       }
 
       if (verbose) {
@@ -512,9 +504,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
 
-    if (newmp <= threadContext[i].queueDepth) {
-      threadContext[i].queueDepth = newmp;
-    }
+    /*    if (mp <= threadContext[i].queueDepth) {
+      threadContext[i].queueDepth = mp;
+      }*/
 
 
     // add threadContext[i].pos a pointer alias to a pool for the timer
@@ -559,12 +551,25 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   }
 
   //        if (logPositions) {
+
+  positionContainer *origpc;
+  CALLOC(origpc, num, sizeof(positionContainer));
+  for (size_t i = 0; i < num; i++) {
+    origpc[i] = threadContext[i].pos;
+  }
+  
+  positionContainer mergedpc = positionContainerMerge(origpc, num);
+  
   for (size_t i = 0; i < num; i++) {
     char s[1000];
     sprintf(s, "spit-positions-%03zd.txt", i);
     fprintf(stderr, "*info* writing positions to '%s'\n", s); 
     positionContainerSave(&threadContext[i].pos, s, threadContext[i].bdSize, 0);
   }
+  char s[1000];
+  sprintf(s, "spit-positions.txt");
+  fprintf(stderr, "*info* writing positions to '%s'\n", s); 
+  positionContainerSave(&mergedpc, s, mergedpc.bdSize, 0);
   //    } 
 
 
