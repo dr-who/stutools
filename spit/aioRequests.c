@@ -38,7 +38,11 @@ size_t aioMultiplePositions( positionContainer *p,
   int ret;
   struct iocb **cbs;
   struct io_event *events;
-  //  assert(origQD <= sz);
+  if (origQD > sz)  {
+    fprintf(stderr,"*sorry* don't support QD over P\n");
+    exit(1);
+  }
+  assert(origQD <= sz);
   const size_t QD = origQD;
   assert(sz>0);
   /*  if (QD != origQD) {

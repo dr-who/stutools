@@ -435,7 +435,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
 
-    int qDepth = 1024; // 1024 is the default
+    int qDepth = 512; // 512 is the default
     {
       char *qdd = strchr(job->strings[i], 'q');
       if (qdd && *(qdd+1)) {
@@ -443,7 +443,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
     if (qDepth < 1) qDepth = 1;
-    threadContext[i].queueDepth = qDepth;
 
     char *pChar = strchr(job->strings[i], 'P');
     {
@@ -451,10 +450,16 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	size_t newmp = atoi(pChar + 1);
 	if (newmp < mp) {
 	  mp = newmp;
+	  if (mp <= qDepth) {
+	    qDepth = mp;
+	  }
 	}
 	if (mp < 1) mp = 1;
       }
     }
+
+    threadContext[i].queueDepth = qDepth;
+
 
     long startingBlock = -99999;
     if (strchr(job->strings[i], 'z')) {
