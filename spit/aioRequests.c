@@ -192,7 +192,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	    }
 	    
 	    // got one, take of tail
-	    qdIndex = freeQueue[tailOfQueue++]; if (tailOfQueue >= QD + 1) tailOfQueue = 0;
+	    qdIndex = freeQueue[tailOfQueue++]; if (tailOfQueue >= QD) tailOfQueue = 0;
 
 	    // setup the request
 	    if (fd >= 0) {
