@@ -450,11 +450,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	size_t newmp = atoi(pChar + 1);
 	if (newmp < mp) {
 	  mp = newmp;
-	  if (mp <= qDepth) {
-	    qDepth = mp;
-	  }
 	}
 	if (mp < 1) mp = 1;
+	if (mp <= qDepth) {
+	  qDepth = mp;
+	}
       }
     }
 

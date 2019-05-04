@@ -40,9 +40,9 @@ size_t aioMultiplePositions( positionContainer *p,
   struct io_event *events;
   if (origQD > sz)  {
     fprintf(stderr,"*sorry* don't support QD over P\n");
-    exit(1);
+    //    exit(1);
   }
-  assert(origQD <= sz);
+  //  assert(origQD <= sz);
   const size_t QD = origQD;
   assert(sz>0);
   /*  if (QD != origQD) {
@@ -106,13 +106,13 @@ size_t aioMultiplePositions( positionContainer *p,
   CALLOC(readdata[0], randomBufferSize * QD, 1);
 
   size_t *freeQueue; // qd collisions
-  size_t headOfQueue = 0;
-  size_t tailOfQueue = 0;
-  CALLOC(freeQueue, QD+1, sizeof(size_t));
+  size_t headOfQueue = 0, tailOfQueue = 0;
+  CALLOC(freeQueue, QD, sizeof(size_t));
   for (size_t i = 0; i < QD; i++) {
     freeQueue[headOfQueue++] = i;
-    //    freeQueue[i] = i;
   }
+  headOfQueue = 0; // since it has wrapped around
+  
   // grab [headOfQueue], put back onto [tailOfQueue]
 
   // there are 256 queue slots
@@ -353,8 +353,9 @@ size_t aioMultiplePositions( positionContainer *p,
 	      //	      abort();
 	    }
 	  }
-	  
-	  freeQueue[headOfQueue++] = pp->q; if (headOfQueue >= QD+1) headOfQueue = 0;
+
+	  assert(headOfQueue < QD);
+	  freeQueue[headOfQueue++] = pp->q; if (headOfQueue >= QD) headOfQueue = 0;
 	
 	  pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed
@@ -386,7 +387,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	  struct iocb *my_iocb = events[j].obj;
 	  positionType *pp = (positionType*) my_iocb->data;
 
-	  freeQueue[headOfQueue++] = pp->q; if (headOfQueue >= QD+1) headOfQueue = 0;
+	  freeQueue[headOfQueue++] = pp->q; if (headOfQueue >= QD) headOfQueue = 0;
 	  
 	  //	  pp->finishtime = lastreceive;
 	  //	  pp->success = 1; // the action has completed
