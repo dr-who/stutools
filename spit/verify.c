@@ -95,7 +95,10 @@ int main(int argc, char *argv[]) {
     tested++;
     if (pc.positions[i].action == 'W') {
       //      fprintf(stderr,"[%zd] %zd %c %d\n", i, pc.positions[i].pos, pc.positions[i].action, pc.positions[i].seed);
-      lseek(fd, pc.positions[i].pos, SEEK_SET);
+      if(lseek(fd, pc.positions[i].pos, SEEK_SET) < 0) {
+	fprintf(stderr,"problem\n");
+      }
+      
       ssize_t ret = read(fd, loadblock, pc.positions[i].len);
       if (ret != pc.positions[i].len) {perror("eerk");exit(-1);}
 

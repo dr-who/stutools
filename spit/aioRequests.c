@@ -154,7 +154,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   struct timespec timeout;
   timeout.tv_sec = 0;
-  timeout.tv_nsec = 1000*1000; // 0.0001 seconds
+  timeout.tv_nsec = 10*1000; // 0.0001 seconds
 
   double flush_totaltime = 0, flush_mintime = 9e99, flush_maxtime = 0;
   size_t flush_count = 0;
@@ -324,6 +324,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	if (alll) logSpeedAdd2(alll, TOMiB(events[j].res), 1);
 	struct iocb *my_iocb = events[j].obj;
 	positionType *pp = (positionType*) my_iocb->data;
+	assert(pp->inFlight);
 
 	
 	int rescode = events[j].res;

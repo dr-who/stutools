@@ -5,6 +5,7 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+#include <ctype.h>
 
 #include "devices.h"
 #include "utils.h"
@@ -137,36 +138,38 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
 
 positionContainer positionContainerCollapse(positionContainer merged, size_t *total) {
   qsort(merged.positions, *total, sizeof(positionType), poscompare);
-  
+
   for (size_t i = 0; i < *total; i++) {
-    if (merged.positions[i].action == 'W' && merged.positions[i].finishtime > 0) {
+    if (toupper(merged.positions[i].action) == 'W' && merged.positions[i].finishtime > 0) {
       if (i>0) assert(merged.positions[i].pos >= merged.positions[i-1].pos);
-      
+
       size_t j = i+1;
-      while ((j < *total) && (merged.positions[j].pos < (merged.positions[i].pos + merged.positions[i].len))) {
+      while ((j < *total) && (merged.positions[i].pos + merged.positions[i].len > merged.positions[j].pos)) {
 	// hit
-      
-	if (merged.positions[j].action=='W' && (merged.positions[j].finishtime > 0)) {
+	//	fprintf(stderr,"%zd + %d <  %zd\n", merged.positions[i].pos, merged.positions[i].len,  merged.positions[j].pos);
+
+	if ((toupper(merged.positions[j].action)=='W') && (merged.positions[j].finishtime > 0)) {
 	
 	  double deltastart = merged.positions[j].submittime - merged.positions[i].submittime;
 	  if (deltastart < 0) deltastart = -deltastart;
 	
-	  if (deltastart < 1000000) { // if they start within 0.1 ms who knows
-	    merged.positions[i].action = 'X'; // exclude from output
-	    merged.positions[j].action = 'X'; // exclude from output
+	  if (deltastart < 100) { // if they start within 0.1 ms who knows
+	    merged.positions[i].action = 'w'; // exclude from output
+	    merged.positions[j].action = 'w'; // exclude from output
+	    //	    fprintf(stderr,"deleting %zd and %zd\n", merged.positions[i].pos, merged.positions[j].pos);
 	  }
 	
 	  if (merged.positions[j].submittime >= merged.positions[i].submittime &&
 	      merged.positions[j].submittime <= merged.positions[i].finishtime ) {
 	    //	fprintf(stderr,"  *error* time overlap\n");
-	    merged.positions[i].action = 'X'; // exclude from output
-	    merged.positions[j].action = 'X'; // exclude from output
+	    merged.positions[i].action = 'w'; // exclude from output
+	    merged.positions[j].action = 'w'; // exclude from output
 	  }
 	  
 	  if (merged.positions[j].finishtime >= merged.positions[i].submittime &&
 	      merged.positions[j].finishtime <= merged.positions[i].finishtime ) {
-	    merged.positions[i].action = 'X'; // exclude from output
-	    merged.positions[j].action = 'X'; // exclude from output
+	    merged.positions[i].action = 'w'; // exclude from output
+	    merged.positions[j].action = 'w'; // exclude from output
 	    }
 	}
 	j++;
@@ -192,6 +195,11 @@ positionContainer positionContainerCollapse(positionContainer merged, size_t *to
     }
   }
   *total = left;
+
+  for (size_t i = 1 ; i < *total; i++) {
+    //    assert(shrunk.positions[i-1].pos + shrunk.positions[i-1].len  <= shrunk.positions[i].pos);
+  }
+  shrunk.sz = *total;
   
   return shrunk;
 }
@@ -230,13 +238,17 @@ positionContainer positionContainerMerge(const positionContainer *p, const size_
   assert(startpos == total);
 
   positionContainer shrunk = positionContainerCollapse(merged, &total);
-  //  positionContainerFree(&merged);
-
   merged = shrunk;
 
   shrunk = positionContainerCollapse(merged, &total);
-  //  positionContainerFree(&merged);
   merged = shrunk;
+
+  shrunk = positionContainerCollapse(merged, &total);
+  merged = shrunk;
+
+    shrunk = positionContainerCollapse(merged, &total);
+  merged = shrunk;
+
 
   
 
@@ -266,9 +278,9 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
     }
     const positionType *positions = p->positions;
     for (size_t i = 0; i < p->sz; i++) {
-      if (positions[i].action == 'W' && positions[i].finishtime > 0 && !positions[i].inFlight) {
+      if (toupper(positions[i].action) == 'W' && positions[i].finishtime > 0 && !positions[i].inFlight) {
 	const char action = positions[i].action;
-	if (action == 'R' || action == 'W') {
+	if (action == 'R' || toupper(action) == 'W') {
 	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed, positions[i].submittime, positions[i].finishtime);
 	}
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
