@@ -16,6 +16,26 @@ extern volatile int keepRunning;
 
 #define DISPLAYEVERY 1
 
+void checkArray(const unsigned short *freeQueue, const size_t QD) {
+  if (0) { // debug print
+    fprintf(stderr,"Sub: ");
+    for (size_t q1 = 0; q1 < QD; q1++) {
+      if (freeQueue[q1] >= 0 && freeQueue[q1] < QD) {
+	fprintf(stderr,"%3ud", freeQueue[q1]);
+      } else {
+	fprintf(stderr,"  .");
+      }
+    }
+  }
+  // check for incorrect duplications
+  for (size_t q1 = 0 ; q1 < QD; q1++) if (freeQueue[q1] >=0 && freeQueue[q1] < QD) {
+      for (size_t q2 = 0; q2 < QD; q2++) if (q1!=q2) {
+	  if (freeQueue[q1] == freeQueue[q2]) fprintf(stderr,"duplicate %ud\n", freeQueue[q1]);
+	  assert (freeQueue[q1] != freeQueue[q2]);
+	}
+    }
+}
+
 size_t aioMultiplePositions( positionContainer *p,
 			     const size_t sz,
 			     const double finishtime,
@@ -40,23 +60,16 @@ size_t aioMultiplePositions( positionContainer *p,
   struct io_event *events;
   if (origQD > sz)  {
     fprintf(stderr,"*sorry* don't support QD over P\n");
-    //    exit(1);
+    exit(1);
   }
-  //  assert(origQD <= sz);
+  assert(origQD <= sz);
   const size_t QD = origQD;
   assert(sz>0);
-  /*  if (QD != origQD) {
-    if (verbose) {
-      fprintf(stderr,"*warning* queue depth shrunk %zd -> %zd because positions is %zd\n", origQD, QD, sz);
-    }
-    }*/
   positionType *positions = p->positions;
 
   const double alignbits = log(alignment)/log(2);
   assert (alignbits == (size_t)alignbits);
   
-
-
   io_context_t ioc = 0;
   if (io_setup(QD, &ioc)) {
     fprintf(stderr,"*error* io_setup failed with %zd\n", QD);
@@ -79,13 +92,6 @@ size_t aioMultiplePositions( positionContainer *p,
     }
   }
   
-  
-  //  ctx = 0;
-  // set the queue depth
-
-  //  ret = io_setup(QD, &ctx);
-  //  if (ret != 0) {perror("io_setup");abort();}
-
   /* setup I/O control block, randomised just for this run. So we can check verification afterwards */
   char **data = NULL;
   CALLOC(data, QD, sizeof(char*));
@@ -105,13 +111,12 @@ size_t aioMultiplePositions( positionContainer *p,
   //  if (verbose) fprintf(stderr,"*info* allocating %zd bytes\n", randomBufferSize * QD);
   CALLOC(readdata[0], randomBufferSize * QD, 1);
 
-  size_t *freeQueue; // qd collisions
+  unsigned short *freeQueue; // qd collisions
   size_t headOfQueue = 0, tailOfQueue = 0;
   CALLOC(freeQueue, QD, sizeof(size_t));
   for (size_t i = 0; i < QD; i++) {
-    freeQueue[headOfQueue++] = i;
+    freeQueue[i] = i;
   }
-  headOfQueue = 0; // since it has wrapped around
   
   // grab [headOfQueue], put back onto [tailOfQueue]
 
@@ -145,6 +150,7 @@ size_t aioMultiplePositions( positionContainer *p,
   size_t totalWriteBytes = 0, totalReadBytes = 0;
   
   size_t lastBytes = 0, lastIOCount = 0;
+
   struct timespec timeout;
   timeout.tv_sec = 0;
   timeout.tv_nsec = 100*1000; // 0.0001 seconds
@@ -158,166 +164,149 @@ size_t aioMultiplePositions( positionContainer *p,
     if (inFlight < QD) {
       
       // submit requests, one at a time
-      //      fprintf(stderr,"max %zd\n", MAX(QD - inFlight, 1));
-      int submitCycles = MAX(QD - inFlight, 1);
-      if (flushEvery) {
-	if (flushEvery < submitCycles) {
-	  submitCycles = flushEvery;
+      if (sz) {
+	if (positions[pos].action != 'S') { // if we have some positions, sz > 0
+	  size_t newpos = positions[pos].pos;
+	  const size_t len = positions[pos].len;
+
+	  int read = (positions[pos].action == 'R');
+
+	  // check queue, every element should only appear once as it's a queue of slots
+	  if (0) {
+	    checkArray(freeQueue, QD);
+	  }
+	    
+	  assert(tailOfQueue < QD);
+	  qdIndex = freeQueue[headOfQueue];
+	  assert(qdIndex >= 0);
+	  assert(qdIndex < QD);
+
+	  // setup the request
+	  if (fd >= 0) {
+	    positions[pos].q = qdIndex;
+
+	    // watermark the block with the position on the device
+
+	    if (read) {
+	      if (verbose >= 2) {fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);}
+
+	      io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
+		
+	      p->readBytes += len;
+	      p->readIOs++;
+
+	      cbs[qdIndex]->data = &positions[pos];
+
+	      totalReadBytes += len;
+	    } else {
+	      if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);}
+
+	      size_t *posdest = (size_t*)data[qdIndex];
+	      *posdest = newpos;
+
+	      size_t *uuiddest = (size_t*)data[qdIndex] + 1;
+	      *uuiddest = p->UUID;
+
+	      io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
+
+	      p->writtenBytes += len;
+	      p->writtenIOs++;
+
+	      cbs[qdIndex]->data = &positions[pos];
+
+	      totalWriteBytes += len;
+	      flushPos++;
+	    }
+	      
+	    thistime = timedouble();
+	    positions[pos].submittime = thistime;
+	      
+	    ret = io_submit(ioc, 1, &cbs[qdIndex]);
+	      
+	    if (ret > 0) {
+	      // if success
+	      //	      freeQueue[headOfQueue] = -1; // take off queue
+	      headOfQueue++; if (headOfQueue >= QD) headOfQueue = 0;
+
+	      inFlight++;
+	      lastsubmit = thistime; // last good submit
+	      submitted++;
+	      if (verbose >= 2 || (newpos & (alignment - 1))) {
+		fprintf(stderr,"fd %d, pos %zd (%% %zd = %zd ... %s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, alignment, newpos % alignment, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+	      }
+	      
+	    } else {
+	      fprintf(stderr,"io_submit() failed, ret = %d\n", ret); perror("io_submit()"); if(!dontExitOnErrors) abort();
+	    }
+	  }
+	}
+	// onto the next one
+	pos++;
+	if (pos >= sz) {
+	  if (oneShot) {
+	    //	      	      fprintf(stderr,"end of function one shot\n");
+	    goto endoffunction; // only go through once
+	  }
+	  pos = 0; // don't go over the end of the array
 	}
       }
-      assert(submitCycles > 0);
-      for (size_t i = 0; i < submitCycles; i++) {
-	if (sz) {
-	  if (positions[pos].action != 'S') { // if we have some positions, sz > 0
-	    size_t newpos = positions[pos].pos;
-	    const size_t len = positions[pos].len;
-
-	    int read = (positions[pos].action == 'R');
-
-	    if (0) {
-	      for (size_t q1 = tailOfQueue; q1 < (headOfQueue + 1 + QD) % (QD+1); q1++) {
-		for (size_t q2 = tailOfQueue; q2 < (headOfQueue + 1+ QD) % (QD+1); q2++) if (q1 != q2) {
-		    if ((freeQueue[q1] != -1) && (freeQueue[q1] == freeQueue[q2])) {
-
-		      fprintf(stderr,"eeek tail %zd head %zd,  [%zd]==[%zd] (%zd)\n", tailOfQueue, headOfQueue, q1, q2, freeQueue[q1]);
-		      for (size_t q3 = tailOfQueue; q3 < (headOfQueue + 1+ QD) % (QD+1); q3++) {
-			fprintf(stderr,"%zd ",freeQueue[q3]);
-		      }
-		      fprintf(stderr,"\n");
-			    
-		      abort();
-		    }
-		  }
-	      }
-	    }
-	    
-	    // got one, take of tail
-	    qdIndex = freeQueue[tailOfQueue++]; if (tailOfQueue >= QD) tailOfQueue = 0;
-
-	    // setup the request
-	    if (fd >= 0) {
-	      positions[pos].q = qdIndex;
-
-	      // watermark the block with the position on the device
-
-	      if (read) {
-		if (verbose >= 2) {fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);}
-
-		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
-		
-		p->readBytes += len;
-		p->readIOs++;
-
-		cbs[qdIndex]->data = &positions[pos];
-
-		totalReadBytes += len;
-	      } else {
-		if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);}
-
-		size_t *posdest = (size_t*)data[qdIndex];
-		*posdest = newpos;
-
-		size_t *uuiddest = (size_t*)data[qdIndex] + 1;
-		*uuiddest = p->UUID;
-
-		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
-
-		p->writtenBytes += len;
-		p->writtenIOs++;
-
-		cbs[qdIndex]->data = &positions[pos];
-
-		totalWriteBytes += len;
-		flushPos++;
-	      }
-	      
-	      thistime = timedouble();
-	      positions[pos].submittime = thistime;
-	      
-	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
-	      
-	      if (ret > 0) {
-		inFlight++;
-		lastsubmit = thistime; // last good submit
-		submitted++;
-		if (verbose >= 2 || (newpos & (alignment - 1))) {
-		  fprintf(stderr,"fd %d, pos %zd (%% %zd = %zd ... %s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, alignment, newpos % alignment, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
-		}
-	      
-	      } else {
-		fprintf(stderr,"io_submit() failed, ret = %d\n", ret); perror("io_submit()"); if(!dontExitOnErrors) abort();
-	      }
-	    }
-	  }
-	  // onto the next one
-	  pos++;
-	  if (pos >= sz) {
-	    if (oneShot) {
-	      //	      	      fprintf(stderr,"end of function one shot\n");
-	      goto endoffunction; // only go through once
-	    }
-	    pos = 0; // don't go over the end of the array
-	  }
-	}
 	
-	double timeelapsed = thistime - last;
-	if (timeelapsed >= DISPLAYEVERY) {
-	  const double speed = 1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed / 1024.0 / 1024;
-	  const double IOspeed = 1.0*(received - lastIOCount) / timeelapsed;
-	  if (benchl) logSpeedAdd2(benchl, TOMiB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
-	  if (!tableMode) {
-	    if (verbose != -1) {
-	      //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
-	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", thistime - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
-	    }
-	    if (verbose >= 2) {
-	      if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
-	    }
+      double timeelapsed = thistime - last;
+      if (timeelapsed >= DISPLAYEVERY) {
+	const double speed = 1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed / 1024.0 / 1024;
+	const double IOspeed = 1.0*(received - lastIOCount) / timeelapsed;
+	if (benchl) logSpeedAdd2(benchl, TOMiB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
+	if (!tableMode) {
+	  if (verbose != -1) {
+	    //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
+	    fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", thistime - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
 	  }
-	  lastBytes = totalReadBytes + totalWriteBytes;
-	  lastIOCount = received;
-	  last = thistime;
-	  //	  if ((!keepRunning) || (gt >= finishtime)) {
-	  //	    fprintf(stderr,"timeout %lf ... %lf\n", gt, finishtime);
-	  //	    goto endoffunction;
-	  //	  }
-	}
-      } // for loop i
-
-      if (!sz) flushPos++; // if no positions, then increase flushPos anyway
-      
-      if (flushEvery) {
-	if (flushPos >= flushEvery) {
-	  flushPos = flushPos - flushEvery;
 	  if (verbose >= 2) {
-	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
+	    if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
 	  }
-	  double start_f = timedouble(); // time and store
-	  //	  io_prep_fsync(cbs[qdIndex], fd);
-	  fsync(fd);
-	  double elapsed_f = timedouble() - start_f;
-
-	  flush_totaltime += (elapsed_f);
-	  flush_count++;
-	  if (elapsed_f < flush_mintime) flush_mintime = elapsed_f;
-	  if (elapsed_f > flush_maxtime) flush_maxtime = elapsed_f;
 	}
+	lastBytes = totalReadBytes + totalWriteBytes;
+	lastIOCount = received;
+	last = thistime;
+      }
+    }
+
+    if (!sz) flushPos++; // if no positions, then increase flushPos anyway
+    
+    if (flushEvery) {
+      if (flushPos >= flushEvery) {
+	flushPos = flushPos - flushEvery;
+	if (verbose >= 2) {
+	  fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
+	}
+	double start_f = timedouble(); // time and store
+	//	  io_prep_fsync(cbs[qdIndex], fd);
+	fsync(fd);
+	double elapsed_f = timedouble() - start_f;
+
+	flush_totaltime += (elapsed_f);
+	flush_count++;
+	if (elapsed_f < flush_mintime) flush_mintime = elapsed_f;
+	if (elapsed_f > flush_maxtime) flush_maxtime = elapsed_f;
       }
     }
 
     //    if (inFlight < 5) { // then don't timeout
     //      ret = io_getevents(ioc, 1, QD, events, NULL);
     //    } else {
-      ret = io_getevents(ioc, 1, QD, events, &timeout);
-      //    }
-    lastreceive = timedouble(); // last good receive
 
+    ret = io_getevents(ioc, 1, QD, events, &timeout);
+    //    }
     if (ret > 0) {
+      lastreceive = timedouble(); // last good receive
+
       // verify it's all ok
       int printed = 0;
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
 	if (alll) logSpeedAdd2(alll, TOMiB(events[j].res), 1);
+	struct iocb *my_iocb = events[j].obj;
+	positionType *pp = (positionType*) my_iocb->data;
 
 	
 	int rescode = events[j].res;
@@ -332,11 +321,14 @@ size_t aioMultiplePositions( positionContainer *p,
 	  printed = 1;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	} else {
+	  //	  fprintf(stderr,"%d %d\n", rescode, rescode2);
 	  //successful result
-	  struct iocb *my_iocb = events[j].obj;
-	  positionType *pp = (positionType*) my_iocb->data;
 
-	  if ((pp->verify || pp->action=='W') && (pp->success)) {
+	  //	  if (pp->success) {
+	  //	    fprintf(stderr,"*warning* AIO duplicate result at position %zd\n", pp->pos);
+	  //	  }
+
+	  if ((pp->verify || pp->action=='W') && (!pp->success)) { // no previous success
 	    //	    fprintf(stderr,"[%d] pos %zd verify %d\n", pp->q, pp->pos, pp->verify);
 	    // if we know we have written we can check, or if we have read a previous write
 	    size_t *uucheck , *poscheck;
@@ -348,29 +340,33 @@ size_t aioMultiplePositions( positionContainer *p,
 	      uucheck = (size_t*)readdata[pp->q] + 1;
 	    }
 	    
+	    
 	    if ((p->UUID != *uucheck) || (pp->pos != *poscheck)) {
 	      fprintf(stderr,"position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
-	      //	      abort();
+	      //abort();
 	    }
+	    assert(headOfQueue < QD);
+	    //	  fprintf(stderr,"received %d\n", pp->q);
+	    freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
 	  }
-
-	  assert(headOfQueue < QD);
-	  freeQueue[headOfQueue++] = pp->q; if (headOfQueue >= QD) headOfQueue = 0;
-	
 	  pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed
 	}
+
+      } // for j
+
+      if (0) {
+	checkArray(freeQueue, QD);
       }
+
       inFlight -= ret;
       received += ret;
     }
     if (ret < 0) {
       fprintf(stderr,"eek\n");
-      //    perror("io_destroy");
       break;
     }
-
-  }
+  } // while keepRunning
 
   
  endoffunction:
@@ -387,10 +383,10 @@ size_t aioMultiplePositions( positionContainer *p,
 	  struct iocb *my_iocb = events[j].obj;
 	  positionType *pp = (positionType*) my_iocb->data;
 
-	  freeQueue[headOfQueue++] = pp->q; if (headOfQueue >= QD) headOfQueue = 0;
+	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
 	  
-	  //	  pp->finishtime = lastreceive;
-	  //	  pp->success = 1; // the action has completed
+	  pp->finishtime = lastreceive;
+	  pp->success = 1; // the action has completed
 	}
 	inFlight -= ret;
       }
@@ -410,7 +406,6 @@ size_t aioMultiplePositions( positionContainer *p,
   free(freeQueue);
   io_destroy(ioc);
   
-
   *ios = received;
 
   *totalWB = totalWriteBytes;
