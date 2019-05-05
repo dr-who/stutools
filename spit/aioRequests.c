@@ -295,7 +295,7 @@ size_t aioMultiplePositions( positionContainer *p,
     //      ret = io_getevents(ioc, 1, QD, events, NULL);
     //    } else {
 
-    ret = io_getevents(ioc, 1, QD, events, &timeout);
+    ret = io_getevents(ioc, 0, inFlight, events, &timeout);
     //    }
     if (ret > 0) {
       lastreceive = timedouble(); // last good receive
