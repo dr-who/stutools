@@ -21,16 +21,17 @@ void checkArray(const unsigned short *freeQueue, const size_t QD) {
     fprintf(stderr,"Sub: ");
     for (size_t q1 = 0; q1 < QD; q1++) {
       if (freeQueue[q1] >= 0 && freeQueue[q1] < QD) {
-	fprintf(stderr,"%3ud", freeQueue[q1]);
+	fprintf(stderr,"%3u", freeQueue[q1]);
       } else {
 	fprintf(stderr,"  .");
       }
     }
+    fprintf(stderr,"\n");
   }
   // check for incorrect duplications
   for (size_t q1 = 0 ; q1 < QD; q1++) if (freeQueue[q1] >=0 && freeQueue[q1] < QD) {
       for (size_t q2 = 0; q2 < QD; q2++) if (q1!=q2) {
-	  if (freeQueue[q1] == freeQueue[q2]) fprintf(stderr,"duplicate %ud\n", freeQueue[q1]);
+	  if (freeQueue[q1] == freeQueue[q2]) fprintf(stderr,"duplicate %u\n", freeQueue[q1]);
 	  assert (freeQueue[q1] != freeQueue[q2]);
 	}
     }
@@ -153,18 +154,26 @@ size_t aioMultiplePositions( positionContainer *p,
 
   struct timespec timeout;
   timeout.tv_sec = 0;
-  timeout.tv_nsec = 100*1000; // 0.0001 seconds
+  timeout.tv_nsec = 1000*1000; // 0.0001 seconds
 
   double flush_totaltime = 0, flush_mintime = 9e99, flush_maxtime = 0;
   size_t flush_count = 0;
   double thistime = 0;
   int qdIndex = 0;
 
+  for (size_t i = 0; i < sz; i++) {
+    positions[i].inFlight = 0;
+    positions[i].success = 0;
+  }
+  
   while (keepRunning && ((thistime = timedouble()) < finishtime)) {
-    if (inFlight < QD) {
+    assert (pos < sz);
+    if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
+    if (!positions[pos].inFlight) {
       
       // submit requests, one at a time
-      if (sz) {
+      if (sz && inFlight < QD - 2) {
+	assert(pos < sz);
 	if (positions[pos].action != 'S') { // if we have some positions, sz > 0
 	  size_t newpos = positions[pos].pos;
 	  const size_t len = positions[pos].len;
@@ -172,30 +181,33 @@ size_t aioMultiplePositions( positionContainer *p,
 	  int read = (positions[pos].action == 'R');
 
 	  // check queue, every element should only appear once as it's a queue of slots
-	  if (0) {
+	  /*	  if (!(pos & 0xff)) {
 	    checkArray(freeQueue, QD);
-	  }
+	    }*/
 	    
-	  assert(tailOfQueue < QD);
+	  assert(headOfQueue < QD);
 	  qdIndex = freeQueue[headOfQueue];
 	  assert(qdIndex >= 0);
 	  assert(qdIndex < QD);
 
+	  assert(positions[pos].inFlight == 0);
+
 	  // setup the request
 	  if (fd >= 0) {
 	    positions[pos].q = qdIndex;
+	    positions[pos].inFlight = 1;
 
 	    // watermark the block with the position on the device
-
+	    
 	    if (read) {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);}
 
-	      io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
-		
 	      p->readBytes += len;
 	      p->readIOs++;
 
+	      io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 	      cbs[qdIndex]->data = &positions[pos];
+
 
 	      totalReadBytes += len;
 	    } else {
@@ -207,11 +219,10 @@ size_t aioMultiplePositions( positionContainer *p,
 	      size_t *uuiddest = (size_t*)data[qdIndex] + 1;
 	      *uuiddest = p->UUID;
 
-	      io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
-
 	      p->writtenBytes += len;
 	      p->writtenIOs++;
 
+	      io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
 	      cbs[qdIndex]->data = &positions[pos];
 
 	      totalWriteBytes += len;
@@ -225,8 +236,9 @@ size_t aioMultiplePositions( positionContainer *p,
 	      
 	    if (ret > 0) {
 	      // if success
-	      //	      freeQueue[headOfQueue] = -1; // take off queue
-	      headOfQueue++; if (headOfQueue >= QD) headOfQueue = 0;
+	      freeQueue[headOfQueue] = -1; // take off queue
+	      //	      freeQueue[headOfQueue] = -1;
+	      headOfQueue++; if (headOfQueue == QD) headOfQueue = 0;
 
 	      inFlight++;
 	      lastsubmit = thistime; // last good submit
@@ -249,7 +261,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	  }
 	  pos = 0; // don't go over the end of the array
 	}
-      }
+      } // if > 0 and we can submit
 	
       double timeelapsed = thistime - last;
       if (timeelapsed >= DISPLAYEVERY) {
@@ -269,7 +281,11 @@ size_t aioMultiplePositions( positionContainer *p,
 	lastIOCount = received;
 	last = thistime;
       }
-    }
+    } else {
+      //      fprintf(stderr,"already in flight\n");
+      pos++;  if (pos >= sz) pos = 0;
+      //      usleep(1);
+    }// if inflight
 
     if (!sz) flushPos++; // if no positions, then increase flushPos anyway
     
@@ -302,6 +318,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
       // verify it's all ok
       int printed = 0;
+
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
 	if (alll) logSpeedAdd2(alll, TOMiB(events[j].res), 1);
@@ -321,14 +338,15 @@ size_t aioMultiplePositions( positionContainer *p,
 	  printed = 1;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	} else {
-	  //	  fprintf(stderr,"%d %d\n", rescode, rescode2);
+	  //	  fprintf(stderr,"---> %d %d\n", rescode, rescode2);
 	  //successful result
 
 	  //	  if (pp->success) {
 	  //	    fprintf(stderr,"*warning* AIO duplicate result at position %zd\n", pp->pos);
 	  //	  }
 
-	  if ((pp->verify || pp->action=='W') && (!pp->success)) { // no previous success
+	  if (pp->action == 'W') {
+	    
 	    //	    fprintf(stderr,"[%d] pos %zd verify %d\n", pp->q, pp->pos, pp->verify);
 	    // if we know we have written we can check, or if we have read a previous write
 	    size_t *uucheck , *poscheck;
@@ -340,17 +358,20 @@ size_t aioMultiplePositions( positionContainer *p,
 	      uucheck = (size_t*)readdata[pp->q] + 1;
 	    }
 	    
-	    
 	    if ((p->UUID != *uucheck) || (pp->pos != *poscheck)) {
 	      fprintf(stderr,"position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
 	      //abort();
 	    }
-	    assert(headOfQueue < QD);
-	    //	  fprintf(stderr,"received %d\n", pp->q);
-	    freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
-	  }
+	  } // 'W'
+	  
+	  //	  fprintf(stderr,"received %d\n", pp->q);
+	  pp->inFlight = 0;
+	  //checkArray(freeQueue, QD);
+	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
+	  //	    checkArray(freeQueue, QD);
 	  pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed
+
 	}
 
       } // for j
@@ -383,10 +404,10 @@ size_t aioMultiplePositions( positionContainer *p,
 	  struct iocb *my_iocb = events[j].obj;
 	  positionType *pp = (positionType*) my_iocb->data;
 
-	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue >= QD) tailOfQueue = 0;
+	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
 	  
-	  pp->finishtime = lastreceive;
-	  pp->success = 1; // the action has completed
+	  //	  pp->finishtime = lastreceive;
+	  //	  pp->success = 1; // the action has completed
 	}
 	inFlight -= ret;
       }

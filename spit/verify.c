@@ -125,7 +125,11 @@ int main(int argc, char *argv[]) {
 
   positionContainerFree(&pc);
 
-  exit(0);
+  if (incorrect + wrongpos) {
+    exit(1);
+  } else {
+    exit(0);
+  }
 }
   
   

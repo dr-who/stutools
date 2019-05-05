@@ -14,6 +14,7 @@ typedef struct {
   char  action;                  // 1: 'R' or 'W'
   unsigned int  success:4;               // 0.5
   unsigned int  verify:4;                // 0.5
+  unsigned int inFlight:4;
 } positionType;
 
 typedef struct {
