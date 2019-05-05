@@ -172,7 +172,7 @@ size_t aioMultiplePositions( positionContainer *p,
     if (!positions[pos].inFlight) {
       
       // submit requests, one at a time
-      if (sz && inFlight < QD - 2) {
+      if (sz && inFlight < QD) {
 	assert(pos < sz);
 	if (positions[pos].action != 'S') { // if we have some positions, sz > 0
 	  size_t newpos = positions[pos].pos;
