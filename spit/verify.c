@@ -19,7 +19,22 @@
   
 int verbose = 1;
 int keepRunning = 1;
-size_t waitEvery = 0;    
+size_t waitEvery = 0;
+
+// sorting function, used by qsort
+static int seedcompare(const void *p1, const void *p2)
+{
+  const positionType *pos1 = (positionType*)p1;
+  const positionType *pos2 = (positionType*)p2;
+  if (pos1->seed < pos2->seed) return -1;
+  else if (pos1->seed > pos2->seed) return 1;
+  else {
+    if (pos1->pos < pos2->pos) return -1;
+    else if (pos1->pos > pos2->pos) return 1;
+    else return 0;
+  }
+}
+
 /**
  * main
  *
@@ -60,17 +75,24 @@ int main(int argc, char *argv[]) {
   CALLOC(buffer, pc.maxbs+1, 1);
   CALLOC(loadblock, pc.maxbs+1, 1);
 
-  int fd = open(pc.device, O_RDONLY | O_DIRECT);
-  if (fd < 0) {perror(pc.device);exit(-2);}
+  int fd = 0;
+  if (pc.sz) {
+    fd = open(pc.device, O_RDONLY | O_DIRECT);
+    if (fd < 0) {perror(pc.device);exit(-2);}
+  }
 
   size_t correct = 0, incorrect = 0;
   unsigned short lastseed = 0;
   size_t wrongpos = 0, wronguuid = 0;
   size_t printed = 0;
 
-  size_t p;
+  size_t p, tested = 0;
+
+  qsort(pc.positions, pc.sz, sizeof(positionType), seedcompare);
+
   
   for (size_t i = 0; i < pc.sz; i++) {
+    tested++;
     if (pc.positions[i].action == 'W') {
       //      fprintf(stderr,"[%zd] %zd %c %d\n", i, pc.positions[i].pos, pc.positions[i].action, pc.positions[i].seed);
       lseek(fd, pc.positions[i].pos, SEEK_SET);
@@ -78,6 +100,7 @@ int main(int argc, char *argv[]) {
       if (ret != pc.positions[i].len) {perror("eerk");exit(-1);}
 
       if (pc.positions[i].seed != lastseed || i==0) {
+	fprintf(stderr,"*info* generating check for seed %d\n", pc.positions[i].seed);
 	generateRandomBuffer(buffer, pc.maxbs, pc.positions[i].seed);
 	lastseed = pc.positions[i].seed;
       }
@@ -94,7 +117,7 @@ int main(int argc, char *argv[]) {
 	correct++;
       } else {
 	if (printed++ <= 10)  {
-	  fprintf(stderr,"[%zd, %zd]\n", p, pc.positions[i].pos);
+	  fprintf(stderr,"[%zd, %zd, seed %d]\n", p, pc.positions[i].pos, lastseed);
 	  char s[1000];
 	  strncpy(s, loadblock+16, 1000);
 	  s[999]=0;
@@ -125,7 +148,7 @@ int main(int argc, char *argv[]) {
 
   positionContainerFree(&pc);
 
-  if (incorrect + wrongpos) {
+  if (tested && (incorrect + wrongpos)) {
     exit(1);
   } else {
     exit(0);

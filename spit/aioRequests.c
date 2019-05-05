@@ -394,9 +394,9 @@ size_t aioMultiplePositions( positionContainer *p,
   // receive outstanding I/Os
   while (inFlight) {
     if (inFlight) {
-      if (verbose >= 1) {
-	fprintf(stderr,"*info* inflight = %zd\n", inFlight);
-      }
+      //      if (verbose >= 1) {
+      //	fprintf(stderr,"*info* inflight = %zd\n", inFlight);
+	//      }
       int ret = io_getevents(ioc, inFlight, inFlight, events, NULL);
       if (ret > 0) {
 	for (int j = 0; j < ret; j++) {
@@ -406,14 +406,18 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
 	  
-	  //	  pp->finishtime = lastreceive;
-	  //	  pp->success = 1; // the action has completed
+	  pp->finishtime = lastreceive;
+	  pp->inFlight = 0;
+	  pp->success = 1; // the action has completed
 	}
 	inFlight -= ret;
       }
     }
   }
+  //  fprintf(stderr,"infligtht = %zd\n", inFlight);
 
+  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
+  
   free(events);
   for (size_t i = 0; i < QD; i++) {
     free(cbs[i]);
