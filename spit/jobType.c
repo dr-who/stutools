@@ -251,7 +251,7 @@ static void *runThreadTimer(void *arg) {
       //      diskStatStart(&d);
     }
 
-    if (thistime > threadContext->finishtime + 10) {
+    if (thistime > threadContext->finishtime + 30) {
       fprintf(stderr,"*error* still running! watchdog exit\n");
       exit(-1);
     }
@@ -612,6 +612,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     free(threadContext[i].randomBuffer);
   }
 
+  positionContainerFree(&mergedpc);
+  free(origpc);
+  
   free(allThreadsPC);
   free(threadContext);
   free(pt);
