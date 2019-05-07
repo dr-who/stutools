@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
       if (ret != pc.positions[i].len) {perror("eerk");exit(-1);}
 
       if (pc.positions[i].seed != lastseed || i==0) {
-	fprintf(stderr,"*info* generating check for seed %d\n", pc.positions[i].seed);
+	fprintf(stderr,"*info* generating %zd buffer for seed %d\n", pc.maxbs, pc.positions[i].seed);
 	generateRandomBuffer(buffer, pc.maxbs, pc.positions[i].seed);
 	lastseed = pc.positions[i].seed;
       }
