@@ -477,7 +477,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	  mp = newmp;
 	}
 	if (mp < 1) mp = 1;
-	if (mp <= qDepth) {
+	if (mp * multiply <= qDepth) {
 	  qDepth = mp;
 	}
       }
