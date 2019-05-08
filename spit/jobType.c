@@ -251,7 +251,7 @@ static void *runThreadTimer(void *arg) {
       //      diskStatStart(&d);
     }
 
-    if (thistime > threadContext->finishtime + 10) {
+    if (thistime > threadContext->finishtime + 30) {
       fprintf(stderr,"*error* still running! watchdog exit\n");
       exit(-1);
     }
@@ -306,6 +306,21 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
 
+    charBS = strchr(job->strings[i], 'M');
+    if (charBS && *(charBS+1)) {
+
+      char *endp = NULL;
+      bs = 1024 * 1024 * strtod(charBS+1, &endp);
+      if (bs < 512) bs = 512;
+      highbs = bs;
+      if (*endp == '-') {
+	int nextv = atoi(endp+1);
+	if (nextv > 0) {
+	  highbs = 1024 * 1024 * nextv;
+	}
+      }
+    }
+
     if (highbs < bs) {
       highbs = bs;
     }
@@ -317,6 +332,16 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       char *endp = NULL;
       limit = (size_t) (strtod(charLimit+1, &endp) * 1024 * 1024 * 1024);
       if (limit == 0) limit = (size_t)-1;
+    }
+    
+
+
+    char *multLimit = strchr(job->strings[i], 'x');
+    size_t multiply = (size_t)1;
+
+    if (multLimit && *(multLimit+1)) {
+      char *endp = NULL;
+      multiply = (size_t) (strtod(multLimit+1, &endp));
     }
     
 
@@ -452,7 +477,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	  mp = newmp;
 	}
 	if (mp < 1) mp = 1;
-	if (mp <= qDepth) {
+	if (mp * multiply <= qDepth) {
 	  qDepth = mp;
 	}
       }
@@ -495,6 +520,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       //positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
       // create the positions and the r/w status
       size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+      threadContext[i].pos = positionContainerMultiply(&threadContext[i].pos, multiply);
 
       threadContext[i].anywrites = anywrites;
       
@@ -586,6 +612,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     free(threadContext[i].randomBuffer);
   }
 
+  positionContainerFree(&mergedpc);
+  free(origpc);
+  
   free(allThreadsPC);
   free(threadContext);
   free(pt);

@@ -200,6 +200,8 @@ positionContainer positionContainerCollapse(positionContainer merged, size_t *to
     //    assert(shrunk.positions[i-1].pos + shrunk.positions[i-1].len  <= shrunk.positions[i].pos);
   }
   shrunk.sz = *total;
+
+  positionContainerFree(&merged);
   
   return shrunk;
 }
@@ -207,8 +209,32 @@ positionContainer positionContainerCollapse(positionContainer merged, size_t *to
 
 
 
+positionContainer positionContainerMultiply(positionContainer *original, const size_t multiply) {
+  if (multiply == 1) {
+    return *original;
+  }
+  
+  positionContainer mult;
+  positionContainerInit(&mult, 0);
+  positionContainerSetup(&mult, original->sz * multiply, original->device, original->string);
 
-positionContainer positionContainerMerge(const positionContainer *p, const size_t numFiles) {
+  size_t startpos = 0;
+  for (size_t i = 0; i < multiply; i++) {
+    memcpy(mult.positions + startpos, original->positions, original->sz * sizeof(positionType));
+    startpos += original->sz;
+  }
+  assert(startpos == mult.sz);
+
+  positionContainerFree(original);
+  
+  return mult;
+}
+  
+
+
+
+
+positionContainer positionContainerMerge(positionContainer *p, const size_t numFiles) {
   size_t total = 0;
   size_t lastbd = 0;
 
@@ -246,11 +272,8 @@ positionContainer positionContainerMerge(const positionContainer *p, const size_
   shrunk = positionContainerCollapse(merged, &total);
   merged = shrunk;
 
-    shrunk = positionContainerCollapse(merged, &total);
+  shrunk = positionContainerCollapse(merged, &total);
   merged = shrunk;
-
-
-  
 
   // find maxbs
   // find minbs;
@@ -264,6 +287,7 @@ positionContainer positionContainerMerge(const positionContainer *p, const size_
   merged.maxbs = maxbs;
   merged.minbs = minbs;
 
+  //  positionContainerFree(p);
   
   return merged;
 }
