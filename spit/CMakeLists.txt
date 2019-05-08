@@ -15,3 +15,9 @@ target_link_libraries(spitchecker spitlib m aio pthread)
 
 add_executable(bdinfo bdinfo.c)
 target_link_libraries(bdinfo spitlib m aio pthread)
+
+add_executable(dtest directories.c)
+target_link_libraries(dtest spitlib m aio pthread)
+
+
+

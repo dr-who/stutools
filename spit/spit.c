@@ -6,7 +6,7 @@
 /**
  * spit.c
  *
- * the main() for ./spit, Stu's parallel I/O tester
+ * the main() for ./spit, Stu's powerful I/O tester
  *
  */
 #include <stdlib.h>
@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
 
 
   
-  fprintf(stderr,"*info* spit %s %s (Stu's parallel I/O tester)\n", argv[0], VERSION);
+  fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], VERSION);
   
   handle_args(argc, argv, j, &maxSizeInBytes, &timetorun, &dumpPositions);
   if (j->count == 0) {
