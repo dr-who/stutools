@@ -67,7 +67,15 @@ int main() {
   const double start = timedouble();
   const size_t gb=1;
   const size_t count=1000;
-  makeDirectories("test", gb, count, 16384, NULL);
+  const char *directory="test";
+
+  struct stat st = {0};
+  if (stat(directory, &st) == -1) {
+    fprintf(stderr,"*error* please create a directory called '%s'\n", directory);
+    exit(-1);
+  }
+  
+  makeDirectories(directory, gb, count, 16384, NULL);
   const double elapsed = timedouble() - start;
   fprintf(stderr,"files: %zd in %.3lf seconds, %.2lf files per second (%zd GiB)\n", count, elapsed, count / elapsed, gb);
   
