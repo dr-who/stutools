@@ -64,7 +64,6 @@ void makeDirectories(const char *prefix, size_t MiB, size_t count, size_t chunk,
 
 int main() {
   fprintf(stderr,"Starting test\n");
-  const double start = timedouble();
   const size_t gb=1;
   const size_t count=1000;
   const char *directory="test";
@@ -74,10 +73,13 @@ int main() {
     fprintf(stderr,"*error* please create a directory called '%s'\n", directory);
     exit(-1);
   }
-  
-  makeDirectories(directory, gb, count, 16384, NULL);
-  const double elapsed = timedouble() - start;
-  fprintf(stderr,"files: %zd in %.3lf seconds, %.2lf files per second (%zd GiB)\n", count, elapsed, count / elapsed, gb);
+
+  for (size_t r = 0; r < 10; r++) {
+    const double start = timedouble();
+    makeDirectories(directory, gb, count, 16384, NULL);
+    const double elapsed = timedouble() - start;
+    fprintf(stderr,"files: %zd in %.3lf seconds, %.2lf files per second (%zd GiB)\n", count, elapsed, count / elapsed, gb);
+  }
   
   return 0;
 }
