@@ -62,6 +62,8 @@ void makeDirectories(const char *prefix, size_t MiB, size_t count, size_t chunk,
 
 }
 
+
+
 int main() {
   fprintf(stderr,"Starting test\n");
   const size_t gb=1;

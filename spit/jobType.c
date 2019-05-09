@@ -97,6 +97,7 @@ typedef struct {
   positionContainer **allPC;
   size_t anywrites;
   size_t UUID;
+  char *benchmarkName;
 } threadInfoType;
 
 
@@ -172,7 +173,13 @@ static void *runThread(void *arg) {
 
   close(fd);
 
-  logSpeedFree(&benchl);
+  if (threadContext->benchmarkName) {
+    char s[1024];
+    sprintf(s, "%s-%03zd", threadContext->benchmarkName, threadContext->id);
+    
+    logSpeedDump(&benchl, s, 0, "", threadContext->bdSize, threadContext->bdSize, 0, 0, 0, 0, 0, "");
+    logSpeedFree(&benchl);
+  }
 
   return NULL;
 }
@@ -265,7 +272,7 @@ static void *runThreadTimer(void *arg) {
 
 
 void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
-		   const size_t timetorun, const size_t dumpPos) {
+		   const size_t timetorun, const size_t dumpPos, char *benchmarkName) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -391,6 +398,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
       
     threadContext[i].id = i;
+    threadContext[i].benchmarkName = benchmarkName;
     threadContext[i].UUID = UUID;
     positionContainerInit(&threadContext[i].pos, threadContext[i].UUID);
     threadContext[i].jobstring = job->strings[i];

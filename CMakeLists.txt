@@ -3,4 +3,6 @@ project (stutools)
 
 add_subdirectory(iotests)
 add_subdirectory(spit)
+add_subdirectory(utils)
+
 

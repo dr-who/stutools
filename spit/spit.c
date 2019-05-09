@@ -19,6 +19,7 @@
   
 int verbose = 0;
 int keepRunning = 1;
+char *benchmarkName = NULL;
 
 int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun,
 		 size_t *dumpPositions) {
@@ -29,8 +30,11 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
   
   jobInit(j);
   
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:V")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:")) != -1) {
     switch (opt) {
+    case 'B':
+      benchmarkName = strdup(optarg);
+      break;
     case 'c':
       jobAdd(j, optarg);
       break;
@@ -184,7 +188,7 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, intHandler);
 
   fprintf(stderr,"*info* bdSize %.3lf GiB (%zd bytes, %.3lf PiB), time to run %zd sec\n", TOGiB(maxSizeInBytes), maxSizeInBytes, TOPiB(maxSizeInBytes), timetorun);
-  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions);
+  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName);
 
   jobFree(j);
   free(j);
