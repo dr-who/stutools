@@ -78,7 +78,7 @@ int main() {
     const double start = timedouble();
     makeDirectories(directory, gb, count, 16384, NULL);
     const double elapsed = timedouble() - start;
-    fprintf(stderr,"files: %zd in %.3lf seconds, %.2lf files per second (%zd GiB)\n", count, elapsed, count / elapsed, gb);
+    fprintf(stderr,"files: %zd in %.3lf seconds, %.2lf files per second (%zd GiB, %.0lf MiB/s)\n", count, elapsed, count / elapsed, gb, gb * 1024 / elapsed);
   }
   
   return 0;
