@@ -53,7 +53,14 @@ void nlSort(numListType *n) {
 double nlMedian(numListType *n) {
   nlSort(n);
   if (n->num > 0) {
-    return n->values[n->num / 2];
+    if ((n->num % 2) == 0) {
+      // even
+      const size_t i = n->num / 2;
+      return (n->values[i] + n->values[i-1]) / 2.0;
+    } else {
+      // odd
+      return n->values[n->num / 2];
+    }
   } else {
     return 0.0/0.0;
   }
