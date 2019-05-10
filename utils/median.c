@@ -83,8 +83,10 @@ int main() {
   while (scanf("%lf", &v) == 1) {
     nlAdd(&n, v);
   }
-  
-  fprintf(stdout,"%g\n", nlMedian(&n));
+
+  if (n.num > 0) {
+    fprintf(stdout,"%g\n", nlMedian(&n));
+  }
   
   nlFree(&n);
 
