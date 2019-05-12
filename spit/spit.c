@@ -145,6 +145,9 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB\n");
   fprintf(stderr,"  spit -f ... -c P10x100        # multiply the number of positions by x, here it's 100\n");
   fprintf(stderr,"  spit -f ... -c wM1            # set block size 1M\n");
+  fprintf(stderr,"  spit -f ... -c O              # One-shot, not time based\n");
+  fprintf(stderr,"  spit -f ... -c t2             # specify the time per thread\n");
+  fprintf(stderr,"  spit -f ... -c wx2O           # sequentially (s1) write 200%% LBA, no time limit\n");
   exit(-1);
 }
 
@@ -187,7 +190,7 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
-  fprintf(stderr,"*info* bdSize %.3lf GiB (%zd bytes, %.3lf PiB), time to run %zd sec\n", TOGiB(maxSizeInBytes), maxSizeInBytes, TOPiB(maxSizeInBytes), timetorun);
+  fprintf(stderr,"*info* bdSize %.3lf GiB (%zd bytes, %.3lf PiB)\n", TOGiB(maxSizeInBytes), maxSizeInBytes, TOPiB(maxSizeInBytes));
   jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName);
 
   jobFree(j);

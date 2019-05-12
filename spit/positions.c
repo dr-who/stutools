@@ -28,6 +28,13 @@ static int poscompare(const void *p1, const void *p2)
   }
 }
 
+void calcLBA(positionContainer *pc) {
+  size_t t = 0;
+  for (size_t i = 0; i < pc->sz; i++) {
+    t += pc->positions[i].len;
+  }
+  pc->LBAcovered = 100.0 * t / pc->bdSize;
+}
 
 
 positionType *createPositions(size_t num) {
@@ -153,7 +160,7 @@ positionContainer positionContainerCollapse(positionContainer merged, size_t *to
 	  double deltastart = merged.positions[j].submittime - merged.positions[i].submittime;
 	  if (deltastart < 0) deltastart = -deltastart;
 	
-	  if (deltastart < 100) { // if they start within 0.1 ms who knows
+	  if (deltastart < 2) { // if they start within 0.1 ms who knows
 	    merged.positions[i].action = 'w'; // exclude from output
 	    merged.positions[j].action = 'w'; // exclude from output
 	    //	    fprintf(stderr,"deleting %zd and %zd\n", merged.positions[i].pos, merged.positions[j].pos);
@@ -215,7 +222,8 @@ positionContainer positionContainerMultiply(positionContainer *original, const s
   }
   
   positionContainer mult;
-  positionContainerInit(&mult, 0);
+  mult = *original; // copy it 
+  //  positionContainerInit(&mult, 0);
   positionContainerSetup(&mult, original->sz * multiply, original->device, original->string);
 
   size_t startpos = 0;
