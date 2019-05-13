@@ -265,13 +265,13 @@ size_t aioMultiplePositions( positionContainer *p,
 	
       double timeelapsed = thistime - last;
       if (timeelapsed >= DISPLAYEVERY) {
-	const double speed = 1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed / 1024.0 / 1024;
+	const double speed = TOMB(1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed);
 	const double IOspeed = 1.0*(received - lastIOCount) / timeelapsed;
-	if (benchl) logSpeedAdd2(benchl, TOMiB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
+	if (benchl) logSpeedAdd2(benchl, TOMB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
 	if (!tableMode) {
 	  if (verbose != -1) {
-	    //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
-	    fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MiB/s\n", thistime - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
+	    //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
+	    fprintf(stderr,"[%.1lf] %.1lf GB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", thistime - start, TOGB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
 	  }
 	  if (verbose >= 2) {
 	    if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
@@ -321,7 +321,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
-	if (alll) logSpeedAdd2(alll, TOMiB(events[j].res), 1);
+	if (alll) logSpeedAdd2(alll, TOMB(events[j].res), 1);
 	struct iocb *my_iocb = events[j].obj;
 	positionType *pp = (positionType*) my_iocb->data;
 	assert(pp->inFlight);
@@ -417,8 +417,6 @@ size_t aioMultiplePositions( positionContainer *p,
   }
   //  fprintf(stderr,"infligtht = %zd\n", inFlight);
 
-  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
-  
   free(events);
   for (size_t i = 0; i < QD; i++) {
     free(cbs[i]);
@@ -486,7 +484,7 @@ int aioVerifyWrites(positionType *positions,
   }
 
   double start = timedouble();
-  fprintf(stderr,"*info* started verification (%zd positions, %.1lf GiB)\n", posTOV, TOGiB(bytesToVerify));
+  fprintf(stderr,"*info* started verification (%zd positions, %.1lf GiB)\n", posTOV, TOGB(bytesToVerify));
 
   for (size_t i = 0; i < maxpos; i++) {
     if (!keepRunning) break;
@@ -547,7 +545,7 @@ int aioVerifyWrites(positionType *positions,
     }
   }
   double elapsed = timedouble() - start;
-  fprintf(stderr,"checked %zd/%zd blocks, I/O errors %zd, errors/incorrect %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, posTOV, ioerrors, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
+  fprintf(stderr,"checked %zd/%zd blocks, I/O errors %zd, errors/incorrect %zd, elapsed = %.1lf secs (%.1lf MB/s)\n", checked, posTOV, ioerrors, errors, elapsed, TOMB(bytesToVerify)/elapsed);
 
 
   free(buffer);

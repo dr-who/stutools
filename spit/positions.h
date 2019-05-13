@@ -12,9 +12,9 @@ typedef struct {
   unsigned short seed;           // 2
   unsigned short q;              // 2
   char  action;                  // 1: 'R' or 'W'
-  unsigned int  success:4;               // 0.5
-  unsigned int  verify:4;                // 0.5
-  unsigned int inFlight:4;
+  unsigned int  success:2;               // 0.5
+  unsigned int  verify:2;                // 0.5
+  unsigned int inFlight:2;
 } positionType;
 
 typedef struct {

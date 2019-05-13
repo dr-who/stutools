@@ -72,7 +72,9 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
     case 't':
       *timetorun = atoi(optarg);
       if (*timetorun == 0) {
-	*timetorun = (size_t)-1; // run for ever
+	fprintf(stderr,"*error* zero isn't a valid time. -t -1 for a long time\n");
+	exit(1);
+	//	*timetorun = (size_t)-1; // run for ever
       }
       break;
     default:
@@ -190,7 +192,7 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
-  fprintf(stderr,"*info* bdSize %.3lf GiB (%zd bytes, %.3lf PiB)\n", TOGiB(maxSizeInBytes), maxSizeInBytes, TOPiB(maxSizeInBytes));
+  fprintf(stderr,"*info* bdSize %.3lf GB (%zd bytes, %.3lf PB)\n", TOGB(maxSizeInBytes), maxSizeInBytes, TOPB(maxSizeInBytes));
   jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName);
 
   jobFree(j);

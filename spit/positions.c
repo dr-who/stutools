@@ -144,6 +144,9 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
 }
 
 positionContainer positionContainerCollapse(positionContainer merged, size_t *total) {
+  if (verbose >= 1) {
+    fprintf(stderr,"*info* collapsing %zd positions\n", *total);
+  }
   qsort(merged.positions, *total, sizeof(positionType), poscompare);
 
   for (size_t i = 0; i < *total; i++) {
@@ -683,7 +686,7 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   }
   double elapsed = pc->elapsedTime;
 
-  fprintf(stderr,"*info* [T%d] '%s': R %.0lf MiB/s (%.0lf IO/s), W %.0lf MiB/s (%.0lf IO/s), %.1lf s, SR %.3g, SW %.3g s, 1msR %zd, 1msW %zd\n", threadid, pc->string, TOMiB(pc->readBytes/elapsed), pc->readIOs/elapsed, TOMiB(pc->writtenBytes/elapsed), pc->writtenIOs/elapsed, elapsed, slowestread, slowestwrite, vslowread, vslowwrite);
+  fprintf(stderr,"*info* [T%d] '%s': R %.0lf MB/s (%.0lf IO/s), W %.0lf MB/s (%.0lf IO/s), %.1lf s, SR %.3g, SW %.3g s, 1msR %zd, 1msW %zd\n", threadid, pc->string, TOMB(pc->readBytes/elapsed), pc->readIOs/elapsed, TOMB(pc->writtenBytes/elapsed), pc->writtenIOs/elapsed, elapsed, slowestread, slowestwrite, vslowread, vslowwrite);
   if (verbose >= 2) {
     fprintf(stderr,"*failed or not finished* %zd\n", failed);
   }
