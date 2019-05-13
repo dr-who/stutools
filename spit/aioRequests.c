@@ -287,8 +287,6 @@ size_t aioMultiplePositions( positionContainer *p,
       //      usleep(1);
     }// if inflight
 
-    if (!sz) flushPos++; // if no positions, then increase flushPos anyway
-    
     if (flushEvery) {
       if (flushPos >= flushEvery) {
 	flushPos = flushPos - flushEvery;
