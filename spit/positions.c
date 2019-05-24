@@ -252,7 +252,7 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
   if (numFiles > 0) lastbd = p[0].bdSize;
 
   for (size_t i = 0; i < numFiles; i++) {
-      fprintf(stderr,"*info* input %zd, size %zd, bdSize %zd\n", i, p[i].sz, p[i].bdSize);
+    //fprintf(stderr,"*info* input %zd, size %zd, bdSize %zd\n", i, p[i].sz, p[i].bdSize);
     total += p[i].sz;
     if (i > 0) {
       if (p[i].bdSize != lastbd) {
