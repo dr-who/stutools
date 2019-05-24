@@ -69,8 +69,8 @@ size_t aioMultiplePositions( positionContainer *p,
   assert(sz>0);
   positionType *positions = p->positions;
 
-  const double alignbits = log(alignment)/log(2);
-  assert (alignbits == (size_t)alignbits);
+  //  const double alignbits = log(alignment)/log(2);
+  //  assert (alignbits == (size_t)alignbits);
   
   io_context_t ioc = 0;
   if (io_setup(QD, &ioc)) {
@@ -155,7 +155,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   struct timespec timeout;
   timeout.tv_sec = 0;
-  timeout.tv_nsec = 10*1000; // 0.0001 seconds
+  timeout.tv_nsec = 10000*1000; // 1ms seconds
 
   double flush_totaltime = 0, flush_mintime = 9e99, flush_maxtime = 0;
   size_t flush_count = 0;
@@ -174,7 +174,7 @@ size_t aioMultiplePositions( positionContainer *p,
     if (!positions[pos].inFlight) {
       
       // submit requests, one at a time
-      if (sz && inFlight < QD) {
+      while (sz && inFlight < QD) {
 	assert(pos < sz);
 	if (positions[pos].action != 'S') { // if we have some positions, sz > 0
 	  size_t newpos = positions[pos].pos;
@@ -231,7 +231,6 @@ size_t aioMultiplePositions( positionContainer *p,
 	      flushPos++;
 	    }
 	      
-	    thistime = timedouble();
 	    positions[pos].submittime = thistime;
 	      
 	    ret = io_submit(ioc, 1, &cbs[qdIndex]);
@@ -295,26 +294,16 @@ size_t aioMultiplePositions( positionContainer *p,
 	if (verbose >= 2) {
 	  fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	}
-	double start_f = timedouble(); // time and store
-	//	  io_prep_fsync(cbs[qdIndex], fd);
 	fsync(fd);
-	double elapsed_f = timedouble() - start_f;
-
-	flush_totaltime += (elapsed_f);
 	flush_count++;
-	if (elapsed_f < flush_mintime) flush_mintime = elapsed_f;
-	if (elapsed_f > flush_maxtime) flush_maxtime = elapsed_f;
       }
     }
 
-    //    if (inFlight < 5) { // then don't timeout
-    //      ret = io_getevents(ioc, 1, QD, events, NULL);
-    //    } else {
-
-    ret = io_getevents(ioc, 0, inFlight, events, &timeout);
+    // return, 1..inFlight wait for a bit
+    ret = io_getevents(ioc, 1, inFlight, events, &timeout);
     //    }
     if (ret > 0) {
-      lastreceive = timedouble(); // last good receive
+      lastreceive = thistime;
 
       // verify it's all ok
       int printed = 0;
