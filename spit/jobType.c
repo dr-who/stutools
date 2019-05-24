@@ -144,7 +144,7 @@ static void *runThread(void *arg) {
     perror(threadContext->jobdevice); return 0;
   }
 
-  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, %.0lf GB), rerand=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed %u, oneShot %d, B%zd W%zd T%zd t%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, threadContext->pos.LBAcovered, TOGB(threadContext->bdSize * threadContext->pos.LBAcovered/100.0), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->oneShot, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime);
+  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, %.1lf GB), rerand=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed %u, oneShot %d, B%zd W%zd T%zd t%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, threadContext->pos.LBAcovered, TOGB(threadContext->bdSize * threadContext->pos.LBAcovered/100.0), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->oneShot, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime);
 
 
   // do the mahi
@@ -622,12 +622,8 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     
   // print stats 
   for (size_t i = 0; i < num; i++) {
-    if (!threadContext[i].rerandomize) {
-      positionLatencyStats(&threadContext[i].pos, i);
-    }
+    positionLatencyStats(&threadContext[i].pos, i);
   }
-
-  //        if (logPositions) {
 
   positionContainer *origpc;
   CALLOC(origpc, num, sizeof(positionContainer));
@@ -636,20 +632,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   }
   
   positionContainer mergedpc = positionContainerMerge(origpc, num);
-  
-  /* {  for (size_t i = 0; i < num; i++) {
-      char s[1000];
-      sprintf(s, "spit-positions-%03zd.txt", i);
-      fprintf(stderr, "*info* writing positions to '%s'\n", s); 
-      positionContainerSave(&threadContext[i].pos, s, threadContext[i].bdSize, 0);
-      }*/
+
   char s[1000];
   sprintf(s, "spit-positions.txt");
   fprintf(stderr, "*info* writing positions to '%s'\n", s); 
   positionContainerSave(&mergedpc, s, mergedpc.bdSize, 0);
-  //    } 
-
-
   
   // free
   for (size_t i = 0; i < num; i++) {
