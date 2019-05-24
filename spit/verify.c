@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
 
 /**
  * verify.c
@@ -35,11 +36,20 @@ static int seedcompare(const void *p1, const void *p2)
   }
 }
 
+
+void intHandler(int d) {
+  fprintf(stderr,"got signal\n");
+  keepRunning = 0;
+}
+
 /**
  * main
  *
  */
 int main(int argc, char *argv[]) {
+  signal(SIGTERM, intHandler);
+  signal(SIGINT, intHandler);
+
 
   // load in all the positions, generation from the -L filename option from aioRWTest
 
@@ -61,6 +71,11 @@ int main(int argc, char *argv[]) {
       positionContainerInfo(&origpc[i]);
       fclose(fp);
     }
+  }
+
+  if (origpc->sz == 0) {
+    fprintf(stderr,"*warning* no positions to verify\n");
+    exit(-1);
   }
 
   positionContainer pc = positionContainerMerge(origpc, numFiles);
@@ -91,6 +106,7 @@ int main(int argc, char *argv[]) {
 
   
   for (size_t i = 0; i < pc.sz; i++) {
+    if (!keepRunning) break;
     tested++;
     if (pc.positions[i].action == 'W') {
       //      fprintf(stderr,"[%zd] %zd %c %d\n", i, pc.positions[i].pos, pc.positions[i].action, pc.positions[i].seed);
@@ -134,6 +150,8 @@ int main(int argc, char *argv[]) {
   }
 
   close(fd);
+
+  if (!keepRunning) {fprintf(stderr,"*warning* early verification termination\n");}
 
   fprintf(stderr,"*info* total %zd, correct %zd, incorrect %zd, wrong stored pos %zd, wrong thread uuid %zd\n", correct+incorrect+wrongpos+wronguuid, correct, incorrect, wrongpos, wronguuid);
 

@@ -163,7 +163,7 @@ positionContainer positionContainerCollapse(positionContainer merged, size_t *to
 	  double deltastart = merged.positions[j].submittime - merged.positions[i].submittime;
 	  if (deltastart < 0) deltastart = -deltastart;
 	
-	  if (deltastart < 2) { // if they start within 0.1 ms who knows
+	  if (deltastart < 0.1) { // if they start within 0.1 ms who knows
 	    merged.positions[i].action = 'w'; // exclude from output
 	    merged.positions[j].action = 'w'; // exclude from output
 	    //	    fprintf(stderr,"deleting %zd and %zd\n", merged.positions[i].pos, merged.positions[j].pos);
@@ -475,23 +475,7 @@ size_t setupPositions(positionType *positions,
   
   // if randomise then reorder
   if (sf == 0) {
-    for (size_t shuffle = 0; shuffle < 1; shuffle++) {
-      if (verbose >= 2) {
-	fprintf(stderr,"*info* shuffling the array %zd\n", count);
-      }
-      for (size_t i = 0; i < count; i++) {
-	size_t j = i;
-	if (count > 1) {
-	  while ((j = lrand48() % count) == i) {
-	    ;
-	  }
-	}
-	// swap i and j
-	positionType p = positions[i];
-	positions[i] = positions[j];
-	positions[j] = p;
-      }
-    }
+    positionRandomize(positions, count);
   }
 
   // rotate
@@ -511,6 +495,26 @@ size_t setupPositions(positionType *positions,
   return anywrites;
 }
 
+
+void positionRandomize(positionType *positions, const size_t count) {
+  if (verbose >= 1) {
+    fprintf(stderr,"*info* shuffling the array %zd\n", count);
+  }
+  for (size_t shuffle = 0; shuffle < 1; shuffle++) {
+    for (size_t i = 0; i < count; i++) {
+      size_t j = i;
+      if (count > 1) {
+	while ((j = lrand48() % count) == i) {
+	  ;
+	}
+      }
+      // swap i and j
+      positionType p = positions[i];
+      positions[i] = positions[j];
+      positions[j] = p;
+    }
+  }
+}
 
 
 		 
@@ -591,7 +595,7 @@ void dumpPositions(positionType *positions, const char *prefix, const size_t num
   fprintf(stderr,"%s: total number of positions %zd\n", prefix, num);
   for (size_t i = 0; i < num; i++) {
     if (i >= countToShow) break;
-    fprintf(stderr,"%s: [%2zd] action %c pos %9zd len %6d verify %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len, positions[i].verify);
+    fprintf(stderr,"%s: [%02zd] action %c pos %9zd len %6d verify %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len, positions[i].verify);
   }
 }
 

@@ -69,6 +69,7 @@ void positionContainerLoad(positionContainer *pc, FILE *fp);
 void positionContainerInfo(const positionContainer *pc);
 
 void positionLatencyStats(positionContainer *pc, const int threadid);
+void positionRandomize(positionType *positions, const size_t count);
 
 void positionContainerAddMetadataChecks(positionContainer *pc);
 

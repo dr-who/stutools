@@ -40,7 +40,7 @@ void checkArray(const unsigned short *freeQueue, const size_t QD) {
 size_t aioMultiplePositions( positionContainer *p,
 			     const size_t sz,
 			     const double finishtime,
-			     const size_t origQD,
+			     size_t origQD,
 			     const int verbose,
 			     const int tableMode, 
 			     logSpeedType *alll,
@@ -60,8 +60,9 @@ size_t aioMultiplePositions( positionContainer *p,
   struct iocb **cbs;
   struct io_event *events;
   if (origQD > sz)  {
-    fprintf(stderr,"*sorry* don't support QD over P\n");
-    exit(1);
+    origQD = sz;
+    fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd\n", origQD);
+    //    exit(1);
   }
   assert(origQD <= sz);
   const size_t QD = origQD;
@@ -165,7 +166,8 @@ size_t aioMultiplePositions( positionContainer *p,
     positions[i].inFlight = 0;
     positions[i].success = 0;
   }
-  
+
+  //  fprintf(stderr,"*info* starting...\n");
   while (keepRunning && ((thistime = timedouble()) < finishtime)) {
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
@@ -393,6 +395,7 @@ size_t aioMultiplePositions( positionContainer *p,
   // receive outstanding I/Os
   while (inFlight) {
     if (inFlight) {
+      //      fprintf(stderr,"*info* waiting for outstanding IOs\n");
       //      if (verbose >= 1) {
       //	fprintf(stderr,"*info* inflight = %zd\n", inFlight);
 	//      }
