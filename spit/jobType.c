@@ -99,7 +99,7 @@ typedef struct {
   size_t queueDepth;
   size_t flushEvery;
   float rw;
-  size_t reseed;
+  int rerandomize;
   unsigned short seed;
   char *randomBuffer;
   size_t numThreads;
@@ -131,7 +131,7 @@ static void *runThread(void *arg) {
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
   }
 
-  if (threadContext->anywrites || threadContext->reseed) {
+  if (threadContext->anywrites) {
     fd = open(threadContext->jobdevice, O_RDWR | direct);
     if (verbose >= 2) fprintf(stderr,"*info* open with O_RDWR\n");
   } else {
@@ -144,54 +144,30 @@ static void *runThread(void *arg) {
     perror(threadContext->jobdevice); return 0;
   }
 
- fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, %.0lf GB), |%zd|, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed %u, oneShot %d, B%zd W%zd T%zd t%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, threadContext->pos.LBAcovered, TOGB(threadContext->bdSize * threadContext->pos.LBAcovered/100.0), threadContext->reseed, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->oneShot, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime);
+  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, %.0lf GB), rerand=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed %u, oneShot %d, B%zd W%zd T%zd t%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, threadContext->pos.LBAcovered, TOGB(threadContext->bdSize * threadContext->pos.LBAcovered/100.0), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->oneShot, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime);
 
-  double start = timedouble();
-  if (threadContext->reseed) {
-    size_t s = threadContext->id + threadContext->pos.sz;
-    positionContainer pc;
-    positionContainerInit(&pc, threadContext->UUID);
-    
-    positionType *p = createPositions(threadContext->reseed);
-    pc.positions = p;
 
-    size_t starttime = timedouble(); 
-    sleep(threadContext->prewait);
-    while (keepRunning && timedouble() < starttime + threadContext->finishtime+0.1) {
-      sleep(threadContext->waitfor);
-      size_t anywrites = setupRandomPositions(p, threadContext->reseed, threadContext->rw, threadContext->blockSize, threadContext->highBlockSize, MIN(4096, threadContext->blockSize), threadContext->bdSize, s++);
-      threadContext->anywrites = anywrites;
-      
-      if (verbose >= 2) {
-	fprintf(stderr,"*info* generating random %zd\n", threadContext->reseed);
-	dumpPositions(p, "random", threadContext->reseed, 10);
-      }
-
-      size_t starttime = timedouble(); 
-      aioMultiplePositions(&pc, threadContext->reseed, starttime + threadContext->runTime, threadContext->queueDepth, -1 /*verbose*/, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, 1 /* one shot*/, 1, fd, threadContext->flushEvery);
-      if (!keepRunning) {fprintf(stderr,"*info* finished...\n");}
-      if (threadContext->oneShot) {
-	break;
-      }
+  // do the mahi
+  double starttime = timedouble();
+  sleep(threadContext->prewait);
+  while (keepRunning && (timedouble() < starttime + threadContext->finishtime)) {
+    sleep(threadContext->waitfor);
+    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->oneShot || threadContext->rerandomize, 1, fd, threadContext->flushEvery);
+    if (!keepRunning) {fprintf(stderr,"*info* finished...\n");}
+    if (threadContext->oneShot) {
+      break;
     }
-
-
-    freePositions(p);
-  } else {
-
-    double starttime = timedouble();
-    sleep(threadContext->prewait);
-    while (keepRunning && (timedouble() < starttime + threadContext->finishtime)) {
-      sleep(threadContext->waitfor);
-      aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->oneShot, 1, fd, threadContext->flushEvery);
-      if (!keepRunning) {fprintf(stderr,"*info* finished...\n");}
-      if (threadContext->oneShot) {
-	break;
+    if (threadContext->rerandomize) {
+      positionRandomize(threadContext->pos.positions, threadContext->pos.sz);
+      if (verbose >= 1) {
+	fprintf(stderr,"*info* randomizing\n");
+	fprintf(stderr,"*info* first pos %zd\n", threadContext->pos.positions[0].pos);
       }
     }
   }
+
   if (verbose) fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
-  threadContext->pos.elapsedTime = timedouble() - start;
+  threadContext->pos.elapsedTime = timedouble() - starttime;
 
   fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
   
@@ -422,7 +398,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     threadContext[i].finishtime = 0;
     threadContext[i].blockSize = bs;
     threadContext[i].highBlockSize = highbs;
-    threadContext[i].reseed = 0;
+    threadContext[i].rerandomize = 0;
 
     // do this here to allow repeatable random numbers
     int rcount = 0, wcount = 0, rwtotal = 0;
@@ -472,14 +448,12 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
 
 
-    int iRandom = 0;
     {
       char *iR = strchr(job->strings[i], 'n');
       if (iR) {// && *(iR+1)) {
-	iRandom = 1000000;
+	threadContext[i].rerandomize = 1;
       }
     }
-    threadContext[i].reseed = iRandom;
 
 
 
@@ -583,7 +557,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     threadContext[i].pos.bdSize = threadContext[i].bdSize;
 
     
-    if (iRandom == 0) { // if iRandom set, then don't setup positions here, do it in the runThread. e.g. -c n
+    /*if (iRandom == 0) */{ // if iRandom set, then don't setup positions here, do it in the runThread. e.g. -c n
       positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
 
       // allocate the position array space
@@ -607,7 +581,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 	positionContainerAddMetadataChecks(&threadContext[i].pos);
       }
 
-      if (dumpPos && !iRandom) {
+      if (dumpPos /* && !iRandom*/) {
 	dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPos);
       }
     }
@@ -648,7 +622,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     
   // print stats 
   for (size_t i = 0; i < num; i++) {
-    if (!threadContext[i].reseed) {
+    if (!threadContext[i].rerandomize) {
       positionLatencyStats(&threadContext[i].pos, i);
     }
   }

@@ -167,7 +167,7 @@ size_t aioMultiplePositions( positionContainer *p,
     positions[i].success = 0;
   }
 
-  //  fprintf(stderr,"*info* starting...\n");
+  if (verbose >= 2)fprintf(stderr,"*info* starting...%zd\n", sz);
   while (keepRunning && ((thistime = timedouble()) < finishtime)) {
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);

@@ -173,7 +173,8 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c wz             # sequentially (w)rite from block (z)ero (instead of random position)\n");
   fprintf(stderr,"  spit -f ... -c m              # non-unique positions, read/write/flush like (m)eta-data\n");
   fprintf(stderr,"  spit -f ... -c mP4000         # non-unique 4000 positions, read/write/flush like (m)eta-data\n");
-  fprintf(stderr,"  spit -f ... -c n              # 100,000 (n)on-unique positions, read/write, reseeding every 100,000\n");
+  fprintf(stderr,"  spit -f ... -c n              # rerandomize after every set of positions\n");
+  fprintf(stderr,"  spit -f ... -c s1n            # do a sequential pass, then randomise the positions\n");
   fprintf(stderr,"  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB\n");
   fprintf(stderr,"  spit -f ... -c P10x100        # multiply the number of positions by x, here it's 100\n");
   fprintf(stderr,"  spit -f ... -c wM1            # set block size 1M\n");
