@@ -65,7 +65,6 @@ int main(int argc, char *argv[]) {
 
   positionContainer pc = positionContainerMerge(origpc, numFiles);
 
-  //  fprintf(stderr,"*info* combined file: '%s'\n", pc.device);
   fprintf(stderr,"*info* starting verify\n");
 
   //  positionContainerSave(&mergedpc, "test", mergedpc.bdSize, 0);

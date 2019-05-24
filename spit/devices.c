@@ -266,6 +266,7 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, siz
 }
 
 void infoDevices(const deviceDetails *devList, const size_t devCount) {
+  fprintf(stderr,"*info* infoDevices %zd\n", devCount);
   for (size_t f = 0; f < devCount; f++) {
     
     fprintf(stderr,"*info* [%2d] ", devList[f].fd);

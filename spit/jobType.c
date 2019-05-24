@@ -14,6 +14,7 @@
 
 #include "jobType.h"
 #include "positions.h"
+#include "devices.h"
 #include <math.h>
 #include "utils.h"
 
@@ -45,19 +46,26 @@ void jobAdd(jobType *job, const char *jobstring) {
   job->count++;
 }
 
-void jobMultiply(jobType *job, const size_t extrajobs) {
+void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount) {
   const int origcount = job->count;
   for (size_t i = 0; i < origcount; i++) {
     for (size_t n = 0; n < extrajobs; n++) {
-      jobAddBoth(job, job->devices[i], job->strings[i]);
+      if (deviceCount == 0) {
+	jobAddBoth(job, job->devices[i], job->strings[i]);
+      } else {
+	for (size_t d = 1; d < deviceCount; d++) {
+	  jobAddBoth(job, deviceList[d].devicename, job->strings[i]);
+	}
+      }
     }
   }
 }
   
 
 void jobDump(jobType *job) {
+  fprintf(stderr,"*info* jobDump: %zd\n", jobCount(job));
   for (size_t i = 0; i < job->count; i++) {
-    fprintf(stderr,"*info* job %zd, device %s, string %s\n", i, job->devices[i], job->strings[i]);
+    fprintf(stderr,"*  info* job %zd, device %s, string %s\n", i, job->devices[i], job->strings[i]);
   }
 }
 
@@ -689,4 +697,7 @@ void jobAddDeviceToAll(jobType *job, const char *device) {
     job->devices[i] = strdup(device);
   }
 }
-    
+
+size_t jobCount(jobType *job) {
+  return job->count;
+}

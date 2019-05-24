@@ -26,11 +26,14 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
   int opt;
 
   char *device = NULL;
-  int extraparalleljobs = 0, isAFile = 0;
-  
+  int extraparalleljobs = 0;
+
+  deviceDetails *deviceList = NULL;
+  size_t deviceCount = 0;
+
   jobInit(j);
   
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -41,23 +44,13 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
     case 'd':
       *dumpPositions = atoi(optarg);
       break;
+    case 'I':
+      {}
+      size_t added = loadDeviceDetails(optarg, &deviceList, &deviceCount);
+      fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
+      break;
     case 'f':
       device = optarg;
-      if (!fileExists(device)) { // nothing is there, create a file
-	fprintf(stderr,"*warning* will need to create '%s'\n", device);
-	isAFile = 1;
-      } else {
-	// it's there
-	if (isBlockDevice(device) == 2) {
-	  // it's a file
-	  isAFile = 1;
-	} 
-	
-	if (!canOpenExclusively(device)) {
-	  fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
-	  exit(-1);
-	}
-      }
       break;
     case 'G':
       *maxSizeInBytes = 1024 * (size_t)(atof(optarg) * 1024 * 1024);
@@ -83,35 +76,72 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
     }
   }
 
-  if (!device) {
-    //    fprintf(stderr,"*error* you are missing the -f device\n");
-    return 1;
-  }
-
   // first assign the device
-  jobAddDeviceToAll(j, device);
-  
-  // scale up using the -j option
+  // if one -f specified, add to all jobs
+  // if -F specified (with n drives), have c x n jobs
+  if (deviceCount) {
+    // if we have a list of files, overwrite the first one, ignoring -f
+    if (device) {
+      fprintf(stderr,"*warning* ignoring the value from -f\n");
+    }
+    device = deviceList[0].devicename;
+  }
+
+  if (device) {
+    // set the first device to all of the jobs
+    jobAddDeviceToAll(j, device);
+  }
+
+  if (deviceCount) {
+    // scale up based on the -I list
+    jobMultiply(j, 1, deviceList, deviceCount);
+  }
+
+  // scale up using the -j 
   if (extraparalleljobs) {
-    jobMultiply(j, extraparalleljobs);
+    jobMultiply(j, extraparalleljobs, NULL, 0);
   }
-
+    
+  if (verbose) jobDump(j);
+  
   // check the file, create or resize
-  size_t fsize = fileSizeFromName(device);
-  if (isAFile) {
-    if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
-      *maxSizeInBytes = totalRAM() * 2;
+  size_t fsize = 0;
+  for (size_t i = 0; i < jobCount(j); i++) {
+    device = j->devices[i];
+    size_t isAFile = 0;
+    
+    if (!fileExists(device)) { // nothing is there, create a file
+      fprintf(stderr,"*warning* will need to create '%s'\n", device);
+      isAFile = 1;
+    } else {
+      // it's there
+      if (isBlockDevice(device) == 2) {
+	// it's a file
+	isAFile = 1;
+      } 
+      
+      if (!canOpenExclusively(device)) {
+	fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
+	exit(-1);
+      }
     }
-    if (fsize != *maxSizeInBytes) { // check the on disk size
-      createFile(device, *maxSizeInBytes);
-    }
-  } else {
-    // if you specify -G too big or it's 0 then set it to the existing file size
-    if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
-      *maxSizeInBytes = fsize;
+    
+    fsize = fileSizeFromName(device);
+    if (isAFile) {
+      if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
+	*maxSizeInBytes = totalRAM() * 2;
+      }
+      if (fsize != *maxSizeInBytes) { // check the on disk size
+	createFile(device, *maxSizeInBytes);
+      }
+    } else {
+      // if you specify -G too big or it's 0 then set it to the existing file size
+      if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
+	*maxSizeInBytes = fsize;
+      }
     }
   }
-
+  
   return 0;
 }
 
@@ -150,6 +180,7 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c O              # One-shot, not time based\n");
   fprintf(stderr,"  spit -f ... -c t2             # specify the time per thread\n");
   fprintf(stderr,"  spit -f ... -c wx2O           # sequentially (s1) write 200%% LBA, no time limit\n");
+  fprintf(stderr,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
   exit(-1);
 }
 
