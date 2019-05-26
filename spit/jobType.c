@@ -375,15 +375,19 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     size_t sizeLimitCount = (size_t)-1;
     if (limit != (size_t)-1) {
       sizeLimitCount = limit / avgBS;
-      fprintf(stderr,"*info* to limit sum of lengths to %.1lf GiB, with avg size of %zd, requires %zd positions\n", TOGiB(limit), avgBS, sizeLimitCount);
+      if (i == 0) {
+	fprintf(stderr,"*info* to limit sum of lengths to %.1lf GiB, with avg size of %zd, requires %zd positions\n", TOGiB(limit), avgBS, sizeLimitCount);
+      }
     }
 
     size_t mp2 = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));
     if (mp2 != mp) {
       mp = mp2;
-      fprintf(stderr,"*info* positions limited to ");
-      commaPrint0dp(stderr, mp);
-      fprintf(stderr,"\n");
+      if (i == 0) {
+	fprintf(stderr,"*info* positions limited to ");
+	commaPrint0dp(stderr, mp);
+	fprintf(stderr,"\n");
+      }
     }
       
     threadContext[i].id = i;
