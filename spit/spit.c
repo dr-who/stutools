@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
-  fprintf(stderr,"*info* bdSize %.3lf GB (%zd bytes, %.3lf PB)\n", TOGB(maxSizeInBytes), maxSizeInBytes, TOPB(maxSizeInBytes));
+  fprintf(stderr,"*info* bdSize %.3lf GB (%zd bytes, %.3lf TB)\n", TOGB(maxSizeInBytes), maxSizeInBytes, TOTB(maxSizeInBytes));
   jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName);
 
   jobFree(j);
