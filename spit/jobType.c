@@ -153,7 +153,7 @@ static void *runThread(void *arg) {
   while (keepRunning && (timedouble() < starttime + threadContext->finishtime)) {
     sleep(threadContext->waitfor);
     aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->oneShot || threadContext->rerandomize, 1, fd, threadContext->flushEvery);
-    if (!keepRunning) {fprintf(stderr,"*info* finished...\n");}
+    if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* finished...\n");}
     if (threadContext->oneShot) {
       break;
     }
@@ -354,7 +354,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     //    size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
     size_t useRAM = 2L*1024*1024*1024;
     size_t fitinram = useRAM / num / sizeof(positionType);
-    if (verbose || (fitinram < mp)) {
+    if ((verbose || (fitinram < mp)) && (i == 0)) {
       fprintf(stderr,"*info* using %.3lf GiB RAM for positions, we can store ", TOGiB(useRAM));
       commaPrint0dp(stderr, fitinram);
       fprintf(stderr," positions\n");
@@ -366,7 +366,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 #define ESTIMATEIOPS 500000
       
       countintime = timetorun * ESTIMATEIOPS;
-      if (verbose || (countintime < mp)) {
+      if ((verbose || (countintime < mp)) && (i == 0)) {
 	fprintf(stderr,"*info* in %zd seconds, at %d a second, would have at most ", timetorun, ESTIMATEIOPS);
 	commaPrint0dp(stderr, countintime);
 	fprintf(stderr," positions\n");
