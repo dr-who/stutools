@@ -60,7 +60,7 @@ size_t aioMultiplePositions( positionContainer *p,
   struct iocb **cbs;
   struct io_event *events;
   if (origQD >= sz)  {
-    origQD = sz - 1;
+    origQD = sz;
     fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd\n", origQD);
     //    exit(1);
   }
@@ -171,10 +171,10 @@ size_t aioMultiplePositions( positionContainer *p,
   while (keepRunning && ((thistime = timedouble()) < finishtime)) {
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
-    if (!positions[pos].inFlight) {
+    while (sz && inFlight < QD) {
+      if (!positions[pos].inFlight) {
       
       // submit requests, one at a time
-      while (sz && inFlight < QD) {
 	assert(pos < sz);
 	if (positions[pos].action != 'S') { // if we have some positions, sz > 0
 	  size_t newpos = positions[pos].pos;
@@ -253,41 +253,42 @@ size_t aioMultiplePositions( positionContainer *p,
 	    }
 	  }
 	}
-	// onto the next one
-	pos++;
-	if (pos >= sz) {
-	  if (oneShot) {
-	    //	      	      fprintf(stderr,"end of function one shot\n");
-	    goto endoffunction; // only go through once
-	  }
-	  pos = 0; // don't go over the end of the array
+      } else {
+	if (verbose >= 1) {
+	  fprintf(stderr,"*info* position collision %zd\n",pos);
 	}
-      } // if > 0 and we can submit
-	
-      double timeelapsed = thistime - last;
-      if (timeelapsed >= DISPLAYEVERY) {
-	const double speed = TOMB(1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed);
-	const double IOspeed = 1.0*(received - lastIOCount) / timeelapsed;
-	if (benchl) logSpeedAdd2(benchl, TOMB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
-	if (!tableMode) {
-	  if (verbose != -1) {
-	    //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
-	    fprintf(stderr,"[%.1lf] %.1lf GB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", thistime - start, TOGB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
-	  }
-	  if (verbose >= 2) {
-	    if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
-	  }
-	}
-	lastBytes = totalReadBytes + totalWriteBytes;
-	lastIOCount = received;
-	last = thistime;
       }
-    } else {
-      //      fprintf(stderr,"already in flight\n");
-      pos++;  if (pos >= sz) pos = 0;
-      //      usleep(1);
-    }// if inflight
 
+      // onto the next one
+      pos++;
+      if (pos >= sz) {
+	if (oneShot) {
+	  //	      	      fprintf(stderr,"end of function one shot\n");
+	  goto endoffunction; // only go through once
+	}
+	pos = 0; // don't go over the end of the array
+      }
+    } // while not enough inflight
+    
+    double timeelapsed = thistime - last;
+    if (timeelapsed >= DISPLAYEVERY) {
+      const double speed = TOMB(1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed);
+      const double IOspeed = 1.0*(received - lastIOCount) / timeelapsed;
+      if (benchl) logSpeedAdd2(benchl, TOMB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
+      if (!tableMode) {
+	if (verbose != -1) {
+	  //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
+	  fprintf(stderr,"[%.1lf] %.1lf GB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", thistime - start, TOGB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
+	}
+	if (verbose >= 2) {
+	  if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
+	}
+      }
+      lastBytes = totalReadBytes + totalWriteBytes;
+      lastIOCount = received;
+      last = thistime;
+    }
+  
     if (flushEvery) {
       if (flushPos >= flushEvery) {
 	flushPos = flushPos - flushEvery;
