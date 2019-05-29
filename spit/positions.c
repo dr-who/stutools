@@ -163,7 +163,7 @@ positionContainer positionContainerCollapse(positionContainer merged, size_t *to
 	  double deltastart = merged.positions[j].submittime - merged.positions[i].submittime;
 	  if (deltastart < 0) deltastart = -deltastart;
 	
-	  if (deltastart < 0.1) { // if they start within 0.1 ms who knows
+	  if (deltastart < 1) { // if they start within 1 us wknows
 	    merged.positions[i].action = 'w'; // exclude from output
 	    merged.positions[j].action = 'w'; // exclude from output
 	    //	    fprintf(stderr,"deleting %zd and %zd\n", merged.positions[i].pos, merged.positions[j].pos);
