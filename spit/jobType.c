@@ -131,6 +131,23 @@ static void *runThread(void *arg) {
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
   }
 
+  // check block sizes
+  {
+    char *suffix = getSuffix(threadContext->jobdevice);
+    size_t phybs, logbs;
+    getPhyLogSizes(suffix, &phybs, &logbs);
+    fprintf(stderr,"*info* device %s, physical io size %zd, logical io size %zd\n", threadContext->jobdevice, phybs, logbs);
+    free(suffix);
+
+    for (size_t i = 0; i < threadContext->pos.sz; i++) {
+      if (threadContext->pos.positions[i].len < logbs) {
+	fprintf(stderr,"*error* device '%s' doesn't support size %d [logical bs %zd]\n", threadContext->jobdevice, threadContext->pos.positions[i].len, logbs);
+	exit(1);
+      }
+    }
+  }
+  
+  
   if (threadContext->anywrites) {
     fd = open(threadContext->jobdevice, O_RDWR | direct);
     if (verbose >= 2) fprintf(stderr,"*info* open with O_RDWR\n");

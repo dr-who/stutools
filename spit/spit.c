@@ -38,8 +38,16 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
     case 'B':
       benchmarkName = strdup(optarg);
       break;
-    case 'c':
-      jobAdd(j, optarg);
+    case 'c': {}
+      size_t jcount = 1;
+      char *charJ = strchr(optarg, 'j');
+      if (charJ && *(charJ+1)) {
+	jcount = atoi(charJ + 1);
+	fprintf(stderr,"*info* adding command '%s' x %zd times\n", optarg, jcount);
+      }
+      for (size_t i = 0; i < jcount; i++) {
+	jobAdd(j, optarg);
+      }
       break;
     case 'd':
       *dumpPositions = atoi(optarg);
