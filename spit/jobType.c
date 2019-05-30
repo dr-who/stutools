@@ -461,7 +461,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
     char *multLimit = strchr(job->strings[i], 'x');
     size_t multiply = (size_t)1;
-    if (seqFiles == 0) multiply = 2;
+    if (seqFiles == 0) multiply = 3;
 
     if (multLimit && *(multLimit+1)) {
       char *endp = NULL;
