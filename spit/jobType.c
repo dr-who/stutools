@@ -136,7 +136,7 @@ static void *runThread(void *arg) {
     char *suffix = getSuffix(threadContext->jobdevice);
     size_t phybs, logbs;
     getPhyLogSizes(suffix, &phybs, &logbs);
-    fprintf(stderr,"*info* device %s, physical io size %zd, logical io size %zd\n", threadContext->jobdevice, phybs, logbs);
+    //    fprintf(stderr,"*info* device %s, physical io size %zd, logical io size %zd\n", threadContext->jobdevice, phybs, logbs);
     free(suffix);
 
     for (size_t i = 0; i < threadContext->pos.sz; i++) {
@@ -285,7 +285,7 @@ static void *runThreadTimer(void *arg) {
 
 
 void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
-		   const size_t timetorun, const size_t dumpPos, char *benchmarkName) {
+		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -514,7 +514,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       }
     }
 
-    int qDepth = 512; // 512 is the default
+    int qDepth = origqd;
     {
       char *qdd = strchr(job->strings[i], 'q');
       if (qdd && *(qdd+1)) {
