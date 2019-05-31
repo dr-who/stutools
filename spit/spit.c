@@ -29,10 +29,11 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
 
   deviceDetails *deviceList = NULL;
   size_t deviceCount = 0;
+  size_t tripleX = 0;
 
   jobInit(j);
   
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:X")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -83,6 +84,9 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
 	//	*timetorun = (size_t)-1; // run for ever
       }
       break;
+    case 'X':
+      tripleX++;
+      break;
     default:
       exit(1);
       break;
@@ -131,11 +135,13 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
       if (isBlockDevice(device) == 2) {
 	// it's a file
 	isAFile = 1;
-      } 
-      
-      if (!canOpenExclusively(device)) {
-	fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
-	exit(-1);
+      }
+
+      if (tripleX < 3) {
+	if (!canOpenExclusively(device)) {
+	  fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
+	  exit(-1);
+	}
       }
     }
     
