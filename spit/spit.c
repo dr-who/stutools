@@ -190,7 +190,7 @@ void usage() {
   fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
-  fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds (-t 0 is forever)\n");
+  fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
   fprintf(stderr,"  spit -f ... -j 32             # duplicate all the commands 32 times\n");
   fprintf(stderr,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stderr,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
@@ -200,7 +200,7 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c rrrrw          # do 4 reads for every write\n");
   fprintf(stderr,"  spit -f ... -c rw             # mix 50/50 reads/writes\n");
   fprintf(stderr,"  spit -f ... -c rn -t0         # generate (n)on-unique positions positions with collisions\n");
-  fprintf(stderr,"  spit -f ... -t 0              # -t 0 is run forever\n");
+  fprintf(stderr,"  spit -f ... -t -1             # -t -1 is run forever\n");
   fprintf(stderr,"  spit -f ... -c wz             # sequentially (w)rite from block (z)ero (instead of random position)\n");
   fprintf(stderr,"  spit -f ... -c m              # non-unique positions, read/write/flush like (m)eta-data\n");
   fprintf(stderr,"  spit -f ... -c mP4000         # non-unique 4000 positions, read/write/flush like (m)eta-data\n");
