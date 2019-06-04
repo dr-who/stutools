@@ -162,7 +162,7 @@ static void *runThread(void *arg) {
     fprintf(stderr,"*****************\n");
     fprintf(stderr,"* w a r n i n g * device %s is configured with volatile cache\n", threadContext->jobdevice);
     fprintf(stderr,"* The following results are not ENTERPRISE certified. \n");
-    fprintf(stderr,"* /sys/block/%s/queue/write_cache should be 'write through'. Disable with # hdparm -W0 %s\n", suffix, threadContext->jobdevice);
+    fprintf(stderr,"* /sys/block/%s/queue/write_cache should be 'write through'.\n", suffix);
     //    fprintf(stderr,"* Results file has been disabled.\n");
     //    threadContext->ignoreResults = 1;
     fprintf(stderr,"*****************\n");
