@@ -140,15 +140,6 @@ double loadAverage() {
 }
 
 
-void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess, int verifyWrites, float flushEverySecs) {
-  //  doChunks(fd, label, chunkSizes, numChunks, maxTime, resetTime, l, maxBufSize, outputEvery, 1, seq, direct, verifyWrites, flushEverySecs, limitGBToProcess);
-}
-
-void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess) {
-  //  doChunks(fd, label, chunkSizes, numChunks, maxTime, resetTime, l, maxBufSize, outputEvery, 0, seq, direct, 0, 0, limitGBToProcess);
-}
-
-
 int isBlockDevice(const char *name) {
   struct stat sb;
   int ret;
@@ -319,6 +310,37 @@ int getWriteCacheStatus(int fd) {
   return val;
 }
 
+int getWriteCache(const char *suf) {
+  char s[200],s2[200];
+  int ret = 0;
+  if (suf) {
+    FILE *fp = NULL;
+    sprintf(s, "/sys/block/%s/queue/write_cache",  suf);
+    fp = fopen(s, "rt");
+    if (!fp) {
+      ret = -1;
+      goto wvret;
+    }
+    
+    if (fscanf(fp, "%s %s", s, s2) == 2) {
+      if (strcasecmp(s2, "back") == 0) {
+	// write back, only for consumer testing
+	ret = 1;
+	goto wvret;
+      }
+    }
+    fclose(fp);
+  } else {
+    // can't get a suffix
+    ret = -2;
+  }
+  // write through is ret code 0
+ wvret:
+  return ret;
+}
+  
+  
+
 
 
 // the block size random buffer. Nice ASCII
@@ -368,6 +390,7 @@ void generateRandomBuffer(char *buffer, size_t size, unsigned short seed) {
 
 /* creates a new string */
 char *getSuffix(const char *path) {
+  if (!path) return NULL;
   int found = -1;
   for (size_t i = strlen(path)-1; i > 0; i--) {
     if (path[i] == '/') {

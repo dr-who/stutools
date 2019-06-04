@@ -76,6 +76,7 @@ int startsWith(const char *pre, const char *str);
 int canOpenExclusively(const char *fn);
 int createFile(const char *filename, const size_t sz);
 void commaPrint0dp(FILE *fp, double d);
+int getWriteCache(const char *devicesuffix);
 
 #endif
 

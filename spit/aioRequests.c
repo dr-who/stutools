@@ -145,8 +145,6 @@ size_t aioMultiplePositions( positionContainer *p,
 
   double start = timedouble();
   double last = start, lastsubmit =start, lastreceive = start;
-  logSpeedReset(benchl);
-  logSpeedReset(alll);
 
   size_t submitted = 0, flushPos = 0, received = 0;
   size_t totalWriteBytes = 0, totalReadBytes = 0;
@@ -272,7 +270,7 @@ size_t aioMultiplePositions( positionContainer *p,
     if (timeelapsed >= DISPLAYEVERY) {
       const double speed = TOMB(1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed);
       const double IOspeed = 1.0*(received - lastIOCount) / timeelapsed;
-      if (benchl) logSpeedAdd2(benchl, TOMB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
+      //if (benchl) logSpeedAdd2(benchl, TOMB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
       if (!tableMode) {
 	if (verbose != -1) {
 	  //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
@@ -309,7 +307,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
-	if (alll) logSpeedAdd2(alll, TOMB(events[j].res), 1);
+	//if (alll) logSpeedAdd2(alll, TOMB(events[j].res), 1);
 	struct iocb *my_iocb = events[j].obj;
 	positionType *pp = (positionType*) my_iocb->data;
 	assert(pp->inFlight);

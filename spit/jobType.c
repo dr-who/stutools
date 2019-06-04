@@ -105,9 +105,9 @@ typedef struct {
   char *randomBuffer;
   size_t numThreads;
   positionContainer **allPC;
+  char *benchmarkName;
   size_t anywrites;
   size_t UUID;
-  char *benchmarkName;
   size_t seqFiles;
   size_t runTime;
 } threadInfoType;
@@ -118,11 +118,6 @@ static void *runThread(void *arg) {
   if (verbose >= 2) {
     fprintf(stderr,"*info* thread[%zd] job is '%s'\n", threadContext->id, threadContext->jobstring);
   }
-
-  logSpeedType benchl;
-  logSpeedInit(&benchl);
-
-
 
   size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
   int fd,  direct = O_DIRECT;
@@ -161,6 +156,18 @@ static void *runThread(void *arg) {
     perror(threadContext->jobdevice); return 0;
   }
 
+  char *suffix = getSuffix(threadContext->jobdevice);
+  if (getWriteCache(suffix) > 0) {
+    fprintf(stderr,"*****************\n");
+    fprintf(stderr,"* w a r n i n g * device %s is configured with volatile cache\n", threadContext->jobdevice);
+    fprintf(stderr,"* The following results are not ENTERPRISE certified. \n");
+    fprintf(stderr,"* /sys/block/%s/queue/write_cache should be 'write through'. Disable with # hdparm -W0 %s\n", suffix, threadContext->jobdevice);
+    fprintf(stderr,"* Results file has been disabled.\n");
+    //    savePositions = 0;
+    fprintf(stderr,"*****************\n");
+  }
+  if (suffix) free(suffix);
+
   if (threadContext->finishtime < threadContext->runTime) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishtime);
   }
@@ -171,11 +178,12 @@ static void *runThread(void *arg) {
   double starttime = timedouble();
   sleep(threadContext->prewait);
   size_t iteratorCount = 0;
+
   while (keepRunning) {
     if (threadContext->runXtimes && iteratorCount >= threadContext->runXtimes) break;
     if (timedouble() > starttime + threadContext->finishtime) break;
     sleep(threadContext->waitfor);
-    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, &benchl, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize, 1, fd, threadContext->flushEvery);
+    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize, 1, fd, threadContext->flushEvery);
     if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* finished...\n");}
     if (threadContext->runXtimes == 1) {
       break;
@@ -198,14 +206,6 @@ static void *runThread(void *arg) {
   
   close(fd);
 
-  if (threadContext->benchmarkName) {
-    char s[1024];
-    sprintf(s, "%s-%03zd", threadContext->benchmarkName, threadContext->id);
-    
-    logSpeedDump(&benchl, s, 0, "", threadContext->bdSize, threadContext->bdSize, 0, 0, 0, 0, 0, "");
-  }
-  logSpeedFree(&benchl);
-
   return NULL;
 }
 
@@ -217,16 +217,6 @@ static void *runThreadTimer(void *arg) {
   const threadInfoType *threadContext = (threadInfoType*)arg;
 
   size_t i = 1;
-  //  diskStatType d;
-  //  diskStatSetup(&d);
-  //  int fd = open(threadContext->jobdevice, O_RDONLY);
-  //  //n  if (fd < 0) {
-  //    perror(threadContext->jobdevice); return NULL;
-  //  }
-  //  diskStatAddDrive(&d, fd);
-  //  close(fd);
-  
-  //  diskStatStart(&d);
 
   const double start = timedouble();
   double thistime = 0;
@@ -234,6 +224,17 @@ static void *runThreadTimer(void *arg) {
   size_t trb = 0, twb = 0, tri = 0, twi = 0;
 
   double starttime = timedouble();
+
+  FILE *fp = NULL;
+  if (threadContext->benchmarkName) {
+    fp = fopen(threadContext->benchmarkName, "wt");
+    if (fp) {
+      fprintf(stderr,"*info* benchmark file written to '%s'\n", threadContext->benchmarkName);
+    } else {
+      fprintf(stderr,"*error* couldn't create benchmark file '%s'\n", threadContext->benchmarkName);
+      perror(threadContext->benchmarkName);
+    }
+  }
   
   while (keepRunning && (thistime = timedouble())) {
     usleep(10000);
@@ -258,18 +259,25 @@ static void *runThreadTimer(void *arg) {
       
       const double elapsed = thistime - start;
 
-      
+      size_t readB     = trb - last_trb;
+      size_t readIOPS  = tri - last_tri;
+
+      size_t writeB    = twb - last_twb;
+      size_t writeIOPS = twi - last_twi;
 
       fprintf(stderr,"[%2.0lf / %zd] read ", elapsed, threadContext->numThreads);
-      commaPrint0dp(stderr, TOMB(trb - last_trb));
+      commaPrint0dp(stderr, TOMB(readB));
       fprintf(stderr," MB/s (");
-      commaPrint0dp(stderr, tri - last_tri);
-      fprintf(stderr," IOPS / %zd), write ", (tri - last_tri == 0) ? 0 : (trb - last_trb) / (tri - last_tri));
-      commaPrint0dp(stderr, TOMB(twb - last_twb));
+      commaPrint0dp(stderr, readIOPS);
+      fprintf(stderr," IOPS / %zd), write ", (readIOPS == 0) ? 0 : (readB) / (readIOPS));
+      commaPrint0dp(stderr, TOMB(writeB));
       fprintf(stderr," MB/s (");
-      commaPrint0dp(stderr, twi - last_twi);
-      //      fprintf(stderr," IOPS / %zd), util %.0lf %%\n", (twi - last_twi == 0) ? 0 : (twb - last_twb) / (twi - last_twi), util);
-      fprintf(stderr," IOPS / %zd), total %.2lf GB\n", (twi - last_twi == 0) ? 0 : (twb - last_twb) / (twi - last_twi), TOGB(trb + twb));
+      commaPrint0dp(stderr, writeIOPS);
+      fprintf(stderr," IOPS / %zd), total %.2lf GB\n", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb));
+
+      if (fp) {
+	fprintf(fp, "%lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS);
+      }
 
       last_trb = trb;
       last_tri = tri;
@@ -284,6 +292,9 @@ static void *runThreadTimer(void *arg) {
       exit(-1);
     }
   }
+  if (fp) {
+    fclose(fp);
+  }
   //  diskStatFree(&d);
   //  fprintf(stderr,"finished thread timer\n");
   keepRunning = 0;
@@ -294,7 +305,7 @@ static void *runThreadTimer(void *arg) {
 
 void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
-		   unsigned short seed, const int savePositions) {
+		   unsigned short seed, int savePositions) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -434,7 +445,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
       
     threadContext[i].id = i;
-    threadContext[i].benchmarkName = benchmarkName;
+    if (i == 0) {
+      threadContext[i].benchmarkName = benchmarkName;
+    } else {
+      threadContext[i].benchmarkName = NULL;
+    }
     threadContext[i].UUID = UUID;
     positionContainerInit(&threadContext[i].pos, threadContext[i].UUID);
     threadContext[i].jobstring = job->strings[i];
