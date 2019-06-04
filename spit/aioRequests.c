@@ -61,7 +61,7 @@ size_t aioMultiplePositions( positionContainer *p,
   struct io_event *events;
   if (origQD >= sz)  {
     origQD = sz;
-    fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd\n", origQD);
+    fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", origQD, verbose);
     //    exit(1);
   }
   assert(origQD <= sz);
@@ -180,13 +180,6 @@ size_t aioMultiplePositions( positionContainer *p,
 	  size_t newpos = positions[pos].pos;
 	  const size_t len = positions[pos].len;
 
-	  int read = (positions[pos].action == 'R');
-
-	  // check queue, every element should only appear once as it's a queue of slots
-	  /*	  if (!(pos & 0xff)) {
-	    checkArray(freeQueue, QD);
-	    }*/
-	    
 	  assert(headOfQueue < QD);
 	  qdIndex = freeQueue[headOfQueue];
 	  assert(qdIndex >= 0);
@@ -201,7 +194,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	    // watermark the block with the position on the device
 	    
-	    if (read) {
+	    if (positions[pos].action=='R') {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);}
 
 	      p->readBytes += len;
@@ -212,6 +205,11 @@ size_t aioMultiplePositions( positionContainer *p,
 
 
 	      totalReadBytes += len;
+	    } else if (positions[pos].action=='F') {
+	      if (verbose >= 2) {fprintf(stderr,"[%zd] flush qdIndex=%d\n", newpos, qdIndex);}
+
+	      io_prep_fsync(cbs[qdIndex], fd);
+	      cbs[qdIndex]->data = &positions[pos];
 	    } else {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);}
 
