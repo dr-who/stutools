@@ -285,7 +285,8 @@ static void *runThreadTimer(void *arg) {
 
 
 void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
-		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd) {
+		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
+		   unsigned short seed) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -293,8 +294,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   CALLOC(threadContext, num+1, sizeof(threadInfoType));
 
   keepRunning = 1;
-  
-  unsigned short seed = (unsigned short)timedouble();
+
+  if (seed == 0) {
+    seed = (unsigned short)timedouble();
+    if (verbose) fprintf(stderr,"*info* setting seed based on the time to %d\n", seed);
+  }
 
   positionContainer **allThreadsPC;
   CALLOC(allThreadsPC, num, sizeof(positionContainer*));

@@ -21,7 +21,8 @@ int verbose = 0;
 int keepRunning = 1;
 char *benchmarkName = NULL;
 
-int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd) {
+int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
+		unsigned short *seed) {
   int opt;
 
   char *device = NULL;
@@ -33,7 +34,7 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
 
   jobInit(j);
   
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:X")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -69,6 +70,10 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
     case 'j':
       extraparalleljobs = atoi(optarg) - 1;
       if (extraparalleljobs < 0) extraparalleljobs = 0;
+      break;
+    case 'R':
+      *seed = (unsigned short)atoi(optarg);
+      fprintf(stderr,"*info* initial seed: %d\n", *seed);
       break;
     case 'q':
       *defaultqd = atoi(optarg);
@@ -203,6 +208,7 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c ws0            # random defaults to 3x LBA\n");
   fprintf(stderr,"  spit -f ... -c ws1W2T2 -t60   # Alternate wait 2, run for 2 seconds\n");
   fprintf(stderr,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
+  fprintf(stderr,"  spit -f .... -R seed          # set the initial seed, -j will increment per job\n");
   exit(-1);
 }
 
@@ -238,7 +244,8 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], VERSION);
 
   size_t defaultQD = 256;
-  handle_args(argc, argv, j, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD);
+  unsigned short seed = 0;
+  handle_args(argc, argv, j, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed);
   if (j->count == 0) {
     usage();
   }
@@ -247,7 +254,7 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, intHandler);
 
   fprintf(stderr,"*info* bdSize %.3lf GB (%zd bytes, %.3lf TB)\n", TOGB(maxSizeInBytes), maxSizeInBytes, TOTB(maxSizeInBytes));
-  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD);
+  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed);
 
   jobFree(j);
   free(j);
