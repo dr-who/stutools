@@ -1,66 +1,62 @@
 # stutools
 
-Stu's handy I/O tools. The primary tool in this package is aioRWTest.
+Stu's Powerful I/O Tester (spit)
 
-	./aioRWTest      -- Linux AIO (not POSIX AIO), queue depth, timing, ratio of R/W,
-			    sequential, groups of flushing and more
+      ./spit/spit   - powerful test program, sequential random, queue depth, timings and more.
 
-in the scripts/ directory is a simple benchmarking system.
+## Dependencies
 
-# make
-# cd iotests/scripts
-# ./bench.sh /dev/blockdevice *.cli
+ apt install libaio-dev
 
-The output of bench.sh will be in a log file. Multiple log files from
-multiple machines can be joined simply 'join logfile1 logfile2'. The
-log files have had the spaces removed and tab delimited columns.
+## Install
 
-Other tools include:
+ cmake .
+ make -j
 
-	./readSpeedTest  -- reads from N disks using N threads using fread
+## Usage
 
-	./writeSpeedTest -- writes to N disks using N threads using fwrite
+ cd spit
+ ./spit
 
-	./writePairTest  -- writes to all combinations of 2 disks in 2 threads, plus analysis
-
-	./checkDisks     -- checks that we can ok, read and write to each disk
-
-	./watchDisks /dev/sd[cd] -- watch the first N GiB of a disk. -G defaults to 0.01
-
-	./flipBits   /dev/sd[cd] -- randomly change bits
-
-
-Common options:
-
-	-kN  (N KB, e.g. -k4 is 4096 bytes. Default is -k1024 = 1MB)
-	-tN  (timeout in N seconds, defaults to 60)
-	-v   (verify writes by checking the checksums)	
-
-Usage:
-	./aioRWTest     # this will display usage
-
-	./writeSpeedTest /dev/md3
-
-	./writePairTest -F /dev/sd[cdefghijklmnop]
-
-	./writeSpeedTest -t10 -D /dev/sdb (non-direct)
-
-	./readSpeedTest -t10 -D /dev/sdb (non-direct)
-
-	./readSpeedTest -t20 /dev/sdc (direct test, 20s timeout)
-
-	./checkDisks /dev/sd* (check we can open all the disks)
-
-	./checkDisks -m40 /dev/sd* (check we can open all the disks and limit to those over 40MB/s)
-
-	./aioRWTest -f /dev/device
-
-	./aioRWTest -t 100 -S -f /dev/device (read to the same position for 100 seconds)
-
-	./aioRWTest -t 100 -v -S -f /dev/device (location verbosity)
-
-	./aioRWTest -t 100 -p0.5 -v -S -F -f /dev/device (50% R/W mix, flushing after each operation)
-
-	./aioRWTest -t 100 -p0.5 -v -S -S -F -F -f /dev/device
-		    (50% R/W mix, changing static location every 10, flushing every 10 operations)
-
+ Examples:
+  spit -f device -c ... -c ... -c ... # defaults to 10 seconds
+  spit -f device -c r           # seq read (s1)
+  spit -f device -c w           # seq write (s1)
+  spit -f device -c rs0         # random, (s)equential is 0
+  spit -f device -c ws128       # 128 parallel (s)equential writes
+  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions
+  spit -f device -c k8          # set block size to 8 KiB
+  spit -f device -c k4-128      # set block range to 4 to 128 KiB
+  spit -f device -c W5          # wait for 5 seconds before commencing I/O
+  spit -f device -c "r s128 k4" -c 'w s4 -k128' -c rw
+  spit -f device -c r -G 1      # 1 GiB device size
+  spit -f ... -t 50             # run for 50 seconds (-t 0 is forever)
+  spit -f ... -j 32             # duplicate all the commands 32 times
+  spit -f ... -f ...-d 10       # dump the first 10 positions per command
+  spit -f ... -c rD0            # 'D' turns off O_DIRECT
+  spit -f ... -c w -cW4rs0      # one thread seq write, one thread wait 4 then random read
+  spit -f ... -c wR42           # set the per command seed with R
+  spit -f ... -c wF             # (F)lush after every write of FF for 10, FFF for 100 ...
+  spit -f ... -c rrrrw          # do 4 reads for every write
+  spit -f ... -c rw             # mix 50/50 reads/writes
+  spit -f ... -c rn -t0         # generate (n)on-unique positions positions with collisions
+  spit -f ... -t 0              # -t 0 is run forever
+  spit -f ... -c wz             # sequentially (w)rite from block (z)ero (instead of random position)
+  spit -f ... -c m              # non-unique positions, read/write/flush like (m)eta-data
+  spit -f ... -c mP4000         # non-unique 4000 positions, read/write/flush like (m)eta-data
+  spit -f ... -c n              # rerandomize after every set of positions
+  spit -f ... -c s1n            # do a sequential pass, then randomise the positions
+  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB
+  spit -f ... -c P10x100        # multiply the number of positions by x, here it's 100
+  spit -f ... -c wM1            # set block size 1M
+  spit -f ... -c O              # One-shot, not time based
+  spit -f ... -c t2             # specify the time per thread
+  spit -f ... -c wx2O           # sequentially (s1) write 200% LBA, no time limit
+  spit -f ... -c ws0            # random defaults to 3x LBA
+  spit -f ... -c ws1W2T2 -t60   # Alternate wait 2, run for 2 seconds
+  spit -I devices.txt -c r      # -I is read devices from a file
+  spit -f .... -R seed          # set the initial seed, -j will increment per job
+  spit -f .... -Q qd            # set the per job default queue depth
+  spit -f .... -c wns0X10       # writing 10 times, not time based
+  spit -f -p G -p Gs1           # precondition job, writing random, 100% LBA, then seq job
+  spit -f -p G100               # precondition job, writing random overwrite LBA size
