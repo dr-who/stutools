@@ -217,7 +217,7 @@ void usage() {
   fprintf(stderr,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
   fprintf(stderr,"  spit -f .... -R seed          # set the initial seed, -j will increment per job\n");
   fprintf(stderr,"  spit -f .... -Q qd            # set the per job default queue depth\n");
-  fprintf(stderr,"  spit -f .... -c ws0X10n       # writing 10 times, no time based\n");
+  fprintf(stderr,"  spit -f .... -c wns0X10       # writing 10 times, not time based\n");
   fprintf(stderr,"  spit -f -p G                  # precondition job, writing random, 100%% LBA\n");
   fprintf(stderr,"  spit -f -p G100               # precondition job, writing random overwrite LBA size\n");
   exit(-1);
