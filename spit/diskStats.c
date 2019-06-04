@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/sysmacros.h>
+#include <assert.h>
 
 #include "diskStats.h"
 #include "utils.h"
@@ -36,6 +37,7 @@ void diskStatSetup(diskStatType *d) {
 
 void diskStatAddDrive(diskStatType *d, int fd) {
   unsigned int major = 0, minor = 0;
+  assert(d);
   majorAndMinor(fd, &major, &minor);
   if (d->numDevices >= d->allocDevices) {
     d->allocDevices += 10;

@@ -21,7 +21,8 @@ int verbose = 0;
 int keepRunning = 1;
 char *benchmarkName = NULL;
 
-int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
+int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
+		size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
 		unsigned short *seed) {
   int opt;
 
@@ -33,8 +34,9 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
   size_t tripleX = 0;
 
   jobInit(j);
+  jobInit(preconditions);
   
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -64,22 +66,22 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
     case 'G':
       *maxSizeInBytes = 1024 * (size_t)(atof(optarg) * 1024 * 1024);
       break;
-    case 'V':
-      verbose++;
-      break;
     case 'j':
       extraparalleljobs = atoi(optarg) - 1;
       if (extraparalleljobs < 0) extraparalleljobs = 0;
       break;
-    case 'R':
-      *seed = (unsigned short)atoi(optarg);
-      fprintf(stderr,"*info* initial seed: %d\n", *seed);
+    case 'p': // pre-conditions
+      jobAdd(preconditions, optarg);
       break;
     case 'q':
       *defaultqd = atoi(optarg);
       if (*defaultqd < 1) {
 	*defaultqd = 1;
       }
+      break;
+    case 'R':
+      *seed = (unsigned short)atoi(optarg);
+      fprintf(stderr,"*info* initial seed: %d\n", *seed);
       break;
     case 't':
       *timetorun = atoi(optarg);
@@ -88,6 +90,9 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
 	exit(1);
 	//	*timetorun = (size_t)-1; // run for ever
       }
+      break;
+    case 'V':
+      verbose++;
       break;
     case 'X':
       tripleX++;
@@ -112,11 +117,13 @@ int handle_args(int argc, char *argv[], jobType *j, size_t *maxSizeInBytes, size
   if (device) {
     // set the first device to all of the jobs
     jobAddDeviceToAll(j, device);
+    jobAddDeviceToAll(preconditions, device);
   }
 
   if (deviceCount) {
     // scale up based on the -I list
     jobMultiply(j, 1, deviceList, deviceCount);
+    jobMultiply(preconditions, 1, deviceList, deviceCount);
   }
 
   // scale up using the -j 
@@ -209,6 +216,10 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c ws1W2T2 -t60   # Alternate wait 2, run for 2 seconds\n");
   fprintf(stderr,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
   fprintf(stderr,"  spit -f .... -R seed          # set the initial seed, -j will increment per job\n");
+  fprintf(stderr,"  spit -f .... -Q qd            # set the per job default queue depth\n");
+  fprintf(stderr,"  spit -f .... -c ws0X10n       # writing 10 times, no time based\n");
+  fprintf(stderr,"  spit -f -p G                  # precondition job, writing random, 100%% LBA\n");
+  fprintf(stderr,"  spit -f -p G100               # precondition job, writing random overwrite LBA size\n");
   exit(-1);
 }
 
@@ -228,6 +239,8 @@ int main(int argc, char *argv[]) {
 #endif
 
   jobType *j = malloc(sizeof(jobType));
+  jobType *preconditions = malloc(sizeof(jobType));
+  
   size_t maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
 
   // don't run if swap is on
@@ -245,19 +258,29 @@ int main(int argc, char *argv[]) {
 
   size_t defaultQD = 256;
   unsigned short seed = 0;
-  handle_args(argc, argv, j, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed);
+  handle_args(argc, argv, preconditions, j, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed);
   if (j->count == 0) {
     usage();
   }
 
-  signal(SIGTERM, intHandler);
-  signal(SIGINT, intHandler);
 
   fprintf(stderr,"*info* bdSize %.3lf GB (%zd bytes, %.3lf TB)\n", TOGB(maxSizeInBytes), maxSizeInBytes, TOTB(maxSizeInBytes));
-  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed);
+
+  keepRunning = 1;
+  signal(SIGTERM, intHandler);
+  signal(SIGINT, intHandler);
+  jobRunPreconditions(preconditions, preconditions->count, maxSizeInBytes);
+
+  keepRunning = 1;
+  signal(SIGTERM, intHandler);
+  signal(SIGINT, intHandler);
+  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1);
 
   jobFree(j);
   free(j);
+
+  jobFree(preconditions);
+  free(preconditions);
 
   exit(0);
 }
