@@ -110,6 +110,7 @@ typedef struct {
   size_t UUID;
   size_t seqFiles;
   size_t runTime;
+  size_t ignoreResults;
 } threadInfoType;
 
 
@@ -163,7 +164,7 @@ static void *runThread(void *arg) {
     fprintf(stderr,"* The following results are not ENTERPRISE certified. \n");
     fprintf(stderr,"* /sys/block/%s/queue/write_cache should be 'write through'. Disable with # hdparm -W0 %s\n", suffix, threadContext->jobdevice);
     fprintf(stderr,"* Results file has been disabled.\n");
-    //    savePositions = 0;
+    threadContext->ignoreResults = 1;
     fprintf(stderr,"*****************\n");
   }
   if (suffix) free(suffix);
@@ -251,10 +252,12 @@ static void *runThreadTimer(void *arg) {
       //diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
 
       for (size_t j = 0; j < threadContext->numThreads;j++) {
-	trb += threadContext->allPC[j]->readBytes;
-	tri += threadContext->allPC[j]->readIOs;
-	twb += threadContext->allPC[j]->writtenBytes;
-	twi += threadContext->allPC[j]->writtenIOs;
+	if (!threadContext->ignoreResults) {
+	  trb += threadContext->allPC[j]->readBytes;
+	  tri += threadContext->allPC[j]->readIOs;
+	  twb += threadContext->allPC[j]->writtenBytes;
+	  twi += threadContext->allPC[j]->writtenIOs;
+	}
       }
       
       const double elapsed = thistime - start;
@@ -451,6 +454,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       threadContext[i].benchmarkName = NULL;
     }
     threadContext[i].UUID = UUID;
+    threadContext[i].ignoreResults = 0;
     positionContainerInit(&threadContext[i].pos, threadContext[i].UUID);
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
