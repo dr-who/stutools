@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
     tested++;
     double thistime = timedouble();
     if (thistime >= lastdisplayed + 0.1) {
-      fprintf(stderr,"*progress* %zd / %zd (%.2lf%%)\r", i+1, pc.sz + 1, 100.0 * (i+1)/(pc.sz+1)); fflush(stderr);
+      fprintf(stderr,"*progress* %zd / %zd (%.2lf%%)\r", i+1, pc.sz, 100.0 * (i+1)/(pc.sz)); fflush(stderr);
       lastdisplayed = thistime;
     }
     if (pc.positions[i].action == 'W') {
