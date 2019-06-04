@@ -729,6 +729,14 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
     }
 
+    size_t seqFiles = 0;
+    {// seq or random
+      char *charG = strchr(preconditions->strings[i], 's');
+      if (charG && *(charG+1)) {
+	seqFiles = atoi(charG + 1);
+      }
+    }
+
     if (gSize == 0) {
       char *charT = strchr(preconditions->strings[i], 'T');
       if (charT && *(charT+1)) {
@@ -742,7 +750,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
     }
 
     char s[100];
-    sprintf(s, "wk4s0G%.2gX%zdx1n", maxSizeBytes / 1024.0 / 1024 / 1024, coverage);
+    sprintf(s, "wk4s%zdG%.2gX%zdx1n", seqFiles, maxSizeBytes / 1024.0 / 1024 / 1024, coverage);
     free(preconditions->strings[i]);
     preconditions->strings[i] = strdup(s);
   }
