@@ -486,7 +486,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
     char *multLimit = strchr(job->strings[i], 'x');
     size_t multiply = (size_t)1;
-    if (seqFiles == 0) multiply = 3;
+    //    if (seqFiles == 0) multiply = 3;
 
     if (multLimit && *(multLimit+1)) {
       char *endp = NULL;
@@ -750,7 +750,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
     }
 
     char s[100];
-    sprintf(s, "wk4s%zdG%.2gX%zdx1n", seqFiles, maxSizeBytes / 1024.0 / 1024 / 1024, coverage);
+    sprintf(s, "wk4s%zdG%.2gX%zdx1n", seqFiles, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage);
     free(preconditions->strings[i]);
     preconditions->strings[i] = strdup(s);
   }
