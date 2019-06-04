@@ -104,10 +104,16 @@ int main(int argc, char *argv[]) {
 
   qsort(pc.positions, pc.sz, sizeof(positionType), seedcompare);
 
-  
+
+  double lastdisplayed = timedouble();
   for (size_t i = 0; i < pc.sz; i++) {
     if (!keepRunning) break;
     tested++;
+    double thistime = timedouble();
+    if (thistime >= lastdisplayed + 0.1) {
+      fprintf(stderr,"*progress* %zd / %zd (%.2lf%%)\r", i+1, pc.sz + 1, 100.0 * (i+1)/(pc.sz+1)); fflush(stderr);
+      lastdisplayed = thistime;
+    }
     if (pc.positions[i].action == 'W') {
       //      fprintf(stderr,"[%zd] %zd %c %d\n", i, pc.positions[i].pos, pc.positions[i].action, pc.positions[i].seed);
       if(lseek(fd, pc.positions[i].pos, SEEK_SET) < 0) {
