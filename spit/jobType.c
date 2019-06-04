@@ -229,7 +229,7 @@ static void *runThreadTimer(void *arg) {
   if (threadContext->benchmarkName) {
     fp = fopen(threadContext->benchmarkName, "wt");
     if (fp) {
-      fprintf(stderr,"*info* benchmark file written to '%s'\n", threadContext->benchmarkName);
+      fprintf(stderr,"*info* benchmark file '%s'\n", threadContext->benchmarkName);
     } else {
       fprintf(stderr,"*error* couldn't create benchmark file '%s'\n", threadContext->benchmarkName);
       perror(threadContext->benchmarkName);
@@ -276,7 +276,7 @@ static void *runThreadTimer(void *arg) {
       fprintf(stderr," IOPS / %zd), total %.2lf GB\n", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb));
 
       if (fp) {
-	fprintf(fp, "%lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS);
+	fprintf(fp, "%2.0lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS);
       }
 
       last_trb = trb;
@@ -731,46 +731,48 @@ size_t jobCount(jobType *job) {
 }
 
 size_t jobRunPreconditions(jobType *preconditions, const size_t count, const size_t maxSizeBytes) {
-  size_t gSize = 0;
-  size_t coverage = 1;
-  
-  for (size_t i = 0; i < count; i++) {
-    fprintf(stderr,"*info* precondition %zd: device '%s', command '%s'\n", i+1, preconditions->devices[i], preconditions->strings[i]);
-    {
-      char *charG = strchr(preconditions->strings[i], 'G');
-      if (charG && *(charG+1)) {
-	// a G num is specified
-	gSize = 1024 * (size_t)(atof(charG + 1) * 1024 * 1024);
+  if (count) {
+    size_t gSize = 0;
+    size_t coverage = 1;
+    
+    for (size_t i = 0; i < count; i++) {
+      fprintf(stderr,"*info* precondition %zd: device '%s', command '%s'\n", i+1, preconditions->devices[i], preconditions->strings[i]);
+      {
+	char *charG = strchr(preconditions->strings[i], 'G');
+	if (charG && *(charG+1)) {
+	  // a G num is specified
+	  gSize = 1024 * (size_t)(atof(charG + 1) * 1024 * 1024);
+	}
       }
-    }
-
-    size_t seqFiles = 0;
-    {// seq or random
-      char *charG = strchr(preconditions->strings[i], 's');
-      if (charG && *(charG+1)) {
-	seqFiles = atoi(charG + 1);
+      
+      size_t seqFiles = 0;
+      {// seq or random
+	char *charG = strchr(preconditions->strings[i], 's');
+	if (charG && *(charG+1)) {
+	  seqFiles = atoi(charG + 1);
+	}
       }
-    }
-
-    if (gSize == 0) {
-      char *charT = strchr(preconditions->strings[i], 'T');
-      if (charT && *(charT+1)) {
-	// a T num is specified
-	gSize = 1024 * (size_t)(atof(charT + 1) * 1024 * 1024 * 1024);
+      
+      if (gSize == 0) {
+	char *charT = strchr(preconditions->strings[i], 'T');
+	if (charT && *(charT+1)) {
+	  // a T num is specified
+	  gSize = 1024 * (size_t)(atof(charT + 1) * 1024 * 1024 * 1024);
+	}
       }
+      
+      if (gSize) {
+	coverage = (size_t) (gSize / 1.0 / maxSizeBytes);
+      }
+      
+      char s[100];
+      sprintf(s, "wk4s%zdG%.2gX%zdx1n", seqFiles, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage);
+      free(preconditions->strings[i]);
+      preconditions->strings[i] = strdup(s);
     }
-
-    if (gSize) {
-      coverage = (size_t) (gSize / 1.0 / maxSizeBytes);
-    }
-
-    char s[100];
-    sprintf(s, "wk4s%zdG%.2gX%zdx1n", seqFiles, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage);
-    free(preconditions->strings[i]);
-    preconditions->strings[i] = strdup(s);
+    jobRunThreads(preconditions, count, maxSizeBytes, -1, 0, NULL, 256, 0 /*seed*/, 0 /*save positions*/); 
+    fprintf(stderr,"*info* preconditioning complete\n");
   }
-  jobRunThreads(preconditions, count, maxSizeBytes, -1, 0, NULL, 256, 0 /*seed*/, 0 /*save positions*/); 
-  fprintf(stderr,"*info* preconditioning complete\n");
   return 0;
 }
     
