@@ -6,17 +6,17 @@ Stu's Powerful I/O Tester (spit)
 
 ## Dependencies
 
- apt install libaio-dev
+      apt install libaio-dev
 
 ## Install
 
- cmake .
- make -j
+      cmake .
+      make -j
 
 ## Usage
 
- cd spit
- ./spit
+      cd spit
+      ./spit
 
  spit -f device -c ... -c ... -c ... # defaults to 10 seconds
  spit -f device -c r           # seq read (s1)
