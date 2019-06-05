@@ -482,6 +482,14 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     } else {
       rw = rcount * 1.0 / rwtotal;
     }
+
+    {
+      char *sf = strchr(job->strings[i], 'p');
+      if (sf && *(sf+1)) {
+	rw = atof(sf + 1);
+      }
+    }
+    
     threadContext[i].rw = rw;
 
     int flushEvery = 0;
