@@ -265,7 +265,7 @@ int main(int argc, char *argv[]) {
   }
 
 
-  fprintf(stderr,"*info* bdSize %.3lf GB (%zd bytes, %.3lf TB)\n", TOGB(maxSizeInBytes), maxSizeInBytes, TOTB(maxSizeInBytes));
+  fprintf(stderr,"*info* bdSize %.1lf GB (%zd bytes, %.3lf TB)\n", TOGB(maxSizeInBytes), maxSizeInBytes, TOTB(maxSizeInBytes));
 
   keepRunning = 1;
   signal(SIGTERM, intHandler);
