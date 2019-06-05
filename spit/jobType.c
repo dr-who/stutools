@@ -280,6 +280,7 @@ static void *runThreadTimer(void *arg) {
 
       if (fp) {
 	fprintf(fp, "%2.0lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS);
+	fflush(fp);
       }
 
       last_trb = trb;
