@@ -775,7 +775,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
       
       if (gSize) {
-	coverage = (size_t) (gSize / 1.0 / maxSizeBytes);
+	coverage = (size_t) (ceil(gSize / 1.0 / maxSizeBytes));
       }
       
       char s[100];
