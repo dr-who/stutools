@@ -37,6 +37,8 @@ void diskStatFree(diskStatType *d);
 size_t diskStatTotalDeviceSize(diskStatType *d);
 
 void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten, size_t *stimeIO, size_t *readscompl, size_t *writecompl);
+size_t diskStatTBRead(diskStatType *d);
+size_t diskStatTBWrite(diskStatType *d);
 
 #endif
 

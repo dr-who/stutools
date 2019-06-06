@@ -170,6 +170,11 @@ static void *runThread(void *arg) {
   }
   if (suffix) free(suffix);
 
+  diskStatSetup(&threadContext->pos.diskStats);
+  diskStatAddDrive(&threadContext->pos.diskStats, fd);
+  diskStatStart(&threadContext->pos.diskStats);
+  
+
   if (threadContext->finishtime < threadContext->runTime) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishtime);
   }
@@ -204,7 +209,10 @@ static void *runThread(void *arg) {
   if (verbose) fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   threadContext->pos.elapsedTime = timedouble() - starttime;
 
-  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
+  //  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
+
+  diskStatFree(&threadContext->pos.diskStats);
+  
   
   close(fd);
 
@@ -250,6 +258,8 @@ static void *runThreadTimer(void *arg) {
       twb = 0;
       tri = 0;
       twi = 0;
+
+      size_t devicerb = 0, devicewb = 0;
       //      double util = 0;
       //diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
 
@@ -260,6 +270,10 @@ static void *runThreadTimer(void *arg) {
 	  twb += threadContext->allPC[j]->writtenBytes;
 	  twi += threadContext->allPC[j]->writtenIOs;
 	}
+	diskStatFinish(&threadContext->allPC[j]->diskStats);
+	devicerb += diskStatTBRead(&threadContext->allPC[j]->diskStats);
+	devicewb += diskStatTBWrite(&threadContext->allPC[j]->diskStats);
+	diskStatStart(&threadContext->allPC[j]->diskStats);
       }
       
       const double elapsed = thistime - start;
@@ -278,7 +292,7 @@ static void *runThreadTimer(void *arg) {
       commaPrint0dp(stderr, TOMB(writeB));
       fprintf(stderr," MB/s (");
       commaPrint0dp(stderr, writeIOPS);
-      fprintf(stderr," IOPS / %zd), total %.2lf GB\n", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb));
+      fprintf(stderr," IOPS / %zd), total %.2lf GB (R %.0lf%% W %.0lf%%)\n", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb), 100.0*devicerb/readB, 100.0*devicewb/writeB);
 
       if (fp) {
 	fprintf(fp, "%2.0lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS);

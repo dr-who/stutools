@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "devices.h"
+#include "diskStats.h"
 
 typedef struct {
   size_t pos;                    // 8
@@ -32,6 +33,7 @@ typedef struct {
   size_t readIOs;
   size_t UUID;
   double elapsedTime;
+  diskStatType diskStats;
 } positionContainer;
 
 positionType *createPositions(size_t num);

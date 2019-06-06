@@ -62,6 +62,14 @@ void diskStatAddFinish(diskStatType *d, size_t reads, size_t writes) {
   d->finishSecWrite += writes;
 }
 
+size_t diskStatTBRead(diskStatType *d) {
+  return (d->finishSecRead - d->startSecRead) * 512L;
+}
+
+size_t diskStatTBWrite(diskStatType *d) {
+  return (d->finishSecWrite - d->startSecWrite) * 512L;
+}
+
 
 void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, size_t *totalReadIO, size_t *totalWriteIO, double *util, size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed) {
   if (d->startSecRead > d->finishSecRead) {
@@ -79,9 +87,9 @@ void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWrite
   
   if (verbose && (shouldReadBytes || shouldWriteBytes)) {
     if (*totalReadBytes)
-      fprintf(stderr,"*info* read  amplification: should be %zd (%.3lf GiB), read  %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldReadBytes, TOGiB(shouldReadBytes), *totalReadBytes, TOGiB(*totalReadBytes), *totalReadBytes*100.0/shouldReadBytes, d->numDevices);
+      fprintf(stderr,"*info* read  amplification: should be %zd (%.3lf GiB), actual read  %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldReadBytes, TOGiB(shouldReadBytes), *totalReadBytes, TOGiB(*totalReadBytes), *totalReadBytes*100.0/shouldReadBytes, d->numDevices);
     if (*totalWriteBytes)
-      fprintf(stderr,"*info* write amplification: should be %zd (%.3lf GiB), write %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldWriteBytes, TOGiB(shouldWriteBytes), *totalWriteBytes, TOGiB(*totalWriteBytes), *totalWriteBytes*100.0/shouldWriteBytes, d->numDevices);
+      fprintf(stderr,"*info* write amplification: should be %zd (%.3lf GiB), actual write %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldWriteBytes, TOGiB(shouldWriteBytes), *totalWriteBytes, TOGiB(*totalWriteBytes), *totalWriteBytes*100.0/shouldWriteBytes, d->numDevices);
     if (d->numDevices)
       fprintf(stderr,"*info* total disk utilisation: %.1lf %% (devices = %zd)\n", *util, d->numDevices);
   }
