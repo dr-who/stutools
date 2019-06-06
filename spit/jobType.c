@@ -292,10 +292,14 @@ static void *runThreadTimer(void *arg) {
       commaPrint0dp(stderr, TOMB(writeB));
       fprintf(stderr," MB/s (");
       commaPrint0dp(stderr, writeIOPS);
-      fprintf(stderr," IOPS / %zd), total %.2lf GB (R %.0lf%% W %.0lf%%)\n", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb), 100.0*devicerb/readB, 100.0*devicewb/writeB);
+      double readamp = 100, writeamp = 100;
+      if (readB) readamp = 100.0 * devicerb / readB;
+      if (writeB) writeamp = 100.0 * devicewb / writeB;
+
+      fprintf(stderr," IOPS / %zd), total %.2lf GB (R %.0lf%% W %.0lf%%)\n", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb), readamp, writeamp);
 
       if (fp) {
-	fprintf(fp, "%2.0lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS);
+	fprintf(fp, "%2.0lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\t%.0lf\t%.0lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, readamp, writeamp);
 	fflush(fp);
       }
 
