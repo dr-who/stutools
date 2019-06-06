@@ -170,11 +170,6 @@ static void *runThread(void *arg) {
   }
   if (suffix) free(suffix);
 
-  diskStatSetup(&threadContext->pos.diskStats);
-  diskStatAddDrive(&threadContext->pos.diskStats, fd);
-  diskStatStart(&threadContext->pos.diskStats);
-  
-
   if (threadContext->finishtime < threadContext->runTime) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishtime);
   }
@@ -211,9 +206,6 @@ static void *runThread(void *arg) {
 
   //  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
 
-  diskStatFree(&threadContext->pos.diskStats);
-  
-  
   close(fd);
 
   return NULL;
@@ -224,7 +216,7 @@ static void *runThread(void *arg) {
 #define TIMEPERLINE 1
 
 static void *runThreadTimer(void *arg) {
-  const threadInfoType *threadContext = (threadInfoType*)arg;
+  threadInfoType *threadContext = (threadInfoType*)arg;
 
   size_t i = 1;
 
@@ -267,10 +259,12 @@ static void *runThreadTimer(void *arg) {
 	  twb += threadContext->allPC[j]->writtenBytes;
 	  twi += threadContext->allPC[j]->writtenIOs;
 	}
-	diskStatFinish(&threadContext->allPC[j]->diskStats);
-	devicerb += diskStatTBRead(&threadContext->allPC[j]->diskStats);
-	devicewb += diskStatTBWrite(&threadContext->allPC[j]->diskStats);
-	diskStatStart(&threadContext->allPC[j]->diskStats); // reset
+      }
+      if (threadContext->pos.diskStats) {
+	diskStatFinish(threadContext->pos.diskStats);
+	devicerb += diskStatTBRead(threadContext->pos.diskStats);
+	devicewb += diskStatTBWrite(threadContext->pos.diskStats);
+	diskStatStart(threadContext->pos.diskStats); // reset
       }
       
       const double elapsed = thistime - start;
@@ -290,8 +284,8 @@ static void *runThreadTimer(void *arg) {
       fprintf(stderr," MB/s (");
       commaPrint0dp(stderr, writeIOPS);
       double readamp = 0, writeamp = 0;
-      //      if (readB) readamp = 100.0 * devicerb / readB;
-      //      if (writeB) writeamp = 100.0 * devicewb / writeB;
+      if (readB) readamp = 100.0 * devicerb / readB;
+      if (writeB) writeamp = 100.0 * devicewb / writeB;
 
       fprintf(stderr," IOPS / %zd), total %.2lf GB (R %.0lf%% W %.0lf%%)\n", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb), readamp, writeamp);
 
@@ -339,7 +333,7 @@ static void *runThreadTimer(void *arg) {
 
 void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
-		   unsigned short seed, int savePositions) {
+		   unsigned short seed, int savePositions, diskStatType *d) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -724,6 +718,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
   
   // use the device and timing info from context[0]
+  threadContext[0].pos.diskStats = d;
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[0]));
   for (size_t i = 0; i < num; i++) {
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
@@ -833,7 +828,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, maxSizeBytes, -1, 0, NULL, 256, 0 /*seed*/, 0 /*save positions*/); 
+    jobRunThreads(preconditions, count, maxSizeBytes, -1, 0, NULL, 256, 0 /*seed*/, 0 /*save positions*/, NULL); 
     fprintf(stderr,"*info* preconditioning complete\n");
   }
   return 0;

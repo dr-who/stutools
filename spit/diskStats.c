@@ -142,9 +142,11 @@ void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
 	  perror("problem");
 	}
 	if (verbose) {
-	  char *sched = getScheduler(str);
+	  char *suffix = getSuffix(str);
+	  char *sched = getScheduler(suffix);
 	  fprintf(stderr,"*info* scheduler for %s is [%s]\n", str, sched);
 	  free(sched);
+	  free(suffix);
 	}
 	diskStatAddDrive(d, fd);
 	close (fd);

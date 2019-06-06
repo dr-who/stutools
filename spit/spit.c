@@ -14,6 +14,7 @@
 
 #include "positions.h"
 #include "utils.h"
+#include "diskStats.h"
 
 #define DEFAULTTIME 10
   
@@ -23,7 +24,7 @@ char *benchmarkName = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed) {
+		unsigned short *seed, diskStatType *d) {
   int opt;
 
   char *device = NULL;
@@ -36,7 +37,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(j);
   jobInit(preconditions);
   
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -69,6 +70,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'j':
       extraparalleljobs = atoi(optarg) - 1;
       if (extraparalleljobs < 0) extraparalleljobs = 0;
+      break;
+    case 'O':
+      diskStatFromFilelist(d, optarg, 0);
+      //      fprintf(stderr,"*info* raw devices for amplification analysis: %zd\n", d->numDevices);
       break;
     case 'p': // pre-conditions
       jobAdd(preconditions, optarg);
@@ -259,7 +264,12 @@ int main(int argc, char *argv[]) {
 
   size_t defaultQD = 256;
   unsigned short seed = 0;
-  handle_args(argc, argv, preconditions, j, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed);
+  diskStatType d;
+
+  diskStatSetup(&d);
+  handle_args(argc, argv, preconditions, j, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d);
+  diskStatStart(&d);
+  
   if (j->count == 0) {
     usage();
   }
@@ -275,13 +285,14 @@ int main(int argc, char *argv[]) {
   keepRunning = 1;
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1);
+  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, &d);
 
   jobFree(j);
   free(j);
 
   jobFree(preconditions);
   free(preconditions);
+  diskStatFree(&d);
 
   exit(0);
 }
