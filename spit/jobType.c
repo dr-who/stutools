@@ -286,7 +286,7 @@ static void *runThreadTimer(void *arg) {
 
       if (threadContext->exitIOPS) {
 	if (writeIOPS + readIOPS < threadContext->exitIOPS) {
-	  fprintf(stderr,"*exit* exiting stage due to low IOPS (%zd < %zd)\n", writeIOPS + readIOPS, threadContext->exitIOPS);
+	  fprintf(stderr,"*warning* early exiting due to low IOPS (%zd < %zd)\n", writeIOPS + readIOPS, threadContext->exitIOPS);
 	  keepRunning = 0;
 	  break;
 	}
