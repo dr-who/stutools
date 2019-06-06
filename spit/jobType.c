@@ -249,11 +249,9 @@ static void *runThreadTimer(void *arg) {
   size_t exitcount = 0;
   while (keepRunning && (thistime = timedouble())) {
     usleep(10000);
-    //    usleep(500000);
 
     if (thistime - start >= (i * TIMEPERLINE) && (thistime < starttime + threadContext->finishtime+0.1)) {
       
-      //      diskStatFinish(&d);
       trb = 0;
       twb = 0;
       tri = 0;
@@ -261,7 +259,6 @@ static void *runThreadTimer(void *arg) {
 
       size_t devicerb = 0, devicewb = 0;
       //      double util = 0;
-      //diskStatSummary(&d, &trb, &twb, &tri, &twi, &util, 0, 0, 0, thistime - last);
 
       for (size_t j = 0; j < threadContext->numThreads;j++) {
 	if (!threadContext->ignoreResults) {
@@ -273,7 +270,7 @@ static void *runThreadTimer(void *arg) {
 	diskStatFinish(&threadContext->allPC[j]->diskStats);
 	devicerb += diskStatTBRead(&threadContext->allPC[j]->diskStats);
 	devicewb += diskStatTBWrite(&threadContext->allPC[j]->diskStats);
-	diskStatStart(&threadContext->allPC[j]->diskStats);
+	diskStatStart(&threadContext->allPC[j]->diskStats); // reset
       }
       
       const double elapsed = thistime - start;
@@ -292,9 +289,9 @@ static void *runThreadTimer(void *arg) {
       commaPrint0dp(stderr, TOMB(writeB));
       fprintf(stderr," MB/s (");
       commaPrint0dp(stderr, writeIOPS);
-      double readamp = 100, writeamp = 100;
-      if (readB) readamp = 100.0 * devicerb / readB;
-      if (writeB) writeamp = 100.0 * devicewb / writeB;
+      double readamp = 0, writeamp = 0;
+      //      if (readB) readamp = 100.0 * devicerb / readB;
+      //      if (writeB) writeamp = 100.0 * devicewb / writeB;
 
       fprintf(stderr," IOPS / %zd), total %.2lf GB (R %.0lf%% W %.0lf%%)\n", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb), readamp, writeamp);
 
