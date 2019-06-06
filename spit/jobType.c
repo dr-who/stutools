@@ -111,6 +111,7 @@ typedef struct {
   size_t seqFiles;
   size_t runTime;
   size_t ignoreResults;
+  size_t exitIOPS;
 } threadInfoType;
 
 
@@ -283,10 +284,19 @@ static void *runThreadTimer(void *arg) {
 	fflush(fp);
       }
 
+      if (threadContext->exitIOPS) {
+	if (writeIOPS + readIOPS < threadContext->exitIOPS) {
+	  fprintf(stderr,"*exit* exiting stage due to low IOPS (%zd < %zd)\n", writeIOPS + readIOPS, threadContext->exitIOPS);
+	  keepRunning = 0;
+	  break;
+	}
+      }
+
       last_trb = trb;
       last_tri = tri;
       last_twb = twb;
       last_twi = twi;
+
       
       i++;
     }
@@ -333,6 +343,7 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
   for (size_t i = 0; i < num; i++) {
     threadContext[i].runTime = timetorun;
     threadContext[i].finishtime = timetorun;
+    threadContext[i].exitIOPS = 0;
 
     int seqFiles = 1;
     int bs = 4096, highbs = 4096;
@@ -383,6 +394,17 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       if (limit == 0) limit = (size_t)-1;
     }
     
+
+    {
+      char *charI = strchr(job->strings[i], 'I');
+      
+      if (charI && *(charI + 1)) {
+	threadContext[0].exitIOPS = atoi(charI + 1);
+	fprintf(stderr,"*info* exit IOPS set to %zd\n", threadContext[0].exitIOPS);
+      }
+    }
+    
+
 
 
     size_t runXtimes = 0;
@@ -766,6 +788,14 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	}
       }
       
+      size_t exitIOPS = 0;
+      {// seq or random
+	char *charG = strchr(preconditions->strings[i], 'I');
+	if (charG && *(charG+1)) {
+	  exitIOPS = atoi(charG + 1);
+	}
+      }
+
       if (gSize == 0) {
 	char *charT = strchr(preconditions->strings[i], 'T');
 	if (charT && *(charT+1)) {
@@ -779,7 +809,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
       
       char s[100];
-      sprintf(s, "wk64s%zdG%.1lfX%zdx1n", seqFiles, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage);
+      sprintf(s, "wk64s%zdG%.1lfX%zdx1nI%zd", seqFiles, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
