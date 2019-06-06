@@ -237,7 +237,8 @@ static void *runThreadTimer(void *arg) {
       perror(threadContext->benchmarkName);
     }
   }
-  
+
+  size_t exitcount = 0;
   while (keepRunning && (thistime = timedouble())) {
     usleep(10000);
     //    usleep(500000);
@@ -286,9 +287,12 @@ static void *runThreadTimer(void *arg) {
 
       if (threadContext->exitIOPS) {
 	if (writeIOPS + readIOPS < threadContext->exitIOPS) {
-	  fprintf(stderr,"*warning* early exiting due to low IOPS (%zd < %zd)\n", writeIOPS + readIOPS, threadContext->exitIOPS);
-	  keepRunning = 0;
-	  break;
+	  exitcount++;
+	  if (exitcount >= 10) {
+	    fprintf(stderr,"*warning* early exiting due to low IOPS (%zd < %zd)\n", writeIOPS + readIOPS, threadContext->exitIOPS);
+	    keepRunning = 0;
+	    break;
+	  }
 	}
       }
 
