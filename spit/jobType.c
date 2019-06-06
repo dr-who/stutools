@@ -788,7 +788,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	}
       }
       
-      size_t exitIOPS = 0;
+      size_t exitIOPS = 1000;
       {// seq or random
 	char *charG = strchr(preconditions->strings[i], 'I');
 	if (charG && *(charG+1)) {
