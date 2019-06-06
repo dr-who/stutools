@@ -169,7 +169,7 @@ size_t aioMultiplePositions( positionContainer *p,
   while (keepRunning && ((thistime = timedouble()) < finishtime)) {
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
-    while (sz && inFlight < QD) {
+    while (sz && inFlight < QD && keepRunning) {
       if (!positions[pos].inFlight) {
       
       // submit requests, one at a time

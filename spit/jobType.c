@@ -305,9 +305,10 @@ static void *runThreadTimer(void *arg) {
       i++;
     }
 
-    if (thistime > starttime + threadContext->finishtime + 30) {
-      fprintf(stderr,"*error* still running! watchdog exit\n");
-      exit(-1);
+    if (thistime > starttime + threadContext->finishtime + 180) {
+      fprintf(stderr,"*error* still running! watchdog termination (%.0lf > %.0lf + %zd\n", thistime, starttime, threadContext->finishtime + 180);
+      keepRunning = 0;
+      //      exit(-1);
     }
   }
   if (fp) {
