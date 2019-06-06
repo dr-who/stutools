@@ -288,8 +288,8 @@ static void *runThreadTimer(void *arg) {
       if (threadContext->exitIOPS) {
 	if (writeIOPS + readIOPS < threadContext->exitIOPS) {
 	  exitcount++;
-	  if (exitcount >= 10) {
-	    fprintf(stderr,"*warning* early exiting due to low IOPS (%zd < %zd)\n", writeIOPS + readIOPS, threadContext->exitIOPS);
+	  if (exitcount >= 30) {
+	    fprintf(stderr,"*warning* early exiting due to %zd periods of low IOPS (%zd < %zd)\n", exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
 	    keepRunning = 0;
 	    break;
 	  }
@@ -792,7 +792,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	}
       }
       
-      size_t exitIOPS = 1000;
+      size_t exitIOPS = 2500; // 10MB/s lowerbound
       {// seq or random
 	char *charG = strchr(preconditions->strings[i], 'I');
 	if (charG && *(charG+1)) {
