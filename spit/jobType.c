@@ -225,7 +225,6 @@ static void *runThreadTimer(void *arg) {
   size_t last_trb = 0, last_twb = 0, last_tri = 0, last_twi = 0;
   size_t trb = 0, twb = 0, tri = 0, twi = 0;
 
-  double starttime = timedouble();
 
   FILE *fp = NULL;
   if (threadContext->benchmarkName) {
@@ -238,9 +237,8 @@ static void *runThreadTimer(void *arg) {
     }
   }
 
-  diskStatStart(threadContext->pos.diskStats); // reset
-
   size_t exitcount = 0;
+  double starttime = timedouble();
   while (keepRunning && (thistime = timedouble())) {
     usleep(10000);
 
@@ -720,7 +718,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
   
   // use the device and timing info from context[0]
+  diskStatStart(d);
   threadContext[0].pos.diskStats = d;
+  // get disk stats before starting the other threads
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[0]));
   for (size_t i = 0; i < num; i++) {
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
