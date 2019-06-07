@@ -13,6 +13,7 @@
 
 
 void diskStatClear(diskStatType *d) {
+  if (!d) return;
   d->startSecRead = 0;
   d->startSecWrite = 0;
   d->startSecTimeio = 0 ;
@@ -27,6 +28,7 @@ void diskStatClear(diskStatType *d) {
 }
   
 void diskStatSetup(diskStatType *d) {
+  if (!d) return;
   diskStatClear(d);
   d->numDevices = 0;
   d->allocDevices = 10;
@@ -36,6 +38,7 @@ void diskStatSetup(diskStatType *d) {
 }
 
 void diskStatAddDrive(diskStatType *d, int fd) {
+  if (!d) return;
   unsigned int major = 0, minor = 0;
   assert(d);
   majorAndMinor(fd, &major, &minor);
@@ -53,25 +56,30 @@ void diskStatAddDrive(diskStatType *d, int fd) {
 }
 
 void diskStatAddStart(diskStatType *d, size_t reads, size_t writes) {
+  if (!d) return;
   d->startSecRead += reads;
   d->startSecWrite += writes;
 }
 
 void diskStatAddFinish(diskStatType *d, size_t reads, size_t writes) {
+  if (!d) return;
   d->finishSecRead += reads;
   d->finishSecWrite += writes;
 }
 
 size_t diskStatTBRead(diskStatType *d) {
+  if (!d) return 0;
   return (d->finishSecRead - d->startSecRead) * 512L;
 }
 
 size_t diskStatTBWrite(diskStatType *d) {
+  if (!d) return 0;
   return (d->finishSecWrite - d->startSecWrite) * 512L;
 }
 
 
 void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, size_t *totalReadIO, size_t *totalWriteIO, double *util, size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed) {
+  if (!d) return;
   if (d->startSecRead > d->finishSecRead) {
     fprintf(stderr,"start more than fin!\n");
   } 
@@ -96,6 +104,7 @@ void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWrite
 }
 
 size_t diskStatTotalDeviceSize(diskStatType *d) {
+  if (!d) return 0;
   size_t totl = 0;
   for (size_t i = 0; i < d->numDevices; i++) {
     totl += d->sizeArray[i];
@@ -106,6 +115,7 @@ size_t diskStatTotalDeviceSize(diskStatType *d) {
 
 
 void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite1, int verbose) {
+  if (!d) return;
   *sread = 0;
   *swritten = 0;
   *stimeio = 0;
@@ -126,6 +136,7 @@ void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *sti
 }
 
 void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
+  if (!d) return;
   FILE *fp = fopen(path, "rt");
   if (!fp) {fprintf(stderr,"can't open %s!\n", path);exit(1);}
 
@@ -163,6 +174,7 @@ void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
 
 
 void diskStatStart(diskStatType *d) {
+  if (!d) return;
   diskStatClear(d);
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
   diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
@@ -174,6 +186,7 @@ void diskStatStart(diskStatType *d) {
 }
 
 void diskStatRestart(diskStatType *d) {
+  if (!d) return;
   d->startSecRead = d->finishSecRead;
   d->startSecWrite = d->finishSecWrite;
   d->startSecTimeio = d->finishSecTimeio;
@@ -182,6 +195,7 @@ void diskStatRestart(diskStatType *d) {
 }
 
 void diskStatFinish(diskStatType *d) {
+  if (!d) return;
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
   diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
   d->finishSecRead = sread;
@@ -192,6 +206,7 @@ void diskStatFinish(diskStatType *d) {
 }
 
 void diskStatFree(diskStatType *d) {
+  if (!d) return;
   if (d->majorArray) {free(d->majorArray); d->majorArray = NULL;}
   if (d->minorArray) {free(d->minorArray); d->minorArray = NULL;}
   if (d->sizeArray) {free(d->sizeArray); d->sizeArray = NULL;}
