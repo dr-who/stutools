@@ -238,6 +238,8 @@ static void *runThreadTimer(void *arg) {
     }
   }
 
+  diskStatStart(threadContext->pos.diskStats); // reset
+
   size_t exitcount = 0;
   while (keepRunning && (thistime = timedouble())) {
     usleep(10000);
@@ -264,7 +266,7 @@ static void *runThreadTimer(void *arg) {
 	diskStatFinish(threadContext->pos.diskStats);
 	devicerb += diskStatTBRead(threadContext->pos.diskStats);
 	devicewb += diskStatTBWrite(threadContext->pos.diskStats);
-	diskStatStart(threadContext->pos.diskStats); // reset
+	diskStatRestart(threadContext->pos.diskStats); // reset
       }
       
       const double elapsed = thistime - start;
