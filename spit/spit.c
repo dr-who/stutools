@@ -224,8 +224,9 @@ void usage() {
   fprintf(stderr,"  spit -f .... -R seed          # set the initial seed, -j will increment per job\n");
   fprintf(stderr,"  spit -f .... -Q qd            # set the per job default queue depth\n");
   fprintf(stderr,"  spit -f .... -c wns0X10       # writing 10 times, not time based\n");
-  fprintf(stderr,"  spit -f -p G -p Gs1           # precondition job, writing random, 100%% LBA, then seq job\n");
-  fprintf(stderr,"  spit -f -p G100               # precondition job, writing random overwrite LBA size\n");
+  fprintf(stderr,"  spit -p G -p Gs1              # precondition job, writing random, 100%% LBA, then seq job\n");
+  fprintf(stderr,"  spit -p G100                  # precondition job, writing random overwrite LBA size\n");
+  fprintf(stderr,"  spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks\n");
   fprintf(stderr,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n");
   exit(-1);
 }
