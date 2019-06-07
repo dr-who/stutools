@@ -226,7 +226,7 @@ void usage() {
   fprintf(stderr,"  spit -f .... -c wns0X10       # writing 10 times, not time based\n");
   fprintf(stderr,"  spit -f -p G -p Gs1           # precondition job, writing random, 100%% LBA, then seq job\n");
   fprintf(stderr,"  spit -f -p G100               # precondition job, writing random overwrite LBA size\n");
-  fprintf(stderr,"  spit -f -O devices.txt        # specify the raw devices for amplification statistics\n");
+  fprintf(stderr,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n");
   exit(-1);
 }
 
