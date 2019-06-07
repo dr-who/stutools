@@ -756,9 +756,9 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     positionContainer mergedpc = positionContainerMerge(origpc, num);
     char s[1000];
     sprintf(s, "spit-positions.txt");
-    fprintf(stderr, "*info* writing positions to '%s'\n", s); 
+    fprintf(stderr, "*info* writing positions to '%s'\n", s);  fflush(stderr);
     positionContainerSave(&mergedpc, s, mergedpc.bdSize, 0);
-    
+    fprintf(stderr, "*info* finished writing positions\n"); fflush(stderr);
     
     positionContainerFree(&mergedpc);
     free(origpc);
