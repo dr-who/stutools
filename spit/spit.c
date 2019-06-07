@@ -286,7 +286,12 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
-  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, &d);
+
+  diskStatType *p = &d;
+  if (!d.numDevices) {
+    p = NULL;
+  }
+  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p);
 
   jobFree(j);
   free(j);
