@@ -217,8 +217,9 @@ static void *runThread(void *arg) {
 
 static void *runThreadTimer(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
-  if (threadContext->pos.diskStats)
+  if (threadContext->pos.diskStats) {
     diskStatStart(threadContext->pos.diskStats);
+  }
 
   size_t i = 1;
 
@@ -285,11 +286,15 @@ static void *runThreadTimer(void *arg) {
       commaPrint0dp(stderr, TOMB(writeB));
       fprintf(stderr," MB/s (");
       commaPrint0dp(stderr, writeIOPS);
-      double readamp = 0, writeamp = 0;
-      if (readB) readamp = 100.0 * devicerb / readB;
-      if (writeB) writeamp = 100.0 * devicewb / writeB;
+            //      double readamp = 0, writeamp = 0;
+      //if (readB) readamp = 100.0 * devicerb / readB;
+      //      if (writeB) writeamp = 100.0 * devicewb / writeB;
 
-      fprintf(stderr," IOPS / %zd), total %.2lf GB (R %.0lf%% W %.0lf%%)\n", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb), readamp, writeamp);
+      fprintf(stderr," IOPS / %zd), total %.2lf GB", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb));
+      if (threadContext->pos.diskStats) {
+	fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s)", TOMB(devicerb), TOMB(devicewb));
+      }
+      fprintf(stderr,"\n");
 
       if (fp) {
 	fprintf(fp, "%2.0lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb), TOMB(devicewb));
