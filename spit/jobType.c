@@ -217,6 +217,8 @@ static void *runThread(void *arg) {
 
 static void *runThreadTimer(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
+  if (threadContext->pos.diskStats)
+    diskStatStart(threadContext->pos.diskStats);
 
   size_t i = 1;
 
@@ -718,7 +720,6 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
 
   
   // use the device and timing info from context[0]
-  diskStatStart(d);
   threadContext[0].pos.diskStats = d;
   // get disk stats before starting the other threads
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[0]));
