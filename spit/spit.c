@@ -269,7 +269,6 @@ int main(int argc, char *argv[]) {
 
   diskStatSetup(&d);
   handle_args(argc, argv, preconditions, j, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d);
-  diskStatStart(&d);
   
   if (j->count == 0) {
     usage();
@@ -286,6 +285,7 @@ int main(int argc, char *argv[]) {
   keepRunning = 1;
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
+
   jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, &d);
 
   jobFree(j);
