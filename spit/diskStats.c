@@ -174,6 +174,7 @@ void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
 
 
 void diskStatStart(diskStatType *d) {
+  fprintf(stderr,"*info* diskStats start\n");
   if (!d) return;
   diskStatClear(d);
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
