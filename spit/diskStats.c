@@ -173,6 +173,14 @@ void diskStatStart(diskStatType *d) {
   d->startIOWrite = iowrite;
 }
 
+void diskStatRestart(diskStatType *d) {
+  d->startSecRead = d->finishSecRead;
+  d->startSecWrite = d->finishSecWrite;
+  d->startSecTimeio = d->finishSecTimeio;
+  d->startIORead = d->finishIORead;
+  d->startIOWrite = d->finishIOWrite;
+}
+
 void diskStatFinish(diskStatType *d) {
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
   diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
