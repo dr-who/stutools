@@ -206,6 +206,7 @@ void usage() {
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
   fprintf(stderr,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
+  fprintf(stderr,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GiB region, rand r in the 2-3 GiB region\n");
   fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
   fprintf(stderr,"  spit -f ... -j 32             # duplicate all the commands 32 times\n");
   fprintf(stderr,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
