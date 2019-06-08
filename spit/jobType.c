@@ -642,6 +642,13 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     }
 
     {
+      char *ZChar = strchr(job->strings[i], 'Z');
+      if (ZChar && *(ZChar+1)) {
+	startingBlock = atoi(ZChar + 1);
+      }
+    }
+
+    {
       char *RChar = strchr(job->strings[i], 'R');
       if (RChar && *(RChar+1)) {
 	seed = atoi(RChar + 1); // if specified
