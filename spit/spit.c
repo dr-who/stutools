@@ -288,7 +288,7 @@ int main(int argc, char *argv[]) {
   }
 
 
-  fprintf(stderr,"*info* bdSize [%.1lf-%.1lf] GB (%zd bytes, [%.3lf-%.3lf] TB)\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), maxSizeInBytes, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
+  fprintf(stderr,"*info* bdSize [%.2lf-%.2lf] GB (%zd bytes, [%.3lf-%.3lf] TB)\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), maxSizeInBytes - minSizeInBytes, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
 
   keepRunning = 1;
   signal(SIGTERM, intHandler);
