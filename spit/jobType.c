@@ -339,7 +339,9 @@ static void *runThreadTimer(void *arg) {
 
 
 
-void jobRunThreads(jobType *job, const int num, const size_t minSizeInBytes, const size_t maxSizeInBytes,
+void jobRunThreads(jobType *job, const int num,
+		   size_t minSizeInBytes,
+		   size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
 		   unsigned short seed, int savePositions, diskStatType *d) {
   pthread_t *pt;
@@ -384,6 +386,23 @@ void jobRunThreads(jobType *job, const int num, const size_t minSizeInBytes, con
 	int nextv = atoi(endp+1);
 	if (nextv > 0) {
 	  highbs = 1024 * nextv;
+	}
+      }
+    }
+    
+    {
+      char *charG = strchr(job->strings[i], 'G');
+      if (charG && *(charG+1)) {
+	double lowg = 0, highg = 0;
+	splitRange(charG + 1, &lowg, &highg);
+	minSizeInBytes = alignedNumber(1024 * (size_t)(lowg * 1024 * 1024), 4096);
+	maxSizeInBytes = alignedNumber(1024 * (size_t)(highg * 1024 * 1024), 4096);
+	if (minSizeInBytes == maxSizeInBytes) { 
+	  minSizeInBytes = 0;
+	}
+	if (minSizeInBytes > maxSizeInBytes) {
+	  fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
+	  exit(1);
 	}
       }
     }

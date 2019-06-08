@@ -260,8 +260,10 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
     total += p[i].sz;
     if (i > 0) {
       if (p[i].bdSize != lastbd) {
-	fprintf(stderr,"*error* not all the files have the same device size (%zd != %zd)\n", p[i].bdSize, lastbd);
-	exit(1);
+	if (verbose) {
+	  fprintf(stderr,"*warning* not all the devices have the same size (%zd != %zd)\n", p[i].bdSize, lastbd);
+	}
+	//	exit(1);
       }
     }
     lastbd = p[i].bdSize;
