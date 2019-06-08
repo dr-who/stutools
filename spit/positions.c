@@ -53,7 +53,7 @@ void freePositions(positionType *p) {
 }
 
 
-int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes, size_t exitonerror) {
+int checkPositionArray(const positionType *positions, size_t num, const size_t minbdSizeBytes, const size_t bdSizeBytes, size_t exitonerror) {
   fprintf(stderr,"*info*... checking position array with %zd values...\n", num);fflush(stderr);
   
   size_t rcount = 0, wcount = 0;
@@ -94,6 +94,10 @@ int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeB
       //      if ((p->len %sizelow) != 0) {
       //	fprintf(stderr,"*error* len not aligned\n"); 
       //      }
+      if (p->pos < minbdSizeBytes) {
+	fprintf(stderr,"*error* before the start of the array %zd (%zd)!\n", p->pos, minbdSizeBytes);
+      }
+	
       if (p->pos + p->len > bdSizeBytes) {
 	fprintf(stderr,"*error* off the end of the array %zd + %d is %zd (%zd)!\n", p->pos, p->len, p->pos + p->len, bdSizeBytes); 
       }
@@ -338,6 +342,7 @@ size_t setupPositions(positionType *positions,
 		    const size_t bs,
 		    size_t alignment,
 		    const long startingBlock,
+		    const size_t minbdSize,
 		    const size_t bdSizeTotal,
 		    unsigned short seed
 		    ) {
@@ -492,6 +497,16 @@ size_t setupPositions(positionType *positions,
   free(poss); poss = NULL;// free the possible locations
   free(positionsStart); positionsStart = NULL;
   free(positionsEnd); positionsEnd = NULL;
+
+
+  if (minbdSize) {
+    fprintf(stderr,"*info* adding position offset of %zd\n", minbdSize);
+    
+    for (size_t k = 0; k < *num; k++) {
+      positions[k].pos += minbdSize;
+    }
+  }
+  
   return anywrites;
 }
 

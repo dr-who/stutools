@@ -38,7 +38,7 @@ typedef struct {
 
 positionType *createPositions(size_t num);
 
-int checkPositionArray(const positionType *positions, size_t num, size_t bdSizeBytes, size_t exitonerror);
+int checkPositionArray(const positionType *positions, size_t num, const size_t minbdSizeBytes, const size_t bdSizeBytes, size_t exitonerror);
 void positionContainerSave(const positionContainer *p, const char *name, const size_t bdSizeBytes, const size_t flushEvery);
 
 positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxsize);
@@ -53,6 +53,7 @@ size_t setupPositions(positionType *positions,
 		    const size_t bs,
 		    size_t alignment,
 		    const long startingBlock,
+		    const size_t minbdSize,
 		    const size_t bdSizeTotal,
 		    unsigned short seed
 		    );

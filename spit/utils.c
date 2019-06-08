@@ -579,3 +579,19 @@ void commaPrint0dp(FILE *fp, double d) {
     fprintf(fp,"%7.0lf", d);
   }
 }
+
+
+int splitRange(const char *charBS, double *low, double *high) {
+  if (charBS) {
+    
+    char *endp = NULL;
+    *low = strtod(charBS, &endp);
+    *high = *low;
+    if (*endp == '-') {
+      *high = atof(endp+1);
+    }
+    return 0;
+  } else {
+    return 1;
+  }
+}

@@ -88,6 +88,7 @@ void jobFree(jobType *job) {
 typedef struct {
   size_t id;
   positionContainer pos;
+  size_t minbdSize;
   size_t bdSize;
   size_t finishtime;
   size_t waitfor;
@@ -338,7 +339,7 @@ static void *runThreadTimer(void *arg) {
 
 
 
-void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
+void jobRunThreads(jobType *job, const int num, const size_t minSizeInBytes, const size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
 		   unsigned short seed, int savePositions, diskStatType *d) {
   pthread_t *pt;
@@ -443,9 +444,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
     
 
     //    size_t fs = fileSizeFromName(job->devices[i]);
+    threadContext[i].minbdSize = minSizeInBytes;
     threadContext[i].bdSize = maxSizeInBytes;
     const size_t avgBS = (bs + highbs) / 2;
-    size_t mp = (size_t) (threadContext[i].bdSize / avgBS);
+    size_t mp = (size_t) ((threadContext[i].bdSize - threadContext[i].minbdSize) / avgBS);
+    
     if (verbose) {
       fprintf(stderr,"*info* file size %.3lf GiB avg size of %zd, maximum ", TOGiB(threadContext[i].bdSize), avgBS);
       commaPrint0dp(stderr, mp);
@@ -688,12 +691,11 @@ void jobRunThreads(jobType *job, const int num, const size_t maxSizeInBytes,
       //positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
-      size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, threadContext[i].seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].bdSize, threadContext[i].seed);
+      size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, threadContext[i].seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].bdSize, threadContext[i].seed);
 
       if (verbose >= 2) {
-	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize, !metaData);
+	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].minbdSize, threadContext[i].bdSize, !metaData);
       }
-      
       threadContext[i].pos = positionContainerMultiply(&threadContext[i].pos, multiply);
 
 
@@ -795,7 +797,7 @@ size_t jobCount(jobType *job) {
   return job->count;
 }
 
-size_t jobRunPreconditions(jobType *preconditions, const size_t count, const size_t maxSizeBytes) {
+size_t jobRunPreconditions(jobType *preconditions, const size_t count, const size_t minSizeBytes, const size_t maxSizeBytes) {
   if (count) {
     size_t gSize = 0;
     size_t coverage = 1;
@@ -843,7 +845,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, maxSizeBytes, -1, 0, NULL, 256, 0 /*seed*/, 0 /*save positions*/, NULL); 
+    jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 256, 0 /*seed*/, 0 /*save positions*/, NULL); 
     fprintf(stderr,"*info* preconditioning complete\n");
   }
   return 0;
