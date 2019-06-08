@@ -153,7 +153,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   struct timespec timeout;
   timeout.tv_sec = 0;
-  timeout.tv_nsec = 10000*1000; // 1ms seconds
+  timeout.tv_nsec = 1000*1000; // 1ms seconds
 
   double flush_totaltime = 0, flush_mintime = 9e99, flush_maxtime = 0;
   size_t flush_count = 0;
@@ -195,14 +195,8 @@ size_t aioMultiplePositions( positionContainer *p,
 	    if (positions[pos].action=='R') {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);}
 
-	      p->readBytes += len;
-	      p->readIOs++;
-
 	      io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 	      cbs[qdIndex]->data = &positions[pos];
-
-
-	      totalReadBytes += len;
 	    } else if (positions[pos].action=='F') {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] flush qdIndex=%d\n", newpos, qdIndex);}
 
@@ -216,9 +210,6 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	      size_t *uuiddest = (size_t*)data[qdIndex] + 1;
 	      *uuiddest = p->UUID;
-
-	      p->writtenBytes += len;
-	      p->writtenIOs++;
 
 	      io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
 	      cbs[qdIndex]->data = &positions[pos];
@@ -331,6 +322,17 @@ size_t aioMultiplePositions( positionContainer *p,
 	  //	  if (pp->success) {
 	  //	    fprintf(stderr,"*warning* AIO duplicate result at position %zd\n", pp->pos);
 	  //	  }
+	  
+	  //fprintf(stderr,"'%c' %d %u\n", pp->action, pp->q, pp->len);
+	  if (pp->action == 'R') {
+	    p->readBytes += pp->len;
+	    p->readIOs++;
+	    totalReadBytes += pp->len;
+	  } else if (pp->action == 'W') {
+	    p->writtenBytes += pp->len;
+	    p->writtenIOs++;
+	    totalWriteBytes += pp->len;
+	  }
 
 	  if (pp->action == 'W') {
 	    
@@ -349,7 +351,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	      fprintf(stderr,"position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
 	      //abort();
 	    }
-	  } // 'W'
+	  }
 	  
 	  //	  fprintf(stderr,"received %d\n", pp->q);
 	  pp->inFlight = 0;

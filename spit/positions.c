@@ -694,6 +694,7 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   if (verbose >= 2) {
     fprintf(stderr,"*failed or not finished* %zd\n", failed);
   }
+  fflush(stderr);
 }
   
 size_t setupRandomPositions(positionType *pos,
