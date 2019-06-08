@@ -23,7 +23,7 @@ int keepRunning = 1;
 char *benchmarkName = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
-		size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
+		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
 		unsigned short *seed, diskStatType *d) {
   int opt;
 
@@ -64,8 +64,18 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'f':
       device = optarg;
       break;
-    case 'G':
-      *maxSizeInBytes = 1024 * (size_t)(atof(optarg) * 1024 * 1024);
+    case 'G': {}
+      double lowg = 0, highg = 0;
+      splitRange(optarg, &lowg, &highg);
+      *minSizeInBytes = alignedNumber(1024 * (size_t)(lowg * 1024 * 1024), 4096);
+      *maxSizeInBytes = alignedNumber(1024 * (size_t)(highg * 1024 * 1024), 4096);
+      if (*minSizeInBytes == *maxSizeInBytes) { 
+	*minSizeInBytes = 0;
+      }
+      if (*minSizeInBytes > *maxSizeInBytes) {
+	fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
+	exit(1);
+      }
       break;
     case 'j':
       extraparalleljobs = atoi(optarg) - 1;
@@ -195,6 +205,7 @@ void usage() {
   fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
+  fprintf(stderr,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
   fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
   fprintf(stderr,"  spit -f ... -j 32             # duplicate all the commands 32 times\n");
   fprintf(stderr,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
@@ -250,7 +261,7 @@ int main(int argc, char *argv[]) {
   jobType *j = malloc(sizeof(jobType));
   jobType *preconditions = malloc(sizeof(jobType));
   
-  size_t maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
+  size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
 
   // don't run if swap is on
   if (swapTotal() > 0) {
@@ -270,19 +281,19 @@ int main(int argc, char *argv[]) {
   diskStatType d;
 
   diskStatSetup(&d);
-  handle_args(argc, argv, preconditions, j, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d);
+  handle_args(argc, argv, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d);
   
   if (j->count == 0) {
     usage();
   }
 
 
-  fprintf(stderr,"*info* bdSize %.1lf GB (%zd bytes, %.3lf TB)\n", TOGB(maxSizeInBytes), maxSizeInBytes, TOTB(maxSizeInBytes));
+  fprintf(stderr,"*info* bdSize [%.1lf-%.1lf] GB (%zd bytes, [%.3lf-%.3lf] TB)\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), maxSizeInBytes, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
 
   keepRunning = 1;
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  jobRunPreconditions(preconditions, preconditions->count, maxSizeInBytes);
+  jobRunPreconditions(preconditions, preconditions->count, minSizeInBytes, maxSizeInBytes);
 
   keepRunning = 1;
   signal(SIGTERM, intHandler);
@@ -293,7 +304,7 @@ int main(int argc, char *argv[]) {
   if (!d.numDevices) {
     p = NULL;
   }
-  jobRunThreads(j, j->count, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p);
+  jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p);
 
   jobFree(j);
   free(j);

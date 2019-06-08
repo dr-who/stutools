@@ -648,6 +648,9 @@ void jobRunThreads(jobType *job, const int num, const size_t minSizeInBytes, con
       char *ZChar = strchr(job->strings[i], 'Z');
       if (ZChar && *(ZChar+1)) {
 	startingBlock = atoi(ZChar + 1);
+	if (startingBlock < 0) {
+	  startingBlock = 0;
+	}
       }
     }
 
