@@ -225,6 +225,7 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c n              # rerandomize after every set of positions\n");
   fprintf(stderr,"  spit -f ... -c s1n            # do a sequential pass, then randomise the positions\n");
   fprintf(stderr,"  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB\n");
+  fprintf(stderr,"  spit -f ... -c P10G1-2        # The first 10 positions starting from 1GiB. It needs the lower range.\n");
   fprintf(stderr,"  spit -f ... -c P10x100        # multiply the number of positions by x, here it's 100\n");
   fprintf(stderr,"  spit -f ... -c wM1            # set block size 1M\n");
   fprintf(stderr,"  spit -f ... -c O              # One-shot, not time based\n");
