@@ -46,14 +46,19 @@ string on a dedicated thread.
 Specific a single device (e.g. \-f /dev/ram0)
 .RE
 .sp
+\fBG size\fP
+.RS 4
+Limit the positions to a maximum of \fBsize\fP GiB (e.g. \-G 32)
+.RE
+.sp
 \fBI filename\fP
 .RS 4
 Specific a file that contains a list of device names (e.g. \-f devices.txt)
 .RE
 .sp
-\fBG size\fP
+\fBj N\fP
 .RS 4
-Limit the positions to a maximum of \fBsize\fP GiB (e.g. \-G 32)
+Multiply the number of commands (\fB\-c\fP) by N. (e.g. \-j 8)
 .RE
 .sp
 \fBt s\fP
@@ -68,11 +73,12 @@ commands. Defaults to 4k writes. Options include: \fB\-p Gn\fP, \fB\-p Gs1\fP fo
 sequential, \fB\-p Gk8\fP for 8 KiB writes. (e.g. \-p G32)
 .RE
 .sp
-\fBjN\fP
+\fBO filename\fP
 .RS 4
-Multiply the number of commands (\fB\-c\fP) by N. (e.g. \-j 8)
+Specifies a list of raw devices, matched with the \fB\-f\fP option shows
+device read/write amplification. (e.g. \-f /dev/md0 \-O devices.txt)
 .RE
-.SS "Parallel commands"
+.SH "COMMAND OPTIONS"
 .sp
 A command is a single contiguous string. Spaces are ignored if the
 entire string is quoted. An example of a command string may look like:
@@ -162,13 +168,6 @@ Limits the thread/command to \fBn\fP seconds
 .RS 4
 Instead of time based, iterate until the positions have been processed
 \fBn\fP times.
-.RE
-.SS "Amplification"
-.sp
-\fBO filename\fP
-.RS 4
-Specifies a list of raw devices, matched with the \fB\-f\fP option shows
-device read/write amplification. (e.g. \-f /dev/md0 \-O devices.txt)
 .RE
 .SH "EXAMPLES"
 .sp
