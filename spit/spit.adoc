@@ -110,27 +110,64 @@ The command options are described below:
    Instead of time based, iterate until the positions have been processed
    *n* times.
 
-== Examples
+== Benchmarking
 
-*spit* -f /dev/device -c r 
+=== Sequential reads / writes
 
-  Performs a single thread/job that performs reads.
+In the following commands, replace *r* with *w* for writes.
 
-*spit* -f /dev/device -c w 
+*spit* -f /dev/device -c rk64
 
-  Performs a single thread/job that performs write.
+  Performs a single thread/job that performs reads, with 64 KiB reads
 
-*spit* -f /dev/device -c wk64P80 
+*spit* -f /dev/device -c rk64 -j 32
 
-  Performs a single thread/job that performs write, with a 64 KiB
-  block size limited to 80 positions.
+  Create 32 threads, with a single contigous read inside each thread
 
-*spit* -f /dev/device -c w -c rW10 -c rW20
+*spit* -f /dev/device -c r32k64
 
-  Start three commands/jobs, one a sequential writer, one a sequential
-  reader that initially pauses for 10 seconds, and a final sequential
-  read that initially pauses for 20 seconds.
-  
+  Create a single threads, break the device into 32 contiguous regions
+
+
+=== Random read / writes
+
+*spit* -f /dev/device -c rs0
+
+  Performs a single thread/job, random 4KiB reads
+
+*spit* -f /dev/device -c rs0 -j 32
+
+  Creates 32 threads, reads random 4KiB reads
+
+*spit* -f /dev/device -c rs0 -j 32 -G1
+
+  Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
+  For devices with cache these operations should be cached.
+
+*spit* -f /dev/device -c rP10000
+
+  Read from the first 10,000 positions (4 KiB) blocks in a device.
+
+
+=== Mixing reads/writes
+
+*spit* -f /dev/device -c mP10000 -c rk64
+
+  Two threads, one reading/write metadata to 10,000 positions. Another
+  thread performing sequential reads.
+
+*spit* -f /dev/device -c w -c r
+
+  Two threads, both sequential, one reading, one writing.
+
+*spit* -f /dev/device -c ws0 -c rs0
+
+  Two threads, both random, one reading, one writing.
+
+*spit* -f /dev/device -c ws1G0-100 -c ws0G100-200
+
+  On a 200 GiB perform linear writes in the first half and
+  random writes on the second half.
 
 == EXIT STATUS
 
