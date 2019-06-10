@@ -1,37 +1,82 @@
 '\" t
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
-.\" Generator: Asciidoctor 1.5.5
-.\"      Date: 2018-12-09
+.\" Generator: Asciidoctor 1.5.8
+.\"      Date: 2019-06-10
 .\"    Manual: spit manual
-.\"    Source: spit 1.0
+.\"    Source: spit 1.1
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2018-12-09" "spit 1.0" "spit manual"
+.TH "SPIT" "1" "2019-06-10" "spit 1.1" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
 .nh
 .ad l
 .de URL
-\\$2 \(laURL: \\$1 \(ra\\$3
+\fI\\$2\fP <\\$1>\\$3
 ..
-.if \n[.g] .mso www.tmac
-.LINKSTYLE blue R < >
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
 .SH "NAME"
-spit \- Stu\(aqs parallel I/O tester
+spit \- Stu\(aqs powerful I/O tester
 .SH "SYNOPSIS"
 .sp
 \fBspit\fP [\fIOPTION\fP]... \fIFILE\fP...
 .SH "DESCRIPTION"
 .sp
-The spit(1) performs various I/O. The \fB\-c\fP command spins up a command string on a dedicated thread.
-.SH "OPTIONS"
+The spit(1) performs various I/O. The \fB\-c\fP command spins up a command
+string on a dedicated thread.
+.SH "OVERVIEW"
 .sp
-\fBspit\fP \-c \fIcommands\fP \-c \fIcommands\fP \-c \fIcommands\fP
+\fBspit\fP [GLOBAL OPTIONS] \-c \fIcommands\fP \-c \fIcommands\fP \-c \fIcommands\fP
+.SH "GLOBAL OPTIONS"
+.sp
+\fBf device\fP
+.RS 4
+Specific a single device (e.g. \-f /dev/ram0)
+.RE
+.sp
+\fBI filename\fP
+.RS 4
+Specific a file that contains a list of device names (e.g. \-f devices.txt)
+.RE
+.sp
+\fBG size\fP
+.RS 4
+Limit the positions to a maximum of \fBsize\fP GiB (e.g. \-G 32)
+.RE
+.sp
+\fBt s\fP
+.RS 4
+Limit the execution to \fBs\fP seconds (e.g. \-t 30)
+.RE
+.sp
+\fBp precondition_options\fP
+.RS 4
+Before executing any commands, run the precondition write
+commands. Defaults to 4k writes. Options include: \fB\-p Gn\fP, \fB\-p Gs1\fP for
+sequential, \fB\-p Gk8\fP for 8 KiB writes. (e.g. \-p G32)
+.RE
+.sp
+\fBjN\fP
+.RS 4
+Multiply the number of commands (\fB\-c\fP) by N. (e.g. \-j 8)
+.RE
 .SS "Parallel commands"
 .sp
-A command is a single contiguous string. Spaces are ignored if the entire string is quoted. An example of a command string may look like: \fBspit\fP \-c \fBrk64P1000s3\fP \-f /dev/device
+A command is a single contiguous string. Spaces are ignored if the
+entire string is quoted. An example of a command string may look like:
+\fBspit\fP \-c \fBrk64P1000s3\fP \-f /dev/device
 .sp
 The command options are described below:
 .sp
@@ -45,19 +90,14 @@ Performs reads
 Performs writes
 .RE
 .sp
-\fBj N\fP
+\fBGlow\-high\fP
 .RS 4
-Multiply the number of commands (\fB\-c\fP) by N
+Limit the position range to \fBlow\fP to \fBhigh\fP GiB. (e.g. G2\-3)
 .RE
 .sp
-\fBk N\fP or \fBklowBS\-highBS\fP
+\fBkN\fP or \fBklowBS\-highBS\fP
 .RS 4
-Block size or \fIlowblocksize\fP to \fIhighblocksize\fP range.
-.RE
-.sp
-\fBP N\fP
-.RS 4
-Maximum number of positions
+Block size or \fIlowblocksize\fP to \fIhighblocksize\fP range. (e.g. k4\-128)
 .RE
 .sp
 \fBn\fP
@@ -65,82 +105,107 @@ Maximum number of positions
 Use random positions with replacement
 .RE
 .sp
-\fBq N\fP
+\fBqN\fP
 .RS 4
 Queue depth
 .RE
 .sp
-\fBR N\fP
+\fBRN\fP
 .RS 4
 Seed
 .RE
 .sp
-\fBs N\fP
+\fBsN\fP
 .RS 4
-number of contiguous sequence regions
-.RE
-.sp
-\fBW N\fP
-.RS 4
-Wait for N seconds
+number of contiguous sequence regions. \fBs0\fP means random, \fBs1\fP means
+a single linear stream, \fBs32\fP means 32 contigous stream.
 .RE
 .sp
 \fBz\fP
 .RS 4
-Start sequential reads from block 0
+Start sequential positions from block 0
 .RE
-.SS "Examples"
+.sp
+\fBZn\fP
+.RS 4
+Start sequential positions from block \fBn\fP
+.RE
+.SS "Scale/position commands"
+.sp
+\fBPn\fP
+.RS 4
+Limit the number of positions to \fBn\fP
+.RE
+.sp
+\fBxn\fP
+.RS 4
+Multiply the number of positions by \fBn\fP
+.RE
+.SS "Timing commands"
+.sp
+\fBBn\fP
+.RS 4
+Before the command starts, wait \fBn\fP seconds
+.RE
+.sp
+\fBWn\fP
+.RS 4
+Wait for \fBn\fP seconds between iterations
+.RE
+.sp
+\fBTn\fP
+.RS 4
+Limits the thread/command to \fBn\fP seconds
+.RE
+.sp
+\fBXn\fP
+.RS 4
+Instead of time based, iterate until the positions have been processed
+\fBn\fP times.
+.RE
+.SS "Amplification"
+.sp
+\fBO filename\fP
+.RS 4
+Specifies a list of raw devices, matched with the \fB\-f\fP option shows
+device read/write amplification. (e.g. \-f /dev/md0 \-O devices.txt)
+.RE
+.SH "EXAMPLES"
 .sp
 \fBspit\fP \-f /dev/device \-c r
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Performs a single thread/job that performs reads.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c w
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Performs a single thread/job that performs write.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c wk64P80
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Performs a single thread/job that performs write, with a 64 KiB
 block size limited to 80 positions.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c w \-c rW10 \-c rW20
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Start three commands/jobs, one a sequential writer, one a sequential
 reader that initially pauses for 10 seconds, and a final sequential
 read that initially pauses for 20 seconds.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .SH "EXIT STATUS"
 .sp
 \fB0\fP
@@ -148,16 +213,13 @@ read that initially pauses for 20 seconds.
 Success.
 .RE
 .sp
-\fB1\fP
+\fBnon\-zero\fP
 .RS 4
 Failure (syntax of usage error).
 .RE
 .SH "BUGS"
 .sp
 Bugs will be rewarded by choc fish.
-.SH "AUTHOR(S)"
+.SH "AUTHOR"
 .sp
-\fBStuart Inglis, Ph.D.\fP
-.RS 4
-Author(s).
-.RE
+Stuart Inglis, Ph.D.

@@ -2,12 +2,12 @@
 Stuart Inglis, Ph.D.
 :doctype: manpage
 :man manual: spit manual
-:man source: spit 1.0
+:man source: spit 1.1
 :page-layout: base
 
 == NAME
 
-spit - Stu's parallel I/O tester
+spit - Stu's powerful I/O tester
 
 == SYNOPSIS
 
@@ -15,15 +15,41 @@ spit - Stu's parallel I/O tester
 
 == DESCRIPTION
 
-The spit(1) performs various I/O. The *-c* command spins up a command string on a dedicated thread. 
+The spit(1) performs various I/O. The *-c* command spins up a command
+string on a dedicated thread.
 
-== OPTIONS
+== OVERVIEW
 
-*spit* -c _commands_ -c _commands_ -c _commands_
+*spit* [GLOBAL OPTIONS] -c _commands_ -c _commands_ -c _commands_
+
+== GLOBAL OPTIONS
+
+ *f device*::
+   Specific a single device (e.g. -f /dev/ram0)
+
+ *I filename*::
+   Specific a file that contains a list of device names (e.g. -f devices.txt)
+
+ *G size*::
+   Limit the positions to a maximum of *size* GiB (e.g. -G 32)
+
+ *t s*::
+   Limit the execution to *s* seconds (e.g. -t 30)
+
+ *p precondition_options*::
+  Before executing any commands, run the precondition write
+  commands. Defaults to 4k writes. Options include: *-p Gn*, *-p Gs1* for
+  sequential, *-p Gk8* for 8 KiB writes. (e.g. -p G32)
+
+ *jN*::
+   Multiply the number of commands (*-c*) by N. (e.g. -j 8)
+   
 
 === Parallel commands
 
-A command is a single contiguous string. Spaces are ignored if the entire string is quoted. An example of a command string may look like: *spit* -c *rk64P1000s3* -f /dev/device
+A command is a single contiguous string. Spaces are ignored if the
+entire string is quoted. An example of a command string may look like:
+*spit* -c *rk64P1000s3* -f /dev/device
 
 The command options are described below:
 
@@ -33,36 +59,61 @@ The command options are described below:
  *w*::
    Performs writes
 
- *j N*::
-   Multiply the number of commands (*-c*) by N
-   
- *k N* or *klowBS-highBS*::
-   Block size or _lowblocksize_ to _highblocksize_ range.
-
- *P N*::
-   Maximum number of positions
+ *Glow-high*::
+   Limit the position range to *low* to *high* GiB. (e.g. G2-3)
+ 
+ *kN* or *klowBS-highBS*::
+   Block size or _lowblocksize_ to _highblocksize_ range. (e.g. k4-128)
 
  *n*::
-   Use random positions with replacement
+   Use random positions with replacement 
    
- *q N*::
+ *qN*::
    Queue depth
 
- *R N*::
+ *RN*::
    Seed
 
- *s N*::
-   number of contiguous sequence regions
-
- *W N*::
-   Wait for N seconds
+ *sN*::
+   number of contiguous sequence regions. *s0* means random, *s1* means
+   a single linear stream, *s32* means 32 contigous stream.
 
  *z*::
-   Start sequential reads from block 0
+   Start sequential positions from block 0
 
-=== Examples
+ *Zn*::
+   Start sequential positions from block *n*
 
+=== Scale/position commands
 
+ *Pn*::
+   Limit the number of positions to *n*
+
+ *xn*::
+   Multiply the number of positions by *n*
+
+=== Timing commands
+
+ *Bn*::
+   Before the command starts, wait *n* seconds
+
+ *Wn*::
+   Wait for *n* seconds between iterations
+
+ *Tn*::
+   Limits the thread/command to *n* seconds
+
+ *Xn*::
+   Instead of time based, iterate until the positions have been processed
+   *n* times.
+
+=== Amplification
+
+ *O filename*::
+   Specifies a list of raw devices, matched with the *-f* option shows
+   device read/write amplification. (e.g. -f /dev/md0 -O devices.txt)
+
+== Examples
 
 *spit* -f /dev/device -c r 
 
@@ -89,7 +140,7 @@ The command options are described below:
 *0*::
   Success.
 
-*1*::
+*non-zero*::
   Failure (syntax of usage error).
   
 

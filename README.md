@@ -13,6 +13,10 @@ Stu's Powerful I/O Tester (spit)
       cmake .
       make -j
 
+## Man page
+
+      man -l spit/man.1
+
 ## Common tests
       spit -f device -p G -c wk64    # precondition random 4k writes, test seq writes 64KiB
 
