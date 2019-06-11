@@ -805,10 +805,14 @@ void jobRunThreads(jobType *job, const int num,
 	histAdd(&histWrite, mergedpc.positions[i].finishtime - mergedpc.positions[i].submittime);
     }
     double median, three9, four9, five9;
-    histSumPercentages(&histRead, &median, &three9, &four9, &five9);
-    fprintf(stderr,"*info* read latency:  mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histRead), 1000.0 * median, 1000.0 * three9, 1000.0 * four9, 1000.0 * five9);
-    histSumPercentages(&histWrite, &median, &three9, &four9, &five9);
-    fprintf(stderr,"*info* write latency: mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histWrite), 1000.0 * median, 1000.0 * three9, 1000.0 * four9, 1000.0 * five9);
+    if (histCount(&histRead)) {
+      histSumPercentages(&histRead, &median, &three9, &four9, &five9);
+      fprintf(stderr,"*info* read latency:  mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histRead), 1000.0 * median, 1000.0 * three9, 1000.0 * four9, 1000.0 * five9);
+    }
+    if (histCount(&histWrite)) {
+      histSumPercentages(&histWrite, &median, &three9, &four9, &five9);
+      fprintf(stderr,"*info* write latency: mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histWrite), 1000.0 * median, 1000.0 * three9, 1000.0 * four9, 1000.0 * five9);
+    }
     histSave(&histRead, "spit-latency-read.txt");
     histSave(&histWrite, "spit-latency-write.txt");
     histFree(&histRead);

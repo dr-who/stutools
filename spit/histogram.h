@@ -21,7 +21,6 @@ void histFree(histogramType *h);
 void histSave(histogramType *h, const char *filename);
 void histSum(histogramType *h);
 void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9);
-
-
+size_t histCount(histogramType *h);
 
 #endif
