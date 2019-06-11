@@ -58,7 +58,7 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
   histSum(h);
   assert(h->dataSum);
 
-  size_t maxsum = h->binSum[h->binScale];
+  size_t maxsum = h->binSum[h->arraySize];
   *median = 0;
   *three9 = 0;
   *four9 = 0;
@@ -72,17 +72,17 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
       okmedian = 1;
       *median = value;
     }
-    if (h->binSum[i] >= maxsum * 0.999 && !okthree9) {
+    if (h->binSum[i] >= floor(maxsum * 0.999) && !okthree9) {
       okthree9 = 1;
       *three9 = value;
     }
     
-    if (h->binSum[i] >= maxsum * 0.9999 && !okfour9) {
+    if (h->binSum[i] >= floor(maxsum * 0.9999) && !okfour9) {
       okfour9 = 1;
       *four9 = value;
     }
     
-    if (h->binSum[i] >= maxsum * 0.99999 && !okfive9) {
+    if (h->binSum[i] >= floor(maxsum * 0.99999) && !okfive9) {
       okfive9 = 1;
       *five9 = value;
     }

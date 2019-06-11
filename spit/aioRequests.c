@@ -218,8 +218,9 @@ size_t aioMultiplePositions( positionContainer *p,
 	      totalWriteBytes += len;
 	      flushPos++;
 	    }
-	      
-	    positions[pos].submittime = thistime;
+	    
+	    if (!positions[pos].submittime) 
+	      positions[pos].submittime = thistime;
 	      
 	    ret = io_submit(ioc, 1, &cbs[qdIndex]);
 	      
@@ -359,7 +360,8 @@ size_t aioMultiplePositions( positionContainer *p,
 	  //checkArray(freeQueue, QD);
 	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
 	  //	    checkArray(freeQueue, QD);
-	  pp->finishtime = lastreceive;
+	  if (!pp->finishtime)
+	    pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed
 
 	}
@@ -397,7 +399,8 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
 	  
-	  pp->finishtime = lastreceive;
+	  if (!pp->finishtime)
+	    pp->finishtime = lastreceive;
 	  pp->inFlight = 0;
 	  pp->success = 1; // the action has completed
 	}
