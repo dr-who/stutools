@@ -160,6 +160,11 @@ static void *runThread(void *arg) {
   }
 
   char *suffix = getSuffix(threadContext->jobdevice);
+  char *model = getModel(suffix);
+  if (model) {
+    fprintf(stderr,"*info* device: '%s'\n", model);
+    free(model);
+  }
   if (getWriteCache(suffix) > 0) {
     fprintf(stderr,"*****************\n");
     fprintf(stderr,"* w a r n i n g * device %s is configured with volatile cache\n", threadContext->jobdevice);
@@ -205,9 +210,9 @@ static void *runThread(void *arg) {
   if (verbose) fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   threadContext->pos.elapsedTime = timedouble() - starttime;
 
-  fprintf(stderr,"*info* starting fdatasync()...\n");
+  if (verbose) fprintf(stderr,"*info* starting fdatasync()...\n");
   fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
-  fprintf(stderr,"*info* ... finished fdatasync()\n");
+  if (verbose) fprintf(stderr,"*info* ... finished fdatasync()\n");
 
   close(fd);
 

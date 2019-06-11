@@ -166,11 +166,12 @@ size_t aioMultiplePositions( positionContainer *p,
   }
 
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd\n", sz);
-  while (keepRunning && ((thistime = timedouble()) < finishtime)) {
+  while (keepRunning && (thistime < finishtime)) {
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
     while (sz && inFlight < QD && keepRunning) {
       if (!positions[pos].inFlight) {
+	thistime = timedouble();
       
       // submit requests, one at a time
 	assert(pos < sz);
@@ -291,7 +292,7 @@ size_t aioMultiplePositions( positionContainer *p,
     ret = io_getevents(ioc, 1, inFlight, events, &timeout);
     //    }
     if (ret > 0) {
-      lastreceive = thistime;
+      lastreceive = timedouble();
 
       // verify it's all ok
       int printed = 0;

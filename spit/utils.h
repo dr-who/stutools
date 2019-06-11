@@ -78,6 +78,7 @@ int createFile(const char *filename, const size_t sz);
 void commaPrint0dp(FILE *fp, double d);
 int getWriteCache(const char *devicesuffix);
 int splitRange(const char *charBS, double *low, double *high);
+char *getModel(const char *suffix);
 
 #endif
 

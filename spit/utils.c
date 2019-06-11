@@ -427,6 +427,30 @@ char *getScheduler(const char *suffix) {
 }
 
 
+
+char *getModel(const char *suffix) {
+  if (suffix) {
+    size_t len = 1000;
+    char *s;
+    CALLOC(s, len, 1);
+
+    sprintf(s, "/sys/block/%s/device/model", suffix);
+    FILE *fp = fopen(s, "rt"); 
+    if (fp) {
+      int ret = getline(&s, &len, fp);
+      fclose(fp);
+      
+      if (ret > 1) {
+	s[ret - 1] = 0;
+	return strdup(s);
+      }
+    }
+  }
+
+  return NULL;
+}
+
+
 void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
   *phy = 512;
   *log = 512;
