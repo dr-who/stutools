@@ -16,7 +16,7 @@ spit - Stu's powerful I/O tester
 == DESCRIPTION
 
 The spit(1) performs various I/O. The *-c* command spins up a command
-string on a dedicated thread.
+string on a dedicated thread with an AIO context per thread.
 
 == OVERVIEW
 

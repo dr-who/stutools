@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 1.5.8
-.\"      Date: 2019-06-10
+.\"      Date: 2019-06-11
 .\"    Manual: spit manual
 .\"    Source: spit 1.1
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2019-06-10" "spit 1.1" "spit manual"
+.TH "SPIT" "1" "2019-06-11" "spit 1.1" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -35,7 +35,7 @@ spit \- Stu\(aqs powerful I/O tester
 .SH "DESCRIPTION"
 .sp
 The spit(1) performs various I/O. The \fB\-c\fP command spins up a command
-string on a dedicated thread.
+string on a dedicated thread with an AIO context per thread.
 .SH "OVERVIEW"
 .sp
 \fBspit\fP [GLOBAL OPTIONS] \-c \fIcommands\fP \-c \fIcommands\fP \-c \fIcommands\fP
