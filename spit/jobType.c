@@ -211,9 +211,9 @@ static void *runThread(void *arg) {
   if (verbose) fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   threadContext->pos.elapsedTime = timedouble() - starttime;
 
-  if (verbose) fprintf(stderr,"*info* starting fdatasync()...\n");
+  if (verbose) {fprintf(stderr,"*info* starting fdatasync()..."); fflush(stderr);}
   fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
-  if (verbose) fprintf(stderr,"*info* ... finished fdatasync()\n");
+  if (verbose) {fprintf(stderr," finished\n"); fflush(stderr);}
 
   close(fd);
 

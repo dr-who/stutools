@@ -681,24 +681,11 @@ void positionContainerFree(positionContainer *pc) {
 */
 
 void positionLatencyStats(positionContainer *pc, const int threadid) {
-  double starttime = timedouble(), finishtime = timedouble(), slowestread = 0, slowestwrite = 0;
-  size_t failed = 0, vslowread = 0, vslowwrite = 0;
+  size_t failed = 0;
   
   for (size_t i = 0; i < pc->sz;i++) {
     if (pc->positions[i].success && pc->positions[i].finishtime) {
-      if (pc->positions[i].finishtime < starttime) starttime = pc->positions[i].finishtime;
-      if (pc->positions[i].finishtime > finishtime) finishtime = pc->positions[i].finishtime;
-      double delta = pc->positions[i].finishtime - pc->positions[i].submittime;
-      char action = pc->positions[i].action;
-      if (action == 'R') {
-	if (delta > slowestread) slowestread = delta;
-	if (delta > 0.001) vslowread++;
-      } else if (action == 'W') {
-	if (delta > slowestwrite) slowestwrite = delta;
-	if (delta > 0.001) vslowwrite++;
-      }
-      //      fprintf(stderr,"[%zd] %c %lf %lf\n", i, pc->positions[i].action, pc->positions[i].finishtime, delta);
-	
+      //
     } else {
       if (pc->positions[i].submittime) {
 	failed++;
@@ -707,7 +694,7 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   }
   double elapsed = pc->elapsedTime;
 
-  fprintf(stderr,"*info* [T%d] '%s': R %.0lf MB/s (%.0lf IO/s), W %.0lf MB/s (%.0lf IO/s), %.1lf s, SR %.3g, SW %.3g s, 1msR %zd, 1msW %zd\n", threadid, pc->string, TOMB(pc->readBytes/elapsed), pc->readIOs/elapsed, TOMB(pc->writtenBytes/elapsed), pc->writtenIOs/elapsed, elapsed, slowestread, slowestwrite, vslowread, vslowwrite);
+  fprintf(stderr,"*info* [T%d] '%s': R %.0lf MB/s (%.0lf IO/s), W %.0lf MB/s (%.0lf IO/s), %.1lf s\n", threadid, pc->string, TOMB(pc->readBytes/elapsed), pc->readIOs/elapsed, TOMB(pc->writtenBytes/elapsed), pc->writtenIOs/elapsed, elapsed);
   if (verbose >= 2) {
     fprintf(stderr,"*failed or not finished* %zd\n", failed);
   }
