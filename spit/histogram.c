@@ -96,14 +96,18 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
 void histSave(histogramType *h, const char *filename) {
   histSum(h);
   assert(h->dataSum);
-  // maxsum
-  
+
+  size_t maxvalue = h->binSum[h->arraySize];
+
 
   FILE *fp = fopen(filename, "wt");
   if (!fp) {perror(filename); return;}
 
   for (size_t i = 0; i <= h->arraySize; i++) {
     fprintf(fp, "%.5lf\t%zd\t%zd\n", i * 1.0 / h->binScale, h->bin[i], h->binSum[i]);
+    if (h->binSum[i] == maxvalue) {
+      break; // stop when we hit the max
+    }
   }
   fclose(fp);
   // calculate
