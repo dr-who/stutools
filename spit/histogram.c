@@ -10,7 +10,7 @@
 void histSetup(histogramType *h) {
   h->min = 0; // 0 s
   h->max = 10; // 10 s
-  h->binScale = ceil(1 / 0.0001); // 0.1ms for 1 seconds is 10,000 bins
+  h->binScale = ceil(1 / 0.00001); // 0.1ms for 1 seconds is 10,000 bins
   h->arraySize = h->max * h->binScale;
   CALLOC(h->bin, h->arraySize + 1, sizeof(size_t));
   CALLOC(h->binSum, h->arraySize + 1, sizeof(size_t));
@@ -104,7 +104,7 @@ void histSave(histogramType *h, const char *filename, const size_t scale) {
   if (!fp) {perror(filename); return;}
 
   for (size_t i = 0; i <= h->arraySize; i++) {
-    fprintf(fp, "%.5lf\t%zd\t%.1lf\n", i * scale * 1.0 / h->binScale, h->bin[i], 100.0 * h->binSum[i] / maxvalue);
+    fprintf(fp, "%.2lf\t%zd\t%.1lf\n", i * scale * 1.0 / h->binScale, h->bin[i], 100.0 * h->binSum[i] / maxvalue);
     if (h->binSum[i] == maxvalue) {
       break; // stop when we hit the max
     }
