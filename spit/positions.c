@@ -317,6 +317,9 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
     if (!fp) {
       perror(name); return;
     }
+    char *buffer;
+    CALLOC(buffer, 1000000, 1);
+    setvbuf(fp, buffer, 1000000, _IOFBF);
     const positionType *positions = p->positions;
     for (size_t i = 0; i < p->sz; i++) {
       if ( (toupper(positions[i].action) == 'W' || toupper(positions[i].action) == 'R') && positions[i].finishtime > 0 && !positions[i].inFlight) {
@@ -330,6 +333,7 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
       }
     }
     fclose(fp);
+    free(buffer);
   }
 }
 
