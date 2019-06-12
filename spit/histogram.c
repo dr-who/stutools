@@ -54,7 +54,7 @@ void histSum(histogramType *h) {
   h->dataSum = 1;
 }
 
-void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9) {
+void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale) {
   histSum(h);
   assert(h->dataSum);
 
@@ -70,21 +70,21 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
     double value = i * 1.0 / h->binScale;
     if (h->binSum[i] >= maxsum * 0.5 && !okmedian) {
       okmedian = 1;
-      *median = value;
+      *median = value * scale;
     }
     if (h->binSum[i] >= floor(maxsum * 0.999) && !okthree9) {
       okthree9 = 1;
-      *three9 = value;
+      *three9 = value * scale;
     }
     
     if (h->binSum[i] >= floor(maxsum * 0.9999) && !okfour9) {
       okfour9 = 1;
-      *four9 = value;
+      *four9 = value * scale;
     }
     
     if (h->binSum[i] >= floor(maxsum * 0.99999) && !okfive9) {
       okfive9 = 1;
-      *five9 = value;
+      *five9 = value * scale;
     }
   }
 }
@@ -93,7 +93,7 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
   
     
 
-void histSave(histogramType *h, const char *filename) {
+void histSave(histogramType *h, const char *filename, const size_t scale) {
   histSum(h);
   assert(h->dataSum);
 
@@ -104,7 +104,7 @@ void histSave(histogramType *h, const char *filename) {
   if (!fp) {perror(filename); return;}
 
   for (size_t i = 0; i <= h->arraySize; i++) {
-    fprintf(fp, "%.5lf\t%zd\t%zd\n", i * 1.0 / h->binScale, h->bin[i], h->binSum[i]);
+    fprintf(fp, "%.5lf\t%zd\t%.1lf\n", i * scale * 1.0 / h->binScale, h->bin[i], 100.0 * h->binSum[i] / maxvalue);
     if (h->binSum[i] == maxvalue) {
       break; // stop when we hit the max
     }

@@ -18,9 +18,9 @@ void histSetup(histogramType *h);
 double histMean(const histogramType *h);
 void histAdd(histogramType *h, double value);
 void histFree(histogramType *h);
-void histSave(histogramType *h, const char *filename);
+void histSave(histogramType *h, const char *filename, const size_t scale);
 void histSum(histogramType *h);
-void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9);
+void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale);
 size_t histCount(histogramType *h);
 
 #endif

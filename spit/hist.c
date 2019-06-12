@@ -23,8 +23,8 @@ int main() {
 
 
   double median, three9, four9, five9;
-  histSumPercentages(&h, &median, &three9, &four9, &five9);
-  histSave(&h, "hist.out");
+  histSumPercentages(&h, &median, &three9, &four9, &five9, 1);
+  histSave(&h, "hist.out", 1);
 
   fprintf(stderr,"*info* %lf %lf %lf %lf\n", median, three9, four9, five9);
 
