@@ -319,7 +319,7 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
     }
     const positionType *positions = p->positions;
     for (size_t i = 0; i < p->sz; i++) {
-      if (toupper(positions[i].action) == 'W' && positions[i].finishtime > 0 && !positions[i].inFlight) {
+      if ( (toupper(positions[i].action) == 'W' || toupper(positions[i].action) == 'R') && positions[i].finishtime > 0 && !positions[i].inFlight) {
 	const char action = positions[i].action;
 	if (action == 'R' || toupper(action) == 'W') {
 	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed, positions[i].submittime, positions[i].finishtime);
