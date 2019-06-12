@@ -361,7 +361,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	if (!pp->finishtime)
 	  pp->finishtime = lastreceive;
 	pp->success = 1; // the action has completed
-	
+	pp->inFlight = 0;
 	//checkArray(freeQueue, QD);
 	freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
       } // for j
