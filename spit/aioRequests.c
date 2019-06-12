@@ -311,7 +311,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
 	  if (!printed) {
-	    fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s)\n", rescode, strerror(-rescode), rescode2, strerror(-rescode2));
+	    fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s), pos %zd\n", rescode, strerror(-rescode), rescode2, strerror(-rescode2), pos);
 	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
 	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
 	  }
@@ -353,20 +353,15 @@ size_t aioMultiplePositions( positionContainer *p,
 	      fprintf(stderr,"position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
 	      //abort();
 	    }
-	  }
-	  
-	  //	  fprintf(stderr,"received %d\n", pp->q);
-	  //	    checkArray(freeQueue, QD);
-	  if (!pp->finishtime)
-	    pp->finishtime = lastreceive;
-	  pp->success = 1; // the action has completed
-
-	}
+	  } // 'w'
+	} // else if no error
+	if (!pp->finishtime)
+	  pp->finishtime = lastreceive;
+	pp->success = 1; // the action has completed
+	
 	pp->inFlight = 0;
 	//checkArray(freeQueue, QD);
 	freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
-
-
       } // for j
 
       if (0) {
