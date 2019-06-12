@@ -169,6 +169,9 @@ size_t aioMultiplePositions( positionContainer *p,
   while (keepRunning && (thistime < finishtime)) {
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
+    if (inFlight > QD) {
+      fprintf(stderr,"*error* inFlight %zd %zd\n", inFlight, QD);
+    }
     while (sz && inFlight < QD && keepRunning) {
       if (!positions[pos].inFlight) {
 	thistime = timedouble();
@@ -359,7 +362,6 @@ size_t aioMultiplePositions( positionContainer *p,
 	  pp->finishtime = lastreceive;
 	pp->success = 1; // the action has completed
 	
-	pp->inFlight = 0;
 	//checkArray(freeQueue, QD);
 	freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
       } // for j
