@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <malloc.h>
+#include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <libaio.h>
@@ -71,13 +72,13 @@ size_t aioMultiplePositions( positionContainer *p,
 
   //  const double alignbits = log(alignment)/log(2);
   //  assert (alignbits == (size_t)alignbits);
-  
+
   io_context_t ioc = 0;
   if (io_setup(QD, &ioc)) {
     fprintf(stderr,"*error* io_setup failed with %zd\n", QD);
     exit(-2);
   }
-  
+
   assert(QD);
   if (!alignment) alignment=512;
   assert(alignment);
@@ -166,7 +167,7 @@ size_t aioMultiplePositions( positionContainer *p,
   }
 
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd\n", sz);
-  while (keepRunning && (thistime < finishtime)) {
+  while (keepRunning && ((thistime = timedouble()) < finishtime)) {
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
     if (inFlight > QD) {
@@ -379,16 +380,18 @@ size_t aioMultiplePositions( positionContainer *p,
     }
   } // while keepRunning
 
-  
  endoffunction:
   // receive outstanding I/Os
-  while (inFlight && keepRunning) {
+
+  {}
+  size_t count = 0;
+  double snaptime = timedouble();
+  while (inFlight) {
+    count++;
+    if (count > 3600) break;
+    
     if (inFlight) {
-      //      fprintf(stderr,"*info* waiting for outstanding IOs\n");
-      //      if (verbose >= 1) {
-      //      fprintf(stderr,"*info* inflight = %zd\n", inFlight);
-	//      }
-      int ret = io_getevents(ioc, inFlight, inFlight, events, &timeout);
+      int ret = io_getevents(ioc, 0, inFlight, events, &timeout);
       if (ret > 0) {
 	for (int j = 0; j < ret; j++) {
 	  // TODO refactor into the same code as above
@@ -403,11 +406,18 @@ size_t aioMultiplePositions( positionContainer *p,
 	  pp->success = 1; // the action has completed
 	}
 	inFlight -= ret;
+      } else {
+	if (count > 5) {
+	  fprintf(stderr,"*warning* waiting for %zd IOs in flight, iteration %zd, %zd seconds...\n", inFlight, count, (size_t)(timedouble() - snaptime));
+	}
+	sleep(1);
       }
     }
   }
-  //  fprintf(stderr,"infligtht = %zd\n", inFlight);
-
+  if (inFlight) {
+    fprintf(stderr,"*warning* inFlight requests still = %zd\n", inFlight);
+  }
+  
   free(events);
   for (size_t i = 0; i < QD; i++) {
     free(cbs[i]);
@@ -419,7 +429,13 @@ size_t aioMultiplePositions( positionContainer *p,
   free(readdata[0]);
   free(readdata);
   free(freeQueue);
+  if (inFlight) {
+    fprintf(stderr,"*warning* about to io_destroy()\n");
+  }
   io_destroy(ioc);
+  if (inFlight) {
+    fprintf(stderr,"*info* io_destroy() succeeded\n");
+  }
   
   *ios = received;
 

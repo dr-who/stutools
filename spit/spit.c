@@ -298,14 +298,12 @@ int main(int argc, char *argv[]) {
   jobRunPreconditions(preconditions, preconditions->count, minSizeInBytes, maxSizeInBytes);
 
   keepRunning = 1;
-  signal(SIGTERM, intHandler);
-  signal(SIGINT, intHandler);
-
-
   diskStatType *p = &d;
   if (!d.numDevices) {
     p = NULL;
   }
+  signal(SIGTERM, intHandler);
+  signal(SIGINT, intHandler);
   jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p);
 
   jobFree(j);
@@ -315,6 +313,7 @@ int main(int argc, char *argv[]) {
   free(preconditions);
   diskStatFree(&d);
 
+  fprintf(stderr,"*info* exiting.\n"); fflush(stderr);
   exit(0);
 }
   

@@ -189,6 +189,7 @@ static void *runThread(void *arg) {
   size_t iteratorCount = 0;
 
   while (keepRunning) {
+    // 
     if (threadContext->runXtimes && iteratorCount >= threadContext->runXtimes) break;
     if (timedouble() > starttime + threadContext->finishtime) break;
     sleep(threadContext->waitfor);
@@ -251,10 +252,10 @@ static void *runThreadTimer(void *arg) {
 
   size_t exitcount = 0;
   double starttime = timedouble();
-  while (keepRunning && (thistime = timedouble())) {
+  while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishtime + 0.1)) {
     usleep(10000);
 
-    if (thistime - start >= (i * TIMEPERLINE) && (thistime < starttime + threadContext->finishtime+0.1)) {
+    if ((thistime - start) >= (i * TIMEPERLINE) && (thistime < starttime + threadContext->finishtime + 0.1)) {
       
       trb = 0;
       twb = 0;
@@ -330,8 +331,8 @@ static void *runThreadTimer(void *arg) {
       i++;
     }
 
-    if (thistime > starttime + threadContext->finishtime + 180) {
-      fprintf(stderr,"*error* still running! watchdog termination (%.0lf > %.0lf + %zd\n", thistime, starttime, threadContext->finishtime + 180);
+    if (thistime > starttime + threadContext->finishtime + 30) {
+      fprintf(stderr,"*error* still running! watchdog termination (%.0lf > %.0lf + %zd\n", thistime, starttime, threadContext->finishtime + 30);
       keepRunning = 0;
       exit(-1);
     }
@@ -340,7 +341,7 @@ static void *runThreadTimer(void *arg) {
     fclose(fp);
   }
   //  diskStatFree(&d);
-  //  fprintf(stderr,"finished thread timer\n");
+  if (verbose) fprintf(stderr,"*info* finished thread timer\n");
   keepRunning = 0;
   return NULL;
 }
@@ -941,7 +942,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       preconditions->strings[i] = strdup(s);
     }
     jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 256, 0 /*seed*/, 0 /*save positions*/, NULL); 
-    fprintf(stderr,"*info* preconditioning complete\n");
+    fprintf(stderr,"*info* preconditioning complete\n"); fflush(stderr);
   }
   return 0;
 }
