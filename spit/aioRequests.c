@@ -153,7 +153,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   struct timespec timeout;
   timeout.tv_sec = 0;
-  timeout.tv_nsec = 1000*1000; // 1ms seconds
+  timeout.tv_nsec = 10000*1000; // 1ms seconds
 
   double flush_totaltime = 0, flush_mintime = 9e99, flush_maxtime = 0;
   size_t flush_count = 0;
@@ -356,15 +356,16 @@ size_t aioMultiplePositions( positionContainer *p,
 	  }
 	  
 	  //	  fprintf(stderr,"received %d\n", pp->q);
-	  pp->inFlight = 0;
-	  //checkArray(freeQueue, QD);
-	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
 	  //	    checkArray(freeQueue, QD);
 	  if (!pp->finishtime)
 	    pp->finishtime = lastreceive;
 	  pp->success = 1; // the action has completed
 
 	}
+	pp->inFlight = 0;
+	//checkArray(freeQueue, QD);
+	freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
+
 
       } // for j
 
@@ -384,13 +385,13 @@ size_t aioMultiplePositions( positionContainer *p,
   
  endoffunction:
   // receive outstanding I/Os
-  while (inFlight) {
+  while (inFlight && keepRunning) {
     if (inFlight) {
       //      fprintf(stderr,"*info* waiting for outstanding IOs\n");
       //      if (verbose >= 1) {
-      //	fprintf(stderr,"*info* inflight = %zd\n", inFlight);
+      //      fprintf(stderr,"*info* inflight = %zd\n", inFlight);
 	//      }
-      int ret = io_getevents(ioc, inFlight, inFlight, events, NULL);
+      int ret = io_getevents(ioc, inFlight, inFlight, events, &timeout);
       if (ret > 0) {
 	for (int j = 0; j < ret; j++) {
 	  // TODO refactor into the same code as above
