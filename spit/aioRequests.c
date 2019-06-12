@@ -314,7 +314,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
 	  if (!printed) {
-	    fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s), pos %zd\n", rescode, strerror(-rescode), rescode2, strerror(-rescode2), pos);
+	    fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s), pos %zd, inFlight %zd\n", rescode, strerror(-rescode), rescode2, strerror(-rescode2), pos, inFlight);
 	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
 	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
 	  }
