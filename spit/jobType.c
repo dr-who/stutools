@@ -197,7 +197,7 @@ static void *runThread(void *arg) {
     if (threadContext->runXtimes == 1) {
       break;
     }
-    if (threadContext->rerandomize) {
+    if (keepRunning && threadContext->rerandomize) {
       positionRandomize(threadContext->pos.positions, threadContext->pos.sz);
       if (verbose >= 1) {
 	fprintf(stderr,"*info* randomizing\n");
