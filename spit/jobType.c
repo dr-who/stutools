@@ -807,14 +807,52 @@ void jobRunThreads(jobType *job, const int num,
     }
     double median, three9, four9, five9;
     if (histCount(&histRead)) {
-      histSumPercentages(&histRead, &median, &three9, &four9, &five9);
-      fprintf(stderr,"*info* read latency:  mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histRead), 1000.0 * median, 1000.0 * three9, 1000.0 * four9, 1000.0 * five9);
-      histSave(&histRead, "spit-latency-read.txt");
+      histSumPercentages(&histRead, &median, &three9, &four9, &five9, 1000);
+      fprintf(stderr,"*info* read latency:  mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000 * histMean(&histRead), median, three9, four9, five9);
+      histSave(&histRead, "spit-latency-read.txt", 1000);
+
+      FILE *fp = fopen("spit-latency-read.gnu", "wt");
+      if (fp) {
+	fprintf(fp, "set key outside\n");
+	fprintf(fp, "set log x\n");
+	fprintf(fp, "set log y\n");
+	fprintf(fp, "set xtics 0.1\n");
+	fprintf(fp, "set grid\n");
+	fprintf(fp, "set xrange [0.1:%lf]\n", five9 * 1.2);
+	fprintf(fp, "set yrange [0:]\n");
+	fprintf(fp, "set y2range [0:100]\n");
+	fprintf(fp, "set xlabel 'latency (ms)'\n");
+	fprintf(fp, "set ylabel 'count'\n");
+	fprintf(fp, "set y2label 'count sum'\n");
+	fprintf(fp, "plot 'spit-latency-read.txt' using 1:2 with lines title 'reads', 'spit-latency-read.txt' using 1:3 with lines title 'sum reads' axes x1y2,'<echo %lf 100000' with imp title 'median=%.2lf ms' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf ms' axes x1y2\n", median, median, five9, five9);
+      } else {
+	perror("filename");
+      }
+      fclose(fp);
+      
     }
     if (histCount(&histWrite)) {
-      histSumPercentages(&histWrite, &median, &three9, &four9, &five9);
-      fprintf(stderr,"*info* write latency: mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histWrite), 1000.0 * median, 1000.0 * three9, 1000.0 * four9, 1000.0 * five9);
-      histSave(&histWrite, "spit-latency-write.txt");
+      histSumPercentages(&histWrite, &median, &three9, &four9, &five9, 1000);
+      fprintf(stderr,"*info* write latency: mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histWrite), median, three9, four9, five9);
+      histSave(&histWrite, "spit-latency-write.txt", 1000);
+
+      FILE *fp = fopen("spit-latency-write.gnu", "wt");
+      if (fp) {
+	fprintf(fp, "set key outside\n");
+	fprintf(fp, "set log x\n");
+	fprintf(fp, "set log y\n");
+	fprintf(fp, "set xtics 0.1\n");
+	fprintf(fp, "set grid\n");
+	fprintf(fp, "set xrange [0.1:%lf]\n", five9 * 1.2);
+	fprintf(fp, "set yrange [0:]\n");
+	fprintf(fp, "set y2range [0:100]\n");
+	fprintf(fp, "set xlabel 'latency (ms)'\n");
+	fprintf(fp, "plot 'spit-latency-write.txt' using 1:2 with lines title 'latency', 'spit-latency-write.txt' using 1:3 with lines title 'cum' axes x1y2,'<echo %lf 100000' with imp title 'median=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, five9, five9);
+      } else {
+	perror("filename");
+      }
+      fclose(fp);
+      
     }
     histFree(&histRead);
     histFree(&histWrite);
