@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 1.5.8
-.\"      Date: 2019-06-11
+.\"      Date: 2019-06-13
 .\"    Manual: spit manual
 .\"    Source: spit 1.1
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2019-06-11" "spit 1.1" "spit manual"
+.TH "SPIT" "1" "2019-06-13" "spit 1.1" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -264,6 +264,18 @@ Two threads, both random, one reading, one writing.
 .nf
 On a 200 GiB perform linear writes in the first half and
 random writes on the second half.
+.fi
+.if n .RE
+.SS "SNIA latency graphs"
+.sp
+\fBspit\fP \-p G \-f /dev/device \-c rs0n \-t 3600
+.sp
+.if n .RS 4
+.nf
+This will run a preconditioning step, 2x the size of the device LBA.
+The proceed with a random 4k read pattern, reordering after each
+pass.  The output will be written \(aqspit\-latency\-read.gnu\(aq which can
+be loaded into gnuplot
 .fi
 .if n .RE
 .SH "EXIT STATUS"
