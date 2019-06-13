@@ -173,10 +173,12 @@ In the following commands, replace *r* with *w* for writes.
 
 *spit* -p G -f /dev/device -c rs0n -t 3600
 
-  This will run a preconditioning step, 2x the size of the device LBA.
-  The proceed with a random 4k read pattern, reordering after each
-  pass.  The output will be written 'spit-latency-read.gnu' which can
-  be loaded into gnuplot.
+  To generate the Response Time Histogram - Confidence Level Plot of
+  the SNIA SSS PTS 2.0.1 use the above command. This will run a
+  preconditioning step, 2x the size of the device LBA.  The proceed
+  with a random 4k read pattern, reordering after each pass.  The
+  output will be written 'spit-latency-read.gnu' which can be loaded
+  into gnuplot.
 
 == EXIT STATUS
 

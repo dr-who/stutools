@@ -814,17 +814,18 @@ void jobRunThreads(jobType *job, const int num,
 
       FILE *fp = fopen("spit-latency-read.gnu", "wt");
       if (fp) {
-	fprintf(fp, "set key outside\n");
-	fprintf(fp, "set log x\n");
+	fprintf(fp, "set key above\n");
+	fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
 	fprintf(fp, "set log y\n");
-	fprintf(fp, "set xtics 0.1\n");
+	fprintf(fp, "set xtics auto\n");
+	fprintf(fp, "set y2tics 10\n");
 	fprintf(fp, "set grid\n");
-	fprintf(fp, "set xrange [0.1:%lf]\n", five9 * 1.1);
+	fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
 	fprintf(fp, "set y2range [0:100]\n");
-	fprintf(fp, "set xlabel 'latency (ms)'\n");
-	fprintf(fp, "set ylabel 'count'\n");
-	fprintf(fp, "set y2label 'count sum'\n");
-	fprintf(fp, "plot 'spit-latency-read.txt' using 1:2 with lines title 'reads', 'spit-latency-read.txt' using 1:3 with lines title 'sum reads' axes x1y2,'<echo %lf 100000' with imp title 'median=%.2lf ms' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf ms' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf ms' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf ms' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
+	fprintf(fp, "set xlabel 'Time (ms)'\n");
+	fprintf(fp, "set ylabel 'Count'\n");
+	fprintf(fp, "set y2label 'Confidence level'\n");
+	fprintf(fp, "plot 'spit-latency-read.txt' using 1:2 with imp title 'Read Latency', 'spit-latency-read.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
       } else {
 	perror("filename");
       }
@@ -838,17 +839,18 @@ void jobRunThreads(jobType *job, const int num,
 
       FILE *fp = fopen("spit-latency-write.gnu", "wt");
       if (fp) {
-	fprintf(fp, "set key outside\n");
-	fprintf(fp, "set log x\n");
+	fprintf(fp, "set key above\n");
+	fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
 	fprintf(fp, "set log y\n");
-	fprintf(fp, "set xtics 0.1\n");
+	fprintf(fp, "set xtics auto\n");
+	fprintf(fp, "set y2tics 10\n");
 	fprintf(fp, "set grid\n");
-	fprintf(fp, "set xrange [0.1:%lf]\n", five9 * 1.1);
+	fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
 	fprintf(fp, "set y2range [0:100]\n");
-	fprintf(fp, "set xlabel 'latency (ms)'\n");
-	fprintf(fp, "set ylabel 'count'\n");
-	fprintf(fp, "set y2label 'count sum'\n");
-	fprintf(fp, "plot 'spit-latency-write.txt' using 1:2 with lines title 'writes', 'spit-latency-write.txt' using 1:3 with lines title 'sum writes' axes x1y2,'<echo %lf 100000' with imp title 'median=%.2lf ms' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf ms' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf ms' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf ms' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
+	fprintf(fp, "set xlabel 'Time (ms)'\n");
+	fprintf(fp, "set ylabel 'Count'\n");
+	fprintf(fp, "set y2label 'Confidence Level'\n");
+	fprintf(fp, "plot 'spit-latency-write.txt' using 1:2 with imp title 'Write Latency', 'spit-latency-write.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
       } else {
 	perror("filename");
       }
