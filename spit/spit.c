@@ -278,7 +278,7 @@ int main(int argc, char *argv[]) {
   
   fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], VERSION);
 
-  size_t defaultQD = 256;
+  size_t defaultQD = 16;
   unsigned short seed = 0;
   diskStatType d;
 
