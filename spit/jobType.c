@@ -916,6 +916,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
   if (count) {
     size_t gSize = 0;
     size_t coverage = 1;
+    size_t jumble = 0;
     
     for (size_t i = 0; i < count; i++) {
       fprintf(stderr,"*info* precondition %zd: device '%s', command '%s'\n", i+1, preconditions->devices[i], preconditions->strings[i]);
@@ -933,6 +934,9 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	if (charG && *(charG+1)) {
 	  seqFiles = atoi(charG + 1);
 	}
+      }
+      if (seqFiles != 0) {
+	jumble = 100;
       }
       
       size_t exitIOPS = 2500; // 10MB/s lowerbound
@@ -956,7 +960,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
       
       char s[100];
-      sprintf(s, "w k4 z s%zd G%.1lf X%zd x1 n I%zd", seqFiles, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
+      sprintf(s, "w k4 z s%zd J%zd G%.1lf X%zd x1 n I%zd", seqFiles, jumble, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
