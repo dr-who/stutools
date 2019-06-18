@@ -538,7 +538,29 @@ void positionRandomize(positionType *positions, const size_t count) {
 }
 
 
-		 
+
+void positionJumble(positionType *positions, const size_t count, const size_t jumble) {
+  assert(jumble >= 1);
+  if (verbose >= 1) {
+    fprintf(stderr,"*info* jumbling the array %zd with value %zd\n", count, jumble);
+  }
+  size_t i2 = 0;
+  while (i2 < count) {
+    for (size_t j = 0 ; j < jumble / 2; j++) {
+	size_t i = i2 + jumble - 1 - j;
+	if (i < count -1) {
+	  //	  fprintf(stderr,"%zd (%zd) %zd\n", i, i2, j);
+	  // swap
+	  positionType p = positions[i];
+	  positions[i] = positions[i2 + j];
+	  positions[i2 + j] = p;
+	}
+    }
+    i2 += jumble;
+  }
+}
+
+
 void positionStats(const positionType *positions, const size_t maxpositions, const deviceDetails *devList, const size_t devCount) {
   size_t len = 0;
   for (size_t i = 0; i < maxpositions; i++) {

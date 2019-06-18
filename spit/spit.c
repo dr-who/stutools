@@ -230,6 +230,7 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c wM1            # set block size 1M\n");
   fprintf(stderr,"  spit -f ... -c O              # One-shot, not time based\n");
   fprintf(stderr,"  spit -f ... -c t2             # specify the time per thread\n");
+  fprintf(stderr,"  spit -f ... -c ws1J4          # jumble/reverse groups of 4 positions\n");
   fprintf(stderr,"  spit -f ... -c wx2O           # sequentially (s1) write 200%% LBA, no time limit\n");
   fprintf(stderr,"  spit -f ... -c ws0            # random defaults to 3x LBA\n");
   fprintf(stderr,"  spit -f ... -c ws1W2T2 -t60   # Alternate wait 2, run for 2 seconds\n");

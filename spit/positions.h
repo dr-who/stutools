@@ -92,6 +92,7 @@ void skipPositions(positionType *pos, const size_t num, const size_t skipEvery);
 positionContainer positionContainerMerge(positionContainer *p, const size_t numFiles);
 positionContainer positionContainerCollapse(positionContainer merged, size_t *total);
 positionContainer positionContainerMultiply(positionContainer *original, const size_t multiply);
+void positionJumble(positionType *positions, const size_t count, const size_t jumble);
 
 void calcLBA(positionContainer *pc);
 

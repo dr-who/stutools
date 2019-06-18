@@ -111,6 +111,7 @@ typedef struct {
   size_t anywrites;
   size_t UUID;
   size_t seqFiles;
+  size_t jumbleRun;
   size_t runTime;
   size_t ignoreResults;
   size_t exitIOPS;
@@ -377,6 +378,7 @@ void jobRunThreads(jobType *job, const int num,
     threadContext[i].runTime = timetorun;
     threadContext[i].finishtime = timetorun;
     threadContext[i].exitIOPS = 0;
+    threadContext[i].jumbleRun = 0;
 
     int seqFiles = 1;
     int bs = 4096, highbs = 4096;
@@ -451,6 +453,18 @@ void jobRunThreads(jobType *job, const int num,
       if (charI && *(charI + 1)) {
 	threadContext[0].exitIOPS = atoi(charI + 1);
 	fprintf(stderr,"*info* exit IOPS set to %zd\n", threadContext[0].exitIOPS);
+      }
+    }
+    
+
+    {
+      char *charI = strchr(job->strings[i], 'J');
+      
+      if (charI && *(charI + 1)) {
+	int v = atoi(charI + 1);
+	if (v < 1) {v = 1;}
+	threadContext[i].jumbleRun = v;
+	fprintf(stderr,"*info* jumbleRun set to %zd\n", threadContext[i].jumbleRun);
       }
     }
     
@@ -732,6 +746,9 @@ void jobRunThreads(jobType *job, const int num,
 
       
       if (threadContext[i].seqFiles == 0) positionRandomize(threadContext[i].pos.positions, threadContext[i].pos.sz);
+
+      if (threadContext[i].jumbleRun) positionJumble(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].jumbleRun);
+      
       threadContext[i].anywrites = anywrites;
       calcLBA(&threadContext[i].pos); // calc LBA coverage
 
@@ -939,7 +956,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
       
       char s[100];
-      sprintf(s, "wk4s%zdG%.1lfX%zdx1nI%zd", seqFiles, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
+      sprintf(s, "w k4 z s%zd G%.1lf X%zd x1 n I%zd", seqFiles, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
