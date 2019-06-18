@@ -545,17 +545,17 @@ void positionJumble(positionType *positions, const size_t count, const size_t ju
     fprintf(stderr,"*info* jumbling the array %zd with value %zd\n", count, jumble);
   }
   size_t i2 = 0;
-  while (i2 < count) {
-    for (size_t j = 0 ; j < jumble / 2; j++) {
-	size_t i = i2 + jumble - 1 - j;
-	if (i < count -1) {
-	  //	  fprintf(stderr,"%zd (%zd) %zd\n", i, i2, j);
+  while (i2 < count - jumble) {
+    for (size_t j = 0 ; j < jumble; j++) {
+	size_t start = i2 + j;
+	size_t swappos = i2 + (lrand48() % jumble);
+	if (swappos < count) {
 	  // swap
-	  positionType p = positions[i];
-	  positions[i] = positions[i2 + j];
-	  positions[i2 + j] = p;
+	  positionType p = positions[start];
+	  positions[start] = positions[swappos];
+	  positions[swappos] = p;
 	}
-    }
+      }
     i2 += jumble;
   }
 }
