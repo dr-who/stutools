@@ -368,6 +368,8 @@ size_t setupPositions(positionType *positions,
     }
   }
 
+  //  fprintf(stderr,"alloc %zd = %zd\n", *num, *num * sizeof(positionType));
+
   // list of possibles positions
   positionType *poss = NULL;
   size_t possAlloc = *num, count = 0, totalLen = 0;

@@ -498,7 +498,10 @@ void jobRunThreads(jobType *job, const int num,
     }
 
     //    size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
-    size_t useRAM = 2L*1024*1024*1024;
+    // use max 1/2 of free RAM
+    size_t useRAM = MIN(5L*1024*1024*1024, freeRAM() / 2); // 1L*1024*1024*1024;
+    
+    //    fprintf(stderr,"use ram %zd\n", useRAM);
     size_t fitinram = useRAM / num / sizeof(positionType);
     if ((verbose || (fitinram < mp)) && (i == 0)) {
       fprintf(stderr,"*info* using %.3lf GiB RAM for positions, we can store ", TOGiB(useRAM));
@@ -509,7 +512,7 @@ void jobRunThreads(jobType *job, const int num,
     size_t countintime = mp;
     if ((long)timetorun > 0) { // only limit based on time if the time is positive
       
-#define ESTIMATEIOPS 500000
+#define ESTIMATEIOPS 250000
       
       countintime = timetorun * ESTIMATEIOPS;
       if ((verbose || (countintime < mp)) && (i == 0)) {

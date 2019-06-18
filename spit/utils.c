@@ -294,6 +294,12 @@ size_t totalRAM() {
   return info.totalram;
 }
 
+size_t freeRAM() {
+  struct sysinfo info;
+  sysinfo(&info);
+  return info.freeram;
+}
+
 char *OSRelease() {
   struct utsname buf;
   uname (&buf);

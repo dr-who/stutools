@@ -21,7 +21,7 @@
 #define TOMB(x) ((x)/1000.0/1000)
 
 /*#define CALLOC(x, y, z) {x = calloc(y, z); if (!(x)) {fprintf(stderr,"ooom!!\n");abort();}}*/
-#define CALLOC(x, y, z) {x = memalign(4096, (((size_t)((y) * (z)))/4096 + 1) * 4096); if(x) memset(x, 0, (((size_t)((y) * (z)))/4096 + 1) * 4096);  if (!(x)) {fprintf(stderr,"*error* out of memory! ooom!!\n");exit(-1);}}
+#define CALLOC(x, y, z) {x = memalign(4096, (((size_t)((y) * (z)))/4096 + 1) * 4096); if(x) memset(x, 0, (((size_t)((y) * (z)))/4096 + 1) * 4096);  if (!(x)) {fprintf(stderr,"*error* out of memory! ooom!! %zd\n", (((size_t)((y) * (z)))/4096 + 1) * 4096);abort();}}
 
 
 #define DIFF(x,y) ((x) > (y)) ? ((x)-(y)) : ((y) - (x))
@@ -79,6 +79,7 @@ void commaPrint0dp(FILE *fp, double d);
 int getWriteCache(const char *devicesuffix);
 int splitRange(const char *charBS, double *low, double *high);
 char *getModel(const char *suffix);
+size_t freeRAM();
 
 #endif
 
