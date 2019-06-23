@@ -101,7 +101,8 @@ typedef struct {
   size_t queueDepth;
   size_t flushEvery;
   float rw;
-  int rerandomize;
+  int rerandomize; 
+  int addBlockSize;
   size_t runXtimes;
   unsigned short seed;
   char *randomBuffer;
@@ -194,17 +195,21 @@ static void *runThread(void *arg) {
     if (threadContext->runXtimes && iteratorCount >= threadContext->runXtimes) break;
     if (timedouble() > starttime + threadContext->finishtime) break;
     sleep(threadContext->waitfor);
-    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize, 1, fd, threadContext->flushEvery);
+    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
     if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* finished...\n");}
     if (threadContext->runXtimes == 1) {
       break;
     }
-    if (keepRunning && threadContext->rerandomize) {
-      positionRandomize(threadContext->pos.positions, threadContext->pos.sz);
-      if (verbose >= 1) {
-	fprintf(stderr,"*info* randomizing\n");
-	fprintf(stderr,"*info* first pos %zd\n", threadContext->pos.positions[0].pos);
+    if (keepRunning && (threadContext->rerandomize || threadContext->addBlockSize)) {
+      if (threadContext->rerandomize) {
+	fprintf(stderr,"*info* shuffling positions\n");
+	positionRandomize(threadContext->pos.positions, threadContext->pos.sz);
       }
+      if (threadContext->addBlockSize) {
+	fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->blockSize);
+	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->blockSize, threadContext->bdSize);
+	//	fprintf(stderr,"position 0: %zd\n", threadContext->pos.positions[0].pos);
+      }	
     }
     iteratorCount++;      
     if (verbose) fprintf(stderr,"*info* finished pass %zd\n", iteratorCount);
@@ -555,6 +560,7 @@ void jobRunThreads(jobType *job, const int num,
     threadContext[i].blockSize = bs;
     threadContext[i].highBlockSize = highbs;
     threadContext[i].rerandomize = 0;
+    threadContext[i].addBlockSize = 0;
     threadContext[i].runXtimes = runXtimes;
 
     // do this here to allow repeatable random numbers
@@ -617,6 +623,13 @@ void jobRunThreads(jobType *job, const int num,
       char *iR = strchr(job->strings[i], 'n');
       if (iR) {// && *(iR+1)) {
 	threadContext[i].rerandomize = 1;
+      }
+    }
+
+    {
+      char *iR = strchr(job->strings[i], 'N');
+      if (iR) {// && *(iR+1)) {
+	threadContext[i].addBlockSize = 1;
       }
     }
 

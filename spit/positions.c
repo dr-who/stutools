@@ -540,6 +540,19 @@ void positionRandomize(positionType *positions, const size_t count) {
 }
 
 
+void positionAddBlockSize(positionType *positions, const size_t count, const size_t addSize, const size_t bdSize) {
+  if (verbose >= 1) {
+    fprintf(stderr,"*info* adding %zd size\n", addSize);
+  }
+  for (size_t i = 0; i < count; i++) {
+    positions[i].pos += addSize;
+    if (positions[i].pos + positions[i].len >= bdSize) {
+      positions[i].pos = 0;
+    }
+  }
+}
+
+
 
 void positionJumble(positionType *positions, const size_t count, const size_t jumble) {
   assert(jumble >= 1);
