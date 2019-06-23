@@ -216,14 +216,14 @@ void usage() {
   fprintf(stderr,"  spit -f ... -c wF             # (F)lush after every write of FF for 10, FFF for 100 ...\n");
   fprintf(stderr,"  spit -f ... -c rrrrw          # do 4 reads for every write\n");
   fprintf(stderr,"  spit -f ... -c rw             # mix 50/50 reads/writes\n");
-  fprintf(stderr,"  spit -f ... -c rn -t0         # generate (n)on-unique positions positions with collisions\n");
+  fprintf(stderr,"  spit -f ... -c n              # shuffles the positions every pass\n");
+  fprintf(stderr,"  spit -f ... -c N              # adds an offset to the positions every pass\n");
   fprintf(stderr,"  spit -f ... -t -1             # -t -1 is run forever\n");
   fprintf(stderr,"  spit -f ... -c p0.9           # set the r/w ratio to 0.9\n");
   fprintf(stderr,"  spit -f ... -c wz             # sequentially (w)rite from block (z)ero (instead of random position)\n");
   fprintf(stderr,"  spit -f ... -c m              # non-unique positions, read/write/flush like (m)eta-data\n");
   fprintf(stderr,"  spit -f ... -c mP4000         # non-unique 4000 positions, read/write/flush like (m)eta-data\n");
-  fprintf(stderr,"  spit -f ... -c n              # rerandomize after every set of positions\n");
-  fprintf(stderr,"  spit -f ... -c s1n            # do a sequential pass, then randomise the positions\n");
+  fprintf(stderr,"  spit -f ... -c s1n            # do a sequential pass, then shuffles the positions\n");
   fprintf(stderr,"  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB\n");
   fprintf(stderr,"  spit -f ... -c P10G1-2        # The first 10 positions starting from 1GiB. It needs the lower range.\n");
   fprintf(stderr,"  spit -f ... -c P10x100        # multiply the number of positions by x, here it's 100\n");
