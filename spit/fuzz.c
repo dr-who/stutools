@@ -23,11 +23,11 @@ char *randomCommandString() {
     sprintf(string, "%c sP%ld x%ld", (drand48()<0.5) ? 'r' : 'w', 1+lrand48() % 10000, 1 + lrand48()%100);
     break;
   case 3: 
-    sprintf(string, "%c k%ld", (drand48()<0.5) ? 'r' : 'w', 4096 * (1+ (lrand48() % 4)));
+    sprintf(string, "%c k%ld", (drand48()<0.5) ? 'r' : 'w', 4 * (1+ (lrand48() % 4)));
     break;
   case 4: {}
-    size_t klow = 4096 * (1 + (lrand48() % 3));
-    sprintf(string, "%c k%ld-%ld", (drand48()<0.5) ? 'r' : 'w', klow, klow + 4096*(lrand48()%4));
+    size_t klow = 4 * (1 + (lrand48() % 3));
+    sprintf(string, "%c k%ld-%ld", (drand48()<0.5) ? 'r' : 'w', klow, klow + 4*(lrand48()%4));
     break;
   }
   return strdup(string);
@@ -35,7 +35,7 @@ char *randomCommandString() {
 
   
 
-char ** fuzzString(int *argc) {
+char ** fuzzString(int *argc, const char *device) {
   srand48(timedouble());
   size_t count = 1 + lrand48() % 3;
   count = 8;
@@ -47,7 +47,8 @@ char ** fuzzString(int *argc) {
   char string[100];
 
   argv[0] = strdup("spit");
-  argv[1] = strdup("-ftestfile");
+  sprintf(string, "-f%s", device);
+  argv[1] = strdup(string);
 
   argv[2] = strdup("-G");
   double low = 0.1 + drand48() * 0.5;

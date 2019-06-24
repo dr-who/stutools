@@ -264,8 +264,8 @@ int main(int argc, char *argv[]) {
 #define VERSION __TIMESTAMP__
 #endif
 
-  if ((argc > 1) && (strcmp(argv[1],"fuzz")==0)) {
-    argv = fuzzString(&argc);
+  if ((argc > 2) && (strcmp(argv[1],"fuzz")==0)) {
+    argv = fuzzString(&argc, argv[2]);
   }
   
   jobType *j = malloc(sizeof(jobType));
