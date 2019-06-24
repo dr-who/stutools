@@ -360,7 +360,7 @@ size_t setupPositions(positionType *positions,
   if (((*num) * ((lowbs + bs)/2)) < (bdSizeTotal - minbdSize) * 0.95) {
     // if we can't get good coverage
     if ((sf == 0) && (lowbs == bs) && (lowbs == alignment)) {
-      fprintf(stderr,"*info* using randomSubSample mode\n");
+      fprintf(stderr,"*info* using randomSubSample (with replacement) mode\n");
       randomSubSample = 1;
     }
   }
