@@ -544,11 +544,13 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
   if (verbose >= 1) {
     fprintf(stderr,"*info* adding %zd size\n", addSize);
   }
+  positionType *p = positions;
   for (size_t i = 0; i < count; i++) {
-    positions[i].pos += addSize;
-    if (positions[i].pos + positions[i].len >= bdSize) {
-      positions[i].pos = 0;
+    p->pos += addSize;
+    if (p->pos + p->len >= bdSize) {
+      p->pos = 0;
     }
+    p++;
   }
 }
 
