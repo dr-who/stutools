@@ -14,20 +14,20 @@ char *randomCommandString() {
   int s = lrand48() % 5;
   switch (s) {
   case 0: 
-    sprintf(string, "%c s%ld", (drand48()<0.5) ? 'r' : 'w', lrand48() % 10);
+    sprintf(string, "%cs%ld", (drand48()<0.5) ? 'r' : 'w', lrand48() % 10);
     break;
   case 1: 
-    sprintf(string, "%c sP%ld %c", (drand48()<0.5) ? 'r' : 'w', 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N');
+    sprintf(string, "%csP%ld%c", (drand48()<0.5) ? 'r' : 'w', 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N');
     break;
   case 2: 
-    sprintf(string, "%c sP%ld x%ld", (drand48()<0.5) ? 'r' : 'w', 1+lrand48() % 10000, 1 + lrand48()%100);
+    sprintf(string, "%csP%ld x%ld", (drand48()<0.5) ? 'r' : 'w', 1+lrand48() % 10000, 1 + lrand48()%100);
     break;
   case 3: 
-    sprintf(string, "%c k%ld", (drand48()<0.5) ? 'r' : 'w', 4 * (1+ (lrand48() % 4)));
+    sprintf(string, "%ck%ld", (drand48()<0.5) ? 'r' : 'w', 4 * (1+ (lrand48() % 4)));
     break;
   case 4: {}
     size_t klow = 4 * (1 + (lrand48() % 3));
-    sprintf(string, "%c k%ld-%ld", (drand48()<0.5) ? 'r' : 'w', klow, klow + 4*(lrand48()%4));
+    sprintf(string, "%ck%ld-%ld", (drand48()<0.5) ? 'r' : 'w', klow, klow + 4*(lrand48()%4));
     break;
   }
   return strdup(string);

@@ -265,6 +265,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   if ((argc > 2) && (strcmp(argv[1],"fuzz")==0)) {
+    verbose = 2;
     argv = fuzzString(&argc, argv[2]);
   }
   
