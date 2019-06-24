@@ -15,6 +15,7 @@
 #include "positions.h"
 #include "utils.h"
 #include "diskStats.h"
+#include "fuzz.h"
 
 #define DEFAULTTIME 10
   
@@ -263,6 +264,10 @@ int main(int argc, char *argv[]) {
 #define VERSION __TIMESTAMP__
 #endif
 
+  if ((argc > 1) && (strcmp(argv[1],"fuzz")==0)) {
+    argv = fuzzString(&argc);
+  }
+  
   jobType *j = malloc(sizeof(jobType));
   jobType *preconditions = malloc(sizeof(jobType));
   

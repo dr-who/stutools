@@ -504,7 +504,7 @@ void jobRunThreads(jobType *job, const int num,
 
     //    size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
     // use max 1/2 of free RAM
-    size_t useRAM = MIN(5L*1024*1024*1024, freeRAM() / 2); // 1L*1024*1024*1024;
+    size_t useRAM = MIN(5L*1024*1024*1024, freeRAM() / 4); // 1L*1024*1024*1024;
     
     //    fprintf(stderr,"use ram %zd\n", useRAM);
     size_t fitinram = useRAM / num / sizeof(positionType);
