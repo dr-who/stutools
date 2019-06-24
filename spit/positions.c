@@ -438,13 +438,19 @@ size_t setupPositions(positionType *positions,
 	if (j + thislen > positionsEnd[i]) {positionsStart[i] += thislen; break;}
 
 	if (randomSubSample) {
-	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, drand48() * (bdSizeTotal - minbdSize));
+	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, drand48() * (bdSizeTotal - thislen - minbdSize));
+	  assert(poss[count].pos >= minbdSize);
+	  assert(poss[count].pos + thislen < bdSizeTotal);
 	} else {
 	  poss[count].pos = minbdSize + j;
+	  if (poss[count].pos + thislen >= bdSizeTotal) {
+	    poss[count].pos = minbdSize;
+	    fprintf(stderr,"*warning* position wrapped around\n");
+	  }
+	  //	  assert(poss[count].pos >= minbdSize);
+	  //	  assert(poss[count].pos + thislen < bdSizeTotal);
 	}
-	assert(poss[count].pos >= minbdSize);
-	assert(poss[count].pos + thislen < bdSizeTotal);
-	  
+
 	poss[count].submittime = 0;
 	poss[count].finishtime = 0;
 	poss[count].len = thislen;
