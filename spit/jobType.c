@@ -411,8 +411,8 @@ void jobRunThreads(jobType *job, const int num,
       if (charG && *(charG+1)) {
 	double lowg = 0, highg = 0;
 	splitRange(charG + 1, &lowg, &highg);
-	minSizeInBytes = alignedNumber(1024 * (size_t)(lowg * 1024 * 1024), 4096);
-	maxSizeInBytes = alignedNumber(1024 * (size_t)(highg * 1024 * 1024), 4096);
+	minSizeInBytes = alignedNumber(1024L * (size_t)(lowg * 1024 * 1024), 4096);
+	maxSizeInBytes = alignedNumber(1024L * (size_t)(highg * 1024 * 1024), 4096);
 	if (minSizeInBytes == maxSizeInBytes) { 
 	  minSizeInBytes = 0;
 	}
@@ -754,6 +754,7 @@ void jobRunThreads(jobType *job, const int num,
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
       size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, threadContext[i].seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].bdSize, threadContext[i].seed);
+
       positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize);
 
       if (verbose >= 2) {
@@ -767,6 +768,7 @@ void jobRunThreads(jobType *job, const int num,
 
       if (threadContext[i].jumbleRun) positionJumble(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].jumbleRun);
       
+      positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize);
       threadContext[i].anywrites = anywrites;
       calcLBA(&threadContext[i].pos); // calc LBA coverage
 
@@ -942,7 +944,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	char *charG = strchr(preconditions->strings[i], 'G');
 	if (charG && *(charG+1)) {
 	  // a G num is specified
-	  gSize = 1024 * (size_t)(atof(charG + 1) * 1024 * 1024);
+	  gSize = 1024L * (size_t)(atof(charG + 1) * 1024 * 1024);
 	}
       }
       

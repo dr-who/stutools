@@ -67,8 +67,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'G': {}
       double lowg = 0, highg = 0;
       splitRange(optarg, &lowg, &highg);
-      *minSizeInBytes = alignedNumber(1024 * (size_t)(lowg * 1024 * 1024), 4096);
-      *maxSizeInBytes = alignedNumber(1024 * (size_t)(highg * 1024 * 1024), 4096);
+      *minSizeInBytes = alignedNumber(1024L * (size_t)(lowg * 1024 * 1024), 4096);
+      *maxSizeInBytes = alignedNumber(1024L * (size_t)(highg * 1024 * 1024), 4096);
       if (*minSizeInBytes == *maxSizeInBytes) { 
 	*minSizeInBytes = 0;
       }

@@ -397,7 +397,7 @@ size_t setupPositions(positionType *positions,
   CALLOC(positionsEnd, toalloc, sizeof(size_t));
   
   for (size_t i = 0; i < toalloc; i++) {
-    positionsStart[i] = alignedNumber(i * (bdSizeTotal / toalloc), lowbs); 
+    positionsStart[i] = alignedNumber(i * ((bdSizeTotal - minbdSize) / toalloc), lowbs); 
     if (i > 0) positionsEnd[i-1] = positionsStart[i];
     positionsEnd[toalloc-1] = bdSizeTotal;
 
@@ -440,8 +440,10 @@ size_t setupPositions(positionType *positions,
 	if (randomSubSample) {
 	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, drand48() * (bdSizeTotal - minbdSize));
 	} else {
-	  poss[count].pos = j;
+	  poss[count].pos = minbdSize + j;
 	}
+	assert(poss[count].pos >= minbdSize);
+	assert(poss[count].pos + thislen < bdSizeTotal);
 	  
 	poss[count].submittime = 0;
 	poss[count].finishtime = 0;
@@ -522,13 +524,17 @@ size_t setupPositions(positionType *positions,
   free(positionsEnd); positionsEnd = NULL;
 
 
-  if (minbdSize) {
+  /*  if (minbdSize) {
     fprintf(stderr,"*info* adding position offset of %zd\n", minbdSize);
     
     for (size_t k = 0; k < *num; k++) {
-      positions[k].pos += minbdSize;
+      if (positions[k].pos + positions[k].len + minbdSize < bdSizeTotal) {
+	positions[k].pos += minbdSize;
+      } else {
+	fprintf(stderr,"skipping\n");
+      }
     }
-  }
+    }*/
   
   return anywrites;
 }
@@ -575,15 +581,16 @@ void positionPrintMinMax(positionType *positions, const size_t count, const size
   size_t low = 0;
   size_t high = 0;
   for (size_t i = 0; i < count; i++) {
-    if (p->pos < low || (i==0)) {
+    if ((p->pos < low) || (i==0)) {
       low = p->pos;
     }
     if (p->pos > high) {
       high = p->pos;
     }
+    assert(high < bdSize);
     p++;
   }
-  fprintf(stderr,"*info* min position = LBA %.1lf %% (%zd, %.1lf GB) , highest position = LBA %.1lf %% (%zd, %.1lf GB)\n", (low * 100.0 / bdSize), low, TOGB(low), (high * 100.0 / bdSize), high, TOGB(high));
+  fprintf(stderr,"*info* min position = LBA %.1lf %% (%zd, %.1lf GB) , highest position = LBA %.1lf %% (%zd, %.1lf GB), bdSize %.1lf\n", 100.0 * (low * 1.0 / bdSize), low, TOGB(low), 100.0* (high * 1.0 / bdSize), high, TOGB(high), TOGB(bdSize));
 }
 
 
