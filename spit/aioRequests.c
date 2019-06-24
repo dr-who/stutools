@@ -145,7 +145,8 @@ size_t aioMultiplePositions( positionContainer *p,
   size_t inFlight = 0, pos = 0;
 
   double start = timedouble();
-  double last = start, lastsubmit =start, lastreceive = start;
+  double last = start;
+  double lastreceive = start;
 
   size_t submitted = 0, flushPos = 0, received = 0;
   size_t totalWriteBytes = 0, totalReadBytes = 0;
@@ -235,7 +236,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	      headOfQueue++; if (headOfQueue == QD) headOfQueue = 0;
 
 	      inFlight++;
-	      lastsubmit = thistime; // last good submit
+	      //	      lastsubmit = thistime; // last good submit
 	      submitted++;
 	      if (verbose >= 2 || (newpos & (alignment - 1))) {
 		fprintf(stderr,"fd %d, pos %zd (%% %zd = %zd ... %s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, alignment, newpos % alignment, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
@@ -315,9 +316,9 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
 	  if (!printed) {
-	    fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s), pos %zd, inFlight %zd, returned %d results\n", rescode, strerror(-rescode), rescode2, strerror(-rescode2), pos, inFlight, ret);
-	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
-	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
+	    fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s), [%zd] = %zd, inFlight %zd, returned %d results\n", rescode, strerror(-rescode), rescode2, strerror(-rescode2), pos, positions[pos].pos, inFlight, ret);
+	    //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
+	    //	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
 	  }
 	  printed = 1;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
