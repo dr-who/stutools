@@ -338,7 +338,6 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
 }
 
 
-
 // create the position array
 size_t setupPositions(positionType *positions,
 		    size_t *num,
@@ -408,7 +407,10 @@ size_t setupPositions(positionType *positions,
     for (size_t i = 0; i < toalloc; i++) {
       size_t j = positionsStart[i]; // while in the range
       if (j < positionsEnd[i]) {
-	const size_t thislen = randomBlockSize(lowbs, bs, alignbits, lrand48());
+	size_t thislen = lowbs;
+	if (lowbs != bs) {
+	  thislen = randomBlockSize(lowbs, bs, alignbits, lrand48());
+	}
 	assert(thislen >= 0);
 
 	// grow destination array
@@ -427,7 +429,12 @@ size_t setupPositions(positionType *positions,
 	// if we have gone over the end of the range
 	if (j + thislen > positionsEnd[i]) {positionsStart[i] += thislen; break;}
 
-	poss[count].pos = j;
+	if ((sf == 0) && (lowbs == bs) && (lowbs == alignment)) {
+	  poss[count].pos = randomBlockSize(0, bdSizeTotal - thislen, alignbits, lrand48());
+	} else {
+	  poss[count].pos = j;
+	}
+	  
 	poss[count].submittime = 0;
 	poss[count].finishtime = 0;
 	poss[count].len = thislen;
@@ -552,6 +559,23 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
     }
     p++;
   }
+}
+
+
+void positionPrintMinMax(positionType *positions, const size_t count, const size_t bdSize) {
+  positionType *p = positions;
+  size_t low = 0;
+  size_t high = 0;
+  for (size_t i = 0; i < count; i++) {
+    if (p->pos < low || (i==0)) {
+      low = p->pos;
+    }
+    if (p->pos > high) {
+      high = p->pos;
+    }
+    p++;
+  }
+  fprintf(stderr,"*info* min position = LBA %.1lf %% (%zd) , highest position = LBA %.1lf %% (%zd)\n", (low * 100.0 / bdSize), low, (high * 100.0 / bdSize), high);
 }
 
 
@@ -861,6 +885,7 @@ void positionContainerInfo(const positionContainer *pc) {
   assert(pc->device);
   fprintf(stderr,"device '%s', UUID '%zd', number of positions %zd, device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->device, pc->UUID, pc->sz, pc->bdSize, TOGiB(pc->bdSize), pc->minbs, pc->maxbs);
 }
+
 
 
 

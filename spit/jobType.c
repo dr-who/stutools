@@ -754,6 +754,7 @@ void jobRunThreads(jobType *job, const int num,
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
       size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, threadContext[i].seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].bdSize, threadContext[i].seed);
+      positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize);
 
       if (verbose >= 2) {
 	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].minbdSize, threadContext[i].bdSize, !metaData);
