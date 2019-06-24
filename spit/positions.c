@@ -679,7 +679,7 @@ void dumpPositions(positionType *positions, const char *prefix, const size_t num
   fprintf(stderr,"%s: total number of positions %zd\n", prefix, num);
   for (size_t i = 0; i < num; i++) {
     if (i >= countToShow) break;
-    fprintf(stderr,"%s: [%02zd] action %c pos %9zd len %6d verify %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len, positions[i].verify);
+    fprintf(stderr,"%s: [%02zd] action %c\tpos %12zd\tlen %6d\tverify %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len, positions[i].verify);
   }
 }
 
