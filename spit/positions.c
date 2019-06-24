@@ -438,7 +438,7 @@ size_t setupPositions(positionType *positions,
 	if (j + thislen > positionsEnd[i]) {positionsStart[i] += thislen; break;}
 
 	if (randomSubSample) {
-	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, lrand48());
+	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, drand48() * (bdSizeTotal - minbdSize));
 	} else {
 	  poss[count].pos = j;
 	}
