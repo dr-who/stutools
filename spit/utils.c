@@ -521,19 +521,16 @@ inline size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes,
   assert(alignmentbits < 100);
 
   size_t lowbs_k = lowbsBytes >> alignmentbits; // 1 / 4096 = 0
-  if (lowbs_k < 1) lowbs_k = 1;
+  //  if (lowbs_k < 1) lowbs_k = 1;
   size_t highbs_k = highbsBytes >> alignmentbits;   // 8 / 4096 = 2
-  if (highbs_k < 1) highbs_k = 1;
+  //  if (highbs_k < 1) highbs_k = 1;
   
   size_t randombs_k = lowbs_k;
   if (highbs_k > lowbs_k) {
     randombs_k += (randomValue % (highbs_k - lowbs_k + 1));
   }
-  
+
   size_t randombs = randombs_k << alignmentbits;
-  if (randombs <= 0) {
-    randombs = 1 << alignmentbits;
-  }
   //  fprintf(stderr,"random bytes %zd\n", randombs);
   return randombs;
 }
