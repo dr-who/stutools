@@ -942,7 +942,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	char *charG = strchr(preconditions->strings[i], 'G');
 	if (charG && *(charG+1)) {
 	  // a G num is specified
-	  gSize = 1024L * (size_t)(atof(charG + 1) * 1024 * 1024);
+	  gSize = alignedNumber(1024L * (size_t)(atof(charG + 1) * 1024 * 1024), 4096);
 	}
       }
       
