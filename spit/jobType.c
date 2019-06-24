@@ -982,7 +982,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 256, 0 /*seed*/, 0 /*save positions*/, NULL); 
+   jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL); 
     fprintf(stderr,"*info* preconditioning complete\n"); fflush(stderr);
   }
   return 0;
