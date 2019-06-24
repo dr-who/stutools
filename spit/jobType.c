@@ -182,7 +182,7 @@ static void *runThread(void *arg) {
   if (threadContext->finishtime < threadContext->runTime) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishtime);
   }
-  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, %.1lf GB of %.1lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, threadContext->pos.LBAcovered, TOGB(threadContext->bdSize * threadContext->pos.LBAcovered/100.0), TOGB(threadContext->bdSize), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
+  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, %.1lf GB of %.1lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, threadContext->pos.LBAcovered, TOGB((threadContext->bdSize-threadContext->minbdSize) * threadContext->pos.LBAcovered/100.0), TOGB(threadContext->bdSize-threadContext->minbdSize), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
 
 
   // do the mahi

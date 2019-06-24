@@ -355,7 +355,15 @@ size_t setupPositions(positionType *positions,
   assert(lowbs <= bs);
   srand48(seed); // set the seed, thats why it was passed
 
-  size_t anywrites = 0;
+  size_t anywrites = 0, randomSubSample = 0;
+  
+  if (((*num) * ((lowbs + bs)/2)) < (bdSizeTotal - minbdSize) * 0.95) {
+    // if we can't get good coverage
+    if ((sf == 0) && (lowbs == bs) && (lowbs == alignment)) {
+      fprintf(stderr,"*info* using randomSubSample mode\n");
+      randomSubSample = 1;
+    }
+  }
 
   if (*num == 0) {
     fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");
@@ -429,7 +437,7 @@ size_t setupPositions(positionType *positions,
 	// if we have gone over the end of the range
 	if (j + thislen > positionsEnd[i]) {positionsStart[i] += thislen; break;}
 
-	if ((sf == 0) && (lowbs == bs) && (lowbs == alignment)) {
+	if (randomSubSample) {
 	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, lrand48());
 	} else {
 	  poss[count].pos = j;
