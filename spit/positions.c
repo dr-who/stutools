@@ -431,7 +431,7 @@ size_t setupPositions(positionType *positions,
       }
       assert(thislen >= 0);
       
-      if (j + thislen < positionsEnd[i]) {
+      if (j + thislen <= positionsEnd[i]) {
 
 	// grow destination array
 	if (count >= possAlloc) {
@@ -447,7 +447,7 @@ size_t setupPositions(positionType *positions,
 	}
 
 	// if we have gone over the end of the range
-	if (j + thislen > positionsEnd[i]) {abort();fprintf(stderr,"hit the end"); continue;positionsCurrent[i] += thislen; break;}
+	//	if (j + thislen > positionsEnd[i]) {abort();fprintf(stderr,"hit the end"); continue;positionsCurrent[i] += thislen; break;}
 
 	if (randomSubSample) {
 	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, drand48() * (bdSizeTotal - thislen - minbdSize));
@@ -474,7 +474,6 @@ size_t setupPositions(positionType *positions,
 	poss[count].q = 0;
 	
 	positionsCurrent[i] += thislen;
-	//	assert(positionsStart[i] < positionsEnd[i]);
 	
 	count++;
 	nochange = 0;
