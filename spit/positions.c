@@ -443,7 +443,7 @@ size_t setupPositions(positionType *positions,
 	  assert(poss[count].pos + thislen < bdSizeTotal);
 	} else {
 	  poss[count].pos = minbdSize + j;
-	  if (poss[count].pos + thislen >= bdSizeTotal) {
+	  if (poss[count].pos + thislen > bdSizeTotal) {
 	    poss[count].pos = minbdSize;
 	    fprintf(stderr,"*warning* position wrapped around\n");
 	  }
@@ -574,7 +574,8 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
   positionType *p = positions;
   for (size_t i = 0; i < count; i++) {
     p->pos += addSize;
-    if (p->pos + p->len >= bdSize) {
+    if (p->pos + p->len > bdSize) {
+      fprintf(stderr,"*warning* wrapping add block\n");
       p->pos = 0;
     }
     p++;
