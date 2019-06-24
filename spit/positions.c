@@ -440,7 +440,7 @@ size_t setupPositions(positionType *positions,
 	if (randomSubSample) {
 	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, drand48() * (bdSizeTotal - thislen - minbdSize));
 	  assert(poss[count].pos >= minbdSize);
-	  assert(poss[count].pos + thislen < bdSizeTotal);
+	  assert(poss[count].pos + thislen <= bdSizeTotal);
 	} else {
 	  poss[count].pos = minbdSize + j;
 	  if (poss[count].pos + thislen > bdSizeTotal) {
