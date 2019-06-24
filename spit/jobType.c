@@ -202,11 +202,11 @@ static void *runThread(void *arg) {
     }
     if (keepRunning && (threadContext->rerandomize || threadContext->addBlockSize)) {
       if (threadContext->rerandomize) {
-	fprintf(stderr,"*info* shuffling positions\n");
+	//fprintf(stderr,"*info* shuffling positions\n");
 	positionRandomize(threadContext->pos.positions, threadContext->pos.sz);
       }
       if (threadContext->addBlockSize) {
-	fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->blockSize);
+	// fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->blockSize);
 	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->blockSize, threadContext->bdSize);
 	//	fprintf(stderr,"position 0: %zd\n", threadContext->pos.positions[0].pos);
       }	
