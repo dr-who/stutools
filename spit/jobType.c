@@ -679,6 +679,7 @@ void jobRunThreads(jobType *job, const int num,
       }
     }
     if (qDepth < 1) qDepth = 1;
+    if (qDepth > 65535) qDepth = 65535;
 
     char *pChar = strchr(job->strings[i], 'P');
     {

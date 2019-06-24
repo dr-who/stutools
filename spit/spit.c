@@ -92,6 +92,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       *defaultqd = atoi(optarg);
       if (*defaultqd < 1) {
 	*defaultqd = 1;
+      } else if (*defaultqd > 65535) {
+	*defaultqd = 65535;
       }
       break;
     case 'R':
