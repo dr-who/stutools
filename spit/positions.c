@@ -430,7 +430,7 @@ size_t setupPositions(positionType *positions,
 	if (j + thislen > positionsEnd[i]) {positionsStart[i] += thislen; break;}
 
 	if ((sf == 0) && (lowbs == bs) && (lowbs == alignment)) {
-	  poss[count].pos = randomBlockSize(0, bdSizeTotal - thislen, alignbits, lrand48());
+	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, lrand48());
 	} else {
 	  poss[count].pos = j;
 	}
@@ -575,7 +575,7 @@ void positionPrintMinMax(positionType *positions, const size_t count, const size
     }
     p++;
   }
-  fprintf(stderr,"*info* min position = LBA %.1lf %% (%zd) , highest position = LBA %.1lf %% (%zd)\n", (low * 100.0 / bdSize), low, (high * 100.0 / bdSize), high);
+  fprintf(stderr,"*info* min position = LBA %.1lf %% (%zd, %.1lf GB) , highest position = LBA %.1lf %% (%zd, %.1lf GB)\n", (low * 100.0 / bdSize), low, TOGB(low), (high * 100.0 / bdSize), high, TOGB(high));
 }
 
 
