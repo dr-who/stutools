@@ -21,6 +21,7 @@
 #include "aioRequests.h"
 #include "diskStats.h"
 #include "histogram.h"
+#include "blockVerify.h"
 
 extern volatile int keepRunning;
 extern int verbose;
@@ -924,6 +925,17 @@ void jobRunThreads(jobType *job, const int num,
     positionContainerSave(&mergedpc, s, mergedpc.maxbdSize, 0);
     fprintf(stderr, "finished\n"); fflush(stderr);
 
+    
+    if (0) {
+      int fd = open(mergedpc.device, O_RDONLY);
+      assert(fd>0);
+      int errors = verifyPositions(fd, &mergedpc, 32);
+      if (errors) {
+	exit(-1);
+      }
+    }
+      
+    
     positionContainerFree(&mergedpc);
     free(origpc);
   }

@@ -25,7 +25,7 @@ char *benchmarkName = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed, diskStatType *d) {
+		unsigned short *seed, diskStatType *d, size_t *verify) {
   int opt;
 
   char *device = NULL;
@@ -108,6 +108,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	exit(1);
 	//	*timetorun = (size_t)-1; // run for ever
       }
+      break;
+    case 'v':
+      *verify = 1;
       break;
     case 'V':
       verbose++;
@@ -298,9 +301,10 @@ int main(int argc, char *argv[]) {
   size_t defaultQD = 16;
   unsigned short seed = 0;
   diskStatType d;
+  size_t verify = 0;
 
   diskStatSetup(&d);
-  handle_args(argc, argv, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d);
+  handle_args(argc, argv, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify);
   
   if (j->count == 0) {
     usage();

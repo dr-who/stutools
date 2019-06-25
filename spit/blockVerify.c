@@ -37,6 +37,20 @@ typedef struct {
   double elapsed;
 } threadInfoType;
 
+// sorting function, used by qsort
+static int seedcompare(const void *p1, const void *p2)
+{
+  const positionType *pos1 = (positionType*)p1;
+  const positionType *pos2 = (positionType*)p2;
+  if (pos1->seed < pos2->seed) return -1;
+  else if (pos1->seed > pos2->seed) return 1;
+  else {
+    if (pos1->pos < pos2->pos) return -1;
+    else if (pos1->pos > pos2->pos) return 1;
+    else return 0;
+  }
+}
+
 
 
 int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff) {
@@ -151,7 +165,12 @@ static void *runThread(void *arg) {
  */
 int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
 
+
+
+  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
+
   size_t num = pc->sz;
+
   pthread_t *pt = NULL;
   CALLOC(pt, threads, sizeof(pthread_t));
   threadInfoType *threadContext;

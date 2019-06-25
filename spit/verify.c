@@ -23,20 +23,6 @@ int verbose = 1;
 int keepRunning = 1;
 size_t waitEvery = 0;
 
-// sorting function, used by qsort
-static int seedcompare(const void *p1, const void *p2)
-{
-  const positionType *pos1 = (positionType*)p1;
-  const positionType *pos2 = (positionType*)p2;
-  if (pos1->seed < pos2->seed) return -1;
-  else if (pos1->seed > pos2->seed) return 1;
-  else {
-    if (pos1->pos < pos2->pos) return -1;
-    else if (pos1->pos > pos2->pos) return 1;
-    else return 0;
-  }
-}
-
 
 void intHandler(int d) {
   fprintf(stderr,"got signal\n");
@@ -88,7 +74,6 @@ int main(int argc, char *argv[]) {
   const size_t threads = 64;
   fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
 
-  qsort(pc.positions, pc.sz, sizeof(positionType), seedcompare);
   // verify must be sorted
   int errors = verifyPositions(fd, &pc, threads);
 
