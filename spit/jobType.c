@@ -206,8 +206,8 @@ static void *runThread(void *arg) {
 	positionRandomize(threadContext->pos.positions, threadContext->pos.sz);
       }
       if (threadContext->addBlockSize) {
-	if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->blockSize);
-	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->blockSize, threadContext->maxbdSize);
+	if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->highBlockSize);
+	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->maxbdSize);
 	//	fprintf(stderr,"position 0: %zd\n", threadContext->pos.positions[0].pos);
       }	
     }

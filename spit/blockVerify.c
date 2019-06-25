@@ -39,9 +39,10 @@ typedef struct {
 
 
 
-int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, const size_t len, size_t *diff) {
+int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff) {
   const size_t pos = p->pos;
-
+  const size_t len = p->len;
+  
   ssize_t ret = pread(fd, buf, len, pos); // use pread as it's thread safe as you pass in the fd, size and offset
 
   if (ret == -1) {
@@ -66,10 +67,19 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
     }
 
     if (*diff < 3) {
-      char s1[1000],s2[1000];
+      size_t lines = 0;
+      for (size_t i = 16; i < len; i++) {
+	if (buf[i] != randomBuffer[i]) {
+	  fprintf(stderr,"*error* difference at block[%zd] offset %zd, disk '%c', should be '%c'\n", pos, i, buf[i], randomBuffer[i]);
+	  lines++;
+	  if (lines>10) break;
+	}
+      }
+      
+      /*char s1[1000],s2[1000];
       memcpy(s1, buf+16, 80); s1[80]=0;
       memcpy(s2, randomBuffer+16, 80); s2[80]=0;
-      fprintf(stderr,"*error* difference at block[%zd], len=%zd\n   disk:     %s\n   shouldbe: %s\n", pos, len, s1, s2);
+      fprintf(stderr,"*error* difference at block[%zd], len=%zd\n   disk:     %s\n   shouldbe: %s\n", pos, len, s1, s2);*/
     }
     *diff = (*diff)+1;
     
@@ -103,7 +113,7 @@ static void *runThread(void *arg) {
       //      double start = timedouble();
       size_t pos = threadContext->pc->positions[i].pos;
       memcpy(randombuf, &pos, sizeof(size_t));
-      int ret = verifyPosition(threadContext->fd, &threadContext->pc->positions[i], randombuf, buf, threadContext->pc->maxbs, &diff);
+      int ret = verifyPosition(threadContext->fd, &threadContext->pc->positions[i], randombuf, buf, &diff);
 
       //      threadContext->elapsed = timedouble() - start;
       switch (ret) {
