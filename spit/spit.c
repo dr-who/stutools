@@ -186,8 +186,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     } else {
       // if you specify -G too big or it's 0 then set it to the existing file size
       if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
+	if (*maxSizeInBytes > fsize) {
+	  fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
+	}
 	*maxSizeInBytes = fsize;
-	fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
       }
     }
   }
