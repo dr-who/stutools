@@ -411,8 +411,8 @@ void jobRunThreads(jobType *job, const int num,
       if (charG && *(charG+1)) {
 	double lowg = 0, highg = 0;
 	splitRange(charG + 1, &lowg, &highg);
-	minSizeInBytes = alignedNumber(1024L * (size_t)(lowg * 1024 * 1024), 4096);
-	maxSizeInBytes = alignedNumber(1024L * (size_t)(highg * 1024 * 1024), 4096);
+	minSizeInBytes = alignedNumber(1024L * (lowg * 1024 * 1024), 4096);
+	maxSizeInBytes = alignedNumber(1024L * (highg * 1024 * 1024), 4096);
 	if (minSizeInBytes == maxSizeInBytes) { 
 	  minSizeInBytes = 0;
 	}
@@ -942,7 +942,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	char *charG = strchr(preconditions->strings[i], 'G');
 	if (charG && *(charG+1)) {
 	  // a G num is specified
-	  gSize = alignedNumber(1024L * (size_t)(atof(charG + 1) * 1024 * 1024), 4096);
+	  gSize = alignedNumber(1024L * atof(charG + 1) * 1024 * 1024, 4096);
 	}
       }
       
@@ -978,7 +978,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
       
       char s[100];
-      sprintf(s, "w k4 z s%zd J%zd G%.1lf X%zd x1 N I%zd", seqFiles, jumble, (size_t)(maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
+      sprintf(s, "w k4 z s%zd J%zd G%.1lf X%zd x1 N I%zd", seqFiles, jumble, (maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
