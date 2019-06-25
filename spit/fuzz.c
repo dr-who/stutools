@@ -65,7 +65,7 @@ char ** fuzzString(int *argc, const char *device) {
 
   if (drand48() < 0.5) {
     argv[6] = strdup("-j");
-    sprintf(string, "%zd", 1+lrand48() % 1);
+    sprintf(string, "%zd", 1+lrand48() % 4);
     argv[7] = strdup(string);
   } else {
     argv[6] = strdup("-c");

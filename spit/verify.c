@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
       fprintf(stderr,"*progress* %zd / %zd (%.2lf%%)\r", i+1, pc.sz, 100.0 * (i+1)/(pc.sz)); fflush(stderr);
       lastdisplayed = thistime;
     }
-    if (pc.positions[i].action == 'W') {
+    if (pc.positions[i].action == 'W' && pc.positions[i].finishtime > 0) {
       //      fprintf(stderr,"[%zd] %zd %c %d\n", i, pc.positions[i].pos, pc.positions[i].action, pc.positions[i].seed);
       if(lseek(fd, pc.positions[i].pos, SEEK_SET) < 0) {
 	fprintf(stderr,"problem\n");

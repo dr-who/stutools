@@ -22,8 +22,8 @@ static int poscompare(const void *p1, const void *p2)
   if (pos1->pos < pos2->pos) return -1;
   else if (pos1->pos > pos2->pos) return 1;
   else {
-    if (pos1->action < pos2->action) return -1;
-    else if (pos1->action > pos2->action) return 1;
+    if (pos1->finishtime > pos2->finishtime) return -1;
+    else if (pos1->finishtime < pos2->finishtime) return 1;
     else return 0;
   }
 }
@@ -152,13 +152,18 @@ int checkPositionArray(const positionType *positions, size_t num, const size_t m
 void positionContainerCheckOverlap(const positionContainer merged, const size_t total) {
   size_t printed = 0;
   for (size_t i = 0; i < total - 1; i++) {
+    //    if (i < 100)fprintf(stderr,"[%zd] %zd len %d %c seed %d fin %lf\n", i, merged.positions[i].pos, merged.positions[i].len, merged.positions[i].action, merged.positions[i].seed, merged.positions[i].finishtime);
     if (merged.positions[i].action == 'W' && merged.positions[i+1].action != 'R') {
       if (merged.positions[i].seed != merged.positions[i+1].seed) {
 	if (merged.positions[i].pos + merged.positions[i].len > merged.positions[i+1].pos) {
-	  printed++;
-	  if (printed < 10)
-	    fprintf(stderr,"*warning* problem at position %zd (len %d), next %zd\n", merged.positions[i].pos, merged.positions[i].len, merged.positions[i+1].pos);
-	  //	  abort();
+	  if (merged.positions[i].finishtime > 0 && merged.positions[i+1].finishtime > 0) {
+	    if (merged.positions[i].finishtime < merged.positions[i+1].finishtime) {
+	      printed++;
+	      if (printed < 10)
+		fprintf(stderr,"[%zd] *warning* problem at position %zd (len %d) %c, next %zd (len %d) %c\n", i, merged.positions[i].pos, merged.positions[i].len,  merged.positions[i].action, merged.positions[i+1].pos, merged.positions[i+1].len, merged.positions[i+1].action);
+	      //	  abort();
+	    }
+	  }
 	}
       }
     }
@@ -173,6 +178,17 @@ void positionContainerCollapse(positionContainer merged, size_t *total) {
   }
   qsort(merged.positions, *total, sizeof(positionType), poscompare);
 
+  size_t maxbs = 0;
+  for (size_t i = 0; i < *total; i++) {
+    if (merged.positions[i].len > maxbs) {
+      maxbs = merged.positions[i].len;
+    }
+  }
+  if (verbose >= 2) {
+    fprintf(stderr,"*info* collapse. maxbs = %zd\n", maxbs);
+  }
+  assert(maxbs > 0);
+
   for (size_t i = 0; i < *total; i++) {
     if (toupper(merged.positions[i].action) != 'R' && merged.positions[i].finishtime > 0) {
       if (i>0) assert(merged.positions[i].pos >= merged.positions[i-1].pos);
@@ -183,7 +199,7 @@ void positionContainerCollapse(positionContainer merged, size_t *total) {
       while (j < *total) {
 	j++;
 
-	if (merged.positions[j].pos > merged.positions[i].pos + merged.maxbs) {
+	if (merged.positions[j].pos > merged.positions[i].pos + maxbs) {
 	  // if no more potential conflicts, exit the check loop
 	  break;
 	}
@@ -209,15 +225,21 @@ void positionContainerCollapse(positionContainer merged, size_t *total) {
 	  }
 	}
 
-	// they are overlapping some how
 	
 	// if one is quite a lot newer, keep that
-	if (merged.positions[newest].submittime > merged.positions[oldest].finishtime + 10 /* submit newest 10 seconds after oldest finished */) {
+	if (merged.positions[newest].submittime > merged.positions[oldest].finishtime + 1 /* submit newest 10 seconds after oldest finished */) {
 	  // clobber old one no matter what
 	  merged.positions[oldest].action = '1'; // exclude from output
 	  //	  merged.positions[newest].action = '*'; // exclude from output
 	  continue;
 	}
+
+	// they are overlapping some how
+	
+	if (merged.positions[i].pos + merged.positions[i].len <= merged.positions[j].pos) {
+	  continue;
+	}
+
 
 	if (merged.positions[i].pos + merged.positions[i].len > merged.positions[j].pos) {
 	  merged.positions[i].action = '2'; // exclude from output
@@ -323,11 +345,9 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
     setvbuf(fp, buffer, 1000000, _IOFBF);
     const positionType *positions = p->positions;
     for (size_t i = 0; i < p->sz; i++) {
-      if ( (1|| toupper(positions[i].action) == 'W' || toupper(positions[i].action) == 'R') && positions[i].finishtime > 0 && !positions[i].inFlight) {
+      if (0 || (positions[i].finishtime > 0 && !positions[i].inFlight)) {
 	const char action = positions[i].action;
-	if (1 || action == 'R' || toupper(action) == 'W') {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / maxbdSizeBytes, action, positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), positions[i].seed, positions[i].submittime, positions[i].finishtime);
-	}
+	fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / maxbdSizeBytes, action, positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), positions[i].seed, positions[i].submittime, positions[i].finishtime);
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
 	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", p->device, (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, positions[i].seed);
 	}
