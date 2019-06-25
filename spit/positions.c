@@ -150,11 +150,14 @@ int checkPositionArray(const positionType *positions, size_t num, const size_t m
 }
 
 void positionContainerCheckOverlap(const positionContainer merged, const size_t total) {
+  size_t printed = 0;
   for (size_t i = 0; i < total - 1; i++) {
     if (merged.positions[i].action == 'W' && merged.positions[i+1].action != 'R') {
       if (merged.positions[i].seed != merged.positions[i+1].seed) {
 	if (merged.positions[i].pos + merged.positions[i].len > merged.positions[i+1].pos) {
-	  fprintf(stderr,"*warning* problem at position %zd\n", merged.positions[i].pos);
+	  printed++;
+	  if (printed < 10)
+	    fprintf(stderr,"*warning* problem at position %zd (len %d), next %zd\n", merged.positions[i].pos, merged.positions[i].len, merged.positions[i+1].pos);
 	  //	  abort();
 	}
       }
@@ -209,7 +212,7 @@ void positionContainerCollapse(positionContainer merged, size_t *total) {
 	// they are overlapping some how
 	
 	// if one is quite a lot newer, keep that
-	if (merged.positions[newest].submittime > merged.positions[oldest].finishtime + 2 /* submit newest 2 seconds after oldest finished */) {
+	if (merged.positions[newest].submittime > merged.positions[oldest].finishtime + 10 /* submit newest 10 seconds after oldest finished */) {
 	  // clobber old one no matter what
 	  merged.positions[oldest].action = '1'; // exclude from output
 	  //	  merged.positions[newest].action = '*'; // exclude from output

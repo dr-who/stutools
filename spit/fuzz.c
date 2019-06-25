@@ -20,7 +20,7 @@ char *randomCommandString(const double rwratio) {
     sprintf(string, "%cP%ld%c", (drand48() < rwratio) ? 'r' : 'w', 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'z');
     break;
   case 2: 
-    sprintf(string, "%cP%ld x%ld", (drand48() < rwratio) ? 'r' : 'w', 1+lrand48() % 10000, 1 + lrand48()%100);
+    sprintf(string, "%cP%ldx%ld", (drand48() < rwratio) ? 'r' : 'w', 1+lrand48() % 10000, 1 + lrand48()%100);
     break;
   case 3: 
     sprintf(string, "%ck%ld", (drand48()< rwratio) ? 'r' : 'w', 4 * (1+ (lrand48() % 4)));
@@ -51,11 +51,11 @@ char ** fuzzString(int *argc, const char *device) {
   argv[1] = strdup(string);
 
   argv[2] = strdup("-G");
-  double low = 0.1 + drand48() * 0.5;
+  double low = 0.1 + drand48() * 1;
   if (drand48() < 0.25) {
     sprintf(string, "%f", low);
   } else {
-    sprintf(string, "%f-%f", low, 0.1 + low + drand48() * 0.5);
+    sprintf(string, "%f-%f", low, 0.1 + low + drand48() * 1);
   }
     
   argv[3] = strdup(string);
