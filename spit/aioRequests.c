@@ -181,7 +181,7 @@ size_t aioMultiplePositions( positionContainer *p,
       // submit requests, one at a time
 	assert(pos < sz);
 	if (positions[pos].action != 'S') { // if we have some positions, sz > 0
-	  size_t newpos = positions[pos].pos;
+	  const size_t newpos = positions[pos].pos;
 	  const size_t len = positions[pos].len;
 
 	  assert(headOfQueue < QD);
@@ -208,7 +208,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	      io_prep_fsync(cbs[qdIndex], fd);
 	      cbs[qdIndex]->data = &positions[pos];
-	    } else {
+	    } else if (positions[pos].action == 'W') {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);}
 
 	      size_t *posdest = (size_t*)data[qdIndex];

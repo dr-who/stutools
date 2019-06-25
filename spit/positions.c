@@ -173,9 +173,6 @@ void positionContainerCheckOverlap(const positionContainer merged, const size_t 
   
 
 void positionContainerCollapse(positionContainer merged, size_t *total) {
-  if (verbose >= 1) {
-    fprintf(stderr,"*info* collapsing %zd positions\n", *total);
-  }
   qsort(merged.positions, *total, sizeof(positionType), poscompare);
 
   size_t maxbs = 0;

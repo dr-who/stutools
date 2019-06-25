@@ -350,19 +350,20 @@ int getWriteCache(const char *suf) {
 
 
 // the block size random buffer. Nice ASCII
-void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seed, size_t cyclic) {
+void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seedin, size_t cyclic) {
 
   if (cyclic > size || cyclic == 0) cyclic = size;
 
   if (cyclic != size) {
     //fprintf(stderr,"*info* generating a random buffer with a size %zd bytes, cyclic %zd bytes\n", size, cyclic);
   }
+
+  unsigned int seed = seedin;
   
-  srand48(seed);
   char *user = username();
 
-  const char verystartpoint = ' ' + (lrand48() % 30);
-  const char jump = (lrand48() % 3) + 1;
+  const char verystartpoint = ' ' + (rand_r(&seed) % 30);
+  const char jump = (rand_r(&seed) % 3) + 1;
   char startpoint = verystartpoint;
   for (size_t j = 0; j < cyclic; j++) {
     buffer[j] = startpoint;
