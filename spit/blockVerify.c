@@ -106,7 +106,7 @@ static void *runThread(void *arg) {
     if (threadContext->id == 0) {
       // print progress
       size_t gap = threadContext->endExc - threadContext->startInc - 1;
-      fprintf(stderr,"*progress* %zd of %zd (%.1lf %%)\r", i - threadContext->startInc, gap, (i - threadContext->startInc) * 100.0 / gap);
+      fprintf(stderr,"*progress* %.1lf %%\r", (i - threadContext->startInc) * 100.0 / gap);
       fflush(stderr);
     }
     if (!keepRunning) {break;}
