@@ -17,7 +17,7 @@ char *randomCommandString(const double rwratio) {
     sprintf(string, "p%.1lfs%ld", rwratio, lrand48() % 100);
     break;
   case 1: 
-    sprintf(string, "p%.1lfcP%ld%c", rwratio, 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N');
+    sprintf(string, "p%.1lfP%ld%c", rwratio, 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : '.');
     break;
   case 2: 
     sprintf(string, "p%.1lfP%ldx%ld", rwratio, 1+lrand48() % 10000, 1 + lrand48()%100);
