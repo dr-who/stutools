@@ -595,7 +595,7 @@ void positionRandomize(positionType *positions, const size_t count) {
 }
 
 
-void positionAddBlockSize(positionType *positions, const size_t count, const size_t addSize, const size_t bdSize) {
+void positionAddBlockSize(positionType *positions, const size_t count, const size_t addSize, const size_t minbdSize, const size_t maxbdSize) {
   if (verbose >= 1) {
     fprintf(stderr,"*info* adding %zd size\n", addSize);
   }
@@ -606,9 +606,9 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
     p->finishtime = 0;
     p->inFlight = 0;
     p->success = 0;
-    if (p->pos + p->len > bdSize) {
+    if (p->pos + p->len > maxbdSize) {
       fprintf(stderr,"*warning* wrapping add block\n");
-      p->pos = 0;
+      p->pos = minbdSize;
     }
     p++;
   }

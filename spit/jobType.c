@@ -192,7 +192,8 @@ static void *runThread(void *arg) {
 
   while (keepRunning) {
     // 
-    if (threadContext->runXtimes && iteratorCount >= threadContext->runXtimes) break;
+    iteratorCount++;      
+    if (threadContext->runXtimes && iteratorCount > threadContext->runXtimes) break;
     if (timedouble() > starttime + threadContext->finishtime) break;
     sleep(threadContext->waitfor);
     aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
@@ -200,18 +201,17 @@ static void *runThread(void *arg) {
     if (threadContext->runXtimes == 1) {
       break;
     }
-    if (keepRunning && (threadContext->rerandomize || threadContext->addBlockSize)) {
+    if ((iteratorCount < threadContext->runXtimes) && keepRunning && (threadContext->rerandomize || threadContext->addBlockSize)) {
       if (threadContext->rerandomize) {
 	if (verbose >= 2) fprintf(stderr,"*info* shuffling positions\n");
 	positionRandomize(threadContext->pos.positions, threadContext->pos.sz);
       }
       if (threadContext->addBlockSize) {
 	if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->highBlockSize);
-	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->maxbdSize);
+	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->minbdSize, threadContext->maxbdSize);
 	//	fprintf(stderr,"position 0: %zd\n", threadContext->pos.positions[0].pos);
       }	
     }
-    iteratorCount++;      
     if (verbose) fprintf(stderr,"*info* finished pass %zd\n", iteratorCount);
   }
 
