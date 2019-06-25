@@ -602,6 +602,10 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
   positionType *p = positions;
   for (size_t i = 0; i < count; i++) {
     p->pos += addSize;
+    p->submittime = 0;
+    p->finishtime = 0;
+    p->inFlight = 0;
+    p->success = 0;
     if (p->pos + p->len > bdSize) {
       fprintf(stderr,"*warning* wrapping add block\n");
       p->pos = 0;
