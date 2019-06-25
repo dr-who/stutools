@@ -101,7 +101,14 @@ static void *runThread(void *arg) {
   positionType *positions = threadContext->pc->positions;
   size_t diff = 0;
   
+
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
+    if (threadContext->id == 0) {
+      // print progress
+      size_t gap = threadContext->endExc - threadContext->startInc - 1;
+      fprintf(stderr,"*progress* %zd of %zd (%.1lf %%)\r", i - threadContext->startInc, gap, (i - threadContext->startInc) * 100.0 / gap);
+      fflush(stderr);
+    }
     if (!keepRunning) {break;}
     if (positions[i].action == 'W' && positions[i].finishtime>0) {
       threadContext->bytesRead += positions[i].len;
@@ -131,6 +138,7 @@ static void *runThread(void *arg) {
   }
   free(buf);
 
+  if (threadContext->id == 0) fprintf(stderr,"\n");
   return NULL;
 }
 
