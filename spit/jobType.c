@@ -90,7 +90,7 @@ typedef struct {
   size_t id;
   positionContainer pos;
   size_t minbdSize;
-  size_t bdSize;
+  size_t maxbdSize;
   size_t finishtime;
   size_t waitfor;
   size_t prewait;
@@ -182,7 +182,7 @@ static void *runThread(void *arg) {
   if (threadContext->finishtime < threadContext->runTime) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishtime);
   }
-  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, %.1lf GB of %.1lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, threadContext->pos.LBAcovered, TOGB((threadContext->bdSize-threadContext->minbdSize) * threadContext->pos.LBAcovered/100.0), TOGB(threadContext->bdSize-threadContext->minbdSize), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
+  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, %.1lf GB of %.1lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, threadContext->pos.LBAcovered, TOGB((threadContext->maxbdSize-threadContext->minbdSize) * threadContext->pos.LBAcovered/100.0), TOGB(threadContext->maxbdSize-threadContext->minbdSize), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
 
 
   // do the mahi
@@ -207,7 +207,7 @@ static void *runThread(void *arg) {
       }
       if (threadContext->addBlockSize) {
 	if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->blockSize);
-	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->blockSize, threadContext->bdSize);
+	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->blockSize, threadContext->maxbdSize);
 	//	fprintf(stderr,"position 0: %zd\n", threadContext->pos.positions[0].pos);
       }	
     }
@@ -509,17 +509,17 @@ void jobRunThreads(jobType *job, const int num,
 
     size_t actualfs = fileSizeFromName(job->devices[i]);
     threadContext[i].minbdSize = minSizeInBytes;
-    threadContext[i].bdSize = maxSizeInBytes;
-    if (threadContext[i].bdSize > actualfs) {
-      threadContext[i].bdSize = actualfs;
-      fprintf(stderr,"*warning* size too big, truncating to %zd\n", threadContext[i].bdSize);
+    threadContext[i].maxbdSize = maxSizeInBytes;
+    if (threadContext[i].maxbdSize > actualfs) {
+      threadContext[i].maxbdSize = actualfs;
+      fprintf(stderr,"*warning* size too big, truncating to %zd\n", threadContext[i].maxbdSize);
     }
     
     const size_t avgBS = (bs + highbs) / 2;
-    size_t mp = (size_t) ((threadContext[i].bdSize - threadContext[i].minbdSize) / avgBS);
+    size_t mp = (size_t) ((threadContext[i].maxbdSize - threadContext[i].minbdSize) / avgBS);
     
     if (verbose) {
-      fprintf(stderr,"*info* file size %.3lf GiB avg size of %zd, maximum ", TOGiB(threadContext[i].bdSize), avgBS);
+      fprintf(stderr,"*info* file size %.3lf GiB avg size of %zd, maximum ", TOGiB(threadContext[i].maxbdSize), avgBS);
       commaPrint0dp(stderr, mp);
       fprintf(stderr," positions\n");
     }
@@ -765,7 +765,7 @@ void jobRunThreads(jobType *job, const int num,
       threadContext[i].prewait = waitfor;
     }
 
-    threadContext[i].pos.bdSize = threadContext[i].bdSize;
+    threadContext[i].pos.maxbdSize = threadContext[i].maxbdSize;
     
     
     /*if (iRandom == 0) */{ // if iRandom set, then don't setup positions here, do it in the runThread. e.g. -c n
@@ -775,10 +775,10 @@ void jobRunThreads(jobType *job, const int num,
       //positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
-      size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, threadContext[i].seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].bdSize, threadContext[i].seed);
+      size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, threadContext[i].seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed);
 
       if (verbose >= 2) {
-	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].minbdSize, threadContext[i].bdSize, !metaData);
+	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].minbdSize, threadContext[i].maxbdSize, !metaData);
       }
       threadContext[i].pos = positionContainerMultiply(&threadContext[i].pos, multiply);
 
@@ -788,7 +788,7 @@ void jobRunThreads(jobType *job, const int num,
 
       if (threadContext[i].jumbleRun) positionJumble(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].jumbleRun);
       
-      positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].bdSize);
+      positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].maxbdSize);
       threadContext[i].anywrites = anywrites;
       calcLBA(&threadContext[i].pos); // calc LBA coverage
 
@@ -921,7 +921,7 @@ void jobRunThreads(jobType *job, const int num,
     char s[1000];
     sprintf(s, "spit-positions.txt");
     fprintf(stderr, "*info* writing positions to '%s' ... ", s);  fflush(stderr);
-    positionContainerSave(&mergedpc, s, mergedpc.bdSize, 0);
+    positionContainerSave(&mergedpc, s, mergedpc.maxbdSize, 0);
     fprintf(stderr, "finished\n"); fflush(stderr);
 
     positionContainerFree(&mergedpc);

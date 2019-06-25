@@ -33,7 +33,7 @@ void calcLBA(positionContainer *pc) {
   for (size_t i = 0; i < pc->sz; i++) {
     t += pc->positions[i].len;
   }
-  pc->LBAcovered = 100.0 * t / pc->bdSize;
+  pc->LBAcovered = 100.0 * t / pc->maxbdSize;
 }
 
 
@@ -53,7 +53,7 @@ void freePositions(positionType *p) {
 }
 
 
-int checkPositionArray(const positionType *positions, size_t num, const size_t minbdSizeBytes, const size_t bdSizeBytes, size_t exitonerror) {
+int checkPositionArray(const positionType *positions, size_t num, const size_t minmaxbdSizeBytes, const size_t maxbdSizeBytes, size_t exitonerror) {
   fprintf(stderr,"*info*... checking position array with %zd values...\n", num);fflush(stderr);
   
   size_t rcount = 0, wcount = 0;
@@ -94,12 +94,12 @@ int checkPositionArray(const positionType *positions, size_t num, const size_t m
       //      if ((p->len %sizelow) != 0) {
       //	fprintf(stderr,"*error* len not aligned\n"); 
       //      }
-      if (p->pos < minbdSizeBytes) {
-	fprintf(stderr,"*error* before the start of the array %zd (%zd)!\n", p->pos, minbdSizeBytes);
+      if (p->pos < minmaxbdSizeBytes) {
+	fprintf(stderr,"*error* before the start of the array %zd (%zd)!\n", p->pos, minmaxbdSizeBytes);
       }
 	
-      if (p->pos + p->len > bdSizeBytes) {
-	fprintf(stderr,"*error* off the end of the array %zd + %d is %zd (%zd)!\n", p->pos, p->len, p->pos + p->len, bdSizeBytes); 
+      if (p->pos + p->len > maxbdSizeBytes) {
+	fprintf(stderr,"*error* off the end of the array %zd + %d is %zd (%zd)!\n", p->pos, p->len, p->pos + p->len, maxbdSizeBytes); 
       }
       //      if ((p->pos % sizelow) != 0) {
       //	fprintf(stderr,"*error* no %zd aligned position at %zd!\n", sizelow, p->pos); 
@@ -149,77 +149,83 @@ int checkPositionArray(const positionType *positions, size_t num, const size_t m
   return 0;
 }
 
-positionContainer positionContainerCollapse(positionContainer merged, size_t *total) {
+void positionContainerCheckOverlap(const positionContainer merged, const size_t total) {
+  for (size_t i = 0; i < total - 1; i++) {
+    if (merged.positions[i].action == 'W' && merged.positions[i+1].action != 'R') {
+      if (merged.positions[i].seed != merged.positions[i+1].seed) {
+	if (merged.positions[i].pos + merged.positions[i].len > merged.positions[i+1].pos) {
+	  fprintf(stderr,"*warning* problem at position %zd\n", merged.positions[i].pos);
+	  //	  abort();
+	}
+      }
+    }
+  }
+}
+
+  
+
+void positionContainerCollapse(positionContainer merged, size_t *total) {
   if (verbose >= 1) {
     fprintf(stderr,"*info* collapsing %zd positions\n", *total);
   }
   qsort(merged.positions, *total, sizeof(positionType), poscompare);
 
   for (size_t i = 0; i < *total; i++) {
-    if (toupper(merged.positions[i].action) == 'W' && merged.positions[i].finishtime > 0) {
+    if (toupper(merged.positions[i].action) != 'R' && merged.positions[i].finishtime > 0) {
       if (i>0) assert(merged.positions[i].pos >= merged.positions[i-1].pos);
 
-      size_t j = i+1;
-      while ((j < *total) && (merged.positions[i].pos + merged.positions[i].len > merged.positions[j].pos)) {
-	// hit
-	//	fprintf(stderr,"%zd + %d <  %zd\n", merged.positions[i].pos, merged.positions[i].len,  merged.positions[j].pos);
-
-	if ((toupper(merged.positions[j].action)=='W') && (merged.positions[j].finishtime > 0)) {
-	
-	  double deltastart = merged.positions[j].submittime - merged.positions[i].submittime;
-	  if (deltastart < 0) deltastart = -deltastart;
-	
-	  if (deltastart < 1) { // if they start within 1 us wknows
-	    merged.positions[i].action = 'w'; // exclude from output
-	    merged.positions[j].action = 'w'; // exclude from output
-	    //	    fprintf(stderr,"deleting %zd and %zd\n", merged.positions[i].pos, merged.positions[j].pos);
-	  }
-	
-	  if (merged.positions[j].submittime >= merged.positions[i].submittime &&
-	      merged.positions[j].submittime <= merged.positions[i].finishtime ) {
-	    //	fprintf(stderr,"  *error* time overlap\n");
-	    merged.positions[i].action = 'w'; // exclude from output
-	    merged.positions[j].action = 'w'; // exclude from output
-	  }
-	  
-	  if (merged.positions[j].finishtime >= merged.positions[i].submittime &&
-	      merged.positions[j].finishtime <= merged.positions[i].finishtime ) {
-	    merged.positions[i].action = 'w'; // exclude from output
-	    merged.positions[j].action = 'w'; // exclude from output
-	    }
-	}
+      size_t j = i;
+      // iterate upwards
+      // if j pos is past i + len then exit
+      while (j < *total) {
 	j++;
+
+	if (merged.positions[j].pos > merged.positions[i].pos + merged.maxbs) {
+	  // if no more potential conflicts, exit the check loop
+	  break;
+	}
+
+	if (merged.positions[j].action == 'R') {
+	  // if it's a read move to the next one
+	  continue;
+	}
+
+	// there is some conflict to check
+	size_t oldest = i, newest = j;
+	if (merged.positions[j].finishtime < merged.positions[i].finishtime) {
+	  oldest = j;
+	  newest = i;
+	}
+
+	// if the same thread wrote to the same location with the same seed, they are OK
+	if (merged.positions[i].pos == merged.positions[j].pos) {
+	  if (merged.positions[i].len == merged.positions[j].len) {
+	    if (merged.positions[i].seed == merged.positions[j].seed) {
+	      continue;
+	    }
+	  }
+	}
+
+	// they are overlapping some how
+	
+	// if one is quite a lot newer, keep that
+	if (merged.positions[newest].submittime > merged.positions[oldest].finishtime + 2 /* submit newest 2 seconds after oldest finished */) {
+	  // clobber old one no matter what
+	  merged.positions[oldest].action = '1'; // exclude from output
+	  //	  merged.positions[newest].action = '*'; // exclude from output
+	  continue;
+	}
+
+	if (merged.positions[i].pos + merged.positions[i].len > merged.positions[j].pos) {
+	  merged.positions[i].action = '2'; // exclude from output
+	  merged.positions[j].action = '2'; // exclude from output
+	  continue;
+	}
       }
     }
   }
+  positionContainerCheckOverlap(merged, *total);
   
-  // collapse
-  size_t left = 0;
-  for (size_t i = 0; i < *total; i++) {
-    if (merged.positions[i].action != 'X' && merged.positions[i].finishtime > 0) {
-      left++;
-    }
-  }
-
-  positionContainer shrunk;
-  positionContainerInit(&shrunk, 0);
-  positionContainerSetup(&shrunk, left, merged.device, merged.string);
-  left = 0;
-  for (size_t i = 0; i < *total; i++) {
-    if (merged.positions[i].action != 'X' && merged.positions[i].finishtime > 0) {
-      shrunk.positions[left++] = merged.positions[i];
-    }
-  }
-  *total = left;
-
-  for (size_t i = 1 ; i < *total; i++) {
-    //    assert(shrunk.positions[i-1].pos + shrunk.positions[i-1].len  <= shrunk.positions[i].pos);
-  }
-  shrunk.sz = *total;
-
-  positionContainerFree(&merged);
-  
-  return shrunk;
 }
   
 
@@ -255,25 +261,25 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
   size_t total = 0;
   size_t lastbd = 0;
 
-  if (numFiles > 0) lastbd = p[0].bdSize;
+  if (numFiles > 0) lastbd = p[0].maxbdSize;
 
   for (size_t i = 0; i < numFiles; i++) {
-    //fprintf(stderr,"*info* input %zd, size %zd, bdSize %zd\n", i, p[i].sz, p[i].bdSize);
+    //fprintf(stderr,"*info* input %zd, size %zd, bdSize %zd\n", i, p[i].sz, p[i].maxbdSize);
     total += p[i].sz;
     if (i > 0) {
-      if (p[i].bdSize != lastbd) {
+      if (p[i].maxbdSize != lastbd) {
 	if (verbose) {
-	  fprintf(stderr,"*warning* not all the devices have the same size (%zd != %zd)\n", p[i].bdSize, lastbd);
+	  fprintf(stderr,"*warning* not all the devices have the same size (%zd != %zd)\n", p[i].maxbdSize, lastbd);
 	}
 	//	exit(1);
       }
     }
-    lastbd = p[i].bdSize;
+    lastbd = p[i].maxbdSize;
   }
   positionContainer merged;
   positionContainerInit(&merged, 0);
   positionContainerSetup(&merged, total, p[0].device, p[0].string);
-  merged.bdSize = lastbd;
+  merged.maxbdSize = lastbd;
   
   size_t startpos = 0;
   for (size_t i = 0; i < numFiles; i++) {
@@ -282,17 +288,7 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
   }
   assert(startpos == total);
 
-  positionContainer shrunk = positionContainerCollapse(merged, &total);
-  merged = shrunk;
-
-  shrunk = positionContainerCollapse(merged, &total);
-  merged = shrunk;
-
-  shrunk = positionContainerCollapse(merged, &total);
-  merged = shrunk;
-
-  shrunk = positionContainerCollapse(merged, &total);
-  merged = shrunk;
+  positionContainerCollapse(merged, &total);
 
   // find maxbs
   // find minbs;
@@ -313,7 +309,7 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
 
 
 // lots of checks
-void positionContainerSave(const positionContainer *p, const char *name, const size_t bdSizeBytes, const size_t flushEvery) {
+void positionContainerSave(const positionContainer *p, const char *name, const size_t maxbdSizeBytes, const size_t flushEvery) {
   if (name) {
     FILE *fp = fopen(name, "wt");
     if (!fp) {
@@ -324,13 +320,13 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
     setvbuf(fp, buffer, 1000000, _IOFBF);
     const positionType *positions = p->positions;
     for (size_t i = 0; i < p->sz; i++) {
-      if ( (toupper(positions[i].action) == 'W' || toupper(positions[i].action) == 'R') && positions[i].finishtime > 0 && !positions[i].inFlight) {
+      if ( (1|| toupper(positions[i].action) == 'W' || toupper(positions[i].action) == 'R') && positions[i].finishtime > 0 && !positions[i].inFlight) {
 	const char action = positions[i].action;
-	if (action == 'R' || toupper(action) == 'W') {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / bdSizeBytes, action, positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), positions[i].seed, positions[i].submittime, positions[i].finishtime);
+	if (1 || action == 'R' || toupper(action) == 'W') {
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / maxbdSizeBytes, action, positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), positions[i].seed, positions[i].submittime, positions[i].finishtime);
 	}
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", p->device, (size_t)0, 0.0, 0.0, 'F', (size_t)0, bdSizeBytes, 0.0, positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", p->device, (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, positions[i].seed);
 	}
       }
     }
@@ -404,7 +400,7 @@ size_t setupPositions(positionType *positions,
 
   double totalratio = minbdSize;
   for (size_t i = 0; i < toalloc; i++) {
-    positionsStart[i] = alignedNumber((size_t)totalratio, lowbs);
+    positionsStart[i] = alignedNumber((size_t)totalratio, alignment);
     if (i > 0) positionsEnd[i-1] = positionsStart[i];
     positionsEnd[toalloc-1] = bdSizeTotal;
     totalratio += ratio;
@@ -417,7 +413,7 @@ size_t setupPositions(positionType *positions,
 	fprintf(stderr,"*info* range[%zd]  [%12zd, %12zd]... size = %zd\n", i+1, positionsStart[i], positionsEnd[i], positionsEnd[i] - positionsStart[i]);
       sumgap += (positionsEnd[i] - positionsStart[i]);
     }
-    fprintf(stderr,"*info* sumgap %zd\n", sumgap);
+    fprintf(stderr,"*info* sumgap %zd, min %zd, max %zd\n", sumgap, minbdSize, bdSizeTotal);
     assert(sumgap == (bdSizeTotal - minbdSize));
   }
   
@@ -765,13 +761,13 @@ void positionContainerFree(positionContainer *pc) {
     }
     for (size_t i = 0; i < pc->sz; i++) {
       if (1 && pc->positions[i].success) {
-	size_t bdSizeBytes = pc->dev->shouldBeSize;
+	size_t maxbdSizeBytes = pc->dev->shouldBeSize;
 	const char action = pc->positions[i].action;
 	if (action == 'R' || action == 'W') {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%ld\n", pc->dev->devicename, pc->positions[i].pos, TOGiB(pc->positions[i].pos), pc->positions[i].pos * 100.0 / bdSizeBytes, action, pc->positions[i].len, bdSizeBytes, TOGiB(bdSizeBytes), pc->positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%ld\n", pc->dev->devicename, pc->positions[i].pos, TOGiB(pc->positions[i].pos), pc->positions[i].pos * 100.0 / maxbdSizeBytes, action, pc->positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), pc->positions[i].seed);
 	}
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%ld\n", pc->dev->devicename, (size_t)0, 0.0, 0.0, 'F', (size_t)0, pc->dev->bdSize, 0.0, pc->positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%ld\n", pc->dev->devicename, (size_t)0, 0.0, 0.0, 'F', (size_t)0, pc->dev->maxbdSize, 0.0, pc->positions[i].seed);
 	}
       }
     }
@@ -910,14 +906,14 @@ void positionContainerLoad(positionContainer *pc, FILE *fd) {
   pc->sz = pNum;
   pc->string = strdup("");
   pc->device = path;
-  pc->bdSize = maxSize;
+  pc->maxbdSize = maxSize;
   pc->minbs = minbs;
   pc->maxbs = maxbs;
 }
 
 void positionContainerInfo(const positionContainer *pc) {
   assert(pc->device);
-  fprintf(stderr,"device '%s', UUID '%zd', number of positions %zd, device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->device, pc->UUID, pc->sz, pc->bdSize, TOGiB(pc->bdSize), pc->minbs, pc->maxbs);
+  fprintf(stderr,"device '%s', UUID '%zd', number of positions %zd, device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->device, pc->UUID, pc->sz, pc->maxbdSize, TOGiB(pc->maxbdSize), pc->minbs, pc->maxbs);
 }
 
 

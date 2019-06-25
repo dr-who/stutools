@@ -500,13 +500,15 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
 size_t alignedNumber(size_t num, size_t alignment) {
   size_t ret = num;
   if (alignment) {
+    
     ret = num / alignment;
+    //    fprintf(stderr,"num %zd / %zd = ret %zd\n", num, alignment, ret);
     if (num % alignment > num/2) {
       ret++;
     }
     ret = ret * alignment;
 
-    //  fprintf(stderr,"requested %zd returned %zd\n", num, ret);
+    //      fprintf(stderr,"requested %zd returned %zd\n", num, ret);
   }
 
   return ret;

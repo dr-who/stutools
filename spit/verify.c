@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr,"*info* starting verify\n");
 
-  //  positionContainerSave(&mergedpc, "test", mergedpc.bdSize, 0);
+  //    positionContainerSave(&pc, "test", pc.maxbdSize, 0);
   char *loadblock= NULL;
   char *buffer = NULL;
   
@@ -145,10 +145,10 @@ int main(int argc, char *argv[]) {
 	  char s[1000];
 	  strncpy(s, loadblock+16, 1000);
 	  s[999]=0;
-	  fprintf(stderr,"1: %s\n", s);
+	  fprintf(stderr,"ondisk: %s\n", s);
 	  strncpy(s, buffer+16, 1000);
 	  s[999]=0;
-	  fprintf(stderr,"2: %s\n", s);
+	  fprintf(stderr,"should: %s\n", s);
 	}
 	incorrect++;
       }

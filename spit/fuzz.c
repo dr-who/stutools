@@ -8,26 +8,26 @@
 #include "fuzz.h"
 
 
-char *randomCommandString() {
+char *randomCommandString(const double rwratio) {
   char string[1000];
   
   int s = lrand48() % 5;
   switch (s) {
   case 0: 
-    sprintf(string, "%cs%ld", (drand48()<0.5) ? 'r' : 'w', lrand48() % 1000);
+    sprintf(string, "%cs%ld", (drand48() < rwratio) ? 'r' : 'w', lrand48() % 1000);
     break;
   case 1: 
-    sprintf(string, "%csP%ld%c", (drand48()<0.5) ? 'r' : 'w', 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N');
+    sprintf(string, "%cP%ld%c", (drand48() < rwratio) ? 'r' : 'w', 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'z');
     break;
   case 2: 
-    sprintf(string, "%csP%ld x%ld", (drand48()<0.5) ? 'r' : 'w', 1+lrand48() % 10000, 1 + lrand48()%100);
+    sprintf(string, "%cP%ld x%ld", (drand48() < rwratio) ? 'r' : 'w', 1+lrand48() % 10000, 1 + lrand48()%100);
     break;
   case 3: 
-    sprintf(string, "%ck%ld", (drand48()<0.5) ? 'r' : 'w', 4 * (1+ (lrand48() % 4)));
+    sprintf(string, "%ck%ld", (drand48()< rwratio) ? 'r' : 'w', 4 * (1+ (lrand48() % 4)));
     break;
   case 4: {}
     size_t klow = 4 * (1 + (lrand48() % 3));
-    sprintf(string, "%ck%ld-%ld", (drand48()<0.5) ? 'r' : 'w', klow, klow + 4*(lrand48()%4));
+    sprintf(string, "%ck%ld-%ld", (drand48() < rwratio) ? 'r' : 'w', klow, klow + 4*(lrand48()%4));
     break;
   }
   return strdup(string);
@@ -61,15 +61,15 @@ char ** fuzzString(int *argc, const char *device) {
   argv[3] = strdup(string);
 
   argv[4] = strdup("-c");
-  argv[5] = randomCommandString();
+  argv[5] = randomCommandString(0.5);
 
   if (drand48() < 0.5) {
     argv[6] = strdup("-j");
-    sprintf(string, "%zd", 1+lrand48() % 2);
+    sprintf(string, "%zd", 1+lrand48() % 1);
     argv[7] = strdup(string);
   } else {
     argv[6] = strdup("-c");
-    argv[7] = randomCommandString();
+    argv[7] = randomCommandString(0.5);
   }
 
   fprintf(stderr,"*info* random command: ");
