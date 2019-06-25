@@ -68,8 +68,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'G': {}
       double lowg = 0, highg = 0;
       splitRange(optarg, &lowg, &highg);
-      *minSizeInBytes = alignedNumber(1024L * (size_t)(lowg * 1024 * 1024), 4096);
-      *maxSizeInBytes = alignedNumber(1024L * (size_t)(highg * 1024 * 1024), 4096);
+      *minSizeInBytes = alignedNumber(1024L * lowg * 1024 * 1024, 4096);
+      *maxSizeInBytes = alignedNumber(1024L * highg * 1024 * 1024, 4096);
       if (*minSizeInBytes == *maxSizeInBytes) { 
 	*minSizeInBytes = 0;
       }
@@ -188,8 +188,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
 	if (*maxSizeInBytes > fsize) {
 	  fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
+	  *maxSizeInBytes = fsize;
+
 	}
-	*maxSizeInBytes = fsize;
+	if (*minSizeInBytes > fsize) {
+	  fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", 0L);
+	  *minSizeInBytes = 0;
+	}
       }
     }
   }
