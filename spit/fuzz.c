@@ -14,7 +14,7 @@ char *randomCommandString() {
   int s = lrand48() % 5;
   switch (s) {
   case 0: 
-    sprintf(string, "%cs%ld", (drand48()<0.5) ? 'r' : 'w', lrand48() % 10);
+    sprintf(string, "%cs%ld", (drand48()<0.5) ? 'r' : 'w', lrand48() % 1000);
     break;
   case 1: 
     sprintf(string, "%csP%ld%c", (drand48()<0.5) ? 'r' : 'w', 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N');

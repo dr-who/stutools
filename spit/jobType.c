@@ -406,13 +406,30 @@ void jobRunThreads(jobType *job, const int num,
       }
     }
     
-    {
+    { // specify the block device size in GiB
       char *charG = strchr(job->strings[i], 'G');
       if (charG && *(charG+1)) {
 	double lowg = 0, highg = 0;
 	splitRange(charG + 1, &lowg, &highg);
 	minSizeInBytes = alignedNumber(1024L * (lowg * 1024 * 1024), 4096);
 	maxSizeInBytes = alignedNumber(1024L * (highg * 1024 * 1024), 4096);
+	if (minSizeInBytes == maxSizeInBytes) { 
+	  minSizeInBytes = 0;
+	}
+	if (minSizeInBytes > maxSizeInBytes) {
+	  fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
+	  exit(1);
+	}
+      }
+    }
+
+    { // specify the block device size in bytes
+      char *charG = strchr(job->strings[i], 'b');
+      if (charG && *(charG+1)) {
+	double lowg = 0, highg = 0;
+	splitRange(charG + 1, &lowg, &highg);
+	minSizeInBytes = lowg;
+	maxSizeInBytes = highg;
 	if (minSizeInBytes == maxSizeInBytes) { 
 	  minSizeInBytes = 0;
 	}
@@ -983,7 +1000,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
       
       char s[100];
-      sprintf(s, "w k4 z s%zd J%zd G%.10lf X%zd x1 N I%zd", seqFiles, jumble, (maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
+      sprintf(s, "w k4 z s%zd J%zd b%zd X%zd x1 N I%zd", seqFiles, jumble, maxSizeBytes, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
