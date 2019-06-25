@@ -398,18 +398,29 @@ size_t setupPositions(positionType *positions,
   CALLOC(positionsStart, toalloc, sizeof(size_t));
   CALLOC(positionsCurrent, toalloc, sizeof(size_t));
   CALLOC(positionsEnd, toalloc, sizeof(size_t));
-  
+
+  double ratio = 1.0 * (bdSizeTotal - minbdSize) / toalloc;
+  //  fprintf(stderr,"ratio %lf\n", ratio);
+
+  double totalratio = minbdSize;
   for (size_t i = 0; i < toalloc; i++) {
-    positionsStart[i] = minbdSize + alignedNumber(i * 1.0 * ((bdSizeTotal - minbdSize) / toalloc), lowbs); 
+    positionsStart[i] = alignedNumber((size_t)totalratio, lowbs);
     if (i > 0) positionsEnd[i-1] = positionsStart[i];
     positionsEnd[toalloc-1] = bdSizeTotal;
+    totalratio += ratio;
   }
 
   if (verbose >= 2) {
+    size_t sumgap = 0;
     for (size_t i = 0; i < toalloc; i++) {
-      fprintf(stderr,"*info* range: %zd  [%12zd, %12zd]... size = %zd\n", i+1, positionsStart[i], positionsEnd[i], positionsEnd[i] - positionsStart[i]);
+      if (positionsEnd[i] - positionsStart[i])
+	fprintf(stderr,"*info* range[%zd]  [%12zd, %12zd]... size = %zd\n", i+1, positionsStart[i], positionsEnd[i], positionsEnd[i] - positionsStart[i]);
+      sumgap += (positionsEnd[i] - positionsStart[i]);
     }
+    fprintf(stderr,"*info* sumgap %zd\n", sumgap);
+    assert(sumgap == (bdSizeTotal - minbdSize));
   }
+  
 
   // setup the -P positions
   for (size_t i = 0; i < toalloc; i++) {
