@@ -490,9 +490,14 @@ void jobRunThreads(jobType *job, const int num,
     
     
 
-    //    size_t fs = fileSizeFromName(job->devices[i]);
+    size_t actualfs = fileSizeFromName(job->devices[i]);
     threadContext[i].minbdSize = minSizeInBytes;
     threadContext[i].bdSize = maxSizeInBytes;
+    if (threadContext[i].bdSize > actualfs) {
+      threadContext[i].bdSize = actualfs;
+      fprintf(stderr,"*warning* size too big, truncating to %zd\n", threadContext[i].bdSize);
+    }
+    
     const size_t avgBS = (bs + highbs) / 2;
     size_t mp = (size_t) ((threadContext[i].bdSize - threadContext[i].minbdSize) / avgBS);
     
@@ -978,7 +983,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
       
       char s[100];
-      sprintf(s, "w k4 z s%zd J%zd G%.7lf X%zd x1 N I%zd", seqFiles, jumble, (maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
+      sprintf(s, "w k4 z s%zd J%zd G%.10lf X%zd x1 N I%zd", seqFiles, jumble, (maxSizeBytes / 1024.0 / 1024) / 1024.0, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
