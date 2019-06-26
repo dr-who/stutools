@@ -412,15 +412,30 @@ void jobRunThreads(jobType *job, const int num,
       if (charG && *(charG+1)) {
 	double lowg = 0, highg = 0;
 	splitRange(charG + 1, &lowg, &highg);
-	minSizeInBytes = alignedNumber(1024L * (lowg * 1024 * 1024), 4096);
-	maxSizeInBytes = alignedNumber(1024L * (highg * 1024 * 1024), 4096);
-	if (minSizeInBytes == maxSizeInBytes) { 
-	  minSizeInBytes = 0;
-	}
-	if (minSizeInBytes > maxSizeInBytes) {
+	if (lowg > highg) {
 	  fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
-	  exit(1);
+	  lowg = 0;
+	  //	  exit(1);
 	}
+	lowg = lowg * 1024 * 1024 * 1024;
+	highg = highg * 1024 * 1024 * 1024;
+	if (lowg == highg) { // if both the same, same as just having 1
+	  lowg = minSizeInBytes;
+	}
+	if (lowg < minSizeInBytes) lowg = minSizeInBytes;
+	if (lowg > maxSizeInBytes) lowg = minSizeInBytes;
+	if (highg > maxSizeInBytes) highg = maxSizeInBytes;
+	if (highg < minSizeInBytes) highg = minSizeInBytes;
+	if (highg - lowg < 4096) { // if both the same, same as just having 1
+	  lowg = minSizeInBytes;
+	  highg = maxSizeInBytes;
+	}
+	minSizeInBytes = alignedNumber(lowg, 4096);
+	maxSizeInBytes = alignedNumber(highg, 4096);
+	/*	if (minSizeInBytes == maxSizeInBytes) { 
+	  minSizeInBytes = 0;
+	  }*/
+	fprintf(stderr,"*info* G used as [%.2lf-%.2lf] GB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes));
       }
     }
 

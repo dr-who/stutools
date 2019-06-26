@@ -310,7 +310,12 @@ int main(int argc, char *argv[]) {
   }
 
 
-  fprintf(stderr,"*info* bdSize [%.2lf-%.2lf] GB (%zd bytes, [%.3lf-%.3lf] TB)\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), maxSizeInBytes - minSizeInBytes, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
+  size_t actualSize = maxSizeInBytes - minSizeInBytes;
+  fprintf(stderr,"*info* bdSize range [%.2lf-%.2lf] GB, size %.2lf GB (%zd bytes), [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
+  if (actualSize < 4096) {
+    fprintf(stderr,"*error* block device too small.\n");
+    exit(1);
+  }
 
   keepRunning = 1;
   signal(SIGTERM, intHandler);
