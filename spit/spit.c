@@ -191,9 +191,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
 	if (*maxSizeInBytes > fsize) {
 	  fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
-	  *maxSizeInBytes = fsize;
-
 	}
+	*maxSizeInBytes = fsize;
 	if (*minSizeInBytes > fsize) {
 	  fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", 0L);
 	  *minSizeInBytes = 0;
