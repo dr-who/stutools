@@ -203,7 +203,7 @@ static void *runThread(void *arg) {
     }
     sleep(threadContext->waitfor);
     aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
-    //    if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* finished...\n");}
+    if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* interrupted...\n");}
     if (threadContext->runXtimes == 1) {
       break;
     }
@@ -223,8 +223,8 @@ static void *runThread(void *arg) {
   if (verbose) fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   threadContext->pos.elapsedTime = timedouble() - starttime;
 
-  if (verbose) {fprintf(stderr,"*info* starting fdatasync()..."); fflush(stderr);}
-  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
+  //  if (verbose) {fprintf(stderr,"*info* starting fdatasync()..."); fflush(stderr);}
+  //  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
   if (verbose) {fprintf(stderr," finished\n"); fflush(stderr);}
 
   close(fd);
@@ -880,10 +880,10 @@ void jobRunThreads(jobType *job, const int num,
   // get disk stats before starting the other threads
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   for (size_t i = 0; i < num; i++) {
-    if (threadContext[i].runXtimes == 0) {
-      threadContext[i].runTime += timeperline;
-      threadContext[i].finishtime += timeperline;
-    }
+    //    if (threadContext[i].runXtimes == 0) {
+    //      threadContext[i].runTime += timeperline;
+    //      threadContext[i].finishtime += timeperline;
+    //    }
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
   }
 

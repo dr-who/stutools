@@ -608,8 +608,8 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
     p->inFlight = 0;
     p->success = 0;
     if (p->pos + p->len > maxbdSize) {
-      fprintf(stderr,"*warning* wrapping add block\n");
-      p->pos = minbdSize;
+      fprintf(stderr,"*warning* wrapping add block of %zd\n", addSize);
+      p->pos = addSize;
     }
     p++;
   }
