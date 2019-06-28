@@ -339,11 +339,11 @@ static void *runThreadTimer(void *arg) {
 	  fflush(fp);
 	}
 	
-	if (threadContext->exitIOPS) {
+	if (threadContext->exitIOPS && twb > threadContext->maxbdSize) {
 	  if (writeIOPS + readIOPS < threadContext->exitIOPS) {
 	    exitcount++;
 	    if (exitcount >= 10) {
-	      fprintf(stderr,"*warning* early exiting due to %zd periods of low IOPS (%zd < %zd)\n", exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
+	      fprintf(stderr,"*warning* early exit after %.1lf GB due to %zd periods of low IOPS (%zd < %zd)\n", TOGB(twb), exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
 	      keepRunning = 0;
 	      break;
 	    }
@@ -877,6 +877,8 @@ void jobRunThreads(jobType *job, const int num,
   threadContext[num].pos.diskStats = d;
   threadContext[num].timeperline = timeperline;
   threadContext[num].ignorefirst = ignorefirst;
+  threadContext[num].minbdSize = minSizeInBytes;
+  threadContext[num].maxbdSize = maxSizeInBytes;
   // get disk stats before starting the other threads
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   for (size_t i = 0; i < num; i++) {
@@ -1050,7 +1052,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	jumble = 100;
       }
       
-      size_t exitIOPS = 2500; // 10MB/s lowerbound
+      size_t exitIOPS = 25000; // 100MB/s lowerbound
       {// seq or random
 	char *charG = strchr(preconditions->strings[i], 'I');
 	if (charG && *(charG+1)) {
