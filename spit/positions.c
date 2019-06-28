@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <math.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "devices.h"
 #include "utils.h"
@@ -629,7 +630,7 @@ void positionPrintMinMax(positionType *positions, const size_t count, const size
     assert(high < bdSize);
     p++;
   }
-  fprintf(stderr,"*info* min position = LBA %.1lf %% (%zd, %.1lf GB) , highest position = LBA %.1lf %% (%zd, %.1lf GB), bdSize %.1lf\n", 100.0 * (low * 1.0 / bdSize), low, TOGB(low), 100.0* (high * 1.0 / bdSize), high, TOGB(high), TOGB(bdSize));
+  fprintf(stderr,"*info* min position = LBA %.1lf %% (%zd, %.1lf GB), max position = LBA %.1lf %% (%zd, %.1lf GB), bdSize %.1lf GB\n", 100.0 * (low * 1.0 / bdSize), low, TOGB(low), 100.0* (high * 1.0 / bdSize), high, TOGB(high), TOGB(bdSize));
 }
 
 
@@ -803,7 +804,7 @@ void positionContainerFree(positionContainer *pc) {
 
 void positionLatencyStats(positionContainer *pc, const int threadid) {
   size_t failed = 0;
-  
+
   for (size_t i = 0; i < pc->sz;i++) {
     if (pc->positions[i].success && pc->positions[i].finishtime) {
       //
@@ -813,9 +814,9 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
       }
     }
   }
-  double elapsed = pc->elapsedTime;
+  //const double elapsed = pc->elapsedTime;
 
-  fprintf(stderr,"*info* [T%d] '%s': R %.0lf MB/s (%.0lf IO/s), W %.0lf MB/s (%.0lf IO/s), %.1lf s\n", threadid, pc->string, TOMB(pc->readBytes/elapsed), pc->readIOs/elapsed, TOMB(pc->writtenBytes/elapsed), pc->writtenIOs/elapsed, elapsed);
+  //  fprintf(stderr,"*info* [T%d] '%s': R %.0lf MB/s (%.0lf IO/s), W %.0lf MB/s (%.0lf IO/s), %.1lf s\n", threadid, pc->string, TOMB(pc->readBytes/elapsed), pc->readIOs/elapsed, TOMB(pc->writtenBytes/elapsed), pc->writtenIOs/elapsed, elapsed);
   if (verbose >= 2) {
     fprintf(stderr,"*failed or not finished* %zd\n", failed);
   }

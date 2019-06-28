@@ -92,7 +92,7 @@ typedef struct {
   positionContainer pos;
   size_t minbdSize;
   size_t maxbdSize;
-  size_t finishtime;
+  size_t finishtime; // the overall thread finish time
   size_t waitfor;
   size_t prewait;
   char *jobstring;
@@ -114,9 +114,11 @@ typedef struct {
   size_t UUID;
   size_t seqFiles;
   size_t jumbleRun;
-  size_t runTime;
+  size_t runTime; // the time for a round
   size_t ignoreResults;
   size_t exitIOPS;
+  double timeperline;
+  double ignorefirst;
 } threadInfoType;
 
 
@@ -194,11 +196,14 @@ static void *runThread(void *arg) {
   while (keepRunning) {
     // 
     iteratorCount++;      
-    if (threadContext->runXtimes && iteratorCount > threadContext->runXtimes) break;
-    if (timedouble() > starttime + threadContext->finishtime) break;
+    if (threadContext->runXtimes) {
+      if (iteratorCount > threadContext->runXtimes) break;
+    } else {
+      if (timedouble() > starttime + threadContext->finishtime) break;
+    }
     sleep(threadContext->waitfor);
     aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
-    if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* finished...\n");}
+    //    if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* finished...\n");}
     if (threadContext->runXtimes == 1) {
       break;
     }
@@ -210,7 +215,6 @@ static void *runThread(void *arg) {
       if (threadContext->addBlockSize) {
 	if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->highBlockSize);
 	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->minbdSize, threadContext->maxbdSize);
-	//	fprintf(stderr,"position 0: %zd\n", threadContext->pos.positions[0].pos);
       }	
     }
     if (verbose) fprintf(stderr,"*info* finished pass %zd\n", iteratorCount);
@@ -230,12 +234,18 @@ static void *runThread(void *arg) {
 
 
 
-#define TIMEPERLINE 1
-
 static void *runThreadTimer(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
   if (threadContext->pos.diskStats) {
     diskStatStart(threadContext->pos.diskStats);
+  }
+  double TIMEPERLINE = threadContext->timeperline;
+  if (TIMEPERLINE < 0.01) TIMEPERLINE=0.01;
+  double ignorefirst = threadContext->ignorefirst;
+  if (ignorefirst < 0) ignorefirst = 0;
+  
+  if (verbose >= 2) {
+    fprintf(stderr,"*info* timer thread, threads %zd, %.2lf per line, ignore first %.2lf seconds, %s, finish time %zd\n", threadContext->numThreads, TIMEPERLINE, ignorefirst, threadContext->benchmarkName, threadContext->finishtime);
   }
 
   size_t i = 1;
@@ -257,74 +267,86 @@ static void *runThreadTimer(void *arg) {
     }
   }
 
+  size_t total_printed_r_bytes = 0, total_printed_w_bytes = 0, total_printed_r_iops = 0, total_printed_w_iops = 0;
   size_t exitcount = 0;
   double starttime = timedouble();
+  double lasttime = starttime;
   while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishtime + 0.1)) {
-    usleep(10000);
+    usleep(1000000*0.01/100); // display to 0.01 s
 
     if ((thistime - start) >= (i * TIMEPERLINE) && (thistime < starttime + threadContext->finishtime + 0.1)) {
-      
+
       trb = 0;
       twb = 0;
       tri = 0;
       twi = 0;
-
+      
       size_t devicerb = 0, devicewb = 0;
       //      double util = 0;
-
+      
       for (size_t j = 0; j < threadContext->numThreads;j++) {
 	if (!threadContext->ignoreResults) {
+	  assert(threadContext->allPC);
 	  trb += threadContext->allPC[j]->readBytes;
 	  tri += threadContext->allPC[j]->readIOs;
 	  twb += threadContext->allPC[j]->writtenBytes;
 	  twi += threadContext->allPC[j]->writtenIOs;
-	}
-      }
-      if (threadContext->pos.diskStats) {
-	diskStatFinish(threadContext->pos.diskStats);
-	devicerb += diskStatTBRead(threadContext->pos.diskStats);
-	devicewb += diskStatTBWrite(threadContext->pos.diskStats);
-	diskStatRestart(threadContext->pos.diskStats); // reset
+	  }
       }
       
-      const double elapsed = thistime - start;
+      if (thistime - start > ignorefirst) {
+	total_printed_r_bytes = trb;
+	total_printed_w_bytes = twb;
+	total_printed_r_iops = tri;
+	total_printed_w_iops = twi;
+	
+	if (threadContext->pos.diskStats) {
+	  diskStatFinish(threadContext->pos.diskStats);
+	  devicerb += diskStatTBRead(threadContext->pos.diskStats);
+	  devicewb += diskStatTBWrite(threadContext->pos.diskStats);
+	  diskStatRestart(threadContext->pos.diskStats); // reset
+	}
+	
+	const double elapsed = thistime - start;
+	const double gaptime = thistime - lasttime;
+	
+	size_t readB     = (trb - last_trb) / gaptime;
+	size_t readIOPS  = (tri - last_tri) /gaptime;
+	
+	size_t writeB    = (twb - last_twb) / gaptime;
+	size_t writeIOPS = (twi - last_twi) /gaptime;
+	
+	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
+	commaPrint0dp(stderr, TOMB(readB));
+	fprintf(stderr," MB/s (");
+	commaPrint0dp(stderr, readIOPS);
+	fprintf(stderr," IOPS / %zd), write ", (readIOPS == 0) ? 0 : (readB) / (readIOPS));
+	commaPrint0dp(stderr, TOMB(writeB));
+	fprintf(stderr," MB/s (");
+	commaPrint0dp(stderr, writeIOPS);
+	//      double readamp = 0, writeamp = 0;
+	//if (readB) readamp = 100.0 * devicerb / readB;
+	//      if (writeB) writeamp = 100.0 * devicewb / writeB;
+	
+	fprintf(stderr," IOPS / %zd), total %.2lf GB", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb));
+	if (threadContext->pos.diskStats) {
+	  fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s)", TOMB(devicerb), TOMB(devicewb));
+	}
+	fprintf(stderr,"\n");
 
-      size_t readB     = trb - last_trb;
-      size_t readIOPS  = tri - last_tri;
-
-      size_t writeB    = twb - last_twb;
-      size_t writeIOPS = twi - last_twi;
-
-      fprintf(stderr,"[%2.0lf / %zd] read ", elapsed, threadContext->numThreads);
-      commaPrint0dp(stderr, TOMB(readB));
-      fprintf(stderr," MB/s (");
-      commaPrint0dp(stderr, readIOPS);
-      fprintf(stderr," IOPS / %zd), write ", (readIOPS == 0) ? 0 : (readB) / (readIOPS));
-      commaPrint0dp(stderr, TOMB(writeB));
-      fprintf(stderr," MB/s (");
-      commaPrint0dp(stderr, writeIOPS);
-            //      double readamp = 0, writeamp = 0;
-      //if (readB) readamp = 100.0 * devicerb / readB;
-      //      if (writeB) writeamp = 100.0 * devicewb / writeB;
-
-      fprintf(stderr," IOPS / %zd), total %.2lf GB", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb));
-      if (threadContext->pos.diskStats) {
-	fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s)", TOMB(devicerb), TOMB(devicewb));
-      }
-      fprintf(stderr,"\n");
-
-      if (fp) {
-	fprintf(fp, "%2.0lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb), TOMB(devicewb));
-	fflush(fp);
-      }
-
-      if (threadContext->exitIOPS) {
-	if (writeIOPS + readIOPS < threadContext->exitIOPS) {
-	  exitcount++;
-	  if (exitcount >= 30) {
-	    fprintf(stderr,"*warning* early exiting due to %zd periods of low IOPS (%zd < %zd)\n", exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
-	    keepRunning = 0;
-	    break;
+	if (fp) {
+	  fprintf(fp, "%.3lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb), TOMB(devicewb));
+	  fflush(fp);
+	}
+	
+	if (threadContext->exitIOPS) {
+	  if (writeIOPS + readIOPS < threadContext->exitIOPS) {
+	    exitcount++;
+	    if (exitcount >= 10) {
+	      fprintf(stderr,"*warning* early exiting due to %zd periods of low IOPS (%zd < %zd)\n", exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
+	      keepRunning = 0;
+	      break;
+	    }
 	  }
 	}
       }
@@ -333,8 +355,9 @@ static void *runThreadTimer(void *arg) {
       last_tri = tri;
       last_twb = twb;
       last_twi = twi;
-
       
+      
+      lasttime = thistime;
       i++;
     }
 
@@ -347,6 +370,11 @@ static void *runThreadTimer(void *arg) {
   if (fp) {
     fclose(fp);
   }
+
+  double tm = lasttime - starttime;
+  fprintf(stderr,"*info* summary: read %.0lf MB/s (%.0lf IOPS), ", TOMB(total_printed_r_bytes)/tm, total_printed_r_iops/tm);
+  fprintf(stderr,"write %.0lf MB/s (%.0lf IOPS)\n", TOMB(total_printed_w_bytes)/tm, total_printed_w_iops/tm);
+  
   //  diskStatFree(&d);
   if (verbose) fprintf(stderr,"*info* finished thread timer\n");
   keepRunning = 0;
@@ -359,7 +387,7 @@ void jobRunThreads(jobType *job, const int num,
 		   size_t minSizeInBytes,
 		   size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
-		   unsigned short seed, int savePositions, diskStatType *d) {
+		   unsigned short seed, int savePositions, diskStatType *d, const double timeperline, const double ignorefirst) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -380,6 +408,23 @@ void jobRunThreads(jobType *job, const int num,
   const size_t UUID = thetime * 10;
 
   
+  for (size_t i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
+    threadContext[i].id = i;
+    threadContext[i].runTime = timetorun;
+    threadContext[i].finishtime = timetorun;
+    threadContext[i].exitIOPS = 0;
+    if (i == num) {
+      threadContext[i].benchmarkName = benchmarkName;
+    } else {
+      threadContext[i].benchmarkName = NULL;
+    }
+    threadContext[i].UUID = UUID;
+    positionContainerInit(&threadContext[i].pos, threadContext[i].UUID);
+    allThreadsPC[i] = &threadContext[i].pos;
+    threadContext[i].numThreads = num;
+    threadContext[i].allPC = allThreadsPC;
+  }
+
   for (size_t i = 0; i < num; i++) {
     threadContext[i].runTime = timetorun;
     threadContext[i].finishtime = timetorun;
@@ -489,8 +534,8 @@ void jobRunThreads(jobType *job, const int num,
       char *charI = strchr(job->strings[i], 'I');
       
       if (charI && *(charI + 1)) {
-	threadContext[0].exitIOPS = atoi(charI + 1);
-	fprintf(stderr,"*info* exit IOPS set to %zd\n", threadContext[0].exitIOPS);
+	threadContext[num].exitIOPS = atoi(charI + 1);
+	fprintf(stderr,"*info* exit IOPS set to %zd\n", threadContext[num].exitIOPS);
       }
     }
     
@@ -509,7 +554,17 @@ void jobRunThreads(jobType *job, const int num,
 
 
 
+    // 'O' is really 'X1'
     size_t runXtimes = 0;
+    {
+      char *oOS = strchr(job->strings[i], 'O');
+      if (oOS) {
+	threadContext[i].runTime = -1;
+	threadContext[i].finishtime = -1;
+	threadContext[num].finishtime = -1; // the timer
+      }
+    }
+
     {
       char *charX = strchr(job->strings[i], 'X');
       
@@ -517,9 +572,10 @@ void jobRunThreads(jobType *job, const int num,
 	runXtimes = atoi(charX + 1);
 	threadContext[i].runTime = -1;
 	threadContext[i].finishtime = -1;
-					   
+	threadContext[num].finishtime = -1; // the timer
       }
     }
+    threadContext[i].runXtimes = runXtimes;
     
     
 
@@ -553,15 +609,15 @@ void jobRunThreads(jobType *job, const int num,
     }
     
     size_t countintime = mp;
-    if ((long)timetorun > 0) { // only limit based on time if the time is positive
+    if ((threadContext->runXtimes==0) && ((long)timetorun > 0)) { // only limit based on time if the time is positive
       
-#define ESTIMATEIOPS 250000
+#define ESTIMATEIOPS 500000
       
       countintime = timetorun * ESTIMATEIOPS;
       if ((verbose || (countintime < mp)) && (i == 0)) {
 	fprintf(stderr,"*info* in %zd seconds, at %d a second, would have at most ", timetorun, ESTIMATEIOPS);
 	commaPrint0dp(stderr, countintime);
-	fprintf(stderr," positions\n");
+	fprintf(stderr," positions (run %zd times\n", threadContext->runXtimes);
       }
     }
     size_t sizeLimitCount = (size_t)-1;
@@ -582,15 +638,7 @@ void jobRunThreads(jobType *job, const int num,
       }
     }
       
-    threadContext[i].id = i;
-    if (i == 0) {
-      threadContext[i].benchmarkName = benchmarkName;
-    } else {
-      threadContext[i].benchmarkName = NULL;
-    }
-    threadContext[i].UUID = UUID;
     threadContext[i].ignoreResults = 0;
-    positionContainerInit(&threadContext[i].pos, threadContext[i].UUID);
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
     threadContext[i].waitfor = 0;
@@ -599,7 +647,6 @@ void jobRunThreads(jobType *job, const int num,
     threadContext[i].highBlockSize = highbs;
     threadContext[i].rerandomize = 0;
     threadContext[i].addBlockSize = 0;
-    threadContext[i].runXtimes = runXtimes;
 
     // do this here to allow repeatable random numbers
     int rcount = 0, wcount = 0, rwtotal = 0;
@@ -687,14 +734,6 @@ void jobRunThreads(jobType *job, const int num,
       }
     }
 
-
-    {
-      char *oOS = strchr(job->strings[i], 'O');
-      if (oOS) {
-	threadContext[i].runXtimes = 1;
-	threadContext[i].runTime = -1;
-      }
-    }
 
 
 
@@ -824,9 +863,6 @@ void jobRunThreads(jobType *job, const int num,
 
 
     // add threadContext[i].pos a pointer alias to a pool for the timer
-    allThreadsPC[i] = &threadContext[i].pos;
-    threadContext[i].numThreads = num;
-    threadContext[i].allPC = allThreadsPC;
   }
 
   // set the starting time
@@ -837,11 +873,17 @@ void jobRunThreads(jobType *job, const int num,
   }
 
   
-  // use the device and timing info from context[0]
-  threadContext[0].pos.diskStats = d;
+  // use the device and timing info from context[num]
+  threadContext[num].pos.diskStats = d;
+  threadContext[num].timeperline = timeperline;
+  threadContext[num].ignorefirst = ignorefirst;
   // get disk stats before starting the other threads
-  pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[0]));
+  pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   for (size_t i = 0; i < num; i++) {
+    if (threadContext[i].runXtimes == 0) {
+      threadContext[i].runTime += timeperline;
+      threadContext[i].finishtime += timeperline;
+    }
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
   }
 
@@ -933,12 +975,14 @@ void jobRunThreads(jobType *job, const int num,
     histFree(&histRead);
     histFree(&histWrite);
 
-    
-    char s[1000];
-    sprintf(s, "spit-positions.txt");
-    fprintf(stderr, "*info* writing positions to '%s' ... ", s);  fflush(stderr);
-    positionContainerSave(&mergedpc, s, mergedpc.maxbdSize, 0);
-    fprintf(stderr, "finished\n"); fflush(stderr);
+
+    if (1) {
+      char s[1000];
+      sprintf(s, "spit-positions.txt");
+      fprintf(stderr, "*info* writing positions to '%s' ... ", s);  fflush(stderr);
+      positionContainerSave(&mergedpc, s, mergedpc.maxbdSize, 0);
+      fprintf(stderr, "finished\n"); fflush(stderr);
+    }
 
     
     if (0) {
@@ -1031,7 +1075,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-   jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL); 
+    jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0); 
     fprintf(stderr,"*info* preconditioning complete\n"); fflush(stderr);
   }
   return 0;

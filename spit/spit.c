@@ -25,7 +25,7 @@ char *benchmarkName = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed, diskStatType *d, size_t *verify) {
+		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec) {
   int opt;
 
   char *device = NULL;
@@ -38,7 +38,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(j);
   jobInit(preconditions);
   
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -56,6 +56,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       break;
     case 'd':
       *dumpPositions = atoi(optarg);
+      break;
+    case 'i':
+      *ignorefirstsec = atof(optarg);
       break;
     case 'I':
       {}
@@ -100,6 +103,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'R':
       *seed = (unsigned short)atoi(optarg);
       fprintf(stderr,"*info* initial seed: %d\n", *seed);
+      break;
+    case 's':
+      *timeperline = atof(optarg);
       break;
     case 't':
       *timetorun = atoi(optarg);
@@ -255,8 +261,9 @@ void usage() {
   fprintf(stderr,"  spit -c wZ1                   # Z is the starting offset. -z is -Z0\n");
   fprintf(stderr,"  spit -p G100                  # precondition job, writing random overwrite LBA size\n");
   fprintf(stderr,"  spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks\n");
-  fprintf(stderr,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n");
-  exit(-1);
+  fprintf(stderr,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n"); 
+  fprintf(stderr,"  spit -s 0.1 -i 5              # and ignore first 5 seconds of performance\n");
+ exit(-1);
 }
 
 
@@ -301,9 +308,10 @@ int main(int argc, char *argv[]) {
   unsigned short seed = 0;
   diskStatType d;
   size_t verify = 0;
+  double timeperline = 1, ignoresec = 0;
 
   diskStatSetup(&d);
-  handle_args(argc, argv, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify);
+  handle_args(argc, argv, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec);
   
   if (j->count == 0) {
     usage();
@@ -329,7 +337,7 @@ int main(int argc, char *argv[]) {
   }
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p);
+  jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p, timeperline, ignoresec);
 
   jobFree(j);
   free(j);
