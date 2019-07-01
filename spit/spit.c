@@ -184,7 +184,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	*maxSizeInBytes = totalRAM() * 2;
       }
       if (fsize != *maxSizeInBytes) { // check the on disk size
-	createFile(device, *maxSizeInBytes);
+	int ret = createFile(device, *maxSizeInBytes);
+	if (!ret) {
+	  exit(1);
+	}
       }
     } else {
       // if you specify -G too big or it's 0 then set it to the existing file size
