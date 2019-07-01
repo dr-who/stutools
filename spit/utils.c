@@ -571,7 +571,7 @@ int createFile(const char *filename, const size_t sz) {
   
   int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
   if (fd >= 0) {
-    fprintf(stderr,"*info* created '%s' with O_DIRECT, size %zd bytes (%.3g GiB)\n", filename, sz, TOGiB(sz));
+    fprintf(stderr,"*info* creating '%s' with O_DIRECT, size %zd bytes (%.3g GiB)\n", filename, sz, TOGiB(sz));
   } else {
     fprintf(stderr,"*warning* creating file with O_DIRECT failed (no filesystem support?)\n");
     fprintf(stderr,"*warning* parts of the file will be in the page cache/RAM.\n");
@@ -579,6 +579,24 @@ int createFile(const char *filename, const size_t sz) {
     if (fd < 0) {
       perror(filename);return 1;
     }
+  }
+
+  keepRunning = 1;
+  int fret = fallocate(fd, FALLOC_FL_ZERO_RANGE, 0, sz);
+  if (fret == 0) {
+    close(fd);
+    fprintf(stderr,"*info* success fallocate\n");
+    return 0;
+  } else {
+    size_t c_sz = fileSizeFromName(filename);
+    if (c_sz > 0) {
+      fprintf(stderr,"*info* created file size was only %zd (%.2lf GiB)\n", c_sz, TOGiB(c_sz));
+      fprintf(stderr,"*info* deleting file '%s'\n", filename);
+      remove(filename);
+      fprintf(stderr,"*error* exiting.\n");
+      exit(-1);
+    }
+    fprintf(stderr,"*warning* fallocate failed. Creating manually. Error = %d\n", fret);
   }
 
   char *buf = NULL;
@@ -600,7 +618,6 @@ int createFile(const char *filename, const size_t sz) {
     fprintf(stderr,"*warning* early size creation termination\n");
     exit(-1);
   }
-  keepRunning = 1;
   return 0;
 }
 

@@ -191,7 +191,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       }
       if (fsize != *maxSizeInBytes) { // check the on disk size
 	int ret = createFile(device, *maxSizeInBytes);
-	if (!ret) {
+	if (ret) {
 	  exit(1);
 	}
       }
