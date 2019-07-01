@@ -1049,7 +1049,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	}
       }
       if (seqFiles != 0) {
-	jumble = 100;
+	jumble = 1;
       }
       
       size_t exitIOPS = 25000; // 100MB/s lowerbound
