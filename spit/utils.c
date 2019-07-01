@@ -558,6 +558,10 @@ int canOpenExclusively(const char *fn) {
 }
 
 int createFile(const char *filename, const size_t sz) {
+  if (!filename) {
+    fprintf(stderr,"*error* no filename\n");
+    exit(1);
+  }
   assert(sz);
 
   if (startsWith("/dev/", filename)) {

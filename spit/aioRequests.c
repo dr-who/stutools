@@ -167,7 +167,7 @@ size_t aioMultiplePositions( positionContainer *p,
     positions[i].success = 0;
   }
 
-  if (verbose >= 2)fprintf(stderr,"*info* starting...%zd\n", sz);
+  if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishtime %lf\n", sz, finishtime);
   while (keepRunning && ((thistime = timedouble()) < finishtime)) {
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
@@ -384,13 +384,13 @@ size_t aioMultiplePositions( positionContainer *p,
 
   {}
   size_t count = 0;
-  double snaptime = timedouble();
+  double snaptime = timedouble(), lastprint =0;
   while (inFlight) {
     count++;
     if (count > 3600) break;
     
     if (inFlight) {
-      int ret = io_getevents(ioc, 0, inFlight, events, &timeout);
+      int ret = io_getevents(ioc, 0, inFlight, events, NULL);
       if (ret > 0) {
 	for (int j = 0; j < ret; j++) {
 	  // TODO refactor into the same code as above
@@ -405,10 +405,11 @@ size_t aioMultiplePositions( positionContainer *p,
 	}
 	inFlight -= ret;
       } else {
-	if (count > 5) {
+	if (count > 5 && (timedouble() - lastprint >=1)) {
 	  fprintf(stderr,"*warning* waiting for %zd IOs in flight, iteration %zd, %zd seconds...\n", inFlight, count, (size_t)(timedouble() - snaptime));
+	  lastprint = timedouble();
 	}
-	sleep(1);
+	usleep(10000);
       }
     }
   }
