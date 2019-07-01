@@ -582,21 +582,23 @@ int createFile(const char *filename, const size_t sz) {
   }
 
   keepRunning = 1;
-  int fret = fallocate(fd, FALLOC_FL_ZERO_RANGE, 0, sz);
-  if (fret == 0) {
-    close(fd);
-    fprintf(stderr,"*info* success fallocate\n");
-    return 0;
-  } else {
-    size_t c_sz = fileSizeFromName(filename);
-    if (c_sz > 0) {
-      fprintf(stderr,"*info* created file size was only %zd (%.2lf GiB)\n", c_sz, TOGiB(c_sz));
-      fprintf(stderr,"*info* deleting file '%s'\n", filename);
-      remove(filename);
-      fprintf(stderr,"*error* exiting.\n");
-      exit(-1);
+  if (0) { // fallocate makes the filesystem cheat if you read empty
+    int fret = fallocate(fd, FALLOC_FL_ZERO_RANGE, 0, sz);
+    if (fret == 0) {
+      close(fd);
+      fprintf(stderr,"*info* success fallocate\n");
+      return 0;
+    } else {
+      size_t c_sz = fileSizeFromName(filename);
+      if (c_sz > 0) {
+	fprintf(stderr,"*info* created file size was only %zd (%.2lf GiB)\n", c_sz, TOGiB(c_sz));
+	fprintf(stderr,"*info* deleting file '%s'\n", filename);
+	remove(filename);
+	fprintf(stderr,"*error* exiting.\n");
+	exit(-1);
+      }
+      fprintf(stderr,"*warning* fallocate failed. Creating manually. Error = %d\n", fret);
     }
-    fprintf(stderr,"*warning* fallocate failed. Creating manually. Error = %d\n", fret);
   }
 
   char *buf = NULL;
