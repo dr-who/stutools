@@ -559,7 +559,7 @@ int canOpenExclusively(const char *fn) {
 
 
 size_t canCreateFile(const char *filename, const size_t sz) {
-  fprintf(stderr,"*info* creating '%s' with O_DIRECT, size %zd bytes (%.3g GiB)\n", filename, sz, TOGiB(sz));
+  fprintf(stderr,"*info* creating '%s', size %zd bytes (%.3g GiB)\n", filename, sz, TOGiB(sz));
   int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
   if (fd < 0)
     return 0;
