@@ -584,9 +584,11 @@ int createFile(const char *filename, const size_t sz) {
   }
 
   size_t create_sz = canCreateFile(filename, sz);
-  if (create_sz != sz) {
-    fprintf(stderr,"*error* can't create filename '%s', limited to size %zd (%.1lf GiB)\n", filename, create_sz, TOGiB(create_sz));
-    exit(-1);
+  if (create_sz) { // if it fallocated any file at all 
+    if (create_sz != sz) { // and if it's wrong size
+      fprintf(stderr,"*error* can't create filename '%s', limited to size %zd (%.1lf GiB)\n", filename, create_sz, TOGiB(create_sz));
+      exit(-1);
+    }
   }
   
   int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
