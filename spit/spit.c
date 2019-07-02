@@ -328,6 +328,8 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
+  usernameinit(); // setup global mutexes
+  
   keepRunning = 1;
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
