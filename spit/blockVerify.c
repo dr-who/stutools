@@ -57,8 +57,6 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
   const size_t pos = p->pos;
   const size_t len = p->len;
 
-  usernameinit();
-  
   ssize_t ret = pread(fd, buf, len, pos); // use pread as it's thread safe as you pass in the fd, size and offset
 
   if (ret == -1) {
@@ -168,6 +166,8 @@ static void *runThread(void *arg) {
  */
 int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
 
+  usernameinit();
+  
 
 
   qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
