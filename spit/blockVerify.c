@@ -166,10 +166,6 @@ static void *runThread(void *arg) {
  */
 int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
 
-  usernameinit();
-  
-
-
   qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
 
   size_t num = pc->sz;

@@ -201,102 +201,6 @@ char* queueType(char *path) {
 }
 
 
-
-pthread_mutex_t usernamelock;
-
-void usernameinit() {
-  pthread_mutex_init(&usernamelock, NULL);
-}
-  
-
-char *username() {
-
-  pthread_mutex_lock(&usernamelock);
-  char *ret = strdup(getpwuid(geteuid())->pw_name);
-  pthread_mutex_unlock(&usernamelock);
-
-  return ret;
-    
-  //  char *buf = NULL;
-  //  CALLOC(buf, 200, sizeof(char));
-  //  getlogin_r(buf, 200);
-  //  buf = cuserid(buf);
-  //  return buf;
-}
-
-
-void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage, size_t stopatbytes) {
-  fprintf(stderr,"verifying contents of '%s'...\n", label);
-  if (charbuf || checkpercentage) {
-  }
-  int fd = open(label, O_RDONLY | O_DIRECT); // O_DIRECT to check contents
-  if (fd < 0) {
-    perror(label);
-    exit(-1);
-  }
-
-  char *rawbuf = NULL;
-  CALLOC(rawbuf, 1, size);
-
-  size_t pos = 0;
-  unsigned char *buf = (unsigned char*)rawbuf;
-  size_t check = 0, ok = 0, error = 0;
-
-  keepRunning = 1;
-  while (keepRunning) {
-    if (pos >= stopatbytes) {
-      break;
-    }
-    int wbytes = read(fd, buf, size);
-    if (wbytes == 0) {
-      break;
-    }
-    if (wbytes < 0) {
-      perror("problem reading");
-      break;
-    }
-    if ((size_t)wbytes == size) { // only check the right size blocks
-      check++;
-      size_t newsum = 0;
-      for (size_t i = 0; i < (size_t)wbytes;i++) {
-	newsum += (buf[i] & 0xff);
-      }
-      if (newsum != checksum) {
-	error++;
-	//	fprintf(stderr,"X");
-	if (error < 5) {
-	  fprintf(stderr,"checksum error %zd\n", pos);
-	  //	  fprintf(stderr,"buffer: %s\n", buf);
-	}
-	if (error == 5) {
-	  fprintf(stderr,"further errors not displayed\n");
-	}
-      } else {
-	//	fprintf(stderr,".");
-	ok++;
-      }
-      //    } else {
-      //      fprintf(stderr,"eek bad aligned read\n");
-    }
-    pos += wbytes;
-  }
-  fflush(stderr);
-  close(fd);
-
-  char *user = username();
-  syslog(LOG_INFO, "%s - verify '%s': %.1lf GiB, checked %zd, correct %zd, failed %zd\n", user, label, TOGiB(size*check), check, ok, error);
-
-  fprintf(stderr, "verify '%s': %.1lf GiB, checked %zd, correct %zd, failed %zd\n", label, TOGiB(size*check), check, ok, error);
-
-  if (error > 0) {
-    syslog(LOG_INFO, "%s - checksum errors on '%s'\n", user, label);
-    fprintf(stderr, "**CHECKSUM** errors\n");
-  }
-  free(user);
-  free(rawbuf);
-}
-
-
 size_t numThreads() {
   return sysconf(_SC_NPROCESSORS_ONLN);
 }
@@ -373,8 +277,6 @@ void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seedin
 
   unsigned int seed = seedin;
   
-  char *user = username();
-
   const char verystartpoint = ' ' + (rand_r(&seed) % 30);
   const char jump = (rand_r(&seed) % 3) + 1;
   char startpoint = verystartpoint;
@@ -388,7 +290,7 @@ void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seedin
 
   char s[1000];
   memset(s, 0, 1000);
-  const size_t topr = sprintf(s, "________________stutools - %s - %u\n", user == NULL ? "" : user, seed);
+  const size_t topr = sprintf(s, "________________stutools - %s - %u\n", "spit", seed);
   strncpy(buffer, s, topr);
   buffer[cyclic-2] = '\n';
   buffer[cyclic-1] = 0;
@@ -396,10 +298,6 @@ void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seedin
   for (size_t j = cyclic; j < size; j++) {
     buffer[j] = buffer[j % cyclic];
   }
-
-
-
-  free(user);
 }
 
 
