@@ -15,6 +15,7 @@
 #include <syslog.h>
 #include <errno.h>
 #include <limits.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
@@ -200,9 +201,21 @@ char* queueType(char *path) {
 }
 
 
+
+pthread_mutex_t usernamelock;
+
+void usernameinit() {
+  pthread_mutex_init(&usernamelock, NULL);
+}
+  
+
 char *username() {
 
-  return strdup(getpwuid(geteuid())->pw_name);
+  pthread_mutex_lock(&usernamelock);
+  char *ret = strdup(getpwuid(geteuid())->pw_name);
+  pthread_mutex_unlock(&usernamelock);
+
+  return ret;
     
   //  char *buf = NULL;
   //  CALLOC(buf, 200, sizeof(char));
@@ -391,6 +404,7 @@ void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seedin
 
 
 void generateRandomBuffer(char *buffer, size_t size, unsigned short seed) {
+  if (seed == 0) printf("ooon\n");
   generateRandomBufferCyclic(buffer, size, seed, size);
 }
 

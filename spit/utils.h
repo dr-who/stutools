@@ -38,6 +38,7 @@ size_t blockDeviceSizeFromFD(const int fd);
 
 void dropCaches();
 char *username();
+void usernameinit();
 
 char* queueType(char *path);
 

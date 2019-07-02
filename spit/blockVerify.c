@@ -56,6 +56,8 @@ static int seedcompare(const void *p1, const void *p2)
 int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff) {
   const size_t pos = p->pos;
   const size_t len = p->len;
+
+  usernameinit();
   
   ssize_t ret = pread(fd, buf, len, pos); // use pread as it's thread safe as you pass in the fd, size and offset
 
@@ -151,6 +153,7 @@ static void *runThread(void *arg) {
     }
   }
   free(buf);
+  free(randombuf);
 
   if (threadContext->id == 0) fprintf(stderr,"\n");
   return NULL;
