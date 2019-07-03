@@ -38,7 +38,7 @@ char *randomCommandString(const double rwratio) {
 char ** fuzzString(int *argc, const char *device) {
   srand48(timedouble());
   size_t count = 1 + lrand48() % 3;
-  count = 8;
+  count = 9;
 
   *argc = count;
   char ** argv = NULL;
@@ -71,6 +71,8 @@ char ** fuzzString(int *argc, const char *device) {
     argv[6] = strdup("-c");
     argv[7] = randomCommandString(0.9);
   }
+
+  argv[8] = strdup("-v"); // verify
 
   fprintf(stderr,"*info* random command: ");
   for (size_t i = 0; i < count; i++) {
