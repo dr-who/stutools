@@ -161,8 +161,9 @@ static void *runThread(void *arg) {
   }
     
   if (fd < 0) {
-    fprintf(stderr,"problem!!\n");
-    perror(threadContext->jobdevice); return 0;
+    fprintf(stderr,"*error* problem opening '%s' with direct=%d, writes=%zd\n", threadContext->jobdevice, direct, threadContext->anywrites);
+    fprintf(stderr,"*info* some filesystems don't support direct, maybe add D to the command string.\n");
+    perror(threadContext->jobdevice); exit(-1);
   }
 
   char *suffix = getSuffix(threadContext->jobdevice);
