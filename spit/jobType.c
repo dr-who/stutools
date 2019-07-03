@@ -161,8 +161,8 @@ static void *runThread(void *arg) {
   }
     
   if (fd < 0) {
-    fprintf(stderr,"problem!!\n");
-    perror(threadContext->jobdevice); return 0;
+    fprintf(stderr,"*error* problem opening '%s' with direct=%d.\n", threadContext->jobdevice, direct);
+    perror(threadContext->jobdevice); exit(-1);
   }
 
   char *suffix = getSuffix(threadContext->jobdevice);
