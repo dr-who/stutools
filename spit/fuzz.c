@@ -65,7 +65,7 @@ char ** fuzzString(int *argc, const char *device) {
 
   if (drand48() < 0.2) {
     argv[6] = strdup("-j");
-    sprintf(string, "%zd", 1+lrand48() % 8);
+    sprintf(string, "%zd", 1+lrand48() % 2);
     argv[7] = strdup(string);
   } else {
     argv[6] = strdup("-c");
@@ -74,11 +74,14 @@ char ** fuzzString(int *argc, const char *device) {
 
   argv[8] = strdup("-v"); // verify
 
+  fprintf(stderr,"====================\n");
   fprintf(stderr,"*info* random command: ");
+
   for (size_t i = 0; i < count; i++) {
     fprintf(stderr,"%s ", argv[i]);
   }
   fprintf(stderr,"\n");
+  fprintf(stderr,"====================\n");
 
   return argv;
 }
