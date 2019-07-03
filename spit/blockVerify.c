@@ -110,7 +110,7 @@ static void *runThread(void *arg) {
   CALLOC(randombuf, threadContext->pc->maxbs+1, 1);
   CALLOC(buf, threadContext->pc->maxbs+1, 1);
 
-  //    fprintf(stderr,"*info* id %d, [%ld, %ld),.... \n", threadContext->id, threadContext->startInc, threadContext->endExc);
+  //      fprintf(stderr,"*info* id %d, [%ld, %ld),.... \n", threadContext->id, threadContext->startInc, threadContext->endExc);
   size_t lastseed = -1;
   positionType *positions = threadContext->pc->positions;
   size_t diff = 0;
@@ -166,6 +166,8 @@ static void *runThread(void *arg) {
  */
 int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
 
+  //  fprintf(stderr,"*info* sorting %zd\n", pc->sz);
+  keepRunning = 1;
   qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
 
   size_t num = pc->sz;
@@ -191,7 +193,7 @@ int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
     threadContext[i].iocount = 0;
     threadContext[i].elapsed = 0;
 
-    //    fprintf(stderr,"*info* starting thread[%zd] in range [%zd, %zd)\n", i, threadContext[i].startInc, threadContext[i].endExc);
+    //        fprintf(stderr,"*info* starting thread[%zd] in range [%zd, %zd)\n", i, threadContext[i].startInc, threadContext[i].endExc);
     
     if (pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]))) {
       fprintf(stderr,"*error* can't create a thread\n");

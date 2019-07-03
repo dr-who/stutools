@@ -38,7 +38,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(j);
   jobInit(preconditions);
   
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:v")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -266,6 +266,7 @@ void usage() {
   fprintf(stderr,"  spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks\n");
   fprintf(stderr,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n"); 
   fprintf(stderr,"  spit -s 0.1 -i 5              # and ignore first 5 seconds of performance\n");
+  fprintf(stderr,"  spit -v                       # verify the writes after a run\n");
  exit(-1);
 }
 
@@ -340,7 +341,7 @@ int main(int argc, char *argv[]) {
   }
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p, timeperline, ignoresec);
+  jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p, timeperline, ignoresec, verify);
 
   jobFree(j);
   free(j);

@@ -472,7 +472,7 @@ int canOpenExclusively(const char *fn) {
 
 size_t canCreateFile(const char *filename, const size_t sz) {
   fprintf(stderr,"*info* creating '%s', size %zd bytes (%.3g GiB)\n", filename, sz, TOGiB(sz));
-  int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  int fd = open(filename, O_RDWR | O_CREAT | O_DIRECT | O_TRUNC, S_IRUSR | S_IWUSR);
   if (fd < 0)
     return 0;
   fallocate(fd, FALLOC_FL_ZERO_RANGE, 0, sz);
@@ -495,14 +495,15 @@ int createFile(const char *filename, const size_t sz) {
     exit(-1);
   }
 
-  size_t create_sz = canCreateFile(filename, sz);
+  /*  size_t create_sz = canCreateFile(filename, sz);
   if (create_sz) { // if it fallocated any file at all 
     if (create_sz != sz) { // and if it's wrong size
       fprintf(stderr,"*error* can't create filename '%s', limited to size %zd (%.1lf GiB)\n", filename, create_sz, TOGiB(create_sz));
       exit(-1);
     }
-  }
-  
+    }*/
+
+  double timestart = timedouble();
   int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
   if (fd < 0) {
     fprintf(stderr,"*warning* creating file with O_DIRECT failed (no filesystem support?)\n");
@@ -515,20 +516,30 @@ int createFile(const char *filename, const size_t sz) {
 
   keepRunning = 1;
   char *buf = NULL;
-  CALLOC(buf, 1, 1024*1024);
+
+#define CREATECHUNK (1024*1024)
   
-  size_t towriteMiB = sz;
+  CALLOC(buf, 1, CREATECHUNK);
+  generateRandomBuffer(buf, CREATECHUNK, 42);
+  fprintf(stderr,"*info* slow writing %ld (%.3lf GiB)\n", sz, TOGiB(sz));
+  size_t towriteMiB = sz, totalw = 0;
+
   while (towriteMiB > 0 && keepRunning) {
-    int towrite = MIN(towriteMiB, 1024*1024);
+    int towrite = MIN(towriteMiB, CREATECHUNK);
     int wrote = write(fd, buf, towrite);
+    totalw += wrote;
+    //    fprintf(stderr,"wrote %zd, %.3lf MB/s\n", totalw, TOMB(wrote / (timedouble() - timestart)));
     if (wrote < 0) {
       perror("createFile");free(buf);return 1;
     }
-    towriteMiB -= towrite;
+    towriteMiB -= wrote;
   }
+  //  fprintf(stderr,"*info* wrote down to %zd\n", towriteMiB);
   fsync(fd);
   close(fd);
   free(buf);
+  double timeelapsed = timedouble() - timestart;
+  fprintf(stderr,"*info* file '%s' created in %.1lf seconds, %.0lf MB/s\n", filename, timeelapsed, TOMB(sz / timeelapsed));
   if (!keepRunning) {
     fprintf(stderr,"*warning* early size creation termination\n");
     exit(-1);

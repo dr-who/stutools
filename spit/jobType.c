@@ -227,6 +227,8 @@ static void *runThread(void *arg) {
   //  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
   if (verbose) {fprintf(stderr," finished\n"); fflush(stderr);}
 
+  
+
   close(fd);
 
   return NULL;
@@ -387,7 +389,7 @@ void jobRunThreads(jobType *job, const int num,
 		   size_t minSizeInBytes,
 		   size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
-		   unsigned short seed, int savePositions, diskStatType *d, const double timeperline, const double ignorefirst) {
+		   unsigned short seed, int savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -977,6 +979,22 @@ void jobRunThreads(jobType *job, const int num,
     histFree(&histRead);
     histFree(&histWrite);
 
+    if (verify) {
+      positionContainer pc = positionContainerMerge(&mergedpc, 1);
+      //      pc.device = NULL;
+      //      pc.string = NULL;
+      int fd = 0;
+      if (pc.sz) {
+	fd = open(mergedpc.device, O_RDONLY | O_DIRECT);
+	if (fd < 0) {perror(mergedpc.device);exit(-2);}
+      }
+      int errors = verifyPositions(fd, &pc, 64);
+      if (errors) {
+	exit(1);
+      }
+      positionContainerFree(&pc);
+      close(fd);
+    }
 
     if (1) {
       char s[1000];
@@ -985,17 +1003,7 @@ void jobRunThreads(jobType *job, const int num,
       positionContainerSave(&mergedpc, s, mergedpc.maxbdSize, 0);
       fprintf(stderr, "finished\n"); fflush(stderr);
     }
-
     
-    if (0) {
-      int fd = open(mergedpc.device, O_RDONLY);
-      assert(fd>0);
-      int errors = verifyPositions(fd, &mergedpc, 32);
-      if (errors) {
-	exit(-1);
-      }
-    }
-      
     
     positionContainerFree(&mergedpc);
     free(origpc);
@@ -1040,7 +1048,17 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	  gSize = alignedNumber(1024L * atof(charG + 1) * 1024 * 1024, 4096);
 	}
       }
-      
+
+
+      double blockSize = 4;
+      {
+	char *charG = strchr(preconditions->strings[i], 'k');
+	if (charG && *(charG+1)) {
+	  // a k value is specified
+	  blockSize = atof(charG + 1);
+	}
+      }
+
       size_t seqFiles = 0;
       {// seq or random
 	char *charG = strchr(preconditions->strings[i], 's');
@@ -1073,11 +1091,11 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
       
       char s[100];
-      sprintf(s, "w k4 z s%zd J%zd b%zd X%zd x1 nN I%zd", seqFiles, jumble, maxSizeBytes, coverage, exitIOPS);
+      sprintf(s, "w k%g z s%zd J%zd b%zd X%zd x1 nN I%zd q512", blockSize, seqFiles, jumble, maxSizeBytes, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0); 
+    jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/); 
     fprintf(stderr,"*info* preconditioning complete\n"); fflush(stderr);
   }
   return 0;
