@@ -346,9 +346,9 @@ int main(int argc, char *argv[]) {
   }
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  while (fuzz) {
+  do {
     jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p, timeperline, ignoresec, verify);
-  }
+  }while (fuzz);
 
   jobFree(j);
   free(j);
