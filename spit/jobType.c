@@ -161,7 +161,8 @@ static void *runThread(void *arg) {
   }
     
   if (fd < 0) {
-    fprintf(stderr,"*error* problem opening '%s' with direct=%d.\n", threadContext->jobdevice, direct);
+    fprintf(stderr,"*error* problem opening '%s' with direct=%d, writes=%zd\n", threadContext->jobdevice, direct, threadContext->anywrites);
+    fprintf(stderr,"*info* some filesystems don't support direct, maybe add D to the command string.\n");
     perror(threadContext->jobdevice); exit(-1);
   }
 
