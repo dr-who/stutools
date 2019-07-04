@@ -322,6 +322,9 @@ int main(int argc, char *argv[]) {
 #ifndef VERSION
 #define VERSION __TIMESTAMP__
 #endif
+
+  fprintf(stderr,"*exit* use spit -f device -c commandstring\n");exit(1);
+  
   fprintf(stderr,"*info* stutools %s %s \n", argv[0], VERSION);
     
   handle_args(argc, argv);
