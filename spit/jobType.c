@@ -294,6 +294,7 @@ static void *runThreadTimer(void *arg) {
 	if (threadContext->allPC && threadContext->allPC[j]) {
 	  trb += threadContext->allPC[j]->readBytes;
 	  tri += threadContext->allPC[j]->readIOs;
+
 	  twb += threadContext->allPC[j]->writtenBytes;
 	  twi += threadContext->allPC[j]->writtenIOs;
 	}
@@ -301,9 +302,10 @@ static void *runThreadTimer(void *arg) {
       
       if (thistime - start > ignorefirst) {
 	total_printed_r_bytes = trb;
+	total_printed_r_iops =  tri;
+
 	total_printed_w_bytes = twb;
-	total_printed_r_iops = tri;
-	total_printed_w_iops = twi;
+	total_printed_w_iops =  twi;
 	
 	if (threadContext->pos.diskStats) {
 	  diskStatFinish(threadContext->pos.diskStats);
@@ -319,7 +321,7 @@ static void *runThreadTimer(void *arg) {
 	size_t readIOPS  = (tri - last_tri) / gaptime;
 	
 	size_t writeB    = (twb - last_twb) / gaptime;
-	size_t writeIOPS = (twi - last_twi) /gaptime;
+	size_t writeIOPS = (twi - last_twi) / gaptime;
 
 	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
 	commaPrint0dp(stderr, TOMB(readB));
@@ -1012,7 +1014,7 @@ void jobRunThreads(jobType *job, const int num,
     if (1) {
       char s[1000];
       sprintf(s, "spit-positions.txt");
-      fprintf(stderr, "*info* writing positions to '%s' ... ", s);  fflush(stderr);
+      fprintf(stderr, "*info* saving positions to '%s' ... ", s);  fflush(stderr);
       positionContainerSave(&mergedpc, s, mergedpc.maxbdSize, 0);
       fprintf(stderr, "finished\n"); fflush(stderr);
     }

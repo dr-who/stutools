@@ -48,6 +48,12 @@ string on a dedicated thread with an AIO context per thread.
    Specifies a list of raw devices, matched with the *-f* option shows
    device read/write amplification. (e.g. -f /dev/md0 -O devices.txt)
 
+ *P*::
+   Save positions to the file `spit-positions.txt`
+
+ *v*::
+   Verify writes by reading and checking.
+
 == COMMAND OPTIONS
 
 A command is a single contiguous string. Spaces are ignored if the

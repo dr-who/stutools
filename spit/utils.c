@@ -365,9 +365,10 @@ char *getModel(const char *suffix) {
       
       if (ret > 1) {
 	s[ret - 1] = 0;
-	return strdup(s);
+	return s;
       }
     } else {
+      free(s);
       return strdup("MISSING MODEL STRING in /sys/block/../device/model");
     }
   }

@@ -331,12 +331,12 @@ size_t aioMultiplePositions( positionContainer *p,
 	  
 	  //fprintf(stderr,"'%c' %d %u\n", pp->action, pp->q, pp->len);
 	  if (pp->action == 'R') {
-	    p->readBytes += pp->len;
 	    p->readIOs++;
+	    p->readBytes += pp->len;
 	    totalReadBytes += pp->len;
 	  } else if (pp->action == 'W') {
-	    p->writtenBytes += pp->len;
 	    p->writtenIOs++;
+	    p->writtenBytes += pp->len;
 	    totalWriteBytes += pp->len;
 	  }
 
