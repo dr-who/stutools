@@ -394,7 +394,9 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
       if (ret == 1) {
 	*phy = d;
       }
-      if (fp) fclose(fp); fp = NULL;
+      if (fp) {
+	fclose(fp); fp = NULL;
+      }
     }
 
       // first physical
@@ -409,7 +411,9 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
       if (ret == 1) {
 	*log = d;
       }
-      if (fp) fclose(fp); fp = NULL;
+      if (fp) {
+	fclose(fp); fp = NULL;
+      }
     }
   }
 }

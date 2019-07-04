@@ -964,7 +964,9 @@ void jobRunThreads(jobType *job, const int num,
       } else {
 	perror("filename");
       }
-      if (fp) fclose(fp); fp = NULL;
+      if (fp) {
+	fclose(fp); fp = NULL;
+      }
       
     }
     if (histCount(&histWrite)) {
@@ -989,7 +991,9 @@ void jobRunThreads(jobType *job, const int num,
       } else {
 	perror("filename");
       }
-      if (fp) fclose(fp); fp = NULL;
+      if (fp) {
+	fclose(fp); fp = NULL;
+      }
       
     }
     histFree(&histRead);
