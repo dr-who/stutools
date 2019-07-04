@@ -275,6 +275,7 @@ static void *runThreadTimer(void *arg) {
   size_t exitcount = 0;
   double starttime = timedouble();
   double lasttime = starttime;
+
   while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishtime + 0.1)) {
     usleep(1000000*0.01/100); // display to 0.01 s
 
@@ -289,13 +290,13 @@ static void *runThreadTimer(void *arg) {
       //      double util = 0;
       
       for (size_t j = 0; j < threadContext->numThreads;j++) {
-	if (!threadContext->ignoreResults) {
-	  assert(threadContext->allPC);
+	assert(threadContext->allPC);
+	if (threadContext->allPC && threadContext->allPC[j]) {
 	  trb += threadContext->allPC[j]->readBytes;
 	  tri += threadContext->allPC[j]->readIOs;
 	  twb += threadContext->allPC[j]->writtenBytes;
 	  twi += threadContext->allPC[j]->writtenIOs;
-	  }
+	}
       }
       
       if (thistime - start > ignorefirst) {
@@ -315,11 +316,11 @@ static void *runThreadTimer(void *arg) {
 	const double gaptime = thistime - lasttime;
 	
 	size_t readB     = (trb - last_trb) / gaptime;
-	size_t readIOPS  = (tri - last_tri) /gaptime;
+	size_t readIOPS  = (tri - last_tri) / gaptime;
 	
 	size_t writeB    = (twb - last_twb) / gaptime;
 	size_t writeIOPS = (twi - last_twi) /gaptime;
-	
+
 	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
 	commaPrint0dp(stderr, TOMB(readB));
 	fprintf(stderr," MB/s (");
@@ -413,6 +414,7 @@ void jobRunThreads(jobType *job, const int num,
 
   
   for (size_t i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
+    threadContext[i].ignoreResults = 0;
     threadContext[i].id = i;
     threadContext[i].runTime = timetorun;
     threadContext[i].finishtime = timetorun;
@@ -642,7 +644,6 @@ void jobRunThreads(jobType *job, const int num,
       }
     }
       
-    threadContext[i].ignoreResults = 0;
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
     threadContext[i].waitfor = 0;
@@ -695,6 +696,15 @@ void jobRunThreads(jobType *job, const int num,
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
 	seqFiles = atoi(sf+1);
+      }
+    }
+
+    {
+      char *sf = strchr(job->strings[i], '@');
+      if (sf) {
+	fprintf(stderr,"*warning* ignoring results for command '%s'\n", job->strings[i]);
+	threadContext[i].ignoreResults = 1;
+	threadContext[num].allPC[i] = NULL;
       }
     }
 
@@ -884,6 +894,7 @@ void jobRunThreads(jobType *job, const int num,
   threadContext[num].minbdSize = minSizeInBytes;
   threadContext[num].maxbdSize = maxSizeInBytes;
   // get disk stats before starting the other threads
+
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   for (size_t i = 0; i < num; i++) {
     //    if (threadContext[i].runXtimes == 0) {
