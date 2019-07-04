@@ -290,7 +290,7 @@ int main(int argc, char *argv[]) {
     fuzz = (strcmp(argv[1],"fuzz") == 0);
 
     if (fuzz) {
-      verbose = 2;
+      verbose = 0;
       argv = fuzzString(&argc, argv[2]);
     }
   }

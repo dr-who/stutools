@@ -268,6 +268,7 @@ static void *runThreadTimer(void *arg) {
       fprintf(stderr,"*error* couldn't create benchmark file '%s'\n", threadContext->benchmarkName);
       perror(threadContext->benchmarkName);
     }
+    fclose(fp);
   }
 
   size_t total_printed_r_bytes = 0, total_printed_w_bytes = 0, total_printed_r_iops = 0, total_printed_w_iops = 0;
@@ -984,17 +985,17 @@ void jobRunThreads(jobType *job, const int num,
       positionContainer pc = positionContainerMerge(&mergedpc, 1);
       //      pc.device = NULL;
       //      pc.string = NULL;
-      int fd = 0;
+      int fd2 = 0;
       if (pc.sz) {
-	fd = open(mergedpc.device, O_RDONLY | O_DIRECT);
-	if (fd < 0) {perror(mergedpc.device);exit(-2);}
+	fd2 = open(mergedpc.device, O_RDONLY | O_DIRECT);
+	if (fd2 < 0) {perror(mergedpc.device);exit(-2);}
       }
-      int errors = verifyPositions(fd, &pc, 64);
+      int errors = verifyPositions(fd2, &pc, 64); 
+      close(fd2);
       if (errors) {
 	exit(1);
       }
       positionContainerFree(&pc);
-      close(fd);
     }
 
     if (1) {

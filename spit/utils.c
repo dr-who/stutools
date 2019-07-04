@@ -52,6 +52,10 @@ size_t fileSize(int fd) {
 
 size_t fileSizeFromName(const char *path) {
   int fd = open(path, O_RDONLY);
+  if (fd < 0) {
+    perror(path);
+    return 0;
+  }
   size_t sz = lseek(fd, 0L, SEEK_END);
   lseek(fd, 0L, SEEK_SET);
   close(fd);
@@ -236,8 +240,8 @@ int getWriteCacheStatus(int fd) {
 int getWriteCache(const char *suf) {
   char s[200],s2[200];
   int ret = 0;
+  FILE *fp = NULL;
   if (suf) {
-    FILE *fp = NULL;
     sprintf(s, "/sys/block/%s/queue/write_cache",  suf);
     fp = fopen(s, "rt");
     if (!fp) {
@@ -252,13 +256,13 @@ int getWriteCache(const char *suf) {
 	goto wvret;
       }
     }
-    fclose(fp);
   } else {
     // can't get a suffix
     ret = -2;
   }
   // write through is ret code 0
  wvret:
+  if (fp) fclose(fp);
   return ret;
 }
   
@@ -386,11 +390,11 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
     } else {
     //    fprintf(stderr,"opened %s\n", s);
       ret = fscanf(fp, "%d", &d);
-      fclose(fp);
       if (ret == 1) {
 	*phy = d;
       }
     }
+    fclose(fp);
 
       // first physical
     sprintf(s, "/sys/block/%s/queue/logical_block_size", suffix);
@@ -401,11 +405,11 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
     } else {
       //    fprintf(stderr,"opened %s\n", s);
       ret = fscanf(fp, "%d", &d);
-      fclose(fp);
       if (ret == 1) {
 	*log = d;
       }
     }
+    fclose(fp);
   }
 }
 
