@@ -270,7 +270,6 @@ static void *runThreadTimer(void *arg) {
       fprintf(stderr,"*error* couldn't create benchmark file '%s'\n", threadContext->benchmarkName);
       perror(threadContext->benchmarkName);
     }
-    fclose(fp);
   }
 
   size_t total_printed_r_bytes = 0, total_printed_w_bytes = 0, total_printed_r_iops = 0, total_printed_w_iops = 0;
