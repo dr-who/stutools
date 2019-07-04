@@ -42,7 +42,8 @@ string on a dedicated thread with an AIO context per thread.
  *p precondition_options*::
   Before executing any commands, run the precondition write
   commands. Defaults to 4k writes. Options include: *-p Gn*, *-p Gs1* for
-  sequential, *-p Gk8* for 8 KiB writes. (e.g. -p G32)
+  sequential, *-p Gk8* for 8 KiB writes. (e.g. -p G32). *I100000* will exit
+  the preconditioning step after the first LBA pass if the IOPS is under the specified threshold.
    
  *O filename*::
    Specifies a list of raw devices, matched with the *-f* option shows
@@ -76,7 +77,10 @@ The command options are described below:
 
  *n*::
    Use random positions with replacement 
-   
+
+ *N*::
+   Add the maximum block size to all positions
+
  *qN*::
    Queue depth
 
