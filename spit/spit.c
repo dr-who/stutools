@@ -285,9 +285,14 @@ int main(int argc, char *argv[]) {
 #define VERSION __TIMESTAMP__
 #endif
 
-  if ((argc > 2) && (strcmp(argv[1],"fuzz")==0)) {
-    verbose = 2;
-    argv = fuzzString(&argc, argv[2]);
+  size_t fuzz = 0;
+  if (argc > 2) {
+    fuzz = (strcmp(argv[1],"fuzz") == 0);
+
+    if (fuzz) {
+      verbose = 2;
+      argv = fuzzString(&argc, argv[2]);
+    }
   }
   
   jobType *j = malloc(sizeof(jobType));
@@ -341,7 +346,9 @@ int main(int argc, char *argv[]) {
   }
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
-  jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p, timeperline, ignoresec, verify);
+  do {
+    jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p, timeperline, ignoresec, verify);
+  }while (fuzz);
 
   jobFree(j);
   free(j);
