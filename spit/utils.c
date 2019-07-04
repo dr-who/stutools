@@ -393,8 +393,8 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
       if (ret == 1) {
 	*phy = d;
       }
+      fclose(fp);
     }
-    fclose(fp);
 
       // first physical
     sprintf(s, "/sys/block/%s/queue/logical_block_size", suffix);
@@ -408,8 +408,8 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
       if (ret == 1) {
 	*log = d;
       }
+      fclose(fp);
     }
-    fclose(fp);
   }
 }
 
