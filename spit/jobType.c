@@ -204,7 +204,9 @@ static void *runThread(void *arg) {
     }
     sleep(threadContext->waitfor);
     aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
-    if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* interrupted...\n");}
+    if (verbose >= 1) {
+      if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* interrupted...\n");}
+    }
     if (threadContext->runXtimes == 1) {
       break;
     }
