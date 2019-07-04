@@ -120,8 +120,10 @@ static void *runThread(void *arg) {
     if (threadContext->id == 0) {
       // print progress
       size_t gap = threadContext->endExc - threadContext->startInc - 1;
-      fprintf(stderr,"*progress* %.1lf %%\r", (i - threadContext->startInc) * 100.0 / gap);
-      fflush(stderr);
+      if (isatty(fileno(stderr))) {
+	fprintf(stderr,"*progress* %.1lf %%\r", (i - threadContext->startInc) * 100.0 / gap);
+	fflush(stderr);
+      }
     }
     if (!keepRunning) {break;}
     if (positions[i].action == 'W' && positions[i].finishtime>0) {
