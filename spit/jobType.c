@@ -376,7 +376,7 @@ static void *runThreadTimer(void *arg) {
     }
   }
   if (fp) {
-    fclose(fp);
+    fclose(fp); fp = NULL;
   }
 
   double tm = lasttime - starttime;
@@ -964,7 +964,7 @@ void jobRunThreads(jobType *job, const int num,
       } else {
 	perror("filename");
       }
-      fclose(fp);
+      if (fp) fclose(fp); fp = NULL;
       
     }
     if (histCount(&histWrite)) {
@@ -989,7 +989,7 @@ void jobRunThreads(jobType *job, const int num,
       } else {
 	perror("filename");
       }
-      fclose(fp);
+      if (fp) fclose(fp); fp = NULL;
       
     }
     histFree(&histRead);

@@ -73,7 +73,7 @@ size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs) 
   
   free(line);
 
-  fclose(fp);
+  fclose(fp); fp = NULL;
   return add;
 }
 

@@ -166,7 +166,7 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
 
 
       
-  fclose(fp);
+  fclose(fp); fp = NULL;
 }
 
 

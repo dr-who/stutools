@@ -351,7 +351,7 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
 	}
       }
     }
-    fclose(fp);
+    fclose(fp); fp = NULL;
     free(buffer);
   }
 }
@@ -776,31 +776,6 @@ void positionContainerFree(positionContainer *pc) {
   pc->positions = NULL;
 }
 
-
-// lots of checks
-/*void positionContainerSave(const positionContainer *pc, const char *name, const size_t flushEvery) {
-  if (name) {
-    FILE *fp = fopen(name, "wt");
-    if (!fp) {
-      perror(name); return;
-    }
-    for (size_t i = 0; i < pc->sz; i++) {
-      if (1 && pc->positions[i].success) {
-	size_t maxbdSizeBytes = pc->dev->shouldBeSize;
-	const char action = pc->positions[i].action;
-	if (action == 'R' || action == 'W') {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%ld\n", pc->dev->devicename, pc->positions[i].pos, TOGiB(pc->positions[i].pos), pc->positions[i].pos * 100.0 / maxbdSizeBytes, action, pc->positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), pc->positions[i].seed);
-	}
-	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%ld\n", pc->dev->devicename, (size_t)0, 0.0, 0.0, 'F', (size_t)0, pc->dev->maxbdSize, 0.0, pc->positions[i].seed);
-	}
-      }
-    }
-    fclose(fp);
-  }
-}
-
-*/
 
 void positionLatencyStats(positionContainer *pc, const int threadid) {
   size_t failed = 0;
