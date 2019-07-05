@@ -916,7 +916,7 @@ void jobRunThreads(jobType *job, const int num,
   pthread_join(pt[num], NULL);
 
 
-  if (savePositions) {
+  if (savePositions || verify) {
     // print stats 
     for (size_t i = 0; i < num; i++) {
       positionLatencyStats(&threadContext[i].pos, i);
@@ -998,25 +998,25 @@ void jobRunThreads(jobType *job, const int num,
     }
     histFree(&histRead);
     histFree(&histWrite);
-
+    
     if (verify) {
       positionContainer pc = positionContainerMerge(&mergedpc, 1);
       //      pc.device = NULL;
       //      pc.string = NULL;
       int fd2 = 0;
       if (pc.sz) {
-	fd2 = open(mergedpc.device, O_RDONLY | O_DIRECT);
-	if (fd2 < 0) {perror(mergedpc.device);exit(-2);}
+	fd2 = open(mergedpc.device, O_RDONLY);
+      if (fd2 < 0) {perror(mergedpc.device);fprintf(stderr,"eek\n");exit(-2);}
       }
       int errors = verifyPositions(fd2, &pc, 64); 
       close(fd2);
       if (errors) {
 	exit(1);
-      }
+    }
       positionContainerFree(&pc);
     }
-
-    if (1) {
+    
+    if (savePositions) {
       char s[1000];
       sprintf(s, "spit-positions.txt");
       fprintf(stderr, "*info* saving positions to '%s' ... ", s);  fflush(stderr);
