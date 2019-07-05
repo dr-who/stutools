@@ -11,23 +11,24 @@
 char *randomCommandString(const double rwratio) {
   char string[1000];
   
+  int seed = lrand48() % 65536;
   int s = lrand48() % 5;
   switch (s) {
   case 0: 
-    sprintf(string, "p%.1lfs%ld", rwratio, lrand48() % 100);
+    sprintf(string, "p%.1lfs%ldR%d", rwratio, lrand48() % 100, seed);
     break;
   case 1: 
-    sprintf(string, "p%.1lfP%ld%c", rwratio, 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N');
+    sprintf(string, "p%.1lfP%ld%cR%d", rwratio, 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N', seed);
     break;
   case 2: 
-    sprintf(string, "p%.1lfP%ldx%ld", rwratio, 1+lrand48() % 10000, 1 + lrand48()%100);
+    sprintf(string, "p%.1lfP%ldx%ldR%d", rwratio, 1+lrand48() % 10000, 1 + lrand48()%100, seed);
     break;
   case 3: 
-    sprintf(string, "p%.1lfk%ld", rwratio, 4 * (1+ (lrand48() % 4)));
+    sprintf(string, "p%.1lfk%ldR%d", rwratio, 4 * (1+ (lrand48() % 4)), seed);
     break;
   case 4: {}
     size_t klow = 4 * (1 + (lrand48() % 3));
-    sprintf(string, "p%.1lfk%ld-%ld", rwratio, klow, klow + 4*(lrand48()%4));
+    sprintf(string, "p%.1lfk%ld-%ldR%d", rwratio, klow, klow + 4*(lrand48()%4), seed);
     break;
   }
   return strdup(string);
