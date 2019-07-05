@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
 
   int fd = 0;
   if (pc.sz) {
-    fd = open(pc.device, O_RDONLY | O_DIRECT);
+    fd = open(pc.device, O_RDONLY);
     if (fd < 0) {perror(pc.device);exit(-2);}
   }
 
