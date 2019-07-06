@@ -155,7 +155,11 @@ static void *runThread(void *arg) {
   free(buf);
   free(randombuf);
 
-  if (threadContext->id == 0) fprintf(stderr,"\n");
+  if (threadContext->id == 0) {
+    if (isatty(fileno(stderr))) {
+      fprintf(stderr,"\n");
+    }
+  }
   return NULL;
 }
 
