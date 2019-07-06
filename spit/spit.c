@@ -309,7 +309,7 @@ int main(int argc, char *argv[]) {
   fclose(fp);
 
 
-  //  double starttime = timedouble();
+  double starttime = timedouble();
 
   fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], VERSION);
 
@@ -322,7 +322,7 @@ int main(int argc, char *argv[]) {
 
     if (fuzz) {
       verbose = 0;
-      argv2 = fuzzString(&argc2, fuzzdevice);
+      argv2 = fuzzString(&argc2, fuzzdevice, starttime);
     }
         
     size_t defaultQD = 16;

@@ -40,7 +40,7 @@ char *randomCommandString(const double rwratio) {
 
   
 
-char ** fuzzString(int *argc, const char *device) {
+char ** fuzzString(int *argc, const char *device, const double starttime) {
   size_t count = 1 + lrand48() % 3;
   count = 9;
 
@@ -95,7 +95,7 @@ char ** fuzzString(int *argc, const char *device) {
   fprintf(stderr,"====================\n");
   time_t now;
   time(&now);
-  fprintf(stderr,"*info* %s ", ctime(&now));
+  fprintf(stderr,"*info* running for %.2lf days. %s", (timedouble() - starttime)/3600.0/24, ctime(&now));
   fprintf(stderr,"*info* random command: ");
 
   for (size_t i = 0; i < count; i++) {
