@@ -2,6 +2,7 @@
    
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "string.h"
 #include "utils.h"
@@ -92,6 +93,9 @@ char ** fuzzString(int *argc, const char *device) {
   argv[8] = strdup(string); // verify
 
   fprintf(stderr,"====================\n");
+  time_t now;
+  time(&now);
+  fprintf(stderr,"*info* %s ", ctime(&now));
   fprintf(stderr,"*info* random command: ");
 
   for (size_t i = 0; i < count; i++) {
