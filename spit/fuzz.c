@@ -29,7 +29,7 @@ char *randomCommandString(const double rwratio) {
     break;
   case 4: {}
     size_t klow = 4 * (1 + (lrand48() % 3));
-    sprintf(string, "p%.1lfk%ld-%ldR%d", rwratio, klow, klow + 4*(lrand48()%4), seed);
+    sprintf(string, "p%.1lfk%zd-%ldR%d", rwratio, klow, klow + 4*(lrand48()%4), seed);
     break;
   case 5:  case 6:
     sprintf(string, "mP%ld%cR%d", 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N', seed);
@@ -85,7 +85,7 @@ char ** fuzzString(int *argc, const char *device, const double starttime, size_t
     argv[7] = randomCommandString(0.9);
   } else { // remaining 10% multiple j
     argv[6] = strdup("-j");
-    sprintf(string, "%zd", 1+lrand48() % 64);
+    sprintf(string, "%ld", 1+lrand48() % 64);
     argv[7] = strdup(string);
   }
 

@@ -530,7 +530,7 @@ int createFile(const char *filename, const size_t sz) {
   
   CALLOC(buf, 1, CREATECHUNK);
   generateRandomBuffer(buf, CREATECHUNK, 42);
-  fprintf(stderr,"*info* slow writing %ld (%.3lf GiB)\n", sz, TOGiB(sz));
+  fprintf(stderr,"*info* slow writing %zd (%.3lf GiB)\n", sz, TOGiB(sz));
   size_t towriteMiB = sz, totalw = 0;
 
   while (towriteMiB > 0 && keepRunning) {
