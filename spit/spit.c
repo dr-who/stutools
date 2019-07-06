@@ -293,7 +293,9 @@ int main(int argc, char *argv[]) {
 
   size_t fuzz = 0, runcount = 0;
   char *fuzzdevice = NULL;
-  if (argc > 2) {
+  if (argc == 1) {
+    usage();
+  } else if (argc > 2) {
     fuzz = (strcmp(argv[1],"fuzz") == 0);
     if (fuzz) fuzzdevice = argv[2];
   }
