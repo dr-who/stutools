@@ -208,7 +208,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	}
 	*maxSizeInBytes = fsize;
 	if (*minSizeInBytes > fsize) {
-	  fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", 0L);
+	  fprintf(stderr,"*warning* limiting size to %d, ignoring -G\n", 0);
 	  *minSizeInBytes = 0;
 	}
       }
@@ -323,6 +323,9 @@ int main(int argc, char *argv[]) {
     if (fuzz) {
       verbose = 0;
       argv2 = fuzzString(&argc2, fuzzdevice, starttime, &runcount);
+    } else {
+      argc2 = argc;
+      argv2 = argv;
     }
         
     size_t defaultQD = 16;
