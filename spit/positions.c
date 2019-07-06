@@ -194,8 +194,7 @@ void positionContainerCollapse(positionContainer merged, size_t *total) {
       size_t j = i;
       // iterate upwards
       // if j pos is past i + len then exit
-      while (j < *total) {
-	j++;
+      while (++j < *total) {
 
 	if (merged.positions[j].pos > merged.positions[i].pos + maxbs) {
 	  // if no more potential conflicts, exit the check loop
