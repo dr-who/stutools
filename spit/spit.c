@@ -38,7 +38,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(j);
   jobInit(preconditions);
 
-  optind = 1;
+  optind = 0;
   while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:vP")) != -1) {
     switch (opt) {
     case 'B':
@@ -308,17 +308,21 @@ int main(int argc, char *argv[]) {
   fprintf(fp,"-1000\n");
   fclose(fp);
 
-  
+
+  //  double starttime = timedouble();
+
+  fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], VERSION);
+
+  char **argv2 = NULL;
+  int argc2;
 
   do {
     jobType *j = malloc(sizeof(jobType));
     jobType *preconditions = malloc(sizeof(jobType));
-  
 
-    fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], VERSION);
     if (fuzz) {
       verbose = 0;
-      argv = fuzzString(&argc, fuzzdevice);
+      argv2 = fuzzString(&argc2, fuzzdevice);
     }
         
     size_t defaultQD = 16;
@@ -329,7 +333,7 @@ int main(int argc, char *argv[]) {
     
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0, savePositions = 0;
-    handle_args(argc, argv, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec, &savePositions);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec, &savePositions);
     
 
     size_t actualSize = maxSizeInBytes - minSizeInBytes;
@@ -362,6 +366,17 @@ int main(int argc, char *argv[]) {
     jobFree(preconditions);
     free(preconditions);
     diskStatFree(&d);
+
+    if (fuzz) {
+      for (size_t i = 0; i <argc2; i++) {
+	free(argv2[i]);
+	argv2[i] = NULL;
+      }
+      free(argv2);
+      argv2 = NULL;
+    }
+    
+    //    if (timedouble() - starttime > 3600) break;
   }
   while (fuzz);
 
