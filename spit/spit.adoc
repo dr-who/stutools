@@ -33,6 +33,9 @@ string on a dedicated thread with an AIO context per thread.
  *I filename*::
    Specific a file that contains a list of device names (e.g. -f devices.txt)
 
+ *B filename*::
+   The benchmarking file that has the per second read/write speed and IOPs
+
  *j N*::
    Multiply the number of commands (*-c*) by N. (e.g. -j 8)
 
@@ -69,6 +72,12 @@ The command options are described below:
  *w*::
    Performs writes
 
+ *m*::
+   Mix writing and reading from previous writes
+
+ *pN*::
+   Set the read/write ratio to *N*. (e.g. p0 is write only, p1 is read only, p0.75 is 75% reads)
+
  *Glow-high*::
    Limit the position range to *low* to *high* GiB. (e.g. G2-3)
  
@@ -83,6 +92,9 @@ The command options are described below:
 
  *qN*::
    Queue depth
+
+ *JN*::
+   Jumble/shuffle *N* values at a time. (e.g. s1J10 randomises each 10 values)
 
  *RN*::
    Seed

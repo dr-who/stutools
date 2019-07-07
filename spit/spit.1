@@ -1,23 +1,32 @@
 '\" t
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
-.\" Generator: Asciidoctor 1.5.5
-.\"      Date: 2019-07-04
+.\" Generator: Asciidoctor 1.5.8
+.\"      Date: 2019-07-07
 .\"    Manual: spit manual
 .\"    Source: spit 1.1
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2019-07-04" "spit 1.1" "spit manual"
+.TH "SPIT" "1" "2019-07-07" "spit 1.1" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
 .nh
 .ad l
 .de URL
-\\$2 \(laURL: \\$1 \(ra\\$3
+\fI\\$2\fP <\\$1>\\$3
 ..
-.if \n[.g] .mso www.tmac
-.LINKSTYLE blue R < >
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
 .SH "NAME"
 spit \- Stu\(aqs powerful I/O tester
 .SH "SYNOPSIS"
@@ -47,6 +56,11 @@ Limit the positions to a maximum of \fBsize\fP GiB (e.g. \-G 32)
 Specific a file that contains a list of device names (e.g. \-f devices.txt)
 .RE
 .sp
+\fBB filename\fP
+.RS 4
+The benchmarking file that has the per second read/write speed and IOPs
+.RE
+.sp
 \fBj N\fP
 .RS 4
 Multiply the number of commands (\fB\-c\fP) by N. (e.g. \-j 8)
@@ -73,7 +87,7 @@ device read/write amplification. (e.g. \-f /dev/md0 \-O devices.txt)
 .sp
 \fBP\fP
 .RS 4
-Save positions to the file \f[CR]spit\-positions.txt\fP
+Save positions to the file \f(CRspit\-positions.txt\fP
 .RE
 .sp
 \fBv\fP
@@ -96,6 +110,16 @@ Performs reads
 \fBw\fP
 .RS 4
 Performs writes
+.RE
+.sp
+\fBm\fP
+.RS 4
+Mix writing and reading from previous writes
+.RE
+.sp
+\fBpN\fP
+.RS 4
+Set the read/write ratio to \fBN\fP. (e.g. p0 is write only, p1 is read only, p0.75 is 75% reads)
 .RE
 .sp
 \fBGlow\-high\fP
@@ -121,6 +145,11 @@ Add the maximum block size to all positions
 \fBqN\fP
 .RS 4
 Queue depth
+.RE
+.sp
+\fBJN\fP
+.RS 4
+Jumble/shuffle \fBN\fP values at a time. (e.g. s1J10 randomises each 10 values)
 .RE
 .sp
 \fBRN\fP
@@ -183,147 +212,101 @@ In the following commands, replace \fBr\fP with \fBw\fP for writes.
 .sp
 \fBspit\fP \-f /dev/device \-c rk64
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Performs a single thread/job that performs reads, with 64 KiB reads
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c rk64 \-j 32
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Create 32 threads, with a single contigous read inside each thread
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c r32k64
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Create a single threads, break the device into 32 contiguous regions
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .SS "Random read / writes"
 .sp
 \fBspit\fP \-f /dev/device \-c rs0
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Performs a single thread/job, random 4KiB reads
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c rs0 \-j 32
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Creates 32 threads, reads random 4KiB reads
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c rs0 \-j 32 \-G1
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
 For devices with cache these operations should be cached.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c rP10000
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Read from the first 10,000 positions (4 KiB) blocks in a device.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .SS "Mixing reads/writes"
 .sp
 \fBspit\fP \-f /dev/device \-c mP10000 \-c rk64
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Two threads, one reading/write metadata to 10,000 positions. Another
 thread performing sequential reads.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c w \-c r
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Two threads, both sequential, one reading, one writing.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c ws0 \-c rs0
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Two threads, both random, one reading, one writing.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c ws1G0\-100 \-c ws0G100\-200
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 On a 200 GiB perform linear writes in the first half and
 random writes on the second half.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .SS "SNIA latency graphs"
 .sp
 \fBspit\fP \-p G \-f /dev/device \-c rs0n \-t 3600
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 To generate the Response Time Histogram \- Confidence Level Plot of
 the SNIA SSS PTS 2.0.1 use the above command. This will run a
@@ -332,9 +315,7 @@ with a random 4k read pattern, reordering after each pass.  The
 output will be written \(aqspit\-latency\-read.gnu\(aq which can be loaded
 into gnuplot.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .SH "EXIT STATUS"
 .sp
 \fB0\fP
@@ -349,9 +330,6 @@ Failure (syntax of usage error).
 .SH "BUGS"
 .sp
 Bugs will be rewarded by choc fish.
-.SH "AUTHOR(S)"
+.SH "AUTHOR"
 .sp
-\fBStuart Inglis, Ph.D.\fP
-.RS 4
-Author(s).
-.RE
+Stuart Inglis, Ph.D.
