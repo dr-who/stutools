@@ -385,6 +385,8 @@ int main(int argc, char *argv[]) {
   }
   while (fuzz);
 
+  if (benchmarkName) free(benchmarkName);
+  
   fprintf(stderr,"*info* exiting.\n"); fflush(stderr);
   exit(0);
 }
