@@ -273,7 +273,7 @@ void usage() {
   fprintf(stderr,"  spit -s 0.1 -i 5              # and ignore first 5 seconds of performance\n");
   fprintf(stderr,"  spit -v                       # verify the writes after a run\n");
   fprintf(stderr,"  spit -P                       # dump positions to spit-positions.txt\n");
- exit(-1);
+  exit(0);
 }
 
 

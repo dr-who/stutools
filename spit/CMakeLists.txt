@@ -2,6 +2,8 @@
 cmake_minimum_required (VERSION 2.6)
 project (stutools)
 
+enable_testing()
+
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wall -pedantic --std=c99 -O2" )
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
@@ -21,3 +23,31 @@ target_link_libraries(dtest spitlib m aio pthread)
 
 add_executable(hist hist.c)
 target_link_libraries(hist spitlib m)
+
+
+add_executable(testspit testspit.c)
+add_test(testspitHelp  spit)
+add_test(testspitw  spit -f wow -G 1 -c w -v -t 1)
+add_test(testspitr  spit -f wow -G 1 -c r -v -t 1)
+add_test(testspitr  spit -f wow -G 1 -c m -v -t 1)
+add_test(testspitrw  spit -f wow -G 1 -c rw -v -t 1)
+add_test(testspitp0_75 spit -f wow -G 1 -c p0.75 -v -t 1)
+add_test(testspitp0_75m spit -f wow -G 1 -c p0.75m -v -t 1)
+add_test(testspit_ws0 spit -f wow -G 1 -c ws0 -v -t 1)
+add_test(testspit_ws1 spit -f wow -G 1 -c ws1 -v -t 1)
+add_test(testspit_ws32 spit -f wow -G 1 -c ws1 -v -t 1)
+add_test(testspit_cr_cw spit -f wow -G 1 -c w -c r -v -t 1)
+add_test(testspit_j2 spit -f wow -G 1 -c w -c r -j2 -v -t 1)
+add_test(testspit_P1 spit -f wow -G 1 -c P1 -v -t 1)
+add_test(testspit_P255 spit -f wow -G 1 -c P255 -v -t 1)
+add_test(testspit_P100000 spit -f wow -G 1 -c P100000 -v -t 1)
+add_test(testspit_P100000m spit -f wow -G 1 -c mP100000 -v -t 1)
+add_test(testspit_B spit -f wow -G 1 -c P100000 -v -t 1 -B /tmp/spit-tmp.tmp)
+add_test(testspit_B_two_piece  spit -f wow -G 1 -c rs0G0-0.5 -c rs1G0.5-1 -v -t 1 -B /tmp/spit-tmp.tmp)
+add_test(testspit_P  spit -f wow -G 1 -c rw -P -v -t 1 -B /tmp/spit-tmp.tmp)
+add_test(testspit_s0_1  spit -f wow -G 1 -c rw -s 0.1 -v -t 1 -B /tmp/spit-tmp.tmp)
+add_test(testspit_k4_1024  spit -f wow -G 1 -c rwk4-1024 -v -t 2 -B /tmp/spit-tmp.tmp)
+add_test(testspit_k4_nN  spit -f wow -G 1 -c rs0nNP100 -v -t 2 -B /tmp/spit-tmp.tmp)
+
+#set (CTEST_TEST_TIMEOUT 10)
+#add_test(testspit_fuzz spit fuzz wow)
