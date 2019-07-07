@@ -25,7 +25,6 @@ add_executable(hist hist.c)
 target_link_libraries(hist spitlib m)
 
 
-add_executable(testspit testspit.c)
 add_test(testspitHelp  spit)
 add_test(testspitw  spit -f wow -G 1 -c w -v -t 1)
 add_test(testspitr  spit -f wow -G 1 -c r -v -t 1)
