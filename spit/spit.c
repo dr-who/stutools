@@ -291,7 +291,7 @@ int main(int argc, char *argv[]) {
 #define VERSION __TIMESTAMP__
 #endif
 
-  size_t fuzz = 0;
+  size_t fuzz = 0, runcount = 0;
   char *fuzzdevice = NULL;
   if (argc > 2) {
     fuzz = (strcmp(argv[1],"fuzz") == 0);
@@ -322,7 +322,7 @@ int main(int argc, char *argv[]) {
 
     if (fuzz) {
       verbose = 0;
-      argv2 = fuzzString(&argc2, fuzzdevice, starttime);
+      argv2 = fuzzString(&argc2, fuzzdevice, starttime, &runcount);
     }
         
     size_t defaultQD = 16;
