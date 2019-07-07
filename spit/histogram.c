@@ -116,12 +116,10 @@ void histSave(histogramType *h, const char *filename, const size_t scale) {
 void histFree(histogramType *h) {
   if (h->bin) {
     free(h->bin);
+  }
+  if (h->binSum) {
     free(h->binSum);
-    h->bin = NULL;
+    h->binSum = NULL;
   }
 }
   
-
-
-  
-

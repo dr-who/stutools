@@ -52,6 +52,10 @@ size_t fileSize(int fd) {
 
 size_t fileSizeFromName(const char *path) {
   int fd = open(path, O_RDONLY);
+  if (fd < 0) {
+    perror(path);
+    return 0;
+  }
   size_t sz = lseek(fd, 0L, SEEK_END);
   lseek(fd, 0L, SEEK_SET);
   close(fd);
@@ -236,8 +240,8 @@ int getWriteCacheStatus(int fd) {
 int getWriteCache(const char *suf) {
   char s[200],s2[200];
   int ret = 0;
+  FILE *fp = NULL;
   if (suf) {
-    FILE *fp = NULL;
     sprintf(s, "/sys/block/%s/queue/write_cache",  suf);
     fp = fopen(s, "rt");
     if (!fp) {
@@ -252,13 +256,13 @@ int getWriteCache(const char *suf) {
 	goto wvret;
       }
     }
-    fclose(fp);
   } else {
     // can't get a suffix
     ret = -2;
   }
   // write through is ret code 0
  wvret:
+  if (fp) fclose(fp);
   return ret;
 }
   
@@ -361,9 +365,10 @@ char *getModel(const char *suffix) {
       
       if (ret > 1) {
 	s[ret - 1] = 0;
-	return strdup(s);
+	return s;
       }
     } else {
+      free(s);
       return strdup("MISSING MODEL STRING in /sys/block/../device/model");
     }
   }
@@ -386,9 +391,11 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
     } else {
     //    fprintf(stderr,"opened %s\n", s);
       ret = fscanf(fp, "%d", &d);
-      fclose(fp);
       if (ret == 1) {
 	*phy = d;
+      }
+      if (fp) {
+	fclose(fp); fp = NULL;
       }
     }
 
@@ -401,9 +408,11 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
     } else {
       //    fprintf(stderr,"opened %s\n", s);
       ret = fscanf(fp, "%d", &d);
-      fclose(fp);
       if (ret == 1) {
 	*log = d;
+      }
+      if (fp) {
+	fclose(fp); fp = NULL;
       }
     }
   }
@@ -521,7 +530,7 @@ int createFile(const char *filename, const size_t sz) {
   
   CALLOC(buf, 1, CREATECHUNK);
   generateRandomBuffer(buf, CREATECHUNK, 42);
-  fprintf(stderr,"*info* slow writing %ld (%.3lf GiB)\n", sz, TOGiB(sz));
+  fprintf(stderr,"*info* slow writing %zd (%.3lf GiB)\n", sz, TOGiB(sz));
   size_t towriteMiB = sz, totalw = 0;
 
   while (towriteMiB > 0 && keepRunning) {

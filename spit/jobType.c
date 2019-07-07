@@ -204,7 +204,9 @@ static void *runThread(void *arg) {
     }
     sleep(threadContext->waitfor);
     aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
-    if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* interrupted...\n");}
+    if (verbose >= 1) {
+      if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* interrupted...\n");}
+    }
     if (threadContext->runXtimes == 1) {
       break;
     }
@@ -274,6 +276,7 @@ static void *runThreadTimer(void *arg) {
   size_t exitcount = 0;
   double starttime = timedouble();
   double lasttime = starttime;
+
   while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishtime + 0.1)) {
     usleep(1000000*0.01/100); // display to 0.01 s
 
@@ -288,20 +291,22 @@ static void *runThreadTimer(void *arg) {
       //      double util = 0;
       
       for (size_t j = 0; j < threadContext->numThreads;j++) {
-	if (!threadContext->ignoreResults) {
-	  assert(threadContext->allPC);
+	assert(threadContext->allPC);
+	if (threadContext->allPC && threadContext->allPC[j]) {
 	  trb += threadContext->allPC[j]->readBytes;
 	  tri += threadContext->allPC[j]->readIOs;
+
 	  twb += threadContext->allPC[j]->writtenBytes;
 	  twi += threadContext->allPC[j]->writtenIOs;
-	  }
+	}
       }
       
       if (thistime - start > ignorefirst) {
 	total_printed_r_bytes = trb;
+	total_printed_r_iops =  tri;
+
 	total_printed_w_bytes = twb;
-	total_printed_r_iops = tri;
-	total_printed_w_iops = twi;
+	total_printed_w_iops =  twi;
 	
 	if (threadContext->pos.diskStats) {
 	  diskStatFinish(threadContext->pos.diskStats);
@@ -314,11 +319,11 @@ static void *runThreadTimer(void *arg) {
 	const double gaptime = thistime - lasttime;
 	
 	size_t readB     = (trb - last_trb) / gaptime;
-	size_t readIOPS  = (tri - last_tri) /gaptime;
+	size_t readIOPS  = (tri - last_tri) / gaptime;
 	
 	size_t writeB    = (twb - last_twb) / gaptime;
-	size_t writeIOPS = (twi - last_twi) /gaptime;
-	
+	size_t writeIOPS = (twi - last_twi) / gaptime;
+
 	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
 	commaPrint0dp(stderr, TOMB(readB));
 	fprintf(stderr," MB/s (");
@@ -371,7 +376,7 @@ static void *runThreadTimer(void *arg) {
     }
   }
   if (fp) {
-    fclose(fp);
+    fclose(fp); fp = NULL;
   }
 
   double tm = lasttime - starttime;
@@ -412,6 +417,7 @@ void jobRunThreads(jobType *job, const int num,
 
   
   for (size_t i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
+    threadContext[i].ignoreResults = 0;
     threadContext[i].id = i;
     threadContext[i].runTime = timetorun;
     threadContext[i].finishtime = timetorun;
@@ -601,7 +607,7 @@ void jobRunThreads(jobType *job, const int num,
 
     //    size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
     // use max 1/2 of free RAM
-    size_t useRAM = MIN(5L*1024*1024*1024, freeRAM() / 4); // 1L*1024*1024*1024;
+    size_t useRAM = MIN((size_t)5*1024*1024*1024, freeRAM() / 4); // 1L*1024*1024*1024;
     
     //    fprintf(stderr,"use ram %zd\n", useRAM);
     size_t fitinram = useRAM / num / sizeof(positionType);
@@ -641,7 +647,6 @@ void jobRunThreads(jobType *job, const int num,
       }
     }
       
-    threadContext[i].ignoreResults = 0;
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
     threadContext[i].waitfor = 0;
@@ -694,6 +699,15 @@ void jobRunThreads(jobType *job, const int num,
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
 	seqFiles = atoi(sf+1);
+      }
+    }
+
+    {
+      char *sf = strchr(job->strings[i], '@');
+      if (sf) {
+	fprintf(stderr,"*warning* ignoring results for command '%s'\n", job->strings[i]);
+	threadContext[i].ignoreResults = 1;
+	threadContext[num].allPC[i] = NULL;
       }
     }
 
@@ -883,6 +897,7 @@ void jobRunThreads(jobType *job, const int num,
   threadContext[num].minbdSize = minSizeInBytes;
   threadContext[num].maxbdSize = maxSizeInBytes;
   // get disk stats before starting the other threads
+
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   for (size_t i = 0; i < num; i++) {
     //    if (threadContext[i].runXtimes == 0) {
@@ -901,7 +916,7 @@ void jobRunThreads(jobType *job, const int num,
   pthread_join(pt[num], NULL);
 
 
-  if (savePositions) {
+  if (savePositions || verify) {
     // print stats 
     for (size_t i = 0; i < num; i++) {
       positionLatencyStats(&threadContext[i].pos, i);
@@ -949,7 +964,9 @@ void jobRunThreads(jobType *job, const int num,
       } else {
 	perror("filename");
       }
-      fclose(fp);
+      if (fp) {
+	fclose(fp); fp = NULL;
+      }
       
     }
     if (histCount(&histWrite)) {
@@ -974,33 +991,35 @@ void jobRunThreads(jobType *job, const int num,
       } else {
 	perror("filename");
       }
-      fclose(fp);
+      if (fp) {
+	fclose(fp); fp = NULL;
+      }
       
     }
     histFree(&histRead);
     histFree(&histWrite);
-
+    
     if (verify) {
       positionContainer pc = positionContainerMerge(&mergedpc, 1);
       //      pc.device = NULL;
       //      pc.string = NULL;
-      int fd = 0;
+      int fd2 = 0;
       if (pc.sz) {
-	fd = open(mergedpc.device, O_RDONLY | O_DIRECT);
-	if (fd < 0) {perror(mergedpc.device);exit(-2);}
+	fd2 = open(mergedpc.device, O_RDONLY);
+      if (fd2 < 0) {perror(mergedpc.device);fprintf(stderr,"eek\n");exit(-2);}
       }
-      int errors = verifyPositions(fd, &pc, 64);
+      int errors = verifyPositions(fd2, &pc, 64); 
+      close(fd2);
       if (errors) {
 	exit(1);
-      }
-      positionContainerFree(&pc);
-      close(fd);
     }
-
-    if (1) {
+      positionContainerFree(&pc);
+    }
+    
+    if (savePositions) {
       char s[1000];
       sprintf(s, "spit-positions.txt");
-      fprintf(stderr, "*info* writing positions to '%s' ... ", s);  fflush(stderr);
+      fprintf(stderr, "*info* saving positions to '%s' ... ", s);  fflush(stderr);
       positionContainerSave(&mergedpc, s, mergedpc.maxbdSize, 0);
       fprintf(stderr, "finished\n"); fflush(stderr);
     }

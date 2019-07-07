@@ -25,7 +25,7 @@ char *benchmarkName = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec) {
+		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec, size_t *savePositions) {
   int opt;
 
   char *device = NULL;
@@ -37,8 +37,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
   jobInit(j);
   jobInit(preconditions);
-  
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:v")) != -1) {
+
+  optind = 0;
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:vP")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -91,6 +92,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       break;
     case 'p': // pre-conditions
       jobAdd(preconditions, optarg);
+      break;
+    case 'P':
+      fprintf(stderr,"*info* savePositions set\n");
+      *savePositions = 1;
       break;
     case 'q':
       *defaultqd = atoi(optarg);
@@ -203,7 +208,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	}
 	*maxSizeInBytes = fsize;
 	if (*minSizeInBytes > fsize) {
-	  fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", 0L);
+	  fprintf(stderr,"*warning* limiting size to %d, ignoring -G\n", 0);
 	  *minSizeInBytes = 0;
 	}
       }
@@ -267,6 +272,7 @@ void usage() {
   fprintf(stderr,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n"); 
   fprintf(stderr,"  spit -s 0.1 -i 5              # and ignore first 5 seconds of performance\n");
   fprintf(stderr,"  spit -v                       # verify the writes after a run\n");
+  fprintf(stderr,"  spit -P                       # dump positions to spit-positions.txt\n");
  exit(-1);
 }
 
@@ -285,77 +291,97 @@ int main(int argc, char *argv[]) {
 #define VERSION __TIMESTAMP__
 #endif
 
-  size_t fuzz = 0;
+  size_t fuzz = 0, runcount = 0;
+  char *fuzzdevice = NULL;
   if (argc > 2) {
     fuzz = (strcmp(argv[1],"fuzz") == 0);
-
-    if (fuzz) {
-      verbose = 2;
-      argv = fuzzString(&argc, argv[2]);
-    }
+    if (fuzz) fuzzdevice = argv[2];
   }
-  
-  jobType *j = malloc(sizeof(jobType));
-  jobType *preconditions = malloc(sizeof(jobType));
-  
-  size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
 
   // don't run if swap is on
   if (swapTotal() > 0) {
     fprintf(stderr,"*error* spit needs swap to be off for believable numbers. `sudo swapoff -a`\n");
   }
-  // set OOM adjust to 1,000 to make this program be killed first
+
+  // set OOM adjust to 1,000 to make this program be killed last
   FILE *fp = fopen("/proc/self/oom_score_adj", "wt");
-  fprintf(fp,"1000\n");
+  fprintf(fp,"-1000\n");
   fclose(fp);
 
 
-  
+  double starttime = timedouble();
+
   fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], VERSION);
 
-  size_t defaultQD = 16;
-  unsigned short seed = 0;
-  diskStatType d;
-  size_t verify = 0;
-  double timeperline = 1, ignoresec = 0;
+  char **argv2 = NULL;
+  int argc2;
 
-  diskStatSetup(&d);
-  handle_args(argc, argv, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec);
-  
-  if (j->count == 0) {
-    usage();
-  }
-
-
-  size_t actualSize = maxSizeInBytes - minSizeInBytes;
-  fprintf(stderr,"*info* bdSize range [%.2lf-%.2lf] GB, size %.2lf GB (%zd bytes), [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
-  if (actualSize < 4096) {
-    fprintf(stderr,"*error* block device too small.\n");
-    exit(1);
-  }
-
-  keepRunning = 1;
-  signal(SIGTERM, intHandler);
-  signal(SIGINT, intHandler);
-  jobRunPreconditions(preconditions, preconditions->count, minSizeInBytes, maxSizeInBytes);
-
-  keepRunning = 1;
-  diskStatType *p = &d;
-  if (!d.numDevices) {
-    p = NULL;
-  }
-  signal(SIGTERM, intHandler);
-  signal(SIGINT, intHandler);
   do {
-    jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, 1, p, timeperline, ignoresec, verify);
-  }while (fuzz);
+    jobType *j = malloc(sizeof(jobType));
+    jobType *preconditions = malloc(sizeof(jobType));
 
-  jobFree(j);
-  free(j);
+    if (fuzz) {
+      verbose = 0;
+      argv2 = fuzzString(&argc2, fuzzdevice, starttime, &runcount);
+    } else {
+      argc2 = argc;
+      argv2 = argv;
+    }
+        
+    size_t defaultQD = 16;
+    unsigned short seed = 0;
+    diskStatType d;
+    size_t verify = 0;
+    double timeperline = 1, ignoresec = 0;
+    
+    diskStatSetup(&d);
+    size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0, savePositions = 0;
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec, &savePositions);
+    
 
-  jobFree(preconditions);
-  free(preconditions);
-  diskStatFree(&d);
+    size_t actualSize = maxSizeInBytes - minSizeInBytes;
+    fprintf(stderr,"*info* bdSize range [%.2lf-%.2lf] GB, size %.2lf GB (%zd bytes), [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
+    if (actualSize < 4096) {
+      fprintf(stderr,"*error* block device too small.\n");
+      exit(1);
+    }
+    
+    if (preconditions) {
+      keepRunning = 1;
+      signal(SIGTERM, intHandler);
+      signal(SIGINT, intHandler);
+      jobRunPreconditions(preconditions, preconditions->count, minSizeInBytes, maxSizeInBytes);
+    }
+    
+    keepRunning = 1;
+    diskStatType *p = &d;
+    if (!d.numDevices) {
+      p = NULL;
+    }
+    signal(SIGTERM, intHandler);
+    signal(SIGINT, intHandler);
+
+    jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoresec, verify);
+    
+    jobFree(j);
+    free(j);
+    
+    jobFree(preconditions);
+    free(preconditions);
+    diskStatFree(&d);
+
+    if (fuzz) {
+      for (size_t i = 0; i <argc2; i++) {
+	free(argv2[i]);
+	argv2[i] = NULL;
+      }
+      free(argv2);
+      argv2 = NULL;
+    }
+    
+    //    if (timedouble() - starttime > 3600) break;
+  }
+  while (fuzz);
 
   fprintf(stderr,"*info* exiting.\n"); fflush(stderr);
   exit(0);
