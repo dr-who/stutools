@@ -25,6 +25,7 @@ extern int keepRunning;
 typedef struct {
   int fd;
   int id;
+  int numThreads;
   size_t startInc;
   size_t endExc;
   size_t correct;
@@ -118,7 +119,7 @@ static void *runThread(void *arg) {
   
 
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
-    if (threadContext->id == 0) {
+    if (threadContext->id == threadContext->numThreads - 1) {
       // print progress
       size_t gap = threadContext->endExc - threadContext->startInc - 1;
       if (isatty(fileno(stderr))) {
@@ -189,6 +190,7 @@ int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
   for (size_t i =0 ; i < threads; i++) {
     threadContext[i].fd = fd;
     threadContext[i].id = i;
+    threadContext[i].numThreads = threads;
     threadContext[i].startInc = (size_t) (i*(num * 1.0 / threads));
     threadContext[i].endExc =   (size_t) ((i+1)*(num * 1.0 / threads));
     threadContext[i].correct = 0;
