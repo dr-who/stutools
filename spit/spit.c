@@ -305,9 +305,9 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*error* spit needs swap to be off for believable numbers. `sudo swapoff -a`\n");
   }
 
-  // set OOM adjust to 1,000 to make this program be killed last
+  // set OOM adjust to 1,000 to make this program be killed first
   FILE *fp = fopen("/proc/self/oom_score_adj", "wt");
-  fprintf(fp,"-1000\n");
+  fprintf(fp,"1000\n");
   fclose(fp);
 
 
