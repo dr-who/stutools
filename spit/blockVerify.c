@@ -120,7 +120,7 @@ static void *runThread(void *arg) {
   
 
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
-    if (threadContext->id == threadContext->numThreads - 1) {
+    if (threadContext->id == 0) {
       // print progress
       size_t gap = threadContext->endExc - threadContext->startInc - 1;
       if (isatty(fileno(stderr))) {
@@ -158,13 +158,13 @@ static void *runThread(void *arg) {
   free(buf);
   free(randombuf);
 
-  if (threadContext->id == threadContext->numThreads - 1) {
+  if (threadContext->id == 0) {
     if (isatty(fileno(stderr))) {
       fprintf(stderr,"\n");
     }
   }
-  if (verbose >= 1) {
-    fprintf(stderr,"*info* finished thread %d\n", threadContext->id);
+  if (verbose >= 2) {
+    fprintf(stderr,"*info* verify thread %d / %d finished\n", threadContext->id + 1, threadContext->numThreads);
   }
   return NULL;
 }

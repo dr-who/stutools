@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
   }
 
 
-  const size_t threads = 64;
+  const size_t threads = 256;
   fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
 
   // verify must be sorted
