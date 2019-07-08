@@ -1008,7 +1008,7 @@ void jobRunThreads(jobType *job, const int num,
 	fd2 = open(mergedpc.device, O_RDONLY);
       if (fd2 < 0) {perror(mergedpc.device);fprintf(stderr,"eek\n");exit(-2);}
       }
-      int errors = verifyPositions(fd2, &pc, 64); 
+      int errors = verifyPositions(fd2, &pc, 256); 
       close(fd2);
       if (errors) {
 	exit(1);
