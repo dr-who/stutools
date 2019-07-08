@@ -157,7 +157,7 @@ static void *runThread(void *arg) {
   free(buf);
   free(randombuf);
 
-  if (threadContext->id == 0) {
+  if (threadContext->id == threadContext->numThreads - 1) {
     if (isatty(fileno(stderr))) {
       fprintf(stderr,"\n");
     }
