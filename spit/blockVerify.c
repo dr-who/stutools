@@ -38,7 +38,7 @@ typedef struct {
 } threadInfoType;
 
 // sorting function, used by qsort
-static int seedcompare(const void *p1, const void *p2)
+/*static int seedcompare(const void *p1, const void *p2)
 {
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
@@ -49,7 +49,7 @@ static int seedcompare(const void *p1, const void *p2)
     else if (pos1->pos > pos2->pos) return 1;
     else return 0;
   }
-}
+  }*/
 
 
 
@@ -57,6 +57,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
   const size_t pos = p->pos;
   const size_t len = p->len;
 
+  assert(p->action == 'W');
   ssize_t ret = pread(fd, buf, len, pos); // use pread as it's thread safe as you pass in the fd, size and offset
 
   if (ret == -1) {
@@ -173,8 +174,8 @@ static void *runThread(void *arg) {
 int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
 
   //  fprintf(stderr,"*info* sorting %zd\n", pc->sz);
+  //  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
   keepRunning = 1;
-  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
 
   size_t num = pc->sz;
 
