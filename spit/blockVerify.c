@@ -21,6 +21,7 @@
 #include "blockVerify.h"
 
 extern int keepRunning;
+extern int verbose;
 
 typedef struct {
   int fd;
@@ -162,6 +163,9 @@ static void *runThread(void *arg) {
       fprintf(stderr,"\n");
     }
   }
+  if (verbose >= 1) {
+    fprintf(stderr,"*info* finished thread %d\n", threadContext->id);
+  }
   return NULL;
 }
 
@@ -176,6 +180,8 @@ int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
 
   //  fprintf(stderr,"*info* sorting %zd\n", pc->sz);
   //  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
+
+  positionRandomize(pc->positions, pc->sz);
   keepRunning = 1;
 
   size_t num = pc->sz;
