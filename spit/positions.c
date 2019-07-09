@@ -49,12 +49,14 @@ positionType *createPositions(size_t num) {
   return p;
 }
 
-void freePositions(positionType *p) {
+/*void freePositions(positionType *p) {
   free(p);  p = NULL;
-}
+  }*/
 
 
-int checkPositionArray(const positionType *positions, size_t num, const size_t minmaxbdSizeBytes, const size_t maxbdSizeBytes, size_t exitonerror) {
+int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSizeBytes, const size_t maxbdSizeBytes, size_t exitonerror) {
+  const size_t num = pc->sz;
+  const positionType *positions = pc->positions;
   fprintf(stderr,"*info*... checking position array with %zd values...\n", num);fflush(stderr);
   
   size_t rcount = 0, wcount = 0;
@@ -150,18 +152,18 @@ int checkPositionArray(const positionType *positions, size_t num, const size_t m
   return 0;
 }
 
-void positionContainerCheckOverlap(const positionContainer merged, const size_t total) {
+void positionContainerCheckOverlap(const positionContainer *merged) {
   size_t printed = 0;
-  for (size_t i = 0; i < total - 1; i++) {
+  for (size_t i = 0; i < merged->sz - 1; i++) {
     //    if (i < 100)fprintf(stderr,"[%zd] %zd len %d %c seed %d fin %lf\n", i, merged.positions[i].pos, merged.positions[i].len, merged.positions[i].action, merged.positions[i].seed, merged.positions[i].finishtime);
-    if (merged.positions[i].action == 'W' && merged.positions[i+1].action != 'R') {
-      if (merged.positions[i].seed != merged.positions[i+1].seed) {
-	if (merged.positions[i].pos + merged.positions[i].len > merged.positions[i+1].pos) {
-	  if (merged.positions[i].finishtime > 0 && merged.positions[i+1].finishtime > 0) {
-	    if (merged.positions[i].finishtime < merged.positions[i+1].finishtime) {
+    if (merged->positions[i].action == 'W' && merged->positions[i+1].action != 'R') {
+      if (merged->positions[i].seed != merged->positions[i+1].seed) {
+	if (merged->positions[i].pos + merged->positions[i].len > merged->positions[i+1].pos) {
+	  if (merged->positions[i].finishtime > 0 && merged->positions[i+1].finishtime > 0) {
+	    if (merged->positions[i].finishtime < merged->positions[i+1].finishtime) {
 	      printed++;
 	      if (printed < 10)
-		fprintf(stderr,"[%zd] *warning* problem at position %zd (len %d) %c, next %zd (len %d) %c\n", i, merged.positions[i].pos, merged.positions[i].len,  merged.positions[i].action, merged.positions[i+1].pos, merged.positions[i+1].len, merged.positions[i+1].action);
+		fprintf(stderr,"[%zd] *warning* problem at position %zd (len %d) %c, next %zd (len %d) %c\n", i, merged->positions[i].pos, merged->positions[i].len,  merged->positions[i].action, merged->positions[i+1].pos, merged->positions[i+1].len, merged->positions[i+1].action);
 	      //	  abort();
 	    }
 	  }
@@ -173,50 +175,42 @@ void positionContainerCheckOverlap(const positionContainer merged, const size_t 
 
   
 
-void positionContainerCollapse(positionContainer merged, size_t *total) {
-  qsort(merged.positions, *total, sizeof(positionType), poscompare);
+void positionContainerCollapse(positionContainer *merged) {
+  qsort(merged->positions, merged->sz, sizeof(positionType), poscompare);
 
-  size_t maxbs = 0;
-  for (size_t i = 0; i < *total; i++) {
-    if (merged.positions[i].len > maxbs) {
-      maxbs = merged.positions[i].len;
-    }
-  }
-  if (verbose >= 2) {
-    fprintf(stderr,"*info* collapse. maxbs = %zd\n", maxbs);
-  }
+  size_t maxbs = merged->maxbs;
   assert(maxbs > 0);
 
-  for (size_t i = 0; i < *total; i++) {
-    if (toupper(merged.positions[i].action) != 'R' && merged.positions[i].finishtime > 0) {
-      if (i>0) assert(merged.positions[i].pos >= merged.positions[i-1].pos);
+  for (size_t i = 0; i < merged->sz; i++) {
+    if (toupper(merged->positions[i].action) != 'R' && merged->positions[i].finishtime > 0) {
+      if (i>0) assert(merged->positions[i].pos >= merged->positions[i-1].pos);
 
       size_t j = i;
       // iterate upwards
       // if j pos is past i + len then exit
-      while (++j < *total) {
+      while (++j < merged->sz) {
 
-	if (merged.positions[j].pos > merged.positions[i].pos + maxbs) {
+	if (merged->positions[j].pos > merged->positions[i].pos + maxbs) {
 	  // if no more potential conflicts, exit the check loop
 	  break;
 	}
 
-	if (merged.positions[j].action == 'R') {
+	if (merged->positions[j].action == 'R') {
 	  // if it's a read move to the next one
 	  continue;
 	}
 
 	// there is some conflict to check
 	size_t oldest = i, newest = j;
-	if (merged.positions[j].finishtime < merged.positions[i].finishtime) {
+	if (merged->positions[j].finishtime < merged->positions[i].finishtime) {
 	  oldest = j;
 	  newest = i;
 	}
 
 	// if the same thread wrote to the same location with the same seed, they are OK
-	if (merged.positions[i].pos == merged.positions[j].pos) {
-	  if (merged.positions[i].len == merged.positions[j].len) {
-	    if (merged.positions[i].seed == merged.positions[j].seed) {
+	if (merged->positions[i].pos == merged->positions[j].pos) {
+	  if (merged->positions[i].len == merged->positions[j].len) {
+	    if (merged->positions[i].seed == merged->positions[j].seed) {
 	      continue;
 	    }
 	  }
@@ -224,44 +218,42 @@ void positionContainerCollapse(positionContainer merged, size_t *total) {
 
 	
 	// if one is quite a lot newer, keep that
-	if (merged.positions[newest].submittime > merged.positions[oldest].finishtime + 1 /* submit newest 10 seconds after oldest finished */) {
+	if (merged->positions[newest].submittime > merged->positions[oldest].finishtime + 1 /* submit newest 10 seconds after oldest finished */) {
 	  // clobber old one no matter what
-	  merged.positions[oldest].action = '1'; // exclude from output
+	  merged->positions[oldest].action = '1'; // exclude from output
 	  //	  merged.positions[newest].action = '*'; // exclude from output
 	  continue;
 	}
 
 	// they are overlapping some how
 	
-	if (merged.positions[i].pos + merged.positions[i].len <= merged.positions[j].pos) {
+	if (merged->positions[i].pos + merged->positions[i].len <= merged->positions[j].pos) {
 	  continue;
 	}
 
 
-	if (merged.positions[i].pos + merged.positions[i].len > merged.positions[j].pos) {
-	  merged.positions[i].action = '2'; // exclude from output
-	  merged.positions[j].action = '2'; // exclude from output
+	if (merged->positions[i].pos + merged->positions[i].len > merged->positions[j].pos) {
+	  merged->positions[i].action = '2'; // exclude from output
+	  merged->positions[j].action = '2'; // exclude from output
 	  continue;
 	}
       }
     }
   }
-  positionContainerCheckOverlap(merged, *total);
-  
+  positionContainerCheckOverlap(merged);
 }
   
 
 
 
-positionContainer positionContainerMultiply(positionContainer *original, const size_t multiply) {
-  if (multiply == 1) {
-    return *original;
-  }
-  
+positionContainer positionContainerMultiply(const positionContainer *original, const size_t multiply) {
   positionContainer mult;
-  mult = *original; // copy it 
+  //  mult = *original; // copy it 
   //  positionContainerInit(&mult, 0);
-  positionContainerSetup(&mult, original->sz * multiply, original->device, original->string);
+  positionContainerSetupFromPC(&mult, original);
+  
+  mult.sz = original->sz * multiply;
+  mult.positions = createPositions(mult.sz);
 
   size_t startpos = 0;
   for (size_t i = 0; i < multiply; i++) {
@@ -270,12 +262,16 @@ positionContainer positionContainerMultiply(positionContainer *original, const s
   }
   assert(startpos == mult.sz);
 
-  positionContainerFree(original);
-  
   return mult;
 }
   
 
+void positionContainerSetBounds(positionContainer *pc) {
+  
+  for (size_t i = 0; i < pc->sz; i++) {
+    
+  }
+}
 
 
 
@@ -300,7 +296,9 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
   }
   positionContainer merged;
   positionContainerInit(&merged, 0);
-  positionContainerSetup(&merged, total, p[0].device, p[0].string);
+  positionContainerSetupFromPC(&merged, p);
+  merged.sz = total;
+  merged.positions = createPositions(total);
   merged.maxbdSize = lastbd;
   
   size_t startpos = 0;
@@ -310,7 +308,7 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
   }
   assert(startpos == total);
 
-  positionContainerCollapse(merged, &total);
+  positionContainerCollapse(&merged);
 
   // find maxbs
   // find minbs;
@@ -357,8 +355,7 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
 
 
 // create the position array
-size_t setupPositions(positionType *positions,
-		    size_t *num,
+size_t positionContainerCreatePositions(positionContainer *pc,
 		    const int sf,
 		    const double readorwrite,
 		    const size_t lowbs,
@@ -370,12 +367,17 @@ size_t setupPositions(positionType *positions,
 		    unsigned short seed
 		    ) {
 
+  positionType *positions = pc->positions;
+  pc->minbs = lowbs;
+  pc->maxbs = bs;
+  pc->maxbdSize = bdSizeTotal;
+  
   assert(lowbs <= bs);
   srand48(seed); // set the seed, thats why it was passed
 
   size_t anywrites = 0, randomSubSample = 0;
   
-  if (((*num) * ((lowbs + bs)/2)) < (bdSizeTotal - minbdSize) * 0.95) {
+  if (((pc->sz) * ((lowbs + bs)/2)) < (bdSizeTotal - minbdSize) * 0.95) {
     // if we can't get good coverage
     if ((sf == 0) && (lowbs == bs) && (lowbs == alignment)) {
       fprintf(stderr,"*info* using randomSubSample (with replacement) mode\n");
@@ -383,7 +385,7 @@ size_t setupPositions(positionType *positions,
     }
   }
 
-  if (*num == 0) {
+  if (pc->sz == 0) {
     fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");
   }
 
@@ -397,7 +399,7 @@ size_t setupPositions(positionType *positions,
 
   // list of possibles positions
   positionType *poss = NULL;
-  size_t possAlloc = *num, count = 0, totalLen = 0;
+  size_t possAlloc = pc->sz, count = 0, totalLen = 0;
   CALLOC(poss, possAlloc, sizeof(positionType));
 
   const int alignbits = (int)(log(alignment)/log(2) + 0.01);
@@ -445,7 +447,7 @@ size_t setupPositions(positionType *positions,
 
   // do it nice
   count = 0;
-  while (count < *num) {
+  while (count < pc->sz) {
     int nochange = 1;
     for (size_t i = 0; i < toalloc; i++) {
       size_t j = positionsCurrent[i]; // while in the range
@@ -504,17 +506,17 @@ size_t setupPositions(positionType *positions,
 	
 	count++;
 	nochange = 0;
-	if (count >= *num) break; // if too many break
+	if (count >= pc->sz) break; // if too many break
       }
     }
     if (nochange) break;
   }
-  if (count < *num) {
+  if (count < pc->sz) {
     if (verbose > 1) {
       fprintf(stderr,"*warning* there are %zd unique positions on the device\n", count);
     }
   }
-  *num = count;
+  pc->sz = count;
 
   // make a complete copy and rotate by an offset
 
@@ -546,23 +548,23 @@ size_t setupPositions(positionType *positions,
   }
 
   if (verbose >= 2) {
-        fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, *num, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(bdSizeTotal));
+        fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, pc->sz, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(bdSizeTotal));
   }
   
   // if randomise then reorder
   if (sf == 0) {
-    positionRandomize(positions, count);
+    positionContainerRandomize(pc);
   }
 
   // rotate
   size_t sum = 0;
   positionType *p = positions;
-  for (size_t i = 0; i < *num; i++, p++) {
+  for (size_t i = 0; i < pc->sz; i++, p++) {
     sum += p->len;
     assert(p->len >= 0);
   }
   if (verbose >= 2) {
-    fprintf(stderr,"*info* sum of %zd lengths is %.1lf GiB\n", *num, TOGiB(sum));
+    fprintf(stderr,"*info* sum of %zd lengths is %.1lf GiB\n", pc->sz, TOGiB(sum));
   }
 
   free(poss); 
@@ -574,7 +576,9 @@ size_t setupPositions(positionType *positions,
 }
 
 
-void positionRandomize(positionType *positions, const size_t count) {
+void positionContainerRandomize(positionContainer *pc) {
+  const size_t count = pc->sz;
+  positionType *positions = pc->positions;
   if (verbose >= 1) {
     fprintf(stderr,"*info* shuffling the array %zd\n", count);
   }
@@ -634,7 +638,9 @@ void positionPrintMinMax(positionType *positions, const size_t count, const size
 
 
 
-void positionJumble(positionType *positions, const size_t count, const size_t jumble) {
+void positionContainerJumble(positionContainer *pc, const size_t jumble) {
+  size_t count = pc->sz;
+  positionType *positions = pc->positions;
   assert(jumble >= 1);
   if (verbose >= 1) {
     fprintf(stderr,"*info* jumbling the array %zd with value %zd\n", count, jumble);
@@ -670,7 +676,7 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
 }
     
   
-positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxSize) {
+/*positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxSize) {
 
   char *line = malloc(200000);
   size_t maxline = 200000;
@@ -727,11 +733,12 @@ positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t 
   
   return p;
 }
+*/
 
-  
-void dumpPositions(positionType *positions, const char *prefix, const size_t num, const size_t countToShow) {
-  fprintf(stderr,"%s: total number of positions %zd\n", prefix, num);
-  for (size_t i = 0; i < num; i++) {
+void positionContainerDump(positionContainer *pc, const char *prefix, const size_t countToShow) {
+  fprintf(stderr,"%s: total number of positions %zd\n", prefix, pc->sz);
+  const positionType *positions = pc->positions;
+  for (size_t i = 0; i < pc->sz; i++) {
     if (i >= countToShow) break;
     fprintf(stderr,"%s: [%02zd] action %c\tpos %12zd\tlen %6d\tverify %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len, positions[i].verify);
   }
@@ -748,6 +755,22 @@ void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString
   pc->positions = createPositions(sz);
   pc->device = deviceString;
   pc->string = string;
+}
+
+
+void positionContainerSetupFromPC(positionContainer *pc, const positionContainer *oldpc) {
+  memset(pc, 0, sizeof(positionContainer));
+  pc->positions = NULL;
+  pc->sz = oldpc->sz;
+  pc->LBAcovered = oldpc->LBAcovered;
+  pc->device = oldpc->device;
+  pc->string = oldpc->string;
+  pc->maxbdSize = oldpc->maxbdSize;
+  pc->minbs = oldpc->minbs;
+  pc->maxbs = oldpc->maxbs;
+  pc->UUID = oldpc->UUID+1;
+  pc->elapsedTime = oldpc->elapsedTime;
+  pc->diskStats = oldpc->diskStats;
 }
 
 
@@ -911,8 +934,7 @@ void positionContainerLoad(positionContainer *pc, FILE *fd) {
 }
 
 void positionContainerInfo(const positionContainer *pc) {
-  assert(pc->device);
-  fprintf(stderr,"device '%s', UUID '%zd', number of positions %zd, device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->device, pc->UUID, pc->sz, pc->maxbdSize, TOGiB(pc->maxbdSize), pc->minbs, pc->maxbs);
+  fprintf(stderr,"device '%s', UUID '%zd', number of positions %zd, device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->device ? pc->device : "NULL", pc->UUID, pc->sz, pc->maxbdSize, TOGiB(pc->maxbdSize), pc->minbs, pc->maxbs);
 }
 
 

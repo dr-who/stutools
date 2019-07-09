@@ -181,7 +181,7 @@ int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
   //  fprintf(stderr,"*info* sorting %zd\n", pc->sz);
   //  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
 
-  positionRandomize(pc->positions, pc->sz);
+  positionContainerRandomize(pc);
   keepRunning = 1;
 
   size_t num = pc->sz;

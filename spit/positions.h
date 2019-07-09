@@ -36,17 +36,16 @@ typedef struct {
   diskStatType *diskStats;
 } positionContainer;
 
-positionType *createPositions(size_t num);
+//positionType *createPositions(size_t num);
 
-int checkPositionArray(const positionType *positions, size_t num, const size_t minbdSizeBytes, const size_t bdSizeBytes, size_t exitonerror);
+int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSizeBytes, const size_t maxbdSizeBytes, size_t exitonerror);
 void positionContainerSave(const positionContainer *p, const char *name, const size_t bdSizeBytes, const size_t flushEvery);
 
-positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxsize);
+//positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxsize);
 
-void infoPositions(const deviceDetails *devList, const size_t devCount);
+//void infoPositions(const deviceDetails *devList, const size_t devCount);
 
-size_t setupPositions(positionType *positions,
-		    size_t *num,
+size_t positionContainerCreatePositions(positionContainer *pc,
 		    const int sf,
 		    const double readorwrite,
 		    const size_t lowbs,
@@ -58,22 +57,17 @@ size_t setupPositions(positionType *positions,
 		    unsigned short seed
 		    );
 
-void freePositions(positionType *p);
+//void freePositions(positionType *p);
 void positionStats(const positionType *positions, const size_t num, const deviceDetails *devList, const size_t devCount);
-
-void dumpPositions(positionType *positions, const char *prefix, const size_t num, const size_t countToShow);
 
 void positionContainerInit(positionContainer *pc, size_t UUID);
 void positionContainerSetup(positionContainer *pc, size_t sz, char *device, char *string);
+void positionContainerSetupFromPC(positionContainer *pc, const positionContainer *oldpc);
 void positionContainerFree(positionContainer *pc);
-
 void positionContainerLoad(positionContainer *pc, FILE *fp);
-
 void positionContainerInfo(const positionContainer *pc);
-
 void positionLatencyStats(positionContainer *pc, const int threadid);
-void positionRandomize(positionType *positions, const size_t count);
-
+void positionContainerRandomize(positionContainer *pc);
 void positionContainerAddMetadataChecks(positionContainer *pc);
 
 size_t setupRandomPositions(positionType *pos,
@@ -85,21 +79,22 @@ size_t setupRandomPositions(positionType *pos,
 			  const size_t bdSize,
 			  const size_t seedin);
 
-size_t numberOfDuplicates(positionType *pos, size_t const num);
+//size_t numberOfDuplicates(positionType *pos, size_t const num);
 
 void positionContainerInfo(const positionContainer *pc);
-void skipPositions(positionType *pos, const size_t num, const size_t skipEvery);
+//void skipPositions(positionType *pos, const size_t num, const size_t skipEvery);
 positionContainer positionContainerMerge(positionContainer *p, const size_t numFiles);
 
-void positionContainerCollapse(positionContainer merged, size_t *total);
+void positionContainerCollapse(positionContainer *merged);
 
-positionContainer positionContainerMultiply(positionContainer *original, const size_t multiply);
-void positionJumble(positionType *positions, const size_t count, const size_t jumble);
+positionContainer positionContainerMultiply(const positionContainer *original, const size_t multiply);
+void positionContainerJumble(positionContainer *pc, const size_t jumble);
 
 void calcLBA(positionContainer *pc);
 void positionAddBlockSize(positionType *positions, const size_t count, const size_t addSize, const size_t minbdSize, const size_t maxbdSize);
 
 void positionPrintMinMax(positionType *positions, const size_t count, const size_t bdSize);
+void positionContainerDump(positionContainer *pc, const char *prefix, const size_t countToShow);
 
 #endif
 

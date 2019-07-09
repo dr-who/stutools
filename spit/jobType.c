@@ -213,7 +213,7 @@ static void *runThread(void *arg) {
     if ((iteratorCount < threadContext->runXtimes) && keepRunning && (threadContext->rerandomize || threadContext->addBlockSize)) {
       if (threadContext->rerandomize) {
 	if (verbose >= 2) fprintf(stderr,"*info* shuffling positions\n");
-	positionRandomize(threadContext->pos.positions, threadContext->pos.sz);
+	positionContainerRandomize(&threadContext->pos);
       }
       if (threadContext->addBlockSize) {
 	if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->highBlockSize);
@@ -847,18 +847,21 @@ void jobRunThreads(jobType *job, const int num,
       //positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
-      size_t anywrites = setupPositions(threadContext[i].pos.positions, &threadContext[i].pos.sz, threadContext[i].seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed);
+      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, threadContext[i].seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed);
 
       if (verbose >= 2) {
-	checkPositionArray(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].minbdSize, threadContext[i].maxbdSize, !metaData);
+	positionContainerCheck(&threadContext[i].pos, threadContext[i].minbdSize, threadContext[i].maxbdSize, !metaData);
       }
-      threadContext[i].pos = positionContainerMultiply(&threadContext[i].pos, multiply);
+      if (multiply > 1) {
+	// if more than 1
+	threadContext[i].pos = positionContainerMultiply(&threadContext[i].pos, multiply);
+      }
 
 
       
-      if (threadContext[i].seqFiles == 0) positionRandomize(threadContext[i].pos.positions, threadContext[i].pos.sz);
+      if (threadContext[i].seqFiles == 0) positionContainerRandomize(&threadContext[i].pos);
 
-      if (threadContext[i].jumbleRun) positionJumble(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].jumbleRun);
+      if (threadContext[i].jumbleRun) positionContainerJumble(&threadContext[i].pos, threadContext[i].jumbleRun);
       
       positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].maxbdSize);
       threadContext[i].anywrites = anywrites;
@@ -870,7 +873,7 @@ void jobRunThreads(jobType *job, const int num,
       }
 
       if (dumpPos /* && !iRandom*/) {
-	dumpPositions(threadContext[i].pos.positions, threadContext[i].pos.string, threadContext[i].pos.sz, dumpPos);
+	positionContainerDump(&threadContext[i].pos, threadContext[i].pos.string, dumpPos);
       }
     }
 

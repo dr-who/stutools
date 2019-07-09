@@ -13,7 +13,7 @@ char *randomCommandString(const double rwratio) {
   char string[1000];
   
   int seed = lrand48() % 65536;
-  int s = lrand48() % 7;
+  int s = lrand48() % 10;
   switch (s) {
   case 0: 
     sprintf(string, "p%.1lfs%ldR%d", rwratio, lrand48() % 100, seed);
@@ -34,7 +34,13 @@ char *randomCommandString(const double rwratio) {
   case 5:  case 6:
     sprintf(string, "mP%ld%cR%d", 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N', seed);
     break;
+  case 7: case 8: case 9:
+    sprintf(string, "wk1024s1R%d", seed);
+    break;
+  default:
+    abort();
   }
+    
   return strdup(string);
 }
 
@@ -77,15 +83,15 @@ char ** fuzzString(int *argc, const char *device, const double starttime, size_t
 
   d = drand48();
   
-  if (d < 0.5) { // 50 of the time it's one
+  if (d < 0.75) { // 75% of the time it's one
     argv[6] = strdup("-j");
     argv[7] = strdup("1");
-  } else if (d < 0.9) { // 40% of the time it's another string
+  } else if (d < 0.9) { // 15% of the time it's another string
     argv[6] = strdup("-c");
     argv[7] = randomCommandString(0.9);
   } else { // remaining 10% multiple j
     argv[6] = strdup("-j");
-    sprintf(string, "%ld", 1+lrand48() % 64);
+    sprintf(string, "%ld", 1+lrand48() % 10);
     argv[7] = strdup(string);
   }
 
