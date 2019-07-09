@@ -124,7 +124,7 @@ static void *runThread(void *arg) {
       // print progress
       size_t gap = threadContext->endExc - threadContext->startInc - 1;
       if (isatty(fileno(stderr))) {
-	fprintf(stderr,"*progress* %.1lf %%\r", (i - threadContext->startInc) * 100.0 / gap);
+	fprintf(stderr,"*progress* %.1lf %%\r", (gap == 0) ? 100 : (i - threadContext->startInc) * 100.0 / gap);
 	fflush(stderr);
       }
     }
