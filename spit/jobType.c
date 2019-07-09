@@ -854,7 +854,9 @@ void jobRunThreads(jobType *job, const int num,
       }
       if (multiply > 1) {
 	// if more than 1
-	threadContext[i].pos = positionContainerMultiply(&threadContext[i].pos, multiply);
+	positionContainer tmp = positionContainerMultiply(&threadContext[i].pos, multiply);
+	positionContainerFree(&threadContext[i].pos);
+	threadContext[i].pos = tmp;
       }
 
 
