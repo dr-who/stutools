@@ -13,7 +13,7 @@ char *randomCommandString(const double rwratio) {
   char string[1000];
   
   int seed = lrand48() % 65536;
-  int s = lrand48() % 10;
+  int s = lrand48() % 11;
   switch (s) {
   case 0: 
     sprintf(string, "p%.1lfs%ldR%d", rwratio, lrand48() % 100, seed);
@@ -36,6 +36,10 @@ char *randomCommandString(const double rwratio) {
     break;
   case 7: case 8: case 9:
     sprintf(string, "wk1024s1R%d", seed);
+    break;
+  case 10: {}
+    klow = 4 * (1 + (lrand48() % 3));
+    sprintf(string, "p%.1lfmk%zd-%ldR%d", rwratio, klow, klow + 16*(lrand48()%4), seed);
     break;
   default:
     abort();
