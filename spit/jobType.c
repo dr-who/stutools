@@ -571,6 +571,7 @@ void jobRunThreads(jobType *job, const int num,
 	threadContext[i].runTime = -1;
 	threadContext[i].finishtime = -1;
 	threadContext[num].finishtime = -1; // the timer
+	runXtimes = 1;
       }
     }
 
