@@ -22,10 +22,11 @@
 int verbose = 0;
 int keepRunning = 1;
 char *benchmarkName = NULL;
+char *savePositions = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec, size_t *savePositions) {
+		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec) {
   int opt;
 
   char *device = NULL;
@@ -39,7 +40,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(preconditions);
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:vP")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -94,8 +95,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       jobAdd(preconditions, optarg);
       break;
     case 'P':
-      fprintf(stderr,"*info* savePositions set\n");
-      *savePositions = 1;
+      savePositions = optarg;
+      fprintf(stderr,"*info* savePositions set to '%s'\n", savePositions);
       break;
     case 'q':
       *defaultqd = atoi(optarg);
@@ -272,7 +273,7 @@ void usage() {
   fprintf(stderr,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n"); 
   fprintf(stderr,"  spit -s 0.1 -i 5              # and ignore first 5 seconds of performance\n");
   fprintf(stderr,"  spit -v                       # verify the writes after a run\n");
-  fprintf(stderr,"  spit -P                       # dump positions to spit-positions.txt\n");
+  fprintf(stderr,"  spit -P filename              # dump positions to filename\n");
   exit(0);
 }
 
@@ -337,8 +338,8 @@ int main(int argc, char *argv[]) {
     double timeperline = 1, ignoresec = 0;
     
     diskStatSetup(&d);
-    size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0, savePositions = 0;
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec, &savePositions);
+    size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec);
     
 
     size_t actualSize = maxSizeInBytes - minSizeInBytes;
@@ -381,7 +382,7 @@ int main(int argc, char *argv[]) {
       argv2 = NULL;
     }
     
-    //    if (timedouble() - starttime > 3600) break;
+    //        if (timedouble() - starttime > 360) break;
   }
   while (fuzz);
 

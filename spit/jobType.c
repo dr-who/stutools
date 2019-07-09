@@ -395,7 +395,7 @@ void jobRunThreads(jobType *job, const int num,
 		   size_t minSizeInBytes,
 		   size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
-		   unsigned short seed, int savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify) {
+		   unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -1023,10 +1023,8 @@ void jobRunThreads(jobType *job, const int num,
     }
     
     if (savePositions) {
-      char s[1000];
-      sprintf(s, "spit-positions.txt");
-      fprintf(stderr, "*info* saving positions to '%s' ... ", s);  fflush(stderr);
-      positionContainerSave(&mergedpc, s, mergedpc.maxbdSize, 0);
+      fprintf(stderr, "*info* saving positions to '%s' ... ", savePositions);  fflush(stderr);
+      positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0);
       fprintf(stderr, "finished\n"); fflush(stderr);
     }
     

@@ -22,7 +22,7 @@ void jobRunThreads(jobType *job, const int num,
 		   size_t minSizeInBytes,
 		   size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
-		   unsigned short seed, int savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify);
+		   unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify);
 
 void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount);
 void jobAddDeviceToAll(jobType *j, const char *device);
