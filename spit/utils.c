@@ -484,8 +484,13 @@ size_t canCreateFile(const char *filename, const size_t sz) {
   int fd = open(filename, O_RDWR | O_CREAT | O_DIRECT | O_TRUNC, S_IRUSR | S_IWUSR);
   if (fd < 0)
     return 0;
+#ifdef FALLOC_FL_ZERO_RANGE
   fallocate(fd, FALLOC_FL_ZERO_RANGE, 0, sz);
   size_t create_size = fileSizeFromName(filename);
+#else
+  size_t create_size = sz;
+#endif
+  
   close(fd);
   remove(filename);
   return create_size;
