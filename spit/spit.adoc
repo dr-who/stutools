@@ -79,7 +79,10 @@ The command options are described below:
    Set the read/write ratio to *N*. (e.g. p0 is write only, p1 is read only, p0.75 is 75% reads)
 
  *Glow-high*::
-   Limit the position range to *low* to *high* GiB. (e.g. G2-3)
+   Limit the position range to *low* to *high* GiB. (e.g. G2-3).
+
+ *G_*::
+   The range can be specified with the syntax *G_* which will split the G ranges evenly between all threads.
  
  *kN* or *klowBS-highBS*::
    Block size or _lowblocksize_ to _highblocksize_ range. (e.g. k4-128)
@@ -96,12 +99,20 @@ The command options are described below:
  *JN*::
    Jumble/shuffle *N* values at a time. (e.g. s1J10 randomises each 10 values)
 
+ *jN*::
+   Scales up the number of jobs. Similar to the global *j* command.
+
  *RN*::
    Seed
 
  *sN*::
    number of contiguous sequence regions. *s0* means random, *s1* means
    a single linear stream, *s32* means 32 contigous stream.
+
+ *sN-maxSizeInKiB*::
+   Specify the number of continuous sequence regions, include the maximum
+   continuous length in KiB. e.g. s32-1024 makes 32 contiguous regions with a
+   maximum size of 1024 KiB (1 MiB).
 
  *z*::
    Start sequential positions from block 0

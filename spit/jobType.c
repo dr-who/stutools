@@ -191,7 +191,7 @@ static void *runThread(void *arg) {
   }
   double localrange = TOGB(threadContext->maxbdSize - threadContext->minbdSize);
   double outerrange = TOGB(threadContext->maxSizeInBytes - threadContext->minSizeInBytes);
-  fprintf(stderr,"*info* [t%zd] '%s', s%zd (%.0lf KiB), pos=%zd (LBA %.1lf%%, [%.2lf,%.2lf] GB of %.1lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, localrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), outerrange, threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
+  fprintf(stderr,"*info* [t%zd] '%s', s%zd (%.0lf KiB), pos=%zd (LBA %.1lf%%, [%.2lf,%.2lf] GB of %.2lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, localrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), outerrange, threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
 
 
   // do the mahi
