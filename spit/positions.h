@@ -94,7 +94,8 @@ void positionContainerJumble(positionContainer *pc, const size_t jumble);
 void calcLBA(positionContainer *pc);
 void positionAddBlockSize(positionType *positions, const size_t count, const size_t addSize, const size_t minbdSize, const size_t maxbdSize);
 
-void positionPrintMinMax(positionType *positions, const size_t count, const size_t bdSize);
+void positionPrintMinMax(positionType *positions, const size_t count, const size_t minbdsize, const size_t maxbdsize, const size_t glow, const size_t ghigh);
+
 void positionContainerDump(positionContainer *pc, const char *prefix, const size_t countToShow);
 
 #endif

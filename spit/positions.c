@@ -629,7 +629,7 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
 }
 
 
-void positionPrintMinMax(positionType *positions, const size_t count, const size_t bdSize) {
+void positionPrintMinMax(positionType *positions, const size_t count, const size_t minbdsize, const size_t maxbdsize, const size_t glow, const size_t ghigh) {
   positionType *p = positions;
   size_t low = 0;
   size_t high = 0;
@@ -640,10 +640,12 @@ void positionPrintMinMax(positionType *positions, const size_t count, const size
     if (p->pos > high) {
       high = p->pos;
     }
-    assert(high < bdSize);
+    assert(low >= minbdsize);
+    assert(high <= maxbdsize);
     p++;
   }
-  fprintf(stderr,"*info* min position = LBA %.1lf %% (%zd, %.1lf GB), max position = LBA %.1lf %% (%zd, %.1lf GB), bdSize %.1lf GB\n", 100.0 * (low * 1.0 / bdSize), low, TOGB(low), 100.0* (high * 1.0 / bdSize), high, TOGB(high), TOGB(bdSize));
+  const size_t range = ghigh - glow;
+  fprintf(stderr,"*info* min position = LBA %.1lf %% (%zd, %.1lf GB), max position = LBA %.1lf %% (%zd, %.1lf GB), range [%.1lf,%.1lf] GB\n", 100.0 * ((low - glow) * 1.0 / range), low, TOGB(low), 100.0* ((high - glow) * 1.0 / range), high, TOGB(high), TOGB(minbdsize), TOGB (maxbdsize));
 }
 
 

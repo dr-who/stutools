@@ -577,17 +577,20 @@ void commaPrint0dp(FILE *fp, double d) {
 }
 
 
+// 0 means no values, 1 means one, 2 means two values
+
 int splitRange(const char *charBS, double *low, double *high) {
+  int retvalue = 0;
   if (charBS) {
     
     char *endp = NULL;
     *low = strtod(charBS, &endp);
     *high = *low;
+    retvalue = 1;
     if (*endp == '-') {
       *high = atof(endp+1);
+      retvalue = 2;
     }
-    return 0;
-  } else {
-    return 1;
   }
+  return retvalue;
 }

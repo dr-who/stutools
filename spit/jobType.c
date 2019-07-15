@@ -505,7 +505,7 @@ void jobRunThreads(jobType *job, const int num,
 	/*	if (minSizeInBytes == maxSizeInBytes) { 
 	  minSizeInBytes = 0;
 	  }*/
-	fprintf(stderr,"*info* G used as [%.2lf-%.2lf] GB from range [%.2lf-%.2lf]\n", TOGB(localminbdsize), TOGB(localmaxbdsize), TOGB(minSizeInBytes), TOGB(maxSizeInBytes));
+	//	fprintf(stderr,"*info* G used as [%.2lf-%.2lf] GB from range [%.2lf-%.2lf]\n", TOGB(localminbdsize), TOGB(localmaxbdsize), TOGB(minSizeInBytes), TOGB(maxSizeInBytes));
       }
     }
 
@@ -711,19 +711,33 @@ void jobRunThreads(jobType *job, const int num,
       }
     }
     threadContext[i].flushEvery = flushEvery;
+
     
+
+    size_t metaData = 0;
+    {
+      // metaData mode is random, verify all writes and flushing
+      char *iR = strchr(job->strings[i], 'm');
+      if (iR) {
+	metaData = 1;
+	seqFiles = 0;
+	threadContext[i].flushEvery = 1;
+      }
+    }
+
+
     {
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
 	double low = 0, high = 0;
-	splitRange(sf + 1, &low, &high);
-	if (high < 0) high = low;
-	seqFiles = ceil(low);
-	if (high == low) {
+	int ret = splitRange(sf + 1, &low, &high);
+	if (ret == 0) {
+	} else if (ret == 1) {
 	  seqFilesMaxSizeBytes = 0;
 	} else {
-	  seqFilesMaxSizeBytes = high * 1024;
+	  seqFilesMaxSizeBytes = ceil(high) * 1024;
 	}
+	seqFiles = ceil(low);
       }
     }
 
@@ -776,19 +790,6 @@ void jobRunThreads(jobType *job, const int num,
       }
     }
 
-
-
-
-    size_t metaData = 0;
-    {
-      // metaData mode is random, verify all writes and flushing
-      char *iR = strchr(job->strings[i], 'm');
-      if (iR) {
-	metaData = 1;
-	seqFiles = 0;
-	threadContext[i].flushEvery = 1;
-      }
-    }
 
     int qDepth = origqd;
     {
@@ -891,7 +892,7 @@ void jobRunThreads(jobType *job, const int num,
 
       if (threadContext[i].jumbleRun) positionContainerJumble(&threadContext[i].pos, threadContext[i].jumbleRun);
       
-      positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].maxSizeInBytes - threadContext[i].minSizeInBytes);
+      //      positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].minSizeInBytes, threadContext[i].maxSizeInBytes);
       threadContext[i].anywrites = anywrites;
       calcLBA(&threadContext[i].pos); // calc LBA coverage
 
