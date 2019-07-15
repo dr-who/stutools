@@ -92,6 +92,8 @@ typedef struct {
   positionContainer pos;
   size_t minbdSize;
   size_t maxbdSize;
+  size_t minSizeInBytes;
+  size_t maxSizeInBytes;
   size_t finishtime; // the overall thread finish time
   size_t waitfor;
   size_t prewait;
@@ -186,7 +188,9 @@ static void *runThread(void *arg) {
   if (threadContext->finishtime < threadContext->runTime) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishtime);
   }
-  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, %.1lf GB of %.1lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, threadContext->pos.LBAcovered, TOGB((threadContext->maxbdSize-threadContext->minbdSize) * threadContext->pos.LBAcovered/100.0), TOGB(threadContext->maxbdSize-threadContext->minbdSize), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
+  double localrange = TOGB(threadContext->maxbdSize - threadContext->minbdSize);
+  double outerrange = TOGB(threadContext->maxSizeInBytes - threadContext->minSizeInBytes);
+  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, [%.1lf,%.1lf] GB of %.1lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, localrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), outerrange, threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
 
 
   // do the mahi
@@ -392,8 +396,8 @@ static void *runThreadTimer(void *arg) {
 
 
 void jobRunThreads(jobType *job, const int num,
-		   size_t minSizeInBytes,
-		   size_t maxSizeInBytes,
+		   const size_t minSizeInBytes,
+		   const size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
 		   unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify) {
   pthread_t *pt;
@@ -435,10 +439,13 @@ void jobRunThreads(jobType *job, const int num,
   }
 
   for (size_t i = 0; i < num; i++) {
+    size_t localminbdsize = minSizeInBytes, localmaxbdsize = maxSizeInBytes;
     threadContext[i].runTime = timetorun;
     threadContext[i].finishtime = timetorun;
     threadContext[i].exitIOPS = 0;
     threadContext[i].jumbleRun = 0;
+    threadContext[i].minSizeInBytes = minSizeInBytes;
+    threadContext[i].maxSizeInBytes = maxSizeInBytes;
 
     int seqFiles = 1;
     int bs = 4096, highbs = 4096;
@@ -465,14 +472,21 @@ void jobRunThreads(jobType *job, const int num,
       char *charG = strchr(job->strings[i], 'G');
       if (charG && *(charG+1)) {
 	double lowg = 0, highg = 0;
-	splitRange(charG + 1, &lowg, &highg);
-	if (lowg > highg) {
-	  fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
-	  lowg = 0;
-	  //	  exit(1);
+
+	if ((num > 1) && (*(charG+1) == 'j')) {
+	  // 2: 1/1
+	  lowg = minSizeInBytes + (i * 1.0 / (num)) * (maxSizeInBytes - minSizeInBytes);
+	  highg = minSizeInBytes + ((i+1) * 1.0 / (num)) * (maxSizeInBytes - minSizeInBytes);
+	} else {
+	  splitRange(charG + 1, &lowg, &highg);
+	  if (lowg > highg) {
+	    fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
+	    lowg = 0;
+	    //	  exit(1);
+	  }
+	  lowg = lowg * 1024 * 1024 * 1024;
+	  highg = highg * 1024 * 1024 * 1024;
 	}
-	lowg = lowg * 1024 * 1024 * 1024;
-	highg = highg * 1024 * 1024 * 1024;
 	if (lowg == highg) { // if both the same, same as just having 1
 	  lowg = minSizeInBytes;
 	}
@@ -484,12 +498,12 @@ void jobRunThreads(jobType *job, const int num,
 	  lowg = minSizeInBytes;
 	  highg = maxSizeInBytes;
 	}
-	minSizeInBytes = alignedNumber(lowg, 4096);
-	maxSizeInBytes = alignedNumber(highg, 4096);
+	localminbdsize = alignedNumber(lowg, 4096);
+	localmaxbdsize = alignedNumber(highg, 4096);
 	/*	if (minSizeInBytes == maxSizeInBytes) { 
 	  minSizeInBytes = 0;
 	  }*/
-	fprintf(stderr,"*info* G used as [%.2lf-%.2lf] GB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes));
+	fprintf(stderr,"*info* G used as [%.2lf-%.2lf] GB from range [%.2lf-%.2lf]\n", TOGB(localminbdsize), TOGB(localmaxbdsize), TOGB(minSizeInBytes), TOGB(maxSizeInBytes));
       }
     }
 
@@ -498,10 +512,10 @@ void jobRunThreads(jobType *job, const int num,
       if (charG && *(charG+1)) {
 	double lowg = 0, highg = 0;
 	splitRange(charG + 1, &lowg, &highg);
-	minSizeInBytes = lowg;
-	maxSizeInBytes = highg;
-	if (minSizeInBytes == maxSizeInBytes) { 
-	  minSizeInBytes = 0;
+	localminbdsize = lowg;
+	localmaxbdsize = highg;
+	if (localminbdsize == localmaxbdsize) { 
+	  localminbdsize = 0;
 	}
 	if (minSizeInBytes > maxSizeInBytes) {
 	  fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
@@ -590,8 +604,8 @@ void jobRunThreads(jobType *job, const int num,
     
 
     size_t actualfs = fileSizeFromName(job->devices[i]);
-    threadContext[i].minbdSize = minSizeInBytes;
-    threadContext[i].maxbdSize = maxSizeInBytes;
+    threadContext[i].minbdSize = localminbdsize;
+    threadContext[i].maxbdSize = localmaxbdsize;
     if (threadContext[i].maxbdSize > actualfs) {
       threadContext[i].maxbdSize = actualfs;
       fprintf(stderr,"*warning* size too big, truncating to %zd\n", threadContext[i].maxbdSize);
@@ -866,7 +880,7 @@ void jobRunThreads(jobType *job, const int num,
 
       if (threadContext[i].jumbleRun) positionContainerJumble(&threadContext[i].pos, threadContext[i].jumbleRun);
       
-      positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].maxbdSize);
+      positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].maxSizeInBytes - threadContext[i].minSizeInBytes);
       threadContext[i].anywrites = anywrites;
       calcLBA(&threadContext[i].pos); // calc LBA coverage
 
@@ -1059,7 +1073,7 @@ size_t jobCount(jobType *job) {
 
 size_t jobRunPreconditions(jobType *preconditions, const size_t count, const size_t minSizeBytes, const size_t maxSizeBytes) {
   if (count) {
-    size_t gSize = 0;
+    size_t gSize = alignedNumber(maxSizeBytes, 4096);
     size_t coverage = 1;
     size_t jumble = 0;
     

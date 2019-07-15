@@ -151,6 +151,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     // set the first device to all of the jobs
     jobAddDeviceToAll(j, device);
     jobAddDeviceToAll(preconditions, device);
+  } else if (deviceCount < 1) {
+    fprintf(stderr,"*error* no device specified\n");
+    exit(1);
   }
 
   if (deviceCount) {
@@ -340,7 +343,7 @@ int main(int argc, char *argv[]) {
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
     handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec);
-    
+
 
     size_t actualSize = maxSizeInBytes - minSizeInBytes;
     fprintf(stderr,"*info* bdSize range [%.2lf-%.2lf] GB, size %.2lf GB (%zd bytes), [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
@@ -382,7 +385,7 @@ int main(int argc, char *argv[]) {
       argv2 = NULL;
     }
     
-    //        if (timedouble() - starttime > 360) break;
+    //    if (timedouble() - starttime > 3600) break;
   }
   while (fuzz);
 
