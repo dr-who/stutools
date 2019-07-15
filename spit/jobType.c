@@ -473,7 +473,7 @@ void jobRunThreads(jobType *job, const int num,
       if (charG && *(charG+1)) {
 	double lowg = 0, highg = 0;
 
-	if ((num > 1) && (*(charG+1) == 'j')) {
+	if ((num > 1) && (*(charG+1) == '_')) {
 	  // 2: 1/1
 	  lowg = minSizeInBytes + (i * 1.0 / (num)) * (maxSizeInBytes - minSizeInBytes);
 	  highg = minSizeInBytes + ((i+1) * 1.0 / (num)) * (maxSizeInBytes - minSizeInBytes);

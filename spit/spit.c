@@ -277,6 +277,7 @@ void usage() {
   fprintf(stderr,"  spit -s 0.1 -i 5              # and ignore first 5 seconds of performance\n");
   fprintf(stderr,"  spit -v                       # verify the writes after a run\n");
   fprintf(stderr,"  spit -P filename              # dump positions to filename\n");
+  fprintf(stderr,"  spit -c wG_j4                 # The _ represents to divide the G value evenly between threads\n");
   exit(0);
 }
 
