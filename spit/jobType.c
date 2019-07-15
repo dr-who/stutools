@@ -1138,6 +1138,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       
       if (gSize) {
 	coverage = (size_t) (ceil(gSize / 1.0 / maxSizeBytes));
+	fprintf(stderr,"*info* %zd / %zd = X%zd coverage\n", gSize, maxSizeBytes, coverage);
       }
       
       char s[100];
