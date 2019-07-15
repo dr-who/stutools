@@ -19,7 +19,7 @@ int main() {
 
   size_t num = 10000;
   positionContainerSetup(&pc, num, "device", "string");
-  positionContainerCreatePositions(&pc, 1, 0.0, 4096, 8192, 4096, 0, 0, 10000*10000, 42);
+  positionContainerCreatePositions(&pc, 1, 0, 0.0, 4096, 8192, 4096, 0, 0, 10000*10000, 42);
   positionContainerInfo(&pc);
   positionContainerDump(&pc, "test", 10);
 

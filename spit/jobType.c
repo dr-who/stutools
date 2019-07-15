@@ -115,6 +115,7 @@ typedef struct {
   size_t anywrites;
   size_t UUID;
   size_t seqFiles;
+  size_t seqFilesMaxSizeBytes;
   size_t jumbleRun;
   size_t runTime; // the time for a round
   size_t ignoreResults;
@@ -190,7 +191,7 @@ static void *runThread(void *arg) {
   }
   double localrange = TOGB(threadContext->maxbdSize - threadContext->minbdSize);
   double outerrange = TOGB(threadContext->maxSizeInBytes - threadContext->minSizeInBytes);
-  fprintf(stderr,"*info* [t%zd] '%s', s%zd, pos=%zd (LBA %.1lf%%, [%.2lf,%.2lf] GB of %.1lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, threadContext->pos.sz, localrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), outerrange, threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
+  fprintf(stderr,"*info* [t%zd] '%s', s%zd (%.0lf KiB), pos=%zd (LBA %.1lf%%, [%.2lf,%.2lf] GB of %.1lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, localrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), outerrange, threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
 
 
   // do the mahi
@@ -448,6 +449,7 @@ void jobRunThreads(jobType *job, const int num,
     threadContext[i].maxSizeInBytes = maxSizeInBytes;
 
     int seqFiles = 1;
+    size_t seqFilesMaxSizeBytes = 0;
     int bs = 4096, highbs = 4096;
 
     if (verbose) {
@@ -713,7 +715,15 @@ void jobRunThreads(jobType *job, const int num,
     {
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
-	seqFiles = atoi(sf+1);
+	double low = 0, high = 0;
+	splitRange(sf + 1, &low, &high);
+	if (high < 0) high = low;
+	seqFiles = ceil(low);
+	if (high == low) {
+	  seqFilesMaxSizeBytes = 0;
+	} else {
+	  seqFilesMaxSizeBytes = high * 1024;
+	}
       }
     }
 
@@ -862,7 +872,8 @@ void jobRunThreads(jobType *job, const int num,
       //positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
-      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, threadContext[i].seqFiles, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed);
+      threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
+      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, threadContext[i].seqFiles, threadContext[i].seqFilesMaxSizeBytes, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed);
 
       if (verbose >= 2) {
 	positionContainerCheck(&threadContext[i].pos, threadContext[i].minbdSize, threadContext[i].maxbdSize, !metaData);

@@ -46,16 +46,17 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
 //void infoPositions(const deviceDetails *devList, const size_t devCount);
 
 size_t positionContainerCreatePositions(positionContainer *pc,
-		    const int sf,
-		    const double readorwrite,
-		    const size_t lowbs,
-		    const size_t bs,
-		    size_t alignment,
-		    const long startingBlock,
-		    const size_t minbdSize,
-		    const size_t bdSizeTotal,
-		    unsigned short seed
-		    );
+					const int sf,
+					const size_t sf_maxsizebytes,
+					const double readorwrite,
+					const size_t lowbs,
+					const size_t bs,
+					size_t alignment,
+					const long startingBlock,
+					const size_t minbdSize,
+					const size_t bdSizeTotal,
+					unsigned short seed
+					);
 
 //void freePositions(positionType *p);
 void positionStats(const positionType *positions, const size_t num, const deviceDetails *devList, const size_t devCount);

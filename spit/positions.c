@@ -356,28 +356,29 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
 
 // create the position array
 size_t positionContainerCreatePositions(positionContainer *pc,
-		    const int sf,
-		    const double readorwrite,
-		    const size_t lowbs,
-		    const size_t bs,
-		    size_t alignment,
-		    const long startingBlock,
-		    const size_t minbdSize,
-		    const size_t bdSizeTotal,
-		    unsigned short seed
-		    ) {
+					const int sf,
+					const size_t sf_maxsizebytes,
+					const double readorwrite,
+					const size_t lowbs,
+					const size_t bs,
+					size_t alignment,
+					const long startingBlock,
+					const size_t minbdSize,
+					const size_t maxbdSize,
+					unsigned short seed
+					) {
 
   positionType *positions = pc->positions;
   pc->minbs = lowbs;
   pc->maxbs = bs;
-  pc->maxbdSize = bdSizeTotal;
+  pc->maxbdSize = maxbdSize;
   
   assert(lowbs <= bs);
   srand48(seed); // set the seed, thats why it was passed
 
   size_t anywrites = 0, randomSubSample = 0;
   
-  if (((pc->sz) * ((lowbs + bs)/2)) < (bdSizeTotal - minbdSize) * 0.95) {
+  if (((pc->sz) * ((lowbs + bs)/2)) < (maxbdSize - minbdSize) * 0.95) {
     // if we can't get good coverage
     if ((sf == 0) && (lowbs == bs) && (lowbs == alignment)) {
       fprintf(stderr,"*info* using randomSubSample (with replacement) mode\n");
@@ -417,16 +418,18 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   CALLOC(positionsCurrent, toalloc, sizeof(size_t));
   CALLOC(positionsEnd, toalloc, sizeof(size_t));
 
-  double ratio = 1.0 * (bdSizeTotal - minbdSize) / toalloc;
+  double ratio = 1.0 * (maxbdSize - minbdSize) / toalloc;
   //  fprintf(stderr,"ratio %lf\n", ratio);
 
   double totalratio = minbdSize;
   for (size_t i = 0; i < toalloc; i++) {
     positionsStart[i] = alignedNumber((size_t)totalratio, alignment);
-    if (i > 0) positionsEnd[i-1] = positionsStart[i];
-    positionsEnd[toalloc-1] = bdSizeTotal;
     totalratio += ratio;
   }
+  for (size_t i = 1; i < toalloc; i++) {
+    positionsEnd[i-1] = positionsStart[i];
+  }
+  positionsEnd[toalloc-1] = maxbdSize;
 
   if (verbose >= 2) {
     size_t sumgap = 0;
@@ -435,8 +438,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	fprintf(stderr,"*info* range[%zd]  [%12zd, %12zd]... size = %zd\n", i+1, positionsStart[i], positionsEnd[i], positionsEnd[i] - positionsStart[i]);
       sumgap += (positionsEnd[i] - positionsStart[i]);
     }
-    fprintf(stderr,"*info* sumgap %zd, min %zd, max %zd\n", sumgap, minbdSize, bdSizeTotal);
-    assert(sumgap == (bdSizeTotal - minbdSize));
+    fprintf(stderr,"*info* sumgap %zd, min %zd, max %zd\n", sumgap, minbdSize, maxbdSize);
+    assert(sumgap == (maxbdSize - minbdSize));
   }
   
 
@@ -479,20 +482,27 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	//	if (j + thislen > positionsEnd[i]) {abort();fprintf(stderr,"hit the end"); continue;positionsCurrent[i] += thislen; break;}
 
 	if (randomSubSample) {
-	  poss[count].pos = randomBlockSize(minbdSize, bdSizeTotal - thislen, alignbits, drand48() * (bdSizeTotal - thislen - minbdSize));
+	  poss[count].pos = randomBlockSize(minbdSize, maxbdSize - thislen, alignbits, drand48() * (maxbdSize - thislen - minbdSize));
 	  assert(poss[count].pos >= minbdSize);
-	  assert(poss[count].pos + thislen <= bdSizeTotal);
+	  assert(poss[count].pos + thislen <= maxbdSize);
 	} else {
 	  poss[count].pos = j;
-	  if (poss[count].pos + thislen > positionsEnd[i]) {
-	    poss[count].pos -= minbdSize;
-	    fprintf(stderr,"*warning* position wrapped around %zd [%zd, %zd]\n", poss[count].pos, positionsStart[i], positionsEnd[i]);
-	    abort();
+	  int overend = 0;
+	  if (poss[count].pos + thislen > positionsEnd[i]) overend = 1;
+	  if (sf_maxsizebytes && (poss[count].pos + thislen >= positionsStart[i] + sf_maxsizebytes)) overend = 1;
+	  if (overend) {
+	    poss[count].pos = positionsStart[i];
+	    positionsCurrent[i] = positionsStart[i];
+	    //	    fprintf(stderr,"*warning* position wrapped around %zd [%zd, %zd]\n", poss[count].pos, positionsStart[i], positionsEnd[i]);
+	    //	    abort();
 	  }
 	}
 
 	assert(poss[count].pos >= positionsStart[i]);
 	assert(poss[count].pos < positionsEnd[i]);
+	if (sf_maxsizebytes) {
+	  assert(poss[count].pos < positionsStart[i] + sf_maxsizebytes);
+	}
 
 	poss[count].submittime = 0;
 	poss[count].finishtime = 0;
@@ -548,7 +558,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   }
 
   if (verbose >= 2) {
-        fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, pc->sz, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(bdSizeTotal));
+        fprintf(stderr,"*info* %zd unique positions, max %zd positions requested (-P), %.2lf GiB of device covered (%.0lf%%)\n", count, pc->sz, TOGiB(totalLen), 100.0*TOGiB(totalLen)/TOGiB(maxbdSize));
   }
   
   // if randomise then reorder

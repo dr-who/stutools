@@ -229,6 +229,7 @@ void usage() {
   fprintf(stderr,"  spit -f device -c r           # seq read (s1)\n");
   fprintf(stderr,"  spit -f device -c w           # seq write (s1)\n");
   fprintf(stderr,"  spit -f device -c rs0         # random, (s)equential is 0\n");
+  fprintf(stderr,"  spit -f device -c rs0-size    # random, (s)equential is 0, max contig is size KiB\n");
   fprintf(stderr,"  spit -f device -c ws128       # 128 parallel (s)equential writes\n");
   fprintf(stderr,"  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions\n");
   fprintf(stderr,"  spit -f device -c k8          # set block size to 8 KiB\n");
