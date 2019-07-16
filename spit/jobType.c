@@ -282,10 +282,10 @@ static void *runThreadTimer(void *arg) {
   double starttime = timedouble();
   double lasttime = starttime;
 
-  while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishtime + 0.1)) {
-    usleep(1000000*0.01/100); // display to 0.01 s
+  while (keepRunning && ((thistime = timedouble()) <= starttime + threadContext->finishtime)) {
+    usleep(1000/2); // display to 0.001 s
 
-    if ((thistime - start) >= (i * TIMEPERLINE) && (thistime < starttime + threadContext->finishtime + 0.1)) {
+    if ((thistime - start) >= (i * TIMEPERLINE) && (thistime <= starttime + threadContext->finishtime)) {
 
       trb = 0;
       twb = 0;
