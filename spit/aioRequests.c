@@ -220,7 +220,6 @@ size_t aioMultiplePositions( positionContainer *p,
 	      io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
 	      cbs[qdIndex]->data = &positions[pos];
 
-	      totalWriteBytes += len;
 	      flushPos++;
 	    }
 	    
