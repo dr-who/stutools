@@ -262,7 +262,7 @@ size_t aioMultiplePositions( positionContainer *p,
       }
     } // while not enough inflight
     
-    double timeelapsed = thistime - last;
+    double timeelapsed = timedouble() - last;
     if (timeelapsed >= DISPLAYEVERY) {
       const double speed = TOMB(1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed);
       const double IOspeed = 1.0*(received - lastIOCount) / timeelapsed;
