@@ -298,11 +298,11 @@ static void *runThreadTimer(void *arg) {
       for (size_t j = 0; j < threadContext->numThreads;j++) {
 	assert(threadContext->allPC);
 	if (threadContext->allPC && threadContext->allPC[j]) {
-	  trb += threadContext->allPC[j]->readBytes;
 	  tri += threadContext->allPC[j]->readIOs;
+	  trb += threadContext->allPC[j]->readBytes;
 
-	  twb += threadContext->allPC[j]->writtenBytes;
 	  twi += threadContext->allPC[j]->writtenIOs;
+	  twb += threadContext->allPC[j]->writtenBytes;
 	}
       }
       
