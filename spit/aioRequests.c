@@ -301,6 +301,7 @@ size_t aioMultiplePositions( positionContainer *p,
       // verify it's all ok
       int printed = 0;
 
+      size_t rio = 0, rlen = 0, wio = 0, wlen = 0;
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
 	//if (alll) logSpeedAdd2(alll, TOMB(events[j].res), 1);
@@ -330,13 +331,11 @@ size_t aioMultiplePositions( positionContainer *p,
 	  
 	  //fprintf(stderr,"'%c' %d %u\n", pp->action, pp->q, pp->len);
 	  if (pp->action == 'R') {
-	    p->readIOs++;
-	    p->readBytes += pp->len;
-	    totalReadBytes += pp->len;
+	    rio++;
+	    rlen += pp->len;
 	  } else if (pp->action == 'W') {
-	    p->writtenIOs++;
-	    p->writtenBytes += pp->len;
-	    totalWriteBytes += pp->len;
+	    wio++;
+	    wlen += pp->len;
 	  }
 
 	  if (pp->action == 'W') {
@@ -364,6 +363,15 @@ size_t aioMultiplePositions( positionContainer *p,
 	//checkArray(freeQueue, QD);
 	freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
       } // for j
+
+      p->readIOs += rio;
+      p->readBytes += rlen;
+      totalReadBytes += rlen;
+
+      p->writtenIOs += wio;
+      p->writtenBytes += wlen;
+      totalWriteBytes += wlen;
+
 
       if (0) {
 	checkArray(freeQueue, QD);
