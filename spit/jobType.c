@@ -371,8 +371,8 @@ static void *runThreadTimer(void *arg) {
       
       
       lasttime = thistime;
-      usleep(1000000*TIMEPERLINE/2); // display to 0.001 s
     }
+    usleep(1000000*TIMEPERLINE/2); // display to 0.001 s
 
     if (thistime > starttime + threadContext->finishtime + 30) {
       fprintf(stderr,"*error* still running! watchdog termination (%.0lf > %.0lf + %zd\n", thistime, starttime, threadContext->finishtime + 30);
