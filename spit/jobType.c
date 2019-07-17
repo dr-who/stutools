@@ -258,8 +258,6 @@ static void *runThreadTimer(void *arg) {
     fprintf(stderr,"*info* timer thread, threads %zd, %.2lf per line, ignore first %.2lf seconds, %s, finish time %zd\n", threadContext->numThreads, TIMEPERLINE, ignorefirst, threadContext->benchmarkName, threadContext->finishtime);
   }
 
-  size_t i = 1;
-
   const double start = timedouble();
   double thistime = 0;
   size_t last_trb = 0, last_twb = 0, last_tri = 0, last_twi = 0;
@@ -283,9 +281,8 @@ static void *runThreadTimer(void *arg) {
   double lasttime = starttime;
 
   while (keepRunning && ((thistime = timedouble()) <= starttime + threadContext->finishtime)) {
-    usleep(1000/2); // display to 0.001 s
 
-    if ((thistime - start) >= (i * TIMEPERLINE) && (thistime <= starttime + threadContext->finishtime)) {
+    if ((thistime - lasttime >= TIMEPERLINE) && (thistime <= starttime + threadContext->finishtime)) {
 
       trb = 0;
       twb = 0;
@@ -342,6 +339,9 @@ static void *runThreadTimer(void *arg) {
 	//      if (writeB) writeamp = 100.0 * devicewb / writeB;
 	
 	fprintf(stderr," IOPS / %zd), total %.2lf GB", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb));
+	if (verbose >= 1) {
+	  fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, thistime - lasttime);
+	}
 	if (threadContext->pos.diskStats) {
 	  fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s)", TOMB(devicerb), TOMB(devicewb));
 	}
@@ -371,7 +371,7 @@ static void *runThreadTimer(void *arg) {
       
       
       lasttime = thistime;
-      i++;
+      usleep(1000000*TIMEPERLINE/2); // display to 0.001 s
     }
 
     if (thistime > starttime + threadContext->finishtime + 30) {
