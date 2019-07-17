@@ -281,23 +281,30 @@ static void *runThreadTimer(void *arg) {
   double lasttime = starttime, nicetime = TIMEPERLINE;
   double lastprintedtime = lasttime;
 
+  // grab the start, setup the "last" values
+  for (size_t j = 0; j < threadContext->numThreads;j++) {
+    assert(threadContext->allPC);
+    if (threadContext->allPC && threadContext->allPC[j]) {
+      last_tri += threadContext->allPC[j]->readIOs;
+      last_trb += threadContext->allPC[j]->readBytes;
+      
+      last_twi += threadContext->allPC[j]->writtenIOs;
+      last_twb += threadContext->allPC[j]->writtenBytes;
+    }
+  }
+
+
+  // loop until the time runs out
   while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishtime + TIMEPERLINE)) {
 
     if ((thistime - starttime >= nicetime) && (thistime < starttime + threadContext->finishtime + TIMEPERLINE)) {
-      // find a nicetime
+      // find a nice time for next values
       nicetime = thistime - starttime + TIMEPERLINE;
-      //      fprintf(stderr,"nicetime = %.5lf\n", nicetime);
       nicetime = (size_t)(floor(nicetime / TIMEPERLINE)) * TIMEPERLINE;
-      //            fprintf(stderr,"     nicetime = %.5lf\n", nicetime);
-      
 
-      trb = 0;
-      twb = 0;
-      tri = 0;
-      twi = 0;
+      trb = 0; twb = 0;  tri = 0;  twi = 0;
       
       size_t devicerb = 0, devicewb = 0;
-      //      double util = 0;
       
       for (size_t j = 0; j < threadContext->numThreads;j++) {
 	assert(threadContext->allPC);
@@ -324,7 +331,6 @@ static void *runThreadTimer(void *arg) {
 	  diskStatRestart(threadContext->pos.diskStats); // reset
 	}
 	
-	const double elapsed = thistime - start;
 	const double gaptime = thistime - lastprintedtime;
 
 	size_t readB     = (trb - last_trb) / gaptime;
@@ -337,7 +343,7 @@ static void *runThreadTimer(void *arg) {
 	  lastprintedtime = thistime;
 	}
 
-
+	const double elapsed = thistime - start;
 	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
 	commaPrint0dp(stderr, TOMB(readB));
 	fprintf(stderr," MB/s (");
@@ -380,7 +386,6 @@ static void *runThreadTimer(void *arg) {
       last_tri = tri;
       last_twb = twb;
       last_twi = twi;
-      
 
       lasttime = thistime;
     }
