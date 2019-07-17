@@ -250,7 +250,7 @@ static void *runThreadTimer(void *arg) {
     diskStatStart(threadContext->pos.diskStats);
   }
   double TIMEPERLINE = threadContext->timeperline;
-  if (TIMEPERLINE < 0.01) TIMEPERLINE=0.01;
+  if (TIMEPERLINE < 0.001) TIMEPERLINE=0.001;
   double ignorefirst = threadContext->ignorefirst;
   if (ignorefirst < 0) ignorefirst = 0;
   
@@ -278,11 +278,17 @@ static void *runThreadTimer(void *arg) {
   size_t total_printed_r_bytes = 0, total_printed_w_bytes = 0, total_printed_r_iops = 0, total_printed_w_iops = 0;
   size_t exitcount = 0;
   double starttime = timedouble();
-  double lasttime = starttime;
+  double lasttime = starttime, nicetime = TIMEPERLINE;
 
-  while (keepRunning && ((thistime = timedouble()) <= starttime + threadContext->finishtime)) {
+  while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishtime + TIMEPERLINE)) {
 
-    if ((thistime - lasttime >= TIMEPERLINE) && (thistime <= starttime + threadContext->finishtime)) {
+    if ((thistime - starttime >= nicetime) && (thistime < starttime + threadContext->finishtime + TIMEPERLINE)) {
+      // find a nicetime
+      nicetime = thistime - starttime + TIMEPERLINE;
+      //      fprintf(stderr,"nicetime = %.5lf\n", nicetime);
+      nicetime = (size_t)(floor(nicetime / TIMEPERLINE)) * TIMEPERLINE;
+      //            fprintf(stderr,"     nicetime = %.5lf\n", nicetime);
+      
 
       trb = 0;
       twb = 0;
@@ -369,10 +375,10 @@ static void *runThreadTimer(void *arg) {
       last_twb = twb;
       last_twi = twi;
       
-      
+
       lasttime = thistime;
     }
-    usleep(1000000*TIMEPERLINE/2); // display to 0.001 s
+    usleep(1000000*TIMEPERLINE/10); // display to 0.001 s
 
     if (thistime > starttime + threadContext->finishtime + 30) {
       fprintf(stderr,"*error* still running! watchdog termination (%.0lf > %.0lf + %zd\n", thistime, starttime, threadContext->finishtime + 30);
