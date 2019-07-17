@@ -306,18 +306,19 @@ static void *runThreadTimer(void *arg) {
       
       size_t devicerb = 0, devicewb = 0;
       
-      for (size_t j = 0; j < threadContext->numThreads;j++) {
-	assert(threadContext->allPC);
-	if (threadContext->allPC && threadContext->allPC[j]) {
-	  tri += threadContext->allPC[j]->readIOs;
-	  trb += threadContext->allPC[j]->readBytes;
-
-	  twi += threadContext->allPC[j]->writtenIOs;
-	  twb += threadContext->allPC[j]->writtenBytes;
-	}
-      }
-      
       if (thistime - start > ignorefirst) {
+
+	for (size_t j = 0; j < threadContext->numThreads;j++) {
+	  assert(threadContext->allPC);
+	  if (threadContext->allPC && threadContext->allPC[j]) {
+	    tri += threadContext->allPC[j]->readIOs;
+	    trb += threadContext->allPC[j]->readBytes;
+	    
+	    twi += threadContext->allPC[j]->writtenIOs;
+	    twb += threadContext->allPC[j]->writtenBytes;
+	  }
+	}
+	
 	total_printed_r_bytes = trb;
 	total_printed_r_iops =  tri;
 
