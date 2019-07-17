@@ -279,6 +279,7 @@ static void *runThreadTimer(void *arg) {
   size_t exitcount = 0;
   double starttime = timedouble();
   double lasttime = starttime, nicetime = TIMEPERLINE;
+  double lastprintedtime = lasttime;
 
   while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishtime + TIMEPERLINE)) {
 
@@ -324,13 +325,18 @@ static void *runThreadTimer(void *arg) {
 	}
 	
 	const double elapsed = thistime - start;
-	const double gaptime = thistime - lasttime;
-	
+	const double gaptime = thistime - lastprintedtime;
+
 	size_t readB     = (trb - last_trb) / gaptime;
 	size_t readIOPS  = (tri - last_tri) / gaptime;
 	
 	size_t writeB    = (twb - last_twb) / gaptime;
 	size_t writeIOPS = (twi - last_twi) / gaptime;
+	
+	if ((tri - last_tri) || (twi - last_twi)) { // if any IOs in the period to display note the time
+	  lastprintedtime = thistime;
+	}
+
 
 	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
 	commaPrint0dp(stderr, TOMB(readB));
