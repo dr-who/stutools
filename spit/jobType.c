@@ -358,7 +358,7 @@ static void *runThreadTimer(void *arg) {
 	
 	fprintf(stderr," IOPS / %zd), total %.2lf GB", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb));
 	if (verbose >= 1) {
-	  fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, thistime - lasttime);
+	  fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, gaptime);
 	}
 	if (threadContext->pos.diskStats) {
 	  fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s)", TOMB(devicerb), TOMB(devicewb));
