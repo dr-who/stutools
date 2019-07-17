@@ -250,7 +250,7 @@ static void *runThreadTimer(void *arg) {
     diskStatStart(threadContext->pos.diskStats);
   }
   double TIMEPERLINE = threadContext->timeperline;
-  if (TIMEPERLINE < 0.0001) TIMEPERLINE=0.0001;
+  if (TIMEPERLINE < 0.000001) TIMEPERLINE=0.000001;
   double ignorefirst = threadContext->ignorefirst;
   if (ignorefirst < 0) ignorefirst = 0;
   
