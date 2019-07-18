@@ -68,8 +68,11 @@ FILE * procdiskStatOpen() {
   return fp;
 }
 
-void procdiskStatClose(FILE *fp) {
-  if (fp) fclose(fp);
+void procdiskStatClose(diskStatType *d) {
+  if (d && d->procdiskstats) {
+    fclose(d->procdiskstats);
+    d->procdiskstats = NULL;
+  }
 }
   
 
@@ -199,8 +202,7 @@ void diskStatStart(diskStatType *d) {
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
   d->procdiskstats = procdiskStatOpen();
   diskStatUsage(d->procdiskstats, d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
-  procdiskStatClose(d->procdiskstats);
-  d->procdiskstats = NULL;
+  procdiskStatClose(d);
   d->startSecRead = sread;
   d->startSecWrite = swritten;
   d->startSecTimeio = stimeio;
@@ -222,8 +224,7 @@ void diskStatFinish(diskStatType *d) {
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
   d->procdiskstats = procdiskStatOpen();
   diskStatUsage(d->procdiskstats, d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
-  procdiskStatClose(d->procdiskstats);
-  d->procdiskstats = NULL;
+  procdiskStatClose(d);
   d->finishSecRead = sread;
   d->finishSecWrite = swritten;
   d->finishSecTimeio = stimeio;
