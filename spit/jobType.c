@@ -417,7 +417,6 @@ static void *runThreadTimer(void *arg) {
   fprintf(stderr,"*info* summary: read %.0lf MB/s (%.0lf IOPS), ", TOMB(total_printed_r_bytes)/tm, total_printed_r_iops/tm);
   fprintf(stderr,"write %.0lf MB/s (%.0lf IOPS)\n", TOMB(total_printed_w_bytes)/tm, total_printed_w_iops/tm);
   
-  //  diskStatFree(&d);
   if (verbose) fprintf(stderr,"*info* finished thread timer\n");
   keepRunning = 0;
   return NULL;

@@ -25,6 +25,7 @@ void diskStatClear(diskStatType *d) {
   d->finishSecTimeio = 0;
   d->finishIORead = 0;
   d->finishIOWrite = 0;
+  d->procdiskstats = NULL;
 }
   
 void diskStatSetup(diskStatType *d) {
@@ -54,6 +55,23 @@ void diskStatAddDrive(diskStatType *d, int fd) {
   //    fprintf(stderr,"diskStatAddDrive fd %d, major %u, minor %u\n", fd, major, minor);
   d->numDevices++;
 }
+
+
+
+FILE * procdiskStatOpen() {
+  FILE *fp = fopen("/proc/diskstats", "rt");
+  if (!fp) {
+    fprintf(stderr,"can't open diskstats!\n");
+    return NULL;
+  }
+  setvbuf(fp, NULL, _IONBF, 0);
+  return fp;
+}
+
+void procdiskStatClose(FILE *fp) {
+  fclose(fp);
+}
+  
 
 void diskStatAddStart(diskStatType *d, size_t reads, size_t writes) {
   if (!d) return;
@@ -114,8 +132,9 @@ size_t diskStatTotalDeviceSize(diskStatType *d) {
 
 
 
-void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite1, int verbose) {
+void diskStatUsage(FILE *fp, diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite1, int verbose) {
   if (!d) return;
+  assert(fp);
   *sread = 0;
   *swritten = 0;
   *stimeio = 0;
@@ -123,10 +142,10 @@ void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *sti
   *iowrite1 = 0;
   for (size_t i = 0; i < d->numDevices; i++) {
     size_t sr = 0, sw = 0, sio = 0, readscompl = 0, writescompl = 0;
-    getProcDiskstats(d->majorArray[i], d->minorArray[i], &sr, &sw, &sio, &readscompl, &writescompl);
-    if (verbose) {
-      fprintf(stderr,"*info* major %d minor %d sectorsRead %zd sectorsWritten %zd\n", d->majorArray[i], d->minorArray[i], sr, sw);
-    }
+    getProcDiskstats(fp, d->majorArray[i], d->minorArray[i], &sr, &sw, &sio, &readscompl, &writescompl);
+    //    if (verbose) {
+    //fprintf(stderr,"*info* major %d minor %d sectorsRead %zd sectorsWritten %zd\n", d->majorArray[i], d->minorArray[i], sr, sw);
+      //    }
     *sread = (*sread) + sr;
     *swritten = (*swritten) + sw;
     *stimeio = (*stimeio) + sio;
@@ -178,7 +197,10 @@ void diskStatStart(diskStatType *d) {
   if (!d) return;
   diskStatClear(d);
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
-  diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
+  if (!d->procdiskstats) {
+    d->procdiskstats = procdiskStatOpen();
+  }
+  diskStatUsage(d->procdiskstats, d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
   d->startSecRead = sread;
   d->startSecWrite = swritten;
   d->startSecTimeio = stimeio;
@@ -198,7 +220,7 @@ void diskStatRestart(diskStatType *d) {
 void diskStatFinish(diskStatType *d) {
   if (!d) return;
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
-  diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
+  diskStatUsage(d->procdiskstats, d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
   d->finishSecRead = sread;
   d->finishSecWrite = swritten;
   d->finishSecTimeio = stimeio;
@@ -211,6 +233,7 @@ void diskStatFree(diskStatType *d) {
   if (d->majorArray) {free(d->majorArray); d->majorArray = NULL;}
   if (d->minorArray) {free(d->minorArray); d->minorArray = NULL;}
   if (d->sizeArray) {free(d->sizeArray); d->sizeArray = NULL;}
+  if (d->procdiskstats) {fclose(d->procdiskstats); d->procdiskstats = NULL;}
   diskStatClear(d);
   d->numDevices = 0;
   d->allocDevices = 0;
@@ -228,12 +251,10 @@ void majorAndMinor(int fd, unsigned int *major, unsigned int *minor) {
   }
 }
   
-void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten, size_t *stimeIO, size_t *readcompl, size_t *writecompl) {
-  FILE *fp = fopen("/proc/diskstats", "rt");
-  if (!fp) {
-    fprintf(stderr,"can't open diskstats!\n");
-    return;
-  }
+void getProcDiskstats(FILE *fp, const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten, size_t *stimeIO, size_t *readcompl, size_t *writecompl) {
+  assert(fp);
+
+  rewind(fp);
   char *line = NULL;
   size_t len = 0;
   ssize_t read = 0;
@@ -256,6 +277,5 @@ void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t
   }
   free(str);
   free(line);
-  fclose(fp);
 }
 
