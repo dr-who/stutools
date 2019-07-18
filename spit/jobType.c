@@ -362,7 +362,7 @@ static void *runThreadTimer(void *arg) {
 	  fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, gaptime);
 	}
 	if (threadContext->pos.diskStats) {
-	  fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s)", TOMB(devicerb), TOMB(devicewb));
+	  fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s)", TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
 	}
 	fprintf(stderr,"\n");
 
