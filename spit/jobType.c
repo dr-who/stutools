@@ -246,9 +246,6 @@ static void *runThread(void *arg) {
 
 static void *runThreadTimer(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
-  if (threadContext->pos.diskStats) {
-    diskStatStart(threadContext->pos.diskStats);
-  }
   double TIMEPERLINE = threadContext->timeperline;
   //  if (TIMEPERLINE < 0.000001) TIMEPERLINE=0.000001;
   if (TIMEPERLINE <= 0) TIMEPERLINE = 0.001;
@@ -962,6 +959,9 @@ void jobRunThreads(jobType *job, const int num,
   threadContext[num].maxbdSize = maxSizeInBytes;
   // get disk stats before starting the other threads
 
+  if (threadContext[num].pos.diskStats) {
+    diskStatStart(threadContext[num].pos.diskStats);
+  }
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   for (size_t i = 0; i < num; i++) {
     //    if (threadContext[i].runXtimes == 0) {
