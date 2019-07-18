@@ -11,30 +11,9 @@
 #include "diskStats.h"
 #include "utils.h"
 
-
-void diskStatClear(diskStatType *d) {
-  if (!d) return;
-  d->startSecRead = 0;
-  d->startSecWrite = 0;
-  d->startSecTimeio = 0 ;
-  d->startIORead = 0;
-  d->startIOWrite = 0;
-  
-  d->finishSecRead = 0;
-  d->finishSecWrite = 0;
-  d->finishSecTimeio = 0;
-  d->finishIORead = 0;
-  d->finishIOWrite = 0;
-}
-  
 void diskStatSetup(diskStatType *d) {
   if (!d) return;
-  diskStatClear(d);
-  d->numDevices = 0;
-  d->allocDevices = 10;
-  CALLOC(d->majorArray, d->allocDevices, sizeof(int));
-  CALLOC(d->minorArray, d->allocDevices, sizeof(int));
-  CALLOC(d->sizeArray, d->allocDevices, sizeof(size_t));
+  memset(d, 0, sizeof(diskStatType));
 }
 
 void diskStatAddDrive(diskStatType *d, int fd) {
@@ -42,17 +21,15 @@ void diskStatAddDrive(diskStatType *d, int fd) {
   unsigned int major = 0, minor = 0;
   assert(d);
   majorAndMinor(fd, &major, &minor);
-  if (d->numDevices >= d->allocDevices) {
-    d->allocDevices += 10;
-    d->majorArray = realloc(d->majorArray, d->allocDevices * sizeof(int));
-    d->minorArray = realloc(d->minorArray, d->allocDevices * sizeof(int));
-    d->sizeArray = realloc(d->sizeArray, d->allocDevices * sizeof(size_t));
-  }
-  d->majorArray[d->numDevices] = major;
-  d->minorArray[d->numDevices] = minor;
-  d->sizeArray[d->numDevices] = blockDeviceSizeFromFD(fd);
+  d->allocDevices++;
+  d->majorArray = realloc(d->majorArray, d->allocDevices * sizeof(int));
+  d->minorArray = realloc(d->minorArray, d->allocDevices * sizeof(int));
+  //  d->sizeArray = realloc(d->sizeArray, d->allocDevices * sizeof(size_t));
+
+  d->majorArray[d->allocDevices-1] = major;
+  d->minorArray[d->allocDevices-1] = minor;
+  //  d->sizeArray[d->allocDevices-1] = blockDeviceSizeFromFD(fd);
   //    fprintf(stderr,"diskStatAddDrive fd %d, major %u, minor %u\n", fd, major, minor);
-  d->numDevices++;
 }
 
 void diskStatAddStart(diskStatType *d, size_t reads, size_t writes) {
@@ -91,47 +68,46 @@ void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWrite
   *totalReadIO = (d->finishIORead - d->startIORead);
   *totalWriteIO = (d->finishIOWrite - d->startIOWrite);
   
-  *util = 100.0 * ((d->finishSecTimeio - d->startSecTimeio)/1000.0 / d->numDevices) / elapsed;
+  *util = 100.0 * ((d->finishSecTimeio - d->startSecTimeio)/1000.0 / d->allocDevices) / elapsed;
   
   if (verbose && (shouldReadBytes || shouldWriteBytes)) {
     if (*totalReadBytes)
-      fprintf(stderr,"*info* read  amplification: should be %zd (%.3lf GiB), actual read  %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldReadBytes, TOGiB(shouldReadBytes), *totalReadBytes, TOGiB(*totalReadBytes), *totalReadBytes*100.0/shouldReadBytes, d->numDevices);
+      fprintf(stderr,"*info* read  amplification: should be %zd (%.3lf GiB), actual read  %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldReadBytes, TOGiB(shouldReadBytes), *totalReadBytes, TOGiB(*totalReadBytes), *totalReadBytes*100.0/shouldReadBytes, d->allocDevices);
     if (*totalWriteBytes)
-      fprintf(stderr,"*info* write amplification: should be %zd (%.3lf GiB), actual write %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldWriteBytes, TOGiB(shouldWriteBytes), *totalWriteBytes, TOGiB(*totalWriteBytes), *totalWriteBytes*100.0/shouldWriteBytes, d->numDevices);
-    if (d->numDevices)
-      fprintf(stderr,"*info* total disk utilisation: %.1lf %% (devices = %zd)\n", *util, d->numDevices);
+      fprintf(stderr,"*info* write amplification: should be %zd (%.3lf GiB), actual write %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldWriteBytes, TOGiB(shouldWriteBytes), *totalWriteBytes, TOGiB(*totalWriteBytes), *totalWriteBytes*100.0/shouldWriteBytes, d->allocDevices);
+    if (d->allocDevices)
+      fprintf(stderr,"*info* total disk utilisation: %.1lf %% (devices = %zd)\n", *util, d->allocDevices);
   }
 }
 
-size_t diskStatTotalDeviceSize(diskStatType *d) {
-  if (!d) return 0;
-  size_t totl = 0;
-  for (size_t i = 0; i < d->numDevices; i++) {
-    totl += d->sizeArray[i];
-  }
-  return totl;
-}
 
-
-
-void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite1, int verbose) {
+void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite) {
   if (!d) return;
+  diskStatLoadProc(d); // get the latest numbers
+  
   *sread = 0;
   *swritten = 0;
   *stimeio = 0;
   *ioread = 0;
-  *iowrite1 = 0;
-  for (size_t i = 0; i < d->numDevices; i++) {
-    size_t sr = 0, sw = 0, sio = 0, readscompl = 0, writescompl = 0;
-    getProcDiskstats(d->majorArray[i], d->minorArray[i], &sr, &sw, &sio, &readscompl, &writescompl);
-    if (verbose) {
-      fprintf(stderr,"*info* major %d minor %d sectorsRead %zd sectorsWritten %zd\n", d->majorArray[i], d->minorArray[i], sr, sw);
+  *iowrite = 0;
+
+  for (size_t j = 0; j < d->deviceCount; j++) { // from /proc/diskstats
+    devSnapshotType *s = &d->deviceStats[j];
+
+    for (size_t i = 0; i < d->allocDevices; i++) { // from devices.txt
+      
+      if ((d->majorArray[i] == s->major) &&
+	  (d->minorArray[i] == s->minor)) {
+
+	*sread = (*sread) + s->secRead;
+	*swritten = (*swritten) + s->secWrite;
+	*stimeio = (*stimeio) + s->secTimeIO;
+	*ioread = (*ioread) + s->IORead;
+	*iowrite = (*iowrite) + s->IOWrite;
+	// found a match, escape
+	break;
+      }
     }
-    *sread = (*sread) + sr;
-    *swritten = (*swritten) + sw;
-    *stimeio = (*stimeio) + sio;
-    *ioread = (*ioread) + readscompl;
-    *iowrite1 = (*iowrite1) + writescompl;
   }
 }
 
@@ -169,16 +145,15 @@ void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
   free(str);
   free(line);
   fclose(fp);
-  fprintf(stderr,"*info* specifiedDevices from %s, numDevices is %zd\n", path, d->numDevices);
+  fprintf(stderr,"*info* specifiedDevices from %s, allocDevices is %zd\n", path, d->allocDevices);
 }
 
 
 void diskStatStart(diskStatType *d) {
   fprintf(stderr,"*info* diskStats start\n");
   if (!d) return;
-  diskStatClear(d);
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
-  diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
+  diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite);
   d->startSecRead = sread;
   d->startSecWrite = swritten;
   d->startSecTimeio = stimeio;
@@ -198,7 +173,7 @@ void diskStatRestart(diskStatType *d) {
 void diskStatFinish(diskStatType *d) {
   if (!d) return;
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
-  diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
+  diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite);
   d->finishSecRead = sread;
   d->finishSecWrite = swritten;
   d->finishSecTimeio = stimeio;
@@ -210,9 +185,9 @@ void diskStatFree(diskStatType *d) {
   if (!d) return;
   if (d->majorArray) {free(d->majorArray); d->majorArray = NULL;}
   if (d->minorArray) {free(d->minorArray); d->minorArray = NULL;}
-  if (d->sizeArray) {free(d->sizeArray); d->sizeArray = NULL;}
-  diskStatClear(d);
-  d->numDevices = 0;
+  //  if (d->sizeArray) {free(d->sizeArray); d->sizeArray = NULL;}
+  if (d->deviceStats) {free(d->deviceStats); d->deviceStats = NULL;}
+  d->deviceCount = 0;
   d->allocDevices = 0;
 }
 
@@ -228,7 +203,9 @@ void majorAndMinor(int fd, unsigned int *major, unsigned int *minor) {
   }
 }
   
-void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten, size_t *stimeIO, size_t *readcompl, size_t *writecompl) {
+
+
+void diskStatLoadProc(diskStatType *d) {
   FILE *fp = fopen("/proc/diskstats", "rt");
   if (!fp) {
     fprintf(stderr,"can't open diskstats!\n");
@@ -237,25 +214,42 @@ void getProcDiskstats(const unsigned int major, const unsigned int minor, size_t
   char *line = NULL;
   size_t len = 0;
   ssize_t read = 0;
+  if (d->deviceStats) {
+    free(d->deviceStats);
+    d->deviceStats = NULL;
+    d->deviceCount = 0;
+  }
   char *str;
   CALLOC(str, 1000, 1);
   while ((read = getline(&line, &len, fp)) != -1) {
     long mj, mn, s;
     size_t read1, write1, timespentIO, readcompl1, writecompl1;
+    d->deviceCount++;
+    d->deviceStats = realloc(d->deviceStats, d->deviceCount * sizeof(devSnapshotType));
     sscanf(line,"%ld %ld %s %zu %ld %zu %ld %zu %ld %zu %ld %ld %zu", &mj, &mn, str, &readcompl1, &s, &read1, &s, &writecompl1, &s, &write1, &s, &s, &timespentIO);
-    if (mj == major && mn == minor) {
-      *sread = read1;
-      *swritten = write1;
-      *stimeIO = timespentIO;
-      *readcompl = readcompl1;
-      *writecompl = writecompl1;
-      break;
-      //      printf("Retrieved line of length (%u %u) (%zd %zd) :\n", mj, mn, *sread, *swritten);
-      //      printf("%s", line);
-    }
+    d->deviceStats[d->deviceCount - 1].major = mj;
+    d->deviceStats[d->deviceCount - 1].minor = mn;
+    d->deviceStats[d->deviceCount - 1].secRead = read1;
+    d->deviceStats[d->deviceCount - 1].secWrite = write1;
+    d->deviceStats[d->deviceCount - 1].IORead = readcompl1;
+    d->deviceStats[d->deviceCount - 1].IOWrite = writecompl1;
+    d->deviceStats[d->deviceCount - 1].secTimeIO = timespentIO;
   }
   free(str);
   free(line);
   fclose(fp);
 }
 
+void diskStatInfo(diskStatType *d) {
+
+  fprintf(stderr,"*info* /proc/diskstat rows %zd\n", d->deviceCount);
+  fprintf(stderr,"*info* matching devices %zd\n", d->allocDevices);
+  
+  for (size_t i = 0; i < d->allocDevices; i++) {
+    fprintf(stderr, "[%zd] major %d, minor %d\n", i, d->majorArray[i], d->minorArray[i]);
+  }
+}
+
+
+   
+  

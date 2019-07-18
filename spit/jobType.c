@@ -202,26 +202,28 @@ static void *runThread(void *arg) {
   while (keepRunning) {
     // 
     iteratorCount++;      
-    if (threadContext->runXtimes) {
-      if (iteratorCount > threadContext->runXtimes) break;
-    } else {
+    if (!threadContext->runXtimes) {
       if (timedouble() > starttime + threadContext->finishtime) break;
     }
     sleep(threadContext->waitfor);
+
     aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
+
     if (verbose >= 1) {
       if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* interrupted...\n");}
     }
-    if (threadContext->runXtimes == 1) {
-      break;
+    if (threadContext->runXtimes) {
+      if (iteratorCount >= threadContext->runXtimes) {
+	break;
+      }
     }
-    if ((iteratorCount < threadContext->runXtimes) && keepRunning && (threadContext->rerandomize || threadContext->addBlockSize)) {
+    if (keepRunning && (threadContext->rerandomize || threadContext->addBlockSize)) {
       if (threadContext->rerandomize) {
-	if (verbose >= 2) fprintf(stderr,"*info* shuffling positions\n");
+	if (verbose >= 2) fprintf(stderr,"*info* shuffling positions, 1st = %zd\n", threadContext->pos.positions[0].pos);
 	positionContainerRandomize(&threadContext->pos);
       }
       if (threadContext->addBlockSize) {
-	if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions\n", threadContext->highBlockSize);
+	if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions, 1st = %zd\n", threadContext->highBlockSize, threadContext->pos.positions[0].pos);
 	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->minbdSize, threadContext->maxbdSize);
       }	
     }

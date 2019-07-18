@@ -363,7 +363,7 @@ int main(int argc, char *argv[]) {
     
     keepRunning = 1;
     diskStatType *p = &d;
-    if (!d.numDevices) {
+    if (!d.allocDevices) {
       p = NULL;
     }
     signal(SIGTERM, intHandler);

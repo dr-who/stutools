@@ -29,7 +29,11 @@ target_link_libraries(hist spitlib m)
 add_executable(testpositions testpositions.c)
 target_link_libraries(testpositions spitlib m)
 
+add_executable(testDiskStats testDiskStats.c)
+target_link_libraries(testDiskStats spitlib m)
 
+#add_test(tds testDiskStats)
+add_test(tp testpositions)
 add_test(testspitHelp  spit)
 add_test(testspitw  spit -f wow -G 1 -c w -v -t 5)
 add_test(testspit_precon spit -f wow -G 1 -pG -c ws0NnG_ -j4 -v -t 5)
