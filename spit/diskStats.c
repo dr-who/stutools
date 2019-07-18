@@ -69,7 +69,7 @@ FILE * procdiskStatOpen() {
 }
 
 void procdiskStatClose(FILE *fp) {
-  fclose(fp);
+  if (fp) fclose(fp);
 }
   
 
@@ -223,6 +223,7 @@ void diskStatFinish(diskStatType *d) {
   d->procdiskstats = procdiskStatOpen();
   diskStatUsage(d->procdiskstats, d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
   procdiskStatClose(d->procdiskstats);
+  d->procdiskstats = NULL;
   d->finishSecRead = sread;
   d->finishSecWrite = swritten;
   d->finishSecTimeio = stimeio;
