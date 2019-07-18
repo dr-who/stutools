@@ -64,7 +64,7 @@ FILE * procdiskStatOpen() {
     fprintf(stderr,"can't open diskstats!\n");
     return NULL;
   }
-  setvbuf(fp, NULL, _IONBF, 0);
+  //  setvbuf(fp, NULL, _IONBF, 0);
   return fp;
 }
 
@@ -197,10 +197,10 @@ void diskStatStart(diskStatType *d) {
   if (!d) return;
   diskStatClear(d);
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
-  if (!d->procdiskstats) {
-    d->procdiskstats = procdiskStatOpen();
-  }
+  d->procdiskstats = procdiskStatOpen();
   diskStatUsage(d->procdiskstats, d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
+  procdiskStatClose(d->procdiskstats);
+  d->procdiskstats = NULL;
   d->startSecRead = sread;
   d->startSecWrite = swritten;
   d->startSecTimeio = stimeio;
@@ -220,7 +220,9 @@ void diskStatRestart(diskStatType *d) {
 void diskStatFinish(diskStatType *d) {
   if (!d) return;
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
+  d->procdiskstats = procdiskStatOpen();
   diskStatUsage(d->procdiskstats, d, &sread, &swritten, &stimeio, &ioread, &iowrite, 0);
+  procdiskStatClose(d->procdiskstats);
   d->finishSecRead = sread;
   d->finishSecWrite = swritten;
   d->finishSecTimeio = stimeio;
