@@ -664,7 +664,7 @@ void jobRunThreads(jobType *job, const int num,
     if ((verbose || (fitinram < mp)) && (i == 0)) {
       fprintf(stderr,"*info* using %.3lf GiB RAM for positions, we can store ", TOGiB(useRAM));
       commaPrint0dp(stderr, fitinram);
-      fprintf(stderr," positions (%.1lf %%)\n", fitinram * 100.0/mp);
+      fprintf(stderr," positions (%.1lf %%)\n", fitinram >= mp ? 100.0 : fitinram * 100.0/mp);
     }
     
     size_t countintime = mp;
