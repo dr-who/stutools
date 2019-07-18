@@ -248,7 +248,7 @@ static void *runThreadTimer(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
   double TIMEPERLINE = threadContext->timeperline;
   //  if (TIMEPERLINE < 0.000001) TIMEPERLINE=0.000001;
-  if (TIMEPERLINE <= 0) TIMEPERLINE = 0.001;
+  if (TIMEPERLINE <= 0) TIMEPERLINE = 0.00001;
   double ignorefirst = threadContext->ignorefirst;
   if (ignorefirst < 0) ignorefirst = 0;
   
@@ -300,11 +300,11 @@ static void *runThreadTimer(void *arg) {
       printlinecount++;
       // find a nice time for next values
       if (threadContext->timeperline <= 0) { // if -s set to <= 0
-	if (thistime - starttime < 1) { // 1ms for 1 s
+	if (thistime - starttime < 0.1) { // 10ms for 1 s
 	  TIMEPERLINE = 0.001;
-	} else if (thistime - starttime < 5) { // 10ms for up to 5 sec
+	} else  if (thistime - starttime < 10) { // 10ms for 1 s
 	  TIMEPERLINE = 0.01;
-	} else if (thistime - starttime < 20) { // 100ms up to 20 s
+	} else if (thistime - starttime < 30) { // 10ms for up to 5 sec
 	  TIMEPERLINE = 0.1;
 	} else {
 	  TIMEPERLINE = 1;
