@@ -34,24 +34,6 @@ void diskStatAddDrive(diskStatType *d, int fd) {
 
 
 
-FILE * procdiskStatOpen() {
-  FILE *fp = fopen("/proc/diskstats", "rt");
-  if (!fp) {
-    fprintf(stderr,"can't open diskstats!\n");
-    return NULL;
-  }
-  //  setvbuf(fp, NULL, _IONBF, 0);
-  return fp;
-}
-
-void procdiskStatClose(diskStatType *d) {
-  if (d && d->procdiskstats) {
-    fclose(d->procdiskstats);
-    d->procdiskstats = NULL;
-  }
-}
-  
-
 void diskStatAddStart(diskStatType *d, size_t reads, size_t writes) {
   if (!d) return;
   d->startSecRead += reads;
@@ -254,6 +236,7 @@ void diskStatLoadProc(diskStatType *d) {
   }
   free(str);
   free(line);
+  fclose(fp);
 }
 
 void diskStatInfo(diskStatType *d) {

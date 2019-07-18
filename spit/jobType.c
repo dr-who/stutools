@@ -189,9 +189,13 @@ static void *runThread(void *arg) {
   if (threadContext->finishtime < threadContext->runTime) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishtime);
   }
-  double localrange = TOGB(threadContext->maxbdSize - threadContext->minbdSize);
-  double outerrange = TOGB(threadContext->maxSizeInBytes - threadContext->minSizeInBytes);
-  fprintf(stderr,"*info* [t%zd] '%s', s%zd (%.0lf KiB), pos=%zd (LBA %.1lf%%, [%.2lf,%.2lf] GB of %.2lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, localrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), outerrange, threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
+  //  double localrange = TOGB(threadContext->maxbdSize - threadContext->minbdSize);
+  size_t outerrange = threadContext->maxSizeInBytes - threadContext->minSizeInBytes;
+  size_t sumrange = 0;
+  for (size_t i = 0; i < threadContext->pos.sz; i++) {
+    sumrange += threadContext->pos.positions[i].len;
+  }
+  fprintf(stderr,"*info* [t%zd] '%s', s%zd (%.0lf KiB), pos=%zd (LBA %.1lf%%, [%.2lf,%.2lf] GB of %.2lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), TOGB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
 
 
   // do the mahi
@@ -652,8 +656,7 @@ void jobRunThreads(jobType *job, const int num,
       fprintf(stderr," positions\n");
     }
 
-    //    size_t fitinram = totalRAM() / 4 / num / sizeof(positionType);
-    // use max 1/2 of free RAM
+    // use 1/4 of free RAM
     size_t useRAM = MIN((size_t)5*1024*1024*1024, freeRAM() / 4); // 1L*1024*1024*1024;
     
     //    fprintf(stderr,"use ram %zd\n", useRAM);
@@ -661,7 +664,7 @@ void jobRunThreads(jobType *job, const int num,
     if ((verbose || (fitinram < mp)) && (i == 0)) {
       fprintf(stderr,"*info* using %.3lf GiB RAM for positions, we can store ", TOGiB(useRAM));
       commaPrint0dp(stderr, fitinram);
-      fprintf(stderr," positions\n");
+      fprintf(stderr," positions (%.1lf %%)\n", fitinram * 100.0/mp);
     }
     
     size_t countintime = mp;
