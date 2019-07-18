@@ -28,6 +28,7 @@ typedef struct {
   size_t finishIOWrite;
 
   size_t deviceCount;
+  size_t deviceCountAlloc;
   devSnapshotType *deviceStats;
   
   size_t allocDevices;

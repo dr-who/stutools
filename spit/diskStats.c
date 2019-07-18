@@ -213,18 +213,16 @@ void diskStatLoadProc(diskStatType *d) {
   char *line = NULL;
   size_t len = 0;
   ssize_t read = 0;
-  if (d->deviceStats) {
-    free(d->deviceStats);
-    d->deviceStats = NULL;
-    d->deviceCount = 0;
-  }
-  char *str;
-  CALLOC(str, 1000, 1);
+  d->deviceCount = 0;
+  char str[1000];
   while ((read = getline(&line, &len, fp)) != -1) {
     long mj, mn, s;
     size_t read1, write1, timespentIO, readcompl1, writecompl1;
     d->deviceCount++;
-    d->deviceStats = realloc(d->deviceStats, d->deviceCount * sizeof(devSnapshotType));
+    if (d->deviceCount > d->deviceCountAlloc) {
+      d->deviceCountAlloc++;
+      d->deviceStats = realloc(d->deviceStats, d->deviceCountAlloc * sizeof(devSnapshotType));
+    }
     sscanf(line,"%ld %ld %s %zu %ld %zu %ld %zu %ld %zu %ld %ld %zu", &mj, &mn, str, &readcompl1, &s, &read1, &s, &writecompl1, &s, &write1, &s, &s, &timespentIO);
     d->deviceStats[d->deviceCount - 1].major = mj;
     d->deviceStats[d->deviceCount - 1].minor = mn;
@@ -234,7 +232,6 @@ void diskStatLoadProc(diskStatType *d) {
     d->deviceStats[d->deviceCount - 1].IOWrite = writecompl1;
     d->deviceStats[d->deviceCount - 1].secTimeIO = timespentIO;
   }
-  free(str);
   free(line);
   fclose(fp);
 }
