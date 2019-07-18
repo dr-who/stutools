@@ -239,9 +239,7 @@ static void *runThread(void *arg) {
 
   //  if (verbose) {fprintf(stderr,"*info* starting fdatasync()..."); fflush(stderr);}
   //  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
-  if (verbose) {fprintf(stderr," finished\n"); fflush(stderr);}
-
-  
+  //  if (verbose) {fprintf(stderr," finished\n"); fflush(stderr);}
 
   close(fd);
 

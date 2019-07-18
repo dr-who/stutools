@@ -333,6 +333,7 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
   if (name) {
     FILE *fp = fopen(name, "wt");
     if (!fp) {
+      fprintf(stderr,"*error* saving file '%s' failed.\n", name);
       perror(name); return;
     }
     char *buffer;
