@@ -32,6 +32,26 @@ void diskStatAddDrive(diskStatType *d, int fd) {
   //    fprintf(stderr,"diskStatAddDrive fd %d, major %u, minor %u\n", fd, major, minor);
 }
 
+
+
+FILE * procdiskStatOpen() {
+  FILE *fp = fopen("/proc/diskstats", "rt");
+  if (!fp) {
+    fprintf(stderr,"can't open diskstats!\n");
+    return NULL;
+  }
+  //  setvbuf(fp, NULL, _IONBF, 0);
+  return fp;
+}
+
+void procdiskStatClose(diskStatType *d) {
+  if (d && d->procdiskstats) {
+    fclose(d->procdiskstats);
+    d->procdiskstats = NULL;
+  }
+}
+  
+
 void diskStatAddStart(diskStatType *d, size_t reads, size_t writes) {
   if (!d) return;
   d->startSecRead += reads;
@@ -84,7 +104,7 @@ void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWrite
 void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite) {
   if (!d) return;
   diskStatLoadProc(d); // get the latest numbers
-  
+
   *sread = 0;
   *swritten = 0;
   *stimeio = 0;
@@ -185,7 +205,6 @@ void diskStatFree(diskStatType *d) {
   if (!d) return;
   if (d->majorArray) {free(d->majorArray); d->majorArray = NULL;}
   if (d->minorArray) {free(d->minorArray); d->minorArray = NULL;}
-  //  if (d->sizeArray) {free(d->sizeArray); d->sizeArray = NULL;}
   if (d->deviceStats) {free(d->deviceStats); d->deviceStats = NULL;}
   d->deviceCount = 0;
   d->allocDevices = 0;
@@ -203,8 +222,6 @@ void majorAndMinor(int fd, unsigned int *major, unsigned int *minor) {
   }
 }
   
-
-
 void diskStatLoadProc(diskStatType *d) {
   FILE *fp = fopen("/proc/diskstats", "rt");
   if (!fp) {
@@ -237,7 +254,6 @@ void diskStatLoadProc(diskStatType *d) {
   }
   free(str);
   free(line);
-  fclose(fp);
 }
 
 void diskStatInfo(diskStatType *d) {
