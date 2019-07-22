@@ -249,6 +249,11 @@ static void *runThread(void *arg) {
 
 
 char *getValue(const char *os, const char *prefix) {
+  assert(prefix);
+  if (!os) {
+    return strdup("NULL");
+  }
+
   const int plen = strlen(prefix);
   
   char *i=strstr(os, prefix);
@@ -289,9 +294,11 @@ static void *runThreadTimer(void *arg) {
   if (threadContext->benchmarkName) {
     sprintf(s, "%s.my", threadContext->benchmarkName);
     fp = fopen(threadContext->benchmarkName, "wt");
-    fpmysql = fopen(s, "wt");
+    if (threadContext->mysqloptions) {
+      fpmysql = fopen(s, "wt");
+    }
     
-    if (fp && fpmysql) {
+    if (fp) {
       fprintf(stderr,"*info* benchmark file '%s' (MySQL '%s')\n", threadContext->benchmarkName, s);
     } else {
       fprintf(stderr,"*error* couldn't create benchmark file '%s' (MySQL '%s')\n", threadContext->benchmarkName, s);
