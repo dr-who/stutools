@@ -42,6 +42,9 @@ string on a dedicated thread with an AIO context per thread.
  *t s*::
    Limit the execution to *s* seconds (e.g. -t 30)
 
+ *M options*::
+   Output MySQL options. (e.g. -M os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid,iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2)
+
  *p precondition_options*::
   Before executing any commands, run the precondition write
   commands. Defaults to 4k writes. Options include: *-p Gn*, *-p Gs1* for
