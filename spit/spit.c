@@ -26,7 +26,7 @@ char *savePositions = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec, char **mysqloptions) {
+		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec, char **mysqloptions, char *commandstring) {
   int opt;
 
   char *device = NULL;
@@ -35,6 +35,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   deviceDetails *deviceList = NULL;
   size_t deviceCount = 0;
   size_t tripleX = 0;
+  size_t commandstringpos = 0;
 
   jobInit(j);
   jobInit(preconditions);
@@ -46,6 +47,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       benchmarkName = strdup(optarg);
       break;
     case 'c': {}
+      if (commandstringpos > 0) {
+	commandstring[commandstringpos++] = ' ';
+      }
+      strncpy(commandstring + commandstringpos, optarg, strlen(optarg));
+      commandstringpos += strlen(optarg);
+      commandstring[commandstringpos] = 0;
+      
       size_t jcount = 1;
       char *charJ = strchr(optarg, 'j');
       if (charJ && *(charJ+1)) {
@@ -348,8 +356,9 @@ int main(int argc, char *argv[]) {
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
     char *mysqloptions = NULL;
-    
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec, &mysqloptions);
+
+    char commandstring[1000];
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec, &mysqloptions, commandstring);
     
 
 
@@ -375,7 +384,7 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, intHandler);
     signal(SIGINT, intHandler);
 
-    jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoresec, verify, mysqloptions);
+    jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoresec, verify, mysqloptions, commandstring);
     
     jobFree(j);
     free(j);

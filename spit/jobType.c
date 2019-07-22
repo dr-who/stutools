@@ -123,6 +123,7 @@ typedef struct {
   double timeperline;
   double ignorefirst;
   char *mysqloptions;
+  char *commandstring;
 } threadInfoType;
 
 
@@ -456,6 +457,7 @@ static void *runThreadTimer(void *arg) {
     fprintf(fpmysql, ", read_total_gb='%.1lf', write_total_gb='%.1lf'", TOGB(trb), TOGB(twb));
     fprintf(fpmysql, ", threads='%zd', runtime='%.0lf'", threadContext->numThreads, timedouble() - start);
     fprintf(fpmysql, ", mysqloptions='%s'", threadContext->mysqloptions);
+    fprintf(fpmysql, ", command='%s'", threadContext->commandstring);
     {
       char *os = getValue(threadContext->mysqloptions, "os=");
       fprintf(fpmysql, ", os='%s'", os);
@@ -549,7 +551,7 @@ void jobRunThreads(jobType *job, const int num,
 		   const size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
 		   unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
-		   char *mysqloptions) {
+		   char *mysqloptions, char *commandstring) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -573,7 +575,8 @@ void jobRunThreads(jobType *job, const int num,
   
   
   for (size_t i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
-    threadContext[i].mysqloptions = NULL;
+    threadContext[i].mysqloptions = mysqloptions;
+    threadContext[i].commandstring = commandstring;
     threadContext[i].ignoreResults = 0;
     threadContext[i].id = i;
     threadContext[i].runTime = timetorun;
@@ -1084,7 +1087,8 @@ void jobRunThreads(jobType *job, const int num,
   if (threadContext[num].pos.diskStats) {
     diskStatStart(threadContext[num].pos.diskStats);
   }
-  threadContext[num].mysqloptions = mysqloptions;
+  //  threadContext[num].mysqloptions = mysqloptions;
+  //  threadContext[num].mysqloptions = mysqloptions;
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   for (size_t i = 0; i < num; i++) {
     //    if (threadContext[i].runXtimes == 0) {
@@ -1301,7 +1305,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL); 
+    jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL); 
     fprintf(stderr,"*info* preconditioning complete\n"); fflush(stderr);
   }
   return 0;
