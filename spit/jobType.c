@@ -473,6 +473,9 @@ static void *runThreadTimer(void *arg) {
 
     {
       char *value = getValue(threadContext->mysqloptions2, "machine=");
+      if (strcmp(value,"NULL")==0) {
+	value = hostname();
+      }
       fprintf(fpmysql, ", machine='%s'", value);
       if (value) free(value);
     }

@@ -268,6 +268,14 @@ int getWriteCache(const char *suf) {
   
   
 
+char *hostname() {
+  char s[1000];
+  gethostname(s, 999);
+  if (strchr(s,'.')) {
+    *strchr(s,'.') = 0;
+  }
+  return strdup(s);
+}
 
 
 // the block size random buffer. Nice ASCII
