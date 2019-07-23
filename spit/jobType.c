@@ -123,6 +123,7 @@ typedef struct {
   double timeperline;
   double ignorefirst;
   char *mysqloptions;
+  char *mysqloptions2;
   char *commandstring;
 } threadInfoType;
 
@@ -452,32 +453,32 @@ static void *runThreadTimer(void *arg) {
   fprintf(stderr,"write %.0lf MB/s (%.0lf IOPS)\n", TOMB(total_printed_w_bytes)/tm, total_printed_w_iops/tm);
 
   if (fpmysql) {
-    fprintf(fpmysql, "create table if not exists benchmarks (id int not null auto_increment, date datetime not null, blockdevice char(30) not null, read_mbs float not null, read_iops float not null, write_mbs float not null, write_iops float not null, command char(100) not null, version char(10) not null, machine char(20) not null, iotype char(10) not null, opsize char(10) not null, iopattern char(10) not null, qd int not null, devicestate char(15) not null, threads int not null, read_total_gb float not null, write_total_gb float not null, tool char(10) not null, runtime float not null, mysqloptions char(200) not null, os char(20) not null, degraded int not null, k int not null, m int not null, checksum char(15), encryption char(10), primary key(id));\n");
+    fprintf(fpmysql, "create table if not exists benchmarks (id int not null auto_increment, date datetime not null, blockdevice char(30) not null, read_mbs float not null, read_iops float not null, write_mbs float not null, write_iops float not null, command char(100) not null, version char(10) not null, machine char(20) not null, iotype char(10) not null, opsize char(10) not null, iopattern char(10) not null, qd int not null, devicestate char(15) not null, threads int not null, read_total_gb float not null, write_total_gb float not null, tool char(10) not null, runtime float not null, mysqloptions char(200) not null, os char(20) not null, degraded int not null, k int not null, m int not null, checksum char(15), encryption char(10), cache int not null, primary key(id));\n");
     fprintf(fpmysql, "insert into benchmarks set tool='spit', date=NOW(), read_mbs='%.0lf', read_iops='%.0lf', write_mbs='%.0lf', write_iops='%.0lf'", TOMB(total_printed_r_bytes)/tm, total_printed_r_iops/tm, TOMB(total_printed_w_bytes)/tm, total_printed_w_iops/tm);
     fprintf(fpmysql, ", read_total_gb='%.1lf', write_total_gb='%.1lf'", TOGB(trb), TOGB(twb));
     fprintf(fpmysql, ", threads='%zd', runtime='%.0lf'", threadContext->numThreads, timedouble() - start);
     fprintf(fpmysql, ", mysqloptions='%s'", threadContext->mysqloptions);
     fprintf(fpmysql, ", command='%s'", threadContext->commandstring);
     {
-      char *os = getValue(threadContext->mysqloptions, "os=");
+      char *os = getValue(threadContext->mysqloptions2, "os=");
       fprintf(fpmysql, ", os='%s'", os);
       if (os) free(os);
     }
 
     {
-      char *version = getValue(threadContext->mysqloptions, "version=");
+      char *version = getValue(threadContext->mysqloptions2, "version=");
       fprintf(fpmysql, ", version='%s'", version);
       if (version) free(version);
     }
 
     {
-      char *value = getValue(threadContext->mysqloptions, "machine=");
+      char *value = getValue(threadContext->mysqloptions2, "machine=");
       fprintf(fpmysql, ", machine='%s'", value);
       if (value) free(value);
     }
 
     {
-      char *value = getValue(threadContext->mysqloptions, "blockdevice=");
+      char *value = getValue(threadContext->mysqloptions2, "blockdevice=");
       fprintf(fpmysql, ", blockdevice='%s'", value);
       if (value) free(value);
     }
@@ -544,6 +545,12 @@ static void *runThreadTimer(void *arg) {
       if (value) free(value);
     }
 
+    {
+      char *value = getValue(threadContext->mysqloptions, "cache=");
+      fprintf(fpmysql, ", cache='%s'", value);
+      if (value) free(value);
+    }
+
     fprintf(fpmysql, ";\n");
     fprintf(fpmysql, "select \"last insert id\", last_insert_id();\n");
     fclose(fpmysql);
@@ -564,7 +571,7 @@ void jobRunThreads(jobType *job, const int num,
 		   const size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
 		   unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
-		   char *mysqloptions, char *commandstring) {
+		   char *mysqloptions, char *mysqloptions2, char *commandstring) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -589,6 +596,7 @@ void jobRunThreads(jobType *job, const int num,
   
   for (size_t i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
     threadContext[i].mysqloptions = mysqloptions;
+    threadContext[i].mysqloptions2 = mysqloptions2;
     threadContext[i].commandstring = commandstring;
     threadContext[i].ignoreResults = 0;
     threadContext[i].id = i;
@@ -1100,14 +1108,8 @@ void jobRunThreads(jobType *job, const int num,
   if (threadContext[num].pos.diskStats) {
     diskStatStart(threadContext[num].pos.diskStats);
   }
-  //  threadContext[num].mysqloptions = mysqloptions;
-  //  threadContext[num].mysqloptions = mysqloptions;
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   for (size_t i = 0; i < num; i++) {
-    //    if (threadContext[i].runXtimes == 0) {
-    //      threadContext[i].runTime += timeperline;
-    //      threadContext[i].finishtime += timeperline;
-    //    }
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
   }
 
@@ -1318,7 +1320,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL); 
+    jobRunThreads(preconditions, count, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL); 
     fprintf(stderr,"*info* preconditioning complete\n"); fflush(stderr);
   }
   return 0;

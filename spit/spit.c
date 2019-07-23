@@ -26,7 +26,7 @@ char *savePositions = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec, char **mysqloptions, char *commandstring) {
+		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec, char **mysqloptions, char **mysqloptions2, char *commandstring) {
   int opt;
 
   char *device = NULL;
@@ -41,7 +41,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(preconditions);
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkName = strdup(optarg);
@@ -97,6 +97,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       break;
     case 'M':
       *mysqloptions = strdup(optarg);
+      break;
+    case 'N':
+      *mysqloptions2 = strdup(optarg);
       break;
     case 'O':
       diskStatFromFilelist(d, optarg, 0);
@@ -290,6 +293,7 @@ void usage() {
   fprintf(stderr,"  spit -v                       # verify the writes after a run\n");
   fprintf(stderr,"  spit -P filename              # dump positions to filename\n");
   fprintf(stderr,"  spit -c wG_j4                 # The _ represents to divide the G value evenly between threads\n");
+  fprintf(stderr,"  spit -B bench -M ... -N ...   # See the man page for benchmarking tips\n");
   exit(0);
 }
 
@@ -355,10 +359,10 @@ int main(int argc, char *argv[]) {
     
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
-    char *mysqloptions = NULL;
+    char *mysqloptions = NULL, *mysqloptions2 = NULL;
 
     char commandstring[1000];
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec, &mysqloptions, commandstring);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec, &mysqloptions, &mysqloptions2, commandstring);
     
 
 
@@ -384,7 +388,7 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, intHandler);
     signal(SIGINT, intHandler);
 
-    jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoresec, verify, mysqloptions, commandstring);
+    jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoresec, verify, mysqloptions, mysqloptions2, commandstring);
     
     jobFree(j);
     free(j);
@@ -404,6 +408,10 @@ int main(int argc, char *argv[]) {
     if (mysqloptions) {
       free(mysqloptions);
       mysqloptions = NULL;
+    }
+    if (mysqloptions2) {
+      free(mysqloptions2);
+      mysqloptions2 = NULL;
     }
     
     //    if (timedouble() - starttime > 3600) break;

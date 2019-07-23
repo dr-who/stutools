@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 1.5.5
-.\"      Date: 2019-07-23
+.\"      Date: 2019-07-24
 .\"    Manual: spit manual
 .\"    Source: spit 1.1
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2019-07-23" "spit 1.1" "spit manual"
+.TH "SPIT" "1" "2019-07-24" "spit 1.1" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -64,7 +64,12 @@ Limit the execution to \fBs\fP seconds (e.g. \-t 30)
 .sp
 \fBM options\fP
 .RS 4
-Output MySQL options. (e.g. \-M os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid,iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c)
+Output MySQL options per test. (e.g. \-M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1)
+.RE
+.sp
+\fBN options\fP
+.RS 4
+Output MySQL options per machine/type. (e.g. \-N os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid)
 .RE
 .sp
 \fBp precondition_options\fP
