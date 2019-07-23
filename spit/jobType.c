@@ -545,6 +545,7 @@ static void *runThreadTimer(void *arg) {
     }
 
     fprintf(fpmysql, ";\n");
+    fprintf(fpmysql, "select \"last insert id\", last_insert_id();\n");
     fclose(fpmysql);
   }
 
