@@ -490,7 +490,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	  poss[count].pos = j;
 	  int overend = 0;
 	  if (poss[count].pos + thislen > positionsEnd[i]) overend = 1;
-	  if (sf_maxsizebytes && (poss[count].pos + thislen >= positionsStart[i] + sf_maxsizebytes)) overend = 1;
+	  if (sf_maxsizebytes && (poss[count].pos + thislen > positionsStart[i] + sf_maxsizebytes)) overend = 1;
 	  if (overend) {
 	    poss[count].pos = positionsStart[i];
 	    positionsCurrent[i] = positionsStart[i];
@@ -502,7 +502,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	assert(poss[count].pos >= positionsStart[i]);
 	assert(poss[count].pos < positionsEnd[i]);
 	if (sf_maxsizebytes) {
-	  assert(poss[count].pos < positionsStart[i] + sf_maxsizebytes);
+	  assert(poss[count].pos <= positionsStart[i] + sf_maxsizebytes);
 	}
 
 	poss[count].submittime = 0;
