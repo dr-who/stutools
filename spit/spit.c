@@ -263,6 +263,7 @@ void usage() {
   fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");
+  fprintf(stderr,"  spit -f device -b 10240000    # specify the max device size in bytes\n");
   fprintf(stderr,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
   fprintf(stderr,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GiB region, rand r in the 2-3 GiB region\n");
   fprintf(stderr,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
