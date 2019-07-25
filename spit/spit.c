@@ -41,8 +41,20 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(preconditions);
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:")) != -1) {
     switch (opt) {
+    case 'b': {}
+      *minSizeInBytes = alignedNumber(atol(optarg), 4096);
+      *maxSizeInBytes = alignedNumber(atol(optarg), 4096);
+      if (*minSizeInBytes == *maxSizeInBytes) { 
+	*minSizeInBytes = 0;
+      }
+      if (*minSizeInBytes > *maxSizeInBytes) {
+	fprintf(stderr,"*error* low range needs to be lower [%zd, %zd]\n", *minSizeInBytes, *maxSizeInBytes);
+	exit(1);
+      }
+      break;
+
     case 'B':
       benchmarkName = strdup(optarg);
       break;
