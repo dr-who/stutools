@@ -212,7 +212,6 @@ static void *runThread(void *arg) {
     if (!threadContext->runXtimes) {
       if (timedouble() > starttime + threadContext->finishtime) break;
     }
-    sleep(threadContext->waitfor);
 
     aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
 
@@ -234,6 +233,7 @@ static void *runThread(void *arg) {
 	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->minbdSize, threadContext->maxbdSize);
       }	
     }
+    sleep(threadContext->waitfor);
     if (verbose) fprintf(stderr,"*info* finished pass %zd\n", iteratorCount);
   }
 
