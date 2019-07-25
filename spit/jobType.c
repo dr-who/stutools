@@ -298,6 +298,12 @@ static void *runThreadTimer(void *arg) {
     fp = fopen(threadContext->benchmarkName, "wt");
     if (threadContext->mysqloptions) {
       fpmysql = fopen(s, "wt");
+      if (!fpmysql) {
+	perror(s);
+      } else {
+	fprintf(fpmysql, "# start of file\n");
+	fflush(fpmysql);
+      }
     }
     
     if (fp) {
