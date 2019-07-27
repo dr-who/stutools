@@ -453,7 +453,11 @@ static void *runThreadTimer(void *arg) {
     fclose(fp); fp = NULL;
   }
 
+  //  fprintf(stderr,"start %.0lf last printed %.0lf this %.0lf actual %.0lf\n",0.0f, lastprintedtime - starttime, thistime - lastprintedtime, thistime - starttime);
   double tm = lastprintedtime - starttime;
+  if (thistime - lastprintedtime >= 2) {
+    tm = thistime - starttime; // if more than two seconds since a non zero line
+  }
   fprintf(stderr,"*info* summary: read %.0lf MB/s (%.0lf IOPS), ", TOMB(total_printed_r_bytes)/tm, total_printed_r_iops/tm);
   fprintf(stderr,"write %.0lf MB/s (%.0lf IOPS)\n", TOMB(total_printed_w_bytes)/tm, total_printed_w_iops/tm);
 
