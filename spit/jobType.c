@@ -418,7 +418,7 @@ static void *runThreadTimer(void *arg) {
 	fprintf(stderr,"\n");
 
 	if (fp) {
-	  fprintf(fp, "%.4lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb), TOMB(devicewb));
+	  fprintf(fp, "%.4lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
 	  fflush(fp);
 	}
 	
