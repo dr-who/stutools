@@ -174,7 +174,7 @@ static void *runThread(void *arg) {
 
   char *suffix = getSuffix(threadContext->jobdevice);
   char *model = getModel(suffix);
-  if (model) {
+  if (model && threadContext->id == 0) {
     fprintf(stderr,"*info* device: '%s'\n", model);
     free(model);
   }
