@@ -465,7 +465,7 @@ static void *runThreadTimer(void *arg) {
     fprintf(fpmysql, "create table if not exists benchmarks (id int not null auto_increment, date datetime not null, blockdevice char(30) not null, read_mbs float not null, read_iops float not null, write_mbs float not null, write_iops float not null, command char(100) not null, version char(10) not null, machine char(20) not null, iotype char(10) not null, opsize char(10) not null, iopattern char(10) not null, qd int not null, devicestate char(15) not null, threads int not null, read_total_gb float not null, write_total_gb float not null, tool char(10) not null, runtime float not null, mysqloptions char(200) not null, os char(20) not null, degraded int not null, k int not null, m int not null, checksum char(15), encryption char(10), cache int not null, primary key(id));\n");
     fprintf(fpmysql, "insert into benchmarks set tool='spit', date=NOW(), unixdate='%.0lf', read_mbs='%.0lf', read_iops='%.0lf', write_mbs='%.0lf', write_iops='%.0lf'", starttime, TOMB(total_printed_r_bytes)/tm, total_printed_r_iops/tm, TOMB(total_printed_w_bytes)/tm, total_printed_w_iops/tm);
     fprintf(fpmysql, ", read_total_gb='%.1lf', write_total_gb='%.1lf'", TOGB(trb), TOGB(twb));
-    fprintf(fpmysql, ", threads='%zd', runtime='%.0lf'", threadContext->numThreads, lastprintedtime - starttime);
+    fprintf(fpmysql, ", threads='%zd', runtime='%.0lf'", threadContext->numThreads, thistime - starttime); // insert a range that covers everything, including the printed values
     fprintf(fpmysql, ", mysqloptions='%s'", threadContext->mysqloptions);
     fprintf(fpmysql, ", command='%s'", threadContext->commandstring);
     {
