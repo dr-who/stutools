@@ -43,7 +43,7 @@ string on a dedicated thread with an AIO context per thread.
    Limit the execution to *s* seconds (e.g. -t 30)
 
  *M options*::
-   Output MySQL options per test. (e.g. -M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1)
+   Output MySQL options per test. (e.g. -M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1,precondition=GI20000)
 
  *N options*::
    Output MySQL options per machine/type. (e.g. -N os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid)
