@@ -215,6 +215,12 @@ size_t totalRAM() {
   return info.totalram;
 }
 
+size_t getUptime() {
+  struct sysinfo info;
+  sysinfo(&info);
+  return info.uptime;
+}
+
 size_t freeRAM() {
   struct sysinfo info;
   sysinfo(&info);

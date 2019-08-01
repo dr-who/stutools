@@ -85,6 +85,7 @@ char *getModel(const char *suffix);
 size_t freeRAM();
 size_t canCreateFile(const char *filename, const size_t sz);
 char *hostname();
+size_t getUptime();
 
 #endif
 
