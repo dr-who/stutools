@@ -41,6 +41,7 @@ void checkArray(const unsigned short *freeQueue, const size_t QD) {
 size_t aioMultiplePositions( positionContainer *p,
 			     const size_t sz,
 			     const double finishtime,
+			     const size_t finishBytes,
 			     size_t origQD,
 			     const int verbose,
 			     const int tableMode, 
@@ -373,6 +374,7 @@ size_t aioMultiplePositions( positionContainer *p,
       totalWriteBytes += wlen;
 
 
+
       if (0) {
 	checkArray(freeQueue, QD);
       }
@@ -380,6 +382,12 @@ size_t aioMultiplePositions( positionContainer *p,
       inFlight -= ret;
       received += ret;
     }
+    
+    if (finishBytes && (totalReadBytes + totalWriteBytes >= finishBytes)) {
+      break;
+    }
+      
+    
     if (ret < 0) {
       fprintf(stderr,"eek\n");
       break;

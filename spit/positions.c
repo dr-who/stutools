@@ -590,9 +590,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 void positionContainerRandomize(positionContainer *pc) {
   const size_t count = pc->sz;
   positionType *positions = pc->positions;
-  if (verbose >= 1) {
+  //  if (verbose >= 1) {
     fprintf(stderr,"*info* shuffling the array %zd\n", count);
-  }
+    //  }
   for (size_t shuffle = 0; shuffle < 1; shuffle++) {
     for (size_t i = 0; i < count; i++) {
       size_t j = i;

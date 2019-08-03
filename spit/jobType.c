@@ -207,13 +207,19 @@ static void *runThread(void *arg) {
   size_t iteratorCount = 0;
 
   while (keepRunning) {
+    size_t runcount = threadContext->runXtimes;
+    if (threadContext->rerandomize || threadContext->addBlockSize) {
+      runcount = 1; // just run once and then rerandomize
+    }
     // 
-    iteratorCount++;      
+    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, runcount * (threadContext->maxSizeInBytes - threadContext->minSizeInBytes), threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, /*threadContext->runXtimes || */ threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
+
+
+    iteratorCount += runcount;
     if (!threadContext->runXtimes) {
       if (timedouble() > starttime + threadContext->finishtime) break;
     }
 
-    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, threadContext->runXtimes || threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
 
     if (verbose >= 1) {
       if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* interrupted...\n");}
