@@ -212,7 +212,7 @@ static void *runThread(void *arg) {
       runcount = 1; // just run once and then rerandomize
     }
     // 
-    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, runcount * (threadContext->maxSizeInBytes - threadContext->minSizeInBytes), threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, /*threadContext->runXtimes || */ threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
+    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, runcount * sumrange, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, /*threadContext->runXtimes || */ threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
 
 
     iteratorCount += runcount;
