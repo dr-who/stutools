@@ -23,8 +23,8 @@ static int poscompare(const void *p1, const void *p2)
   if (pos1->pos < pos2->pos) return -1;
   else if (pos1->pos > pos2->pos) return 1;
   else {
-    if (pos1->finishtime > pos2->finishtime) return -1;
-    else if (pos1->finishtime < pos2->finishtime) return 1;
+    if (pos1->finishTime > pos2->finishTime) return -1;
+    else if (pos1->finishTime < pos2->finishTime) return 1;
     else return 0;
   }
 }
@@ -155,12 +155,12 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
 void positionContainerCheckOverlap(const positionContainer *merged) {
   size_t printed = 0;
   for (size_t i = 0; i < merged->sz - 1; i++) {
-    //    if (i < 100)fprintf(stderr,"[%zd] %zd len %d %c seed %d fin %lf\n", i, merged.positions[i].pos, merged.positions[i].len, merged.positions[i].action, merged.positions[i].seed, merged.positions[i].finishtime);
+    //    if (i < 100)fprintf(stderr,"[%zd] %zd len %d %c seed %d fin %lf\n", i, merged.positions[i].pos, merged.positions[i].len, merged.positions[i].action, merged.positions[i].seed, merged.positions[i].finishTime);
     if (merged->positions[i].action == 'W' && merged->positions[i+1].action != 'R') {
       if (merged->positions[i].seed != merged->positions[i+1].seed) {
 	if (merged->positions[i].pos + merged->positions[i].len > merged->positions[i+1].pos) {
-	  if (merged->positions[i].finishtime > 0 && merged->positions[i+1].finishtime > 0) {
-	    if (merged->positions[i].finishtime < merged->positions[i+1].finishtime) {
+	  if (merged->positions[i].finishTime > 0 && merged->positions[i+1].finishTime > 0) {
+	    if (merged->positions[i].finishTime < merged->positions[i+1].finishTime) {
 	      printed++;
 	      if (printed < 10)
 		fprintf(stderr,"[%zd] *warning* problem at position %zd (len %d) %c, next %zd (len %d) %c\n", i, merged->positions[i].pos, merged->positions[i].len,  merged->positions[i].action, merged->positions[i+1].pos, merged->positions[i+1].len, merged->positions[i+1].action);
@@ -182,7 +182,7 @@ void positionContainerCollapse(positionContainer *merged) {
   assert(maxbs > 0);
 
   for (size_t i = 0; i < merged->sz; i++) {
-    if (toupper(merged->positions[i].action) != 'R' && merged->positions[i].finishtime > 0) {
+    if (toupper(merged->positions[i].action) != 'R' && merged->positions[i].finishTime > 0) {
       if (i>0) assert(merged->positions[i].pos >= merged->positions[i-1].pos);
 
       size_t j = i;
@@ -202,7 +202,7 @@ void positionContainerCollapse(positionContainer *merged) {
 
 	// there is some conflict to check
 	size_t oldest = i, newest = j;
-	if (merged->positions[j].finishtime < merged->positions[i].finishtime) {
+	if (merged->positions[j].finishTime < merged->positions[i].finishTime) {
 	  oldest = j;
 	  newest = i;
 	}
@@ -218,7 +218,7 @@ void positionContainerCollapse(positionContainer *merged) {
 
 	
 	// if one is quite a lot newer, keep that
-	if (merged->positions[newest].submittime > merged->positions[oldest].finishtime + 1 /* submit newest 10 seconds after oldest finished */) {
+	if (merged->positions[newest].submitTime > merged->positions[oldest].finishTime + 1 /* submit newest 10 seconds after oldest finished */) {
 	  // clobber old one no matter what
 	  merged->positions[oldest].action = '1'; // exclude from output
 	  //	  merged.positions[newest].action = '*'; // exclude from output
@@ -341,9 +341,9 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
     setvbuf(fp, buffer, 1000000, _IOFBF);
     const positionType *positions = p->positions;
     for (size_t i = 0; i < p->sz; i++) {
-      if (0 || (positions[i].finishtime > 0 && !positions[i].inFlight)) {
+      if (0 || (positions[i].finishTime > 0 && !positions[i].inFlight)) {
 	const char action = positions[i].action;
-	fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / maxbdSizeBytes, action, positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), positions[i].seed, positions[i].submittime, positions[i].finishtime);
+	fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / maxbdSizeBytes, action, positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), positions[i].seed, positions[i].submitTime, positions[i].finishTime);
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
 	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", p->device, (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, positions[i].seed);
 	}
@@ -505,8 +505,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	  assert(poss[count].pos <= positionsStart[i] + sf_maxsizebytes);
 	}
 
-	poss[count].submittime = 0;
-	poss[count].finishtime = 0;
+	poss[count].submitTime = 0;
+	poss[count].finishTime = 0;
 	poss[count].len = thislen;
 	assert(poss[count].len >= 0);
 	poss[count].seed = seed;
@@ -611,14 +611,14 @@ void positionContainerRandomize(positionContainer *pc) {
 
 
 void positionAddBlockSize(positionType *positions, const size_t count, const size_t addSize, const size_t minbdSize, const size_t maxbdSize) {
-  if (verbose >= 1) {
+  //  if (verbose >= 1) {
     fprintf(stderr,"*info* adding %zd size\n", addSize);
-  }
+    //  }
   positionType *p = positions;
   for (size_t i = 0; i < count; i++) {
     p->pos += addSize;
-    p->submittime = 0;
-    p->finishtime = 0;
+    p->submitTime = 0;
+    p->finishTime = 0;
     p->inFlight = 0;
     p->success = 0;
     if (p->pos + p->len > maxbdSize) {
@@ -718,8 +718,8 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
       //      fprintf(stderr,"%zd\n", pNum);
       //      p[pNum-1].fd = 0;
       p[pNum-1].pos = pos;
-      p[pNum-1].submittime = starttime;
-      p[pNum-1].finishtime = fintime;
+      p[pNum-1].submitTime = starttime;
+      p[pNum-1].finishTime = fintime;
       p[pNum-1].len = len;
       p[pNum-1].seed = seed;
       p[pNum-1].q = 0;
@@ -816,10 +816,10 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   size_t failed = 0;
 
   for (size_t i = 0; i < pc->sz;i++) {
-    if (pc->positions[i].success && pc->positions[i].finishtime) {
+    if (pc->positions[i].success && pc->positions[i].finishTime) {
       //
     } else {
-      if (pc->positions[i].submittime) {
+      if (pc->positions[i].submitTime) {
 	failed++;
       }
     }
@@ -861,8 +861,8 @@ size_t setupRandomPositions(positionType *pos,
 
     assert (randPos + thislen <= bdSize);
     pos[i].pos = randPos;
-    pos[i].submittime = 0;
-    pos[i].finishtime= 0;
+    pos[i].submitTime = 0;
+    pos[i].finishTime= 0;
     pos[i].len = thislen;
     pos[i].seed = seedin;
     pos[i].q = 0;
@@ -910,8 +910,8 @@ void positionContainerLoad(positionContainer *pc, FILE *fd) {
       pNum++;
       p = realloc(p, sizeof(positionType) * (pNum));
       assert(p);
-      p[pNum-1].submittime = starttime;
-      p[pNum-1].finishtime = fintime;
+      p[pNum-1].submitTime = starttime;
+      p[pNum-1].finishTime = fintime;
       //      fprintf(stderr,"%zd\n", pNum);
       //      p[pNum-1].fd = 0;
       p[pNum-1].pos = pos;

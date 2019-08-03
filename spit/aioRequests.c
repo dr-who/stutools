@@ -40,7 +40,7 @@ void checkArray(const unsigned short *freeQueue, const size_t QD) {
 
 size_t aioMultiplePositions( positionContainer *p,
 			     const size_t sz,
-			     const double finishtime,
+			     const double finishTime,
 			     const size_t finishBytes,
 			     size_t origQD,
 			     const int verbose,
@@ -168,8 +168,8 @@ size_t aioMultiplePositions( positionContainer *p,
     positions[i].success = 0;
   }
 
-  if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishtime %lf\n", sz, finishtime);
-  while (keepRunning && ((thistime = timedouble()) < finishtime)) {
+  if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishTime %lf\n", sz, finishTime);
+  while (keepRunning && ((thistime = timedouble()) < finishTime)) {
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
     if (inFlight > QD) {
@@ -224,7 +224,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	      flushPos++;
 	    }
 	    
-	    positions[pos].submittime = thistime;
+	    positions[pos].submitTime = thistime;
 	      
 	    ret = io_submit(ioc, 1, &cbs[qdIndex]);
 	      
@@ -358,7 +358,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	    }
 	  } // 'w'
 	} // else if no error
-	pp->finishtime = lastreceive;
+	pp->finishTime = lastreceive;
 	pp->success = 1; // the action has completed
 	pp->inFlight = 0;
 	//checkArray(freeQueue, QD);
@@ -414,7 +414,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
 	  
-	  pp->finishtime = lastreceive;
+	  pp->finishTime = lastreceive;
 	  pp->inFlight = 0;
 	  pp->success = 1; // the action has completed
 	}
@@ -457,7 +457,7 @@ size_t aioMultiplePositions( positionContainer *p,
   *totalRB = totalReadBytes;
 
   for (size_t i = 0; i < pos; i++) {
-    assert(positions[i].submittime > 0);
+    assert(positions[i].submitTime > 0);
   }
   
   return (*totalWB) + (*totalRB);

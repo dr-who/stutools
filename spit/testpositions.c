@@ -44,7 +44,7 @@ int main() {
   positionContainerDump(&pc3, "test", 10);
 
   for (size_t i = 0; i < pc3.sz; i++) {
-    pc3.positions[i].finishtime = 1;
+    pc3.positions[i].finishTime = 1;
   }
   char *tmp = tmpnam(NULL);
   positionContainerSave(&pc3, tmp, 10000*10000, 0);

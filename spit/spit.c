@@ -296,7 +296,12 @@ void usage() {
   fprintf(stderr,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
   fprintf(stderr,"  spit -f .... -R seed          # set the initial seed, -j will increment per job\n");
   fprintf(stderr,"  spit -f .... -Q qd            # set the per job default queue depth\n");
-  fprintf(stderr,"  spit -f .... -c wns0X10       # writing the block device 10 times, not time based\n");
+  fprintf(stderr,"  spit -f .... -c wns0X10       # writing the number of positions 10 times, not time based\n");
+  fprintf(stderr,"  spit -c x5                    # writing the block device size 5 times, not time based\n");
+  fprintf(stderr,"  spit -c P10x1                 # write 10 positions until the entire device size is written\n");
+  fprintf(stderr,"  spit -c P10X1                 # write 10 positions\n");
+  fprintf(stderr,"  spit -c P10000X100            # write the same 10,000 positions 100 times\n");
+  fprintf(stderr,"  spit -c P10000                # write the same 10,000 positions based on the time\n");
   fprintf(stderr,"  spit -p G -p Gs1              # precondition job, writing random, 100%% LBA, then seq job\n");
   fprintf(stderr,"  spit -c wZ1                   # Z is the starting offset. -z is -Z0\n");
   fprintf(stderr,"  spit -p G100                  # precondition job, writing random overwrite LBA size\n");

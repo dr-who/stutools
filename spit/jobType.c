@@ -94,7 +94,7 @@ typedef struct {
   size_t maxbdSize;
   size_t minSizeInBytes;
   size_t maxSizeInBytes;
-  size_t finishtime; // the overall thread finish time
+  size_t finishTime; // the overall thread finish time
   size_t waitfor;
   size_t prewait;
   char *jobstring;
@@ -107,6 +107,7 @@ typedef struct {
   int rerandomize; 
   int addBlockSize;
   size_t runXtimes;
+  size_t multipleTimes;
   unsigned short seed;
   char *randomBuffer;
   size_t numThreads;
@@ -189,8 +190,8 @@ static void *runThread(void *arg) {
   }
   if (suffix) free(suffix);
 
-  if (threadContext->finishtime < threadContext->runTime) {
-    fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishtime);
+  if (threadContext->finishTime < threadContext->runTime) {
+    fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishTime);
   }
   //  double localrange = TOGB(threadContext->maxbdSize - threadContext->minbdSize);
   size_t outerrange = threadContext->maxSizeInBytes - threadContext->minSizeInBytes;
@@ -198,34 +199,55 @@ static void *runThread(void *arg) {
   for (size_t i = 0; i < threadContext->pos.sz; i++) {
     sumrange += threadContext->pos.positions[i].len;
   }
-  fprintf(stderr,"*info* [t%zd] '%s', s%zd (%.0lf KiB), pos=%zd (LBA %.1lf%%, [%.2lf,%.2lf] GB of %.2lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), TOGB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishtime, threadContext->runXtimes);
+  fprintf(stderr,"*info* [t%zd] '%s', s%zd (%.0lf KiB), pos=%zd (LBA %.1lf%%, [%.2lf,%.2lf] GB of %.2lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%zd,%zd], seed/R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), TOGB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, threadContext->blockSize, threadContext->highBlockSize, threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->runXtimes);
 
 
   // do the mahi
   double starttime = timedouble();
   sleep(threadContext->prewait);
-  size_t iteratorCount = 0;
+  size_t iteratorCount = 0, iteratorInc = 1, iteratorMax = 0;
 
+    size_t byteLimit = 0;
+      if (threadContext->multipleTimes) {
+      iteratorMax = 1;
+      byteLimit = threadContext->multipleTimes * outerrange;
+      if (threadContext->rerandomize || threadContext->addBlockSize) {
+	iteratorMax = -1;
+      }
+    } else if (threadContext->runXtimes) {
+      iteratorMax = threadContext->runXtimes;
+      byteLimit = threadContext->runXtimes * sumrange;
+      iteratorInc = threadContext->runXtimes;
+      if (threadContext->rerandomize || threadContext->addBlockSize) {
+	iteratorInc = 1; // just run once and then rerandomize
+	iteratorMax = -1;
+      }
+    }
+
+      fprintf(stderr,"*info* byteLimit %zd (%.03lf GiB), iteratorInc %zd, iteratorMax %zd\n", byteLimit, TOGiB(byteLimit), iteratorInc, iteratorMax);
+
+  size_t totalB = 0;
   while (keepRunning) {
-    size_t runcount = threadContext->runXtimes;
-    if (threadContext->rerandomize || threadContext->addBlockSize) {
-      runcount = 1; // just run once and then rerandomize
-    }
     // 
-    aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, runcount * sumrange, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, /*threadContext->runXtimes || */ threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
 
-
-    iteratorCount += runcount;
-    if (!threadContext->runXtimes) {
-      if (timedouble() > starttime + threadContext->finishtime) break;
+    // check exit constraints
+    if (byteLimit) {
+      if (totalB >= byteLimit) {
+	break;
+      }
+    } else {
+      if (timedouble() > starttime + threadContext->finishTime)
+	break;
     }
 
+    iteratorCount += iteratorInc;
 
     if (verbose >= 1) {
       if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* interrupted...\n");}
     }
-    if (threadContext->runXtimes) {
-      if (iteratorCount >= threadContext->runXtimes) {
+    if (iteratorMax > 0) {
+      if (iteratorCount >= iteratorMax) {
 	break;
       }
     }
@@ -288,7 +310,7 @@ static void *runThreadTimer(void *arg) {
   if (ignorefirst < 0) ignorefirst = 0;
   
   if (verbose >= 2) {
-    fprintf(stderr,"*info* timer thread, threads %zd, %.2lf per line, ignore first %.2lf seconds, %s, finish time %zd\n", threadContext->numThreads, TIMEPERLINE, ignorefirst, threadContext->benchmarkName, threadContext->finishtime);
+    fprintf(stderr,"*info* timer thread, threads %zd, %.2lf per line, ignore first %.2lf seconds, %s, finish time %zd\n", threadContext->numThreads, TIMEPERLINE, ignorefirst, threadContext->benchmarkName, threadContext->finishTime);
   }
 
   double thistime = 0;
@@ -340,9 +362,9 @@ static void *runThreadTimer(void *arg) {
 
   // loop until the time runs out
   int printlinecount = 0;
-  while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishtime + TIMEPERLINE)) {
+  while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishTime + TIMEPERLINE)) {
 
-    if ((thistime - starttime >= nicetime) && (thistime < starttime + threadContext->finishtime + TIMEPERLINE)) {
+    if ((thistime - starttime >= nicetime) && (thistime < starttime + threadContext->finishTime + TIMEPERLINE)) {
       printlinecount++;
       // find a nice time for next values
       if (threadContext->timeperline <= 0) { // if -s set to <= 0
@@ -449,8 +471,8 @@ static void *runThreadTimer(void *arg) {
     }
     usleep(1000000*TIMEPERLINE/10); // display to 0.001 s
 
-    if (thistime > starttime + threadContext->finishtime + 30) {
-      fprintf(stderr,"*error* still running! watchdog termination (%.0lf > %.0lf + %zd\n", thistime, starttime, threadContext->finishtime + 30);
+    if (thistime > starttime + threadContext->finishTime + 30) {
+      fprintf(stderr,"*error* still running! watchdog termination (%.0lf > %.0lf + %zd\n", thistime, starttime, threadContext->finishTime + 30);
       keepRunning = 0;
       exit(-1);
     }
@@ -628,7 +650,8 @@ void jobRunThreads(jobType *job, const int num,
     threadContext[i].ignoreResults = 0;
     threadContext[i].id = i;
     threadContext[i].runTime = timetorun;
-    threadContext[i].finishtime = timetorun;
+    threadContext[i].multipleTimes = 0;
+    threadContext[i].finishTime = timetorun;
     threadContext[i].exitIOPS = 0;
     if (i == num) {
       threadContext[i].benchmarkName = benchmarkName;
@@ -645,7 +668,7 @@ void jobRunThreads(jobType *job, const int num,
   for (size_t i = 0; i < num; i++) {
     size_t localminbdsize = minSizeInBytes, localmaxbdsize = maxSizeInBytes;
     threadContext[i].runTime = timetorun;
-    threadContext[i].finishtime = timetorun;
+    threadContext[i].finishTime = timetorun;
     threadContext[i].exitIOPS = 0;
     threadContext[i].jumbleRun = 0;
     threadContext[i].minSizeInBytes = minSizeInBytes;
@@ -788,8 +811,8 @@ void jobRunThreads(jobType *job, const int num,
       char *oOS = strchr(job->strings[i], 'O');
       if (oOS) {
 	threadContext[i].runTime = -1;
-	threadContext[i].finishtime = -1;
-	threadContext[num].finishtime = -1; // the timer
+	threadContext[i].finishTime = -1;
+	threadContext[num].finishTime = -1; // the timer
 	runXtimes = 1;
       }
     }
@@ -800,8 +823,8 @@ void jobRunThreads(jobType *job, const int num,
       if (charX && *(charX+1)) {
 	runXtimes = atoi(charX + 1);
 	threadContext[i].runTime = -1;
-	threadContext[i].finishtime = -1;
-	threadContext[num].finishtime = -1; // the timer
+	threadContext[i].finishTime = -1;
+	threadContext[num].finishTime = -1; // the timer
       }
     }
     threadContext[i].runXtimes = runXtimes;
@@ -953,12 +976,13 @@ void jobRunThreads(jobType *job, const int num,
     }
 
     char *multLimit = strchr(job->strings[i], 'x');
-    size_t multiply = (size_t)1;
-    //    if (seqFiles == 0) multiply = 3;
-
     if (multLimit && *(multLimit+1)) {
       char *endp = NULL;
-      multiply = (size_t) (strtod(multLimit+1, &endp));
+      threadContext[i].multipleTimes = (size_t) (strtod(multLimit+1, &endp));
+      threadContext[i].runXtimes = 1;
+      threadContext[i].runTime = -1;
+      threadContext[i].finishTime = -1;
+      threadContext[num].finishTime = -1;
     }
 
 
@@ -988,7 +1012,7 @@ void jobRunThreads(jobType *job, const int num,
     {
       char *iTO = strchr(job->strings[i], 't');
       if (iTO) {
-	threadContext[i].finishtime = atoi(iTO+1);
+	threadContext[i].finishTime = atoi(iTO+1);
       }
     }
 
@@ -1011,7 +1035,7 @@ void jobRunThreads(jobType *job, const int num,
 	  mp = newmp;
 	}
 	if (mp < 1) mp = 1;
-	if (mp * multiply <= qDepth) {
+	if (mp <= qDepth) {
 	  qDepth = mp;
 	}
       }
@@ -1081,14 +1105,6 @@ void jobRunThreads(jobType *job, const int num,
       if (verbose >= 2) {
 	positionContainerCheck(&threadContext[i].pos, threadContext[i].minbdSize, threadContext[i].maxbdSize, !metaData);
       }
-      if (multiply > 1) {
-	// if more than 1
-	positionContainer tmp = positionContainerMultiply(&threadContext[i].pos, multiply);
-	positionContainerFree(&threadContext[i].pos);
-	threadContext[i].pos = tmp;
-      }
-
-
       
       if (threadContext[i].seqFiles == 0) positionContainerRandomize(&threadContext[i].pos);
 
@@ -1170,9 +1186,9 @@ void jobRunThreads(jobType *job, const int num,
     
     for (size_t i = 0; i < mergedpc.sz; i++) {
       if (mergedpc.positions[i].action == 'R') 
-	histAdd(&histRead, mergedpc.positions[i].finishtime - mergedpc.positions[i].submittime);
+	histAdd(&histRead, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
       else if (mergedpc.positions[i].action == 'W') 
-	histAdd(&histWrite, mergedpc.positions[i].finishtime - mergedpc.positions[i].submittime);
+	histAdd(&histWrite, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
     }
     double median, three9, four9, five9;
     if (histCount(&histRead)) {

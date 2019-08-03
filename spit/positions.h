@@ -8,7 +8,7 @@
 
 typedef struct {
   size_t pos;                    // 8
-  double submittime, finishtime; // 16
+  double submitTime, finishTime; // 16
   unsigned int len;              // 4;
   unsigned short seed;           // 2
   unsigned short q;              // 2

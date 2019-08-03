@@ -129,7 +129,7 @@ static void *runThread(void *arg) {
       }
     }
     if (!keepRunning) {break;}
-    if (positions[i].action == 'W' && positions[i].finishtime>0) {
+    if (positions[i].action == 'W' && positions[i].finishTime>0) {
       threadContext->bytesRead += positions[i].len;
       if (positions[i].seed != lastseed) {
 	generateRandomBuffer(randombuf, threadContext->pc->maxbs, positions[i].seed);
