@@ -383,7 +383,8 @@ size_t aioMultiplePositions( positionContainer *p,
       received += ret;
     }
     
-    if (finishBytes && (totalReadBytes + totalWriteBytes >= finishBytes)) {
+    if (finishBytes && (totalWriteBytes + totalReadBytes >= finishBytes)) {
+      //      fprintf(stderr,"....%zd %zd\n", finishBytes, totalWriteBytes + totalReadBytes);
       break;
     }
       
@@ -417,6 +418,16 @@ size_t aioMultiplePositions( positionContainer *p,
 	  pp->finishTime = lastreceive;
 	  pp->inFlight = 0;
 	  pp->success = 1; // the action has completed
+
+	  if (pp->action == 'R') {
+	    p->readIOs++;
+	    p->readBytes += pp->len;
+	    totalReadBytes += pp->len;
+	  } else if (pp->action == 'W') {
+	    p->writtenIOs++;
+	    p->writtenBytes += pp->len;
+	    totalWriteBytes += pp->len;
+	  }
 	}
 	inFlight -= ret;
       } else {
