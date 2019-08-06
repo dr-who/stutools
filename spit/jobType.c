@@ -1359,7 +1359,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
       
       char s[100];
-      sprintf(s, "w k%g z s%zd J%zd b%zd X%zd x1 nN I%zd q512", blockSize, seqFiles, jumble, maxSizeBytes, coverage, exitIOPS);
+      sprintf(s, "w k%g z s%zd J%zd b%zd X%zd nN I%zd q512", blockSize, seqFiles, jumble, maxSizeBytes, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
