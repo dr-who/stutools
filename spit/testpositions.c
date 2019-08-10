@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "positions.h"
 
 #include <stdlib.h>
@@ -46,7 +48,12 @@ int main() {
   for (size_t i = 0; i < pc3.sz; i++) {
     pc3.positions[i].finishTime = 1;
   }
-  char *tmp = tmpnam(NULL);
+
+  char *tmp = malloc(100);
+  sprintf(tmp,"testfileXXXXXX");
+  int ret = mkstemp(tmp);
+  fprintf(stderr,"ret %d\n", ret);
+  fprintf(stderr,"temp: %s\n", tmp);
   positionContainerSave(&pc3, tmp, 10000*10000, 0, NULL);
   positionContainerInfo(&pc3);
   //  free(tmp);
@@ -58,6 +65,9 @@ int main() {
 
   positionContainerFree(&pc3);
   positionContainerInfo(&pc3);
+
+  deleteFile(tmp);
+  free(tmp);
 
 
   return 0;
