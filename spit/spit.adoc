@@ -27,6 +27,9 @@ string on a dedicated thread with an AIO context per thread.
  *f device*::
    Specific a single device (e.g. -f /dev/ram0)
 
+ *F prefix*::
+   The filesystem filename prefix for parallel jobs. (e.g. -F testprefix -j 32)
+
  *G size*::
    Limit the positions to a maximum of *size* GiB (e.g. -G 32)
 

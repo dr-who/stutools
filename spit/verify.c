@@ -47,11 +47,13 @@ int main(int argc, char *argv[]) {
   positionContainer *origpc;
   CALLOC(origpc, numFiles, sizeof(positionContainer));
 
+  jobType job;
+  
   for (size_t i = 0; i < numFiles; i++) {
     fprintf(stderr,"*info* position file: %s\n", argv[1 + i]);
     FILE *fp = fopen(argv[i+1], "rt");
     if (fp) {
-      positionContainerLoad(&origpc[i], fp);
+      job = positionContainerLoad(&origpc[i], fp);
       positionContainerInfo(&origpc[i]);
       fclose(fp);
     }
@@ -64,26 +66,15 @@ int main(int argc, char *argv[]) {
 
   positionContainer pc = positionContainerMerge(origpc, numFiles);
 
-  int fd = 0;
-  if (pc.sz) {
-    fd = open(pc.device, O_RDONLY);
-    if (fd < 0) {perror(pc.device);exit(-2);}
-  }
-
-
   const size_t threads = 256;
   fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
 
   // verify must be sorted
-  int errors = verifyPositions(fd, &pc, threads);
-
-  close(fd);
+  int errors = verifyPositions(&pc, threads, &job);
 
   if (!keepRunning) {fprintf(stderr,"*warning* early verification termination\n");}
 
   for (size_t i = 0; i < numFiles; i++) {
-    free(origpc[i].device);
-    free(origpc[i].string);
     positionContainerFree(&origpc[i]);
   }
   free(origpc); origpc=NULL;

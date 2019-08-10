@@ -19,9 +19,9 @@ int main() {
 
   size_t num = 10000;
   positionContainerSetup(&pc, num, "device", "string");
-  positionContainerCreatePositions(&pc, 1, 0, 0.0, 4096, 8192, 4096, 0, 0, 10000*10000, 42);
+  positionContainerCreatePositions(&pc, 0, 1, 0, 0.0, 4096, 8192, 4096, 0, 0, 10000*10000, 42);
   positionContainerInfo(&pc);
-  positionContainerDump(&pc, "test", 10);
+  positionContainerDump(&pc, 10);
 
   positionContainerCheck(&pc, 0, 10000*10000, 0);
 
@@ -41,20 +41,20 @@ int main() {
   positionContainerInfo(&pc3);
 
   positionContainerCheck(&pc3, 0, pc3.maxbdSize, 0);
-  positionContainerDump(&pc3, "test", 10);
+  positionContainerDump(&pc3, 10);
 
   for (size_t i = 0; i < pc3.sz; i++) {
     pc3.positions[i].finishTime = 1;
   }
   char *tmp = tmpnam(NULL);
-  positionContainerSave(&pc3, tmp, 10000*10000, 0);
+  positionContainerSave(&pc3, tmp, 10000*10000, 0, NULL);
   positionContainerInfo(&pc3);
   //  free(tmp);
 
   positionContainerCollapse(&pc3);
   positionContainerInfo(&pc3);
 
-  positionContainerDump(&pc3, "test", 10);
+  positionContainerDump(&pc3, 10);
 
   positionContainerFree(&pc3);
   positionContainerInfo(&pc3);

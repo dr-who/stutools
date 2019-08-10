@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 1.5.5
-.\"      Date: 2019-08-01
+.\"      Date: 2019-08-10
 .\"    Manual: spit manual
 .\"    Source: spit 1.1
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2019-08-01" "spit 1.1" "spit manual"
+.TH "SPIT" "1" "2019-08-10" "spit 1.1" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -35,6 +35,11 @@ string on a dedicated thread with an AIO context per thread.
 \fBf device\fP
 .RS 4
 Specific a single device (e.g. \-f /dev/ram0)
+.RE
+.sp
+\fBF prefix\fP
+.RS 4
+The filesystem filename prefix for parallel jobs. (e.g. \-F testprefix \-j 32)
 .RE
 .sp
 \fBG size\fP

@@ -26,7 +26,7 @@ char *savePositions = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirstsec, char **mysqloptions, char **mysqloptions2, char *commandstring) {
+		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst, char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix) {
   int opt;
 
   char *device = NULL;
@@ -36,12 +36,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   size_t deviceCount = 0;
   size_t tripleX = 0;
   size_t commandstringpos = 0;
-
+  size_t jcount = 1;
+  
   jobInit(j);
   jobInit(preconditions);
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "b:c:f:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:f:F:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:")) != -1) {
     switch (opt) {
     case 'b': {}
       *minSizeInBytes = alignedNumber(atol(optarg), 4096);
@@ -66,7 +67,6 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       commandstringpos += strlen(optarg);
       commandstring[commandstringpos] = 0;
       
-      size_t jcount = 1;
       char *charJ = strchr(optarg, 'j');
       if (charJ && *(charJ+1)) {
 	jcount = atoi(charJ + 1);
@@ -80,7 +80,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       *dumpPositions = atoi(optarg);
       break;
     case 'i':
-      *ignorefirstsec = atof(optarg);
+      *ignorefirst = atof(optarg) * 1024.0 * 1024.0 * 1024.0;
+      fprintf(stderr,"*info* ignoring first %.1lf GiB of the test\n", TOGiB(*ignorefirst));
       break;
     case 'I':
       {}
@@ -89,6 +90,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       break;
     case 'f':
       device = optarg;
+      break;
+    case 'F':
+      *filePrefix = strdup(optarg);
+      addDeviceDetails(optarg, &deviceList, &deviceCount);
       break;
     case 'G': {}
       double lowg = 0, highg = 0;
@@ -177,7 +182,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     // set the first device to all of the jobs
     jobAddDeviceToAll(j, device);
     jobAddDeviceToAll(preconditions, device);
-  } else if (deviceCount < 1) {
+  } else if ( ((*filePrefix) != NULL) && (deviceCount < 1) ) {
     fprintf(stderr,"*error* no device specified\n");
     exit(1);
   }
@@ -192,59 +197,66 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   if (extraparalleljobs) {
     jobMultiply(j, extraparalleljobs, NULL, 0);
   }
+
+  if (*filePrefix) { // update prefix to be prefix.1..n
+    jobFileSequence(j);
+  }
     
-  if (verbose) jobDump(j);
-  
   // check the file, create or resize
-  size_t fsize = 0;
-  for (size_t i = 0; i < jobCount(j); i++) {
-    device = j->devices[i];
-    size_t isAFile = 0;
-    
-    if (!fileExists(device)) { // nothing is there, create a file
-      fprintf(stderr,"*warning* will need to create '%s'\n", device);
-      isAFile = 1;
-    } else {
-      // it's there
-      if (isBlockDevice(device) == 2) {
-	// it's a file
+    size_t fsize = 0;
+    for (size_t i = 0; i < jobCount(j); i++) {
+      device = j->devices[i];
+      size_t isAFile = 0;
+      
+      if (!fileExists(device)) { // nothing is there, create a file
+	//fprintf(stderr,"*warning* will need to create '%s'\n", device);
 	isAFile = 1;
+      } else {
+	// it's there
+	if (isBlockDevice(device) == 2) {
+	  // it's a file
+	  isAFile = 1;
+	}
+	
+	if (tripleX < 3) {
+	  if (!canOpenExclusively(device)) {
+	    fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
+	    exit(-1);
+	  }
+	}
       }
 
-      if (tripleX < 3) {
-	if (!canOpenExclusively(device)) {
-	  fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
-	  exit(-1);
-	}
-      }
+      if (*filePrefix == NULL) {
+	fsize = fileSizeFromName(device);
+	if (isAFile) {
+	  if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
+	    *maxSizeInBytes = totalRAM() * 2;
+	  }
+	  if (fsize != *maxSizeInBytes) { // check the on disk size
+	    int ret = createFile(device, *maxSizeInBytes);
+	    if (ret) {
+	      exit(1);
+	    }
+	  }
+	} else {
+	  // if you specify -G too big or it's 0 then set it to the existing file size
+	  if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
+	    if (*maxSizeInBytes > fsize) {
+	      fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
+	    }
+	    *maxSizeInBytes = fsize;
+	    if (*minSizeInBytes > fsize) {
+	      fprintf(stderr,"*warning* limiting size to %d, ignoring -G\n", 0);
+	      *minSizeInBytes = 0;
+	    }
+	  }
+	} // i
+      } // fileprefix == 0
     }
-    
-    fsize = fileSizeFromName(device);
-    if (isAFile) {
-      if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
-	*maxSizeInBytes = totalRAM() * 2;
-      }
-      if (fsize != *maxSizeInBytes) { // check the on disk size
-	int ret = createFile(device, *maxSizeInBytes);
-	if (ret) {
-	  exit(1);
-	}
-      }
-    } else {
-      // if you specify -G too big or it's 0 then set it to the existing file size
-      if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
-	if (*maxSizeInBytes > fsize) {
-	  fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
-	}
-	*maxSizeInBytes = fsize;
-	if (*minSizeInBytes > fsize) {
-	  fprintf(stderr,"*warning* limiting size to %d, ignoring -G\n", 0);
-	  *minSizeInBytes = 0;
-	}
-      }
-    }
-  }
-  
+
+
+  if (verbose) jobDump(j);
+
   return 0;
 }
 
@@ -312,6 +324,7 @@ void usage() {
   fprintf(stderr,"  spit -P filename              # dump positions to filename\n");
   fprintf(stderr,"  spit -c wG_j4                 # The _ represents to divide the G value evenly between threads\n");
   fprintf(stderr,"  spit -B bench -M ... -N ...   # See the man page for benchmarking tips\n");
+  fprintf(stderr,"  spit -F fileprefix -j128      # creates files from .0001 to .0128\n");
   exit(0);
 }
 
@@ -357,6 +370,8 @@ int main(int argc, char *argv[]) {
   char **argv2 = NULL;
   int argc2;
 
+  char *filePrefix = NULL;
+
   do {
     jobType *j = malloc(sizeof(jobType));
     jobType *preconditions = malloc(sizeof(jobType));
@@ -373,14 +388,14 @@ int main(int argc, char *argv[]) {
     unsigned short seed = 0;
     diskStatType d;
     size_t verify = 0;
-    double timeperline = 1, ignoresec = 0;
+    double timeperline = 1, ignoreFirst = 0;
     
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
     char *mysqloptions = NULL, *mysqloptions2 = NULL;
 
     char commandstring[1000];
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoresec, &mysqloptions, &mysqloptions2, commandstring);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix);
     
 
 
@@ -406,7 +421,7 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, intHandler);
     signal(SIGINT, intHandler);
 
-    jobRunThreads(j, j->count, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoresec, verify, mysqloptions, mysqloptions2, commandstring);
+    jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring);
     
     jobFree(j);
     free(j);

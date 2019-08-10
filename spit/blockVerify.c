@@ -19,12 +19,13 @@
 #include "devices.h"
 #include "utils.h"
 #include "blockVerify.h"
+#include "jobType.h"
 
 extern int keepRunning;
 extern int verbose;
 
 typedef struct {
-  int fd;
+  jobType *job;
   int id;
   int numThreads;
   size_t startInc;
@@ -40,18 +41,23 @@ typedef struct {
 } threadInfoType;
 
 // sorting function, used by qsort
-/*static int seedcompare(const void *p1, const void *p2)
+static int seedcompare(const void *p1, const void *p2)
 {
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
-  if (pos1->seed < pos2->seed) return -1;
-  else if (pos1->seed > pos2->seed) return 1;
+
+  if (pos1->deviceid < pos2->deviceid) return -1;
+  else if (pos1->deviceid > pos2->deviceid) return 1;
   else {
-    if (pos1->pos < pos2->pos) return -1;
-    else if (pos1->pos > pos2->pos) return 1;
-    else return 0;
+    if (pos1->seed < pos2->seed) return -1;
+    else if (pos1->seed > pos2->seed) return 1;
+    else {
+      if (pos1->pos < pos2->pos) return -1;
+      else if (pos1->pos > pos2->pos) return 1;
+      else return 0;
+    }
   }
-  }*/
+}
 
 
 
@@ -119,7 +125,28 @@ static void *runThread(void *arg) {
   size_t diff = 0;
   
 
+  int fd = 0;
+  unsigned short lastid = -1;
+
+  size_t gap = threadContext->endExc - threadContext->startInc;
+  
+  qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), seedcompare);
+
+  
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
+    if (threadContext->pc->positions[i].deviceid != lastid) {
+      //      fprintf(stderr,"[%d] lastid %d this %d\n", threadContext->id, lastid, threadContext->pc->positions[i].deviceid);
+      lastid = threadContext->pc->positions[i].deviceid;
+      if (fd != 0) {
+	close(fd);
+      }
+      fd = open(threadContext->job->devices[threadContext->pc->positions[i].deviceid], O_RDONLY);
+      //      fprintf(stderr,"*info* opening file %s\n", threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
+      if (fd < 0) {
+	perror(threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
+	exit(-1);
+      }
+    }
     if (threadContext->id == 0) {
       // print progress
       size_t gap = threadContext->endExc - threadContext->startInc - 1;
@@ -139,7 +166,7 @@ static void *runThread(void *arg) {
       //      double start = timedouble();
       size_t pos = threadContext->pc->positions[i].pos;
       memcpy(randombuf, &pos, sizeof(size_t));
-      int ret = verifyPosition(threadContext->fd, &threadContext->pc->positions[i], randombuf, buf, &diff);
+      int ret = verifyPosition(fd, &threadContext->pc->positions[i], randombuf, buf, &diff);
 
       //      threadContext->elapsed = timedouble() - start;
       switch (ret) {
@@ -155,14 +182,12 @@ static void *runThread(void *arg) {
 
     }
   }
+  if (fd>0) {
+    close(fd);
+  }
   free(buf);
   free(randombuf);
 
-  if (threadContext->id == 0) {
-    if (isatty(fileno(stderr))) {
-      fprintf(stderr,"\n");
-    }
-  }
   if (verbose >= 2) {
     fprintf(stderr,"*info* verify thread %d / %d finished\n", threadContext->id + 1, threadContext->numThreads);
   }
@@ -176,10 +201,9 @@ static void *runThread(void *arg) {
  * Input is sorted
  *
  */
-int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
+int verifyPositions(positionContainer *pc, const size_t threads, jobType *job) {
 
   //  fprintf(stderr,"*info* sorting %zd\n", pc->sz);
-  //  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
 
   positionContainerRandomize(pc);
   keepRunning = 1;
@@ -194,7 +218,7 @@ int verifyPositions(const int fd, positionContainer *pc, const size_t threads) {
   double start = timedouble();
     
   for (size_t i =0 ; i < threads; i++) {
-    threadContext[i].fd = fd;
+    threadContext[i].job = job;
     threadContext[i].id = i;
     threadContext[i].numThreads = threads;
     threadContext[i].startInc = (size_t) (i*(num * 1.0 / threads));

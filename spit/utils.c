@@ -53,7 +53,8 @@ size_t fileSize(int fd) {
 size_t fileSizeFromName(const char *path) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
-    perror(path);
+    //    fprintf(stderr,"*info* no file present '%s'\n", path);
+    //    perror(path);
     return 0;
   }
   size_t sz = lseek(fd, 0L, SEEK_END);
@@ -549,7 +550,7 @@ int createFile(const char *filename, const size_t sz) {
   
   CALLOC(buf, 1, CREATECHUNK);
   generateRandomBuffer(buf, CREATECHUNK, 42);
-  fprintf(stderr,"*info* slow writing %zd (%.3lf GiB)\n", sz, TOGiB(sz));
+  fprintf(stderr,"*info* slow writing '%s' %zd (%.3lf GiB)\n", filename, sz, TOGiB(sz));
   size_t towriteMiB = sz, totalw = 0;
 
   while (towriteMiB > 0 && keepRunning) {

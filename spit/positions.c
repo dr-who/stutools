@@ -190,6 +190,11 @@ void positionContainerCollapse(positionContainer *merged) {
       // if j pos is past i + len then exit
       while (++j < merged->sz) {
 
+	// if not the same file continue
+	if (merged->positions[j].deviceid != merged->positions[i].deviceid) {
+	  continue;
+	}
+
 	if (merged->positions[j].pos > merged->positions[i].pos + maxbs) {
 	  // if no more potential conflicts, exit the check loop
 	  break;
@@ -329,7 +334,7 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
 
 
 // lots of checks
-void positionContainerSave(const positionContainer *p, const char *name, const size_t maxbdSizeBytes, const size_t flushEvery) {
+void positionContainerSave(const positionContainer *p, const char *name, const size_t maxbdSizeBytes, const size_t flushEvery, jobType *job) {
   if (name) {
     FILE *fp = fopen(name, "wt");
     if (!fp) {
@@ -343,9 +348,9 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
     for (size_t i = 0; i < p->sz; i++) {
       if (0 || (positions[i].finishTime > 0 && !positions[i].inFlight)) {
 	const char action = positions[i].action;
-	fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", p->device, positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / maxbdSizeBytes, action, positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), positions[i].seed, positions[i].submitTime, positions[i].finishTime);
+	fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", job ? job->devices[positions[i].deviceid] : "", positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / maxbdSizeBytes, action, positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), positions[i].seed, positions[i].submitTime, positions[i].finishTime);
 	if (flushEvery && ((i+1) % (flushEvery) == 0)) {
-	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", p->device, (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, positions[i].seed);
+	  fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", job ? job->devices[positions[i].deviceid] : "", (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, positions[i].seed);
 	}
       }
     }
@@ -357,6 +362,7 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
 
 // create the position array
 size_t positionContainerCreatePositions(positionContainer *pc,
+					const unsigned short deviceid,
 					const int sf,
 					const size_t sf_maxsizebytes,
 					const double readorwrite,
@@ -563,14 +569,16 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   }
   
   // if randomise then reorder
-  if (sf == 0) {
-    positionContainerRandomize(pc);
-  }
+  //  if (sf == 0) {
+  //    positionContainerRandomize(pc);
+  //  }
 
   // rotate
   size_t sum = 0;
   positionType *p = positions;
+
   for (size_t i = 0; i < pc->sz; i++, p++) {
+    p->deviceid = deviceid;
     sum += p->len;
     assert(p->len >= 0);
   }
@@ -590,9 +598,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 void positionContainerRandomize(positionContainer *pc) {
   const size_t count = pc->sz;
   positionType *positions = pc->positions;
-  //  if (verbose >= 1) {
+  if (verbose >= 1) {
     fprintf(stderr,"*info* shuffling the array %zd\n", count);
-    //  }
+  }
   for (size_t shuffle = 0; shuffle < 1; shuffle++) {
     for (size_t i = 0; i < count; i++) {
       size_t j = i;
@@ -622,7 +630,7 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
     p->inFlight = 0;
     p->success = 0;
     if (p->pos + p->len > maxbdSize) {
-      fprintf(stderr,"*info* wrapping add block of %zd\n", addSize);
+      if (verbose >= 1) fprintf(stderr,"*info* wrapping add block of %zd\n", addSize);
       p->pos = addSize;
     }
     p++;
@@ -748,12 +756,12 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
 }
 */
 
-void positionContainerDump(positionContainer *pc, const char *prefix, const size_t countToShow) {
-  fprintf(stderr,"%s: total number of positions %zd\n", prefix, pc->sz);
+void positionContainerDump(positionContainer *pc, const size_t countToShow) {
+  fprintf(stderr,"*info*: total number of positions %zd\n", pc->sz);
   const positionType *positions = pc->positions;
   for (size_t i = 0; i < pc->sz; i++) {
     if (i >= countToShow) break;
-    fprintf(stderr,"%s: [%02zd] action %c\tpos %12zd\tlen %6d\tverify %d\n", prefix, i, positions[i].action, positions[i].pos, positions[i].len, positions[i].verify);
+    fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %6d\tverify %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].verify);
   }
 }
 
@@ -766,8 +774,8 @@ void positionContainerInit(positionContainer *pc, size_t UUID) {
 void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString, char *string) {
   pc->sz = sz;
   pc->positions = createPositions(sz);
-  pc->device = deviceString;
-  pc->string = string;
+  //  pc->device = deviceString;
+  //  pc->string = string;
 }
 
 
@@ -776,8 +784,8 @@ void positionContainerSetupFromPC(positionContainer *pc, const positionContainer
   pc->positions = NULL;
   pc->sz = oldpc->sz;
   pc->LBAcovered = oldpc->LBAcovered;
-  pc->device = oldpc->device;
-  pc->string = oldpc->string;
+  //  pc->device = oldpc->device;
+  //  pc->string = oldpc->string;
   pc->maxbdSize = oldpc->maxbdSize;
   pc->minbs = oldpc->minbs;
   pc->maxbs = oldpc->maxbs;
@@ -882,9 +890,11 @@ size_t setupRandomPositions(positionType *pos,
 
 
 
-void positionContainerLoad(positionContainer *pc, FILE *fd) {
+jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
 
   positionContainerInit(pc, 0);
+  jobType job;
+  jobInit(&job);
   
   char *line = malloc(200000);
   size_t maxline = 200000, maxSize = 0, minbs = (size_t)-1, maxbs = 0;
@@ -907,9 +917,23 @@ void positionContainerLoad(positionContainer *pc, FILE *fd) {
     if (s >= 5) {
       //      fprintf(stderr,"%s %zd %c %zd %zd\n", path, pos, op, len, seed);
       //      deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
+
+      int seenpathbefore = -1;
+      for (size_t k = 0; k < job.count; k++) {
+	if (strcmp(path, job.devices[k]) == 0) {
+	  seenpathbefore = k;
+	}
+      }
+      if (seenpathbefore == -1) {
+	jobAddBoth(&job, path, "w");
+	seenpathbefore = job.count - 1;
+      }
+	  //
       pNum++;
       p = realloc(p, sizeof(positionType) * (pNum));
       assert(p);
+      //      fprintf(stderr,"loaded %s deviceid %d\n", path, seenpathbefore);
+      p[pNum-1].deviceid = seenpathbefore;
       p[pNum-1].submitTime = starttime;
       p[pNum-1].finishTime = fintime;
       //      fprintf(stderr,"%zd\n", pNum);
@@ -939,15 +963,17 @@ void positionContainerLoad(positionContainer *pc, FILE *fd) {
   
   pc->positions = p;
   pc->sz = pNum;
-  pc->string = strdup("");
-  pc->device = path;
+  //  pc->string = strdup("");
+  //  pc->device = path;
   pc->maxbdSize = maxSize;
   pc->minbs = minbs;
   pc->maxbs = maxbs;
+
+  return job;
 }
 
 void positionContainerInfo(const positionContainer *pc) {
-  fprintf(stderr,"device '%s', UUID '%zd', number of positions %zd, device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->device ? pc->device : "NULL", pc->UUID, pc->sz, pc->maxbdSize, TOGiB(pc->maxbdSize), pc->minbs, pc->maxbs);
+  fprintf(stderr,"UUID '%zd', number of positions %zd, device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->UUID, pc->sz, pc->maxbdSize, TOGiB(pc->maxbdSize), pc->minbs, pc->maxbs);
 }
 
 

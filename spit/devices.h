@@ -36,6 +36,7 @@ size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, doubl
 io_context_t *createContexts(const size_t count, const size_t qd);
 void setupContexts(io_context_t *p, const size_t count, const size_t qd);
 void freeContexts(io_context_t *p, const size_t count);
+int deleteFile(const char *filename);
 
 
 

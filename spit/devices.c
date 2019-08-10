@@ -291,7 +291,7 @@ deviceDetails *prune(deviceDetails *devList, size_t *devCount, const size_t bloc
     if (devList[f].fd > 0 && devList[f].bdSize > 2*blockSize) {
       count++;
     } else {
-      fprintf(stderr,"*warning* culling '%s' as the size %zd isn't over %zd\n", devList[f].devicename, devList[f].bdSize, 2*blockSize);
+      fprintf(stderr,"*warningj* culling '%s' as the size %zd isn't over %zd\n", devList[f].devicename, devList[f].bdSize, 2*blockSize);
     }
   }
   CALLOC(dd, count, sizeof(deviceDetails));

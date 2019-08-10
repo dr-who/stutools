@@ -389,10 +389,9 @@ size_t aioMultiplePositions( positionContainer *p,
     }
       
     
-    if (ret < 0) {
-      fprintf(stderr,"eek\n");
-      break;
-    }
+    //    if (ret < 0) {
+      //      fprintf(stderr,"eek\n");
+    //    }
   } // while keepRunning
 
  endoffunction:
@@ -400,7 +399,8 @@ size_t aioMultiplePositions( positionContainer *p,
 
   {}
   size_t count = 0;
-  double snaptime = timedouble(), lastprint =0;
+  double snaptime = timedouble();
+  double lastprint = snaptime;
   while (inFlight) {
     count++;
     if (count > 3600) break;
@@ -431,7 +431,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	}
 	inFlight -= ret;
       } else {
-	if (count > 5 && (timedouble() - lastprint >=1)) {
+	if (count > 5 && (timedouble() - lastprint >=3)) {
 	  fprintf(stderr,"*warning* waiting for %zd IOs in flight, iteration %zd, %zd seconds...\n", inFlight, count, (size_t)(timedouble() - snaptime));
 	  lastprint = timedouble();
 	}
