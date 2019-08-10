@@ -434,11 +434,11 @@ static void *runThreadTimer(void *arg) {
 
 	const double gaptime = thistime - lastprintedtime;
 
-	size_t readB     = (trb - last_trb) / gaptime;
-	size_t readIOPS  = (tri - last_tri) / gaptime;
+	double readB     = (trb - last_trb) / gaptime;
+	double readIOPS  = (tri - last_tri) / gaptime;
 	
-	size_t writeB    = (twb - last_twb) / gaptime;
-	size_t writeIOPS = (twi - last_twi) / gaptime;
+	double writeB    = (twb - last_twb) / gaptime;
+	double writeIOPS = (twi - last_twi) / gaptime;
 	
 	if ((tri - last_tri) || (twi - last_twi)) { // if any IOs in the period to display note the time
 	  lastprintedtime = thistime;
@@ -446,13 +446,18 @@ static void *runThreadTimer(void *arg) {
 
 	const double elapsed = thistime - starttime;
 	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
-	commaPrint0dp(stderr, TOMB(readB));
+	fprintf(stderr,"%10.0lf", TOMB(readB));
+	//	commaPrint0dp(stderr, TOMB(readB));
 	fprintf(stderr," MB/s (");
-	commaPrint0dp(stderr, readIOPS);
+	fprintf(stderr,"%10.0lf", readIOPS);
+	//	commaPrint0dp(stderr, readIOPS);
 	fprintf(stderr," IOPS / %.0lf), write ", (readIOPS == 0) ? 0 : (readB * 1.0) / (readIOPS));
-	commaPrint0dp(stderr, TOMB(writeB));
+
+	fprintf(stderr,"%10.0lf", TOMB(writeB));
+	//	commaPrint0dp(stderr, TOMB(writeB));
 	fprintf(stderr," MB/s (");
-	commaPrint0dp(stderr, writeIOPS);
+	fprintf(stderr,"%10.0lf", writeIOPS);
+	//	commaPrint0dp(stderr, writeIOPS);
 	//      double readamp = 0, writeamp = 0;
 	//if (readB) readamp = 100.0 * devicerb / readB;
 	//      if (writeB) writeamp = 100.0 * devicewb / writeB;
@@ -467,7 +472,7 @@ static void *runThreadTimer(void *arg) {
 	fprintf(stderr,"\n");
 
 	if (fp) {
-	  fprintf(fp, "%.4lf\t%lf\t%.1lf\t%zd\t%.1lf\t%zd\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
+	  fprintf(fp, "%.4lf\t%lf\t%.1lf\t%.0lf\t%.1lf\t%.0lf\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
 	  fflush(fp);
 	}
 	
@@ -475,7 +480,7 @@ static void *runThreadTimer(void *arg) {
 	  if (writeIOPS + readIOPS < threadContext->exitIOPS) {
 	    exitcount++;
 	    if (exitcount >= 10) {
-	      fprintf(stderr,"*warning* early exit after %.1lf GB due to %zd periods of low IOPS (%zd < %zd)\n", TOGB(twb), exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
+	      fprintf(stderr,"*warning* early exit after %.1lf GB due to %zd periods of low IOPS (%.0lf < % zd)\n", TOGB(twb), exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
 	      keepRunning = 0;
 	      break;
 	    }
