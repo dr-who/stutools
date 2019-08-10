@@ -335,8 +335,8 @@ static void *runThreadTimer(void *arg) {
   }
 
   double thistime = 0;
-  size_t last_trb = 0, last_twb = 0, last_tri = 0, last_twi = 0;
-  size_t trb = 0, twb = 0, tri = 0, twi = 0;
+  volatile size_t last_trb = 0, last_twb = 0, last_tri = 0, last_twi = 0;
+  volatile size_t trb = 0, twb = 0, tri = 0, twi = 0;
 
 
   FILE *fp = NULL, *fpmysql = NULL;
@@ -449,7 +449,7 @@ static void *runThreadTimer(void *arg) {
 	commaPrint0dp(stderr, TOMB(readB));
 	fprintf(stderr," MB/s (");
 	commaPrint0dp(stderr, readIOPS);
-	fprintf(stderr," IOPS / %zd), write ", (readIOPS == 0) ? 0 : (readB) / (readIOPS));
+	fprintf(stderr," IOPS / %.0lf), write ", (readIOPS == 0) ? 0 : (readB * 1.0) / (readIOPS));
 	commaPrint0dp(stderr, TOMB(writeB));
 	fprintf(stderr," MB/s (");
 	commaPrint0dp(stderr, writeIOPS);
@@ -457,7 +457,7 @@ static void *runThreadTimer(void *arg) {
 	//if (readB) readamp = 100.0 * devicerb / readB;
 	//      if (writeB) writeamp = 100.0 * devicewb / writeB;
 	
-	fprintf(stderr," IOPS / %zd), total %.2lf GB", (writeIOPS == 0) ? 0 : (writeB) / (writeIOPS), TOGB(trb + twb));
+	fprintf(stderr," IOPS / %.0lf), total %.2lf GB", (writeIOPS == 0) ? 0 : (writeB * 1.0) / (writeIOPS), TOGB(trb + twb));
 	if (verbose >= 1) {
 	  fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, gaptime);
 	}
