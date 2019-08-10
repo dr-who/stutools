@@ -362,7 +362,7 @@ static void *runThreadTimer(void *arg) {
     }
   }
 
-  size_t total_printed_r_bytes = 0, total_printed_w_bytes = 0, total_printed_r_iops = 0, total_printed_w_iops = 0;
+  double total_printed_r_bytes = 0, total_printed_w_bytes = 0, total_printed_r_iops = 0, total_printed_w_iops = 0;
   size_t exitcount = 0;
   double starttime = timedouble();
   double lasttime = starttime, nicetime = TIMEPERLINE;
@@ -404,7 +404,7 @@ static void *runThreadTimer(void *arg) {
 
       trb = 0; twb = 0;  tri = 0;  twi = 0;
       
-      size_t devicerb = 0, devicewb = 0;
+      double devicerb = 0, devicewb = 0;
       
 	for (size_t j = 0; j < threadContext->numThreads;j++) {
 	  assert(threadContext->allPC);
@@ -446,21 +446,18 @@ static void *runThreadTimer(void *arg) {
 
 	const double elapsed = thistime - starttime;
 	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
-	fprintf(stderr,"%5.0lf", TOMB(readB));
-	//	commaPrint0dp(stderr, TOMB(readB));
+	//fprintf(stderr,"%5.0lf", TOMB(readB));
+		commaPrint0dp(stderr, TOMB(readB));
 	fprintf(stderr," MB/s (");
-	fprintf(stderr,"%7.0lf", readIOPS);
-	//	commaPrint0dp(stderr, readIOPS);
+	//fprintf(stderr,"%7.0lf", readIOPS);
+		commaPrint0dp(stderr, readIOPS);
 	fprintf(stderr," IOPS / %.0lf), write ", (readIOPS == 0) ? 0 : (readB * 1.0) / (readIOPS));
 
-	fprintf(stderr,"%5.0lf", TOMB(writeB));
-	//	commaPrint0dp(stderr, TOMB(writeB));
+	//fprintf(stderr,"%5.0lf", TOMB(writeB));
+		commaPrint0dp(stderr, TOMB(writeB));
 	fprintf(stderr," MB/s (");
-	fprintf(stderr,"%7.0lf", writeIOPS);
-	//	commaPrint0dp(stderr, writeIOPS);
-	//      double readamp = 0, writeamp = 0;
-	//if (readB) readamp = 100.0 * devicerb / readB;
-	//      if (writeB) writeamp = 100.0 * devicewb / writeB;
+	//fprintf(stderr,"%7.0lf", writeIOPS);
+	commaPrint0dp(stderr, writeIOPS);
 	
 	fprintf(stderr," IOPS / %.0lf), total %.2lf GB", (writeIOPS == 0) ? 0 : (writeB * 1.0) / (writeIOPS), TOGB(trb + twb));
 	if (verbose >= 1) {
