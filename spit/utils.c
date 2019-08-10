@@ -576,13 +576,14 @@ int createFile(const char *filename, const size_t sz) {
   return 0;
 }
 
-void commaPrint0dp(FILE *fp, const double d) {
+void commaPrint0dp(FILE *fp, double d) {
   if (d >= 1000) {
-    size_t dd = d;
-    if (d >= 1000000000) {
+    const size_t dd = d;
+    d=0;
+    if (dd >= 1000000000) {
       fprintf(fp,"%zd,%03zd,%03zd,%03zd", (dd / 1000000000), (dd % 1000000000)/1000000, (dd % 1000000)/1000, dd % 1000);
-    } else if (d >= 1000000) {
-      fprintf(fp,"%.0lf,%03zd,%03zd", d/1000000, (dd % 1000000)/1000, dd % 1000);
+    } else if (dd >= 1000000) {
+      fprintf(fp,"%zd,%03zd,%03zd", (dd/1000000), (dd % 1000000)/1000, dd % 1000);
     } else {
       fprintf(fp,"%3zd,%03zd", dd / 1000, dd % 1000);
     }
