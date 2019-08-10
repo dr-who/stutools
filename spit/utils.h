@@ -17,8 +17,8 @@
 #define TOGiB(x) ((x)/1024.0/1024/1024)
 #define TOGB(x) ((x)/1000.0/1000/1000)
 
-#define TOMiB(x) ((x)/1024.0/1024)
-#define TOMB(x) ((x)/1000.0/1000)
+#define TOMiB(x) ((x)/1024.0/1024.0)
+#define TOMB(x) ((x)/1000.0/1000.0)
 
 #define TOKiB(x) ((x)/1024.0)
 

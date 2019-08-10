@@ -446,17 +446,17 @@ static void *runThreadTimer(void *arg) {
 
 	const double elapsed = thistime - starttime;
 	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
-	fprintf(stderr,"%10.0lf", TOMB(readB));
+	fprintf(stderr,"%5.0lf", TOMB(readB));
 	//	commaPrint0dp(stderr, TOMB(readB));
 	fprintf(stderr," MB/s (");
-	fprintf(stderr,"%10.0lf", readIOPS);
+	fprintf(stderr,"%7.0lf", readIOPS);
 	//	commaPrint0dp(stderr, readIOPS);
 	fprintf(stderr," IOPS / %.0lf), write ", (readIOPS == 0) ? 0 : (readB * 1.0) / (readIOPS));
 
-	fprintf(stderr,"%10.0lf", TOMB(writeB));
+	fprintf(stderr,"%5.0lf", TOMB(writeB));
 	//	commaPrint0dp(stderr, TOMB(writeB));
 	fprintf(stderr," MB/s (");
-	fprintf(stderr,"%10.0lf", writeIOPS);
+	fprintf(stderr,"%7.0lf", writeIOPS);
 	//	commaPrint0dp(stderr, writeIOPS);
 	//      double readamp = 0, writeamp = 0;
 	//if (readB) readamp = 100.0 * devicerb / readB;

@@ -576,7 +576,7 @@ int createFile(const char *filename, const size_t sz) {
   return 0;
 }
 
-void commaPrint0dp(FILE *fp, double d) {
+void commaPrint0dp(FILE *fp, const double d) {
   if (d >= 1000) {
     size_t dd = d;
     if (d >= 1000000000) {
