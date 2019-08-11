@@ -213,12 +213,13 @@ static void *runThread(void *arg) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishTime);
   }
   //  double localrange = TOGB(threadContext->maxbdSize - threadContext->minbdSize);
-  size_t outerrange = threadContext->maxSizeInBytes - threadContext->minSizeInBytes;
+  // minSizeInBytes is the -G range. If there are multiple threads carving the LBA up, it'll be specified as the min/max bdsize
+  size_t outerrange = threadContext->maxbdSize - threadContext->minbdSize;
   size_t sumrange = 0;
   for (size_t i = 0; i < threadContext->pos.sz; i++) {
     sumrange += threadContext->pos.positions[i].len;
   }
-  fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGB(threadContext->minbdSize), TOGB(threadContext->maxbdSize), TOGB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->runXtimes);
+  fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->runXtimes);
 
 
   // do the mahi
@@ -459,7 +460,7 @@ static void *runThreadTimer(void *arg) {
 	//fprintf(stderr,"%7.0lf", writeIOPS);
 	commaPrint0dp(stderr, writeIOPS);
 	
-	fprintf(stderr," IOPS / %.0lf), total %.2lf GB", (writeIOPS == 0) ? 0 : (writeB * 1.0) / (writeIOPS), TOGB(trb + twb));
+	fprintf(stderr," IOPS / %.0lf), total %.2lf GiB", (writeIOPS == 0) ? 0 : (writeB * 1.0) / (writeIOPS), TOGiB(trb + twb));
 	if (verbose >= 1) {
 	  fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, gaptime);
 	}
