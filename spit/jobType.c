@@ -1160,7 +1160,25 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
     // add threadContext[i].pos a pointer alias to a pool for the timer
+  } // setup all threads
+
+  // print a warning if the contents are the same as the thread 0
+  size_t exactsame = 0, checkedsame = 0;
+  for (size_t i = 1; i < num; i++) {
+    for (size_t j = 0; j < MIN(50, threadContext[i].pos.sz); j++) {
+      if (j < threadContext[0].pos.sz) {
+	checkedsame++;
+	if (threadContext[i].pos.positions[j].pos == threadContext[0].pos.positions[j].pos) {
+	  exactsame++;
+	}
+      }
+    }
   }
+  if (exactsame > checkedsame / 2) {
+    fprintf(stderr,"*WARNING* positions aren't unique, match between thread 0 and other threads = %.1lf%%\n", exactsame*100.0/checkedsame);
+  }
+	
+  
 
   // set the starting time
   for (size_t i = 0; i < num; i++) { 
