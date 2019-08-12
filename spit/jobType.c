@@ -1169,7 +1169,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       if (j < threadContext[0].pos.sz) {
 	checkedsame++;
 	if (threadContext[i].pos.positions[j].pos == threadContext[0].pos.positions[j].pos) {
-	  exactsame++;
+	  if (threadContext[i].pos.positions[j].action == threadContext[0].pos.positions[j].action) {
+	    exactsame++;
+	  }
 	}
       }
     }
