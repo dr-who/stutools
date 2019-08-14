@@ -843,6 +843,16 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
+    char *multLimit = strchr(job->strings[i], 'x');
+    if (multLimit && *(multLimit+1)) {
+      char *endp = NULL;
+      threadContext[i].multipleTimes = (size_t) (strtod(multLimit+1, &endp));
+      threadContext[i].runXtimesTI = 1;
+      threadContext[i].runTime = -1;
+      threadContext[i].finishTime = -1;
+      threadContext[num].finishTime = -1;
+    }
+
     {
       char *charX = strchr(job->strings[i], 'X');
       
@@ -890,8 +900,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
     
     size_t countintime = mp;
-    //    fprintf(stderr,"*info* runX %zd ttr %zd\n", threadContext[i].multipleTimes, timetorun);
-    if (threadContext[i].runTime > 0) { // only limit based on time if the time is positive
+    //        fprintf(stderr,"*info* runX %zd ttr %zd\n", threadContext[i].multipleTimes, threadContext[i].runTime);
+    if ((long)threadContext[i].runTime > 0) { // only limit based on time if the time is positive
       
 #define ESTIMATEIOPS 500000
       
@@ -1006,16 +1016,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	threadContext[i].ignoreResults = 1;
 	threadContext[num].allPC[i] = NULL;
       }
-    }
-
-    char *multLimit = strchr(job->strings[i], 'x');
-    if (multLimit && *(multLimit+1)) {
-      char *endp = NULL;
-      threadContext[i].multipleTimes = (size_t) (strtod(multLimit+1, &endp));
-      threadContext[i].runXtimesTI = 1;
-      threadContext[i].runTime = -1;
-      threadContext[i].finishTime = -1;
-      threadContext[num].finishTime = -1;
     }
 
 
