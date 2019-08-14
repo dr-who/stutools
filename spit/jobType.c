@@ -118,7 +118,7 @@ typedef struct {
   float rw;
   int rerandomize; 
   int addBlockSize;
-  size_t runXtimes;
+  size_t runXtimesTI;
   size_t multipleTimes;
   unsigned short seed;
   char *randomBuffer;
@@ -219,7 +219,7 @@ static void *runThread(void *arg) {
   for (size_t i = 0; i < threadContext->pos.sz; i++) {
     sumrange += threadContext->pos.positions[i].len;
   }
-  fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->runXtimes);
+  fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->multipleTimes, threadContext->runXtimesTI);
 
 
   // do the mahi
@@ -227,26 +227,26 @@ static void *runThread(void *arg) {
   sleep(threadContext->prewait);
   size_t iteratorCount = 0, iteratorInc = 1, iteratorMax = 0;
 
-    size_t byteLimit = 0;
-      if (threadContext->multipleTimes) {
-      iteratorMax = 1;
-      byteLimit = threadContext->multipleTimes * outerrange;
-      if (threadContext->rerandomize || threadContext->addBlockSize) {
-	iteratorMax = -1;
-      }
-    } else if (threadContext->runXtimes) {
-      iteratorMax = threadContext->runXtimes;
-      byteLimit = threadContext->runXtimes * sumrange;
-      iteratorInc = threadContext->runXtimes;
-      if (threadContext->rerandomize || threadContext->addBlockSize) {
-	iteratorInc = 1; // just run once and then rerandomize
-	iteratorMax = -1;
-      }
+  size_t byteLimit = 0;
+  if (threadContext->multipleTimes) {
+    iteratorMax = 1;
+    byteLimit = threadContext->multipleTimes * outerrange;
+    if (threadContext->rerandomize || threadContext->addBlockSize) {
+      iteratorMax = -1;
     }
-
-      if (threadContext->id == 0) {
-	fprintf(stderr,"*info* byteLimit %zd (%.03lf GiB), iteratorInc %zd, iteratorMax %zd\n", byteLimit, TOGiB(byteLimit), iteratorInc, iteratorMax);
-      }
+  } else if (threadContext->runXtimesTI) {
+    iteratorMax = threadContext->runXtimesTI;
+    byteLimit = threadContext->runXtimesTI * sumrange;
+    iteratorInc = threadContext->runXtimesTI;
+    if (threadContext->rerandomize || threadContext->addBlockSize) {
+      iteratorInc = 1; // just run once and then rerandomize
+      iteratorMax = -1;
+    }
+  }
+  
+  if (threadContext->id == 0) {
+    fprintf(stderr,"*info* byteLimit %zd (%.03lf GiB), iteratorInc %zd, iteratorMax %zd\n", byteLimit, TOGiB(byteLimit), iteratorInc, iteratorMax);
+  }
 
   size_t totalB = 0;
   while (keepRunning) {
@@ -853,7 +853,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	threadContext[num].finishTime = -1; // the timer
       }
     }
-    threadContext[i].runXtimes = runXtimes;
+    threadContext[i].runXtimesTI = runXtimes;
     
     
 
@@ -890,7 +890,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
     
     size_t countintime = mp;
-    if ((threadContext->runXtimes==0) && ((long)timetorun > 0)) { // only limit based on time if the time is positive
+    //    fprintf(stderr,"*info* runX %zd ttr %zd\n", threadContext[i].multipleTimes, timetorun);
+    if ((threadContext[i].multipleTimes!=0) && ((long)timetorun > 0)) { // only limit based on time if the time is positive
       
 #define ESTIMATEIOPS 500000
       
@@ -898,8 +899,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       if ((verbose || (countintime < mp)) && (i == 0)) {
 	fprintf(stderr,"*info* in %zd seconds, at %d a second, would have at most ", timetorun, ESTIMATEIOPS);
 	commaPrint0dp(stderr, countintime);
-	fprintf(stderr," positions (run %zd times)\n", threadContext->runXtimes);
+	fprintf(stderr," positions (run %zd times)\n", threadContext[i].runXtimesTI);
       }
+    } else {
+      fprintf(stderr,"*info* skipping multiple LBA based limits\n");
     }
     size_t sizeLimitCount = (size_t)-1;
     if (limit != (size_t)-1) {
@@ -1009,7 +1012,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if (multLimit && *(multLimit+1)) {
       char *endp = NULL;
       threadContext[i].multipleTimes = (size_t) (strtod(multLimit+1, &endp));
-      threadContext[i].runXtimes = 1;
+      threadContext[i].runXtimesTI = 1;
       threadContext[i].runTime = -1;
       threadContext[i].finishTime = -1;
       threadContext[num].finishTime = -1;
