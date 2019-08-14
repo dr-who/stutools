@@ -902,7 +902,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	fprintf(stderr," positions (run %zd times)\n", threadContext[i].runXtimesTI);
       }
     } else {
-      fprintf(stderr,"*info* skipping multiple LBA based limits\n");
+      if (i==0) fprintf(stderr,"*info* skipping multiple LBA based limits\n");
     }
     size_t sizeLimitCount = (size_t)-1;
     if (limit != (size_t)-1) {
