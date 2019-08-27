@@ -722,6 +722,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
     
+    size_t mod = 1;
+    size_t remain = 0;
     { // specify the block device size in GiB
       char *charG = strchr(job->strings[i], 'G');
       if (charG && *(charG+1)) {
@@ -731,6 +733,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	  // 2: 1/1
 	  lowg = minSizeInBytes + (i * 1.0 / (num)) * (maxSizeInBytes - minSizeInBytes);
 	  highg = minSizeInBytes + ((i+1) * 1.0 / (num)) * (maxSizeInBytes - minSizeInBytes);
+	} else if ((num > 1) && (*(charG+1) == '%')) {
+	  // 2: 1/1
+	  mod = num;
+	  remain = i;
 	} else {
 	  splitRange(charG + 1, &lowg, &highg);
 	  if (lowg > highg) {
@@ -1133,7 +1139,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
       threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, i, threadContext[i].seqFiles, threadContext[i].seqFilesMaxSizeBytes, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed);
+      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, i, threadContext[i].seqFiles, threadContext[i].seqFilesMaxSizeBytes, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed, mod, remain);
 
       if (verbose >= 2) {
 	positionContainerCheck(&threadContext[i].pos, threadContext[i].minbdSize, threadContext[i].maxbdSize, !metaData);

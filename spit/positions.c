@@ -372,7 +372,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					const long startingBlock,
 					const size_t minbdSize,
 					const size_t maxbdSize,
-					unsigned short seed
+					unsigned short seed,
+					const size_t mod,
+					const size_t remain
 					) {
 
   positionType *positions = pc->positions;
@@ -395,6 +397,10 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
   if (pc->sz == 0) {
     fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");
+  }
+
+  if (mod != 1) {
+    fprintf(stderr,"*info* modulo %zd, remain %zd\n", mod, remain);
   }
 
   if (verbose) {
@@ -470,7 +476,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
       }
       assert(thislen >= 0);
       
-      if (j + thislen <= positionsEnd[i]) {
+      if ((j + thislen <= positionsEnd[i])) {
+
+	
 
 	// grow destination array
 	if (count >= possAlloc) {
@@ -518,10 +526,12 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	poss[count].seed = seed;
 	poss[count].verify = 0;
 	poss[count].q = 0;
-	
+
+	// only store depending on the module start
+	if ((positionsCurrent[i] / lowbs) % mod == remain) count++;
+
 	positionsCurrent[i] += thislen;
 	
-	count++;
 	nochange = 0;
 	if (count >= pc->sz) break; // if too many break
       }

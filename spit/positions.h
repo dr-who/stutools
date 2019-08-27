@@ -58,7 +58,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					const long startingBlock,
 					const size_t minbdSize,
 					const size_t bdSizeTotal,
-					unsigned short seed
+					unsigned short seed,
+					const size_t mod,
+					const size_t remain
 					);
 
 //void freePositions(positionType *p);
