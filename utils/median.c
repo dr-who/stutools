@@ -117,10 +117,15 @@ int main() {
   nlInit(&n);
 
   double v = 0;
+  size_t header = 0;
   while (scanf("%lf", &v) == 1) {
     //    fprintf(stdout,"*info* in %g\n", v);
     nlAdd(&n, v);
     if (n.num > 0) {
+      if (!header) {
+	header=1;
+	fprintf(stdout,"'0%%'\t'0.1%%'\t'1%%'\t'33%%'\t'50%%'\t'67%%'\t'99%%'\t'99.9%%'\t'100%%'\n");
+      }
       fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", nlSortedPos(&n, 0), nlSortedPos(&n, 0.01), nlSortedPos(&n, 0.05), nlSortedPos(&n, 0.33), nlMedian(&n), nlSortedPos(&n, 0.67), nlSortedPos(&n, 0.95), nlSortedPos(&n, 0.99), nlSortedPos(&n, 1));
     }
   }
