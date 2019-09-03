@@ -82,15 +82,15 @@ double nlSortedPos(numListType *n, double pos) {
   nlSort(n);
   assert(pos>=0);
   assert(pos < n->num);
-  size_t i = (size_t) ((n->num-1) * pos);
+  size_t i = (size_t) ((n->num-1) * pos + 0.5);
 
-  //  fprintf(stdout,"*info* index %zd (%zd and %lf)\n", i, n->num, pos);
-  if ((n->num % 2) == 0) {
+  //    fprintf(stdout,"*info* index %zd (%zd and %lf)\n", i, n->num, pos);
+    /*  if ((i % 2) == 1) {
     return (n->values[i].value + n->values[i+1].value) / 2.0;
   } else {
-    // odd
+  // odd*/
     return n->values[i].value;
-  }
+    //  }
 }
     
 
