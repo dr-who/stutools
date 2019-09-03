@@ -121,7 +121,7 @@ int main() {
     //    fprintf(stdout,"*info* in %g\n", v);
     nlAdd(&n, v);
     if (n.num > 0) {
-      fprintf(stdout,"%g %g %g %g %g %g %g %g %g\n", nlSortedPos(&n, 0), nlSortedPos(&n, 0.01), nlSortedPos(&n, 0.05), nlSortedPos(&n, 0.33), nlMedian(&n), nlSortedPos(&n, 0.67), nlSortedPos(&n, 0.95), nlSortedPos(&n, 0.99), nlSortedPos(&n, 1));
+      fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", nlSortedPos(&n, 0), nlSortedPos(&n, 0.01), nlSortedPos(&n, 0.05), nlSortedPos(&n, 0.33), nlMedian(&n), nlSortedPos(&n, 0.67), nlSortedPos(&n, 0.95), nlSortedPos(&n, 0.99), nlSortedPos(&n, 1));
     }
   }
   
