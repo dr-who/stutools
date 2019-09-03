@@ -40,11 +40,12 @@ size_t nlAdd(numListType *n, double value) {
   } else {
     size_t lowest = (size_t)-1;
     for (size_t i = 0; i < n->num; i++) {
-      if (n->values[i] < lowest) {
-	lowest = n->values[i];
+      if (n->age[i] < lowest) {
+	lowest = n->age[i];
 	addat = i;
       }
     }
+    //    fprintf(stderr,"replacing oldest at position %zd\n", addat);
   }
 
   n->values[addat] = value;
