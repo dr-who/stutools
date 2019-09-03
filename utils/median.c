@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <assert.h>
 
+#define ROLLINGWINDOW 60
 
 typedef struct {
   double value;
@@ -36,7 +37,7 @@ size_t nlAdd(numListType *n, double value) {
 
   size_t addat = n->num;
 
-  if (n->num < 100) {
+  if (n->num < ROLLINGWINDOW) {
     n->values = realloc(n->values, (n->num+1) * sizeof(pointType));
     n->num++;
   } else {
@@ -81,7 +82,7 @@ void nlSort(numListType *n) {
 double nlSortedPos(numListType *n, double pos) {
   nlSort(n);
   assert(pos>=0);
-  assert(pos < n->num);
+  assert(pos <= 1);
   size_t i = (size_t) ((n->num-1) * pos + 0.5);
 
   //    fprintf(stdout,"*info* index %zd (%zd and %lf)\n", i, n->num, pos);
@@ -120,7 +121,7 @@ int main() {
     //    fprintf(stdout,"*info* in %g\n", v);
     nlAdd(&n, v);
     if (n.num > 0) {
-      fprintf(stdout,"%g %g %g %g %g\n", nlSortedPos(&n, 0.001), nlSortedPos(&n, 0.01), nlMedian(&n), nlSortedPos(&n, 0.99), nlSortedPos(&n, 0.999));
+      fprintf(stdout,"%g %g %g %g %g %g %g %g %g\n", nlSortedPos(&n, 0), nlSortedPos(&n, 0.01), nlSortedPos(&n, 0.05), nlSortedPos(&n, 0.33), nlMedian(&n), nlSortedPos(&n, 0.67), nlSortedPos(&n, 0.95), nlSortedPos(&n, 0.99), nlSortedPos(&n, 1));
     }
   }
   
