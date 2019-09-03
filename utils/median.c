@@ -42,13 +42,13 @@ size_t nlAdd(numListType *n, double value) {
   } else {
     size_t lowest = n->ever + 1;
     for (size_t i = 0; i < n->num; i++) {
-      fprintf(stdout,"*checking* %zd, value %g age %zd\n", i, n->values[i].value, n->values[i].age);
+      //      fprintf(stdout,"*checking* %zd, value %g age %zd\n", i, n->values[i].value, n->values[i].age);
       if (n->values[i].age < lowest) {
 	lowest = n->values[i].age;
 	addat = i;
       }
     }
-    fprintf(stdout,"replacing oldest at position %zd\n", addat);
+    //    fprintf(stdout,"replacing oldest at position %zd\n", addat);
   }
 
   n->values[addat].value = value;
