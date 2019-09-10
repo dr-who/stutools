@@ -381,6 +381,7 @@ static void *runThreadTimer(void *arg) {
     }
   }
 
+  double last_devicerb = 0, last_devicewb = 0;
 
   // loop until the time runs out
   int printlinecount = 0;
@@ -441,7 +442,7 @@ static void *runThreadTimer(void *arg) {
 	double writeB    = (twb - last_twb) / gaptime;
 	double writeIOPS = (twi - last_twi) / gaptime;
 	
-	if ((tri - last_tri) || (twi - last_twi)) { // if any IOs in the period to display note the time
+	if ((tri - last_tri) || (twi - last_twi) || (devicerb - last_devicerb) || (devicewb - last_devicewb)) { // if any IOs in the period to display note the time
 	  lastprintedtime = thistime;
 	}
 
