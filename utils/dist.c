@@ -115,10 +115,10 @@ void nlDump(numListType *n) {
 
 
 void usage(int averagedefault) {
-  fprintf(stderr,"Usage:\n  median [-a window] (in/out from stdin/stdout)\n");
+  fprintf(stderr,"Usage:\n  dist [-a window] (in/out from stdin/stdout)\n");
   fprintf(stderr,"\nExamples:\n");
-  fprintf(stderr,"  median        # defaults to %d samples\n", averagedefault);
-  fprintf(stderr,"  median -a 2   # window set to 2 samples\n");
+  fprintf(stderr,"  dist        # defaults to %d samples\n", averagedefault);
+  fprintf(stderr,"  dist -a 2   # window set to 2 samples\n");
 }
 
 
@@ -148,13 +148,16 @@ int main(int argc, char *argv[]) {
   nlInit(&n, average);
 
   double v = 0;
+  size_t header = 0;
   while (scanf("%lf", &v) == 1) {
     //    fprintf(stdout,"*info* in %g\n", v);
     nlAdd(&n, v);
     if (n.num > 0) {
-      if (n.num > 0) {
-	fprintf(stdout,"%g\n", nlMedian(&n));
+      if (!header) {
+	header=1;
+	fprintf(stdout,"'0%%'\t'0.15%%'\t'2.5%%'\t'16%%'\t'50%%'\t'84%%'\t'97.5%%'\t'99.85%%'\t'100%%'\n");
       }
+      fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1));
     }
   }
   
