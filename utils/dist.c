@@ -111,6 +111,9 @@ double nlMean(numListType *n) {
   for (size_t i = 0; i < n->num; i++) {
     sum += n->values[i].value;
   }
+  if (n->num > 0) {
+    sum = sum / n->num;
+  }
   return sum;
 }
 
