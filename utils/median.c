@@ -1,5 +1,8 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <malloc.h>
 #include <limits.h>
@@ -111,10 +114,38 @@ void nlDump(numListType *n) {
 }
 
 
-int main() {
+void usage(int averagedefault) {
+  fprintf(stderr,"Usage:\n  median [-a window] (in/out from stdin/stdout)\n");
+  fprintf(stderr,"\nExamples:\n");
+  fprintf(stderr,"  median        # defaults to %d samples\n", averagedefault);
+  fprintf(stderr,"  median -a 2   # window set to 2 samples\n");
+}
+
+
+int main(int argc, char *argv[]) {
+
+  int opt;
+  const int averagedefault = 60;
+  int average = averagedefault;
+  while ((opt = getopt(argc, argv, "a:h")) != -1) {
+    switch(opt) {
+    case 'a':
+      average = atoi(optarg);
+      if (average < 1) average = 1;
+      fprintf(stderr,"*info* average window size set to %d\n", average);
+      break;
+    case 'h':
+      usage(averagedefault);
+      exit(1);
+      break;
+    default:
+      break;
+    }
+  }
+  
   numListType n;
   
-  nlInit(&n, 60);
+  nlInit(&n, average);
 
   double v = 0;
   size_t header = 0;
