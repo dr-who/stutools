@@ -105,7 +105,15 @@ double nlMedian(numListType *n) {
     return 0.0/0.0;
   }
 }
-  
+
+double nlMean(numListType *n) {
+  double sum = 0;
+  for (size_t i = 0; i < n->num; i++) {
+    sum += n->values[i].value;
+  }
+  return sum;
+}
+
 
 void nlDump(numListType *n) {
   for (size_t i = 0; i < n->num; i++) {
@@ -126,8 +134,9 @@ int main(int argc, char *argv[]) {
 
   int opt;
   const int averagedefault = 60;
-  int average = averagedefault;
-  while ((opt = getopt(argc, argv, "a:h")) != -1) {
+  int average = averagedefault, mean = 0;
+  
+  while ((opt = getopt(argc, argv, "a:hm")) != -1) {
     switch(opt) {
     case 'a':
       average = atoi(optarg);
@@ -137,6 +146,10 @@ int main(int argc, char *argv[]) {
     case 'h':
       usage(averagedefault);
       exit(1);
+      break;
+    case 'm':
+      mean = 1;
+      fprintf(stderr,"*info* appending window mean value\n");
       break;
     default:
       break;
@@ -155,9 +168,11 @@ int main(int argc, char *argv[]) {
     if (n.num > 0) {
       if (!header) {
 	header=1;
-	fprintf(stdout,"'0%%'\t'0.15%%'\t'2.5%%'\t'16%%'\t'50%%'\t'84%%'\t'97.5%%'\t'99.85%%'\t'100%%'\n");
+	fprintf(stdout,"'0%%'\t'0.15%%'\t'2.5%%'\t'16%%'\t'50%%'\t'84%%'\t'97.5%%'\t'99.85%%'\t'100%%'%s\n", (mean==0)?"":"\tmean");
       }
-      fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1));
+      fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1));
+      if (mean) fprintf(stdout,"\t%g", nlMean(&n));
+      fprintf(stdout, "\n");
     }
   }
   

@@ -127,6 +127,7 @@ int main(int argc, char *argv[]) {
   int opt;
   const int averagedefault = 60;
   int average = averagedefault;
+  
   while ((opt = getopt(argc, argv, "a:h")) != -1) {
     switch(opt) {
     case 'a':
