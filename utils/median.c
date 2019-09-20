@@ -5,8 +5,6 @@
 #include <limits.h>
 #include <assert.h>
 
-#define ROLLINGWINDOW 60
-
 typedef struct {
   double value;
   size_t age;
@@ -16,19 +14,21 @@ typedef struct {
   size_t num;
   size_t sorted;
   pointType *values;
-  size_t ever;
+  size_t ever, window;
 } numListType;
 
-void nlInit(numListType *n) {
+void nlInit(numListType *n, int window) {
+  if (window < 0) window = 1;
   n->num = 0;
   n->values = NULL;
   n->sorted = 0;
   n->ever = 0;
+  n->window = window;
 }
 
 void nlFree(numListType *n) {
   if (n->values) free(n->values);
-  nlInit(n);
+  nlInit(n, n->window);
 }
 
    
@@ -37,7 +37,7 @@ size_t nlAdd(numListType *n, double value) {
 
   size_t addat = n->num;
 
-  if (n->num < ROLLINGWINDOW) {
+  if (n->num < n->window ) {
     n->values = realloc(n->values, (n->num+1) * sizeof(pointType));
     n->num++;
   } else {
@@ -114,7 +114,7 @@ void nlDump(numListType *n) {
 int main() {
   numListType n;
   
-  nlInit(&n);
+  nlInit(&n, 60);
 
   double v = 0;
   size_t header = 0;
