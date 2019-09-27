@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
     FILE *fp = fopen(argv[i+1], "rt");
     if (fp) {
       job = positionContainerLoad(&origpc[i], fp);
-      positionContainerInfo(&origpc[i]);
+      //      positionContainerInfo(&origpc[i]);
       fclose(fp);
     }
   }
