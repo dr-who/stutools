@@ -1308,19 +1308,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     histFree(&histRead);
     histFree(&histWrite);
     
+    if (savePositions) {
+      fprintf(stderr, "*info* saving positions to '%s' ... ", savePositions);  fflush(stderr);
+      positionContainerCheckOverlap(&mergedpc);
+      positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
+      fprintf(stderr, "finished\n"); fflush(stderr);
+    }
+
     if (verify) {
-      positionContainer pc = positionContainerMerge(&mergedpc, 1);
-      int errors = verifyPositions(&pc, 256, job); 
+      int errors = verifyPositions(&mergedpc, 256, job); 
       if (errors) {
 	exit(1);
       }
-      positionContainerFree(&pc);
-    }
-    
-    if (savePositions) {
-      fprintf(stderr, "*info* saving positions to '%s' ... ", savePositions);  fflush(stderr);
-      positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
-      fprintf(stderr, "finished\n"); fflush(stderr);
     }
     
     

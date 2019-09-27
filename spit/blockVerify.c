@@ -203,8 +203,7 @@ static void *runThread(void *arg) {
  */
 int verifyPositions(positionContainer *pc, const size_t threads, jobType *job) {
 
-  //  fprintf(stderr,"*info* sorting %zd\n", pc->sz);
-
+  positionContainerInfo(pc);
   positionContainerRandomize(pc);
   keepRunning = 1;
 

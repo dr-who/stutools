@@ -104,6 +104,7 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
 void positionPrintMinMax(positionType *positions, const size_t count, const size_t minbdsize, const size_t maxbdsize, const size_t glow, const size_t ghigh);
 
 void positionContainerDump(positionContainer *pc, const size_t countToShow);
+void positionContainerCheckOverlap(const positionContainer *merged);
 
 #endif
 
