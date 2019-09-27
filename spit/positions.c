@@ -212,14 +212,14 @@ void positionContainerCollapse(positionContainer *merged) {
 	if (merged->positions[i].pos == merged->positions[j].pos) {
 	  if (merged->positions[i].len == merged->positions[j].len) {
 	    if (seedsame) {
-	      if (devsame) {
+	      //	      if (devsame) {
 		continue;
-	      }
+		//	      }
 	    }
 	  }
 	}
-
-	//	fprintf(stderr,"*maybe2* %zd and %zd\n", merged->positions[i].pos, merged->positions[j].pos);
+	
+	//	fprintf(stderr,"*maybe2* %zd/%d/%d and %zd/%d/%d\n", merged->positions[i].pos, merged->positions[i].seed, merged->positions[i].deviceid, merged->positions[j].pos, merged->positions[j].seed, merged->positions[j].deviceid);
 
 	
 	// if one is quite a lot newer, keep that
