@@ -156,7 +156,7 @@ void positionContainerCheckOverlap(const positionContainer *merged) {
   size_t printed = 0;
   //  fprintf(stderr,"*info* checkOverlap %zd\n", merged->sz);
   for (size_t i = 0; i < merged->sz - 1; i++) {
-    if (merged->positions[i].action == 'W' && merged->positions[i+1].action != 'R') {
+    if (merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') {
       int pe = 0;
       if (merged->positions[i].pos > merged->positions[i+1].pos) pe = 1;
       if (pe) {
