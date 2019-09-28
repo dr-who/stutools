@@ -9,6 +9,7 @@ typedef struct {
   int count;
   char **strings;
   char **devices;
+  int *deviceid;
 } jobType;
  
 

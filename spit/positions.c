@@ -156,10 +156,16 @@ void positionContainerCheckOverlap(const positionContainer *merged) {
   size_t printed = 0;
   //  fprintf(stderr,"*info* checkOverlap %zd\n", merged->sz);
   for (size_t i = 0; i < merged->sz - 1; i++) {
-    if (merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') {
-      //      if (i >0)fprintf(stderr,"[%zd] %zd len %d %c seed %d fin %lf\n", i, merged->positions[i].pos, merged->positions[i].len, merged->positions[i].action, merged->positions[i].seed, merged->positions[i].finishTime);
-      if (merged->positions[i].pos > merged->positions[i+1].pos) abort();
-      if (merged->positions[i].pos == merged->positions[i+1].pos && (merged->positions[i].seed != merged->positions[i+1].seed)) abort();
+    if (merged->positions[i].action == 'W' && merged->positions[i+1].action != 'R') {
+      int pe = 0;
+      if (merged->positions[i].pos > merged->positions[i+1].pos) pe = 1;
+      if (pe) {
+	fprintf(stderr,"[%zd] %zd len %d %c seed %d device %d\n", i, merged->positions[i].pos, merged->positions[i].len, merged->positions[i].action, merged->positions[i].seed, merged->positions[i].deviceid);
+	i++;
+	fprintf(stderr,"[%zd] %zd len %d %c seed %d device %d\n", i, merged->positions[i].pos, merged->positions[i].len, merged->positions[i].action, merged->positions[i].seed, merged->positions[i].deviceid);
+	i--;
+      }
+	
       if (merged->positions[i].seed != merged->positions[i+1].seed) {
 	if (merged->positions[i].pos + merged->positions[i].len > merged->positions[i+1].pos) {
 	  if (merged->positions[i].finishTime > 0 && merged->positions[i+1].finishTime > 0) {
@@ -212,9 +218,9 @@ void positionContainerCollapse(positionContainer *merged) {
 	if (merged->positions[i].pos == merged->positions[j].pos) {
 	  if (merged->positions[i].len == merged->positions[j].len) {
 	    if (seedsame) {
-	      //	      if (devsame) {
+	      if (devsame) {
 		continue;
-		//	      }
+	      }
 	    }
 	  }
 	}
@@ -320,7 +326,6 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
   
   positionContainerCollapse(&merged);
   
-  positionContainerCheckOverlap(&merged);
   return merged;
 }
 
@@ -761,7 +766,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow) {
   const positionType *positions = pc->positions;
   for (size_t i = 0; i < pc->sz; i++) {
     if (i >= countToShow) break;
-    fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %6d\tverify %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].verify);
+    fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %6d\tdevice %d\tverify %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify);
   }
 }
 

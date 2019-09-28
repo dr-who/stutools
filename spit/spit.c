@@ -198,6 +198,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     jobMultiply(j, extraparalleljobs, NULL, 0);
   }
 
+  //  jobDump(j);
+
   if (*filePrefix) { // update prefix to be prefix.1..n
     jobFileSequence(j);
   }

@@ -30,21 +30,33 @@ void jobInit(jobType *job) {
   job->count = 0;
   job->strings = NULL;
   job->devices = NULL;
+  job->deviceid = NULL;
 }
 
 void jobAddBoth(jobType *job, char *device, char *jobstring) {
   job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
   job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
+  job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int*));
   job->strings[job->count] = strdup(jobstring);
   job->devices[job->count] = strdup(device);
+  int deviceid = job->count;
+  for (size_t i = 0; i < job->count; i++) {
+    if (strcmp(device, job->devices[i])==0) {
+      deviceid = i;
+      break;
+    }
+  }
+  job->deviceid[job->count] = deviceid;
   job->count++;
 }
 
 void jobAdd(jobType *job, const char *jobstring) {
   job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
   job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
+  job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int*));
   job->strings[job->count] = strdup(jobstring);
   job->devices[job->count] = NULL;
+  job->deviceid[job->count] = 0;
   job->count++;
 }
 
@@ -79,7 +91,7 @@ void jobFileSequence(jobType *job) {
 void jobDump(jobType *job) {
   fprintf(stderr,"*info* jobDump: %zd\n", jobCount(job));
   for (size_t i = 0; i < job->count; i++) {
-    fprintf(stderr,"*  info* job %zd, device %s, string %s\n", i, job->devices[i], job->strings[i]);
+    fprintf(stderr,"*  info* job %zd, device %s, deviceid %d, string %s\n", i, job->devices[i], job->deviceid[i], job->strings[i]);
   }
 }
 
@@ -1140,7 +1152,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
       threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, i, threadContext[i].seqFiles, threadContext[i].seqFilesMaxSizeBytes, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed, mod, remain);
+      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, job->deviceid[i], threadContext[i].seqFiles, threadContext[i].seqFilesMaxSizeBytes, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed, mod, remain);
 
       if (verbose >= 2) {
 	positionContainerCheck(&threadContext[i].pos, threadContext[i].minbdSize, threadContext[i].maxbdSize, !metaData);
@@ -1239,6 +1251,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     
     positionContainer mergedpc = positionContainerMerge(origpc, num);
 
+    if (savePositions) {
+      fprintf(stderr, "*info* saving positions to '%s' ... ", savePositions);  fflush(stderr);
+      positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
+      fprintf(stderr, "finished\n"); fflush(stderr);
+    }
+    
     // histogram
     histogramType histRead, histWrite;
     histSetup(&histRead);
@@ -1308,20 +1326,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     histFree(&histRead);
     histFree(&histWrite);
     
-    if (savePositions) {
-      fprintf(stderr, "*info* saving positions to '%s' ... ", savePositions);  fflush(stderr);
-      positionContainerCheckOverlap(&mergedpc);
-      positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
-      fprintf(stderr, "finished\n"); fflush(stderr);
-    }
-
     if (verify) {
+      positionContainerCheckOverlap(&mergedpc);
       int errors = verifyPositions(&mergedpc, 256, job); 
       if (errors) {
 	exit(1);
       }
     }
-    
     
     positionContainerFree(&mergedpc);
     free(origpc);

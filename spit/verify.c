@@ -65,6 +65,7 @@ int main(int argc, char *argv[]) {
   }
 
   positionContainer pc = positionContainerMerge(origpc, numFiles);
+  positionContainerCheckOverlap(&pc);
 
   
   const size_t threads = 256;

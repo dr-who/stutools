@@ -6,7 +6,7 @@ include (CTest)
 
 #enable_testing()
 
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wall -pedantic --std=c99 " )
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wall -pedantic --std=c99 -O2" )
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
 add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c fuzz.c blockVerify.c)
