@@ -1208,8 +1208,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   for (size_t i = 0; i < num; i++) { 
     CALLOC(threadContext[i].randomBuffer, threadContext[i].highBlockSize, 1);
     memset(threadContext[i].randomBuffer, 0, threadContext[i].highBlockSize);
-    generateRandomBufferCyclic(threadContext[i].randomBuffer, threadContext[i].highBlockSize, threadContext[i].seed, threadContext[i].highBlockSize); 
+    generateRandomBufferCyclic(threadContext[i].randomBuffer, threadContext[i].highBlockSize, threadContext[i].seed, threadContext[i].highBlockSize);
   }
+
 
   
   // use the device and timing info from context[num]

@@ -286,7 +286,8 @@ char *hostname() {
 
 
 // the block size random buffer. Nice ASCII
-void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seedin, size_t cyclic) {
+size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned short seedin, size_t cyclic) {
+  size_t sumcount = 0;
 
   if (cyclic > size || cyclic == 0) cyclic = size;
 
@@ -301,28 +302,46 @@ void generateRandomBufferCyclic(char *buffer, size_t size, unsigned short seedin
   char startpoint = verystartpoint;
   for (size_t j = 0; j < cyclic; j++) {
     buffer[j] = startpoint;
+    if (j >= 50) sumcount += (j ^ startpoint);
     startpoint += jump;
     if (startpoint > 'z') {
       startpoint = verystartpoint;
     }
   }
-
+  
   char s[1000];
   memset(s, 0, 1000);
   const size_t topr = sprintf(s, "________________stutools - %s - %u\n", "spit", seed);
   strncpy(buffer, s, topr);
-  buffer[cyclic-2] = '\n';
-  buffer[cyclic-1] = 0;
-
+    
   for (size_t j = cyclic; j < size; j++) {
-    buffer[j] = buffer[j % cyclic];
+    buffer[j] = buffer[j % cyclic];   
   }
+
+  {
+    size_t check2 = checksumBuffer(buffer, size);
+    if (sumcount != check2) {
+      fprintf(stderr,"*fatal* memory problem\n");
+      exit(1);
+    }
+  }
+  
+  return sumcount;
 }
 
 
-void generateRandomBuffer(char *buffer, size_t size, unsigned short seed) {
+
+size_t generateRandomBuffer(char *buffer, const size_t size, const unsigned short seed) {
   if (seed == 0) printf("ooon\n");
-  generateRandomBufferCyclic(buffer, size, seed, size);
+  return generateRandomBufferCyclic(buffer, size, seed, size);
+}
+
+size_t checksumBuffer(const char *buffer, const size_t size) {
+  size_t checksum = 0;
+  for (size_t i = 50; i < size; i++) {
+    checksum += (i ^ buffer[i]);
+  }
+  return checksum;
 }
 
 

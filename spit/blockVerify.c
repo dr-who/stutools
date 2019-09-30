@@ -1,4 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
+#define _GNU_SOURCE
 
 /**
  * blockVerify.c
@@ -140,8 +142,9 @@ static void *runThread(void *arg) {
       if (fd != 0) {
 	close(fd);
       }
-      fd = open(threadContext->job->devices[threadContext->pc->positions[i].deviceid], O_RDONLY);
-      //      fprintf(stderr,"*info* opening file %s\n", threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
+      fd = open(threadContext->job->devices[threadContext->pc->positions[i].deviceid], O_RDONLY | O_DIRECT);
+      //      if (threadContext->id == 0)
+      //	fprintf(stderr,"*info* opening file %s in O_RDONLY | O_DIRECT\n", threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
       if (fd < 0) {
 	perror(threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
 	exit(-1);

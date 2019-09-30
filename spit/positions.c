@@ -16,16 +16,25 @@ extern int verbose;
 extern int keepRunning;
 
 // sorting function, used by qsort
+// sort deviceid, then positions
 static int poscompare(const void *p1, const void *p2)
 {
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
-  if (pos1->pos < pos2->pos) return -1;
-  else if (pos1->pos > pos2->pos) return 1;
-  else {
-    if (pos1->finishTime > pos2->finishTime) return -1;
-    else if (pos1->finishTime < pos2->finishTime) return 1;
-    else return 0;
+  if (pos1->deviceid < pos2->deviceid) return -1;
+  else if (pos1->deviceid > pos2->deviceid) return 1;
+  else { // same deviceid
+    if (pos1->pos < pos2->pos) return -1;
+    else if (pos1->pos > pos2->pos) return 1;
+    else { // same pos
+      if (pos1->len < pos2->len) return -1;
+      else if (pos1->len > pos2->len) return 1;
+      else { // same len
+	if (pos1->finishTime > pos2->finishTime) return -1;
+	else if (pos1->finishTime < pos2->finishTime) return 1;
+	else return 0;
+      }
+    }
   }
 }
 
@@ -156,7 +165,7 @@ void positionContainerCheckOverlap(const positionContainer *merged) {
   size_t printed = 0;
   //  fprintf(stderr,"*info* checkOverlap %zd\n", merged->sz);
   for (size_t i = 0; i < merged->sz - 1; i++) {
-    if (merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') {
+    if ((merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') && (merged->positions[i].deviceid == merged->positions[i+1].deviceid)) {
       int pe = 0;
       if (merged->positions[i].pos > merged->positions[i+1].pos) pe = 1;
       if (pe) {
@@ -193,17 +202,23 @@ void positionContainerCollapse(positionContainer *merged) {
 
   for (size_t i = 0; i < merged->sz; i++) {
     if (toupper(merged->positions[i].action) != 'R' && merged->positions[i].finishTime > 0) {
-      if (i>0) assert(merged->positions[i].pos >= merged->positions[i-1].pos);
-
       size_t j = i;
       // iterate upwards
       // if j pos is past i + len then exit
-      while ((++j < merged->sz) && (merged->positions[j].pos < merged->positions[i].pos + merged->positions[i].len)) {
+      while ((++j < merged->sz) && (merged->positions[j].pos < merged->positions[i].pos + merged->positions[i].len) && (merged->positions[i].deviceid == merged->positions[j].deviceid)) {
 
 	if (merged->positions[j].action != 'W') {
 	  // if it's a not a write, move to the next one
 	  continue;
 	}
+
+	assert(j > i);
+	assert(merged->positions[i].deviceid == merged->positions[j].deviceid);
+	assert(merged->positions[i].pos <= merged->positions[j].pos);
+	if (merged->positions[i].pos == merged->positions[j].pos) {
+	  assert(merged->positions[i].len <= merged->positions[j].len);
+	}
+
 
 	// there is some conflict to check
 	size_t oldest = i, newest = j;
@@ -213,23 +228,19 @@ void positionContainerCollapse(positionContainer *merged) {
 	}
 
 	int seedsame = merged->positions[i].seed == merged->positions[j].seed;
-	int devsame = merged->positions[i].deviceid == merged->positions[j].deviceid;
 	// if the same thread wrote to the same location with the same seed, they are OK
 	if (merged->positions[i].pos == merged->positions[j].pos) {
 	  if (merged->positions[i].len == merged->positions[j].len) {
 	    if (seedsame) {
-	      if (devsame) {
-		continue;
-	      }
+	      continue;
 	    }
 	  }
 	}
 	
 	//	fprintf(stderr,"*maybe2* %zd/%d/%d and %zd/%d/%d\n", merged->positions[i].pos, merged->positions[i].seed, merged->positions[i].deviceid, merged->positions[j].pos, merged->positions[j].seed, merged->positions[j].deviceid);
-
 	
 	// if one is quite a lot newer, keep that
-	if (merged->positions[newest].submitTime > merged->positions[oldest].finishTime + 1 /* submit newest 10 seconds after oldest finished */) {
+	if (merged->positions[newest].submitTime > merged->positions[oldest].finishTime) {
 	  // clobber old one no matter what
 	  merged->positions[oldest].action = '1'; // exclude from output
 	  //	  merged.positions[newest].action = '*'; // exclude from output
@@ -238,7 +249,7 @@ void positionContainerCollapse(positionContainer *merged) {
 
 	// they are overlapping some how
 
-	if ((merged->positions[i].pos + merged->positions[i].len > merged->positions[j].pos) && (!devsame || !seedsame)) {
+	if ((merged->positions[i].pos + merged->positions[i].len > merged->positions[j].pos) && (!seedsame)) {
 	  merged->positions[i].action = '2'; // exclude from output
 	  merged->positions[j].action = '2'; // exclude from output
 	  continue;
