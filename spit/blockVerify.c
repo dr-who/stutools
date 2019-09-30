@@ -63,7 +63,7 @@ static int seedcompare(const void *p1, const void *p2)
 
 
 
-int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff) {
+int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff, const int seed) {
   const size_t pos = p->pos;
   const size_t len = p->len;
 
@@ -95,7 +95,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
       size_t lines = 0;
       for (size_t i = 16; i < len; i++) {
 	if (buf[i] != randomBuffer[i]) {
-	  fprintf(stderr,"*error* difference at block[%zd] offset %zd, disk '%c', should be '%c'\n", pos, i, buf[i], randomBuffer[i]);
+	  fprintf(stderr,"*error* difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, i, buf[i], randomBuffer[i], seed);
 	  lines++;
 	  if (lines>10) break;
 	}
@@ -169,7 +169,7 @@ static void *runThread(void *arg) {
       //      double start = timedouble();
       size_t pos = threadContext->pc->positions[i].pos;
       memcpy(randombuf, &pos, sizeof(size_t));
-      int ret = verifyPosition(fd, &threadContext->pc->positions[i], randombuf, buf, &diff);
+      int ret = verifyPosition(fd, &threadContext->pc->positions[i], randombuf, buf, &diff, lastseed);
 
       //      threadContext->elapsed = timedouble() - start;
       switch (ret) {

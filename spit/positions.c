@@ -21,6 +21,7 @@ static int poscompare(const void *p1, const void *p2)
 {
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
+
   if (pos1->deviceid < pos2->deviceid) return -1;
   else if (pos1->deviceid > pos2->deviceid) return 1;
   else { // same deviceid
@@ -201,13 +202,13 @@ void positionContainerCollapse(positionContainer *merged) {
   assert(maxbs > 0);
 
   for (size_t i = 0; i < merged->sz; i++) {
-    if (toupper(merged->positions[i].action) != 'R' && merged->positions[i].finishTime > 0) {
+    if ((toupper(merged->positions[i].action) != 'R') && (merged->positions[i].finishTime > 0)) {
       size_t j = i;
       // iterate upwards
       // if j pos is past i + len then exit
       while ((++j < merged->sz) && (merged->positions[j].pos < merged->positions[i].pos + merged->positions[i].len) && (merged->positions[i].deviceid == merged->positions[j].deviceid)) {
 
-	if (merged->positions[j].action != 'W') {
+	if ((merged->positions[j].action == 'R') || (merged->positions[j].finishTime == 0)) {
 	  // if it's a not a write, move to the next one
 	  continue;
 	}
@@ -220,13 +221,6 @@ void positionContainerCollapse(positionContainer *merged) {
 	}
 
 
-	// there is some conflict to check
-	size_t oldest = i, newest = j;
-	if (merged->positions[j].finishTime < merged->positions[i].finishTime) {
-	  oldest = j;
-	  newest = i;
-	}
-
 	int seedsame = merged->positions[i].seed == merged->positions[j].seed;
 	// if the same thread wrote to the same location with the same seed, they are OK
 	if (merged->positions[i].pos == merged->positions[j].pos) {
@@ -236,23 +230,29 @@ void positionContainerCollapse(positionContainer *merged) {
 	    }
 	  }
 	}
-	
-	//	fprintf(stderr,"*maybe2* %zd/%d/%d and %zd/%d/%d\n", merged->positions[i].pos, merged->positions[i].seed, merged->positions[i].deviceid, merged->positions[j].pos, merged->positions[j].seed, merged->positions[j].deviceid);
-	
-	// if one is quite a lot newer, keep that
-	if (merged->positions[newest].submitTime > merged->positions[oldest].finishTime) {
-	  // clobber old one no matter what
-	  merged->positions[oldest].action = '1'; // exclude from output
-	  //	  merged.positions[newest].action = '*'; // exclude from output
-	  continue;
-	}
 
-	// they are overlapping some how
 
-	if ((merged->positions[i].pos + merged->positions[i].len > merged->positions[j].pos) && (!seedsame)) {
-	  merged->positions[i].action = '2'; // exclude from output
-	  merged->positions[j].action = '2'; // exclude from output
-	  continue;
+	if (merged->positions[j].pos < merged->positions[i].pos + merged->positions[i].len) { // should always be true
+
+	  // there is some conflict to check
+	  size_t overlap = 0;
+	  if (merged->positions[i].finishTime <= merged->positions[j].submitTime +0) {
+	    overlap = '1';
+	    merged->positions[i].action = overlap;
+	  } else if (merged->positions[i].submitTime + 0>= merged->positions[j].finishTime) {
+	    overlap = '2';
+	    merged->positions[j].action = overlap;
+	  } else if (merged->positions[i].submitTime >= merged->positions[j].submitTime) {
+	    overlap = '3';
+	    merged->positions[i].action = overlap;
+	    merged->positions[j].action = overlap;
+	  } else if (merged->positions[i].submitTime <= merged->positions[j].submitTime) {
+	    overlap = '4';
+	    merged->positions[i].action = overlap;
+	    merged->positions[j].action = overlap;
+	  }
+	  //	fprintf(stderr,"*maybe2* %zd/%d/%d and %zd/%d/%d\n", merged->positions[i].pos, merged->positions[i].seed, merged->positions[i].deviceid, merged->positions[j].pos, merged->positions[j].seed, merged->positions[j].deviceid);
+
 	}
       }
     }

@@ -147,7 +147,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   double start = timedouble();
   double last = start;
-  double lastreceive = start;
+  //  double lastreceive = start;
 
   size_t submitted = 0, flushPos = 0, received = 0;
   size_t totalWriteBytes = 0, totalReadBytes = 0;
@@ -175,9 +175,9 @@ size_t aioMultiplePositions( positionContainer *p,
     if (inFlight > QD) {
       fprintf(stderr,"*error* inFlight %zd %zd\n", inFlight, QD);
     }
+	thistime = timedouble();
     while (sz && inFlight < QD && keepRunning) {
       if (!positions[pos].inFlight) {
-	thistime = timedouble();
       
       // submit requests, one at a time
 	assert(pos < sz);
@@ -297,7 +297,7 @@ size_t aioMultiplePositions( positionContainer *p,
     ret = io_getevents(ioc, 1, inFlight, events, &timeout);
     //    }
     if (ret > 0) {
-      lastreceive = timedouble();
+      //      lastreceive = timedouble();
 
       // verify it's all ok
       int printed = 0;
@@ -358,7 +358,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	    }
 	  } // 'w'
 	} // else if no error
-	pp->finishTime = lastreceive;
+	pp->finishTime = timedouble();
 	pp->success = 1; // the action has completed
 	pp->inFlight = 0;
 	//checkArray(freeQueue, QD);
@@ -415,7 +415,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
 	  
-	  pp->finishTime = lastreceive;
+	  pp->finishTime = timedouble();
 	  pp->inFlight = 0;
 	  pp->success = 1; // the action has completed
 
