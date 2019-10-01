@@ -207,7 +207,7 @@ static void *runThread(void *arg) {
 int verifyPositions(positionContainer *pc, const size_t threads, jobType *job) {
 
   positionContainerInfo(pc);
-  positionContainerRandomize(pc);
+  //positionContainerRandomize(pc);
   keepRunning = 1;
 
   size_t num = pc->sz;

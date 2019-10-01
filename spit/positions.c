@@ -22,6 +22,7 @@ static int poscompare(const void *p1, const void *p2)
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
 
+  assert(pos1->submitTime); assert(pos2->submitTime); assert(pos1->finishTime); assert(pos2->finishTime);
   if (pos1->deviceid < pos2->deviceid) return -1;
   else if (pos1->deviceid > pos2->deviceid) return 1;
   else { // same deviceid
@@ -195,7 +196,19 @@ void positionContainerCheckOverlap(const positionContainer *merged) {
   
 
 void positionContainerCollapse(positionContainer *merged) {
-  //  fprintf(stderr,"*info* remove conflicts from %zd\n", merged->sz);
+  fprintf(stderr,"*info* remove action conflicts (%zd raw positions)\n", merged->sz);
+  size_t  newstart = 0;
+  for (size_t i =0 ; i < merged->sz; i++) {	
+    if (merged->positions[i].finishTime != 0) {
+      if (newstart != i) {
+	merged->positions[newstart] = merged->positions[i];
+      }
+      newstart++;
+    }
+  }
+  merged->sz = newstart;
+  
+  fprintf(stderr,"*info* sorting %zd actions that have completed\n", merged->sz);
   qsort(merged->positions, merged->sz, sizeof(positionType), poscompare);
 
   size_t maxbs = merged->maxbs;
@@ -236,10 +249,10 @@ void positionContainerCollapse(positionContainer *merged) {
 
 	  // there is some conflict to check
 	  size_t overlap = 0;
-	  if (merged->positions[i].finishTime <= merged->positions[j].submitTime +0) {
+	  if (merged->positions[i].finishTime <= merged->positions[j].submitTime) {
 	    overlap = '1';
 	    merged->positions[i].action = overlap;
-	  } else if (merged->positions[i].submitTime + 0>= merged->positions[j].finishTime) {
+	  } else if (merged->positions[i].submitTime >= merged->positions[j].finishTime) {
 	    overlap = '2';
 	    merged->positions[j].action = overlap;
 	  } else if (merged->positions[i].submitTime >= merged->positions[j].submitTime) {
@@ -257,6 +270,12 @@ void positionContainerCollapse(positionContainer *merged) {
       }
     }
   }
+  size_t actionsr = 0, actionsw = 0;
+  for (size_t i = 0; i < merged->sz; i++) {
+    if (merged->positions[i].action == 'R') actionsr++;
+    if (merged->positions[i].action == 'W') actionsw++;
+  }
+  fprintf(stderr,"*info* unique actions: reads %zd, writes %zd\n", actionsr, actionsw);
 }
   
 
@@ -353,6 +372,7 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
     CALLOC(buffer, 1000000, 1);
     setvbuf(fp, buffer, 1000000, _IOFBF);
     const positionType *positions = p->positions;
+
     for (size_t i = 0; i < p->sz; i++) {
       if (0 || (positions[i].finishTime > 0 && !positions[i].inFlight)) {
 	const char action = positions[i].action;
@@ -713,64 +733,6 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
 }
     
   
-/*positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxSize) {
-
-  char *line = malloc(200000);
-  size_t maxline = 200000;
-  ssize_t read;
-  char *path;
-  CALLOC(path, 1000, 1);
-  //  char *origline = line; // store the original pointer, as getline changes it creating an unfreeable area
-  positionType *p = NULL;
-  size_t pNum = 0;
-  double starttime, fintime;
-  
-  while ((read = getline(&line, &maxline, fd)) != -1) {
-    size_t pos, len, seed, tmpsize;
-    //    fprintf(stderr,"%zd\n", strlen(line));
-    char op;
-    starttime = 0;
-    fintime = 0;
-    
-    int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %zu %*s %*s %zu %lf %lf", path, &pos, &op, &len, &tmpsize, &seed, &starttime, &fintime);
-    if (s >= 5) {
-      //      fprintf(stderr,"%s %zd %c %zd %zd\n", path, pos, op, len, seed);
-      //      deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
-      pNum++;
-      p = realloc(p, sizeof(positionType) * (pNum));
-      assert(p);
-      //      fprintf(stderr,"%zd\n", pNum);
-      //      p[pNum-1].fd = 0;
-      p[pNum-1].pos = pos;
-      p[pNum-1].submitTime = starttime;
-      p[pNum-1].finishTime = fintime;
-      p[pNum-1].len = len;
-      p[pNum-1].seed = seed;
-      p[pNum-1].q = 0;
-      p[pNum-1].action = op;
-      p[pNum-1].success = 0;
-      p[pNum-1].verify = 0;
-      if (tmpsize > *maxSize) {
-	*maxSize = tmpsize;
-      }
-
-      //      fprintf(stderr,"added %p\n", p[pNum-1].dev);
-      
-    //    addDeviceDetails(line, devs, numDevs);
-    //    addDeviceToAnalyse(line);
-    //    add++;
-    //    printf("%s", line);
-    }
-  }
-  fflush(stderr);
-
-  free(line); line = NULL;
-  free(path); path = NULL;
-  *num = pNum;
-  
-  return p;
-}
-*/
 
 void positionContainerDump(positionContainer *pc, const size_t countToShow) {
   fprintf(stderr,"*info*: total number of positions %zd\n", pc->sz);
@@ -931,7 +893,7 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
     
     int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %zu %*s %*s %zu %lf %lf", path, &pos, &op, &len, &tmpsize, &seed, &starttime, &fintime);
     if (s >= 5) {
-      //      fprintf(stderr,"%s %zd %c %zd %zd\n", path, pos, op, len, seed);
+      //      fprintf(stderr,"%s %zd %c %zd %zd %lf %lf\n", path, pos, op, len, seed, starttime, fintime);
       //      deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
 
       int seenpathbefore = -1;
@@ -950,6 +912,7 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
       assert(p);
       //      fprintf(stderr,"loaded %s deviceid %d\n", path, seenpathbefore);
       p[pNum-1].deviceid = seenpathbefore;
+      assert(starttime);
       p[pNum-1].submitTime = starttime;
       p[pNum-1].finishTime = fintime;
       //      fprintf(stderr,"%zd\n", pNum);
@@ -964,13 +927,6 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
       if (tmpsize > maxSize) {
 	maxSize = tmpsize;
       }
-
-      //      fprintf(stderr,"added %p\n", p[pNum-1].dev);
-      
-    //    addDeviceDetails(line, devs, numDevs);
-    //    addDeviceToAnalyse(line);
-    //    add++;
-    //    printf("%s", line);
     }
   }
   fflush(stderr);
@@ -979,6 +935,10 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
   
   pc->positions = p;
   pc->sz = pNum;
+  for (size_t i = 0; i < pc->sz; i++) {
+	assert(pc->positions[i].submitTime != 0);
+        assert(pc->positions[i].finishTime != 0);
+  }
   //  pc->string = strdup("");
   //  pc->device = path;
   pc->maxbdSize = maxSize;
