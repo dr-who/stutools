@@ -84,6 +84,7 @@ void jobFileSequence(jobType *job) {
     sprintf(s, "%s.%04zd", job->devices[i], i+1);
     free(job->devices[i]);
     job->devices[i] = strdup(s);
+    job->deviceid[i] = i;
   }
 }
   
