@@ -95,12 +95,16 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
       size_t lines = 0;
       for (size_t i = 16; i < len; i++) {
 	if (buf[i] != randomBuffer[i]) {
-	  fprintf(stderr,"*error* difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, i, buf[i], randomBuffer[i], seed);
+	  if (lines < 10) 
+	    fprintf(stderr,"*error* difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, i, buf[i], randomBuffer[i], seed);
 	  lines++;
-	  if (lines>10) break;
 	}
       }
-      
+      fprintf(stderr,"*error* total characters incorrect %zd from %d\n", lines, p->len);
+
+      //awk '{if((($2>=3415666688) && $2+$7<=(3415666688+122880)) || ($2+$7>=3415666688 && $2<3415666688)) print}' positions.txt
+	
+      fprintf(stderr,"*error* see actions: $ awk -v p=%zd -v l=%d '{if (($2>=p && $2<=p+l) || ($2+$7>p && $2<p)) print}' positions.txt | sort -k 12n\n", pos, p->len);
       /*char s1[1000],s2[1000];
       memcpy(s1, buf+16, 80); s1[80]=0;
       memcpy(s2, randomBuffer+16, 80); s2[80]=0;
