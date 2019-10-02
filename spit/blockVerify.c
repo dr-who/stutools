@@ -104,7 +104,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
 
       //awk '{if((($2>=3415666688) && $2+$7<=(3415666688+122880)) || ($2+$7>=3415666688 && $2<3415666688)) print}' positions.txt
 	
-      fprintf(stderr,"*error* see actions: $ awk -v p=%zd -v l=%d '{if (($2>=p && $2<=p+l) || ($2+$7>p && $2<p)) print}' positions.txt | sort -k 12n\n", pos, p->len);
+      fprintf(stderr,"*error* see actions e.g.: $ awk -v p=%zd -v l=%d '{if (($2>=p && $2<=p+l) || ($2+$7>p && $2<p)) print}' positions.txt | sort -k 12n\n", pos, p->len);
       /*char s1[1000],s2[1000];
       memcpy(s1, buf+16, 80); s1[80]=0;
       memcpy(s2, randomBuffer+16, 80); s2[80]=0;
