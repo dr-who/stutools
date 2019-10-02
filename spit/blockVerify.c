@@ -92,11 +92,12 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
     }
 
     if (*diff < 3) {
-      size_t lines = 0;
+      size_t lines = 0, starterror = 0;
       for (size_t i = 16; i < len; i++) {
 	if (buf[i] != randomBuffer[i]) {
 	  if (lines < 10) 
 	    fprintf(stderr,"*error* difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, i, buf[i], randomBuffer[i], seed);
+	  if (lines == 0) starterror = i;
 	  lines++;
 	}
       }
@@ -104,6 +105,12 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
 
       //awk '{if((($2>=3415666688) && $2+$7<=(3415666688+122880)) || ($2+$7>=3415666688 && $2<3415666688)) print}' positions.txt
 	
+      size_t *poscheck = (size_t*)buf;
+      size_t *uucheck = (size_t*)buf + 1;
+      fprintf(stderr,"*error* poscheck at the start %zd, uuid %zd\n", *poscheck, *uucheck);
+      poscheck = (size_t*)(buf + starterror);
+      uucheck = (size_t*)(buf + starterror) + 1;
+      fprintf(stderr,"*error* poscheck at the error start %zd, uuid %zd\n", *poscheck, *uucheck);
       fprintf(stderr,"*error* see actions e.g.: $ awk -v p=%zd -v l=%d '{if (($2>=p && $2<=p+l) || ($2+$7>p && $2<p)) print}' positions.txt | sort -k 12n\n", pos, p->len);
       /*char s1[1000],s2[1000];
       memcpy(s1, buf+16, 80); s1[80]=0;
