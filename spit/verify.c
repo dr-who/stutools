@@ -38,22 +38,36 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, intHandler);
 
   if (argc <= 1) {
-    fprintf(stderr,"*usage* ./verify spit*.txt\n");
+    fprintf(stderr,"*usage* ./spitchecker [-D] positions*.txt\n");
     exit(1);
   }
+
+  int opt = 0;
+  size_t o_direct = O_DIRECT;
+  while ((opt = getopt(argc, argv, "D")) != -1) {
+    switch (opt) {
+    case 'D': o_direct = 0;
+      break;
+    default:
+      break;
+    }
+  }
   
-  size_t numFiles = argc -1;
+
+  
+  size_t numFiles = argc -optind;
+  fprintf(stderr,"*info* num files %zd\n", numFiles);
 
   positionContainer *origpc;
   CALLOC(origpc, numFiles, sizeof(positionContainer));
 
   jobType job;
   
-  for (size_t i = 0; i < numFiles; i++) {
-    fprintf(stderr,"*info* position file: %s\n", argv[1 + i]);
-    FILE *fp = fopen(argv[i+1], "rt");
+  for (size_t i = optind; i < argc; i++) {
+    fprintf(stderr,"*info* position file: %s\n", argv[i]);
+    FILE *fp = fopen(argv[i], "rt");
     if (fp) {
-      job = positionContainerLoad(&origpc[i], fp);
+      job = positionContainerLoad(&origpc[i - optind], fp);
       //      positionContainerInfo(&origpc[i]);
       fclose(fp);
     }
@@ -72,7 +86,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
 
   // verify must be sorted
-  int errors = verifyPositions(&pc, threads, &job);
+  int errors = verifyPositions(&pc, threads, &job, o_direct);
 
   if (!keepRunning) {fprintf(stderr,"*warning* early verification termination\n");}
 

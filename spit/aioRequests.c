@@ -162,6 +162,8 @@ size_t aioMultiplePositions( positionContainer *p,
   size_t flush_count = 0;
   double thistime = 0;
   int qdIndex = 0;
+  int printed = 0;
+
 
   for (size_t i = 0; i < sz; i++) {
     positions[i].inFlight = 0;
@@ -300,8 +302,6 @@ size_t aioMultiplePositions( positionContainer *p,
       //      lastreceive = timedouble();
 
       // verify it's all ok
-      int printed = 0;
-
       size_t rio = 0, rlen = 0, wio = 0, wlen = 0;
       for (int j = 0; j < ret; j++) {
 	//	struct iocb *my_iocb = events[j].obj;
@@ -315,12 +315,13 @@ size_t aioMultiplePositions( positionContainer *p,
 	int rescode2 = events[j].res2;
 
 	if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
-	  if (!printed) {
+	  if (printed++ < 10) {
 	    fprintf(stderr,"*error* AIO failure codes: res=%d and res2=%d, [%zd] = %zd, inFlight %zd, returned %d results\n", rescode, rescode2, pos, positions[pos].pos, inFlight, ret);
 	    //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
 	    //	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
+	  } else {
+	    fprintf(stderr,"*error* further output supressed\n");
 	  }
-	  printed = 1;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	} else {
 	  //	  fprintf(stderr,"---> %d %d\n", rescode, rescode2);
@@ -339,24 +340,23 @@ size_t aioMultiplePositions( positionContainer *p,
 	    wlen += pp->len;
 	  }
 
+	  // if we know we have written we can check, or if we have read a previous write
+	  size_t *uucheck , *poscheck;
 	  if (pp->action == 'W') {
-	    
-	    //	    fprintf(stderr,"[%d] pos %zd verify %d\n", pp->q, pp->pos, pp->verify);
-	    // if we know we have written we can check, or if we have read a previous write
-	    size_t *uucheck , *poscheck;
-	    if (pp->action == 'W') {
-	      poscheck = (size_t*)data[pp->q];
-	      uucheck = (size_t*)data[pp->q] + 1;
+	    poscheck = (size_t*)data[pp->q];
+	    uucheck = (size_t*)data[pp->q] + 1;
 	    } else {
-	      poscheck = (size_t*)readdata[pp->q];
-	      uucheck = (size_t*)readdata[pp->q] + 1;
-	    }
-	    
+	    poscheck = (size_t*)readdata[pp->q];
+	    uucheck = (size_t*)readdata[pp->q] + 1;
+	  }
+	  
+	  if ((pp->action == 'W') || (pp->verify)) {
+	    //	    if (pp->verify) fprintf(stderr,"checking..\n");
 	    if ((p->UUID != *uucheck) || (pp->pos != *poscheck)) {
 	      fprintf(stderr,"position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
-	      //abort();
+	      abort();
 	    }
-	  } // 'w'
+	  }
 	} // else if no error
 	pp->finishTime = timedouble();
 	pp->success = 1; // the action has completed

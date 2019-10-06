@@ -40,6 +40,7 @@ typedef struct {
   size_t bytesRead;
   size_t iocount;
   double elapsed;
+  size_t o_direct;
 } threadInfoType;
 
 // sorting function, used by qsort
@@ -153,7 +154,10 @@ static void *runThread(void *arg) {
       if (fd != 0) {
 	close(fd);
       }
-      fd = open(threadContext->job->devices[threadContext->pc->positions[i].deviceid], O_RDONLY | O_DIRECT);
+      if ((i==0) && (threadContext->o_direct == 0)) {
+	fprintf(stderr,"*info* turning off O_DIRECT for verification\n");
+      }
+      fd = open(threadContext->job->devices[threadContext->pc->positions[i].deviceid], O_RDONLY | threadContext->o_direct);
       //      if (threadContext->id == 0)
       //	fprintf(stderr,"*info* opening file %s in O_RDONLY | O_DIRECT\n", threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
       if (fd < 0) {
@@ -215,7 +219,7 @@ static void *runThread(void *arg) {
  * Input is sorted
  *
  */
-int verifyPositions(positionContainer *pc, const size_t threads, jobType *job) {
+int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct) {
 
   positionContainerInfo(pc);
   //positionContainerRandomize(pc);
@@ -244,6 +248,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job) {
     threadContext[i].bytesRead = 0;
     threadContext[i].iocount = 0;
     threadContext[i].elapsed = 0;
+    threadContext[i].o_direct = o_direct;
 
     //        fprintf(stderr,"*info* starting thread[%zd] in range [%zd, %zd)\n", i, threadContext[i].startInc, threadContext[i].endExc);
     

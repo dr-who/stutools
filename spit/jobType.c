@@ -152,6 +152,7 @@ typedef struct {
   char *mysqloptions2;
   char *commandstring;
   char *filePrefix;
+  size_t o_direct;
 } threadInfoType;
 
 
@@ -166,6 +167,7 @@ static void *runThread(void *arg) {
   if (strchr(threadContext->jobstring, 'D')) {
     fprintf(stderr,"*info* thread[%zd] turning off O_DIRECT\n", threadContext->id);
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
+    threadContext->o_direct = direct;
   }
 
   // check block sizes
@@ -1330,7 +1332,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     
     if (verify) {
       positionContainerCheckOverlap(&mergedpc);
-      int errors = verifyPositions(&mergedpc, 256, job); 
+      int errors = verifyPositions(&mergedpc, 256, job, threadContext->o_direct); 
       if (errors) {
 	exit(1);
       }
