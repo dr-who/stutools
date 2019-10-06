@@ -161,6 +161,7 @@ static void *runThread(void *arg) {
       //      if (threadContext->id == 0)
       //	fprintf(stderr,"*info* opening file %s in O_RDONLY | O_DIRECT\n", threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
       if (fd < 0) {
+	fprintf(stderr,"*info* if the file system doesn't support O_DIRECT you may need the -D option\n");
 	perror(threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
 	exit(-1);
       }
