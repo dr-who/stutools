@@ -167,8 +167,8 @@ static void *runThread(void *arg) {
   if (strchr(threadContext->jobstring, 'D')) {
     fprintf(stderr,"*info* thread[%zd] turning off O_DIRECT\n", threadContext->id);
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
-    threadContext->o_direct = direct;
   }
+  threadContext->o_direct = direct;
 
   // check block sizes
   {
@@ -1332,7 +1332,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     
     if (verify) {
       positionContainerCheckOverlap(&mergedpc);
-      int errors = verifyPositions(&mergedpc, 256, job, threadContext->o_direct); 
+      size_t direct = O_DIRECT;
+      for (size_t i = 0; i < num; i++) { // check all threads, if any aren't direct
+	if (threadContext[i].o_direct == 0) {
+	  direct = 0;
+	}
+      }
+      int errors = verifyPositions(&mergedpc, 256, job, direct); 
       if (errors) {
 	exit(1);
       }
