@@ -223,7 +223,11 @@ static void *runThread(void *arg) {
 int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct) {
 
   positionContainerInfo(pc);
-  //positionContainerRandomize(pc);
+
+  if (o_direct == 0) {
+    dropCaches();
+  }
+
   keepRunning = 1;
 
   size_t num = pc->sz;
