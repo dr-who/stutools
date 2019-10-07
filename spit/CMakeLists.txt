@@ -39,6 +39,7 @@ add_test(testspitmprefixj2rangewm spit -f /mnt/nsulate/wow -G 5 -c wms0k4-256 -v
 add_test(testspit_ws0j4 spit -f /mnt/nsulate/wow -G 1 -c ws0P1000 -j4  -v -t 5)
 add_test(testspit_ws0j4to32 spit -f /mnt/nsulate/wow -G 1 -c ws0k4-32P1000 -j4  -v -t 5)
 add_test(testspitw  spit -f /mnt/nsulate/wow -G 1 -c w -v -t 5)
+add_test(testspitwDs0  spit -f /mnt/nsulate/wow -G 1 -c wDs0 -v -t 5)
 add_test(testspit_precon spit -f /mnt/nsulate/wow -G 1 -pG -c ws0NnG_ -j4 -v -t 5)
 add_test(testspitw  spit -f /mnt/nsulate/wow -G 0.5-1 -c w -v -t 5)
 add_test(testspitwB  spit -f /mnt/nsulate/wow -G 0.5-1 -c w -v -t 5 -B /tmp/$$)
