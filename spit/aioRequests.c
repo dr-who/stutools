@@ -353,7 +353,10 @@ size_t aioMultiplePositions( positionContainer *p,
 	  if ((pp->action == 'W') || (pp->verify)) {
 	    //	    if (pp->verify) fprintf(stderr,"checking..\n");
 	    if ((p->UUID != *uucheck) || (pp->pos != *poscheck)) {
-	      fprintf(stderr,"position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
+	      fprintf(stderr,"*error* position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
+	      fprintf(stderr,"*error* combinations of meta-data 'm', multiple threads 'j' and without G_ will fail\n");
+	      fprintf(stderr,"*error* ... as the different threads will clobber data from other threads in real time\n");
+	      fprintf(stderr,"*error* Potentially write to -P positions.txt and check after data is written\n");
 	      abort();
 	    }
 	  }
