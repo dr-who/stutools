@@ -11,12 +11,12 @@ typedef struct {
   size_t pos;                    // 8
   double submitTime, finishTime; // 16
   unsigned int len;              // 4;
+  unsigned int verify;                // pointer to the value to verify
   unsigned short deviceid;           // 2
   unsigned short seed;           // 2
   unsigned short q;              // 2
   char  action;                  // 1: 'R' or 'W'
   unsigned int  success:2;               // 0.5
-  unsigned int  verify:2;                // 0.5
   unsigned int inFlight:2;
 } positionType;
 
@@ -105,6 +105,7 @@ void positionPrintMinMax(positionType *positions, const size_t count, const size
 
 void positionContainerDump(positionContainer *pc, const size_t countToShow);
 void positionContainerCheckOverlap(const positionContainer *merged);
+void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed);
 
 #endif
 

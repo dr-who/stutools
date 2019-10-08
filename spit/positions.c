@@ -739,7 +739,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow) {
   const positionType *positions = pc->positions;
   for (size_t i = 0; i < pc->sz; i++) {
     if (i >= countToShow) break;
-    fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %6d\tdevice %d\tverify %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify);
+    fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %6d\tdevice %d\tverify %d\tseed %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed);
   }
 }
 
@@ -781,12 +781,50 @@ void positionContainerAddMetadataChecks(positionContainer *pc) {
     exit(-1);
   }
 
+  //  unsigned short seed = 0;
+  //  if (origsz>0) seed = pc->positions[0].seed;
+  
+  //  for (size_t i = 0; i < origsz; i++) {
+  //    pc->positions[i].seed = seed++;
+  //  }
+
   for (size_t i = origsz; i < origsz * 2; i++) {
     pc->positions[i] = pc->positions[i - origsz];
     if (pc->positions[i].action == 'W') {
       pc->positions[i].action = 'R';
-      pc->positions[i].verify = 1;
+      pc->positions[i].verify = i - origsz;
     }
+  }
+
+  pc->sz = origsz * 2;
+}
+
+
+
+void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed) {
+  size_t origsz = pc->sz;
+
+  // originals
+  positionType *origs = malloc(origsz * sizeof(positionType));
+  if (!origs) {fprintf(stderr,"*error* can't alloc array for uniqueSeeds\n"); exit(-1);}
+  memcpy(origs, pc->positions, origsz * sizeof(positionType));
+  
+  // double the size
+  pc->positions = realloc(pc->positions, (origsz * 2) * sizeof(positionType));
+  if (!pc->positions) {fprintf(stderr,"*error* can't realloc array to %zd\n", (origsz * 2) * sizeof(positionType));exit(-1); }
+
+  size_t j = 0;
+  for (size_t i = 0; i < origsz; i++) {
+    origs[i].seed = seed++;
+    pc->positions[j] = origs[i];
+    
+    j++;
+    pc->positions[j] = origs[i];
+    if (pc->positions[j].action == 'W') {
+      pc->positions[j].action = 'R';
+      pc->positions[j].verify = j-1;
+    }
+    j++;
   }
 
   pc->sz = origsz * 2;

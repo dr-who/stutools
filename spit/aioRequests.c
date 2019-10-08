@@ -47,8 +47,8 @@ size_t aioMultiplePositions( positionContainer *p,
 			     const int tableMode, 
 			     logSpeedType *alll,
 			     logSpeedType *benchl,
-			     const char *randomBuffer,
-			     const size_t randomBufferSize,
+			     //const char *randomBuffer,
+			     //			     const size_t randomBufferSize,
 			     size_t alignment,
 			     size_t *ios,
 			     size_t *totalRB,
@@ -95,25 +95,36 @@ size_t aioMultiplePositions( positionContainer *p,
       fprintf(stderr,"*info* io_context[%zd] = %p\n", i, (void*)ioc);
     }
   }
+
+  size_t maxSize = 0;
+  for (size_t i = 0; i < sz; i++) {
+    if (positions[i].len > maxSize) {
+      maxSize = positions[i].len;
+    }
+  }
+  assert(maxSize > 0);
   
   /* setup I/O control block, randomised just for this run. So we can check verification afterwards */
   char **data = NULL;
   CALLOC(data, QD, sizeof(char*));
 
+  unsigned short *dataseed = NULL;
+  CALLOC(dataseed, QD, sizeof(unsigned short));
+
   // setup the buffers to be contiguous
-  if (randomBufferSize * QD >= totalRAM()) {
-    fprintf(stderr,"*info* can't allocate (block size %zd x QD %zd) bytes\n", randomBufferSize, QD);
+  if (maxSize * QD >= totalRAM()) {
+    fprintf(stderr,"*info* can't allocate (block size %zd x QD %zd) bytes\n", maxSize, QD);
     exit(-1);
   }
   //  if (verbose) fprintf(stderr,"*info* allocating %zd bytes\n", randomBufferSize * QD);
-  CALLOC(data[0], randomBufferSize * QD, 1);
+  CALLOC(data[0], maxSize * QD, 1);
 
   char **readdata = NULL;
   CALLOC(readdata, QD, sizeof(char*));
 
   // setup the buffers to be contiguous
   //  if (verbose) fprintf(stderr,"*info* allocating %zd bytes\n", randomBufferSize * QD);
-  CALLOC(readdata[0], randomBufferSize * QD, 1);
+  CALLOC(readdata[0], maxSize * QD, 1);
 
   unsigned short *freeQueue; // qd collisions
   size_t headOfQueue = 0, tailOfQueue = 0;
@@ -129,18 +140,22 @@ size_t aioMultiplePositions( positionContainer *p,
   // take a slot, free a slot
   // free list
   // qd[..255] in flight
-  
+
+  // setup pointers
   for (size_t i = 0; i <QD; i++) {
-    data[i] = data[0] + (randomBufferSize * i);
-    readdata[i] = readdata[0] + (randomBufferSize * i);
+    data[i] = data[0] + (maxSize * i);
+    readdata[i] = readdata[0] + (maxSize * i);
   }
 
   // copy the randomBuffer to each data[]
+  // sz is already > 0
+  assert(sz);
+  unsigned short firstseed = positions[0].seed;
+
+  // set the first values of all the write data
   for (size_t i = 0; i < QD; i++) {
-    if (verbose >= 2) {
-      fprintf(stderr,"randomBuffer[%zd]: %p\n", i, (void*)data[i]);
-    }
-    strncpy(data[i], randomBuffer, randomBufferSize);
+    generateRandomBuffer(data[i], maxSize, firstseed);
+    dataseed[i] = firstseed;
   }
 
   size_t inFlight = 0, pos = 0;
@@ -203,6 +218,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	    
 	    if (positions[pos].action=='R') {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);}
+	      //	      generateRandomBuffer(data[qdIndex], positions[pos].len, positions[pos].seed);
 
 	      io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 	      cbs[qdIndex]->data = &positions[pos];
@@ -213,6 +229,11 @@ size_t aioMultiplePositions( positionContainer *p,
 	      cbs[qdIndex]->data = &positions[pos];
 	    } else if (positions[pos].action == 'W') {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);}
+
+	      if (positions[pos].seed != dataseed[qdIndex]) {
+		generateRandomBuffer(data[qdIndex], positions[pos].len, positions[pos].seed);
+		dataseed[qdIndex] = positions[pos].seed;
+	      }
 
 	      size_t *posdest = (size_t*)data[qdIndex];
 	      *posdest = newpos;
@@ -352,8 +373,8 @@ size_t aioMultiplePositions( positionContainer *p,
 	  
 	  if ((pp->action == 'W') || (pp->verify)) {
 	    //	    if (pp->verify) fprintf(stderr,"checking..\n");
-	    if ((p->UUID != *uucheck) || (pp->pos != *poscheck)) {
-	      fprintf(stderr,"*error* position (success %d) %zd ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pp->success, pp->pos, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
+	    if (((p->UUID != *uucheck) || (pp->pos != *poscheck)) && (positions[pp->verify].finishTime)) {
+	      fprintf(stderr,"*error* position[%zd] '%c' R=%d (success %d) ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pos, pp->action, pp->seed, pp->success, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
 	      fprintf(stderr,"*error* combinations of meta-data 'm', multiple threads 'j' and without G_ will fail\n");
 	      fprintf(stderr,"*error* ... as the different threads will clobber data from other threads in real time\n");
 	      fprintf(stderr,"*error* Potentially write to -P positions.txt and check after data is written\n");

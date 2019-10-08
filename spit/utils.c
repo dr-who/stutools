@@ -311,7 +311,7 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
   
   char s[1000];
   memset(s, 0, 1000);
-  const size_t topr = sprintf(s, "________________stutools - %s - %u\n", "spit", seed);
+  const size_t topr = sprintf(s, "________________stutools - %s - %06d\n", "spit", seedin);
   strncpy(buffer, s, topr);
     
   for (size_t j = cyclic; j < size; j++) {

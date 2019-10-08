@@ -266,7 +266,7 @@ static void *runThread(void *arg) {
   size_t totalB = 0;
   while (keepRunning) {
     // 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, threadContext->randomBuffer, threadContext->highBlockSize, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
 
     // check exit constraints
     if (byteLimit) {
@@ -1016,6 +1016,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
+    size_t uniqueSeeds = 0;
+    {
+      // metaData mode is random, verify all writes and flushing
+      char *iR = strchr(job->strings[i], 'u');
+      if (iR) {
+	metaData = 1;
+	threadContext[i].flushEvery = 1;
+	uniqueSeeds = 1;
+      }
+    }
+
+
     {
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
@@ -1169,8 +1181,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       threadContext[i].anywrites = anywrites;
       calcLBA(&threadContext[i].pos); // calc LBA coverage
 
-      
-      if (metaData) {
+
+      if (uniqueSeeds) {
+	positionContainerUniqueSeeds(&threadContext[i].pos, threadContext[i].seed);
+      } else if (metaData) {
 	positionContainerAddMetadataChecks(&threadContext[i].pos);
       }
 
