@@ -1016,17 +1016,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
-    size_t uniqueSeeds = 0;
-    {
-      // metaData mode is random, verify all writes and flushing
-      char *iR = strchr(job->strings[i], 'u');
-      if (iR) {
-	metaData = 1;
-	threadContext[i].flushEvery = 1;
-	uniqueSeeds = 1;
-      }
-    }
-
 
     {
       char *sf = strchr(job->strings[i], 's');
@@ -1107,6 +1096,19 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	}
       }
     }
+
+    size_t uniqueSeeds = 0;
+    {
+      // metaData mode is random, verify all writes and flushing, sets QD to 1
+      char *iR = strchr(job->strings[i], 'u');
+      if (iR) {
+	metaData = 1;
+	threadContext[i].flushEvery = 1;
+	uniqueSeeds = 1;
+	qDepth = 1;
+      }
+    }
+
 
     threadContext[i].queueDepth = qDepth;
 
