@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 1.5.5
-.\"      Date: 2019-08-10
+.\"      Date: 2019-10-09
 .\"    Manual: spit manual
 .\"    Source: spit 1.1
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2019-08-10" "spit 1.1" "spit manual"
+.TH "SPIT" "1" "2019-10-09" "spit 1.1" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -47,6 +47,11 @@ The filesystem filename prefix for parallel jobs. (e.g. \-F testprefix \-j 32)
 Limit the positions to a maximum of \fBsize\fP GiB (e.g. \-G 32)
 .RE
 .sp
+\fBi size\fP
+.RS 4
+Ignore the first \fBsize\fP GiB of output for benchmarking/timing.
+.RE
+.sp
 \fBI filename\fP
 .RS 4
 Specific a file that contains a list of device names (e.g. \-f devices.txt)
@@ -55,6 +60,11 @@ Specific a file that contains a list of device names (e.g. \-f devices.txt)
 \fBB filename\fP
 .RS 4
 The benchmarking file that has the per second read/write speed and IOPs
+.RE
+.sp
+\fBP filename\fP
+.RS 4
+All positions with their size and timing and read/write actions are output. This file can be used by \fBspitchecker\fP to verify the positions between run.s
 .RE
 .sp
 \fBj N\fP
@@ -98,7 +108,7 @@ Save positions to the file \f[CR]spit\-positions.txt\fP
 .sp
 \fBv\fP
 .RS 4
-Verify writes by reading and checking.
+Verify writes by reading and checking. The positions can also be written using the global \fBP filename\fP command, then verified with \fBspitchecker\fP
 .RE
 .SH "COMMAND OPTIONS"
 .sp
@@ -120,7 +130,7 @@ Performs writes
 .sp
 \fBm\fP
 .RS 4
-Mix writing and reading from previous writes
+Double the number of test positions, and add a read operation to the position of any previous write operation. Since the number of positions is usually much more than the QD there is no in\-flight issue. \fBm\fP can be combined with reading/writing or anymix. (e.g. ws0m)
 .RE
 .sp
 \fBpN\fP
@@ -135,7 +145,7 @@ Limit the position range to \fBlow\fP to \fBhigh\fP GiB. (e.g. G2\-3).
 .sp
 \fBG_\fP
 .RS 4
-The range can be specified with the syntax \fBG_\fP which will split the G ranges evenly between all threads.
+The range can be specified with the syntax \fBG_\fP which will split the G ranges evenly between all threads (no thread contention).
 .RE
 .sp
 \fBkN\fP or \fBklowBS\-highBS\fP
@@ -186,6 +196,12 @@ continuous length in KiB. e.g. s32\-1024 makes 32 contiguous regions with a
 maximum size of 1024 KiB (1 MiB).
 .RE
 .sp
+\fBu\fP
+.RS 4
+Generate pairs of writes followed by reads with unique seeds. Combined with
+multiple threads and G_ (LBA thread separation) and QD=1, this enables POSIX w/r testing.
+.RE
+.sp
 \fBz\fP
 .RS 4
 Start sequential positions from block 0
@@ -194,6 +210,11 @@ Start sequential positions from block 0
 \fBZn\fP
 .RS 4
 Start sequential positions from block \fBn\fP
+.RE
+.sp
+\fBD\fP
+.RS 4
+Turn off O_DIRECT device access mode. e.g. required for ZFS and similar file systems.
 .RE
 .SS "Scale/position commands"
 .sp

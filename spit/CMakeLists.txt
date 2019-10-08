@@ -34,7 +34,7 @@ target_link_libraries(testDiskStats spitlib m)
 
 #add_test(tds testDiskStats)
 add_test(testspitHelp  spit)
-add_test(testspitmprefixj2rangewmu spit -f wow -G 5 -c wus0k4-256G_ -v -t 30 -j16)
+add_test(testspitmprefixj2rangewmu spit -f wow -G 5 -c wus0k4-256G_q1 -v -t 30 -j16)
 add_test(testspitmprefixj2rangem spit -f wow -G 5 -c ms0k4-256 -v -t 30 -j128)
 add_test(testspitmprefixj2rangewm spit -f wow -G 5 -c wms0k4-256 -v -t 30 -j128)
 add_test(testspit_ws0j4 spit -f wow -G 1 -c ws0P1000 -j4  -v -t 5)

@@ -33,12 +33,18 @@ string on a dedicated thread with an AIO context per thread.
  *G size*::
    Limit the positions to a maximum of *size* GiB (e.g. -G 32)
 
+ *i size*::
+   Ignore the first *size* GiB of output for benchmarking/timing.
+
  *I filename*::
    Specific a file that contains a list of device names (e.g. -f devices.txt)
 
  *B filename*::
    The benchmarking file that has the per second read/write speed and IOPs
 
+ *P filename*::
+   All positions with their size and timing and read/write actions are output. This file can be used by *spitchecker* to verify the positions between run.s
+   
  *j N*::
    Multiply the number of commands (*-c*) by N. (e.g. -j 8)
 
@@ -65,7 +71,7 @@ string on a dedicated thread with an AIO context per thread.
    Save positions to the file `spit-positions.txt`
 
  *v*::
-   Verify writes by reading and checking.
+   Verify writes by reading and checking. The positions can also be written using the global *P filename* command, then verified with *spitchecker*
 
 == COMMAND OPTIONS
 
@@ -82,7 +88,7 @@ The command options are described below:
    Performs writes
 
  *m*::
-   Mix writing and reading from previous writes
+   Double the number of test positions, and add a read operation to the position of any previous write operation. Since the number of positions is usually much more than the QD there is no in-flight issue. *m* can be combined with reading/writing or anymix. (e.g. ws0m)
 
  *pN*::
    Set the read/write ratio to *N*. (e.g. p0 is write only, p1 is read only, p0.75 is 75% reads)
@@ -91,7 +97,7 @@ The command options are described below:
    Limit the position range to *low* to *high* GiB. (e.g. G2-3).
 
  *G_*::
-   The range can be specified with the syntax *G_* which will split the G ranges evenly between all threads.
+   The range can be specified with the syntax *G_* which will split the G ranges evenly between all threads (no thread contention). 
  
  *kN* or *klowBS-highBS*::
    Block size or _lowblocksize_ to _highblocksize_ range. (e.g. k4-128)
@@ -123,11 +129,18 @@ The command options are described below:
    continuous length in KiB. e.g. s32-1024 makes 32 contiguous regions with a
    maximum size of 1024 KiB (1 MiB).
 
+ *u*::
+   Generate pairs of writes followed by reads with unique seeds. Combined with
+   multiple threads and G_ (LBA thread separation) and QD=1, this enables POSIX w/r testing.
+
  *z*::
    Start sequential positions from block 0
 
  *Zn*::
    Start sequential positions from block *n*
+
+ *D*::
+   Turn off O_DIRECT device access mode. e.g. required for ZFS and similar file systems.
 
 === Scale/position commands
 

@@ -327,6 +327,8 @@ void usage() {
   fprintf(stderr,"  spit -c wG_j4                 # The _ represents to divide the G value evenly between threads\n");
   fprintf(stderr,"  spit -B bench -M ... -N ...   # See the man page for benchmarking tips\n");
   fprintf(stderr,"  spit -F fileprefix -j128      # creates files from .0001 to .0128\n");
+  fprintf(stderr,"  spit ... -c ws0uq1 -v         # Generates r/w pairs with unique seeds, tests with QD=1\n");
+  fprintf(stderr,"  spit ... -c ws0uG_q1 -v -j32  # Generates r/w pairs with unique seeds, as above, unique thread ranges");
   exit(0);
 }
 
