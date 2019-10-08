@@ -155,6 +155,7 @@ size_t aioMultiplePositions( positionContainer *p,
   // set the first values of all the write data
   for (size_t i = 0; i < QD; i++) {
     generateRandomBuffer(data[i], maxSize, firstseed);
+    generateRandomBuffer(readdata[i], maxSize, firstseed);
     dataseed[i] = firstseed;
   }
 
@@ -218,7 +219,12 @@ size_t aioMultiplePositions( positionContainer *p,
 	    
 	    if (positions[pos].action=='R') {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);}
-	      //	      generateRandomBuffer(data[qdIndex], positions[pos].len, positions[pos].seed);
+
+	      /*
+	      if (positions[pos].seed != dataseed[qdIndex]) {
+		generateRandomBuffer(readdata[qdIndex], positions[pos].len, positions[pos].seed);
+		dataseed[qdIndex] = positions[pos].seed;
+		}*/
 
 	      io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 	      cbs[qdIndex]->data = &positions[pos];
@@ -241,6 +247,12 @@ size_t aioMultiplePositions( positionContainer *p,
 	      size_t *uuiddest = (size_t*)data[qdIndex] + 1;
 	      *uuiddest = p->UUID;
 
+	      if (positions[pos].verify) {
+		if (positions[positions[pos].verify].finishTime == 0) {
+		  positions[pos].verify = 0;
+		}
+	      }
+
 	      io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
 	      cbs[qdIndex]->data = &positions[pos];
 
@@ -248,6 +260,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	    }
 	    
 	    positions[pos].submitTime = thistime;
+	    positions[pos].finishTime = 0;
 	      
 	    ret = io_submit(ioc, 1, &cbs[qdIndex]);
 	      
@@ -361,22 +374,22 @@ size_t aioMultiplePositions( positionContainer *p,
 	    wlen += pp->len;
 	  }
 
-	  // if we know we have written we can check, or if we have read a previous write
-	  size_t *uucheck , *poscheck;
-	  if (pp->action == 'W') {
-	    poscheck = (size_t*)data[pp->q];
-	    uucheck = (size_t*)data[pp->q] + 1;
-	    } else {
+
+	  if (pp->verify && (pp->action == 'R')) {
+	    //	    if (pp->seed != dataseed[pp->q]) {
+	    //	    //n	      generateRandomBuffer(readdata[pp->q], pp->len, pp->seed);
+	    //	      dataseed[pp->q] = pp->seed;
+	    //	    }
+	    
+	    // if we know we have written we can check, or if we have read a previous write
+	    size_t *uucheck = NULL, *poscheck = NULL;
 	    poscheck = (size_t*)readdata[pp->q];
 	    uucheck = (size_t*)readdata[pp->q] + 1;
-	  }
 	  
-	  if ((pp->action == 'W') || (pp->verify)) {
-	    //	    if (pp->verify) fprintf(stderr,"checking..\n");
 	    if (((p->UUID != *uucheck) || (pp->pos != *poscheck)) && (positions[pp->verify].finishTime)) {
 	      fprintf(stderr,"*error* position[%zd] '%c' R=%d (success %d) ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pos, pp->action, pp->seed, pp->success, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
-	      fprintf(stderr,"*error* combinations of meta-data 'm', multiple threads 'j' and without G_ will fail\n");
-	      fprintf(stderr,"*error* ... as the different threads will clobber data from other threads in real time\n");
+	      fprintf(stderr,"*error* Maybe: combinations of meta-data 'm', multiple threads 'j' and without G_ may fail\n");
+	      fprintf(stderr,"*error* as the different threads will clobber data from other threads in real time\n");
 	      fprintf(stderr,"*error* Potentially write to -P positions.txt and check after data is written\n");
 	      abort();
 	    }

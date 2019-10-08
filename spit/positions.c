@@ -816,6 +816,7 @@ void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed) {
   size_t j = 0;
   for (size_t i = 0; i < origsz; i++) {
     origs[i].seed = seed++;
+    if (seed == 0) seed=1;
     pc->positions[j] = origs[i];
     
     j++;
@@ -823,9 +824,11 @@ void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed) {
     if (pc->positions[j].action == 'W') {
       pc->positions[j].action = 'R';
       pc->positions[j].verify = j-1;
+      assert(pc->positions[j].verify == j-1);
     }
     j++;
   }
+  free(origs);
 
   pc->sz = origsz * 2;
 }
