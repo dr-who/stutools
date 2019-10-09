@@ -11,6 +11,7 @@
 #include "devices.h"
 #include "utils.h"
 #include "positions.h"
+#include "lengths.h"
 
 extern int verbose;
 extern int keepRunning;
@@ -394,30 +395,32 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					const int sf,
 					const size_t sf_maxsizebytes,
 					const double readorwrite,
-					const size_t lowbs,
-					const size_t bs,
+					const lengthsType *len,
+					//const size_t lowbs,
+					//					const size_t bs,
 					size_t alignment,
 					const long startingBlock,
 					const size_t minbdSize,
 					const size_t maxbdSize,
-					unsigned short seed,
+					unsigned short seedin,
 					const size_t mod,
 					const size_t remain
 					) {
 
   positionType *positions = pc->positions;
-  pc->minbs = lowbs;
-  pc->maxbs = bs;
+  pc->minbs = lengthsMin(len);
+  pc->maxbs = lengthsMax(len);
   pc->maxbdSize = maxbdSize;
   
-  assert(lowbs <= bs);
-  srand48(seed); // set the seed, thats why it was passed
+  assert(pc->minbs <= pc->maxbs);
+  unsigned int seed = seedin; // set the seed, thats why it was passed
+  //  srand48(seed); 
 
   size_t anywrites = 0, randomSubSample = 0;
   
-  if (((pc->sz) * ((lowbs + bs)/2)) < (maxbdSize - minbdSize) * 0.95) {
+  if (((pc->sz) * ((pc->minbs + pc->maxbs)/2)) < (maxbdSize - minbdSize) * 0.95) {
     // if we can't get good coverage
-    if ((sf == 0) && (lowbs == bs) && (lowbs == alignment)) {
+    if ((sf == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) {
       fprintf(stderr,"*info* using randomSubSample (with replacement) mode\n");
       randomSubSample = 1;
     }
@@ -435,6 +438,10 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     if (startingBlock != -99999) {
       fprintf(stderr,"*info* startingBlock is %ld\n", startingBlock);
     }
+  }
+
+  if (verbose >= 2) {
+    lengthsDump(len);
   }
 
   //  fprintf(stderr,"alloc %zd = %zd\n", *num, *num * sizeof(positionType));
@@ -498,9 +505,10 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
       assert(j >= positionsStart[i]);
 
-      size_t thislen = lowbs;
-      if (lowbs != bs) {
-	thislen = randomBlockSize(lowbs, bs, alignbits, lrand48());
+      size_t thislen = pc->minbs;
+      if (pc->minbs != pc->maxbs) {
+	thislen = lengthsGet(len, &seed);
+	//	thislen = randomBlockSize(lowbs, bs, alignbits, lrand48());
       }
       assert(thislen >= 0);
       
@@ -556,7 +564,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	poss[count].q = 0;
 
 	// only store depending on the module start
-	if ((positionsCurrent[i] / lowbs) % mod == remain) count++;
+	if ((positionsCurrent[i] / pc->minbs) % mod == remain) count++;
 
 	positionsCurrent[i] += thislen;
 	
@@ -579,7 +587,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   int offset = 0;
   if (count) {
     if (startingBlock == -99999) {
-      offset = (lrand48() % count);
+      offset = rand_r(&seed) % count;
     } else {
       offset = startingBlock % count;
     }
@@ -739,7 +747,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow) {
   const positionType *positions = pc->positions;
   for (size_t i = 0; i < pc->sz; i++) {
     if (i >= countToShow) break;
-    fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %6d\tdevice %d\tverify %d\tseed %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed);
+    fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7d\tdevice %d\tverify %d\tseed %6d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed);
   }
 }
 
@@ -860,54 +868,6 @@ void positionLatencyStats(positionContainer *pc, const int threadid) {
   fflush(stderr);
 }
   
-size_t setupRandomPositions(positionType *pos,
-			  const size_t num,
-			  const double rw,
-			  const size_t bs,
-			  const size_t highbs,
-			  const size_t alignment,
-			  const size_t bdSize,
-			  const size_t seedin) {
-  unsigned int seed = seedin;
-  const int alignbits = (int)(log(alignment)/log(2) + 0.01);
-  const int bdSizeBits = (bdSize-highbs) >> alignbits;
-  size_t anywrites = 0;
-
-  for (size_t i = 0; i < num; i++) {
-    long low = rand_r(&seed);
-    long randVal = rand_r(&seed);
-    randVal = (randVal << 31) | low;
-
-    size_t thislen = randomBlockSize(bs, highbs, alignbits, randVal);
-
-    low = rand_r(&seed);
-    randVal = rand_r(&seed);
-    randVal = (randVal << 31) | low;
-
-    size_t randPos = (randVal % bdSizeBits) << alignbits;
-
-    assert (randPos + thislen <= bdSize);
-    pos[i].pos = randPos;
-    pos[i].submitTime = 0;
-    pos[i].finishTime= 0;
-    pos[i].len = thislen;
-    pos[i].seed = seedin;
-    pos[i].q = 0;
-
-    if (rand_r(&seed) % 100 < 100*rw) {
-      pos[i].action = 'R';
-    } else {
-      pos[i].action = 'W';
-      anywrites = 1;
-    }
-    pos[i].success = 0;
-    pos[i].verify = 0;
-    //    fprintf(stderr,"%zd\t%zd\t%c\n",randPos, thislen, pos[i].action);
-  }
-  return anywrites;
-}
-
-
 
 jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
 

@@ -273,7 +273,8 @@ void usage() {
   fprintf(stderr,"  spit -f device -c ws128       # 128 parallel (s)equential writes\n");
   fprintf(stderr,"  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions\n");
   fprintf(stderr,"  spit -f device -c k8          # set block size to 8 KiB\n");
-  fprintf(stderr,"  spit -f device -c k4-128      # set block range to 4 to 128 KiB\n");
+  fprintf(stderr,"  spit -f device -c k4-128      # set block range to 4 to 128 KiB, every 4 KiB\n");
+  fprintf(stderr,"  spit -f device -c k4:1024     # set block range to 4 to 1024 KiB, in powers of 2\n");
   fprintf(stderr,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
   fprintf(stderr,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stderr,"  spit -f device -c r -G 1      # 1 GiB device size\n");

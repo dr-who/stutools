@@ -153,6 +153,7 @@ typedef struct {
   char *commandstring;
   char *filePrefix;
   size_t o_direct;
+  lengthsType len;
 } threadInfoType;
 
 
@@ -720,6 +721,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     size_t seqFilesMaxSizeBytes = 0;
     int bs = 4096, highbs = 4096;
 
+    lengthsInit(&threadContext[i].len);
+    
     if (verbose) {
       fprintf(stderr,"*info* setting up thread %zd\n", i);
     }
@@ -730,12 +733,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       bs = 1024 * strtod(charBS+1, &endp);
       if (bs < 512) bs = 512;
       highbs = bs;
-      if (*endp == '-') {
+      if (*endp == '-' || *endp == ':') {
 	int nextv = atoi(endp+1);
 	if (nextv > 0) {
 	  highbs = 1024 * nextv;
 	}
       }
+      if (*endp == '-') 
+	lengthsSetupLowHighAlignSeq(&threadContext[i].len, bs, highbs, 4096);
+      else
+	lengthsSetupLowHighAlignPower(&threadContext[i].len, bs, highbs, 4096);	
+    } else {
+      lengthsAdd(&threadContext[i].len, bs, 1);
     }
     
     size_t mod = 1;
@@ -1169,7 +1178,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
       threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, job->deviceid[i], threadContext[i].seqFiles, threadContext[i].seqFilesMaxSizeBytes, rw, threadContext[i].blockSize, threadContext[i].highBlockSize, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed, mod, remain);
+      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, job->deviceid[i], threadContext[i].seqFiles, threadContext[i].seqFilesMaxSizeBytes, rw, &threadContext[i].len, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed, mod, remain);
 
       if (verbose >= 2) {
 	positionContainerCheck(&threadContext[i].pos, threadContext[i].minbdSize, threadContext[i].maxbdSize, !metaData);

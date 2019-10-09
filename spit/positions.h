@@ -6,6 +6,7 @@
 #include "devices.h"
 #include "diskStats.h"
 #include "jobType.h"
+#include "lengths.h"
 
 typedef struct {
   size_t pos;                    // 8
@@ -52,9 +53,10 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					const int sf,
 					const size_t sf_maxsizebytes,
 					const double readorwrite,
-					const size_t lowbs,
-					const size_t bs,
-					size_t alignment,
+					const lengthsType *len,
+					//const size_t lowbs,
+					//					const size_t bs,
+					const size_t alignment,
 					const long startingBlock,
 					const size_t minbdSize,
 					const size_t bdSizeTotal,
@@ -78,19 +80,8 @@ void positionLatencyStats(positionContainer *pc, const int threadid);
 void positionContainerRandomize(positionContainer *pc);
 void positionContainerAddMetadataChecks(positionContainer *pc);
 
-size_t setupRandomPositions(positionType *pos,
-			  const size_t num,
-			  const double rw,
-			  const size_t bs,
-			  const size_t highbs,
-			  const size_t alignment,
-			  const size_t bdSize,
-			  const size_t seedin);
-
-//size_t numberOfDuplicates(positionType *pos, size_t const num);
-
 void positionContainerInfo(const positionContainer *pc);
-//void skipPositions(positionType *pos, const size_t num, const size_t skipEvery);
+
 positionContainer positionContainerMerge(positionContainer *p, const size_t numFiles);
 
 void positionContainerCollapse(positionContainer *merged);
