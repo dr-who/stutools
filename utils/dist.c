@@ -129,6 +129,7 @@ void usage(int averagedefault) {
   fprintf(stderr,"Usage:\n  dist [-a window] (in/out from stdin/stdout)\n");
   fprintf(stderr,"\nExamples:\n");
   fprintf(stderr,"  dist        # defaults to %d samples\n", averagedefault);
+  fprintf(stderr,"  dist -n     # no header\n");
   fprintf(stderr,"  dist -a 2   # window set to 2 samples\n");
 }
 
@@ -138,13 +139,17 @@ int main(int argc, char *argv[]) {
   int opt;
   const int averagedefault = 60;
   int average = averagedefault, mean = 0;
+  size_t header = 0;
   
-  while ((opt = getopt(argc, argv, "a:hm")) != -1) {
+  while ((opt = getopt(argc, argv, "a:hmn")) != -1) {
     switch(opt) {
     case 'a':
       average = atoi(optarg);
       if (average < 1) average = 1;
       fprintf(stderr,"*info* average window size set to %d\n", average);
+      break;
+    case 'n':
+      header = 1;
       break;
     case 'h':
       usage(averagedefault);
@@ -164,7 +169,7 @@ int main(int argc, char *argv[]) {
   nlInit(&n, average);
 
   double v = 0;
-  size_t header = 0;
+
   while (scanf("%lf", &v) == 1) {
     //    fprintf(stdout,"*info* in %g\n", v);
     nlAdd(&n, v);

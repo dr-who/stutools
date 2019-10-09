@@ -17,5 +17,7 @@ message(STATUS "Building stutools ${GIT_COMMIT_HASH} (${GIT_COMMIT_DATE})")
 add_subdirectory(iotests)
 add_subdirectory(spit)
 add_subdirectory(utils)
+add_subdirectory(report)
+
 
 
