@@ -440,7 +440,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     }
   }
 
-  if (verbose >= 2) {
+  if (verbose >= 1) {
     lengthsDump(len);
   }
 
