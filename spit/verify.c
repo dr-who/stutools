@@ -38,25 +38,27 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, intHandler);
 
   if (argc <= 1) {
-    fprintf(stderr,"*usage* ./spitchecker [-D] positions*.txt\n");
+    fprintf(stderr,"*usage* ./spitchecker [ -D ] [ -t 256 ] positions*.txt\n");
     exit(1);
   }
 
+  size_t threads = 256;
+
   int opt = 0;
   size_t o_direct = O_DIRECT;
-  while ((opt = getopt(argc, argv, "D")) != -1) {
+  while ((opt = getopt(argc, argv, "Dt:")) != -1) {
     switch (opt) {
     case 'D': o_direct = 0;
+      break;
+    case 't': threads = atoi(optarg);
       break;
     default:
       break;
     }
   }
   
-
-  
   size_t numFiles = argc -optind;
-  fprintf(stderr,"*info* num files %zd\n", numFiles);
+  fprintf(stderr,"*info* number of files %zd, threads set to %zd\n", numFiles, threads);
 
   positionContainer *origpc;
   CALLOC(origpc, numFiles, sizeof(positionContainer));
@@ -82,7 +84,6 @@ int main(int argc, char *argv[]) {
   positionContainerCheckOverlap(&pc);
 
   
-  const size_t threads = 256;
   fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
 
   // verify must be sorted
