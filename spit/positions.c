@@ -23,7 +23,7 @@ static int poscompare(const void *p1, const void *p2)
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
 
-  assert(pos1->submitTime); assert(pos2->submitTime); assert(pos1->finishTime); assert(pos2->finishTime);
+  //  assert(pos1->submitTime); assert(pos2->submitTime); assert(pos1->finishTime); assert(pos2->finishTime);
   if (pos1->deviceid < pos2->deviceid) return -1;
   else if (pos1->deviceid > pos2->deviceid) return 1;
   else { // same deviceid
