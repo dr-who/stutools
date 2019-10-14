@@ -559,7 +559,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	poss[count].finishTime = 0;
 	poss[count].len = thislen;
 	assert(poss[count].len >= 0);
-	poss[count].seed = seed;
+	poss[count].seed = seedin;
 	poss[count].verify = 0;
 	poss[count].q = 0;
 
