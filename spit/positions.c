@@ -166,7 +166,7 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
 
 void positionContainerCheckOverlap(const positionContainer *merged) {
   size_t printed = 0;
-  //  fprintf(stderr,"*info* checkOverlap %zd\n", merged->sz);
+  fprintf(stderr,"*info* checkOverlap %zd\n", merged->sz);
   for (size_t i = 0; i < merged->sz - 1; i++) {
     if ((merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') && (merged->positions[i].deviceid == merged->positions[i+1].deviceid)) {
       int pe = 0;
@@ -809,7 +809,7 @@ void positionContainerAddMetadataChecks(positionContainer *pc) {
 
 
 
-void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed) {
+void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed, const int andVerify) {
   size_t origsz = pc->sz;
 
   // originals
@@ -824,21 +824,22 @@ void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed) {
   size_t j = 0;
   for (size_t i = 0; i < origsz; i++) {
     origs[i].seed = seed++;
-    if (seed == 0) seed=1;
     pc->positions[j] = origs[i];
+    j++;
     
-    j++;
-    pc->positions[j] = origs[i];
-    if (pc->positions[j].action == 'W') {
-      pc->positions[j].action = 'R';
-      pc->positions[j].verify = j-1;
-      assert(pc->positions[j].verify == j-1);
+    if (andVerify) {
+      pc->positions[j] = origs[i];
+      if (pc->positions[j].action == 'W') {
+	pc->positions[j].action = 'R';
+	pc->positions[j].verify = j-1;
+	assert(pc->positions[j].verify == j-1);
+      }
+      j++;
     }
-    j++;
   }
   free(origs);
 
-  pc->sz = origsz * 2;
+  pc->sz = j;
 }
 
 void positionContainerFree(positionContainer *pc) {

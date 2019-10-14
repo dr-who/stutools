@@ -96,7 +96,7 @@ void positionPrintMinMax(positionType *positions, const size_t count, const size
 
 void positionContainerDump(positionContainer *pc, const size_t countToShow);
 void positionContainerCheckOverlap(const positionContainer *merged);
-void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed);
+void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed, const int andVerify);
 
 #endif
 

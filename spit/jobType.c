@@ -1106,7 +1106,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
-    size_t uniqueSeeds = 0;
+    size_t uniqueSeeds = 0, verifyUnique = 0;
     {
       // metaData mode is random, verify all writes and flushing, sets QD to 1
       char *iR = strchr(job->strings[i], 'u');
@@ -1114,7 +1114,20 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	metaData = 1;
 	threadContext[i].flushEvery = 1;
 	uniqueSeeds = 1;
+	//	qDepth = 1;
+      }
+    }
+
+
+    {
+      // metaData mode is random, verify all writes and flushing, sets QD to 1
+      char *iR = strchr(job->strings[i], 'U');
+      if (iR) {
+	metaData = 1;
+	threadContext[i].flushEvery = 1;
+	uniqueSeeds = 1;
 	qDepth = 1;
+	verifyUnique = 1;
       }
     }
 
@@ -1194,7 +1207,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
       if (uniqueSeeds) {
-	positionContainerUniqueSeeds(&threadContext[i].pos, threadContext[i].seed);
+	positionContainerUniqueSeeds(&threadContext[i].pos, threadContext[i].seed, verifyUnique);
       } else if (metaData) {
 	positionContainerAddMetadataChecks(&threadContext[i].pos);
       }
