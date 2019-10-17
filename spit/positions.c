@@ -165,8 +165,23 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
 }
 
 void positionContainerCheckOverlap(const positionContainer *merged) {
+
+  if (verbose) {
+    size_t readcount = 0, writecount = 0, notcompletedcount = 0, conflict = 0;
+    positionType *pp = merged->positions;
+    for (size_t i = 0; i < merged->sz; i++,pp++) {
+      if (pp->finishTime == 0 || pp->submitTime == 0) {
+	notcompletedcount++;
+      } else {
+	if (pp->action == 'W') writecount++;
+	else if (pp->action == 'R') readcount++;
+	else conflict++;
+      }
+    }
+    fprintf(stderr,"*info* checkOverlap: reads %zd, writes %zd, conflicts %zd, not completed %zd\n", readcount, writecount, conflict, notcompletedcount);
+  }
+  
   size_t printed = 0;
-  fprintf(stderr,"*info* checkOverlap %zd\n", merged->sz);
   for (size_t i = 0; i < merged->sz - 1; i++) {
     if ((merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') && (merged->positions[i].deviceid == merged->positions[i+1].deviceid)) {
       int pe = 0;
@@ -271,12 +286,15 @@ void positionContainerCollapse(positionContainer *merged) {
       }
     }
   }
-  size_t actionsr = 0, actionsw = 0;
-  for (size_t i = 0; i < merged->sz; i++) {
-    if (merged->positions[i].action == 'R') actionsr++;
-    if (merged->positions[i].action == 'W') actionsw++;
+  size_t actionsr = 0, actionsw = 0, conflicts = 0;
+  positionType *pp = merged->positions;
+  for (size_t i = 0; i < merged->sz; i++,pp++) {
+    char action = pp->action;
+    if (action == 'R') actionsr++;
+    else if (action == 'W') actionsw++;
+    else conflicts++;
   }
-  fprintf(stderr,"*info* unique actions: reads %zd, writes %zd\n", actionsr, actionsw);
+  fprintf(stderr,"*info* unique actions: reads %zd, writes %zd, conflicts %zd\n", actionsr, actionsw, conflicts);
 }
   
 
@@ -414,7 +432,6 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   
   assert(pc->minbs <= pc->maxbs);
   unsigned int seed = seedin; // set the seed, thats why it was passed
-  //  srand48(seed); 
 
   size_t anywrites = 0, randomSubSample = 0;
   
@@ -508,7 +525,6 @@ size_t positionContainerCreatePositions(positionContainer *pc,
       size_t thislen = pc->minbs;
       if (pc->minbs != pc->maxbs) {
 	thislen = lengthsGet(len, &seed);
-	//	thislen = randomBlockSize(lowbs, bs, alignbits, lrand48());
       }
       assert(thislen >= 0);
       
@@ -601,12 +617,21 @@ size_t positionContainerCreatePositions(positionContainer *pc,
       index -= count;
     }
     positions[i] = poss[index];
-    if (drand48() <= readorwrite)
-      positions[i].action='R';
-    else {
-      positions[i].action='W';
+    char newaction = 'R';
+    if (readorwrite == 1) {
+      newaction = 'R';
+    } else if (readorwrite == 0) {
+      newaction = 'W'; // don't use drand unless you have to
       anywrites = 1;
+    } else {
+      if (drand48() <= readorwrite)
+	newaction = 'R';
+      else {
+	newaction = 'W';
+	anywrites = 1;
+      }
     }
+    positions[i].action = newaction;
     assert(positions[i].len >= 0);
   }
 
@@ -644,12 +669,14 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 void positionContainerRandomize(positionContainer *pc) {
   const size_t count = pc->sz;
   positionType *positions = pc->positions;
+  unsigned int seed = lrand48();
+  
   //fprintf(stderr,"*info* shuffling the array %zd\n", count);
   for (size_t shuffle = 0; shuffle < 1; shuffle++) {
     for (size_t i = 0; i < count; i++) {
       size_t j = i;
       if (count > 1) {
-	while ((j = lrand48() % count) == i) {
+	while ((j = rand_r(&seed) % count) == i) {
 	  ;
 	}
       }
@@ -951,7 +978,7 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
 }
 
 void positionContainerInfo(const positionContainer *pc) {
-  fprintf(stderr,"UUID '%zd', number of positions %zd (%zd/%zd), device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->UUID, pc->sz, pc->minbs, pc->maxbs, pc->maxbdSize, TOGiB(pc->maxbdSize), pc->minbs, pc->maxbs);
+  fprintf(stderr,"UUID '%zd', number of actions %zd (%zd/%zd), device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->UUID, pc->sz, pc->minbs, pc->maxbs, pc->maxbdSize, TOGiB(pc->maxbdSize), pc->minbs, pc->maxbs);
 }
 
 

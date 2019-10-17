@@ -46,6 +46,8 @@ size_t lengthsSize(const lengthsType *l) {
 size_t lengthsGet(const lengthsType *l, unsigned int *seed) {
   if (l->size == 0) {
     return 0;
+  } else if (l->size == 1) {
+    return l->len[0];
   }
   size_t pos = rand_r(seed) % l->sum;
   size_t inc = 0;

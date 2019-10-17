@@ -209,10 +209,13 @@ static void *runThread(void *arg) {
   }
 
   char *suffix = getSuffix(threadContext->jobdevice);
-  char *model = getModel(suffix);
-  if (model && threadContext->id == 0) {
-    fprintf(stderr,"*info* device: '%s'\n", model);
-    free(model);
+
+  if (verbose) {
+    char *model = getModel(suffix);
+    if (model && threadContext->id == 0) {
+      fprintf(stderr,"*info* device: '%s'\n", model);
+      free(model);
+    }
   }
   if (getWriteCache(suffix) > 0) {
     fprintf(stderr,"*****************\n");
@@ -235,7 +238,8 @@ static void *runThread(void *arg) {
   for (size_t i = 0; i < threadContext->pos.sz; i++) {
     sumrange += threadContext->pos.positions[i].len;
   }
-  fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->multipleTimes, threadContext->runXtimesTI);
+  if (verbose >= 1)
+    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->multipleTimes, threadContext->runXtimesTI);
 
 
   // do the mahi
@@ -943,7 +947,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	fprintf(stderr," positions (run %zd times)\n", threadContext[i].runXtimesTI);
       }
     } else {
-      if (i==0) fprintf(stderr,"*info* skipping multiple LBA based limits\n");
+      if (i==0) fprintf(stderr,"*info* skipping time based limits\n");
     }
     size_t sizeLimitCount = (size_t)-1;
     if (limit != (size_t)-1) {

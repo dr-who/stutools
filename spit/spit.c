@@ -360,7 +360,7 @@ int main(int argc, char *argv[]) {
 
   // don't run if swap is on
   if (swapTotal() > 0) {
-    fprintf(stderr,"*error* spit needs swap to be off for believable numbers. `sudo swapoff -a`\n");
+    fprintf(stderr,"*warning* spit needs swap to be off for consistent numbers. `sudo swapoff -a`\n");
   }
 
   // set OOM adjust to 1,000 to make this program be killed first
