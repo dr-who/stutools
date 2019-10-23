@@ -134,6 +134,7 @@ typedef struct {
   size_t runXtimesTI;
   size_t multipleTimes;
   unsigned short seed;
+  size_t speedMB;
   char *randomBuffer;
   size_t numThreads;
   positionContainer **allPC;
@@ -271,7 +272,7 @@ static void *runThread(void *arg) {
   size_t totalB = 0;
   while (keepRunning) {
     // 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery, threadContext->speedMB);
 
     // check exit constraints
     if (byteLimit) {
@@ -1045,6 +1046,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
+
+    
     {
       char *sf = strchr(job->strings[i], '@');
       if (sf) {
@@ -1164,6 +1167,17 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
     threadContext[i].seed = seed;
 
+
+    size_t speedMB = 0;
+    {
+      char *RChar = strchr(job->strings[i], 'S');
+      if (RChar && *(RChar+1)) {
+	speedMB = atoi(RChar + 1); // if specified
+      }
+    }
+    threadContext[i].speedMB = speedMB;
+
+    
     char *Wchar = strchr(job->strings[i], 'W');
     if (Wchar && *(Wchar+1)) {
       size_t waitfor = atoi(Wchar + 1);
