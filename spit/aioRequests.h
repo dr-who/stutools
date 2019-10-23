@@ -24,7 +24,8 @@ size_t aioMultiplePositions( positionContainer *p,
 			     const size_t oneShot,
 			     const int dontExitOnErrors,
 			     const int fd,
-			     int flushEvery);
+			     int flushEvery,
+			     const size_t targetMBps);
 
 int aioVerifyWrites(positionType *positions,
 		    const size_t maxpos,

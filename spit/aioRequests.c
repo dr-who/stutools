@@ -56,7 +56,8 @@ size_t aioMultiplePositions( positionContainer *p,
 			     const size_t oneShot,
 			     const int dontExitOnErrors,
 			     const int fd,
-			     int flushEvery
+			     int flushEvery,
+			     const size_t targetMBps
 			     ) {
   int ret;
   struct iocb **cbs;
@@ -71,6 +72,8 @@ size_t aioMultiplePositions( positionContainer *p,
   assert(sz>0);
   positionType *positions = p->positions;
 
+
+  
   //  const double alignbits = log(alignment)/log(2);
   //  assert (alignbits == (size_t)alignbits);
 
@@ -186,6 +189,11 @@ size_t aioMultiplePositions( positionContainer *p,
     positions[i].success = 0;
   }
 
+  double timesincereset = timedouble();
+  size_t timesinceMB = 0;
+  size_t timesleep = 0;
+
+  
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishTime %lf\n", sz, finishTime);
   while (keepRunning && ((thistime = timedouble()) < finishTime)) {
     assert (pos < sz);
@@ -261,6 +269,28 @@ size_t aioMultiplePositions( positionContainer *p,
 	    
 	    positions[pos].submitTime = thistime;
 	    positions[pos].finishTime = 0;
+
+	    timesinceMB += len;
+	    if (targetMBps) {
+	      double tttime = timedouble();
+	      double resettime = tttime - timesincereset;
+	      if (resettime > 0.1) {
+		size_t speed = (timesinceMB / 1000 / 1000) / resettime;
+		if (speed > targetMBps) {
+		  if (timesleep == 0) timesleep = 1;
+		  timesleep = ceil(timesleep * 1.1);
+		  timesincereset = tttime;
+		  //		fprintf(stderr,"*info* sleep %zd, speed %zd\n", timesleep, speed);
+		  timesinceMB = 0;
+		} else if (speed < targetMBps) {
+		  timesleep = timesleep / 1.1;
+		  timesincereset = tttime;
+		  //		fprintf(stderr,"*info* sleep %zd, speed %zd\n", timesleep, speed);
+		  timesinceMB = 0;
+		}
+	      }
+	      usleep(timesleep);
+	    }
 	      
 	    ret = io_submit(ioc, 1, &cbs[qdIndex]);
 	      
