@@ -331,6 +331,7 @@ void usage() {
   fprintf(stdout,"  spit ... -c ws0u -v           # Uses a unique seed (u) per operation (mod 65536)\n");
   fprintf(stdout,"  spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with QD=1\n");
   fprintf(stdout,"  spit ... -c ws0UG_ -v -j32    # Generates r/w pairs with unique seeds, as above, unique thread ranges\n");
+  fprintf(stdout,"  spit ... -c ws1S750           # S option targets a speed in MB/s by adding usleep() between operations\n");
   exit(0);
 }
 
