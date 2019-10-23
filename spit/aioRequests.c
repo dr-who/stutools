@@ -191,7 +191,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   double timesincereset = timedouble();
   size_t timesinceMB = 0;
-  size_t timesleep = 0;
+  double timesleep = 50;
 
   
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishTime %lf\n", sz, finishTime);
@@ -274,22 +274,30 @@ size_t aioMultiplePositions( positionContainer *p,
 	    if (targetMBps) {
 	      double tttime = timedouble();
 	      double resettime = tttime - timesincereset;
+	      size_t speed = (timesinceMB / 1024.0 / 1024.0) / resettime;
 	      if (resettime > 0.1) {
-		size_t speed = (timesinceMB / 1000 / 1000) / resettime;
 		if (speed > targetMBps) {
 		  if (timesleep == 0) timesleep = 1;
-		  timesleep = ceil(timesleep * 1.1);
+
+		  timesleep = timesleep * 1.05;
+		  
 		  timesincereset = tttime;
-		  //		fprintf(stderr,"*info* sleep %zd, speed %zd\n", timesleep, speed);
 		  timesinceMB = 0;
+		  
 		} else if (speed < targetMBps) {
-		  timesleep = timesleep / 1.1;
+
+		  timesleep = timesleep / 1.05;
+		  if (timesleep < 0) timesleep = 0;
+
 		  timesincereset = tttime;
-		  //		fprintf(stderr,"*info* sleep %zd, speed %zd\n", timesleep, speed);
+		  timesinceMB = 0;
+		} else {
+		  timesincereset = tttime;
 		  timesinceMB = 0;
 		}
+		//		fprintf(stderr,"*info* sleep %.3lf, speed %zd, target %zd\n", timesleep, speed, targetMBps);
 	      }
-	      usleep(timesleep);
+	      usleep((size_t) timesleep);
 	    }
 	      
 	    ret = io_submit(ioc, 1, &cbs[qdIndex]);
