@@ -17,23 +17,38 @@ int keepRunning = 1;
 
 void makeFile(const char *filename, const char *buffer, const size_t size, const size_t chunk) {
 
-  int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0600);
+  int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, 0600);
   if (fd < 0) {
     fprintf(stderr,"can't create file %s, size %zd\n", filename, size);
   }
   for (size_t i = 0; i < size; i += 16384) {
     if (write(fd, buffer + i, chunk) < chunk) {
-      fprintf(stderr,"short write\n");
+      //      fprintf(stderr,"short write\n");
     }
   }
-  fdatasync(fd);
+  close(fd);
+}
+
+
+
+void readFile(const char *filename, char *buffer, const size_t size, const size_t chunk) {
+
+  int fd = open(filename, O_RDONLY | O_DIRECT, 0600);
+  if (fd < 0) {
+    fprintf(stderr,"can't open file %s, size %zd\n", filename, size);
+  }
+  for (size_t i = 0; i < size; i += 16384) {
+    if (read(fd, buffer + i, chunk) < chunk) {
+      //      fprintf(stderr,"short write\n");
+    }
+  }
   close(fd);
 }
 
 
 
 void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk, logSpeedType *ls) {
-  const size_t size = KiB * 1024;
+  const size_t size = KiB * 1000;
 
   struct stat st = {0};
   char s[1024];
@@ -43,14 +58,13 @@ void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
     mkdir(s, 0700);
   }
 
-  char *buffer = malloc(size * sizeof(char));
+  char *buffer = aligned_alloc(size * sizeof(char), 4096);
   if (!buffer) {
     fprintf(stderr,"can't malloc\n");exit(1);
   }
 
   if (ls) logSpeedReset(ls);
 
-  
   for (size_t i = 0; i < count; i++) {
     char s[1024];
     sprintf(s, "%s/testdir/file-%05zd", prefix, i);
@@ -58,8 +72,34 @@ void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
     makeFile(s, buffer, size, chunk);
     if (ls) logSpeedAdd2(ls, TOMiB(size), 1);
   }
-  free(buffer);
 
+  free(buffer);
+}
+
+
+
+void readDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk, logSpeedType *ls) {
+  const size_t size = KiB * 1000;
+
+  char s[1024];
+  sprintf(s,"%s/testdir", prefix);
+
+  char *buffer = aligned_alloc(size * sizeof(char), 4096);
+  if (!buffer) {
+    fprintf(stderr,"can't malloc\n");exit(1);
+  }
+
+  if (ls) logSpeedReset(ls);
+
+  for (size_t i = 0; i < count; i++) {
+    char s[1024];
+    sprintf(s, "%s/testdir/file-%05zd", prefix, i);
+    //    fprintf(stderr,"%s\n", s);
+    readFile(s, buffer, size, chunk);
+    if (ls) logSpeedAdd2(ls, TOMiB(size), 1);
+  }
+
+  free(buffer);
 }
 
 
@@ -67,8 +107,8 @@ void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
 int main() {
   
   const size_t KB=360;
-  fprintf(stderr,"Starting test: %.1lf MB\n", KB / 1024.0);
-  const size_t count=100;
+  fprintf(stderr,"Starting test: %.1lf MB\n", KB / 1000.0);
+  const size_t count=1000;
   const char *directory="test";
 
   struct stat st = {0};
@@ -81,9 +121,18 @@ int main() {
     const double start = timedouble();
     makeDirectories(directory, KB, count, 16384, NULL);
     const double elapsed = timedouble() - start;
-    fprintf(stderr,"files: %zd in %.3lf seconds, %.2lf files per second (%zd MB, %.0lf MB/s)\n", count, elapsed, count / elapsed, count * KB / 1024, count * KB / 1024.0 / elapsed);
+    fprintf(stderr,"create/write: %zd in %.3lf seconds, %.2lf files per second (%zd MB, %.0lf MB/s)\n", count, elapsed, count / elapsed, count * KB / 1000, count * KB / 1000.0 / elapsed);
   }
-  
+
+  for (size_t r = 0; r < 10; r++) {
+    const double start = timedouble();
+    readDirectories(directory, KB, count, 16384, NULL);
+    const double elapsed = timedouble() - start;
+    fprintf(stderr,"read: %zd in %.3lf seconds, %.2lf files per second (%zd MB, %.0lf MB/s)\n", count, elapsed, count / elapsed, count * KB / 1000, count * KB / 1000.0 / elapsed);
+  }
+
+
+
   return 0;
 }
 
