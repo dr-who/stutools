@@ -8,6 +8,7 @@
 #include <libaio.h>
 #include <assert.h>
 #include <math.h>
+#include <time.h>
 
 #include "utils.h"
 #include "logSpeed.h"
@@ -191,7 +192,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   double timesincereset = timedouble();
   size_t timesinceMB = 0;
-  double timesleep = 50;
+  double timesleep = 500000;
 
   
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishTime %lf\n", sz, finishTime);
@@ -270,36 +271,10 @@ size_t aioMultiplePositions( positionContainer *p,
 	    positions[pos].submitTime = thistime;
 	    positions[pos].finishTime = 0;
 
-	    timesinceMB += len;
-	    if (targetMBps) {
-	      double tttime = timedouble();
-	      double resettime = tttime - timesincereset;
-	      size_t speed = (timesinceMB / 1024.0 / 1024.0) / resettime;
-	      if (resettime > 0.1) {
-		if (speed > targetMBps) {
-		  if (timesleep == 0) timesleep = 1;
 
-		  timesleep = timesleep * 1.05;
-		  
-		  timesincereset = tttime;
-		  timesinceMB = 0;
-		  
-		} else if (speed < targetMBps) {
+	    // for the speed limiting
+	    	    timesinceMB += len;
 
-		  timesleep = timesleep / 1.05;
-		  if (timesleep < 0) timesleep = 0;
-
-		  timesincereset = tttime;
-		  timesinceMB = 0;
-		} else {
-		  timesincereset = tttime;
-		  timesinceMB = 0;
-		}
-		//		fprintf(stderr,"*info* sleep %.3lf, speed %zd, target %zd\n", timesleep, speed, targetMBps);
-	      }
-	      usleep((size_t) timesleep);
-	    }
-	      
 	    ret = io_submit(ioc, 1, &cbs[qdIndex]);
 	      
 	    if (ret > 0) {
@@ -367,6 +342,39 @@ size_t aioMultiplePositions( positionContainer *p,
       }
     }
 
+
+    /// speed limiting
+    if (targetMBps) {
+      double tttime = timedouble();
+      double resettime = tttime - timesincereset;
+      size_t speed = (timesinceMB / 1024.0 / 1024.0) / resettime;
+      if (resettime > 0.1) {
+	if (speed > targetMBps) {
+	  if (timesleep == 0) timesleep = 1;
+
+	  timesleep = timesleep * 1.02;
+		  
+	  timesincereset = tttime;
+	  timesinceMB = 0;
+		  
+	} else if (speed < targetMBps) {
+
+	  timesleep = timesleep / 1.02;
+	  if (timesleep < 0) timesleep = 0;
+
+	  timesincereset = tttime;
+	  timesinceMB = 0;
+	} else {
+	  timesincereset = tttime;
+	  timesinceMB = 0;
+	}
+	//	fprintf(stderr,"*info* sleep %.3lf, speed %zd, target %zd\n", timesleep, speed, targetMBps);
+      }
+      struct timespec nanslp = {0,timesleep};
+      nanosleep(&nanslp, NULL);
+    }
+
+    
     // return, 1..inFlight wait for a bit
     ret = io_getevents(ioc, 1, inFlight, events, &timeout);
     //    }

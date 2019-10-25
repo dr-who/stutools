@@ -432,6 +432,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   
   assert(pc->minbs <= pc->maxbs);
   unsigned int seed = seedin; // set the seed, thats why it was passed
+  srand48(seed);
 
   size_t anywrites = 0, randomSubSample = 0;
   
@@ -772,10 +773,16 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
 void positionContainerDump(positionContainer *pc, const size_t countToShow) {
   fprintf(stderr,"*info*: total number of positions %zd\n", pc->sz);
   const positionType *positions = pc->positions;
+  size_t rcount = 0, wcount = 0;
   for (size_t i = 0; i < pc->sz; i++) {
-    if (i >= countToShow) break;
-    fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7d\tdevice %d\tverify %d\tseed %6d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed);
+    if (positions[i].action == 'R') rcount++;
+    else if (positions[i].action == 'W') wcount++;
+    
+    if (i < countToShow) {
+      fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7d\tdevice %d\tverify %d\tseed %6d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed);
+    }
   }
+  fprintf(stderr,"\tSummary: p%.2g, reads %zd, writes %zd\n", rcount * 1.0 / pc->sz, rcount, wcount);
 }
 
 
