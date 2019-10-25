@@ -32,8 +32,8 @@ void makeFile(const char *filename, const char *buffer, const size_t size, const
 
 
 
-void makeDirectories(const char *prefix, size_t MiB, size_t count, size_t chunk, logSpeedType *ls) {
-  const size_t size = MiB * 1024 * 1024;
+void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk, logSpeedType *ls) {
+  const size_t size = KiB * 1024;
 
   struct stat st = {0};
   char s[1024];
@@ -65,9 +65,10 @@ void makeDirectories(const char *prefix, size_t MiB, size_t count, size_t chunk,
 
 
 int main() {
-  fprintf(stderr,"Starting test\n");
-  const size_t gb=1;
-  const size_t count=1000;
+  
+  const size_t KB=360;
+  fprintf(stderr,"Starting test: %.1lf MB\n", KB / 1024.0);
+  const size_t count=100;
   const char *directory="test";
 
   struct stat st = {0};
@@ -78,9 +79,9 @@ int main() {
 
   for (size_t r = 0; r < 10; r++) {
     const double start = timedouble();
-    makeDirectories(directory, gb, count, 16384, NULL);
+    makeDirectories(directory, KB, count, 16384, NULL);
     const double elapsed = timedouble() - start;
-    fprintf(stderr,"files: %zd in %.3lf seconds, %.2lf files per second (%zd GiB, %.0lf MiB/s)\n", count, elapsed, count / elapsed, gb, gb * 1024 / elapsed);
+    fprintf(stderr,"files: %zd in %.3lf seconds, %.2lf files per second (%zd MB, %.0lf MB/s)\n", count, elapsed, count / elapsed, count * KB / 1024, count * KB / 1024.0 / elapsed);
   }
   
   return 0;
