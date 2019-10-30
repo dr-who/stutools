@@ -15,7 +15,7 @@
 #include "positions.h"
 #include "utils.h"
 #include "diskStats.h"
-#include "fuzz.h"
+#include "spitfuzz.h"
 
 #define DEFAULTTIME 10
   

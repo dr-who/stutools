@@ -17,7 +17,6 @@
 #include "positions.h"
 #include "utils.h"
 #include "diskStats.h"
-#include "fuzz.h"
 
 #define DEFAULTTIME 10
   
