@@ -724,7 +724,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     int seqFiles = 1;
     size_t seqFilesMaxSizeBytes = 0;
-    int bs = 4096, highbs = 4096;
+    size_t bs = 4096, highbs = 4096;
 
     lengthsInit(&threadContext[i].len);
     
@@ -736,12 +736,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
       char *endp = NULL;
       bs = 1024 * strtod(charBS+1, &endp);
+      if (bs > 100*1024*1024) {bs=100*1024*1024;} // maximum 100 MiB block size
       if (bs < 512) bs = 512;
       highbs = bs;
       if (*endp == '-' || *endp == ':') {
 	int nextv = atoi(endp+1);
 	if (nextv > 0) {
 	  highbs = 1024 * nextv;
+	  if (highbs > 100*1024*1024) {highbs=100*1024*1024;} // maximum 100 MiB block size
 	}
       }
       if (*endp == '-') 
