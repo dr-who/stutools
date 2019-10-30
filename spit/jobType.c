@@ -731,19 +731,36 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if (verbose) {
       fprintf(stderr,"*info* setting up thread %zd\n", i);
     }
-    char *charBS = strchr(job->strings[i], 'k');
+    char * charBS = strchr(job->strings[i], 'M');
+    if (charBS && *(charBS+1)) {
+
+      char *endp = NULL;
+      bs = 1024L * 1024 * strtod(charBS+1, &endp);
+      if (bs < 512) bs = 512;
+      highbs = bs;
+      if (*endp == '-') {
+	int nextv = atoi(endp+1);
+	if (nextv > 0) {
+	  highbs = 1024L * 1024 * nextv;
+	}
+      }
+    }
+    if (highbs < bs) {
+      highbs = bs;
+    }
+
+
+    charBS = strchr(job->strings[i], 'k');
     if (charBS && *(charBS+1)) {
 
       char *endp = NULL;
       bs = 1024 * strtod(charBS+1, &endp);
-      if (bs > 100*1024*1024) {bs=100*1024*1024;} // maximum 100 MiB block size
       if (bs < 512) bs = 512;
       highbs = bs;
       if (*endp == '-' || *endp == ':') {
 	int nextv = atoi(endp+1);
 	if (nextv > 0) {
 	  highbs = 1024 * nextv;
-	  if (highbs > 100*1024*1024) {highbs=100*1024*1024;} // maximum 100 MiB block size
 	}
       }
       if (*endp == '-') 
@@ -816,24 +833,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
-    charBS = strchr(job->strings[i], 'M');
-    if (charBS && *(charBS+1)) {
-
-      char *endp = NULL;
-      bs = 1024 * 1024 * strtod(charBS+1, &endp);
-      if (bs < 512) bs = 512;
-      highbs = bs;
-      if (*endp == '-') {
-	int nextv = atoi(endp+1);
-	if (nextv > 0) {
-	  highbs = 1024 * 1024 * nextv;
-	}
-      }
-    }
-
-    if (highbs < bs) {
-      highbs = bs;
-    }
 
     char *charLimit = strchr(job->strings[i], 'L');
     size_t limit = (size_t)-1;
