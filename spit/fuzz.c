@@ -1,119 +1,92 @@
-#define _XOPEN_SOURCE 500
-   
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
+#define _POSIX_C_SOURCE 200809L
+#define _ISOC11_SOURCE
 
-#include "string.h"
+#include "jobType.h"
+#include <signal.h>
+#include <stdlib.h>
+
+/**
+ * spit.c
+ *
+ * the main() for ./fuzz, a RAID stripe aware fuzzer
+ *
+ */
+#include <stdlib.h>
+#include <string.h>
+
+#include "positions.h"
 #include "utils.h"
+#include "diskStats.h"
 #include "fuzz.h"
 
-
-char *randomCommandString(const double rwratio) {
-  char string[1000];
+#define DEFAULTTIME 10
   
-  int seed = lrand48() % 65536;
-  int s = lrand48() % 11;
-  switch (s) {
-  case 0: 
-    sprintf(string, "p%.1lfs%ldR%d", rwratio, lrand48() % 100, seed);
-    break;
-  case 1: 
-    sprintf(string, "p%.1lfP%ld%cR%d", rwratio, 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N', seed);
-    break;
-  case 2: 
-    sprintf(string, "p%.1lfP%ldx%ldR%d", rwratio, 1+lrand48() % 10000, 1 + lrand48()%100, seed);
-    break;
-  case 3: 
-    sprintf(string, "p%.1lfk%ldR%d", rwratio, 4 * (1+ (lrand48() % 4)), seed);
-    break;
-  case 4: {}
-    size_t klow = 4 * (1 + (lrand48() % 3));
-    sprintf(string, "p%.1lfk%zd-%ldR%d", rwratio, klow, klow + 4*(lrand48()%4), seed);
-    break;
-  case 5:  case 6:
-    sprintf(string, "mP%ld%cR%d", 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N', seed);
-    break;
-  case 7: case 8: case 9:
-    sprintf(string, "wk1024s1R%d", seed);
-    break;
-  case 10: {}
-    klow = 4 * (1 + (lrand48() % 3));
-    sprintf(string, "p%.1lfmk%zd-%ldR%d", rwratio, klow, klow + 16*(lrand48()%4), seed);
-    break;
-  default:
-    abort();
+int verbose = 0;
+int keepRunning = 1;
+
+
+int main(int argc, char *argv[]) {
+  int opt;
+
+  char *device = NULL;
+  deviceDetails *deviceList = NULL;
+  size_t deviceCount = 0;
+  
+  optind = 0;
+  while ((opt = getopt(argc, argv, "I:")) != -1) {
+    switch (opt) {
+    case 'I':
+      {}
+      size_t added = loadDeviceDetails(optarg, &deviceList, &deviceCount);
+      fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
+      break;
+    default:
+      exit(1);
+      break;
+    }
   }
-    
-  return strdup(string);
-}
 
-  
-
-char ** fuzzString(int *argc, const char *device, const double starttime, size_t *runcount) {
-  size_t count = 1 + lrand48() % 3;
-  count = 9;
-
-  *argc = count;
-  char ** argv = NULL;
-  CALLOC(argv, count, sizeof(char*));
-
-  char string[1000];
-
-  argv[0] = strdup("spit");
-  sprintf(string, "-f%s", device);
-  argv[1] = strdup(string);
-
-  argv[2] = strdup("-G");
-  double low = 0.1 + drand48() * 5;
-  if (drand48() < 0.25) {
-    sprintf(string, "%f", low);
+  // first assign the device
+  // if one -f specified, add to all jobs
+  // if -F specified (with n drives), have c x n jobs
+  if (deviceCount) {
+    // if we have a list of files, overwrite the first one, ignoring -f
+    if (device) {
+      fprintf(stderr,"*warning* ignoring the value from -f\n");
+    }
+    device = deviceList[0].devicename;
   } else {
-    sprintf(string, "%f-%f", low, 0.1 + low + drand48() * 1);
+    fprintf(stderr,"*error* need -I devices.txt\n");
+    exit(1);
   }
-    
-  argv[3] = strdup(string);
 
-  argv[4] = strdup("-c");
-  double d = drand48(); // r, w or r/w
-  if (d < 0.4) {
-    argv[5] = randomCommandString(0);
-  } else if (d < 0.8) {
-    argv[5] = randomCommandString(1);
-  } else {
-    argv[5] = randomCommandString(0.5);
+  size_t maxSizeInBytes = 0;
+  openDevices(deviceList, deviceCount, 0, &maxSizeInBytes, 4096, 4096, 4096, 1, 1, 16, 1);
+  infoDevices(deviceList, deviceCount);
+
+  fprintf(stderr,"*info* num open %zd\n", numOpenDevices(deviceList, deviceCount));
+
+  for (size_t i = 0; i < deviceCount; i++) {
+    unsigned char *mem = aligned_alloc(4096, 4096);
+    lseek(deviceList[i].fd, 0*1024*1024, SEEK_SET);
+    ssize_t ret = read(deviceList[i].fd, mem, 4096);
+    //    fprintf(stderr,"ret %zd, fd = %d\n", ret, deviceList[i].fd);
+    if (ret == 4096) {
+      for (size_t j = 0; j < 120; j++) {
+	unsigned char c = (unsigned char) mem[j];
+	if (c<32) c='_';
+	fprintf(stderr,"%c", c);
+      }
+      fprintf(stderr,"\n");
+    } else {
+      perror("wow");
+    }
   }
-    
 
-  d = drand48();
   
-  if (d < 0.75) { // 75% of the time it's one
-    argv[6] = strdup("-j");
-    argv[7] = strdup("1");
-  } else if (d < 0.9) { // 15% of the time it's another string
-    argv[6] = strdup("-c");
-    argv[7] = randomCommandString(0.9);
-  } else { // remaining 10% multiple j
-    argv[6] = strdup("-j");
-    sprintf(string, "%ld", 1+lrand48() % 10);
-    argv[7] = strdup(string);
-  }
-
-  sprintf(string,"-v");
-  argv[8] = strdup(string); // verify
-
-  *runcount = (*runcount) + 1;
-  fprintf(stderr,"====================\n");
-  time_t now;
-  time(&now);
-  fprintf(stderr,"*info* run number %zd, running for %.2lf days, %s", *runcount, (timedouble() - starttime)/3600.0/24, ctime(&now));
-  fprintf(stderr,"*info* random command: ");
-
-  for (size_t i = 0; i < count; i++) {
-    fprintf(stderr,"%s ", argv[i]);
-  }
-  fprintf(stderr,"\n");
-  fprintf(stderr,"====================\n");
-
-  return argv;
+  fprintf(stderr,"*info* exiting.\n"); fflush(stderr);
+  
+  exit(0);
 }
+  
+  
