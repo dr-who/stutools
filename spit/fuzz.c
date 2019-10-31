@@ -29,35 +29,53 @@ int keepRunning = 1;
 
 
 
-void zap(size_t pos, size_t deviceCount, int *selection, size_t blocksize, int print, char *block) {
+void zap(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t blocksize, int print, char *block) {
   if (print) fprintf(stderr,"%9x (%5.1lf GiB):  ", (unsigned int)pos, TOGiB(pos));
 
-  /*  // rotate
-
-  fprintf(stderr,"\n");
-  for (size_t i = 0; i < deviceCount; i++) {
-    fprintf(stderr,"*zap %zd, %d\n", i, selection[i]);
-  }
-  int lastfd = -1;
-  for (size_t i = 0; i < deviceCount; i++) {
-    if (selection[i] > 0) {
-      if (lastfd > 0) {
-	selection[i] = lastfd;
-      }
-      lastfd = selection[i];
-    }
-  }
-  for (size_t i = 0; i < deviceCount; i++) {
-    fprintf(stderr,"*zap %zd, %d\n", i, selection[i]);
-  }
-  exit(1);
-  */
-  
   size_t mcount = 0;
   for (size_t i = 0; i < deviceCount; i++) {
     if (selection[i] > 0) {
       ssize_t ret = pwrite(selection[i], block, blocksize, pos);
       if (ret == blocksize) {
+	mcount++;
+	if (print) fprintf(stderr,"%2d ", selection[i]);
+      } else {
+	//	perror("wow");
+      }
+    } else {
+      if (print) fprintf(stderr,"   ");
+    }
+  }
+  if (print) fprintf(stderr,"\t[%zd]\n", mcount);
+}
+
+
+
+void rotate(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t blocksize, int print, char *block) {
+  if (print) fprintf(stderr,"%9x (%5.1lf GiB):  ", (unsigned int)pos, TOGiB(pos));
+
+  // rotate
+  int lastfd = -1, thisfd = -1, firstpos = -1;
+  for (size_t i = 0; i < deviceCount; i++) {
+    if (selection[i] > 0) {
+      if (firstpos < 0) {firstpos = i;}
+      thisfd = selection[i];
+      if (lastfd > 0) {
+	rotated[i] = lastfd;
+      }
+      lastfd = thisfd;
+    }
+  }
+  rotated[firstpos] = lastfd;
+
+  
+  size_t mcount = 0;
+  for (size_t i = 0; i < deviceCount; i++) {
+    if (selection[i] > 0) {
+      //      fprintf(stderr,"*info* read from %d, write to %d\n", selection[i], rotated[i]);
+      ssize_t retr = pread(selection[i], block, blocksize, pos);
+      ssize_t retw = pwrite(rotated[i], block, blocksize, pos);
+      if ((retw == blocksize) && (retr == retw)) {
 	mcount++;
 	if (print) fprintf(stderr,"%2d ", selection[i]);
       } else {
@@ -85,9 +103,10 @@ int main(int argc, char *argv[]) {
   unsigned short seed = 0;
   int printevery = 1;
   int tripleX = 0;
+  int zap = 0;
   
   optind = 0;
-  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:qX")) != -1) {
+  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:qXzc")) != -1) {
     switch (opt) {
     case 'b':
       blocksize = atoi(optarg);
@@ -109,6 +128,12 @@ int main(int argc, char *argv[]) {
       break;
     case 'q':
       printevery *= 64;
+      break;
+    case 'z':
+      zap = 1;
+      break;
+    case 'c':
+      zap = 0;
       break;
     case 'I':
       {}
@@ -154,9 +179,18 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*error* not enough devices to open\n");
     exit(1);
   }
+  if (mdevices < 2) {zap = 1;} // if only 1 drive, you have to zap
+  
+  if (zap) {
+    fprintf(stderr,"*info* zap blocks\n");
+  } else {
+    fprintf(stderr,"*info* rotate blocks\n");
+  }
+    
   fprintf(stderr,"*info* fuzz range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize);
   srand48(seed);
   int *selection = malloc(deviceCount * sizeof(int));
+  int *rotated = malloc(deviceCount * sizeof(int));
   
   char *block = aligned_alloc(4096, blocksize);
   memset(block, 'Z', blocksize);
@@ -164,15 +198,17 @@ int main(int argc, char *argv[]) {
   for (size_t pos = startAt,pr=0; pos < finishAt; pos += blocksize,pr++) {
     // pick k
     memset(selection, 0, deviceCount * sizeof(int));
+    memset(rotated, 0, deviceCount * sizeof(int));
     for (size_t i = 0; i < mdevices; i++) {
       int r = lrand48() % deviceCount;
       while (selection[r] != 0) {
 	r = lrand48() % deviceCount;
       }
-      selection[r] = deviceList[i].fd;
+      selection[r] = deviceList[r].fd;
     }
 
-    zap(pos, deviceCount, selection, blocksize, (pr % printevery)==0, block);
+    //    zap(pos, deviceCount, selection, rotated, blocksize, (pr % printevery)==0, block);
+    rotate(pos, deviceCount, selection, rotated, blocksize, (pr % printevery)==0, block);
   }
   free(block);
   free(selection);
