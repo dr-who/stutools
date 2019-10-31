@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     }
     device = deviceList[0].devicename;
   } else {
-    fprintf(stderr,"*info* fuzz -I devices.txt -k 10 -m 6 [-R 0] [-g 0.016] [-G 1]\n");
+    fprintf(stderr,"*info* fuzz -I devices.txt -k 10 -m 6 [-R 0] [-g 0.016] [-G 1] [-b 4096]\n");
     exit(1);
   }
 
@@ -140,6 +140,10 @@ int main(int argc, char *argv[]) {
 
 
   fprintf(stderr,"*info* number of open devices %zd\n", numOpenDevices(deviceList, deviceCount));
+  if (numOpenDevices(deviceList, deviceCount) < deviceCount) {
+    fprintf(stderr,"*error* not enough devices to open\n");
+    exit(1);
+  }
   fprintf(stderr,"*info* start at %.3lf GiB, finish at %.1lf GiB, block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), blocksize);
   srand48(seed);
   char *selection = malloc(deviceCount * sizeof(char));
