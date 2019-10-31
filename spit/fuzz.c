@@ -33,11 +33,13 @@ void zap(size_t pos, deviceDetails *deviceList, size_t deviceCount, char *select
   size_t mcount = 0;
   for (size_t i = 0; i < deviceCount; i++) {
     if (selection[i]) {
-      mcount++;
       assert(deviceList[i].fd > 0);
       ssize_t ret = pwrite(deviceList[i].fd, block, blocksize, pos);
-      if (ret) {
+      if (ret == blocksize) {
+	mcount++;
 	if (print) fprintf(stderr,"%2d ", deviceList[i].fd);
+      } else {
+	//	perror("wow");
       }
     } else {
       if (print) fprintf(stderr,"   ");
