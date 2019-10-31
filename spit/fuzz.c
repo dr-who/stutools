@@ -28,11 +28,8 @@ int keepRunning = 1;
 
 
 
-void zap(size_t pos, deviceDetails *deviceList, size_t deviceCount, char *selection, size_t blocksize) {
-  char *block = aligned_alloc(4096, blocksize);
-  memset(block, 'Z', blocksize);
-
-  fprintf(stderr,"%8x (%5.1lf GiB): ", (unsigned int)pos, TOGiB(pos));
+void zap(size_t pos, deviceDetails *deviceList, size_t deviceCount, char *selection, size_t blocksize, int print, char *block) {
+  if (print) fprintf(stderr,"%8x (%5.1lf GiB): ", (unsigned int)pos, TOGiB(pos));
   size_t mcount = 0;
   for (size_t i = 0; i < deviceCount; i++) {
     if (selection[i]) {
@@ -40,37 +37,18 @@ void zap(size_t pos, deviceDetails *deviceList, size_t deviceCount, char *select
       assert(deviceList[i].fd > 0);
       ssize_t ret = pwrite(deviceList[i].fd, block, blocksize, pos);
       if (ret) {
-	fprintf(stderr,"%2zd ", i);
+	if (print) fprintf(stderr,"%2zd ", i);
       }
     } else {
-      fprintf(stderr,"   ");
+      if (print) fprintf(stderr,"   ");
     }
   }
-  fprintf(stderr,"\t[%zd]\n", mcount);
-  free(block);
+  if (print) fprintf(stderr,"\t[%zd]\n", mcount);
 }
 
 
 
 
-void swap(size_t pos, deviceDetails *deviceList, size_t deviceCount, char *selection, size_t blocksize) {
-  char *block = aligned_alloc(4096, blocksize);
-
-  fprintf(stderr,"%8x (%5.1lf GiB): ", (unsigned int)pos, TOGiB(pos));
-  for (size_t i = 0; i < deviceCount; i++) {
-    if (selection[i]) {
-      assert(deviceList[i].fd > 0);
-      ssize_t ret = pwrite(deviceList[i].fd, block, blocksize, pos);
-      if (ret) {
-	fprintf(stderr,"%2zd ", i);
-      }
-    } else {
-      fprintf(stderr,"   ");
-    }
-  }
-  fprintf(stderr,"\n");
-  free(block);
-}
 
 int main(int argc, char *argv[]) {
   int opt;
@@ -79,11 +57,12 @@ int main(int argc, char *argv[]) {
   deviceDetails *deviceList = NULL;
   size_t deviceCount = 0;
   size_t kdevices = 0, mdevices = 0, blocksize = 4096;
-  size_t startAt = 16*1024*1024, finishAt = 1024L*1024L*1024L;
+  size_t startAt = 16*1024*1024, finishAt = 1024L*1024L*1024L*4;
   unsigned short seed = 0;
+  int printevery = 1;
   
   optind = 0;
-  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:")) != -1) {
+  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:q")) != -1) {
     switch (opt) {
     case 'b':
       blocksize = atoi(optarg);
@@ -102,6 +81,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'R':
       seed = atoi(optarg);
+      break;
+    case 'q':
+      printevery *= 64;
       break;
     case 'I':
       {}
@@ -124,7 +106,7 @@ int main(int argc, char *argv[]) {
     }
     device = deviceList[0].devicename;
   } else {
-    fprintf(stderr,"*info* fuzz -I devices.txt -k 10 -m 6 [-R 0] [-g 0.016] [-G 1] [-b 4096]\n");
+    fprintf(stderr,"*info* fuzz -I devices.txt -k 10 -m 6 [-R(seed) 0] [-g(start) 0.016] [-G(end) 4] [-b 4096] [-q(uiet)]\n");
     exit(1);
   }
 
@@ -148,7 +130,10 @@ int main(int argc, char *argv[]) {
   srand48(seed);
   char *selection = malloc(deviceCount * sizeof(char));
   
-  for (size_t pos = startAt; pos < finishAt; pos += blocksize) {
+  char *block = aligned_alloc(4096, blocksize);
+  memset(block, 'Z', blocksize);
+  
+  for (size_t pos = startAt,pr=0; pos < finishAt; pos += blocksize,pr++) {
     // pick k
     memset(selection, 0, deviceCount);
     for (size_t i = 0; i < mdevices; i++) {
@@ -159,10 +144,11 @@ int main(int argc, char *argv[]) {
       selection[r] = 1;
     }
 
-    zap(pos, deviceList, deviceCount, selection, blocksize);
+    zap(pos, deviceList, deviceCount, selection, blocksize, (pr % printevery)==0, block);
   }
-
+  free(block);
   free(selection);
+  
   for (size_t i = 0; i < deviceCount; i++) {
     if (deviceList[i].fd > 0) {
       close(deviceList[i].fd);
