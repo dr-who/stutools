@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #define _ISOC11_SOURCE
 #define _DEFAULT_SOURCE
@@ -28,16 +29,37 @@ int keepRunning = 1;
 
 
 
-void zap(size_t pos, deviceDetails *deviceList, size_t deviceCount, char *selection, size_t blocksize, int print, char *block) {
+void zap(size_t pos, size_t deviceCount, int *selection, size_t blocksize, int print, char *block) {
   if (print) fprintf(stderr,"%9x (%5.1lf GiB):  ", (unsigned int)pos, TOGiB(pos));
+
+  /*  // rotate
+
+  fprintf(stderr,"\n");
+  for (size_t i = 0; i < deviceCount; i++) {
+    fprintf(stderr,"*zap %zd, %d\n", i, selection[i]);
+  }
+  int lastfd = -1;
+  for (size_t i = 0; i < deviceCount; i++) {
+    if (selection[i] > 0) {
+      if (lastfd > 0) {
+	selection[i] = lastfd;
+      }
+      lastfd = selection[i];
+    }
+  }
+  for (size_t i = 0; i < deviceCount; i++) {
+    fprintf(stderr,"*zap %zd, %d\n", i, selection[i]);
+  }
+  exit(1);
+  */
+  
   size_t mcount = 0;
   for (size_t i = 0; i < deviceCount; i++) {
-    if (selection[i]) {
-      assert(deviceList[i].fd > 0);
-      ssize_t ret = pwrite(deviceList[i].fd, block, blocksize, pos);
+    if (selection[i] > 0) {
+      ssize_t ret = pwrite(selection[i], block, blocksize, pos);
       if (ret == blocksize) {
 	mcount++;
-	if (print) fprintf(stderr,"%2d ", deviceList[i].fd);
+	if (print) fprintf(stderr,"%2d ", selection[i]);
       } else {
 	//	perror("wow");
       }
@@ -58,7 +80,7 @@ int main(int argc, char *argv[]) {
   char *device = NULL;
   deviceDetails *deviceList = NULL;
   size_t deviceCount = 0;
-  size_t kdevices = 0, mdevices = 0, blocksize = 4096;
+  size_t kdevices = 0, mdevices = 0, blocksize = 256*1024;
   size_t startAt = 16*1024*1024, finishAt = 1024L*1024L*1024L*4;
   unsigned short seed = 0;
   int printevery = 1;
@@ -134,23 +156,23 @@ int main(int argc, char *argv[]) {
   }
   fprintf(stderr,"*info* fuzz range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize);
   srand48(seed);
-  char *selection = malloc(deviceCount * sizeof(char));
+  int *selection = malloc(deviceCount * sizeof(int));
   
   char *block = aligned_alloc(4096, blocksize);
   memset(block, 'Z', blocksize);
   
   for (size_t pos = startAt,pr=0; pos < finishAt; pos += blocksize,pr++) {
     // pick k
-    memset(selection, 0, deviceCount);
+    memset(selection, 0, deviceCount * sizeof(int));
     for (size_t i = 0; i < mdevices; i++) {
       int r = lrand48() % deviceCount;
       while (selection[r] != 0) {
 	r = lrand48() % deviceCount;
       }
-      selection[r] = 1;
+      selection[r] = deviceList[i].fd;
     }
 
-    zap(pos, deviceList, deviceCount, selection, blocksize, (pr % printevery)==0, block);
+    zap(pos, deviceCount, selection, blocksize, (pr % printevery)==0, block);
   }
   free(block);
   free(selection);
