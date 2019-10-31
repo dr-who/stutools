@@ -46,7 +46,7 @@ void zap(size_t pos, deviceDetails *deviceList, size_t deviceCount, char *select
       fprintf(stderr,"   ");
     }
   }
-  fprintf(stderr,"\t%zd\n", mcount);
+  fprintf(stderr,"\t[%zd]\n", mcount);
   free(block);
 }
 
