@@ -60,9 +60,10 @@ int main(int argc, char *argv[]) {
   size_t startAt = 16*1024*1024, finishAt = 1024L*1024L*1024L*4;
   unsigned short seed = 0;
   int printevery = 1;
+  int tripleX = 0;
   
   optind = 0;
-  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:q")) != -1) {
+  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:qX")) != -1) {
     switch (opt) {
     case 'b':
       blocksize = atoi(optarg);
@@ -89,6 +90,9 @@ int main(int argc, char *argv[]) {
       {}
       loadDeviceDetails(optarg, &deviceList, &deviceCount);
       //      fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
+      break;
+    case 'X':
+      tripleX++;
       break;
     default:
       exit(1);
@@ -117,7 +121,7 @@ int main(int argc, char *argv[]) {
   }
   
   size_t maxSizeInBytes = 0;
-  openDevices(deviceList, deviceCount, 0, &maxSizeInBytes, 4096, 4096, 4096, 1, 0, 16, 1);
+  openDevices(deviceList, deviceCount, 0, &maxSizeInBytes, 4096, 4096, 4096, 1, tripleX==3, 16, 1);
   infoDevices(deviceList, deviceCount);
 
 
