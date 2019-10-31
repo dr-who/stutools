@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*error* not enough devices to open\n");
     exit(1);
   }
-  fprintf(stderr,"*info* start at %.3lf GiB, finish at %.1lf GiB, block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), blocksize);
+  fprintf(stderr,"*info* fuzz range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize);
   srand48(seed);
   char *selection = malloc(deviceCount * sizeof(char));
   
