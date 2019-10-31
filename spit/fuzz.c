@@ -29,7 +29,7 @@ int keepRunning = 1;
 
 
 void zap(size_t pos, deviceDetails *deviceList, size_t deviceCount, char *selection, size_t blocksize, int print, char *block) {
-  if (print) fprintf(stderr,"%8x (%5.1lf GiB): ", (unsigned int)pos, TOGiB(pos));
+  if (print) fprintf(stderr,"%9x (%5.1lf GiB):  ", (unsigned int)pos, TOGiB(pos));
   size_t mcount = 0;
   for (size_t i = 0; i < deviceCount; i++) {
     if (selection[i]) {
@@ -37,7 +37,7 @@ void zap(size_t pos, deviceDetails *deviceList, size_t deviceCount, char *select
       assert(deviceList[i].fd > 0);
       ssize_t ret = pwrite(deviceList[i].fd, block, blocksize, pos);
       if (ret) {
-	if (print) fprintf(stderr,"%2zd ", i);
+	if (print) fprintf(stderr,"%2d ", deviceList[i].fd);
       }
     } else {
       if (print) fprintf(stderr,"   ");
