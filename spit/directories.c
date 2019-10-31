@@ -108,7 +108,7 @@ int main() {
   
   const size_t KB=360;
   fprintf(stderr,"Starting test: %.1lf MB\n", KB / 1000.0);
-  const size_t count=1000;
+  const size_t count=10000;
   const char *directory="test";
 
   struct stat st = {0};

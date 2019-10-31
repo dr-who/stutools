@@ -278,7 +278,7 @@ void infoDevices(const deviceDetails *devList, const size_t devCount) {
       fprintf(stderr,"x");
       break;
     }
-    fprintf(stderr," %-25s %11zd (%.1lf -> %.1lf GiB), e=%d\n", devList[f].devicename, devList[f].bdSize, TOGiB(devList[f].bdSize), TOGiB(devList[f].shouldBeSize), devList[f].exclusive);
+    fprintf(stderr," %-25s %11zd (%.1lf GiB, limited %.1lf GiB), excl=%d\n", devList[f].devicename, devList[f].bdSize, TOGiB(devList[f].bdSize), TOGiB(devList[f].shouldBeSize), devList[f].exclusive);
   }
 }
 
