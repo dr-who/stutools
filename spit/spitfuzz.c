@@ -19,7 +19,7 @@ char *randomCommandString(const double rwratio) {
     sprintf(string, "p%.1lfs%ldR%d", rwratio, lrand48() % 100, seed);
     break;
   case 1: 
-    sprintf(string, "p%.1lfP%ld%cR%d", rwratio, 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N', seed);
+    sprintf(string, "p%.1lfP%ldR%d", rwratio, 1+lrand48() % 10000, seed);
     break;
   case 2: 
     sprintf(string, "p%.1lfP%ldx%ldR%d", rwratio, 1+lrand48() % 10000, 1 + lrand48()%100, seed);
@@ -32,7 +32,7 @@ char *randomCommandString(const double rwratio) {
     sprintf(string, "p%.1lfk%zd-%ldR%d", rwratio, klow, klow + 4*(lrand48()%4), seed);
     break;
   case 5:  case 6:
-    sprintf(string, "mP%ld%cR%d", 1+lrand48() % 10000, (drand48() < 0.5) ? 'n' : 'N', seed);
+    sprintf(string, "mP%ldR%d", 1+lrand48() % 10000, seed);
     break;
   case 7: case 8: case 9:
     sprintf(string, "wk1024s1R%d", seed);
