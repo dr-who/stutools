@@ -111,6 +111,7 @@ void rotate(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t
       if (print) fprintf(stderr,"   ");
     }
   }
+  free(firstblock);
   if (print) fprintf(stderr,"\t[%zd]\n", ok);
 }
 
@@ -202,49 +203,52 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr,"*info* number of open devices %zd\n", numOpenDevices(deviceList, deviceCount));
   if (numOpenDevices(deviceList, deviceCount) < deviceCount) {
+    //not enough
     fprintf(stderr,"*error* not enough devices to open\n");
-    exit(1);
-  }
-  if (mdevices < 2) {zap = 1;} // if only 1 drive, you have to zap
-  
-  if (zap) {
-    fprintf(stderr,"*info* zap blocks\n");
   } else {
-    fprintf(stderr,"*info* rotate blocks\n");
-  }
-    
-  fprintf(stderr,"*info* fuzz range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize);
-  srand48(seed);
-  int *selection = malloc(deviceCount * sizeof(int));
-  int *rotated = malloc(deviceCount * sizeof(int));
+    // enough drives
+    if (mdevices < 2) {zap = 1;} // if only 1 drive, you have to zap
   
-  char *block = aligned_alloc(4096, blocksize);
-  memset(block, 'Z', blocksize);
-  
-  for (size_t pos = startAt,pr=0; pos < finishAt; pos += blocksize,pr++) {
-    // pick k
-    memset(selection, 0, deviceCount * sizeof(int));
-    memset(rotated, 0, deviceCount * sizeof(int));
-    for (size_t i = 0; i < mdevices; i++) {
-      int r = lrand48() % deviceCount;
-      while (selection[r] != 0) {
-	r = lrand48() % deviceCount;
-      }
-      selection[r] = deviceList[r].fd;
-    }
-
     if (zap) {
-      zapfunc(pos, deviceCount, selection, blocksize, (pr % printevery)==0, block);
+      fprintf(stderr,"*info* zap blocks\n");
     } else {
-      rotate(pos, deviceCount, selection, rotated, blocksize, (pr % printevery)==0, block);
+      fprintf(stderr,"*info* rotate blocks\n");
     }
-  }
-  free(block);
-  free(selection);
+    
+    fprintf(stderr,"*info* fuzz range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize);
+    srand48(seed);
+    int *selection = malloc(deviceCount * sizeof(int));
+    int *rotated = malloc(deviceCount * sizeof(int));
   
-  for (size_t i = 0; i < deviceCount; i++) {
-    if (deviceList[i].fd > 0) {
-      close(deviceList[i].fd);
+    char *block = aligned_alloc(4096, blocksize);
+    memset(block, 'Z', blocksize);
+  
+    for (size_t pos = startAt,pr=0; pos < finishAt; pos += blocksize,pr++) {
+      // pick k
+      memset(selection, 0, deviceCount * sizeof(int));
+      memset(rotated, 0, deviceCount * sizeof(int));
+      for (size_t i = 0; i < mdevices; i++) {
+	int r = lrand48() % deviceCount;
+	while (selection[r] != 0) {
+	  r = lrand48() % deviceCount;
+	}
+	selection[r] = deviceList[r].fd;
+      }
+
+      if (zap) {
+	zapfunc(pos, deviceCount, selection, blocksize, (pr % printevery)==0, block);
+      } else {
+	rotate(pos, deviceCount, selection, rotated, blocksize, (pr % printevery)==0, block);
+      }
+    }
+    free(block);
+    free(selection);
+    free(rotated);
+  
+    for (size_t i = 0; i < deviceCount; i++) {
+      if (deviceList[i].fd > 0) {
+	close(deviceList[i].fd);
+      }
     }
   }
   freeDeviceDetails(deviceList, deviceCount);
