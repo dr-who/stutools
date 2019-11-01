@@ -58,7 +58,8 @@ size_t aioMultiplePositions( positionContainer *p,
 			     const int dontExitOnErrors,
 			     const int fd,
 			     int flushEvery,
-			     const size_t targetMBps
+			     const size_t targetMBps,
+			     size_t *ioerrors
 			     ) {
   int ret;
   struct iocb **cbs;
@@ -291,6 +292,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	      }
 	      
 	    } else {
+	      *ioerrors = (*ioerrors) + 1;
 	      fprintf(stderr,"io_submit() failed, ret = %d\n", ret); perror("io_submit()"); if(!dontExitOnErrors) abort();
 	    }
 	  }
@@ -397,7 +399,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
 	  if (printed++ < 10) {
 	    fprintf(stderr,"*error* AIO failure codes: res=%d and res2=%d, [%zd] = %zd, inFlight %zd, returned %d results\n", rescode, rescode2, pos, positions[pos].pos, inFlight, ret);
-	    exit(1);
+	    *ioerrors = (*ioerrors) + 1;
 	    //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
 	    //	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
 	  } else {
@@ -557,117 +559,4 @@ size_t aioMultiplePositions( positionContainer *p,
   
   return (*totalWB) + (*totalRB);
 }
-
-
-// sorting function, used by qsort
-static int poscompare(const void *p1, const void *p2)
-{
-  const positionType *pos1 = (positionType*)p1;
-  const positionType *pos2 = (positionType*)p2;
-
-  if (pos1->pos < pos2->pos) return -1;
-  else if (pos1->pos > pos2->pos) return 1;
-  else return 0;
-}
-
-int aioVerifyWrites(positionType *positions,
-		    const size_t maxpos,
-		    const size_t maxBufferSize,
-		    const size_t alignment,
-		    const int verbose,
-		    const char *randomBuffer,
-		    const int fd) {
-
-
-  fprintf(stderr,"*info* sorting verification array\n");
-  qsort(positions, maxpos, sizeof(positionType), poscompare);
-
-  size_t errors = 0, checked = 0, ioerrors = 0;
-  char *buffer;
-  CALLOC(buffer, maxBufferSize, sizeof(char));
-
-  size_t bytesToVerify = 0, posTOV = 0;
-  for (size_t i = 0; i < maxpos; i++) {
-    /*    if (i < 10) {
-      fprintf(stderr,"%d %zd %zd\n", positions[i].dev->fd, positions[i].pos, positions[i].len);
-      }*/
-    if (positions[i].success) {
-      if (positions[i].action == 'W') {
-	bytesToVerify += positions[i].len;
-	posTOV++;
-      }
-    }
-  }
-
-  double start = timedouble();
-  fprintf(stderr,"*info* started verification (%zd positions, %.1lf GiB)\n", posTOV, TOGB(bytesToVerify));
-
-  for (size_t i = 0; i < maxpos; i++) {
-    if (!keepRunning) break;
-    if (positions[i].success) {
-      if (positions[i].action == 'W') {
-	//	assert(positions[i].len >= 1024);
-	//	fprintf(stderr,"\n%zd: %c %zd %zd %d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].success);
-	checked++;
-	const size_t pos = positions[i].pos;
-	const size_t len = positions[i].len;
-	assert(len <= maxBufferSize);
-	assert(len >= 0);
-	
-	if (lseek(fd, pos, SEEK_SET) == -1) {
-	  if (errors + ioerrors < 10) {
-	    fprintf(stderr,"*error* seeking to pos %zd: ", pos);
-	    //	    perror("cannot seek");
-	  }
-	}
-	//	buffer[0] = 256 - randomBuffer[0] ^ 0xff; // make sure the first char is different
-	int bytesRead = read(fd, buffer, len);
-	if (lseek(fd, pos, SEEK_SET) == -1) {
-	  if (errors + ioerrors < 10) {
-	    fprintf(stderr,"*error* seeking to pos %zd: ", pos);
-	    //	    perror("cannot seek");
-	  }
-	}
-
-	if ((size_t)bytesRead != len) {
-	  ioerrors++;
-	  if (ioerrors < 10) {
-	    //	    perror("reading");
-	    fprintf(stderr,"[%zd/%zd][position %zd, %zd/%zd %% %zd] verify read truncated bytesRead=%d instead of len=%zd\n", checked, maxpos, pos, pos / maxBufferSize, pos % maxBufferSize, maxBufferSize, bytesRead, len);
-	  }
-	} else {
-	  assert(bytesRead == len);
-	  if (strncmp(buffer, randomBuffer, bytesRead) != 0) {
-	    errors++;	
-	    if (errors < 10) {
-	      char *bufferp = buffer;
-	      char *randomp = (char*)randomBuffer;
-	      for (size_t p = 0; p < bytesRead; p++) {
-		if (*bufferp != *randomp) {
-		  fprintf(stderr,"[%zd/%zd][position %zd, %zd/%zd %% %zd] verify error [size=%zd, read=%d] at location (%zd).  '%c'   '%c' \n", checked, maxpos, pos, pos / maxBufferSize, pos % maxBufferSize, maxBufferSize, len, bytesRead, p, buffer[p], randomBuffer[p]);
-		  break;
-		}
-		bufferp++;
-		randomp++;
-	      }
-	    }
-	  } else {
-	    if (verbose >= 2) {
-	      fprintf(stderr,"[%zd] verified ok location %zd, size %zd\n", checked, pos, len);
-	    }
-	  }
-	}
-      }
-    }
-  }
-  double elapsed = timedouble() - start;
-  fprintf(stderr,"checked %zd/%zd blocks, I/O errors %zd, errors/incorrect %zd, elapsed = %.1lf secs (%.1lf MB/s)\n", checked, posTOV, ioerrors, errors, elapsed, TOMB(bytesToVerify)/elapsed);
-
-
-  free(buffer);
-
-  return ioerrors + errors;
-}
-
-
 
