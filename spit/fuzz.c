@@ -54,6 +54,15 @@ void zapfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, i
 void rotate(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t blocksize, int print, char *block) {
   if (print) fprintf(stderr,"%9x (%5.1lf GiB):  ", (unsigned int)pos, TOGiB(pos));
 
+
+  size_t mparity = 0;
+  for (size_t i = 0; i < deviceCount; i++) {
+    if (selection[i] > 0) {
+      mparity++;
+    }
+  }
+  //  fprintf(stderr,"Mparity %zd\n", mparity);
+  
   // rotate
   int lastfd = -1, thisfd = -1, firstpos = -1;
   for (size_t i = 0; i < deviceCount; i++) {
@@ -68,34 +77,35 @@ void rotate(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t
   }
   rotated[firstpos] = lastfd;
 
-  
+
   size_t mcount = 0, ok = 0;
-  char *firstblock = malloc(blocksize);
-  for (size_t i = 0; i < deviceCount; i++) {
+  char *firstblock = aligned_alloc(4096, blocksize);
+  for (size_t i = 0; i <deviceCount; i++) {
     if (selection[i] > 0) {
       mcount++;
-      //      fprintf(stderr,"*info* read from %d, write to %d\n", selection[i], rotated[i]);
+      //            fprintf(stderr,"*info* read from %d, write to %d\n", selection[i], rotated[i]);
 
       ssize_t retr;
       
-      if (i==0) {
+      if (mcount==1) {
 	retr = pread(rotated[i], firstblock, blocksize, pos); // keep a copy of what it's clobbered
       }
 	
       retr = pread(selection[i], block, blocksize, pos);
 
       ssize_t retw;
-      if (mcount < deviceCount) {
+      if (mcount < mparity) {
 	retw = pwrite(rotated[i], block, blocksize, pos);
       } else {
 	retw = pwrite(rotated[i], firstblock, blocksize, pos);
       }
+
       
       if ((retw == blocksize) && (retr == retw)) {
 	ok++;
 	if (print) fprintf(stderr,"%2d ", selection[i]);
       } else {
-	//	perror("wow");
+		perror("wow");
       }
     } else {
       if (print) fprintf(stderr,"   ");
