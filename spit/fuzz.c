@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
   unsigned short seed = 0;
   int printevery = 1;
   int tripleX = 0;
-  int zap = 0;
+  int zap = 1;
   
   optind = 0;
   while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:qXzc")) != -1) {
@@ -158,7 +158,7 @@ int main(int argc, char *argv[]) {
     case 'z':
       zap = 1;
       break;
-    case 'c':
+    case 'r':
       zap = 0;
       break;
     case 'I':
@@ -185,7 +185,7 @@ int main(int argc, char *argv[]) {
     }
     device = deviceList[0].devicename;
   } else {
-    fprintf(stderr,"*info* fuzz -I devices.txt -k 10 -m 6 [-R(seed) 0] [-g(start) 0.016] [-G(end) 4] [-b 4096] [-q(uiet)]\n");
+    fprintf(stderr,"*info* fuzz -I devices.txt -k 10 -m 6 [-R(seed) 0] [-g(start) 0.016] [-G(end) 4] [-b 4096] [-q(uiet)] [-z(zap)] [-r(rotate)]\n");
     exit(1);
   }
 
