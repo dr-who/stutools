@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
   int zap = 1;
   
   optind = 0;
-  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:qXzc")) != -1) {
+  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:qXzr")) != -1) {
     switch (opt) {
     case 'b':
       blocksize = atoi(optarg);
