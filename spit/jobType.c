@@ -272,7 +272,7 @@ static void *runThread(void *arg) {
   size_t totalB = 0;
   while (keepRunning) {
     // 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery, threadContext->speedMB);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 0, fd, threadContext->flushEvery, threadContext->speedMB);
 
     // check exit constraints
     if (byteLimit) {
