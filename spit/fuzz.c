@@ -186,7 +186,7 @@ int main(int argc, char *argv[]) {
     }
     device = deviceList[0].devicename;
   } else {
-    fprintf(stderr,"*info* fuzz -I devices.txt -k 10 -m 6 [-R(seed) 0] [-g(start) 0.016] [-G(end) 4] [-b 4096] [-q(uiet)] [-z(zap)] [-r(rotate)]\n");
+    fprintf(stderr,"*info* fuzz -I devices.txt -k 10 -m 6 [-R(seed) 0] [-g(start) 0.016] [-G(end) 4] [-b %zd] [-q(uiet)] [-z(zap)] [-r(rotate)]\n", blocksize);
     exit(1);
   }
 
