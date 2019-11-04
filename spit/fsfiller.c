@@ -146,7 +146,7 @@ size_t filesize = 360*1024;
 size_t writesize = 65536;
 
 void usage() {
-  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd)] [-K filesizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed]\n", threads, filesize/1024, writesize/1024);
+  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed]\n", threads, filesize/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
