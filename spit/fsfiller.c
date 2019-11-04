@@ -142,25 +142,28 @@ int main(int argc, char *argv[]) {
     sprintf(s,"%02x/%02x", (((unsigned int)id)/100) % 100, ((unsigned int)id)%100);
     mkdir(s, 0777);
   }
-
+ 
   size_t id = 0;
   while (!finished) {
-    if (workQueueNum(&wq) < 10000) { // queue up to 10,000 items at a time
-      workQueueActionType *action = malloc(sizeof(workQueueActionType));
-
-      action->type = 'C';
-      sprintf(s,"%02x/%02x/%010zd", (((unsigned int)id)/100) % 100, ((unsigned int)id)%100, id);
-      action->payload = strdup(s);
-      action->id = id++;
-      action->size = blocksize;
-      if (workQueuePush(&wq, action) != 0) {
-	free(action->payload);
-	free(action);
+    workQueueActionType *action = NULL;
+    
+    if (workQueueNum(&wq) < 9998) { // queue up to 10,000 items at a time
+      if (!action) {
+	action = malloc(sizeof(workQueueActionType));
+	action->type = 'C';
+	sprintf(s,"%02x/%02x/%010zd", (((unsigned int)id)/100) % 100, ((unsigned int)id)%100, id);
+	action->payload = strdup(s);
+	action->id = id++;
+	action->size = blocksize;
       }
-      //      fprintf(stderr,"*info* [%zd] num %zd\n", id, workQueueNum(&wq));
+
+      if (workQueuePush(&wq, action) != 0) {
+	action = NULL;// it wasn't added
+      }
     } else {
       //      fprintf(stderr,"sleeping...%d in the queue\n", 1000);
       usleep(10000);
+      action = NULL;
     }
   }
   

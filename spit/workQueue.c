@@ -42,7 +42,7 @@ int workQueuePush(workQueueType *queue, workQueueActionType *action) {
     }
   } else {
     ret = 1;
-    //    fprintf(stderr,"*warning* not adding, full\n");
+    fprintf(stderr,"*warning* not adding, full %zd\n", queue->sz);
   }
 
   pthread_mutex_unlock(&queue->lock);
