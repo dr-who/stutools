@@ -9,10 +9,13 @@ include (CTest)
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wall -pedantic --std=c99 -O2" )
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
-add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c)
+add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c)
 
 add_executable(spit spit.c)
 target_link_libraries(spit spitlib m aio pthread)
+
+add_executable(fsfiller fsfiller.c)
+target_link_libraries(fsfiller spitlib m aio pthread)
 
 add_executable(spitchecker verify.c)
 target_link_libraries(spitchecker spitlib m aio pthread)
