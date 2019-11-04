@@ -54,9 +54,9 @@ void* worker(void *arg)
     workQueueActionType *action = workQueuePop(&wq);
     if (action) {
 
-      if (action->id % 100 == 0) {
+      size_t fin = workQueueFinished(&wq);
+      if (fin % 100 == 0) {
 	double tm = timedouble() - wq.startTime;
-	size_t fin = workQueueFinished(&wq);
 	size_t sum = workQueueFinishedSize(&wq);
 	fprintf(stderr,"*info* [thread %zd] [action %zd, '%s'], finished %zd (%.0lf files/second), %.1lf GiB (%.0lf MiB/s), %.1lf seconds\n", threadContext->threadid, action->id, action->payload, fin, fin/tm, TOGiB(sum), TOMiB(sum)/tm, tm);
       }
