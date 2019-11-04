@@ -397,14 +397,20 @@ size_t aioMultiplePositions( positionContainer *p,
 	int rescode2 = events[j].res2;
 
 	if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
+	  *ioerrors = (*ioerrors) + 1;
 	  if (printed++ < 10) {
 	    fprintf(stderr,"*error* AIO failure codes: res=%d and res2=%d, [%zd] = %zd, inFlight %zd, returned %d results\n", rescode, rescode2, pos, positions[pos].pos, inFlight, ret);
-	    *ioerrors = (*ioerrors) + 1;
 	    //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
 	    //	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
 	  } else {
+	      
 	    //	    fprintf(stderr,"*error* further output supressed\n");
 	  }
+	  if (*ioerrors > 1000000) {
+	    fprintf(stderr,"*info* over %zd IO errors. Exiting...\n", *ioerrors);
+	  }
+	    
+
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	} else {
 	  //	  fprintf(stderr,"---> %d %d\n", rescode, rescode2);
