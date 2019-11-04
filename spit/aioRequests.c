@@ -408,6 +408,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	  }
 	  if (*ioerrors > 1000000) {
 	    fprintf(stderr,"*info* over %zd IO errors. Exiting...\n", *ioerrors);
+	    exit(-1);
 	  }
 	    
 
