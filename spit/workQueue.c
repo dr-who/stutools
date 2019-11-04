@@ -27,7 +27,8 @@ void workQueueInit(workQueueType *queue, const size_t size) {
   }
 }
 
-void workQueuePush(workQueueType *queue, workQueueActionType *action) {
+int workQueuePush(workQueueType *queue, workQueueActionType *action) {
+  int ret = 0;
   pthread_mutex_lock(&queue->lock); 
 
   if (queue->sz < queue->allocsz-1) {
@@ -40,10 +41,12 @@ void workQueuePush(workQueueType *queue, workQueueActionType *action) {
       queue->startTime = timedouble();
     }
   } else {
+    ret = 1;
     //    fprintf(stderr,"*warning* not adding, full\n");
   }
 
   pthread_mutex_unlock(&queue->lock);
+  return ret;
 }
 
 workQueueActionType *workQueuePop(workQueueType *queue) {

@@ -26,7 +26,7 @@ typedef struct {
 void workQueueInit(workQueueType *queue, const size_t size);
 void workQueueFree(workQueueType *queue);
 
-void workQueuePush(workQueueType *queue, workQueueActionType *action);
+int workQueuePush(workQueueType *queue, workQueueActionType *action);
 
 workQueueActionType * workQueuePop(workQueueType *queue);
 size_t workQueueNum(workQueueType *queue);

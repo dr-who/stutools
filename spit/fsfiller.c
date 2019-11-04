@@ -51,7 +51,7 @@ void createAction(const char *filename, char *buf, size_t size) {
 void* worker(void *arg) 
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
-  char *buf = aligned_alloc(4096, 1024*1024*10);
+  char *buf = aligned_alloc(4096, 1024*1024*1);
   while (1) {
     
     workQueueActionType *action = workQueuePop(&wq);
@@ -67,7 +67,7 @@ void* worker(void *arg)
       switch(action->type) {
       case 'C': 
 	//	fprintf(stderr,"[%zd] %c %s\n", action->id, action->type, action->payload);
-	if (action->size < 1024*1024*10) {
+	if (action->size < 1024*1024*1) {
 	  createAction(action->payload, buf, action->size);
 	} else {
 	  fprintf(stderr,"*warning* big file ignored\n");
@@ -78,6 +78,7 @@ void* worker(void *arg)
 	break;
       }
       
+      free(action->payload);
       free(action);
     } else {
       usleep(10000);
@@ -152,10 +153,13 @@ int main(int argc, char *argv[]) {
       action->payload = strdup(s);
       action->id = id++;
       action->size = blocksize;
-      workQueuePush(&wq, action);
+      if (workQueuePush(&wq, action) != 0) {
+	free(action->payload);
+	free(action);
+      }
       //      fprintf(stderr,"*info* [%zd] num %zd\n", id, workQueueNum(&wq));
     } else {
-      fprintf(stderr,"sleeping...%d in the queue\n", 1000);
+      //      fprintf(stderr,"sleeping...%d in the queue\n", 1000);
       usleep(10000);
     }
   }
