@@ -48,6 +48,27 @@ void createAction(const char *filename, char *buf, size_t size) {
 }
 
 
+
+void readAction(const char *filename, char *buf, size_t size) {
+  int fd = open(filename, O_DIRECT | O_RDONLY);
+  
+  if (fd > 0) {
+    size_t toread = size;
+    while (toread < size) {
+      int readd = write(fd, buf, size);
+      if (readd > 0) {
+	toread += readd;
+      }
+    }
+    close(fd);
+    if (verbose) fprintf(stderr,"*info* read file %s, size %zd\n", filename, size);
+  } else {
+    fprintf(stderr,"*error* didn't read %s\n", filename);
+    exit(1);
+  }
+}
+
+
 void* worker(void *arg) 
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
@@ -65,7 +86,7 @@ void* worker(void *arg)
       }
       
       switch(action->type) {
-      case 'C': 
+      case 'W': 
 	//	fprintf(stderr,"[%zd] %c %s\n", action->id, action->type, action->payload);
 	if (action->size < 1024*1024*1) {
 	  createAction(action->payload, buf, action->size);
@@ -73,8 +94,12 @@ void* worker(void *arg)
 	  fprintf(stderr,"*warning* big file ignored\n");
 	}
 	break;
-      case 'D': 
-	fprintf(stderr,"[%zd] theD %c %s\n", action->id, action->type, action->payload);
+      case 'R': 
+	if (action->size < 1024*1024*1) {
+	  readAction(action->payload, buf, action->size);
+	} else {
+	  fprintf(stderr,"*warning* big file ignored\n");
+	}
 	break;
       }
       
@@ -90,17 +115,24 @@ void* worker(void *arg)
 
 
 void usage() {
-  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads] [-k sizeKIB] [-V(verbose)]\n");
+  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads] [-k sizeKIB] [-V(verbose)] [-r(read)] [-w(write)]\n");
 }
 
 int main(int argc, char *argv[]) {
 
   int threads = 1;
   size_t blocksize = 360*1024;
+  int read = 0;
 
   int opt = 0, help = 0;
-  while ((opt = getopt(argc, argv, "T:Vk:h")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:hrw")) != -1) {
     switch (opt) {
+    case 'r':
+      read = 1;
+      break;
+    case 'w':
+      read = 0;
+      break;
     case 'h':
       help = 1;
       break;
@@ -162,7 +194,11 @@ int main(int argc, char *argv[]) {
     if (workQueueNum(&wq) < 9998) { // queue up to 10,000 items at a time
       if (!action) {
 	action = malloc(sizeof(workQueueActionType));
-	action->type = 'C';
+	if (read) {
+	  action->type = 'R';
+	} else {
+	  action->type = 'W';
+	}
 	sprintf(s,"%02x/%02x/%010zd", (((unsigned int)id)/100) % 100, ((unsigned int)id)%100, id);
 	action->payload = strdup(s);
 	action->id = id++;
