@@ -63,6 +63,8 @@ workQueueActionType *workQueuePop(workQueueType *queue) {
       queue->sizeSum += ret->size;
     }
     pthread_mutex_unlock(&queue->lock);
+  } else {
+    //    fprintf(stderr,"missed a lock\n");
   }
   return ret;
 }

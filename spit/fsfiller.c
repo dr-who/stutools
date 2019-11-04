@@ -20,6 +20,8 @@
 #include <pthread.h>
 #include <string.h>
 
+#define DEPTH 100
+
 workQueueType wq;
 size_t finished;
 int verbose = 0;
@@ -92,7 +94,7 @@ void readAction(const char *filename, char *buf, size_t size) {
 void* worker(void *arg) 
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
-  size_t totalfilespace = threadContext->totalFileSpace;
+  const size_t totalfilespace = threadContext->totalFileSpace;
   char *buf = aligned_alloc(4096, 1024*1024*1);
   memset(buf, 'z', 1024*1024*1);
 
@@ -104,10 +106,10 @@ void* worker(void *arg)
     
     if (action) {
       
-      size_t fin = workQueueFinished(&wq);
+      const size_t fin = workQueueFinished(&wq);
       if (fin % 1000 == 0) {
-	double tm = timedouble() - wq.startTime;
-	size_t sum = workQueueFinishedSize(&wq);
+	const double tm = timedouble() - wq.startTime;
+	const size_t sum = workQueueFinishedSize(&wq);
 	
 	sprintf(outstring, "*info* [thread %zd] [action %zd, '%s'], finished %zd, %.0lf files/second, %.1lf GB, LBAx %.2lf, %.0lf MB/s, %.1lf seconds\n", threadContext->threadid, action->id, action->payload, fin, fin/tm, TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum)/tm, tm);
 	if (bfp) {
@@ -138,8 +140,7 @@ void* worker(void *arg)
       free(action->payload);
       free(action);
     } else {
-      //      fprintf(stderr,"sleep\n");
-      usleep(10000);
+      //            fprintf(stderr,"starving\n");
     }
   }
   free(buf);
@@ -234,8 +235,9 @@ int main(int argc, char *argv[]) {
   }
   
   
-  
-  workQueueInit(&wq, 10000);
+
+  size_t queueditems = 10000;
+  workQueueInit(&wq, queueditems);
 
   finished = 0;
 
@@ -257,14 +259,14 @@ int main(int argc, char *argv[]) {
 
   
   char s[1000];
-  fprintf(stderr,"*info* making 100 top level directories\n");
-  for (unsigned int id = 0; id < 100; id++) {
+  fprintf(stderr,"*info* making %d top level directories\n", DEPTH);
+  for (unsigned int id = 0; id < DEPTH; id++) {
     sprintf(s,"%02x", id);
     mkdir(s, 0777);
   }
-  fprintf(stderr,"*info* making 10000 two level directories\n");
-  for (unsigned int id = 0; id < 10000; id++) {
-    sprintf(s,"%02x/%02x", (((unsigned int)id)/100) % 100, ((unsigned int)id)%100);
+  fprintf(stderr,"*info* making %d x %d two level directories\n", DEPTH, DEPTH);
+  for (unsigned int id = 0; id < DEPTH * DEPTH; id++) {
+    sprintf(s,"%02x/%02x", (((unsigned int)id)/DEPTH) % DEPTH, ((unsigned int)id)%DEPTH);
     mkdir(s, 0777);
   }
 
@@ -280,7 +282,7 @@ int main(int argc, char *argv[]) {
   while (!finished) {
     workQueueActionType *action = NULL;
     
-    if (workQueueNum(&wq) < 9998) { // queue up to 10,000 items at a time
+    if (workQueueNum(&wq) < queueditems - 10) { // queue up to 10,000 items at a time
       if (!action) {
 	action = malloc(sizeof(workQueueActionType));
 	if (read) {
@@ -289,7 +291,7 @@ int main(int argc, char *argv[]) {
 	  action->type = 'W';
 	}
 	size_t val = fileid[id % numFiles];
-	sprintf(s,"%02x/%02x/%010zd", (((unsigned int)val)/100) % 100, ((unsigned int)val)%100, val);
+	sprintf(s,"%02x/%02x/%010zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val);
 	action->payload = strdup(s);
 	action->id = id++;
 	action->size = filesize;
@@ -300,8 +302,8 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr,"wasn't added\n");
       }
     } else {
-      //      fprintf(stderr,"sleeping...%d in the queue\n", 1000);
-      usleep(10000);
+      //      fprintf(stderr,"sleeping...%zd in the queue\n", workQueueNum(&wq));
+      usleep(100000);
       action = NULL;
     }
   }
