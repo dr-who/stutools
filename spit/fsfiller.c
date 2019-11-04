@@ -212,7 +212,7 @@ int main(int argc, char *argv[]) {
   }
       
   size_t totalfilespace = diskSpace();
-  size_t numFiles = totalfilespace / filesize;
+  size_t numFiles = (totalfilespace / filesize) * 0.95;
 
   srand(seed);
   fprintf(stderr,"*info* number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u\n", threads, filesize, writesize, numFiles, unique, seed);
