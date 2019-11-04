@@ -29,6 +29,7 @@ FILE *bfp = NULL;
 
 typedef struct {
   size_t threadid;
+  size_t totalFileSpace;
 } threadInfoType;
 
 
@@ -43,7 +44,7 @@ size_t diskSpace() {
     
 
 void createAction(const char *filename, char *buf, const size_t size, const size_t writesize) {
-  int fd = open(filename, O_DIRECT | O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+  int fd = open(filename, O_DIRECT | O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
   
   if (fd > 0) {
     size_t towrite = size;
@@ -52,13 +53,15 @@ void createAction(const char *filename, char *buf, const size_t size, const size
       //      fprintf(stderr,"%s %zd\n", filename, MIN(towrite, writesize));
       if (written >= 0) {
 	towrite -= written;
+      } else {
+	perror("write");
       }
     }
     close(fd);
     if (verbose) fprintf(stderr,"*info* wrote file %s, size %zd\n", filename, size);
   } else {
-    fprintf(stderr,"*error* didn't write %s\n", filename);
-    exit(1);
+    fprintf(stderr,"*error* didn't write %s, skipping\n", filename);
+    //    exit(1);
   }
 }
 
@@ -80,8 +83,8 @@ void readAction(const char *filename, char *buf, size_t size) {
     close(fd);
     if (verbose) fprintf(stderr,"*info* read file %s, size %zd\n", filename, size);
   } else {
-    fprintf(stderr,"*error* didn't read %s\n", filename);
-    exit(1);
+    fprintf(stderr,"*error* didn't read %s, skipping\n", filename);
+    //exit(1);
   }
 }
 
@@ -89,6 +92,7 @@ void readAction(const char *filename, char *buf, size_t size) {
 void* worker(void *arg) 
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
+  size_t totalfilespace = threadContext->totalFileSpace;
   char *buf = aligned_alloc(4096, 1024*1024*1);
   memset(buf, 'z', 1024*1024*1);
 
@@ -97,14 +101,15 @@ void* worker(void *arg)
   while (1) {
     
     workQueueActionType *action = workQueuePop(&wq);
+    
     if (action) {
-
+      
       size_t fin = workQueueFinished(&wq);
       if (fin % 1000 == 0) {
 	double tm = timedouble() - wq.startTime;
 	size_t sum = workQueueFinishedSize(&wq);
 	
-	sprintf(outstring, "*info* [thread %zd] [action %zd, '%s'], finished %zd (%.0lf files/second), %.1lf GB (%.0lf MB/s), %.1lf seconds\n", threadContext->threadid, action->id, action->payload, fin, fin/tm, TOGB(sum), TOMB(sum)/tm, tm);
+	sprintf(outstring, "*info* [thread %zd] [action %zd, '%s'], finished %zd, %.0lf files/second, %.1lf GB, LBAx %.2lf, %.0lf MB/s, %.1lf seconds\n", threadContext->threadid, action->id, action->payload, fin, fin/tm, TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum)/tm, tm);
 	if (bfp) {
 	  fprintf(bfp, "%s", outstring);
 	  //	  fflush(bfp);
@@ -133,6 +138,7 @@ void* worker(void *arg)
       free(action->payload);
       free(action);
     } else {
+      //      fprintf(stderr,"sleep\n");
       usleep(10000);
     }
   }
@@ -143,21 +149,22 @@ void* worker(void *arg)
 
 int threads = 32;
 size_t filesize = 360*1024;
-size_t writesize = 65536;
+size_t writesize = 1024*1024;
 
 void usage() {
-  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed]\n", threads, filesize/1024, writesize/1024);
+  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed] [-u(unique filenames)] [-U(nonunique/with replacement]\n", threads, filesize/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
 
 
   int read = 0;
-
   int opt = 0, help = 0;
-  size_t seed = 0;
+  unsigned int seed = timedouble() * 10;
+  seed = seed % 65536;
+  size_t unique = 1;
   
-  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUs")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkFile = optarg;
@@ -183,6 +190,15 @@ int main(int argc, char *argv[]) {
     case 'T':
       threads = atoi(optarg);
       break;
+    case 'u':
+      unique = 1;
+      break;
+    case 'U':
+      unique = 0; // with replacement
+      break;
+    case 's':
+      unique = 2; // 2 is sequential
+      break;
     case 'V':
       verbose = 1;
       break;
@@ -194,10 +210,28 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
       
-  size_t freespace = diskSpace();
-  size_t numFiles = freespace / filesize;
+  size_t totalfilespace = diskSpace();
+  size_t numFiles = totalfilespace / filesize;
 
-  fprintf(stderr,"*info* number of files approx: %zd\n", numFiles);
+  srand(seed);
+  fprintf(stderr,"*info* number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u\n", threads, filesize, writesize, numFiles, unique, seed);
+
+  size_t *fileid = malloc(numFiles * sizeof(size_t));
+  for (size_t i = 0; i < numFiles; i++) {
+    if (unique) { // unique 1 or 2 for seq
+      fileid[i] = i;
+    } else {
+      fileid[i] = rand() % numFiles;
+    }
+  }
+  if (unique == 1) { // if randomise 
+    for (size_t i = 0; i < numFiles; i++) {
+      const size_t j = rand() % numFiles;
+      size_t tmp = fileid[i];
+      fileid[i] = fileid[j];
+      fileid[j] = tmp;
+    }
+  }
   
   
   
@@ -205,7 +239,6 @@ int main(int argc, char *argv[]) {
 
   finished = 0;
 
-  fprintf(stderr,"*info* number of threads %d, file size %zd (block size %zd), numFiles %zd, seed %zd\n", threads, filesize, writesize, numFiles, seed);
 
   // setup worker threads
   pthread_t *tid = malloc(threads * sizeof(pthread_t));
@@ -214,6 +247,7 @@ int main(int argc, char *argv[]) {
   
   for (size_t i = 0; i < threads; i++){
     threadinfo[i].threadid = i;
+    threadinfo[i].totalFileSpace = totalfilespace;
     int error = pthread_create(&(tid[i]), NULL, &worker, &threadinfo[i]);
     if (error != 0) {
       printf("\nThread can't be created :[%s]", strerror(error)); 
@@ -221,7 +255,6 @@ int main(int argc, char *argv[]) {
   }
 
 
-  srand(seed);
   
   char s[1000];
   fprintf(stderr,"*info* making 100 top level directories\n");
@@ -243,7 +276,7 @@ int main(int argc, char *argv[]) {
     }
   }
  
-  size_t id = 1;
+  size_t id = 0;
   while (!finished) {
     workQueueActionType *action = NULL;
     
@@ -255,7 +288,7 @@ int main(int argc, char *argv[]) {
 	} else {
 	  action->type = 'W';
 	}
-	size_t val = rand() % numFiles;
+	size_t val = fileid[id % numFiles];
 	sprintf(s,"%02x/%02x/%010zd", (((unsigned int)val)/100) % 100, ((unsigned int)val)%100, val);
 	action->payload = strdup(s);
 	action->id = id++;
@@ -264,6 +297,7 @@ int main(int argc, char *argv[]) {
 
       if (workQueuePush(&wq, action) != 0) {
 	action = NULL;// it wasn't added
+	fprintf(stderr,"wasn't added\n");
       }
     } else {
       //      fprintf(stderr,"sleeping...%d in the queue\n", 1000);
