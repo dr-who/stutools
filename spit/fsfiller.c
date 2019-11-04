@@ -1,4 +1,7 @@
+#define _GNU_SOURCE
+#define _POSIX_C_SOURCE 200809L
 #define _XOPEN_SOURCE 500
+
 #include "workQueue.h"
 #include "utils.h"
 
@@ -26,7 +29,7 @@ typedef struct {
 } threadInfoType;
 
 void createAction(const char *filename, char *buf, size_t size) {
-  int fd = open(filename, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+  int fd = open(filename, O_DIRECT | O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
   
   if (fd > 0) {
     size_t towrite = size;
@@ -48,14 +51,14 @@ void createAction(const char *filename, char *buf, size_t size) {
 void* worker(void *arg) 
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
-  char *buf = malloc(1024*1024*10);
+  char *buf = aligned_alloc(4096, 1024*1024*10);
   while (1) {
     
     workQueueActionType *action = workQueuePop(&wq);
     if (action) {
 
       size_t fin = workQueueFinished(&wq);
-      if (fin % 100 == 0) {
+      if (fin % 1000 == 0) {
 	double tm = timedouble() - wq.startTime;
 	size_t sum = workQueueFinishedSize(&wq);
 	fprintf(stderr,"*info* [thread %zd] [action %zd, '%s'], finished %zd (%.0lf files/second), %.1lf GiB (%.0lf MiB/s), %.1lf seconds\n", threadContext->threadid, action->id, action->payload, fin, fin/tm, TOGiB(sum), TOMiB(sum)/tm, tm);
@@ -152,7 +155,7 @@ int main(int argc, char *argv[]) {
       workQueuePush(&wq, action);
       //      fprintf(stderr,"*info* [%zd] num %zd\n", id, workQueueNum(&wq));
     } else {
-      //      fprintf(stderr,"sleeping...%d in the queue\n", 1000);
+      fprintf(stderr,"sleeping...%d in the queue\n", 1000);
       usleep(10000);
     }
   }
