@@ -53,11 +53,13 @@ void readAction(const char *filename, char *buf, size_t size) {
   int fd = open(filename, O_DIRECT | O_RDONLY);
   
   if (fd > 0) {
-    size_t toread = size;
-    while (toread < size) {
-      int readd = write(fd, buf, size);
+    size_t toread = 0;
+    while (toread != size) {
+      int readd = read(fd, buf, size);
       if (readd > 0) {
 	toread += readd;
+      } else {
+	perror("read");
       }
     }
     close(fd);
