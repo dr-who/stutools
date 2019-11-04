@@ -17,7 +17,15 @@ Stu's Powerful I/O Tester (spit)
 
       man -l spit/man.1
 
-## Common tests
+## Simple tests
+      spit -f device -c wk64    # test seq writes 64KiB
+
+      spit -f device -c rs0     # test rand reads 4KiB
+
+      spit -f device -c wk64j3 -c rk64j2    # three writers, two reader threads
+
+
+## SNIA Common tests
       spit -f device -p G -c wk64    # precondition random 4k writes, test seq writes 64KiB
 
       spit -f device -p G -c rs0     # precondition random 4k writes, test rand reads 4KiB
@@ -72,3 +80,15 @@ Stu's Powerful I/O Tester (spit)
       spit -f .... -c wns0X10       # writing 10 times, not time based
       spit -f -p G -p Gs1           # precondition job, writing random, 100% LBA, then seq job (handy for SNIA type)
       spit -f -p G100               # precondition job, writing random overwrite LBA size
+      spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks
+      spit -f meta -O devices.txt   # specify the raw devices for amplification statistics
+      spit -s 0.1 -i 5              # and ignore first 5 seconds of performance
+      spit -v                       # verify the writes after a run
+      spit -P filename              # dump positions to filename
+      spit -c wG_j4                 # The _ represents to divide the G value evenly between threads
+      spit -B bench -M ... -N ...   # See the man page for benchmarking tips
+      spit -F fileprefix -j128      # creates files from .0001 to .0128
+      spit ... -c ws0u -v           # Uses a unique seed (u) per operation (mod 65536)
+      spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with QD=1
+      spit ... -c ws0UG_ -v -j32    # Generates r/w pairs with unique seeds, as above, unique thread ranges
+      spit ... -c ws1S250           # S option targets a speed in MB/s by adding usleep() between operations. 
