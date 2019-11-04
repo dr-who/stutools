@@ -19,7 +19,7 @@ void workQueueInit(workQueueType *queue, const size_t size) {
   queue->head = 0;
   queue->finished = 0;
   queue->tail = 0;
-  queue->startTime = timedouble();
+  queue->startTime = 0;
   queue->actions = malloc(size * sizeof(workQueueActionType*)); assert(queue->actions);
   if (pthread_mutex_init(&queue->lock, NULL) != 0) {
     printf("\n mutex init has failed\n"); 
@@ -36,6 +36,9 @@ void workQueuePush(workQueueType *queue, workQueueActionType *action) {
       queue->head = 0;
     }
     queue->sz++;
+    if (queue->startTime == 0) {
+      queue->startTime = timedouble();
+    }
   } else {
     //    fprintf(stderr,"*warning* not adding, full\n");
   }
