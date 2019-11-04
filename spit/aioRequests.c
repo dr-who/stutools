@@ -403,7 +403,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	    //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
 	    //	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
 	  } else {
-	    fprintf(stderr,"*error* further output supressed\n");
+	    //	    fprintf(stderr,"*error* further output supressed\n");
 	  }
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	} else {
