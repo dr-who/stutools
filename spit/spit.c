@@ -36,13 +36,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   size_t deviceCount = 0;
   size_t tripleX = 0;
   size_t commandstringpos = 0;
-  size_t jcount = 1;
   
   jobInit(j);
   jobInit(preconditions);
 
   optind = 0;
   while ((opt = getopt(argc, argv, "b:c:f:F:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:")) != -1) {
+    size_t jcount = 1;
     switch (opt) {
     case 'b': {}
       *minSizeInBytes = alignedNumber(atol(optarg), 4096);
