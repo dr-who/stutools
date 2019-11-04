@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
     mkdir(s, 0777);
   }
  
-  size_t id = 0;
+  size_t id = 1;
   while (!finished) {
     workQueueActionType *action = NULL;
     
