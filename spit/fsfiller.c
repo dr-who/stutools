@@ -42,13 +42,14 @@ size_t diskSpace() {
 }
     
 
-void createAction(const char *filename, char *buf, size_t size) {
+void createAction(const char *filename, char *buf, const size_t size, const size_t writesize) {
   int fd = open(filename, O_DIRECT | O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
   
   if (fd > 0) {
     size_t towrite = size;
     while (towrite > 0) {
-      int written = write(fd, buf, size);
+      int written = write(fd, buf, MIN(towrite, writesize));
+      //      fprintf(stderr,"%s %zd\n", filename, MIN(towrite, writesize));
       if (written >= 0) {
 	towrite -= written;
       }
@@ -115,7 +116,7 @@ void* worker(void *arg)
       case 'W': 
 	//	fprintf(stderr,"[%zd] %c %s\n", action->id, action->type, action->payload);
 	if (action->size < 1024*1024*1) {
-	  createAction(action->payload, buf, action->size);
+	  createAction(action->payload, buf, action->size, 65536);
 	} else {
 	  fprintf(stderr,"*warning* big file ignored\n");
 	}
@@ -141,10 +142,11 @@ void* worker(void *arg)
 
 
 int threads = 32;
-size_t blocksize = 360*1024;
+size_t filesize = 360*1024;
+size_t writesize = 65536;
 
 void usage() {
-  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k sizeKIB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed]\n", threads, blocksize/1024);
+  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd)] [-K filesizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed]\n", threads, filesize/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
@@ -155,7 +157,7 @@ int main(int argc, char *argv[]) {
   int opt = 0, help = 0;
   size_t seed = 0;
   
-  while ((opt = getopt(argc, argv, "T:Vk:hrwB:R:")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkFile = optarg;
@@ -173,7 +175,10 @@ int main(int argc, char *argv[]) {
       help = 1;
       break;
     case 'k':
-      blocksize = 1024 * atoi(optarg);
+      filesize = 1024 * atoi(optarg);
+      break;
+    case 'K':
+      writesize = 1024 * atoi(optarg);
       break;
     case 'T':
       threads = atoi(optarg);
@@ -190,7 +195,7 @@ int main(int argc, char *argv[]) {
   }
       
   size_t freespace = diskSpace();
-  size_t numFiles = freespace / blocksize;
+  size_t numFiles = freespace / filesize;
 
   fprintf(stderr,"*info* number of files approx: %zd\n", numFiles);
   
@@ -200,7 +205,7 @@ int main(int argc, char *argv[]) {
 
   finished = 0;
 
-  fprintf(stderr,"*info* number of threads %d, file size %zd, numFiles %zd, seed %zd\n", threads, blocksize, numFiles, seed);
+  fprintf(stderr,"*info* number of threads %d, file size %zd (block size %zd), numFiles %zd, seed %zd\n", threads, filesize, writesize, numFiles, seed);
 
   // setup worker threads
   pthread_t *tid = malloc(threads * sizeof(pthread_t));
@@ -254,7 +259,7 @@ int main(int argc, char *argv[]) {
 	sprintf(s,"%02x/%02x/%010zd", (((unsigned int)val)/100) % 100, ((unsigned int)val)%100, val);
 	action->payload = strdup(s);
 	action->id = id++;
-	action->size = blocksize;
+	action->size = filesize;
       }
 
       if (workQueuePush(&wq, action) != 0) {
