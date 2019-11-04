@@ -117,14 +117,15 @@ void* worker(void *arg)
 }
 
 
+  int threads = 32;
+  size_t blocksize = 360*1024;
+
 void usage() {
-  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads] [-k sizeKIB] [-V(verbose)] [-r(read)] [-w(write)]\n");
+  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k sizeKIB (%zd)] [-V(verbose)] [-r(read)] [-w(write)]\n", threads, blocksize/1024);
 }
 
 int main(int argc, char *argv[]) {
 
-  int threads = 1;
-  size_t blocksize = 360*1024;
   int read = 0;
 
   int opt = 0, help = 0;
