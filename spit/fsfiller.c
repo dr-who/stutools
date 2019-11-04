@@ -75,6 +75,7 @@ void* worker(void *arg)
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
   char *buf = aligned_alloc(4096, 1024*1024*1);
+  memset(buf, 'z', 1024*1024*1);
   while (1) {
     
     workQueueActionType *action = workQueuePop(&wq);
