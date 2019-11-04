@@ -4,6 +4,8 @@ Stu's Powerful I/O Tester (spit)
 
       ./spit/spit   - powerful test program, sequential random, queue depth, timings and more.
 
+      Tools for generating SNIA (Storage Networking Industry Association) compatible benchmarking.
+
 ## Dependencies
 
       apt install libaio-dev
