@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/statvfs.h>
 
 
 #include <pthread.h>
@@ -23,10 +24,23 @@ workQueueType wq;
 size_t finished;
 int verbose = 0;
 int keepRunning = 1;
+char *benchmarkFile = NULL;
+FILE *bfp = NULL;
 
 typedef struct {
   size_t threadid;
 } threadInfoType;
+
+
+size_t diskSpace() {
+  struct statvfs buf;
+
+  statvfs(".", &buf);
+  size_t t =  buf.f_blocks;
+  t = t * buf.f_bsize;
+  return t;
+}
+    
 
 void createAction(const char *filename, char *buf, size_t size) {
   int fd = open(filename, O_DIRECT | O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
@@ -76,6 +90,9 @@ void* worker(void *arg)
   threadInfoType *threadContext = (threadInfoType*)arg;
   char *buf = aligned_alloc(4096, 1024*1024*1);
   memset(buf, 'z', 1024*1024*1);
+
+  char outstring[1000];
+  
   while (1) {
     
     workQueueActionType *action = workQueuePop(&wq);
@@ -85,7 +102,13 @@ void* worker(void *arg)
       if (fin % 1000 == 0) {
 	double tm = timedouble() - wq.startTime;
 	size_t sum = workQueueFinishedSize(&wq);
-	fprintf(stderr,"*info* [thread %zd] [action %zd, '%s'], finished %zd (%.0lf files/second), %.1lf GB (%.0lf MB/s), %.1lf seconds\n", threadContext->threadid, action->id, action->payload, fin, fin/tm, TOGB(sum), TOMB(sum)/tm, tm);
+	
+	sprintf(outstring, "*info* [thread %zd] [action %zd, '%s'], finished %zd (%.0lf files/second), %.1lf GB (%.0lf MB/s), %.1lf seconds\n", threadContext->threadid, action->id, action->payload, fin, fin/tm, TOGB(sum), TOMB(sum)/tm, tm);
+	if (bfp) {
+	  fprintf(bfp, "%s", outstring);
+	  //	  fflush(bfp);
+	}
+	fprintf(stderr,"%s", outstring);
       }
       
       switch(action->type) {
@@ -117,22 +140,31 @@ void* worker(void *arg)
 }
 
 
-  int threads = 32;
-  size_t blocksize = 360*1024;
+int threads = 32;
+size_t blocksize = 360*1024;
 
 void usage() {
-  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k sizeKIB (%zd)] [-V(verbose)] [-r(read)] [-w(write)]\n", threads, blocksize/1024);
+  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k sizeKIB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed]\n", threads, blocksize/1024);
 }
 
 int main(int argc, char *argv[]) {
 
+
   int read = 0;
 
   int opt = 0, help = 0;
-  while ((opt = getopt(argc, argv, "T:Vk:hrw")) != -1) {
+  size_t seed = 0;
+  
+  while ((opt = getopt(argc, argv, "T:Vk:hrwB:R:")) != -1) {
     switch (opt) {
+    case 'B':
+      benchmarkFile = optarg;
+      break;
     case 'r':
       read = 1;
+      break;
+    case 'R':
+      seed = atoi(optarg);
       break;
     case 'w':
       read = 0;
@@ -157,12 +189,18 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
       
+  size_t freespace = diskSpace();
+  size_t numFiles = freespace / blocksize;
+
+  fprintf(stderr,"*info* number of files approx: %zd\n", numFiles);
+  
+  
   
   workQueueInit(&wq, 10000);
 
   finished = 0;
 
-  fprintf(stderr,"*info* number of threads %d, file size %zd\n", threads, blocksize);
+  fprintf(stderr,"*info* number of threads %d, file size %zd, numFiles %zd, seed %zd\n", threads, blocksize, numFiles, seed);
 
   // setup worker threads
   pthread_t *tid = malloc(threads * sizeof(pthread_t));
@@ -178,6 +216,8 @@ int main(int argc, char *argv[]) {
   }
 
 
+  srand(seed);
+  
   char s[1000];
   fprintf(stderr,"*info* making 100 top level directories\n");
   for (unsigned int id = 0; id < 100; id++) {
@@ -186,9 +226,16 @@ int main(int argc, char *argv[]) {
   }
   fprintf(stderr,"*info* making 10000 two level directories\n");
   for (unsigned int id = 0; id < 10000; id++) {
-    
     sprintf(s,"%02x/%02x", (((unsigned int)id)/100) % 100, ((unsigned int)id)%100);
     mkdir(s, 0777);
+  }
+
+  if (benchmarkFile) {
+    fprintf(stderr,"*info* opening benchmark file '%s'\n", benchmarkFile);
+    bfp = fopen(benchmarkFile, "wt");
+    if (!bfp) {
+      perror("fsfiller");exit(1);
+    }
   }
  
   size_t id = 1;
@@ -203,7 +250,8 @@ int main(int argc, char *argv[]) {
 	} else {
 	  action->type = 'W';
 	}
-	sprintf(s,"%02x/%02x/%010zd", (((unsigned int)id)/100) % 100, ((unsigned int)id)%100, id);
+	size_t val = rand() % numFiles;
+	sprintf(s,"%02x/%02x/%010zd", (((unsigned int)val)/100) % 100, ((unsigned int)val)%100, val);
 	action->payload = strdup(s);
 	action->id = id++;
 	action->size = blocksize;
@@ -218,7 +266,8 @@ int main(int argc, char *argv[]) {
       action = NULL;
     }
   }
-  
+
+  fclose(bfp);
 
   workQueueFree(&wq);
 }
