@@ -89,14 +89,21 @@ void* worker(void *arg)
 }
 
 
+void usage() {
+  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads] [-k sizeKIB] [-V(verbose)]\n");
+}
+
 int main(int argc, char *argv[]) {
 
   int threads = 1;
   size_t blocksize = 360*1024;
 
-  int opt = 0;
-  while ((opt = getopt(argc, argv, "T:Vk:")) != -1) {
+  int opt = 0, help = 0;
+  while ((opt = getopt(argc, argv, "T:Vk:h")) != -1) {
     switch (opt) {
+    case 'h':
+      help = 1;
+      break;
     case 'k':
       blocksize = 1024 * atoi(optarg);
       break;
@@ -107,6 +114,11 @@ int main(int argc, char *argv[]) {
       verbose = 1;
       break;
     }
+  }
+
+  if (help) {
+    usage();
+    exit(0);
   }
       
   
