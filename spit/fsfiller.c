@@ -35,7 +35,7 @@ void createAction(const char *filename, char *buf, size_t size) {
     size_t towrite = size;
     while (towrite > 0) {
       int written = write(fd, buf, size);
-      if (written > 0) {
+      if (written >= 0) {
 	towrite -= written;
       }
     }
@@ -56,7 +56,7 @@ void readAction(const char *filename, char *buf, size_t size) {
     size_t toread = 0;
     while (toread != size) {
       int readd = read(fd, buf, size);
-      if (readd > 0) {
+      if (readd >= 0) {
 	toread += readd;
       } else {
 	perror("read");
@@ -85,7 +85,7 @@ void* worker(void *arg)
       if (fin % 1000 == 0) {
 	double tm = timedouble() - wq.startTime;
 	size_t sum = workQueueFinishedSize(&wq);
-	fprintf(stderr,"*info* [thread %zd] [action %zd, '%s'], finished %zd (%.0lf files/second), %.1lf GiB (%.0lf MiB/s), %.1lf seconds\n", threadContext->threadid, action->id, action->payload, fin, fin/tm, TOGiB(sum), TOMiB(sum)/tm, tm);
+	fprintf(stderr,"*info* [thread %zd] [action %zd, '%s'], finished %zd (%.0lf files/second), %.1lf GB (%.0lf MB/s), %.1lf seconds\n", threadContext->threadid, action->id, action->payload, fin, fin/tm, TOGB(sum), TOMB(sum)/tm, tm);
       }
       
       switch(action->type) {
