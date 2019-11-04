@@ -40,6 +40,7 @@ void createAction(const char *filename, char *buf, size_t size) {
     if (verbose) fprintf(stderr,"*info* wrote file %s, size %zd\n", filename, size);
   } else {
     fprintf(stderr,"*error* didn't write %s\n", filename);
+    exit(1);
   }
 }
 
