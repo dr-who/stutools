@@ -111,7 +111,7 @@ void* worker(void *arg)
   
   char outstring[1000];
   size_t actionSize = 10;
-  workQueueActionType **actionArray = calloc(actionSize, sizeof(workQueueActionType*));
+  workQueueActionType *actionArray = calloc(actionSize, sizeof(workQueueActionType));
   
   while (1) {
     
@@ -155,27 +155,27 @@ void* worker(void *arg)
 	fprintf(stderr,"%s", outstring);
       }
       for (int i = 0; i < ret; i++) {
-	workQueueActionType *action = actionArray[i];
-	switch(action->type) {
+	workQueueActionType action = actionArray[i];
+	switch(action.type) {
 	case 'W':
 	  {}
-	  size_t val = action->id;
+	  size_t val = action.id;
 	  sprintf(s,"%02x/%02x/%010zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val);
 	  //	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
 
-	  //	  	  	  fprintf(stderr,"[%zd] %c %s\n", action->id, action->type, action->payload);
-	  if (action->size < 1024*1024*1) {
-	    if (createAction(s, buf, action->size, threadContext->writesize) == 0) {
+	  //	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
+	  if (action.size < 1024*1024*1) {
+	    if (createAction(s, buf, action.size, threadContext->writesize) == 0) {
 	      processed++;
-	      sum += action->size;
+	      sum += action.size;
 	    }
 	  } else {
 	    fprintf(stderr,"*warning* big file ignored\n");
 	  }
 	  break;
 	case 'R': 
-	  if (action->size < 1024*1024*1) {
-	    readAction(s, buf, action->size);
+	  if (action.size < 1024*1024*1) {
+	    readAction(s, buf, action.size);
 	    processed++;
 	  } else {
 	    fprintf(stderr,"*warning* big file ignored\n");
@@ -330,26 +330,24 @@ int main(int argc, char *argv[]) {
   }
  
   size_t id = 0;
+  //  double starttime = timedouble();
+  
   while (!finished) {
-    workQueueActionType *action = NULL;
+    workQueueActionType action;
     
     if (workQueueNum(&wq) < queueditems - 10) { // queue up to 10,000 items at a time
-      if (!action) {
-	action = calloc(1, sizeof(workQueueActionType));
-	if (read) {
-	  action->type = 'R';
-	} else {
-	  action->type = 'W';
-	}
-	size_t val = fileid[id % numFiles];
-	action->id = val;
-	action->size = filesize;
-	id++;
+      if (read) {
+	action.type = 'R';
+      } else {
+	action.type = 'W';
       }
-
+      size_t val = fileid[id % numFiles];
+      action.id = val;
+      action.size = filesize;
+      id++;
+      
       if (workQueuePush(&wq, action) == 0) {
 	//	fprintf(stderr,"added %zd\n", id);
-	action = NULL;
       } else {
 	fprintf(stderr,"not added %zd\n", id);
 	id--;
@@ -360,7 +358,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  fclose(bfp);
+  free(threadinfo);
+  free(tid);
+  free(fileid);
 
   workQueueFree(&wq);
+  //  fclose(bfp);
 }

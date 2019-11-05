@@ -20,14 +20,14 @@ void workQueueInit(workQueueType *queue, const size_t size) {
   queue->finished = 0;
   queue->tail = 0;
   queue->startTime = 0;
-  queue->actions = calloc(size, sizeof(workQueueActionType*)); assert(queue->actions);
+  queue->actions = calloc(size, sizeof(workQueueActionType)); assert(queue->actions);
   if (pthread_mutex_init(&queue->lock, NULL) != 0) {
     printf("\n mutex init has failed\n"); 
     exit(1);
   }
 }
 
-int workQueuePush(workQueueType *queue, workQueueActionType *action) {
+int workQueuePush(workQueueType *queue, workQueueActionType action) {
   int ret = 0;
   pthread_mutex_lock(&queue->lock); 
 
@@ -49,8 +49,9 @@ int workQueuePush(workQueueType *queue, workQueueActionType *action) {
   return ret; // 0 is ok 
 }
 
-workQueueActionType *workQueuePop(workQueueType *queue) {
-  workQueueActionType *ret = NULL;
+
+workQueueActionType workQueuePop(workQueueType *queue) {
+  workQueueActionType ret;
   if (pthread_mutex_lock(&queue->lock) == 0) {
     if (queue->tail != queue->head) {
       ret = queue->actions[queue->tail];
@@ -60,16 +61,14 @@ workQueueActionType *workQueuePop(workQueueType *queue) {
       }
       queue->sz--;
       queue->finished++;
-      queue->sizeSum += ret->size;
+      queue->sizeSum += ret.size;
     }
     pthread_mutex_unlock(&queue->lock);
-  } else {
-    //    fprintf(stderr,"missed a lock\n");
   }
   return ret;
 }
 
-size_t workQueuePopArray(workQueueType *queue, workQueueActionType **actionArray, const size_t size) {
+size_t workQueuePopArray(workQueueType *queue, workQueueActionType *actionArray, const size_t size) {
   int ret = 0;
   if (pthread_mutex_lock(&queue->lock) == 0) {
 
@@ -82,7 +81,7 @@ size_t workQueuePopArray(workQueueType *queue, workQueueActionType **actionArray
 	    queue->tail = 0;
 	  }
 	  queue->sz--;
-	  queue->sizeSum += actionArray[ret]->size;
+	  queue->sizeSum += actionArray[ret].size;
 	  ret++;
 	} else {
 	  break;
