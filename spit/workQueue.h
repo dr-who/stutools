@@ -6,7 +6,6 @@
 
 typedef struct {
   char type;
-  char *payload;
   size_t id;
   size_t size;
 } workQueueActionType;
@@ -32,6 +31,7 @@ workQueueActionType * workQueuePop(workQueueType *queue);
 size_t workQueueNum(workQueueType *queue);
 size_t workQueueFinished(workQueueType *queue);
 size_t workQueueFinishedSize(workQueueType *queue);
+size_t workQueuePopArray(workQueueType *queue, workQueueActionType **actionArray, const size_t size);
 
 
 #endif

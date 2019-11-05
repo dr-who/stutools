@@ -18,27 +18,6 @@ extern volatile int keepRunning;
 
 #define DISPLAYEVERY 1
 
-void checkArray(const unsigned short *freeQueue, const size_t QD) {
-  if (0) { // debug print
-    fprintf(stderr,"Sub: ");
-    for (size_t q1 = 0; q1 < QD; q1++) {
-      if (freeQueue[q1] >= 0 && freeQueue[q1] < QD) {
-	fprintf(stderr,"%3u", freeQueue[q1]);
-      } else {
-	fprintf(stderr,"  .");
-      }
-    }
-    fprintf(stderr,"\n");
-  }
-  // check for incorrect duplications
-  for (size_t q1 = 0 ; q1 < QD; q1++) if (freeQueue[q1] >=0 && freeQueue[q1] < QD) {
-      for (size_t q2 = 0; q2 < QD; q2++) if (q1!=q2) {
-	  if (freeQueue[q1] == freeQueue[q2]) fprintf(stderr,"duplicate %u\n", freeQueue[q1]);
-	  assert (freeQueue[q1] != freeQueue[q2]);
-	}
-    }
-}
-
 size_t aioMultiplePositions( positionContainer *p,
 			     const size_t sz,
 			     const double finishTime,
@@ -216,7 +195,6 @@ size_t aioMultiplePositions( positionContainer *p,
 	  assert(headOfQueue < QD);
 	  qdIndex = freeQueue[headOfQueue];
 	  assert(qdIndex >= 0);
-	  assert(qdIndex < QD);
 
 	  assert(positions[pos].inFlight == 0);
 
@@ -334,14 +312,14 @@ size_t aioMultiplePositions( positionContainer *p,
     }
   
     if (flushEvery) {
-      if (flushPos >= flushEvery) {
+      //      if (flushPos >= flushEvery) {
 	flushPos = flushPos - flushEvery;
 	if (verbose >= 2) {
 	  fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	}
 	fsync(fd);
 	flush_count++;
-      }
+	//      }
     }
 
 
@@ -454,7 +432,6 @@ size_t aioMultiplePositions( positionContainer *p,
 	pp->finishTime = timedouble();
 	pp->success = 1; // the action has completed
 	pp->inFlight = 0;
-	//checkArray(freeQueue, QD);
 	freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
       } // for j
 
@@ -465,12 +442,6 @@ size_t aioMultiplePositions( positionContainer *p,
       p->writtenIOs += wio;
       p->writtenBytes += wlen;
       totalWriteBytes += wlen;
-
-
-
-      if (0) {
-	checkArray(freeQueue, QD);
-      }
 
       inFlight -= ret;
       received += ret;

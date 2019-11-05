@@ -337,6 +337,7 @@ void usage() {
 
 
 void intHandler(int d) {
+  if (d) {}
   fprintf(stderr,"got signal\n");
   keepRunning = 0;
 }
@@ -438,7 +439,7 @@ int main(int argc, char *argv[]) {
     diskStatFree(&d);
 
     if (fuzz) {
-      for (size_t i = 0; i <argc2; i++) {
+      for (int i = 0; i < argc2; i++) {
 	free(argv2[i]);
 	argv2[i] = NULL;
       }

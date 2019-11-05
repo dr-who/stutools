@@ -22,7 +22,7 @@ void makeFile(const char *filename, const char *buffer, const size_t size, const
     fprintf(stderr,"can't create file %s, size %zd\n", filename, size);
   }
   for (size_t i = 0; i < size; i += 16384) {
-    if (write(fd, buffer + i, chunk) < chunk) {
+    if (write(fd, buffer + i, chunk) < (int) chunk) {
       //      fprintf(stderr,"short write\n");
     }
   }
@@ -38,7 +38,7 @@ void readFile(const char *filename, char *buffer, const size_t size, const size_
     fprintf(stderr,"can't open file %s, size %zd\n", filename, size);
   }
   for (size_t i = 0; i < size; i += 16384) {
-    if (read(fd, buffer + i, chunk) < chunk) {
+    if (read(fd, buffer + i, chunk) < (int)chunk) {
       //      fprintf(stderr,"short write\n");
     }
   }

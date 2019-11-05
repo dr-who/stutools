@@ -15,7 +15,7 @@ int keepRunning = 1;
 
 int main( int argc, char* argv[] ) {
   printf("DEVICE\t\tIS_BD\tSIZE(GiB)\tIN_USE\n");//\tW/CACHE\n");
-  for( size_t i = 1; i < argc; ++i ) {
+  for (int i = 1; i < argc; ++i ) {
     const char* bd_path = argv[ i ];
     int is_bd = isBlockDevice(bd_path);
     float size = TOGiB(blockDeviceSize(bd_path));

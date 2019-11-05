@@ -20,7 +20,7 @@ void workQueueInit(workQueueType *queue, const size_t size) {
   queue->finished = 0;
   queue->tail = 0;
   queue->startTime = 0;
-  queue->actions = malloc(size * sizeof(workQueueActionType*)); assert(queue->actions);
+  queue->actions = calloc(size, sizeof(workQueueActionType*)); assert(queue->actions);
   if (pthread_mutex_init(&queue->lock, NULL) != 0) {
     printf("\n mutex init has failed\n"); 
     exit(1);
@@ -46,12 +46,12 @@ int workQueuePush(workQueueType *queue, workQueueActionType *action) {
   }
 
   pthread_mutex_unlock(&queue->lock);
-  return ret;
+  return ret; // 0 is ok 
 }
 
 workQueueActionType *workQueuePop(workQueueType *queue) {
   workQueueActionType *ret = NULL;
-  if (pthread_mutex_trylock(&queue->lock) == 0) {
+  if (pthread_mutex_lock(&queue->lock) == 0) {
     if (queue->tail != queue->head) {
       ret = queue->actions[queue->tail];
       queue->tail++;
@@ -64,6 +64,42 @@ workQueueActionType *workQueuePop(workQueueType *queue) {
     }
     pthread_mutex_unlock(&queue->lock);
   } else {
+    //    fprintf(stderr,"missed a lock\n");
+  }
+  return ret;
+}
+
+size_t workQueuePopArray(workQueueType *queue, workQueueActionType **actionArray, const size_t size) {
+  int ret = 0;
+  if (pthread_mutex_lock(&queue->lock) == 0) {
+
+    if (queue->sz >= 1) {
+      while ((unsigned int) ret < size) {
+	if (queue->tail != queue->head) {
+	  actionArray[ret] = queue->actions[queue->tail];
+	  queue->tail++;
+	  if (queue->tail >= queue->allocsz) {
+	    queue->tail = 0;
+	  }
+	  queue->sz--;
+	  queue->sizeSum += actionArray[ret]->size;
+	  ret++;
+	} else {
+	  break;
+	}
+      }
+    } else {
+      //fprintf(stderr,"not enough in queue\n");
+      ret = -1;
+    }
+    if (ret > 0) {
+      //      fprintf(stderr,"ret %d\n", ret);
+      //      queue->finished += ret;
+    }
+
+    pthread_mutex_unlock(&queue->lock);
+  } else {
+    ret = -2;
     //    fprintf(stderr,"missed a lock\n");
   }
   return ret;

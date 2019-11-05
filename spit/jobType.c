@@ -40,7 +40,7 @@ void jobAddBoth(jobType *job, char *device, char *jobstring) {
   job->strings[job->count] = strdup(jobstring);
   job->devices[job->count] = strdup(device);
   int deviceid = job->count;
-  for (size_t i = 0; i < job->count; i++) {
+  for (int i = 0; i < job->count; i++) {
     if (strcmp(device, job->devices[i])==0) {
       deviceid = i;
       break;
@@ -62,7 +62,7 @@ void jobAdd(jobType *job, const char *jobstring) {
 
 void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount) {
   const int origcount = job->count;
-  for (size_t i = 0; i < origcount; i++) {
+  for (int i = 0; i < origcount; i++) {
     for (size_t n = 0; n < extrajobs; n++) {
       if (deviceCount == 0) {
 	jobAddBoth(job, job->devices[i], job->strings[i]);
@@ -79,9 +79,9 @@ void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList
 
 void jobFileSequence(jobType *job) {
   const int origcount = job->count;
-  for (size_t i = 0; i < origcount; i++) {
+  for (int i = 0; i < origcount; i++) {
     char s[1000];
-    sprintf(s, "%s.%04zd", job->devices[i], i+1);
+    sprintf(s, "%s.%04d", job->devices[i], i+1);
     free(job->devices[i]);
     job->devices[i] = strdup(s);
     job->deviceid[i] = i;
@@ -91,19 +91,19 @@ void jobFileSequence(jobType *job) {
 
 void jobDump(jobType *job) {
   fprintf(stderr,"*info* jobDump: %zd\n", jobCount(job));
-  for (size_t i = 0; i < job->count; i++) {
-    fprintf(stderr,"*  info* job %zd, device %s, deviceid %d, string %s\n", i, job->devices[i], job->deviceid[i], job->strings[i]);
+  for (int i = 0; i < job->count; i++) {
+    fprintf(stderr,"*  info* job %d, device %s, deviceid %d, string %s\n", i, job->devices[i], job->deviceid[i], job->strings[i]);
   }
 }
 
 void jobDumpAll(jobType *job) {
-  for (size_t i = 0; i < job->count; i++) {
-    fprintf(stderr,"*info* job %zd, string %s\n", i, job->strings[i]);
+  for (int i = 0; i < job->count; i++) {
+    fprintf(stderr,"*info* job %d, string %s\n", i, job->strings[i]);
   }
 }
 
 void jobFree(jobType *job) {
-  for (size_t i = 0; i < job->count; i++) {
+  for (int i = 0; i < job->count; i++) {
     if (job->strings[i]) {free(job->strings[i]); job->strings[i] = NULL;}
     if (job->devices[i]) {free(job->devices[i]); job->devices[i] = NULL;}
   }
@@ -180,7 +180,7 @@ static void *runThread(void *arg) {
     //    fprintf(stderr,"*info* device %s, physical io size %zd, logical io size %zd\n", threadContext->jobdevice, phybs, logbs);
     free(suffix);
 
-    for (size_t i = 0; i < threadContext->pos.sz; i++) {
+    for (int i = 0; i < (int)threadContext->pos.sz; i++) {
       if (threadContext->pos.positions[i].len < logbs) {
 	fprintf(stderr,"*error* device '%s' doesn't support size %d [logical bs %zd]\n", threadContext->jobdevice, threadContext->pos.positions[i].len, logbs);
 	exit(1);
@@ -236,7 +236,7 @@ static void *runThread(void *arg) {
   // minSizeInBytes is the -G range. If there are multiple threads carving the LBA up, it'll be specified as the min/max bdsize
   size_t outerrange = threadContext->maxbdSize - threadContext->minbdSize;
   size_t sumrange = 0;
-  for (size_t i = 0; i < threadContext->pos.sz; i++) {
+  for (int i = 0; i < (int)threadContext->pos.sz; i++) {
     sumrange += threadContext->pos.positions[i].len;
   }
   if (verbose >= 1)
@@ -695,7 +695,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     
   
   
-  for (size_t i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
+  for (int i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
     threadContext[i].filePrefix = filePrefix;
     threadContext[i].mysqloptions = mysqloptions;
     threadContext[i].mysqloptions2 = mysqloptions2;
@@ -718,7 +718,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].allPC = allThreadsPC;
   }
 
-  for (size_t i = 0; i < num; i++) {
+  for (int i = 0; i < num; i++) {
     size_t localminbdsize = minSizeInBytes, localmaxbdsize = maxSizeInBytes;
     threadContext[i].runTime = timetorun;
     threadContext[i].finishTime = timetorun;
@@ -734,7 +734,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     lengthsInit(&threadContext[i].len);
     
     if (verbose) {
-      fprintf(stderr,"*info* setting up thread %zd\n", i);
+      fprintf(stderr,"*info* setting up thread %d\n", i);
     }
     char * charBS = strchr(job->strings[i], 'M');
     if (charBS && *(charBS+1)) {
@@ -1095,7 +1095,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
-    int qDepth = origqd;
+    size_t qDepth = origqd;
     {
       char *qdd = strchr(job->strings[i], 'q');
       if (qdd && *(qdd+1)) {
@@ -1251,7 +1251,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   // print a warning if the contents are the same as the thread 0
   size_t exactsame = 0, checkedsame = 0;
-  for (size_t i = 1; i < num; i++) {
+  for (int i = 1; i < num; i++) {
     for (size_t j = 0; j < MIN(50, threadContext[i].pos.sz); j++) {
       if (j < threadContext[0].pos.sz) {
 	checkedsame++;
@@ -1270,7 +1270,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   
 
   // set the starting time
-  for (size_t i = 0; i < num; i++) { 
+  for (int i = 0; i < num; i++) { 
     CALLOC(threadContext[i].randomBuffer, threadContext[i].highBlockSize, 1);
     memset(threadContext[i].randomBuffer, 0, threadContext[i].highBlockSize);
     generateRandomBufferCyclic(threadContext[i].randomBuffer, threadContext[i].highBlockSize, threadContext[i].seed, threadContext[i].highBlockSize);
@@ -1290,12 +1290,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     diskStatStart(threadContext[num].pos.diskStats);
   }
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
-  for (size_t i = 0; i < num; i++) {
+  for (int i = 0; i < num; i++) {
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
   }
 
   // wait for all threads
-  for (size_t i = 0; i < num; i++) {
+  for (int i = 0; i < num; i++) {
     pthread_join(pt[i], NULL);
   }
   keepRunning = 0; // the 
@@ -1305,13 +1305,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   if (savePositions || verify) {
     // print stats 
-    for (size_t i = 0; i < num; i++) {
+    for (int i = 0; i < num; i++) {
       positionLatencyStats(&threadContext[i].pos, i);
     }
 
     positionContainer *origpc;
     CALLOC(origpc, num, sizeof(positionContainer));
-    for (size_t i = 0; i < num; i++) {
+    for (int i = 0; i < num; i++) {
       origpc[i] = threadContext[i].pos;
     }
     
@@ -1328,7 +1328,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     histSetup(&histRead);
     histSetup(&histWrite);
     
-    for (size_t i = 0; i < mergedpc.sz; i++) {
+    for (int i = 0; i < (int) mergedpc.sz; i++) {
       if (mergedpc.positions[i].action == 'R') 
 	histAdd(&histRead, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
       else if (mergedpc.positions[i].action == 'W') 
@@ -1395,7 +1395,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if (verify) {
       positionContainerCheckOverlap(&mergedpc);
       size_t direct = O_DIRECT;
-      for (size_t i = 0; i < num; i++) { // check all threads, if any aren't direct
+      for (int i = 0; i < num; i++) { // check all threads, if any aren't direct
 	if (threadContext[i].o_direct == 0) {
 	  direct = 0;
 	}
@@ -1411,7 +1411,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   }
 
   // free
-  for (size_t i = 0; i < num; i++) {
+  for (int i = 0; i < num; i++) {
     positionContainerFree(&threadContext[i].pos);
     free(threadContext[i].randomBuffer);
   }
@@ -1425,7 +1425,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
 void jobAddDeviceToAll(jobType *job, const char *device) {
-  for (size_t i = 0; i < job->count; i++) {
+  for (int i = 0; i < job->count; i++) {
     job->devices[i] = strdup(device);
   }
 }
@@ -1440,8 +1440,8 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
     size_t coverage = 1;
     size_t jumble = 0;
     
-    for (size_t i = 0; i < count; i++) {
-      fprintf(stderr,"*info* precondition %zd: device '%s', command '%s'\n", i+1, preconditions->devices[i], preconditions->strings[i]);
+    for (int i = 0; i < (int) count; i++) {
+      fprintf(stderr,"*info* precondition %d: device '%s', command '%s'\n", i+1, preconditions->devices[i], preconditions->strings[i]);
       {
 	char *charG = strchr(preconditions->strings[i], 'G');
 	if (charG && *(charG+1)) {
