@@ -38,6 +38,8 @@ target_link_libraries(hist spitlib m)
 add_executable(testDiskStats testDiskStats.c)
 target_link_libraries(testDiskStats spitlib m)
 
+install(TARGETS spit fsfiller spitchecker fuzz bdinfo dtest hist DESTINATION bin)
+
 #add_test(tds testDiskStats)
 add_test(testspitHelp  spit)
 add_test(testspitws1V  spit -f wow -G 0.5 -c ws1 -v -V -t 5)
