@@ -27,7 +27,7 @@ void workQueueFree(workQueueType *queue);
 
 int workQueuePush(workQueueType *queue, workQueueActionType action);
 
-workQueueActionType workQueuePop(workQueueType *queue);
+int workQueuePop(workQueueType *queue, workQueueActionType *ret);
 
 size_t workQueueNum(workQueueType *queue);
 size_t workQueueFinished(workQueueType *queue);

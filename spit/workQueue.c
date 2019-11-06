@@ -49,12 +49,13 @@ int workQueuePush(workQueueType *queue, workQueueActionType action) {
   return ret; // 0 is ok 
 }
 
-
-workQueueActionType workQueuePop(workQueueType *queue) {
-  workQueueActionType ret;
+/*
+int workQueuePop(workQueueType *queue, workQueueActionType *ret) {
+  int ret = 1;
   if (pthread_mutex_lock(&queue->lock) == 0) {
     if (queue->tail != queue->head) {
-      ret = queue->actions[queue->tail];
+      *ret = queue->actions[queue->tail];
+      ret = 0;
       queue->tail++;
       if (queue->tail >= queue->allocsz) {
 	queue->tail = 0;
@@ -67,6 +68,7 @@ workQueueActionType workQueuePop(workQueueType *queue) {
   }
   return ret;
 }
+*/
 
 size_t workQueuePopArray(workQueueType *queue, workQueueActionType *actionArray, const size_t size) {
   int ret = 0;
