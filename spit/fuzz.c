@@ -36,7 +36,7 @@ void zapfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, i
   for (size_t i = 0; i < deviceCount; i++) {
     if (selection[i] > 0) {
       ssize_t ret = pwrite(selection[i], block, blocksize, pos);
-      if (ret == blocksize) {
+      if (ret == (int)blocksize) {
 	mcount++;
 	if (print) fprintf(stderr,"%2d ", selection[i]);
       } else {
@@ -101,7 +101,7 @@ void rotate(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t
       }
 
       
-      if ((retw == blocksize) && (retr == retw)) {
+      if ((retw == (int)blocksize) && (retr == retw)) {
 	ok++;
 	if (print) fprintf(stderr,"%2d ", selection[i]);
       } else {
@@ -197,7 +197,7 @@ int main(int argc, char *argv[]) {
   }
   
   size_t maxSizeInBytes = 0;
-  openDevices(deviceList, deviceCount, 0, &maxSizeInBytes, 4096, 4096, 4096, 1, tripleX==3, 16, 1);
+  openDevices(deviceList, deviceCount, 0, &maxSizeInBytes, 4096, 4096, 4096, 1, tripleX==3, 1);
   infoDevices(deviceList, deviceCount);
 
 

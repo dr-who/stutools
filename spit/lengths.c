@@ -71,11 +71,6 @@ size_t lengthsMax(const lengthsType *l) {
   return l->max;
 }
 
-size_t lengthsParse(lengthsType *l, const char *str) {
-
-
-  return 0; // 0 if ok
-}
 
 void lengthsSetupLowHighAlignSeq(lengthsType *l, size_t min, size_t max, size_t align) {
   for (size_t i = min; i <= max; i += align) {
@@ -84,6 +79,7 @@ void lengthsSetupLowHighAlignSeq(lengthsType *l, size_t min, size_t max, size_t 
 }
 
 void lengthsSetupLowHighAlignPower(lengthsType *l, size_t min, size_t max, size_t align) {
+  if (align) {}
   for (size_t i = min; i <= max; i = i*2) {
     lengthsAdd(l, i, 1);
   }

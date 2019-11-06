@@ -75,7 +75,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
     fprintf(stderr,"*error* seeking to pos %zd: ", pos);
     perror("pread");
     return -1;
-  } else if (ret != len) {
+  } else if (ret != (int)len) {
     fprintf(stderr,"*error* position %zd, wrong len %zd instead of %zd\n", pos, ret, len);
     return -2;
   } else {

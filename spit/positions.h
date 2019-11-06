@@ -69,7 +69,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 void positionStats(const positionType *positions, const size_t num, const deviceDetails *devList, const size_t devCount);
 
 void positionContainerInit(positionContainer *pc, size_t UUID);
-void positionContainerSetup(positionContainer *pc, size_t sz, char *device, char *string);
+void positionContainerSetup(positionContainer *pc, size_t sz);
 void positionContainerSetupFromPC(positionContainer *pc, const positionContainer *oldpc);
 void positionContainerFree(positionContainer *pc);
 

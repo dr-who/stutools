@@ -11,16 +11,16 @@ int keepRunning = 0;
 int main() {
   positionContainer pc;
   positionContainerInit(&pc, 0);
-  positionContainerSetup(&pc, 1, NULL, NULL);
+  positionContainerSetup(&pc, 1);
   positionContainerInfo(&pc);
   positionContainerFree(&pc);
 
-  positionContainerSetup(&pc, 1000, "device", "string");
+  positionContainerSetup(&pc, 1000);
   positionContainerInfo(&pc);
   positionContainerFree(&pc);
 
   size_t num = 10000;
-  positionContainerSetup(&pc, num, "device", "string");
+  positionContainerSetup(&pc, num);
   positionContainerCreatePositions(&pc, 0, 1, 0, 0.0, 4096, 8192, 4096, 0, 0, 10000*10000, 42, 1, 0);
   positionContainerInfo(&pc);
   positionContainerDump(&pc, 10);

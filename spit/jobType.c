@@ -272,7 +272,7 @@ static void *runThread(void *arg) {
   size_t totalB = 0, ioerrors = 0;
   while (keepRunning) {
     // 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, NULL, NULL /*&benchl*/, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors);
 
     // check exit constraints
     if (byteLimit) {
@@ -1208,10 +1208,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     
     
     /*if (iRandom == 0) */{ // if iRandom set, then don't setup positions here, do it in the runThread. e.g. -c n
-      positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
+      positionContainerSetup(&threadContext[i].pos, mp);
 
       // allocate the position array space
-      //positionContainerSetup(&threadContext[i].pos, mp, job->devices[i], job->strings[i]);
       // create the positions and the r/w status
       threadContext[i].seqFiles = seqFiles;
       threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;

@@ -98,8 +98,8 @@ void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *sti
 
     for (size_t i = 0; i < d->allocDevices; i++) { // from devices.txt
       
-      if ((d->majorArray[i] == s->major) &&
-	  (d->minorArray[i] == s->minor)) {
+      if ((d->majorArray[i] == (int)s->major) &&
+	  (d->minorArray[i] == (int)s->minor)) {
 
 	*sread = (*sread) + s->secRead;
 	*swritten = (*swritten) + s->secWrite;

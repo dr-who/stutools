@@ -320,14 +320,6 @@ positionContainer positionContainerMultiply(const positionContainer *original, c
 }
   
 
-void positionContainerSetBounds(positionContainer *pc) {
-  
-  for (size_t i = 0; i < pc->sz; i++) {
-    
-  }
-}
-
-
 
 positionContainer positionContainerMerge(positionContainer *p, const size_t numFiles) {
   size_t total = 0;
@@ -488,20 +480,20 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   //  fprintf(stderr,"ratio %lf\n", ratio);
 
   double totalratio = minbdSize;
-  for (size_t i = 0; i < toalloc; i++) {
+  for (int i = 0; i < toalloc; i++) {
     positionsStart[i] = alignedNumber((size_t)totalratio, alignment);
     totalratio += ratio;
   }
-  for (size_t i = 1; i < toalloc; i++) {
+  for (int i = 1; i < toalloc; i++) {
     positionsEnd[i-1] = positionsStart[i];
   }
   positionsEnd[toalloc-1] = maxbdSize;
 
   if (verbose >= 2) {
     size_t sumgap = 0;
-    for (size_t i = 0; i < toalloc; i++) {
+    for (int i = 0; i < toalloc; i++) {
       if (positionsEnd[i] - positionsStart[i])
-	fprintf(stderr,"*info* range[%zd]  [%12zd, %12zd]... size = %zd\n", i+1, positionsStart[i], positionsEnd[i], positionsEnd[i] - positionsStart[i]);
+	fprintf(stderr,"*info* range[%d]  [%12zd, %12zd]... size = %zd\n", i+1, positionsStart[i], positionsEnd[i], positionsEnd[i] - positionsStart[i]);
       sumgap += (positionsEnd[i] - positionsStart[i]);
     }
     fprintf(stderr,"*info* sumgap %zd, min %zd, max %zd\n", sumgap, minbdSize, maxbdSize);
@@ -510,7 +502,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   
 
   // setup the -P positions
-  for (size_t i = 0; i < toalloc; i++) {
+  for (int i = 0; i < toalloc; i++) {
     positionsCurrent[i] = positionsStart[i];
   }
 
@@ -518,7 +510,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   count = 0;
   while (count < pc->sz) {
     int nochange = 1;
-    for (size_t i = 0; i < toalloc; i++) {
+    for (int i = 0; i < toalloc; i++) {
       size_t j = positionsCurrent[i]; // while in the range
 
       assert(j >= positionsStart[i]);
@@ -527,7 +519,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
       if (pc->minbs != pc->maxbs) {
 	thislen = lengthsGet(len, &seed);
       }
-      assert(thislen >= 0);
+      //      assert(thislen >= 0);
       
       if ((j + thislen <= positionsEnd[i])) {
 
@@ -575,7 +567,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	poss[count].submitTime = 0;
 	poss[count].finishTime = 0;
 	poss[count].len = thislen;
-	assert(poss[count].len >= 0);
+	//	assert(poss[count].len >= 0);
 	poss[count].seed = seedin;
 	poss[count].verify = 0;
 	poss[count].q = 0;
@@ -614,7 +606,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   // rotate
   for (size_t i = 0; i < count; i++) {
     int index = i + offset;
-    if (index >= count) {
+    if (index >= (int)count) {
       index -= count;
     }
     positions[i] = poss[index];
@@ -633,7 +625,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
       }
     }
     positions[i].action = newaction;
-    assert(positions[i].len >= 0);
+    //assert(positions[i].len >= 0);
   }
 
   if (verbose >= 2) {
@@ -652,7 +644,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   for (size_t i = 0; i < pc->sz; i++, p++) {
     p->deviceid = deviceid;
     sum += p->len;
-    assert(p->len >= 0);
+    //assert(p->len >= 0);
   }
   if (verbose >= 2) {
     fprintf(stderr,"*info* sum of %zd lengths is %.1lf GiB\n", pc->sz, TOGiB(sum));
@@ -691,6 +683,8 @@ void positionContainerRandomize(positionContainer *pc) {
 
 
 void positionAddBlockSize(positionType *positions, const size_t count, const size_t addSize, const size_t minbdSize, const size_t maxbdSize) {
+  if (minbdSize) {}
+  if (maxbdSize) {}
   //  if (verbose >= 1) {
     fprintf(stderr,"*info* adding %zd size\n", addSize);
     //  }
@@ -791,11 +785,9 @@ void positionContainerInit(positionContainer *pc, size_t UUID) {
   pc->UUID = UUID;
 }
 
-void positionContainerSetup(positionContainer *pc, size_t sz, char *deviceString, char *string) {
+void positionContainerSetup(positionContainer *pc, size_t sz) {
   pc->sz = sz;
   pc->positions = createPositions(sz);
-  //  pc->device = deviceString;
-  //  pc->string = string;
 }
 
 
@@ -826,7 +818,7 @@ void positionContainerAddMetadataChecks(positionContainer *pc) {
   //  unsigned short seed = 0;
   //  if (origsz>0) seed = pc->positions[0].seed;
   
-  //  for (size_t i = 0; i < origsz; i++) {
+  //  for (int i = 0; i < origsz; i++) {
   //    pc->positions[i].seed = seed++;
   //  }
 
@@ -883,6 +875,7 @@ void positionContainerFree(positionContainer *pc) {
 
 
 void positionLatencyStats(positionContainer *pc, const int threadid) {
+  if (threadid) {}
   size_t failed = 0;
 
   for (size_t i = 0; i < pc->sz;i++) {
@@ -933,7 +926,7 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
       //      deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
 
       int seenpathbefore = -1;
-      for (size_t k = 0; k < job.count; k++) {
+      for (int k = 0; k < job.count; k++) {
 	if (strcmp(path, job.devices[k]) == 0) {
 	  seenpathbefore = k;
 	}

@@ -25,6 +25,7 @@ size_t waitEvery = 0;
 
 
 void intHandler(int d) {
+  if (d) {}
   fprintf(stderr,"got signal\n");
   keepRunning = 0;
 }
@@ -65,7 +66,7 @@ int main(int argc, char *argv[]) {
 
   jobType job;
   
-  for (size_t i = optind; i < argc; i++) {
+  for (int i= optind; i < argc; i++) {
     fprintf(stderr,"*info* position file: %s\n", argv[i]);
     FILE *fp = fopen(argv[i], "rt");
     if (fp) {

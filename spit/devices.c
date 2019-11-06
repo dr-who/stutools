@@ -104,8 +104,9 @@ size_t numOpenDevices(deviceDetails *devs, size_t numDevs) {
 }
 
 
-void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, size_t *maxSizeInBytes, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive, size_t qd, const size_t contextCount) {
+void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, size_t *maxSizeInBytes, size_t LOWBLKSIZE, size_t BLKSIZE, size_t alignment, int needToWrite, int dontUseExclusive, const size_t contextCount) {
 
+  if (sendTrim) {}
   //  fprintf(stderr,"needToWrite %d\n", needToWrite);
   
   //  int error = 0;
@@ -323,28 +324,3 @@ size_t smallestBDSize(deviceDetails *devList, size_t devCount) {
   return min;
 }
 
-io_context_t *createContexts(const size_t count, const size_t qd) {
-
-  io_context_t *p;
-  CALLOC(p, count, sizeof(io_context_t));
-  return p;
-}
-
-void setupContexts(io_context_t *p, const size_t count, const size_t qd) {
-
-  for (size_t i = 0; i < count; i++) {
-    int err = io_setup(qd, &p[i]);
-    if( err < 0 )
-    {
-      fprintf(stderr, "io_setup() fail, returned %d", err);
-      abort();
-    }
-  }
-}
-
-void freeContexts(io_context_t *p, const size_t count) {
-  for(size_t i = 0; i < count; i++) {
-    io_destroy(p[i]);
-  }
-  free(p);
-}
