@@ -11,6 +11,12 @@ size_t freeRAM() {
   return info.freeram + info.bufferram + info.sharedram;
 }
 
+size_t totalswap() {
+  struct sysinfo info;
+  sysinfo(&info);
+  return info.totalswap;
+}
+
 inline double timedouble() {
   struct timeval now;
   gettimeofday(&now, NULL);
@@ -20,9 +26,13 @@ inline double timedouble() {
 
 
 int main(int argc, char *argv[]) {
-  size_t ram = freeRAM();
+  size_t ram = freeRAM(), swap = totalswap();
 
-
+  if (swap != 0) {
+    fprintf(stderr,"*warning* turn off swap with swapoff -a\n");
+    exit(1);
+  }
+  
   fprintf(stderr,"*info* ram to test %zd MiB\n", ram/1024/1024);
 
   unsigned char *c = NULL;
