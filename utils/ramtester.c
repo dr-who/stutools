@@ -35,7 +35,8 @@ int main(int argc, char *argv[]) {
     }
   } while (c == NULL);
   fprintf(stderr,"*info* allocated %zd chunk\n", ram);
-  
+
+  size_t errors = 0;
   unsigned char pattern[3] = {0xff, 0x00, 0x01 + 0x04 + 0x10 + 0x40};
   for (size_t pat = 0; pat < 3; pat++ ){
     fprintf(stderr,"*info* setting pattern to %2x\n", pattern[pat]);
@@ -46,10 +47,14 @@ int main(int argc, char *argv[]) {
     size_t pass = 1;
     while (timedouble() - starttime < runtime) { // 5 mins
       fprintf(stderr,"*info* pass %zd looking for non %2x (%.0lf secs remain)\n", pass++, pattern[pat], runtime - (timedouble() - starttime));
+      if (errors) {
+	fprintf(stderr,"**ERROR** memory errors: %zd\n", errors);
+      }
       unsigned char *p = c;
       for (size_t i = 0; i < ram; i++) {
 	if (*p != pattern[pat]) {
 	  fprintf(stderr,"error at [%zd]: was %2x instead of %2x\n", i, *p, pattern[pat]);
+	  errors++;
 	}
 	p++;
       }
@@ -57,6 +62,8 @@ int main(int argc, char *argv[]) {
   }
   free(c);
   
-
-  return 0;
+  if (errors)
+    return 1;
+  else
+    return 0;
 }
