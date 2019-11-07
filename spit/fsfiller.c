@@ -35,7 +35,9 @@ typedef struct {
   size_t totalFileSpace;
   size_t maxthreads;
   size_t writesize;
+  size_t filesize;
   size_t numfiles;
+  size_t *fileid;
 } threadInfoType;
 
 
@@ -101,6 +103,7 @@ void* worker(void *arg)
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
   const size_t totalfilespace = threadContext->totalFileSpace;
+  size_t numfiles = threadContext->numfiles;
   char *buf = aligned_alloc(4096, MAXFILESIZE);
   memset(buf, 'z', MAXFILESIZE);
 
@@ -112,85 +115,52 @@ void* worker(void *arg)
   size_t lastfin = 0;
   
   char outstring[1000];
-  size_t actionSize = 1000;
-  workQueueActionType *actionArray = calloc(actionSize, sizeof(workQueueActionType));
-  
-  while (1) {
-    
-    //    workQueueActionType *action = workQueuePop(&wq);
-    int ret = workQueuePopArray(&wq, actionArray, actionSize);
+  //size_t actionSize = 100;
+  //workQueueActionType *actionArray = calloc(actionSize, sizeof(workQueueActionType));
 
-    if (ret <= 0) {
-      //      fprintf(stderr,"the ret %d\n", ret);
-      usleep(10000);
-      continue;
-    }
+  for (size_t i = 0; i < numfiles; i++)
+    if ((i % threadContext->maxthreads) == threadContext->threadid) {
+      size_t val = threadContext->fileid[i];
+      
 
-    //        fprintf(stderr,"ret == %d\n", ret);
-
-    if ((ret > 0) && (threadContext->threadid == 0)) {
-
-      	const double thistime = timedouble();
-	const double tm = thistime - lasttime;
-
-	if (tm > 1) {
-
-	  //      if (processed % 1000 == 0) {
-	//	fprintf(stderr,"%zd\n", wqfin);
-	const size_t wqfin = processed;
-	const size_t fin = wqfin - lastfin;
-	lastfin = wqfin;
-
+      if (threadContext->threadid == 0) {
 	const double thistime = timedouble();
 	const double tm = thistime - lasttime;
-	lasttime = thistime;
 	
-	sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed, (fin/tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
-		lasttime = thistime;
-
-
-	
-	if (bfp) {
-	  fprintf(bfp, "%s", outstring);
-	  //	  fflush(bfp);
-	}
-	fprintf(stderr,"%s", outstring);
-      }
-      for (int i = 0; i < ret; i++) {
-	workQueueActionType action = actionArray[i];
-	switch(action.type) {
-	case 'W':
-	  {}
-	  size_t val = action.id;
-	  sprintf(s,"%02x/%02x/%010zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val);
-	  //	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
-
-	  //	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
-	  if (action.size < MAXFILESIZE) {
-	    if (createAction(s, buf, action.size, threadContext->writesize) == 0) {
-	      processed++;
-	      sum += action.size;
-	    }
-	  } else {
-	    fprintf(stderr,"*warning* big file ignored\n");
+	if (tm > 1) {
+	  const size_t wqfin = i;
+	  const size_t fin = wqfin - lastfin;
+	  lastfin = wqfin;
+	  
+	  const double thistime = timedouble();
+	  const double tm = thistime - lasttime;
+	  lasttime = thistime;
+	  
+	  sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed, (fin/tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
+	  lasttime = thistime;
+	  
+	  
+	  
+	  if (bfp) {
+	    fprintf(bfp, "%s", outstring);
+	    //	  fflush(bfp);
 	  }
-	  break;
-	case 'R': 
-	  if (action.size < MAXFILESIZE) {
-	    readAction(s, buf, action.size);
-	    processed++;
-	  } else {
-	    fprintf(stderr,"*warning* big file ignored\n");
-	  }
-	  break;
+	  fprintf(stderr,"%s", outstring);
 	}
       }
-    } else {
-      //      fprintf(stderr,"starving %zd\n", workQueueNum(&wq));
-      //      usleep(100000);
+      // do the mahi
+      
+      sprintf(s,"%02x/%02x/%010zd.thread%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
+      //	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
+
+      //      fprintf(stderr,"%s", s);
+      //      	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
+      if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
+	processed++;
+	sum += threadContext->filesize;
+      }
     }
-
-  }
+  
   free(buf);
   return NULL;
 }
@@ -266,7 +236,7 @@ int main(int argc, char *argv[]) {
   size_t numFiles = (totalfilespace / filesize) * 0.95;
   
   srand(seed);
-  fprintf(stderr,"*info* number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d\n", threads, filesize, writesize, numFiles, unique, seed, openmode);
+  fprintf(stderr,"*info* number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d\n", threads, filesize, writesize, numFiles, unique, seed, openmode, read);
 
   size_t *fileid = calloc(numFiles, sizeof(size_t));
   for (size_t i = 0; i < numFiles; i++) {
@@ -302,8 +272,10 @@ int main(int argc, char *argv[]) {
     threadinfo[i].threadid = i;
     threadinfo[i].maxthreads = threads;
     threadinfo[i].writesize = writesize;
+    threadinfo[i].filesize = filesize;
     threadinfo[i].totalFileSpace = totalfilespace;
     threadinfo[i].numfiles = numFiles;
+    threadinfo[i].fileid = fileid;
     int error = pthread_create(&(tid[i]), NULL, &worker, &threadinfo[i]);
     if (error != 0) {
       printf("\nThread can't be created :[%s]", strerror(error)); 
@@ -332,33 +304,9 @@ int main(int argc, char *argv[]) {
     }
   }
  
-  size_t id = 0;
-  //  double starttime = timedouble();
   
   while (!finished) {
-    workQueueActionType action;
-    
-    if (workQueueNum(&wq) < queueditems-1) { // queue up to 10,000 items at a time
-      if (read) {
-	action.type = 'R';
-      } else {
-	action.type = 'W';
-      }
-      size_t val = fileid[id % numFiles];
-      action.id = val;
-      action.size = filesize;
-      id++;
-      
-      if (workQueuePush(&wq, action) == 0) {
-	//	fprintf(stderr,"added %zd\n", id);
-      } else {
-	fprintf(stderr,"not added %zd\n", id);
-	id--;
-      }
-    } else {
-      //      fprintf(stderr,"sleeping...%zd in the queue\n", workQueueNum(&wq));
-      usleep(1000);
-    }
+    sleep(1);
   }
 
   free(threadinfo);

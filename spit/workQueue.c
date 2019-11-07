@@ -29,23 +29,23 @@ void workQueueInit(workQueueType *queue, const size_t size) {
 
 int workQueuePush(workQueueType *queue, workQueueActionType action) {
   int ret = 0;
-  pthread_mutex_lock(&queue->lock); 
 
   if (queue->sz < queue->allocsz-1) {
     queue->actions[queue->head++] = action;
     if (queue->head >= queue->allocsz) {
       queue->head = 0;
     }
+    pthread_mutex_lock(&queue->lock); 
     queue->sz++;
     if (queue->startTime == 0) {
       queue->startTime = timedouble();
     }
+    pthread_mutex_unlock(&queue->lock);
   } else {
     ret = 1;
     fprintf(stderr,"*warning* not adding, full %zd\n", queue->sz);
   }
 
-  pthread_mutex_unlock(&queue->lock);
   return ret; // 0 is ok 
 }
 
@@ -72,33 +72,23 @@ int workQueuePop(workQueueType *queue, workQueueActionType *ret) {
 
 size_t workQueuePopArray(workQueueType *queue, workQueueActionType *actionArray, const size_t size) {
   int ret = 0;
-  if (pthread_mutex_lock(&queue->lock) == 0) {
-
-    if (queue->sz >= 1) {
-      while ((unsigned int) ret < size) {
-	if (queue->tail != queue->head) {
-	  actionArray[ret] = queue->actions[queue->tail];
-	  queue->tail++;
-	  if (queue->tail >= queue->allocsz) {
-	    queue->tail = 0;
-	  }
-	  queue->sz--;
-	  queue->sizeSum += actionArray[ret].size;
-	  ret++;
-	} else {
-	  break;
+  if (queue->sz >= 1) {
+    while ((unsigned int) ret < size) {
+      if (queue->tail != queue->head) {
+	actionArray[ret] = queue->actions[queue->tail];
+	pthread_mutex_lock(&queue->lock);
+	queue->tail++;
+	if (queue->tail >= queue->allocsz) {
+	  queue->tail = 0;
 	}
+	queue->sz--;
+	queue->sizeSum += actionArray[ret].size;
+	pthread_mutex_unlock(&queue->lock);
+	ret++;
+      } else {
+	break;
       }
-    } else {
-      //fprintf(stderr,"not enough in queue\n");
-      ret = -1;
     }
-    if (ret > 0) {
-      //      fprintf(stderr,"ret %d\n", ret);
-      //      queue->finished += ret;
-    }
-
-    pthread_mutex_unlock(&queue->lock);
   } else {
     ret = -2;
     //    fprintf(stderr,"missed a lock\n");
