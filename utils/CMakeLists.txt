@@ -9,4 +9,8 @@ add_executable(median median.c)
 
 add_executable(dist dist.c)
 
+add_executable(ramtester ramtester.c)
+
+
+
 
