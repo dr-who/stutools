@@ -35,6 +35,7 @@ typedef struct {
   size_t totalFileSpace;
   size_t maxthreads;
   size_t writesize;
+  size_t numfiles;
 } threadInfoType;
 
 
@@ -94,13 +95,14 @@ void readAction(const char *filename, char *buf, size_t size) {
   }
 }
 
+#define MAXFILESIZE (1024*1024*10)
 
 void* worker(void *arg) 
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
   const size_t totalfilespace = threadContext->totalFileSpace;
-  char *buf = aligned_alloc(4096, 1024*1024*1);
-  memset(buf, 'z', 1024*1024*1);
+  char *buf = aligned_alloc(4096, MAXFILESIZE);
+  memset(buf, 'z', MAXFILESIZE);
 
   char *s = aligned_alloc(4096, 1024*1024);
 
@@ -143,7 +145,7 @@ void* worker(void *arg)
 	const double tm = thistime - lasttime;
 	lasttime = thistime;
 	
-	sprintf(outstring, "*info* [thread %zd/%zd] [action %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid, threadContext->maxthreads, wqfin, processed, (fin/tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
+	sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed, (fin/tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
 		lasttime = thistime;
 
 
@@ -164,7 +166,7 @@ void* worker(void *arg)
 	  //	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
 
 	  //	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
-	  if (action.size < 1024*1024*1) {
+	  if (action.size < MAXFILESIZE) {
 	    if (createAction(s, buf, action.size, threadContext->writesize) == 0) {
 	      processed++;
 	      sum += action.size;
@@ -174,7 +176,7 @@ void* worker(void *arg)
 	  }
 	  break;
 	case 'R': 
-	  if (action.size < 1024*1024*1) {
+	  if (action.size < MAXFILESIZE) {
 	    readAction(s, buf, action.size);
 	    processed++;
 	  } else {
@@ -199,7 +201,7 @@ size_t filesize = 360*1024;
 size_t writesize = 1024*1024;
 
 void usage() {
-  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed] [-u(unique filenames)] [-U(nonunique/with replacement]\n", threads, filesize/1024, writesize/1024);
+  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed] [-u(unique filenames)] [-U(nonunique/with replacement]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
@@ -262,7 +264,7 @@ int main(int argc, char *argv[]) {
       
   size_t totalfilespace = diskSpace();
   size_t numFiles = (totalfilespace / filesize) * 0.95;
-
+  
   srand(seed);
   fprintf(stderr,"*info* number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d\n", threads, filesize, writesize, numFiles, unique, seed, openmode);
 
@@ -301,6 +303,7 @@ int main(int argc, char *argv[]) {
     threadinfo[i].maxthreads = threads;
     threadinfo[i].writesize = writesize;
     threadinfo[i].totalFileSpace = totalfilespace;
+    threadinfo[i].numfiles = numFiles;
     int error = pthread_create(&(tid[i]), NULL, &worker, &threadinfo[i]);
     if (error != 0) {
       printf("\nThread can't be created :[%s]", strerror(error)); 
