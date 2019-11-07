@@ -38,6 +38,7 @@ typedef struct {
   size_t filesize;
   size_t numfiles;
   size_t *fileid;
+  char *actions;
 } threadInfoType;
 
 
@@ -59,10 +60,11 @@ int createAction(const char *filename, char *buf, const size_t size, const size_
     while (towrite > 0) {
       int written = write(fd, buf, MIN(towrite, writesize));
       //      fprintf(stderr,"%s %zd\n", filename, MIN(towrite, writesize));
-      if (written >= 0) {
+      if (written > 0) {
 	towrite -= written;
       } else {
 	perror("write");
+	break;
       }
     }
     close(fd);
@@ -83,10 +85,11 @@ void readAction(const char *filename, char *buf, size_t size) {
     size_t toread = 0;
     while (toread != size) {
       int readd = read(fd, buf, size);
-      if (readd >= 0) {
+      if (readd > 0) {
 	toread += readd;
       } else {
 	perror("read");
+	break;
       }
     }
     close(fd);
@@ -155,10 +158,22 @@ void* worker(void *arg)
 
       //      fprintf(stderr,"%s", s);
       //      	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
-      if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
+      switch (threadContext->actions[i]) {
+      case 'W': 
+	if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
+	  processed++;
+	  sum += threadContext->filesize;
+	}
+	break;
+      case 'R':
+	readAction(s, buf, threadContext->filesize);
 	processed++;
 	sum += threadContext->filesize;
-      }
+	break;
+      default:
+	abort();
+      }	
+	
     }
   
   free(buf);
@@ -242,6 +257,13 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"*info* number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d\n", threads, filesize, writesize, numFiles, unique, seed, openmode, read);
 
   size_t *fileid = calloc(numFiles, sizeof(size_t));
+  char *actions = calloc(numFiles, sizeof(char));
+  if (read) {
+    memset(actions, 'R', numFiles);
+  } else {
+    memset(actions, 'W', numFiles);
+  }
+    
   for (size_t i = 0; i < numFiles; i++) {
     if (unique) { // unique 1 or 2 for seq
       fileid[i] = i;
@@ -302,6 +324,7 @@ int main(int argc, char *argv[]) {
     threadinfo[i].filesize = filesize;
     threadinfo[i].totalFileSpace = totalfilespace;
     threadinfo[i].numfiles = numFiles;
+    threadinfo[i].actions = actions;
     threadinfo[i].fileid = fileid;
     int error = pthread_create(&(tid[i]), NULL, &worker, &threadinfo[i]);
     if (error != 0) {
