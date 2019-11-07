@@ -266,26 +266,6 @@ int main(int argc, char *argv[]) {
   finished = 0;
 
 
-  // setup worker threads
-  pthread_t *tid = calloc(threads, sizeof(pthread_t));
-  
-  threadInfoType *threadinfo = calloc(threads, sizeof(threadInfoType));
-  
-  for (int i = 0; i < threads; i++){
-    threadinfo[i].threadid = i;
-    threadinfo[i].maxthreads = threads;
-    threadinfo[i].writesize = writesize;
-    threadinfo[i].filesize = filesize;
-    threadinfo[i].totalFileSpace = totalfilespace;
-    threadinfo[i].numfiles = numFiles;
-    threadinfo[i].fileid = fileid;
-    int error = pthread_create(&(tid[i]), NULL, &worker, &threadinfo[i]);
-    if (error != 0) {
-      printf("\nThread can't be created :[%s]", strerror(error)); 
-    }
-  }
-
-
   
   char s[1000];
   fprintf(stderr,"*info* making %d top level directories\n", DEPTH);
@@ -306,7 +286,29 @@ int main(int argc, char *argv[]) {
       perror("fsfiller");exit(1);
     }
   }
- 
+
+
+  // start threads
+
+  // setup worker threads
+  pthread_t *tid = calloc(threads, sizeof(pthread_t));
+  
+  threadInfoType *threadinfo = calloc(threads, sizeof(threadInfoType));
+  
+  for (int i = 0; i < threads; i++){
+    threadinfo[i].threadid = i;
+    threadinfo[i].maxthreads = threads;
+    threadinfo[i].writesize = writesize;
+    threadinfo[i].filesize = filesize;
+    threadinfo[i].totalFileSpace = totalfilespace;
+    threadinfo[i].numfiles = numFiles;
+    threadinfo[i].fileid = fileid;
+    int error = pthread_create(&(tid[i]), NULL, &worker, &threadinfo[i]);
+    if (error != 0) {
+      printf("\nThread can't be created :[%s]", strerror(error)); 
+    }
+  }
+
   
   while (!finished) {
     sleep(1);
