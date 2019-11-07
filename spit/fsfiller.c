@@ -112,7 +112,7 @@ void* worker(void *arg)
   size_t lastfin = 0;
   
   char outstring[1000];
-  size_t actionSize = 10;
+  size_t actionSize = 1000;
   workQueueActionType *actionArray = calloc(actionSize, sizeof(workQueueActionType));
   
   while (1) {
@@ -122,7 +122,7 @@ void* worker(void *arg)
 
     if (ret <= 0) {
       //      fprintf(stderr,"the ret %d\n", ret);
-      usleep(1000);
+      usleep(10000);
       continue;
     }
 
@@ -338,7 +338,7 @@ int main(int argc, char *argv[]) {
   while (!finished) {
     workQueueActionType action;
     
-    if (workQueueNum(&wq) < queueditems - 10) { // queue up to 10,000 items at a time
+    if (workQueueNum(&wq) < queueditems-1) { // queue up to 10,000 items at a time
       if (read) {
 	action.type = 'R';
       } else {
@@ -356,8 +356,8 @@ int main(int argc, char *argv[]) {
 	id--;
       }
     } else {
-      //                  fprintf(stderr,"sleeping...%zd in the queue\n", workQueueNum(&wq));
-      usleep(100000);
+      //      fprintf(stderr,"sleeping...%zd in the queue\n", workQueueNum(&wq));
+      usleep(1000);
     }
   }
 
