@@ -28,7 +28,7 @@ int verbose = 0;
 int keepRunning = 1;
 char *benchmarkFile = NULL;
 FILE *bfp = NULL;
-int openmode = O_DIRECT;
+int openmode = 0;
 
 typedef struct {
   size_t threadid;
@@ -183,13 +183,16 @@ int main(int argc, char *argv[]) {
   seed = seed % 65536;
   size_t unique = 1;
   
-  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsD")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDd")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkFile = optarg;
       break;
     case 'D':
       openmode = 0;
+      break;
+    case 'd':
+      openmode = O_DIRECT;
       break;
     case 'r':
       read = 1;
