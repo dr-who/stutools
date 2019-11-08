@@ -62,11 +62,14 @@ int createAction(const char *filename, char *buf, const size_t size, const size_
       //      fprintf(stderr,"%s %zd\n", filename, MIN(towrite, writesize));
       if (written > 0) {
 	towrite -= written;
+      } else if (written == 0) {
+	fprintf(stderr,"zero byte write\n");
       } else {
 	perror("write");
 	break;
       }
     }
+    fdatasync(fd);
     close(fd);
     if (verbose) fprintf(stderr,"*info* wrote file %s, size %zd\n", filename, size);
     return 0;
@@ -78,16 +81,24 @@ int createAction(const char *filename, char *buf, const size_t size, const size_
 
 
 
-void readAction(const char *filename, char *buf, size_t size) {
+int readAction(const char *filename, char *buf, size_t size) {
   int fd = open(filename, openmode | O_RDONLY);
+  int ret = -1;
   
   if (fd > 0) {
+    ret = 0;
     size_t toread = 0;
+    size_t zerocount = 0;
     while (toread != size) {
       int readd = read(fd, buf, size);
       if (readd > 0) {
 	toread += readd;
+      } else if (readd == 0) {
+	zerocount++;
+	fprintf(stderr,"'%s' truncated at %zd before size %zd\n", filename, toread, size);
+	break;
       } else {
+	ret = -2;
 	perror("read");
 	break;
       }
@@ -95,9 +106,11 @@ void readAction(const char *filename, char *buf, size_t size) {
     close(fd);
     if (verbose) fprintf(stderr,"*info* read file %s, size %zd\n", filename, size);
   } else {
-    fprintf(stderr,"*error* didn't read %s, skipping\n", filename);
+    ret = -3;
+    //    fprintf(stderr,"*error* couldn't open %s, skipping\n", filename);
     //exit(1);
   }
+  return ret;
 }
 
 #define MAXFILESIZE (1024*1024*10)
@@ -122,7 +135,7 @@ void* worker(void *arg)
 
   while (!finished) {
     for (size_t i = 0; i < numfiles; i++) {
-      processed++;
+
       if (finished) break;
 
       if ((i % threadContext->maxthreads) == threadContext->threadid) {
@@ -162,12 +175,15 @@ void* worker(void *arg)
 	switch (threadContext->actions[i]) {
 	case 'W': 
 	  if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
+	    processed++;
 	    sum += (threadContext->maxthreads * threadContext->filesize);
 	  }
 	  break;
 	case 'R':
-	  readAction(s, buf, threadContext->filesize);
-	  sum += (threadContext->maxthreads * threadContext->filesize);
+	  if (readAction(s, buf, threadContext->filesize) == 0) {
+	    processed++;
+	    sum += (threadContext->maxthreads * threadContext->filesize);
+	  }
 	  break;
 	default:
 	  abort();
