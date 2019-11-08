@@ -74,6 +74,7 @@ int createAction(const char *filename, char *buf, const size_t size, const size_
     if (verbose) fprintf(stderr,"*info* wrote file %s, size %zd\n", filename, size);
     return 0;
   } else {
+    perror(filename);
     fprintf(stderr,"*error* didn't write %s, skipping\n", filename);
     return 1;
   }
@@ -96,6 +97,7 @@ int readAction(const char *filename, char *buf, size_t size) {
       } else if (readd == 0) {
 	zerocount++;
 	fprintf(stderr,"'%s' truncated at %zd before size %zd\n", filename, toread, size);
+	ret = -3;
 	break;
       } else {
 	ret = -2;
@@ -138,7 +140,7 @@ void* worker(void *arg)
 
       if (finished) break;
 
-      if ((i % threadContext->maxthreads) == threadContext->threadid) {
+      {
 	size_t val = threadContext->fileid[i];
 	
 	
@@ -155,7 +157,7 @@ void* worker(void *arg)
 	    const double tm = thistime - lasttime;
 	    lasttime = thistime;
 	      
-	    sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid+1, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * 32, (fin * 32/tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
+	    sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid+1, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
 	    lasttime = thistime;
 
 	    if (bfp) {
@@ -187,7 +189,7 @@ void* worker(void *arg)
 	  break;
 	default:
 	  abort();
-	}	
+	}
       }
     }
   }
@@ -270,7 +272,7 @@ int main(int argc, char *argv[]) {
   size_t numFiles = (totalfilespace / filesize) * 0.95 / threads;
   
   srand(seed);
-  fprintf(stderr,"*info* number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d\n", threads, filesize, writesize, numFiles, unique, seed, openmode, read);
+  fprintf(stderr,"*info* diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d\n", TOGiB(totalfilespace), threads, filesize, writesize, numFiles, unique, seed, openmode, read);
 
   size_t *fileid = calloc(numFiles, sizeof(size_t));
   char *actions = calloc(numFiles, sizeof(char));
