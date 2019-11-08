@@ -121,61 +121,62 @@ void* worker(void *arg)
   //size_t actionSize = 100;
   //workQueueActionType *actionArray = calloc(actionSize, sizeof(workQueueActionType));
 
-  while(1) 
-  for (size_t i = 0; i < numfiles; i++)
-    if ((i % threadContext->maxthreads) == threadContext->threadid) {
-      size_t val = threadContext->fileid[i];
-      
+  while (!finished) {
+    for (size_t i = 0; i < numfiles; i++) {
+      if (finished) break;
 
-      if (threadContext->threadid == 0) {
-	const double thistime = timedouble();
-	const double tm = thistime - lasttime;
+      if ((i % threadContext->maxthreads) == threadContext->threadid) {
+	size_t val = threadContext->fileid[i];
 	
-	if (tm > 1) {
-	  const size_t wqfin = i;
-	  const size_t fin = wqfin - lastfin;
-	  lastfin = wqfin;
-	  
+	
+	if (threadContext->threadid == 0) {
 	  const double thistime = timedouble();
 	  const double tm = thistime - lasttime;
-	  lasttime = thistime;
-	  
-	  sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed, (fin/tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
-	  lasttime = thistime;
-	  
-	  
-	  
-	  if (bfp) {
-	    fprintf(bfp, "%s", outstring);
-	    //	  fflush(bfp);
-	  }
-	  fprintf(stderr,"%s", outstring);
-	}
-      }
-      // do the mahi
-      
-      sprintf(s,"%02x/%02x/%010zd.thread%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
-      //	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
+	    
+	  if (tm > 1) {
+	    const size_t wqfin = i;
+	    const size_t fin = wqfin - lastfin;
+	    lastfin = wqfin;
+	      
+	    const double thistime = timedouble();
+	    const double tm = thistime - lasttime;
+	    lasttime = thistime;
+	      
+	    sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed, (fin/tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
+	    lasttime = thistime;
 
-      //      fprintf(stderr,"%s", s);
-      //      	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
-      switch (threadContext->actions[i]) {
-      case 'W': 
-	if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
+	    if (bfp) {
+	      fprintf(bfp, "%s", outstring);
+	      //	  fflush(bfp);
+	    }
+	    fprintf(stderr,"%s", outstring);
+	  }
+	}
+	// do the mahi
+	  
+	sprintf(s,"%02x/%02x/%010zd.thread%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
+	//	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
+	  
+	//      fprintf(stderr,"%s", s);
+	//      	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
+	switch (threadContext->actions[i]) {
+	case 'W': 
+	  if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
+	    processed++;
+	    sum += threadContext->filesize;
+	  }
+	  break;
+	case 'R':
+	  readAction(s, buf, threadContext->filesize);
 	  processed++;
 	  sum += threadContext->filesize;
-	}
-	break;
-      case 'R':
-	readAction(s, buf, threadContext->filesize);
-	processed++;
-	sum += threadContext->filesize;
-	break;
-      default:
-	abort();
-      }	
-	
+	  break;
+	default:
+	  abort();
+	}	
+      }
     }
+  }
   
   free(buf);
   return NULL;
@@ -333,7 +334,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  
   while (!finished) {
     sleep(1);
   }
