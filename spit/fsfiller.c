@@ -122,11 +122,7 @@ void* worker(void *arg)
 
   while (!finished) {
     for (size_t i = 0; i < numfiles; i++) {
-      if (i==0) {
-	lastfin = 0;
-	starttime = timedouble();
-	lasttime = starttime;
-      }
+      processed++;
       if (finished) break;
 
       if ((i % threadContext->maxthreads) == threadContext->threadid) {
@@ -138,7 +134,7 @@ void* worker(void *arg)
 	  const double tm = thistime - lasttime;
 	    
 	  if (tm > 1) {
-	    const size_t wqfin = i;
+	    const size_t wqfin = processed;
 	    const size_t fin = wqfin - lastfin;
 	    lastfin = wqfin;
 	      
@@ -146,7 +142,7 @@ void* worker(void *arg)
 	    const double tm = thistime - lasttime;
 	    lasttime = thistime;
 	      
-	    sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed, (fin/tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
+	    sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid+1, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed, (fin/tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
 	    lasttime = thistime;
 
 	    if (bfp) {
@@ -166,14 +162,12 @@ void* worker(void *arg)
 	switch (threadContext->actions[i]) {
 	case 'W': 
 	  if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
-	    processed++;
-	    sum += threadContext->filesize;
+	    sum += (threadContext->maxthreads * threadContext->filesize);
 	  }
 	  break;
 	case 'R':
 	  readAction(s, buf, threadContext->filesize);
-	  processed++;
-	  sum += threadContext->filesize;
+	  sum += (threadContext->maxthreads * threadContext->filesize);
 	  break;
 	default:
 	  abort();
