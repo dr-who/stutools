@@ -121,6 +121,7 @@ void* worker(void *arg)
   //size_t actionSize = 100;
   //workQueueActionType *actionArray = calloc(actionSize, sizeof(workQueueActionType));
 
+  while(1) 
   for (size_t i = 0; i < numfiles; i++)
     if ((i % threadContext->maxthreads) == threadContext->threadid) {
       size_t val = threadContext->fileid[i];
