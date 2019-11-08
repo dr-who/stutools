@@ -113,8 +113,7 @@ void* worker(void *arg)
   char *s = aligned_alloc(4096, 1024*1024);
 
   size_t processed = 0, sum = 0;
-  const double starttime = timedouble();
-  double lasttime = starttime;
+  double starttime = timedouble(), lasttime = starttime;
   size_t lastfin = 0;
   
   char outstring[1000];
@@ -123,6 +122,11 @@ void* worker(void *arg)
 
   while (!finished) {
     for (size_t i = 0; i < numfiles; i++) {
+      if (i==0) {
+	lastfin = 0;
+	starttime = timedouble();
+	lasttime = starttime;
+      }
       if (finished) break;
 
       if ((i % threadContext->maxthreads) == threadContext->threadid) {
