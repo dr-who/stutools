@@ -132,6 +132,7 @@ int main(int argc, char *argv[]) {
       fprintf(stderr,"*info* write stored OK\n");
     } else {
       perror(device);
+      exit(1);
     }
   } else {
     verifyDevice(device, buf, size);
