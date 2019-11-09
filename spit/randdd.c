@@ -57,6 +57,7 @@ void verifyDevice(char *device, unsigned char *buf, size_t size) {
     close(fd);
   } else {
     perror(device);
+    exit(1);
   }
 }
 
