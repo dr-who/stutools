@@ -109,9 +109,10 @@ int readAction(const char *filename, char *buf, size_t size) {
     if (verbose) fprintf(stderr,"*info* read file %s, size %zd\n", filename, size);
   } else {
     ret = -3;
-    //    fprintf(stderr,"*error* couldn't open %s, skipping\n", filename);
+    //        fprintf(stderr,"*error* couldn't open %s, skipping\n", filename);
     //exit(1);
   }
+  //  fprintf(stderr,"ret %d\n", ret);
   return ret;
 }
 
@@ -122,34 +123,32 @@ void* worker(void *arg)
   threadInfoType *threadContext = (threadInfoType*)arg;
   const size_t totalfilespace = threadContext->totalFileSpace;
   size_t numfiles = threadContext->numfiles;
-  char *buf = aligned_alloc(4096, MAXFILESIZE);
+  char *buf = aligned_alloc(4096, MAXFILESIZE); assert(buf);
   memset(buf, 'z', MAXFILESIZE);
 
-  char *s = aligned_alloc(4096, 1024*1024);
+  char *s = aligned_alloc(4096, 1024*1024); assert(s);
 
-  size_t processed = 0, sum = 0;
+  size_t processed = 0, sum = 0, skipped = 0;
   double starttime = timedouble(), lasttime = starttime;
   size_t lastfin = 0;
   
   char outstring[1000];
-  //size_t actionSize = 100;
-  //workQueueActionType *actionArray = calloc(actionSize, sizeof(workQueueActionType));
 
   while (!finished) {
-    for (size_t i = 0; i < numfiles; i++) {
+    for (size_t i = 0; !finished && i < numfiles; i++) {
 
-      if (finished) break;
+      const size_t wqfin = processed;
 
+	  
       {
 	size_t val = threadContext->fileid[i];
-	
 	
 	if (threadContext->threadid == 0) {
 	  const double thistime = timedouble();
 	  const double tm = thistime - lasttime;
+
 	    
 	  if (tm > 1) {
-	    const size_t wqfin = processed;
 	    const size_t fin = wqfin - lastfin;
 	    lastfin = wqfin;
 	      
@@ -157,7 +156,7 @@ void* worker(void *arg)
 	    const double tm = thistime - lasttime;
 	    lasttime = thistime;
 	      
-	    sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf)\n", threadContext->threadid+1, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm);
+	    sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), skipped %zd\n", threadContext->threadid+1, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm, skipped);
 	    lasttime = thistime;
 
 	    if (bfp) {
@@ -172,7 +171,6 @@ void* worker(void *arg)
 	sprintf(s,"%02x/%02x/%010zd.thread%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
 	//	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
 	  
-	//      fprintf(stderr,"%s", s);
 	//      	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
 	switch (threadContext->actions[i]) {
 	case 'W': 
@@ -181,10 +179,16 @@ void* worker(void *arg)
 	    sum += (threadContext->maxthreads * threadContext->filesize);
 	  }
 	  break;
-	case 'R':
-	  if (readAction(s, buf, threadContext->filesize) == 0) {
+	case 'R': {}
+	  int ret = readAction(s, buf, threadContext->filesize);
+	  if (ret == 0) {
 	    processed++;
+	    //	      fprintf(stderr,"%s\n", s);
+	    //	    fprintf(stderr,"process %zd ret %d\n", processed, ret);
 	    sum += (threadContext->maxthreads * threadContext->filesize);
+	  } else {
+	    //	    fprintf(stderr,"processed %zd, skipped %s\n", wqfin, s);
+	    skipped++;
 	  }
 	  break;
 	default:
@@ -269,13 +273,13 @@ int main(int argc, char *argv[]) {
   }
       
   size_t totalfilespace = diskSpace();
-  size_t numFiles = (totalfilespace / filesize) * 0.95 / threads;
+  size_t numFiles = (totalfilespace / filesize) * 0.93 / threads;
   
   srand(seed);
-  fprintf(stderr,"*info* diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d\n", TOGiB(totalfilespace), threads, filesize, writesize, numFiles, unique, seed, openmode, read);
+  fprintf(stderr,"*info* diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d\n", TOGiB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read);
 
-  size_t *fileid = calloc(numFiles, sizeof(size_t));
-  char *actions = calloc(numFiles, sizeof(char));
+  size_t *fileid = calloc(numFiles, sizeof(size_t)); assert(fileid);
+  char *actions = calloc(numFiles, sizeof(char)); assert(actions);
   if (read) {
     memset(actions, 'R', numFiles);
   } else {
@@ -328,12 +332,10 @@ int main(int argc, char *argv[]) {
   }
 
 
-  // start threads
-
   // setup worker threads
-  pthread_t *tid = calloc(threads, sizeof(pthread_t));
+  pthread_t *tid = calloc(threads, sizeof(pthread_t)); assert(tid);
   
-  threadInfoType *threadinfo = calloc(threads, sizeof(threadInfoType));
+  threadInfoType *threadinfo = calloc(threads, sizeof(threadInfoType)); assert(threadinfo);
   
   for (int i = 0; i < threads; i++){
     threadinfo[i].threadid = i;
@@ -344,7 +346,7 @@ int main(int argc, char *argv[]) {
     threadinfo[i].numfiles = numFiles;
     threadinfo[i].actions = actions;
     threadinfo[i].fileid = fileid;
-    int error = pthread_create(&(tid[i]), NULL, &worker, &threadinfo[i]);
+    int error = pthread_create(&(tid[i]), NULL, &worker, &threadinfo[i]); // start threads
     if (error != 0) {
       printf("\nThread can't be created :[%s]", strerror(error)); 
     }
