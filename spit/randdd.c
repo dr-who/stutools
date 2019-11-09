@@ -16,6 +16,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+int keepRunning = 1;
+
 void generate(unsigned char *buf, size_t size, unsigned int seed) {
   srand(seed);
   for (size_t i = 0; i < size; i++) {
@@ -82,7 +84,12 @@ int main(int argc, char *argv[]) {
       seed = atoi(optarg);
       break;
     case 'G':
-      size = atoi(optarg) * 1024 * 1024;
+      size = (size_t)(atof(optarg) * 1024 * 1024 * 1024);
+      fprintf(stderr,"*info* size %zd bytes, RAM %zd bytes\n", size, totalRAM());
+      if (size > totalRAM()) {
+	fprintf(stderr,"*error* G ram is more than actual RAM\n");
+	exit(1);
+      }
       break;
     case 'v':
       verify = 1;
