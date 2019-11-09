@@ -45,9 +45,10 @@ void verifyDevice(char *device, unsigned char *buf, size_t size) {
     memcpy(str2, readbuf, 10);
     str1[10]=0;
     str2[10]=0;
-    
-    if (memcmp(buf, readbuf, size) != 0) {
-      fprintf(stderr,"*error* failed verification\n");
+
+    int p = memcmp(buf, readbuf, size);
+    if (p != 0) {
+      fprintf(stderr,"*error* failed verification at offset %d\n", p);
       exit(1);
     }
     fprintf(stderr,"*info* succeeded %zd byte verification of '%s'.\n*info* the first few bytes: RAM '%s', on device '%s'\n", size, device, str1, str2);
