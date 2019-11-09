@@ -14,6 +14,9 @@ add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c 
 add_executable(spit spit.c)
 target_link_libraries(spit spitlib m aio pthread)
 
+add_executable(randdd randdd.c)
+target_link_libraries(randdd spitlib m aio pthread)
+
 add_executable(fsfiller fsfiller.c)
 target_link_libraries(fsfiller spitlib m aio pthread)
 
