@@ -20,9 +20,11 @@ int keepRunning = 1;
 
 void generate(unsigned char *buf, size_t size, unsigned int seed) {
   srand(seed);
-  for (size_t i = 0; i < size; i++) {
-    unsigned char c = rand() & 0xff;
-    buf[i] = c;
+  // interate in ints not chars
+  unsigned int *p = (unsigned int*)buf;
+  for (size_t i = 0; i < size / sizeof(unsigned int); i++) {
+    *p = rand();
+    p++;
   }
 }
 
