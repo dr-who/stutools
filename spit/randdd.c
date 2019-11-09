@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (help) {
+  if (help || !device) {
     usage();
     exit(1);
   }
