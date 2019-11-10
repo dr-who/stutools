@@ -219,8 +219,9 @@ int main(int argc, char *argv[]) {
   unsigned int seed = timedouble() * 10;
   seed = seed % 65536;
   size_t unique = 1;
+  size_t timelimit = 0;
   
-  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDd")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkFile = optarg;
@@ -264,7 +265,11 @@ int main(int argc, char *argv[]) {
     case 'V':
       verbose = 1;
       break;
+    case 't':
+      timelimit = atoi(optarg);
+      break;
     }
+    
   }
 
   if (help) {
@@ -274,9 +279,10 @@ int main(int argc, char *argv[]) {
       
   size_t totalfilespace = diskSpace();
   size_t numFiles = (totalfilespace / filesize) * 0.93 / threads;
-  
+
+
   srand(seed);
-  fprintf(stderr,"*info* diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d\n", TOGiB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read);
+  fprintf(stderr,"*info* diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs\n", TOGiB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit);
 
   size_t *fileid = calloc(numFiles, sizeof(size_t)); assert(fileid);
   char *actions = calloc(numFiles, sizeof(char)); assert(actions);
@@ -352,7 +358,13 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  double starttime = timedouble();
   while (!finished) {
+    if (timelimit) {
+      if (timedouble() - starttime >= timelimit) {
+	break;
+      }
+    }
     sleep(1);
   }
 
