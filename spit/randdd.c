@@ -9,7 +9,6 @@
 
 #include <stdlib.h>
 #include <malloc.h>
-#include <assert.h>
 #include <unistd.h>
 
 #include <sys/types.h>
@@ -32,14 +31,32 @@ void generate(unsigned char *buf, size_t size, unsigned int seed) {
 
 void verifyDevice(char *device, unsigned char *buf, size_t size) {
   
-  unsigned char *readbuf = aligned_alloc(4096, size); assert(buf);
+  unsigned char *readbuf = aligned_alloc(4096, size);
+  if (!buf) {
+    fprintf(stderr,"*error* can't allocate %zd bytes\n", size);
+    exit(1);
+  }
   memset(readbuf, 0, size);
   
   int fd = open(device, O_DIRECT | O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
   if (fd >= 0) {
-    int ret = read(fd, readbuf, size);
-    if (ret != (int) size) {
-      fprintf(stderr,"*error* incomplete read %d instead of %zd\n", ret, size);
+    unsigned char *p = readbuf;
+    ssize_t ret = 0;
+    size_t toreadleft = size;
+
+    while ((ret = read(fd, p, MIN(1024*1024,toreadleft))) != 0) {
+      //      fprintf(stderr,"*info read %zd %zd\n", p - readbuf, toreadleft);
+      if (ret < 0) {
+	fprintf(stderr,"*error* read problem\n");
+	perror(device);
+	exit(1);
+      }
+      toreadleft -= ret;
+      p += ret;
+    }
+      
+    if (toreadleft != 0) {
+      fprintf(stderr,"*error* incomplete read size of %zd\n", size - toreadleft);
       exit(1);
     }
     
@@ -50,9 +67,9 @@ void verifyDevice(char *device, unsigned char *buf, size_t size) {
     str1[10]=0;
     str2[10]=0;
 
-    int p = memcmp(buf, readbuf, size);
-    if (p != 0) {
-      fprintf(stderr,"*error* failed verification at offset %d\n", p);
+    int pc = memcmp(buf, readbuf, size);
+    if (pc != 0) {
+      fprintf(stderr,"*error* failed verification at offset %d\n", pc);
       exit(1);
     }
     fprintf(stderr,"*info* succeeded %zd byte verification of '%s'.\n*info* the first few bytes: RAM '%s', on device '%s'\n", size, device, str1, str2);
@@ -87,8 +104,8 @@ int main(int argc, char *argv[]) {
       seed = atoi(optarg);
       break;
     case 'G':
-      size = (size_t)(atof(optarg) * 1024 * 1024 * 1024);
-      fprintf(stderr,"*info* size %zd bytes, RAM %zd bytes\n", size, totalRAM());
+      size = (size_t)(atof(optarg) * 1024) * 1024 * 1024;
+      fprintf(stderr,"*info* size %zd bytes (%.3lf GiB), RAM %zd bytes (%.0lf GiB)\n", size, TOGiB(size), totalRAM(), TOGiB(totalRAM()));
       if (size > totalRAM()) {
 	fprintf(stderr,"*error* G ram is more than actual RAM\n");
 	exit(1);
@@ -108,7 +125,12 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  unsigned char *buf = aligned_alloc(4096, size); assert(buf);
+  unsigned char *buf = aligned_alloc(4096, size);
+  if (!buf) {
+    fprintf(stderr,"*error* can't allocate %zd bytes\n", size);
+    exit(1);
+  }
+    
   generate(buf, size, seed);
 
 
@@ -117,14 +139,16 @@ int main(int argc, char *argv[]) {
   if (!verify) {
     int fd = open(device, O_DIRECT | O_WRONLY | O_TRUNC | O_EXCL, S_IRUSR | S_IWUSR);
     if (fd >= 0) {
-      int towrite = size;
+      size_t towrite = size;
+      unsigned char *p = buf;
       while (towrite > 0) {
-	int written  = write(fd, buf, towrite);
+	ssize_t written  = write(fd, p, MIN(towrite, 1024 * 1024));
 	if (written <= 0) {
 	  perror(device);
 	  exit(1);
 	}
 	towrite -= written;
+	p += written;
       }
       fdatasync(fd);
       close(fd);
