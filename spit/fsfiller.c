@@ -2,7 +2,6 @@
 #define _POSIX_C_SOURCE 200809L
 #define _XOPEN_SOURCE 500
 
-#include "workQueue.h"
 #include "utils.h"
 
 
@@ -22,7 +21,6 @@
 
 #define DEPTH 100
 
-workQueueType wq;
 size_t finished;
 int verbose = 0;
 int keepRunning = 1;
@@ -161,7 +159,7 @@ void* worker(void *arg)
 
 	    if (bfp) {
 	      fprintf(bfp, "%s", outstring);
-	      //	  fflush(bfp);
+	      fflush(bfp);
 	    }
 	    fprintf(stderr,"%s", outstring);
 	  }
@@ -197,7 +195,7 @@ void* worker(void *arg)
       }
     }
   }
-  
+  free(s);
   free(buf);
   return NULL;
 }
@@ -307,15 +305,8 @@ int main(int argc, char *argv[]) {
       fileid[j] = tmp;
     }
   }
-  
-  
-
-  size_t queueditems = 100000;
-  workQueueInit(&wq, queueditems);
 
   finished = 0;
-
-
   
   char s[1000];
   fprintf(stderr,"*info* making %d top level directories\n", DEPTH);
@@ -362,16 +353,23 @@ int main(int argc, char *argv[]) {
   while (!finished) {
     if (timelimit) {
       if (timedouble() - starttime >= timelimit) {
+	finished = 1;
 	break;
       }
     }
     sleep(1);
   }
 
+  for (int i = 0; i < threads; i++){
+    pthread_join(tid[i], NULL);
+  }
+
   free(threadinfo);
   free(tid);
   free(fileid);
+  free(actions);
 
-  workQueueFree(&wq);
-  //  fclose(bfp);
+  if (bfp) {
+    fclose(bfp);
+  }
 }
