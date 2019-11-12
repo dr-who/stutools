@@ -98,12 +98,15 @@ int main(int argc, char *argv[]) {
   int verify = 0;
   size_t size = 16*1024*1024;
   char *device = NULL;
-  size_t startpos = 0, endpos = 0, gapcount = 1;
+  size_t startpos = 0, endpos = 0, gapcount = 1, zap = 0;
   
-  while ((opt = getopt(argc, argv, "f:G:wvhR:n:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:G:wvhR:n:z")) != -1) {
     switch (opt) {
     case 'h':
       help = 1;
+      break;
+    case 'z':
+      zap = 1;
       break;
     case 'f':
       device = optarg;
@@ -142,8 +145,12 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*error* can't allocate %zd bytes\n", size);
     exit(1);
   }
-    
-  generate(buf, size, seed);
+
+  if (zap) {
+    memset(buf, 0, size);
+  } else {
+    generate(buf, size, seed);
+  }
 
 
   fprintf(stderr,"*info* randdd on '%s', seed %d, size %zd (%.3lf GiB), mode: %s\n", device, seed, size, TOGiB(size), verify?"VERIFY" : "WRITE");
