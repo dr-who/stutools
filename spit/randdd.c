@@ -14,6 +14,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
 
 int keepRunning = 1;
 
@@ -88,7 +90,7 @@ void verifyDevice(char *device, unsigned char *buf, size_t size, const size_t of
 }
 
 void usage() {
-  fprintf(stderr,"Usage: randdd -f /dev/device [-R seed] -G size (GiB) -v (verify) -n gaps (number of locations)\n");
+  fprintf(stderr,"Usage: randdd -f /dev/device [-R seed] -G size (GiB) -v (verify) -n gaps (number of locations) -T (trim)\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -98,12 +100,15 @@ int main(int argc, char *argv[]) {
   int verify = 0;
   size_t size = 16*1024*1024;
   char *device = NULL;
-  size_t startpos = 0, endpos = 0, gapcount = 1, zap = 0;
+  size_t startpos = 0, endpos = 0, gapcount = 1, zap = 0, trim = 0;
   
-  while ((opt = getopt(argc, argv, "f:G:wvhR:n:z")) != -1) {
+  while ((opt = getopt(argc, argv, "f:G:wvhR:n:zT")) != -1) {
     switch (opt) {
     case 'h':
       help = 1;
+      break;
+    case 'T':
+      trim = 1;
       break;
     case 'z':
       zap = 1;
@@ -146,7 +151,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  if (zap) {
+  if (zap || trim) {
     memset(buf, 0, size);
   } else {
     generate(buf, size, seed);
@@ -170,25 +175,39 @@ int main(int argc, char *argv[]) {
   if (!verify) {
     int fd = open(device, O_DIRECT | O_WRONLY | O_TRUNC | O_EXCL, S_IRUSR | S_IWUSR);
     if (fd >= 0) {
-
+      
       for (double offset = startpos; offset <= endpos - size; offset += gap) {
 	
 	size_t aloff = alignedNumber((size_t)(offset + 0.5), 4096);
-	fprintf(stderr,"*info* write position range: [%zd, %zd) %.1lf%%\n", aloff, aloff + size, aloff*100.0/(endpos - size));
-	lseek64(fd, aloff, SEEK_SET);
 	
-	size_t towrite = size;
-	unsigned char *p = buf;
-	while (towrite > 0) {
-	  ssize_t written  = write(fd, p, MIN(towrite, 1024 * 1024));
-	  if (written <= 0) {
-	    perror(device);
-	    exit(1);
+	if (trim == 0) {
+	  fprintf(stderr,"*info* write position range: [%zd, %zd) %.1lf%%\n", aloff, aloff + size, aloff*100.0/(endpos - size));
+	  lseek64(fd, aloff, SEEK_SET);
+	  
+	  size_t towrite = size;
+	  unsigned char *p = buf;
+	  while (towrite > 0) {
+	    ssize_t written  = write(fd, p, MIN(towrite, 1024 * 1024));
+	    if (written <= 0) {
+	      perror(device);
+	      exit(1);
+	    }
+	    towrite -= written;
+	    p += written;
 	  }
-	  towrite -= written;
-	  p += written;
+	  fdatasync(fd);
+	} else {
+	  unsigned long range[2];
+	  
+	  range[0] = aloff;
+	  range[1] = aloff + size;
+	  fprintf(stderr,"*info* sending trim/BLKDISCARD command to %s [%ld, %ld] [%.3lf GiB, %.3lf GiB]\n", device, range[0], range[1], TOGiB(range[0]), TOGiB(range[1]));
+	  
+	  int err = 0;
+	  if ((err = ioctl(fd, BLKDISCARD, &range))) {
+	    fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", device, err);
+	  }
 	}
-	fdatasync(fd);
       }
       
       close(fd);
