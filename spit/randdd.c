@@ -29,7 +29,7 @@ void generate(unsigned char *buf, size_t size, unsigned int seed) {
 
 
 
-void verifyDevice(char *device, unsigned char *buf, size_t size) {
+void verifyDevice(char *device, unsigned char *buf, size_t size, const size_t offset) {
   
   unsigned char *readbuf = aligned_alloc(4096, size);
   if (!buf) {
@@ -43,6 +43,8 @@ void verifyDevice(char *device, unsigned char *buf, size_t size) {
     unsigned char *p = readbuf;
     ssize_t ret = 0;
     size_t toreadleft = size;
+
+    lseek64(fd, offset, SEEK_SET);
 
     while ((ret = read(fd, p, MIN(1024*1024,toreadleft))) != 0) {
       //      fprintf(stderr,"*info read %zd %zd\n", p - readbuf, toreadleft);
@@ -71,13 +73,13 @@ void verifyDevice(char *device, unsigned char *buf, size_t size) {
     if (pc != 0) {
       for (size_t i = 0; i < size; i++) {
 	if (buf[i] != readbuf[i]) {
-	  fprintf(stderr,"*error* failed verification at offset %zd in %s\n", i, device);
+	  fprintf(stderr,"*error* failed verification at offset %zd, position %zd in %s\n", offset, i, device);
 	  break;
 	}
       }
       exit(1);
     }
-    fprintf(stderr,"*info* succeeded %zd byte verification of '%s'.\n*info* the first few bytes: RAM '%s', on device '%s'\n", size, device, str1, str2);
+    fprintf(stderr,"*info* offset %zd, succeeded %zd byte verification of '%s'.\n*info* the first few bytes: RAM '%s', on device '%s'\n", offset, size, device, str1, str2);
     close(fd);
   } else {
     perror(device);
@@ -86,7 +88,7 @@ void verifyDevice(char *device, unsigned char *buf, size_t size) {
 }
 
 void usage() {
-  fprintf(stderr,"Usage: randdd -f /dev/device [-R seed] -G size (GiB) -v (verify)\n");
+  fprintf(stderr,"Usage: randdd -f /dev/device [-R seed] -G size (GiB) -v (verify) -n gaps (number of locations)\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -96,14 +98,19 @@ int main(int argc, char *argv[]) {
   int verify = 0;
   size_t size = 16*1024*1024;
   char *device = NULL;
+  size_t startpos = 0, endpos = 0, gapcount = 1;
   
-  while ((opt = getopt(argc, argv, "f:G:wvhR:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:G:wvhR:n:")) != -1) {
     switch (opt) {
     case 'h':
       help = 1;
       break;
     case 'f':
       device = optarg;
+      break;
+    case 'n':
+      gapcount = atoi(optarg);
+      if (gapcount < 1) gapcount = 1;
       break;
     case 'R':
       seed = atoi(optarg);
@@ -141,32 +148,60 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr,"*info* randdd on '%s', seed %d, size %zd (%.3lf GiB), mode: %s\n", device, seed, size, TOGiB(size), verify?"VERIFY" : "WRITE");
 
+  int fd = open(device, O_DIRECT | O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
+  if (fd >= 0) {
+    endpos = blockDeviceSizeFromFD(fd);
+  }
+  double gap = (endpos * 1.0 - size - startpos * 1.0) / gapcount;
+  close(fd);
+  if (gap < size) {
+    fprintf(stderr,"*warning* the gap is too small (%.0lf), setting to %zd\n", gap, size);
+    gap = size;
+  }
+  fprintf(stderr,"*info* pos range [%zd, %zd), size %zd, locations %zd, gap %.0lf\n", startpos, endpos, size, gapcount, gap);
+
   if (!verify) {
     int fd = open(device, O_DIRECT | O_WRONLY | O_TRUNC | O_EXCL, S_IRUSR | S_IWUSR);
     if (fd >= 0) {
-      size_t towrite = size;
-      unsigned char *p = buf;
-      while (towrite > 0) {
-	ssize_t written  = write(fd, p, MIN(towrite, 1024 * 1024));
-	if (written <= 0) {
-	  perror(device);
-	  exit(1);
+
+      for (double offset = startpos; offset <= endpos - size; offset += gap) {
+	
+	size_t aloff = alignedNumber((size_t)(offset + 0.5), 4096);
+	fprintf(stderr,"*info* write position range: [%zd, %zd) %.1lf%%\n", aloff, aloff + size, aloff*100.0/(endpos - size));
+	lseek64(fd, aloff, SEEK_SET);
+	
+	size_t towrite = size;
+	unsigned char *p = buf;
+	while (towrite > 0) {
+	  ssize_t written  = write(fd, p, MIN(towrite, 1024 * 1024));
+	  if (written <= 0) {
+	    perror(device);
+	    exit(1);
+	  }
+	  towrite -= written;
+	  p += written;
 	}
-	towrite -= written;
-	p += written;
+	fdatasync(fd);
       }
-      fdatasync(fd);
+      
       close(fd);
       //
       fprintf(stderr,"*info* verifying prior write is on disk\n");
-      verifyDevice(device, buf, size);
+      for (double offset = startpos; offset <= endpos - size; offset += gap) {
+	//	fprintf(stderr,"*info* start position: %zd\n", offset);
+	size_t aloff = alignedNumber((size_t)(offset + 0.5), 4096);
+	verifyDevice(device, buf, size, aloff);
+      }
       fprintf(stderr,"*info* write stored OK\n");
-    } else {
-      perror(device);
-      exit(1);
-    }
   } else {
-    verifyDevice(device, buf, size);
+    perror(device);
+    exit(1);
+  }
+} else {
+  for (double offset = startpos; offset <= endpos - size; offset += gap) {
+    size_t aloff = alignedNumber((size_t)(offset + 0.5), 4096);
+      verifyDevice(device, buf, size, aloff);
+    }
     fprintf(stderr,"*info* read verified OK\n");
   }
 
