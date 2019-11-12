@@ -128,19 +128,20 @@ void* worker(void *arg)
 
   size_t processed = 0, sum = 0, skipped = 0;
   double starttime = timedouble(), lasttime = starttime;
-  size_t lastfin = 0;
+  size_t lastfin = 0, pass = 0;
   
   char outstring[1000];
 
   while (!finished) {
     for (size_t i = 0; !finished && i < numfiles; i++) {
 
+      if (i == 0) {
+	pass++;
+      }
       const size_t wqfin = processed;
 
 	  
       {
-	size_t val = threadContext->fileid[i];
-	
 	if (threadContext->threadid == 0) {
 	  const double thistime = timedouble();
 	  const double tm = thistime - lasttime;
@@ -154,7 +155,7 @@ void* worker(void *arg)
 	    const double tm = thistime - lasttime;
 	    lasttime = thistime;
 	      
-	    sprintf(outstring, "*info* [thread %zd/%zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), skipped %zd\n", threadContext->threadid+1, threadContext->maxthreads, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm, skipped);
+	    sprintf(outstring, "*info* [%zd] [pass %zd] [files %zd (%zd) / %zd], finished %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), skipped %zd\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm, skipped);
 	    lasttime = thistime;
 
 	    if (bfp) {
@@ -166,6 +167,7 @@ void* worker(void *arg)
 	}
 	// do the mahi
 	  
+	const size_t val = threadContext->fileid[i] + ((pass + i) * threadContext->threadid);
 	sprintf(s,"%02x/%02x/%010zd.thread%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
 	//	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
 	  
@@ -206,7 +208,7 @@ size_t filesize = 360*1024;
 size_t writesize = 1024*1024;
 
 void usage() {
-  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed] [-u(unique filenames)] [-U(nonunique/with replacement]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
+  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
@@ -214,8 +216,7 @@ int main(int argc, char *argv[]) {
 
   int read = 0;
   int opt = 0, help = 0;
-  unsigned int seed = timedouble() * 10;
-  seed = seed % 65536;
+  unsigned int seed = 42;
   size_t unique = 1;
   size_t timelimit = 0;
   
