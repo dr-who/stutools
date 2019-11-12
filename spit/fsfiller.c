@@ -167,7 +167,7 @@ void* worker(void *arg)
 	}
 	// do the mahi
 	  
-	const size_t val = threadContext->fileid[i] + ((pass + i) * threadContext->threadid);
+	const size_t val = threadContext->fileid[i] + (i * threadContext->threadid);
 	sprintf(s,"%02x/%02x/%010zd.thread%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
 	//	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
 	  
