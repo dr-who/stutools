@@ -27,6 +27,7 @@ int keepRunning = 1;
 char *benchmarkFile = NULL;
 FILE *bfp = NULL;
 int openmode = 0;
+char *dirPrefix = NULL;
 
 typedef struct {
   size_t threadid;
@@ -166,10 +167,16 @@ void* worker(void *arg)
 	  }
 	}
 	// do the mahi
-	  
-	const size_t val = threadContext->fileid[i] + (i * threadContext->threadid);
-	sprintf(s,"%02x/%02x/%010zd.thread%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
-	//	  fprintf(stderr,"thread %zd, id %zd\n", threadContext->threadid, val);
+	
+	unsigned int thisseed = threadContext->fileid[i] + threadContext->threadid;
+	size_t val = rand_r(&thisseed);
+	//	const size_t val = threadContext->fileid[i] + (i * threadContext->threadid);
+	if (dirPrefix) {
+	  sprintf(s, "%s/%02x/%02x/%010zd.thread.%zd", dirPrefix, (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
+	} else {
+	  sprintf(s, "%02x/%02x/%010zd.thread.%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
+	}
+	//	fprintf(stderr,"thread %zd, id %zd, filename '%s', dirPrefix '%s'\n", threadContext->threadid, val, s, dirPrefix ? dirPrefix : "");
 	  
 	//      	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
 	switch (threadContext->actions[i]) {
@@ -208,7 +215,7 @@ size_t filesize = 360*1024;
 size_t writesize = 1024*1024;
 
 void usage() {
-  fprintf(stderr,"Usage: (run from a mounted folder) fsfiller [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
+  fprintf(stderr,"Usage: fsfiller [-F dirPrefix (.)] [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
@@ -220,13 +227,16 @@ int main(int argc, char *argv[]) {
   size_t unique = 1;
   size_t timelimit = 0;
   
-  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkFile = optarg;
       break;
     case 'D':
       openmode = 0;
+      break;
+    case 'F':
+      dirPrefix = optarg;
       break;
     case 'd':
       openmode = O_DIRECT;
@@ -281,7 +291,7 @@ int main(int argc, char *argv[]) {
 
 
   srand(seed);
-  fprintf(stderr,"*info* diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs\n", TOGiB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit);
+  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs\n", dirPrefix ? dirPrefix : ".", TOGiB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit);
 
   size_t *fileid = calloc(numFiles, sizeof(size_t)); assert(fileid);
   char *actions = calloc(numFiles, sizeof(char)); assert(actions);
@@ -312,12 +322,20 @@ int main(int argc, char *argv[]) {
   char s[1000];
   fprintf(stderr,"*info* making %d top level directories\n", DEPTH);
   for (unsigned int id = 0; id < DEPTH; id++) {
-    sprintf(s,"%02x", id);
+    if (dirPrefix) {
+      sprintf(s,"%s/%02x", dirPrefix, id);
+    } else {
+      sprintf(s,"%02x", id);
+    }
     mkdir(s, 0777);
   }
   fprintf(stderr,"*info* making %d x %d two level directories\n", DEPTH, DEPTH);
   for (unsigned int id = 0; id < DEPTH * DEPTH; id++) {
-    sprintf(s,"%02x/%02x", (((unsigned int)id)/DEPTH) % DEPTH, ((unsigned int)id)%DEPTH);
+    if (dirPrefix) {
+      sprintf(s,"%s/%02x/%02x", dirPrefix, (((unsigned int)id)/DEPTH) % DEPTH, ((unsigned int)id)%DEPTH);
+    } else {
+      sprintf(s,"%02x/%02x", (((unsigned int)id)/DEPTH) % DEPTH, ((unsigned int)id)%DEPTH);
+    }
     mkdir(s, 0777);
   }
 
