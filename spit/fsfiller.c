@@ -28,6 +28,7 @@ char *benchmarkFile = NULL;
 FILE *bfp = NULL;
 int openmode = 0;
 char *dirPrefix = NULL;
+size_t verify = 0;
 
 typedef struct {
   size_t threadid;
@@ -70,7 +71,7 @@ int createAction(const char *filename, char *buf, const size_t size, const size_
     }
     fdatasync(fd);
     close(fd);
-    if (verbose) fprintf(stderr,"*info* wrote file %s, size %zd\n", filename, size);
+    if (verbose) fprintf(stderr,"*info* wrote file %s, size %zd, char %d\n", filename, size, buf[0]);
     return 0;
   } else {
     perror(filename);
@@ -105,7 +106,7 @@ int readAction(const char *filename, char *buf, size_t size) {
       }
     }
     close(fd);
-    if (verbose) fprintf(stderr,"*info* read file %s, size %zd\n", filename, size);
+    if (verbose) fprintf(stderr,"*info* read file %s, size %zd, char %d\n", filename, size, buf[0]);
   } else {
     ret = -3;
     //        fprintf(stderr,"*error* couldn't open %s, skipping\n", filename);
@@ -123,7 +124,10 @@ void* worker(void *arg)
   const size_t totalfilespace = threadContext->totalFileSpace;
   size_t numfiles = threadContext->numfiles;
   char *buf = aligned_alloc(4096, MAXFILESIZE); assert(buf);
-  memset(buf, 'z', MAXFILESIZE);
+  memset(buf, threadContext->threadid, MAXFILESIZE);
+
+  char *verifybuf = aligned_alloc(4096, MAXFILESIZE); assert(verifybuf);
+  
 
   char *s = aligned_alloc(4096, 1024*1024); assert(s);
 
@@ -184,6 +188,23 @@ void* worker(void *arg)
 	  if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
 	    processed++;
 	    sum += (threadContext->maxthreads * threadContext->filesize);
+
+	    if (verify) {
+	      memset(verifybuf, 0xff, threadContext->filesize);
+	      int ret = readAction(s, verifybuf, threadContext->filesize);
+	      if (ret == 0) {
+		if (memcmp(buf, verifybuf, threadContext->filesize) != 0) {
+		  fprintf(stderr,"*error* verification error on %s", s);
+		  exit(1);
+		} else {
+		  if (verbose) fprintf(stderr,"*info* verified file %s OK, char %d\n", s, verifybuf[0]);
+		}
+	      } else {
+		perror(s);
+		exit(1);
+	      }
+	    }
+	    
 	  }
 	  break;
 	case 'R': {}
@@ -205,6 +226,7 @@ void* worker(void *arg)
     }
   }
   free(s);
+  free(verifybuf);
   free(buf);
   return NULL;
 }
@@ -215,7 +237,7 @@ size_t filesize = 360*1024;
 size_t writesize = 1024*1024;
 
 void usage() {
-  fprintf(stderr,"Usage: fsfiller [-F dirPrefix (.)] [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
+  fprintf(stderr,"Usage: fsfiller [-F dirPrefix (.)] [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement] [-v (verify writes)]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
@@ -227,7 +249,7 @@ int main(int argc, char *argv[]) {
   size_t unique = 1;
   size_t timelimit = 0;
   
-  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:v")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkFile = optarg;
@@ -271,11 +293,14 @@ int main(int argc, char *argv[]) {
     case 's':
       unique = 2; // 2 is sequential
       break;
-    case 'V':
-      verbose = 1;
-      break;
     case 't':
       timelimit = atoi(optarg);
+      break;
+    case 'v':
+      verify = 1;
+      break;
+    case 'V':
+      verbose++;
       break;
     }
     
@@ -294,10 +319,11 @@ int main(int argc, char *argv[]) {
 
 
   srand(seed);
-  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs\n", dirPrefix ? dirPrefix : ".", TOGB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit);
+  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs, verify %zd\n", dirPrefix ? dirPrefix : ".", TOGB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit, verify);
 
   size_t *fileid = calloc(numFiles, sizeof(size_t)); assert(fileid);
   char *actions = calloc(numFiles, sizeof(char)); assert(actions);
+
   if (read) {
     memset(actions, 'R', numFiles);
   } else {
