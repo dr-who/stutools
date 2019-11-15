@@ -28,7 +28,7 @@ char *benchmarkFile = NULL;
 FILE *bfp = NULL;
 int openmode = 0;
 char *dirPrefix = NULL;
-size_t verify = 0;
+size_t verify = 0, dofdatasync = 1;
 
 typedef struct {
   size_t threadid;
@@ -69,7 +69,7 @@ int createAction(const char *filename, char *buf, const size_t size, const size_
 	break;
       }
     }
-    fdatasync(fd);
+    if (dofdatasync) fdatasync(fd);
     close(fd);
     if (verbose) fprintf(stderr,"*info* wrote file %s, size %zd, char %d\n", filename, size, buf[0]);
     return 0;
@@ -249,7 +249,7 @@ int main(int argc, char *argv[]) {
   size_t unique = 1;
   size_t timelimit = 0;
   
-  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:v")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:vS")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkFile = optarg;
@@ -293,6 +293,9 @@ int main(int argc, char *argv[]) {
     case 's':
       unique = 2; // 2 is sequential
       break;
+    case 'S':
+      dofdatasync = 0;
+      break;
     case 't':
       timelimit = atoi(optarg);
       break;
@@ -319,7 +322,7 @@ int main(int argc, char *argv[]) {
 
 
   srand(seed);
-  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs, verify %zd\n", dirPrefix ? dirPrefix : ".", TOGB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit, verify);
+  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs, verify %zd, fdatasync %zd\n", dirPrefix ? dirPrefix : ".", TOGB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit, verify, dofdatasync);
 
   size_t *fileid = calloc(numFiles, sizeof(size_t)); assert(fileid);
   char *actions = calloc(numFiles, sizeof(char)); assert(actions);
