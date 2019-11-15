@@ -237,7 +237,7 @@ size_t filesize = 360*1024;
 size_t writesize = 1024*1024;
 
 void usage() {
-  fprintf(stderr,"Usage: fsfiller [-F dirPrefix (.)] [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement] [-v (verify writes)]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
+  fprintf(stderr,"Usage: fsfiller [-F dirPrefix (.)] [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement] [-v (verify writes)] [-S (don't fdatasync)]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
