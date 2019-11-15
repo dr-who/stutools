@@ -41,10 +41,10 @@ typedef struct {
 } threadInfoType;
 
 
-size_t diskSpace() {
+size_t diskSpace(const char *prefix) {
   struct statvfs buf;
 
-  statvfs(".", &buf);
+  statvfs(prefix, &buf);
   size_t t =  buf.f_blocks;
   t = t * buf.f_bsize;
   return t;
@@ -286,12 +286,15 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
       
-  size_t totalfilespace = diskSpace();
+  size_t totalfilespace;
+  if (dirPrefix) totalfilespace = diskSpace(dirPrefix);
+  else totalfilespace = diskSpace(".");
+  
   size_t numFiles = (totalfilespace / filesize) * 0.93 / threads;
 
 
   srand(seed);
-  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs\n", dirPrefix ? dirPrefix : ".", TOGiB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit);
+  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs\n", dirPrefix ? dirPrefix : ".", TOGB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit);
 
   size_t *fileid = calloc(numFiles, sizeof(size_t)); assert(fileid);
   char *actions = calloc(numFiles, sizeof(char)); assert(actions);
