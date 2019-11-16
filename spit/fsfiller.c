@@ -237,7 +237,29 @@ size_t filesize = 360*1024;
 size_t writesize = 1024*1024;
 
 void usage() {
-  fprintf(stderr,"Usage: fsfiller [-F dirPrefix (.)] [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement] [-v (verify writes)] [-S (don't fdatasync)]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
+
+  fprintf(stdout, "Usage:\n");
+  fprintf(stdout, "  fsfiller -F mountpath [-D] [-t 0] [-T %d] [-k %zd] [-K %zd] [-u] [-w] [-R 42] [option] [option]\n\n", threads, filesize/1024, writesize/1024);
+  fprintf(stdout, "Options:\n");
+  fprintf(stdout, "  -B file    \tlog file\n");
+  fprintf(stdout, "  -d         \tdirect mode (O_DIRECT)\n");
+  fprintf(stdout, "  -D         \tpagecache mode (default)\n");
+  fprintf(stdout, "  -F path    \tset the path for testing\n");
+  fprintf(stdout, "  -k filesize\tfile size in KiB (default %zd)\n", filesize / 1024);
+  fprintf(stdout, "  -K size    \tblock size in KiB (default %zd)\n", writesize / 1024);
+  fprintf(stdout, "  -r         \tread test\n");
+  fprintf(stdout, "  -R         \tset seed to n (default %d)\n", 42);
+  fprintf(stdout, "  -S         \tdon't fdatasync after writing\n");
+  fprintf(stdout, "  -w         \twrite test (default)\n");
+  fprintf(stdout, "  -t secs    \ttimelimit in seconds (default 0/unlimited)\n");
+  fprintf(stdout, "  -T n       \tn threads (default %d)\n", threads);
+  fprintf(stdout, "  -u         \tunique filenames (default)\n");
+  fprintf(stdout, "  -U         \tnon-unique filenames (with replacement)\n");
+  fprintf(stdout, "  -v         \tverify each write\n");
+  fprintf(stdout, "  -V         \tverbose\n");
+    
+      
+  //  fprintf(stderr,"Usage: fsfiller [-F dirPrefix (.)] [-d (direct mode)] [-D (pagecache mode)] [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement] [-v (verify writes)] [-S (don't fdatasync)]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
