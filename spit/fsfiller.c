@@ -69,7 +69,7 @@ int createAction(const char *filename, char *buf, const size_t size, const size_
 	break;
       }
     }
-    if (dofdatasync) fdatasync(fd);
+    if (dofdatasync) fsync(fd);
     close(fd);
     if (verbose) fprintf(stderr,"*info* wrote file %s, size %zd, char %d\n", filename, size, buf[0]);
     return 0;
@@ -131,7 +131,7 @@ void* worker(void *arg)
 
   char *s = aligned_alloc(4096, 1024*1024); assert(s);
 
-  size_t processed = 0, sum = 0, skipped = 0;
+  size_t processed = 0, sum = 0, skipped = 0, secsum = 0, lastsecsum = 0;
   double starttime = timedouble(), lasttime = starttime;
   size_t lastfin = 0, pass = 0;
   
@@ -160,8 +160,9 @@ void* worker(void *arg)
 	    const double tm = thistime - lasttime;
 	    lasttime = thistime;
 	      
-	    sprintf(outstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), free RAM %.2lf, Buf %.2lf, Shared %.2lf\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm, TOMiB(freeRAM()), TOMiB(totalBuffer()), TOMiB(totalShared()));
+	    sprintf(outstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), free RAM %.2lf, Buf %.2lf, Shared %.2lf\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB((secsum - lastsecsum) * 1.0)/tm, thistime - starttime, tm, TOMiB(freeRAM()), TOMiB(totalBuffer()), TOMiB(totalShared()));
 	    lasttime = thistime;
+	    lastsecsum = secsum;
 
 	    if (bfp) {
 	      fprintf(bfp, "%s", outstring);
@@ -188,6 +189,7 @@ void* worker(void *arg)
 	  if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
 	    processed++;
 	    sum += (threadContext->maxthreads * threadContext->filesize);
+	    secsum  = sum;
 
 	    if (verify) {
 	      memset(verifybuf, 0xff, threadContext->filesize);
@@ -254,7 +256,7 @@ void usage() {
   fprintf(stdout, "  -K size    \tblock size in KiB (default %zd)\n", writesize / 1024);
   fprintf(stdout, "  -r         \tread test\n");
   fprintf(stdout, "  -R         \tset seed to n (default %d)\n", 42);
-  fprintf(stdout, "  -S         \tsend fdatasync() after writing\n");
+  fprintf(stdout, "  -S         \tsend fsync() after writing\n");
   fprintf(stdout, "  -w         \twrite test (default)\n");
   fprintf(stdout, "  -t secs    \ttimelimit in seconds (default 0/unlimited)\n");
   fprintf(stdout, "  -T n       \tn threads (default %d)\n", threads);
