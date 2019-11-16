@@ -50,6 +50,8 @@ void shmemUnlink();
 double loadAverage();
 size_t numThreads();
 size_t totalRAM();
+size_t totalShared();
+size_t totalBuffer();
 char *OSRelease();
 size_t swapTotal();
 

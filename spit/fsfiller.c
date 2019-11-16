@@ -160,7 +160,7 @@ void* worker(void *arg)
 	    const double tm = thistime - lasttime;
 	    lasttime = thistime;
 	      
-	    sprintf(outstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), RAM free %.2lf MiB\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm, TOMiB(freeRAM()));
+	    sprintf(outstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), RAM free %.2lf, Buf %.2lf, Shared %.2lf\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm, TOMiB(freeRAM()), TOMiB(totalBuffer()), TOMiB(totalShared()));
 	    lasttime = thistime;
 
 	    if (bfp) {

@@ -228,6 +228,18 @@ size_t freeRAM() {
   return info.freeram;
 }
 
+size_t totalShared() {
+  struct sysinfo info;
+  sysinfo(&info);
+  return info.sharedram;
+}
+
+size_t totalBuffer() {
+  struct sysinfo info;
+  sysinfo(&info);
+  return info.bufferram;
+}
+
 char *OSRelease() {
   struct utsname buf;
   uname (&buf);
