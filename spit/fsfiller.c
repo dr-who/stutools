@@ -29,6 +29,7 @@ FILE *bfp = NULL;
 int openmode = 0;
 char *dirPrefix = NULL;
 size_t verify = 0, dofdatasync = 0;
+size_t allocatePerFile = 0;
 
 typedef struct {
   size_t threadid;
@@ -116,20 +117,15 @@ int readAction(const char *filename, char *buf, size_t size) {
   return ret;
 }
 
-#define MAXFILESIZE (1024*1024*10)
-
 void* worker(void *arg) 
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
   const size_t totalfilespace = threadContext->totalFileSpace;
   size_t numfiles = threadContext->numfiles;
-  char *buf = aligned_alloc(4096, MAXFILESIZE); assert(buf);
-  memset(buf, threadContext->threadid, MAXFILESIZE);
 
-  char *verifybuf = aligned_alloc(4096, MAXFILESIZE); assert(verifybuf);
-  
-
+  char *verifybuf = aligned_alloc(4096, threadContext->filesize); assert(verifybuf);
   char *s = aligned_alloc(4096, 1024*1024); assert(s);
+  char *buf = NULL;
 
   size_t processed = 0, sum = 0, skipped = 0, secsum = 0, lastsecsum = 0;
   double starttime = timedouble(), lasttime = starttime;
@@ -139,6 +135,13 @@ void* worker(void *arg)
 
   while (!finished) {
     for (size_t i = 0; !finished && i < numfiles; i++) {
+
+      if (!buf || allocatePerFile) {
+	if (buf) free(buf);
+	buf = aligned_alloc(4096, threadContext->filesize); assert(buf);
+	memset(buf, threadContext->threadid, threadContext->filesize);
+      }
+      
 
       if (i == 0) {
 	pass++;
@@ -227,9 +230,9 @@ void* worker(void *arg)
       }
     }
   }
-  free(s);
-  free(verifybuf);
-  free(buf);
+  if (s) free(s);
+  if (verifybuf) free(verifybuf);
+  if (buf) free(buf);
   return NULL;
 }
 
@@ -248,6 +251,7 @@ void usage() {
   fprintf(stdout, "  Created files are placed in a 100x100 directory structure.\n");
   fprintf(stdout, "  Worker threads are spawned and the files are created in a loop.\n");
   fprintf(stdout, "\nOptions:\n");
+  fprintf(stdout, "  -A         \tallocate RAM per file\n");
   fprintf(stdout, "  -B file    \tlog file\n");
   fprintf(stdout, "  -d         \tdirect mode (O_DIRECT)\n");
   fprintf(stdout, "  -D         \tpagecache mode (default)\n");
@@ -265,8 +269,6 @@ void usage() {
   fprintf(stdout, "  -v         \tverify each write\n");
   fprintf(stdout, "  -V         \tverbose\n");
     
-      
-  //  fprintf(stderr,"Usage: fsfiller [-F dirPrefix (.)] [-d (direct mode)] [-D (pagecache mode)] [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement] [-v (verify writes)] [-S (don't fdatasync)]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
 }
 
 int main(int argc, char *argv[]) {
@@ -278,8 +280,11 @@ int main(int argc, char *argv[]) {
   size_t unique = 1;
   size_t timelimit = 0;
   
-  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:vS")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:vSA")) != -1) {
     switch (opt) {
+    case 'A':
+      allocatePerFile = 1;
+      break;
     case 'B':
       benchmarkFile = optarg;
       break;
@@ -305,10 +310,10 @@ int main(int argc, char *argv[]) {
       help = 1;
       break;
     case 'k':
-      filesize = 1024 * atoi(optarg);
+      filesize = alignedNumber(1024 * atoi(optarg), 4096);
       break;
     case 'K':
-      writesize = 1024 * atoi(optarg);
+      writesize = alignedNumber(1024 * atoi(optarg), 4096);
       break;
     case 'T':
       threads = atoi(optarg);
@@ -358,7 +363,7 @@ int main(int argc, char *argv[]) {
 
 
   srand(seed);
-  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs, verify %zd, fdatasync %zd\n", dirPrefix ? dirPrefix : ".", TOGB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit, verify, dofdatasync);
+  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs, verify %zd, fdatasync %zd, allocatePerFile %zd\n", dirPrefix ? dirPrefix : ".", TOGB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit, verify, dofdatasync, allocatePerFile);
 
   size_t *fileid = calloc(numFiles, sizeof(size_t)); assert(fileid);
   char *actions = calloc(numFiles, sizeof(char)); assert(actions);
