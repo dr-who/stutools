@@ -28,7 +28,7 @@ char *benchmarkFile = NULL;
 FILE *bfp = NULL;
 int openmode = 0;
 char *dirPrefix = NULL;
-size_t verify = 0, dofdatasync = 1;
+size_t verify = 0, dofdatasync = 0;
 
 typedef struct {
   size_t threadid;
@@ -240,7 +240,12 @@ void usage() {
 
   fprintf(stdout, "Usage:\n");
   fprintf(stdout, "  fsfiller -F mountpath [-D] [-t 0] [-T %d] [-k %zd] [-K %zd] [-u] [-w] [-R 42] [option] [option]\n\n", threads, filesize/1024, writesize/1024);
-  fprintf(stdout, "Options:\n");
+  fprintf(stdout, "\nDescription:\n");
+  fprintf(stdout, "  Calculates the disk space from mountpath, takes a high percentage (93%%)\n");
+  fprintf(stdout, "  and estimates the total number of files / thread that can be created.\n");
+  fprintf(stdout, "  Created files are placed in a 100x100 directory structure.\n");
+  fprintf(stdout, "  Worker threads are spawned and the files are created in a loop.\n");
+  fprintf(stdout, "\nOptions:\n");
   fprintf(stdout, "  -B file    \tlog file\n");
   fprintf(stdout, "  -d         \tdirect mode (O_DIRECT)\n");
   fprintf(stdout, "  -D         \tpagecache mode (default)\n");
@@ -249,7 +254,7 @@ void usage() {
   fprintf(stdout, "  -K size    \tblock size in KiB (default %zd)\n", writesize / 1024);
   fprintf(stdout, "  -r         \tread test\n");
   fprintf(stdout, "  -R         \tset seed to n (default %d)\n", 42);
-  fprintf(stdout, "  -S         \tdon't fdatasync after writing\n");
+  fprintf(stdout, "  -S         \tsend fdatasync() after writing\n");
   fprintf(stdout, "  -w         \twrite test (default)\n");
   fprintf(stdout, "  -t secs    \ttimelimit in seconds (default 0/unlimited)\n");
   fprintf(stdout, "  -T n       \tn threads (default %d)\n", threads);
@@ -316,7 +321,7 @@ int main(int argc, char *argv[]) {
       unique = 2; // 2 is sequential
       break;
     case 'S':
-      dofdatasync = 0;
+      dofdatasync = 1;
       break;
     case 't':
       timelimit = atoi(optarg);
