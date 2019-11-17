@@ -16,19 +16,19 @@
 
 
 
-void generateMakefile() {
-  char *filename = "Makefile.test1";
+void generateMakefile(const char *device, const char *filename) {
   FILE *fp = fopen(filename, "wt");
   if (!fp) {perror(filename); exit(1); }
 
-  fprintf(fp, "DEVICE=/dev/test-lv\n");
+  fprintf(fp, "DEVICE=%s\n", device);
   fprintf(fp, "SPIT=../spit/spit\n");
   fprintf(fp, "DIST=../utils/dist\n");
   fprintf(fp, "MEDIAN=../utils/median\n");
+  fprintf(fp, "CACHE=16\n");
   fprintf(fp, "\n");
-  fprintf(fp, "shorttime=3\n");
-  fprintf(fp, "longtime=5\n");
-  fprintf(fp, "voltime=300\n");
+  fprintf(fp, "shorttime=10\n");
+  fprintf(fp, "longtime=30\n");
+  fprintf(fp, "voltime=100\n");
   fprintf(fp, "\n");
   fprintf(fp, "all: setupdirs reportshort reportlong\n");
   fprintf(fp, "\n");
@@ -83,7 +83,7 @@ void generateMakefile() {
 
 
 
-    fprintf(fp, "ssconvergency%s-vol.gnu: report%s\n", str[i], str[i]);
+    fprintf(fp, "ssconvergency%s-vol.gnu: report%s/vol\n", str[i], str[i]);
     fprintf(fp, "\techo \"set style data linespoints\" > $@\n");
     fprintf(fp, "\techo \"set title 'Volatility Plot (MB/s): $(DEVICE)'\" >> $@\n");
     fprintf(fp, "\techo \"set xlabel 'time (s)'\" >> $@\n");
@@ -96,6 +96,7 @@ void generateMakefile() {
       if (r > 0) fprintf(fp, ",");
       fprintf(fp, "'report%s/vol' using %zd title '%s'", str[i], r+1, vs[r]);
     }
+    fprintf(fp, ",'report%s/vol' using 10 title 'Mean'", str[i]);
     fprintf(fp, "\" >> $@ \n");
     fprintf(fp, "\n");
 
@@ -137,14 +138,14 @@ void generateMakefile() {
 
 
     fprintf(fp,"\nreport%s/vol: \n", str[i]);
-    fprintf(fp,"\t$(SPIT) -t $(voltime)  -f $(DEVICE)  -c ws0k64 -B $@.temp\n");
+    fprintf(fp,"\t$(SPIT) -t $(voltime)  -f $(DEVICE)  -c zws1k256 -B $@.temp -i $(CACHE)\n");
     fprintf(fp,"\tawk '{print $$5}' $@.temp | $(DIST) -n -a 30 > $@\n");
     fprintf(fp,"\n");
     
     for (size_t r = 0; r < 7; r++) {
       fprintf(fp, "\nreport%s/B%s.rounds:\n", str[i], rounds[r]);
       for (size_t j = 1; j <= 7; j++) {
-	fprintf(fp, "\t$(SPIT) -t $(%stime)  -f $(DEVICE)  -c ws0k%s -B $@.%zd\n", str[i], rounds[r], j);
+	fprintf(fp, "\t$(SPIT) -t $(%stime)  -f $(DEVICE)  -c ws0k%s -B $@.%zd -i $(CACHE)\n", str[i], rounds[r], j);
       }
       fprintf(fp, "\tcat $@.* > $@\n");
       fprintf(fp, "\n");
@@ -190,7 +191,7 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr,"*info* %s, %s, %s\n", device, subdevices, reportname);
 
-  generateMakefile();
+  generateMakefile(device, reportname);
 
   exit(0);
 }
