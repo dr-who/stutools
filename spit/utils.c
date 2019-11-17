@@ -182,7 +182,7 @@ void dropCaches() {
   }
   fflush(fp);
   fclose(fp);
-  fprintf(stderr,"*info* /proc/sys/vm/drop_caches dropped\n");
+  fprintf(stderr,"*info* echo 3 > /proc/sys/vm/drop_caches ; # caches dropped\n");
 }
 
 
