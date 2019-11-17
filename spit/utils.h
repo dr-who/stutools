@@ -39,6 +39,7 @@ size_t blockDeviceSizeFromFD(const int fd);
 
 
 void dropCaches();
+void printPowerMode();
 char *username();
 void usernameinit();
 

@@ -169,6 +169,23 @@ int isBlockDevice(const char *name) {
   return ret;
 }
 
+// /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
+
+void printPowerMode() {
+  FILE *fp = fopen("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor", "rt");
+  if (fp) {
+    char s[1000];
+    int ret = fscanf(fp, "%s", s);
+    if (ret == 1) {
+      fprintf(stderr,"*info* power mode: '%s'\n", s);
+    } else {
+      fprintf(stderr,"*info* power mode partial: '%s'\n", s);
+    }
+    fclose(fp);
+  }
+}
+
+
 
 void dropCaches() {
   FILE *fp = fopen("/proc/sys/vm/drop_caches", "wt");
