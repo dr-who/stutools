@@ -171,13 +171,14 @@ int isBlockDevice(const char *name) {
 
 // /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
 
+#define POWERPATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor"
 void printPowerMode() {
-  FILE *fp = fopen("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor", "rt");
+  FILE *fp = fopen(POWERPATH, "rt");
   if (fp) {
     char s[1000];
     int ret = fscanf(fp, "%s", s);
     if (ret == 1) {
-      fprintf(stderr,"*info* power mode: '%s'\n", s);
+      fprintf(stderr,"*info* power mode: '%s' (%s)\n", s, POWERPATH);
     } else {
       fprintf(stderr,"*info* power mode partial: '%s'\n", s);
     }
