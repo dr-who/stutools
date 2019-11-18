@@ -27,7 +27,8 @@ char *benchmarkFile = NULL;
 FILE *bfp = NULL;
 int openmode = 0;
 char *dirPrefix = NULL;
-size_t verify = 0, dofdatasync = 1;
+size_t verify = 0, dofdatasync = 0;
+size_t allocatePerFile = 0;
 
 typedef struct {
   size_t threadid;
@@ -68,7 +69,7 @@ int createAction(const char *filename, char *buf, const size_t size, const size_
 	break;
       }
     }
-    if (dofdatasync) fdatasync(fd);
+    if (dofdatasync) fsync(fd);
     close(fd);
     if (verbose) fprintf(stderr,"*info* wrote file %s, size %zd, char %d\n", filename, size, buf[0]);
     return 0;
@@ -115,22 +116,17 @@ int readAction(const char *filename, char *buf, size_t size) {
   return ret;
 }
 
-#define MAXFILESIZE (1024*1024*10)
-
 void* worker(void *arg) 
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
   const size_t totalfilespace = threadContext->totalFileSpace;
   size_t numfiles = threadContext->numfiles;
-  char *buf = aligned_alloc(4096, MAXFILESIZE); assert(buf);
-  memset(buf, threadContext->threadid, MAXFILESIZE);
 
-  char *verifybuf = aligned_alloc(4096, MAXFILESIZE); assert(verifybuf);
-  
-
+  char *verifybuf = aligned_alloc(4096, threadContext->filesize); assert(verifybuf);
   char *s = aligned_alloc(4096, 1024*1024); assert(s);
+  char *buf = NULL;
 
-  size_t processed = 0, sum = 0, skipped = 0;
+  size_t processed = 0, sum = 0, skipped = 0, secsum = 0, lastsecsum = 0;
   double starttime = timedouble(), lasttime = starttime;
   size_t lastfin = 0, pass = 0;
   
@@ -138,6 +134,13 @@ void* worker(void *arg)
 
   while (!finished) {
     for (size_t i = 0; !finished && i < numfiles; i++) {
+
+      if (!buf || allocatePerFile) {
+	if (buf) free(buf);
+	buf = aligned_alloc(4096, threadContext->filesize); assert(buf);
+	memset(buf, threadContext->threadid, threadContext->filesize);
+      }
+      
 
       if (i == 0) {
 	pass++;
@@ -159,8 +162,9 @@ void* worker(void *arg)
 	    const double tm = thistime - lasttime;
 	    lasttime = thistime;
 	      
-	    sprintf(outstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), skipped %zd\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB(sum * 1.0)/(thistime-starttime), thistime - starttime, tm, skipped);
+	    sprintf(outstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), free RAM %.2lf, Buf %.2lf, Shared %.2lf\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB((secsum - lastsecsum) * 1.0)/tm, thistime - starttime, tm, TOMiB(freeRAM()), TOMiB(totalBuffer()), TOMiB(totalShared()));
 	    lasttime = thistime;
+	    lastsecsum = secsum;
 
 	    if (bfp) {
 	      fprintf(bfp, "%s", outstring);
@@ -187,6 +191,7 @@ void* worker(void *arg)
 	  if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
 	    processed++;
 	    sum += (threadContext->maxthreads * threadContext->filesize);
+	    secsum  = sum;
 
 	    if (verify) {
 	      memset(verifybuf, 0xff, threadContext->filesize);
@@ -224,9 +229,9 @@ void* worker(void *arg)
       }
     }
   }
-  free(s);
-  free(verifybuf);
-  free(buf);
+  if (s) free(s);
+  if (verifybuf) free(verifybuf);
+  if (buf) free(buf);
   return NULL;
 }
 
@@ -236,7 +241,33 @@ size_t filesize = 360*1024;
 size_t writesize = 1024*1024;
 
 void usage() {
-  fprintf(stderr,"Usage: fsfiller [-F dirPrefix (.)] [-T threads (%d)] [-k fileSizeKIB (%zd..%d)] [-K blocksizeKiB (%zd)] [-V(verbose)] [-r(read)] [-w(write)] [-B benchmark.out] [-R seed (42)] [-u(unique filenames)] [-U(nonunique/with replacement] [-v (verify writes)] [-S (don't fdatasync)]\n", threads, filesize/1024, MAXFILESIZE/1024, writesize/1024);
+
+  fprintf(stdout, "Usage:\n");
+  fprintf(stdout, "  fsfiller -F mountpath [-D] [-t 0] [-T %d] [-k %zd] [-K %zd] [-u] [-w] [-R 42] [option] [option]\n\n", threads, filesize/1024, writesize/1024);
+  fprintf(stdout, "\nDescription:\n");
+  fprintf(stdout, "  Calculates the disk space from mountpath, takes a high percentage (93%%)\n");
+  fprintf(stdout, "  and estimates the total number of files / thread that can be created.\n");
+  fprintf(stdout, "  Created files are placed in a 100x100 directory structure.\n");
+  fprintf(stdout, "  Worker threads are spawned and the files are created in a loop.\n");
+  fprintf(stdout, "\nOptions:\n");
+  fprintf(stdout, "  -A         \tallocate RAM per file\n");
+  fprintf(stdout, "  -B file    \tlog file\n");
+  fprintf(stdout, "  -d         \tdirect mode (O_DIRECT)\n");
+  fprintf(stdout, "  -D         \tpagecache mode (default)\n");
+  fprintf(stdout, "  -F path    \tset the path for testing\n");
+  fprintf(stdout, "  -k filesize\tfile size in KiB (default %zd)\n", filesize / 1024);
+  fprintf(stdout, "  -K size    \tblock size in KiB (default %zd)\n", writesize / 1024);
+  fprintf(stdout, "  -r         \tread test\n");
+  fprintf(stdout, "  -R         \tset seed to n (default %d)\n", 42);
+  fprintf(stdout, "  -S         \tsend fsync() after writing\n");
+  fprintf(stdout, "  -w         \twrite test (default)\n");
+  fprintf(stdout, "  -t secs    \ttimelimit in seconds (default 0/unlimited)\n");
+  fprintf(stdout, "  -T n       \tn threads (default %d)\n", threads);
+  fprintf(stdout, "  -u         \tunique filenames (default)\n");
+  fprintf(stdout, "  -U         \tnon-unique filenames (with replacement)\n");
+  fprintf(stdout, "  -v         \tverify each write\n");
+  fprintf(stdout, "  -V         \tverbose\n");
+    
 }
 
 int main(int argc, char *argv[]) {
@@ -250,6 +281,9 @@ int main(int argc, char *argv[]) {
   
   while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:vSH:")) != -1) {
     switch (opt) {
+    case 'A':
+      allocatePerFile = 1;
+      break;
     case 'B':
       benchmarkFile = optarg;
       break;
@@ -279,10 +313,10 @@ int main(int argc, char *argv[]) {
       help = 1;
       break;
     case 'k':
-      filesize = 1024 * atoi(optarg);
+      filesize = alignedNumber(1024 * atoi(optarg), 4096);
       break;
     case 'K':
-      writesize = 1024 * atoi(optarg);
+      writesize = alignedNumber(1024 * atoi(optarg), 4096);
       break;
     case 'T':
       threads = atoi(optarg);
@@ -297,7 +331,7 @@ int main(int argc, char *argv[]) {
       unique = 2; // 2 is sequential
       break;
     case 'S':
-      dofdatasync = 0;
+      dofdatasync = 1;
       break;
     case 't':
       timelimit = atoi(optarg);
@@ -332,7 +366,12 @@ int main(int argc, char *argv[]) {
 
 
   srand(seed);
-  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs, verify %zd, fdatasync %zd\n", dirPrefix ? dirPrefix : ".", TOGB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit, verify, dofdatasync);
+  fprintf(stderr,"*info* dirPrefix '%s', diskspace %.0lf GB, number of threads %d, file size %zd (block size %zd), numFiles %zd, unique %zd, seed %u, O_DIRECT %d, read %d, %zd secs, verify %zd, fdatasync %zd, allocatePerFile %zd\n", dirPrefix ? dirPrefix : ".", TOGB(totalfilespace), threads, filesize, writesize, numFiles * threads, unique, seed, openmode, read, timelimit, verify, dofdatasync, allocatePerFile);
+
+  printPowerMode();
+  if (openmode == 0) {
+    dropCaches();
+  }
 
   size_t *fileid = calloc(numFiles, sizeof(size_t)); assert(fileid);
   char *actions = calloc(numFiles, sizeof(char)); assert(actions);

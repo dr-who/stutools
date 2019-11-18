@@ -39,6 +39,7 @@ size_t blockDeviceSizeFromFD(const int fd);
 
 
 void dropCaches();
+void printPowerMode();
 char *username();
 void usernameinit();
 
@@ -50,6 +51,8 @@ void shmemUnlink();
 double loadAverage();
 size_t numThreads();
 size_t totalRAM();
+size_t totalShared();
+size_t totalBuffer();
 char *OSRelease();
 size_t swapTotal();
 

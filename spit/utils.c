@@ -169,6 +169,24 @@ int isBlockDevice(const char *name) {
   return ret;
 }
 
+// /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
+
+#define POWERPATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor"
+void printPowerMode() {
+  FILE *fp = fopen(POWERPATH, "rt");
+  if (fp) {
+    char s[1000];
+    int ret = fscanf(fp, "%s", s);
+    if (ret == 1) {
+      fprintf(stderr,"*info* power mode: '%s' (%s)\n", s, POWERPATH);
+    } else {
+      fprintf(stderr,"*info* power mode partial: '%s'\n", s);
+    }
+    fclose(fp);
+  }
+}
+
+
 
 void dropCaches() {
   FILE *fp = fopen("/proc/sys/vm/drop_caches", "wt");
@@ -182,7 +200,7 @@ void dropCaches() {
   }
   fflush(fp);
   fclose(fp);
-  fprintf(stderr,"*info* /proc/sys/vm/drop_caches dropped\n");
+  fprintf(stderr,"*info* echo 3 > /proc/sys/vm/drop_caches ; # caches dropped\n");
 }
 
 
@@ -226,6 +244,18 @@ size_t freeRAM() {
   struct sysinfo info;
   sysinfo(&info);
   return info.freeram;
+}
+
+size_t totalShared() {
+  struct sysinfo info;
+  sysinfo(&info);
+  return info.sharedram;
+}
+
+size_t totalBuffer() {
+  struct sysinfo info;
+  sysinfo(&info);
+  return info.bufferram;
 }
 
 char *OSRelease() {
