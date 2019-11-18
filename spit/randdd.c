@@ -163,11 +163,15 @@ int main(int argc, char *argv[]) {
   int fd = open(device, O_DIRECT | O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
   if (fd >= 0) {
     endpos = blockDeviceSizeFromFD(fd);
+    if (endpos == 0) {
+      endpos = fileSizeFromName(device);
+    }
+      
   }
   double gap = (endpos * 1.0 - size - startpos * 1.0) / gapcount;
   close(fd);
   if (gap < size) {
-    fprintf(stderr,"*warning* the gap is too small (%.0lf), setting to %zd\n", gap, size);
+    fprintf(stderr,"*warning* the gap is too small (%.0lf), setting to %zd, endpos %zd\n", gap, size, endpos);
     gap = size;
   }
   fprintf(stderr,"*info* pos range [%zd, %zd), size %zd, locations %zd, gap %.0lf\n", startpos, endpos, size, gapcount, gap);
