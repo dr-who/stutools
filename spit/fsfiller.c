@@ -19,8 +19,7 @@
 #include <pthread.h>
 #include <string.h>
 
-#define DEPTH 100
-
+int DEPTH=100;
 size_t finished;
 int verbose = 0;
 int keepRunning = 1;
@@ -249,7 +248,7 @@ int main(int argc, char *argv[]) {
   size_t unique = 1;
   size_t timelimit = 0;
   
-  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:vS")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:vSH:")) != -1) {
     switch (opt) {
     case 'B':
       benchmarkFile = optarg;
@@ -265,6 +264,10 @@ int main(int argc, char *argv[]) {
       break;
     case 'r':
       read = 1;
+      break;
+    case 'H':
+      DEPTH=atoi(optarg);
+      if (DEPTH<1) DEPTH=1;
       break;
     case 'R':
       seed = atoi(optarg);
@@ -360,7 +363,7 @@ int main(int argc, char *argv[]) {
   
   char s[1000];
   fprintf(stderr,"*info* making %d top level directories\n", DEPTH);
-  for (unsigned int id = 0; id < DEPTH; id++) {
+  for (int id = 0; id < DEPTH; id++) {
     if (dirPrefix) {
       sprintf(s,"%s/%02x", dirPrefix, id);
     } else {
