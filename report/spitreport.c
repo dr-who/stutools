@@ -14,8 +14,6 @@
 #include <getopt.h>
 #include <string.h>
 
-
-
 void generateMakefile(const char *device, const char *filename) {
   FILE *fp = fopen(filename, "wt");
   if (!fp) {perror(filename); exit(1); }
