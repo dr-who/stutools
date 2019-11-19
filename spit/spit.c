@@ -63,7 +63,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       if (commandstringpos > 0) {
 	commandstring[commandstringpos++] = ' ';
       }
-      strncpy(commandstring + commandstringpos, optarg, strlen(optarg));
+      //      strncpy(commandstring + commandstringpos, optarg, strlen(optarg));
+      memcpy(commandstring + commandstringpos, optarg, strlen(optarg));
       commandstringpos += strlen(optarg);
       commandstring[commandstringpos] = 0;
       
