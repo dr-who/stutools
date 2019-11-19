@@ -356,6 +356,8 @@ size_t aioMultiplePositions( positionContainer *p,
     if (QDbarrier) {
       if (inFlight >= QD) {
 	ret = io_getevents(ioc, QD, inFlight, events, &timeout);
+      } else {
+	ret = 0;
       }
     } else {
       ret = io_getevents(ioc, 1, inFlight, events, &timeout);
