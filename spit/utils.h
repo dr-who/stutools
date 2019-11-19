@@ -94,6 +94,7 @@ size_t getUptime();
 int getRotational(const char *suf);
 
 size_t dirtyPagesBytes();
+size_t getCachedBytes();
 
 #endif
 
