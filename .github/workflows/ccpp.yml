@@ -9,6 +9,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
+      name: dependencies
+      run: apt install libaio-dev
     - name: cmake 
       run: cmake .
     - name: make
