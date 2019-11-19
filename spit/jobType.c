@@ -734,7 +734,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     lengthsInit(&threadContext[i].len);
     
-    if (verbose) {
+    if (verbose >= 2) {
       fprintf(stderr,"*info* setting up thread %d\n", i);
     }
     char * charBS = strchr(job->strings[i], 'M');
@@ -756,26 +756,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
-    charBS = strchr(job->strings[i], 'k');
-    if (charBS && *(charBS+1)) {
-
-      char *endp = NULL;
-      bs = 1024 * strtod(charBS+1, &endp);
-      if (bs < 512) bs = 512;
-      highbs = bs;
-      if (*endp == '-' || *endp == ':') {
-	int nextv = atoi(endp+1);
-	if (nextv > 0) {
-	  highbs = 1024 * nextv;
-	}
-      }
-      if (*endp == '-') 
-	lengthsSetupLowHighAlignSeq(&threadContext[i].len, bs, highbs, 4096);
-      else
-	lengthsSetupLowHighAlignPower(&threadContext[i].len, bs, highbs, 4096);	
-    } else {
-      lengthsAdd(&threadContext[i].len, bs, 1);
-    }
     
     size_t mod = 1;
     size_t remain = 0;
@@ -919,16 +899,34 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	threadContext[i].maxbdSize = actualfs;
 	fprintf(stderr,"*warning* file is smaller than specified file, shrinking to %zd\n", threadContext[i].maxbdSize);
       }
-    } 
-      
+    }
+
+        charBS = strchr(job->strings[i], 'k');
+    if (charBS && *(charBS+1)) {
+
+      char *endp = NULL;
+      bs = 1024 * strtod(charBS+1, &endp);
+      if (bs < 512) bs = 512;
+      highbs = bs;
+      if (*endp == '-' || *endp == ':') {
+	int nextv = atoi(endp+1);
+	if (nextv > 0) {
+	  highbs = 1024 * nextv;
+	}
+      }
+      if (*endp == '-') 
+	lengthsSetupLowHighAlignSeq(&threadContext[i].len, bs, highbs, 4096);
+      else
+	lengthsSetupLowHighAlignPower(&threadContext[i].len, bs, highbs, 4096);	
+    } else {
+      lengthsAdd(&threadContext[i].len, bs, 1);
+    }
+
     
-    const size_t avgBS = (bs + highbs) / 2;
-    size_t mp = (size_t) ((threadContext[i].maxbdSize - threadContext[i].minbdSize) / avgBS);
+    size_t mp = (size_t) ((threadContext[i].maxbdSize - threadContext[i].minbdSize) / bs);
     
     if (verbose) {
-      fprintf(stderr,"*info* file size %.3lf GiB avg size of %zd, maximum ", TOGiB(threadContext[i].maxbdSize), avgBS);
-      commaPrint0dp(stderr, mp);
-      fprintf(stderr," positions\n");
+      fprintf(stderr,"*info* device '%s', size %.3lf GiB, minsize of %zd, maximum %zd positions\n", job->devices[i], TOGiB(threadContext[i].maxbdSize), bs, mp);
     }
 
     // use 1/4 of free RAM
@@ -939,14 +937,16 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if ((verbose || (fitinram < mp)) && (i == 0)) {
       fprintf(stderr,"*info* using %.3lf GiB RAM for positions, we can store ", TOGiB(useRAM));
       commaPrint0dp(stderr, fitinram);
-      fprintf(stderr," positions (%.1lf %%)\n", fitinram >= mp ? 100.0 : fitinram * 100.0/mp);
+      fprintf(stderr," positions in RAM (%.1lf %%)\n", fitinram >= mp ? 100.0 : fitinram * 100.0/mp);
     }
+
+
     
     size_t countintime = mp;
     //        fprintf(stderr,"*info* runX %zd ttr %zd\n", threadContext[i].multipleTimes, threadContext[i].runTime);
     if ((long)threadContext[i].runTime > 0) { // only limit based on time if the time is positive
-      
-#define ESTIMATEIOPS 500000
+
+      int ESTIMATEIOPS=getIOPSestimate(job->devices[i], bs);
       
       countintime = threadContext[i].runTime * ESTIMATEIOPS;
       if ((verbose || (countintime < mp)) && (i == 0)) {
@@ -959,19 +959,19 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
     size_t sizeLimitCount = (size_t)-1;
     if (limit != (size_t)-1) {
-      sizeLimitCount = limit / avgBS;
+      sizeLimitCount = limit / bs;
       if (i == 0) {
-	fprintf(stderr,"*info* to limit sum of lengths to %.1lf GiB, with avg size of %zd, requires %zd positions\n", TOGiB(limit), avgBS, sizeLimitCount);
+	fprintf(stderr,"*info* to limit sum of lengths to %.1lf GiB, with avg size of %zd, requires %zd positions\n", TOGiB(limit), bs, sizeLimitCount);
       }
     }
 
     size_t mp2 = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));
     if (mp2 != mp) {
       mp = mp2;
-      if (i == 0) {
-	fprintf(stderr,"*info* positions limited to ");
-	commaPrint0dp(stderr, mp);
-	fprintf(stderr,"\n");
+      if (verbose) {
+	//      if (i == 0) {
+	fprintf(stderr,"*info* device '%s', positions limited to %zd\n", job->devices[i], mp);
+	//      }
       }
     }
       
