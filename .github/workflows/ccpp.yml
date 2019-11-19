@@ -1,0 +1,19 @@
+name: C/C++ CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: apt 
+      run: sudo apt install libaio-dev
+    - name: cmake 
+      run: cmake .
+    - name: make
+      run: make
+      
+
