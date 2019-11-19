@@ -687,3 +687,28 @@ int splitRange(const char *charBS, double *low, double *high) {
   }
   return retvalue;
 }
+
+size_t dirtyPagesBytes() {
+  long ret = 0;
+  FILE *fp = fopen("/proc/meminfo", "rt");
+  if (fp) {
+    char *line = NULL;
+    long temp = 0;
+    size_t len = 0;
+    ssize_t read = 0;
+    char s[100];
+    
+    while ((read = getline(&line, &len, fp)) != -1) {
+      if (sscanf(line, "%s %ld", s, &temp)==2) {
+	if (strcmp(s, "Dirty:")==0) {
+	  ret = temp * 1024; // stored in KiB
+	  //	  fprintf(stderr,"*info* dirty %ld bytes\n", ret);
+	  break;
+	}
+      }
+
+    }
+    fclose(fp);
+  }
+  return ret;
+}

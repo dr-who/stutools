@@ -93,5 +93,7 @@ char *hostname();
 size_t getUptime();
 int getRotational(const char *suf);
 
+size_t dirtyPagesBytes();
+
 #endif
 
