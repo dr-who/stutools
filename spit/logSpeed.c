@@ -87,7 +87,7 @@ void logSpeedFree(logSpeedType *l) {
 }
 
 
-void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char *description, size_t bdSize, size_t origBdSize, float rwratio, size_t flushing, size_t seqFiles, size_t lowbs, size_t highbs, const char *cli) {
+void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char *description, size_t bdSize, size_t origBdSize, double rwratio, size_t flushing, size_t seqFiles, size_t lowbs, size_t highbs, const char *cli) {
   //  logSpeedMedian(l);
   //  if (format) {
   //    fprintf(stderr, "*info* logSpeedDump format %d\n", format);
@@ -117,7 +117,7 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
     w = getdomainname(domainname, 1000); if (w != 0) {domainname[0] = 0;}
 
 
-    float runtime = 0;
+    double runtime = 0;
     size_t mib = 0;
     size_t iops = 0;
 

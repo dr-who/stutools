@@ -128,7 +128,7 @@ typedef struct {
   size_t highBlockSize;
   size_t queueDepth;
   size_t flushEvery;
-  float rw;
+  double rw;
   int rerandomize; 
   int addBlockSize;
   size_t runXtimesTI;

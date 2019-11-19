@@ -18,7 +18,7 @@ int main( int argc, char* argv[] ) {
   for (int i = 1; i < argc; ++i ) {
     const char* bd_path = argv[ i ];
     int is_bd = isBlockDevice(bd_path);
-    float size = TOGiB(blockDeviceSize(bd_path));
+    double size = TOGiB(blockDeviceSize(bd_path));
     int in_use = !canOpenExclusively(bd_path);
     // TODO
     /*
