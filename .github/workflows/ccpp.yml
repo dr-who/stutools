@@ -15,6 +15,5 @@ jobs:
       run: cmake .
     - name: make
       run: make
-    - name: make test
-      run: make test
+      
 
