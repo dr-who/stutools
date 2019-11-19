@@ -409,6 +409,7 @@ int main(int argc, char *argv[]) {
     handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix);
     
 
+    printPowerMode();
 
     size_t actualSize = maxSizeInBytes - minSizeInBytes;
     fprintf(stderr,"*info* bdSize range [%.2lf-%.2lf] GB, range %.2lf GB (%zd bytes), [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
