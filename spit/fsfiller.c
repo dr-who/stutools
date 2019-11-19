@@ -411,7 +411,7 @@ int main(int argc, char *argv[]) {
     mkdir(s, 0777);
   }
   fprintf(stderr,"*info* making %d x %d two level directories\n", DEPTH, DEPTH);
-  for (unsigned int id = 0; id < DEPTH * DEPTH; id++) {
+  for (int id = 0; id < DEPTH * DEPTH; id++) {
     if (dirPrefix) {
       sprintf(s,"%s/%02x/%02x", dirPrefix, (((unsigned int)id)/DEPTH) % DEPTH, ((unsigned int)id)%DEPTH);
     } else {
