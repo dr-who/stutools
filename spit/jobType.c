@@ -1324,8 +1324,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     
     // histogram
     histogramType histRead, histWrite;
-    histSetup(&histRead);
-    histSetup(&histWrite);
+    histSetup(&histRead, 0, 10, 1e-6);
+    histSetup(&histWrite, 0, 10, 1e-6);
     
     for (int i = 0; i < (int) mergedpc.sz; i++) {
       if (mergedpc.positions[i].action == 'R') 

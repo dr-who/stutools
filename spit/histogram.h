@@ -14,7 +14,7 @@ typedef struct {
   int    dataSummed;
 } histogramType;
 
-void histSetup(histogramType *h);
+void histSetup(histogramType *h, const double min, const double max, const double binscale);
 double histMean(const histogramType *h);
 void histAdd(histogramType *h, double value);
 void histFree(histogramType *h);

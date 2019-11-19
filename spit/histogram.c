@@ -7,10 +7,10 @@
 #include "utils.h"
 #include "histogram.h"
 
-void histSetup(histogramType *h) {
-  h->min = 0; // 0 s
-  h->max = 10; // 10 s
-  h->binScale = ceil(1 / 0.00001); // 0.1ms for 1 seconds is 10,000 bins
+void histSetup(histogramType *h, const double min, const double max, const double binscale) {
+  h->min = min; // 0 s
+  h->max = max; // 10 s
+  h->binScale = ceil(1 / binscale); // 0.1ms for 1 seconds is 10,000 bins
   h->arraySize = h->max * h->binScale;
   CALLOC(h->bin, h->arraySize + 1, sizeof(size_t));
   CALLOC(h->binSum, h->arraySize + 1, sizeof(size_t));

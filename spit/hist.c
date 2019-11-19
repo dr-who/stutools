@@ -7,15 +7,21 @@
 int main() {
   histogramType h;
 
-  histSetup(&h);
+  histSetup(&h, 0, 100, 0.1);
   srand48(0);
 
-  for (size_t i = 0; i < 100000; i++) {
-    histAdd(&h, drand48());
-  }
+  //  for (size_t i = 0; i < 100000; i++) {
+  //    histAdd(&h, drand48());
+  //  }
 
-  for (size_t i = 0; i < 100000; i++) {
-    histAdd(&h, drand48()/2);
+  //  for (size_t i = 0; i < 100000; i++) {
+  //    histAdd(&h, drand48()/2);
+  //  }
+
+  double v = 0;
+  while (scanf("%lf", &v) == 1) {
+    //    v = 10 * ((size_t)(v / 10));
+    histAdd(&h, v);
   }
 
 
