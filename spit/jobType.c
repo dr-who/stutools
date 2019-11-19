@@ -127,6 +127,7 @@ typedef struct {
   size_t blockSize;
   size_t highBlockSize;
   size_t queueDepth;
+  size_t QDbarrier;
   size_t flushEvery;
   double rw;
   int rerandomize; 
@@ -240,7 +241,7 @@ static void *runThread(void *arg) {
     sumrange += threadContext->pos.positions[i].len;
   }
   if (verbose >= 1)
-    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=%zd, R/w=%.2g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->rw, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->multipleTimes, threadContext->runXtimesTI);
+    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, q%zd (Q%zd) R/w=%.2g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->QDbarrier, threadContext->rw, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->multipleTimes, threadContext->runXtimesTI);
 
 
   // do the mahi
@@ -272,7 +273,7 @@ static void *runThread(void *arg) {
   size_t totalB = 0, ioerrors = 0;
   while (keepRunning) {
     // 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors, threadContext->QDbarrier);
 
     // check exit constraints
     if (byteLimit) {
@@ -1095,13 +1096,23 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
-    size_t qDepth = origqd;
+    size_t qDepth = origqd, QDbarrier = 0;
+   
     {
       char *qdd = strchr(job->strings[i], 'q');
       if (qdd && *(qdd+1)) {
 	qDepth = atoi(qdd+1);
       }
     }
+    {
+      char *qdd = strchr(job->strings[i], 'Q');
+      if (qdd && *(qdd+1)) {
+	QDbarrier = 1;
+	qDepth = atoi(qdd+1);
+      }
+    }
+
+    threadContext[i].QDbarrier = QDbarrier;
     if (qDepth < 1) qDepth = 1;
     if (qDepth > 65535) qDepth = 65535;
 

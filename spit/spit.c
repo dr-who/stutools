@@ -312,6 +312,8 @@ void usage() {
   fprintf(stdout,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
   fprintf(stdout,"  spit -f .... -R seed          # set the initial seed, -j will increment per job\n");
   fprintf(stdout,"  spit -f .... -Q qd            # set the per job default queue depth\n");
+  fprintf(stdout,"  spit -f .... -c q128          # per job queue\n");
+  fprintf(stdout,"  spit -f .... -c Q17           # per job queue depth, square wave/burst, 17 submits then 17 returns.\n");
   fprintf(stdout,"  spit -f .... -c wns0X10       # writing the number of positions 10 times, not time based\n");
   fprintf(stdout,"  spit -c x5                    # writing the block device size 5 times, not time based\n");
   fprintf(stdout,"  spit -c P10x1                 # write 10 positions until the entire device size is written\n");

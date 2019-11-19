@@ -34,7 +34,8 @@ size_t aioMultiplePositions( positionContainer *p,
 			     const int fd,
 			     int flushEvery,
 			     const size_t targetMBps,
-			     size_t *ioerrors
+			     size_t *ioerrors,
+			     size_t QDbarrier
 			     ) {
   int ret;
   struct iocb **cbs;
@@ -352,7 +353,14 @@ size_t aioMultiplePositions( positionContainer *p,
 
     
     // return, 1..inFlight wait for a bit
-    ret = io_getevents(ioc, 1, inFlight, events, &timeout);
+    if (QDbarrier) {
+      if (inFlight >= QD) {
+	ret = io_getevents(ioc, QD, inFlight, events, &timeout);
+      }
+    } else {
+      ret = io_getevents(ioc, 1, inFlight, events, &timeout);
+    }
+    
     //    }
     if (ret > 0) {
       //      lastreceive = timedouble();
