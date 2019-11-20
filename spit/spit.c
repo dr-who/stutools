@@ -267,7 +267,7 @@ void usage() {
   fprintf(stdout,"\nUsage:\n  spit [-f device] [-c string] [-c string] ... [-c string]\n");
   fprintf(stdout,"\nExamples:\n");
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
-  fprintf(stdout,"  spit -f device -c r           # seq read (s1)\n");
+  fprintf(stdout,"  spit -f device -c r           # seq read (defaults to s1 and k4)\n");
   fprintf(stdout,"  spit -f device -c w           # seq write (s1)\n");
   fprintf(stdout,"  spit -f device -c rs0         # random, (s)equential is 0\n");
   fprintf(stdout,"  spit -f device -c rs0-size    # random, (s)equential is 0, max contig is size KiB\n");
