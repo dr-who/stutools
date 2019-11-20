@@ -33,6 +33,7 @@ void generate(unsigned char *buf, size_t size, unsigned int seed) {
 
 void verifyDevice(char *device, unsigned char *buf, size_t size, const size_t offset) {
   
+  fprintf(stderr,"*info* allocating %zd bytes to verify\n", size);
   unsigned char *readbuf = aligned_alloc(4096, size);
   if (!buf) {
     fprintf(stderr,"*error* can't allocate %zd bytes\n", size);
@@ -87,6 +88,7 @@ void verifyDevice(char *device, unsigned char *buf, size_t size, const size_t of
     perror(device);
     exit(1);
   }
+  free(readbuf);
 }
 
 void usage() {
@@ -145,6 +147,26 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
+  int fd = open(device, O_DIRECT | O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
+  if (fd >= 0) {
+    endpos = blockDeviceSizeFromFD(fd);
+    if (endpos == 0) {
+      endpos = fileSizeFromName(device);
+    }
+  }
+  close(fd);
+
+  fprintf(stderr,"*info* randdd on '%s' (%.1lf GiB), seed %d, size %zd (%.3lf GiB), mode: %s\n", device, TOGiB(endpos), seed, size, TOGiB(size), verify?"VERIFY" : "WRITE");
+
+  double gap = (endpos * 1.0 - size - startpos * 1.0) / gapcount;
+  if (gap < size) {
+    fprintf(stderr,"*warning* the gap is too small (%.0lf), setting to %zd, endpos %zd\n", gap, size, endpos);
+    gap = size;
+  }
+  fprintf(stderr,"*info* pos range [%zd, %zd), size %zd, locations %zd, gap %.0lf\n", startpos, endpos, size, gapcount, gap);
+
+  
+  fprintf(stderr,"*info* allocating %zd bytes to write\n", size);
   unsigned char *buf = aligned_alloc(4096, size);
   if (!buf) {
     fprintf(stderr,"*error* can't allocate %zd bytes\n", size);
@@ -158,23 +180,7 @@ int main(int argc, char *argv[]) {
   }
 
 
-  fprintf(stderr,"*info* randdd on '%s', seed %d, size %zd (%.3lf GiB), mode: %s\n", device, seed, size, TOGiB(size), verify?"VERIFY" : "WRITE");
 
-  int fd = open(device, O_DIRECT | O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
-  if (fd >= 0) {
-    endpos = blockDeviceSizeFromFD(fd);
-    if (endpos == 0) {
-      endpos = fileSizeFromName(device);
-    }
-      
-  }
-  double gap = (endpos * 1.0 - size - startpos * 1.0) / gapcount;
-  close(fd);
-  if (gap < size) {
-    fprintf(stderr,"*warning* the gap is too small (%.0lf), setting to %zd, endpos %zd\n", gap, size, endpos);
-    gap = size;
-  }
-  fprintf(stderr,"*info* pos range [%zd, %zd), size %zd, locations %zd, gap %.0lf\n", startpos, endpos, size, gapcount, gap);
 
   if (!verify) {
     int fd = open(device, O_DIRECT | O_WRONLY | O_TRUNC | O_EXCL, S_IRUSR | S_IWUSR);
@@ -223,11 +229,11 @@ int main(int argc, char *argv[]) {
 	verifyDevice(device, buf, size, aloff);
       }
       fprintf(stderr,"*info* write stored OK\n");
+    } else {
+      perror(device);
+      exit(1);
+    }
   } else {
-    perror(device);
-    exit(1);
-  }
-} else {
   for (double offset = startpos; offset <= endpos - size; offset += gap) {
     size_t aloff = alignedNumber((size_t)(offset + 0.5), 4096);
       verifyDevice(device, buf, size, aloff);
