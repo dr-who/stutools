@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
   }
   close(fd);
 
-  fprintf(stderr,"*info* randdd on '%s' (%.1lf GiB), seed %d, size %zd (%.3lf GiB), mode: %s\n", device, TOGiB(endpos), seed, size, TOGiB(size), verify?"VERIFY" : "WRITE");
+  fprintf(stderr,"*info* randdd on '%s' (%.1lf GB), seed %d, chunk size %zd (%.3lf GiB), mode: %s\n", device, TOGB(endpos), seed, size, TOGiB(size), verify?"VERIFY" : "WRITE");
 
   double gap = (endpos * 1.0 - size - startpos * 1.0) / gapcount;
   if (gap < size) {
@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"*info* pos range [%zd, %zd), size %zd, locations %zd, gap %.0lf\n", startpos, endpos, size, gapcount, gap);
 
   
-  fprintf(stderr,"*info* allocating %zd bytes to write\n", size);
+  fprintf(stderr,"*info* allocating %zd bytes for reference\n", size);
   unsigned char *buf = aligned_alloc(4096, size);
   if (!buf) {
     fprintf(stderr,"*error* can't allocate %zd bytes\n", size);
