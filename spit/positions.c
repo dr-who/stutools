@@ -650,6 +650,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     fprintf(stderr,"*info* sum of %zd lengths is %.1lf GiB\n", pc->sz, TOGiB(sum));
   }
 
+  pc->minbdSize = minbdSize;
+  pc->maxbdSize = maxbdSize;
+
   free(poss); 
   free(positionsStart); 
   free(positionsEnd); 
@@ -798,6 +801,7 @@ void positionContainerSetupFromPC(positionContainer *pc, const positionContainer
   pc->LBAcovered = oldpc->LBAcovered;
   //  pc->device = oldpc->device;
   //  pc->string = oldpc->string;
+  pc->minbdSize = oldpc->minbdSize;
   pc->maxbdSize = oldpc->maxbdSize;
   pc->minbs = oldpc->minbs;
   pc->maxbs = oldpc->maxbs;

@@ -28,6 +28,7 @@ typedef struct {
   //  char *string;
   //  char *device;
   size_t maxbdSize;
+  size_t minbdSize;
   size_t minbs;
   size_t maxbs;
   size_t writtenBytes;

@@ -124,12 +124,20 @@ typedef struct {
   size_t prewait;
   char *jobstring;
   char *jobdevice;
+  int jobdeviceid;
+  size_t uniqueSeeds;
+  size_t verifyUnique;
+  size_t dumpPos;
   size_t blockSize;
   size_t highBlockSize;
   size_t queueDepth;
+  size_t metaData;
   size_t QDbarrier;
   size_t flushEvery;
   double rw;
+  size_t startingBlock;
+  size_t mod;
+  size_t remain;
   int rerandomize; 
   int addBlockSize;
   size_t runXtimesTI;
@@ -138,6 +146,7 @@ typedef struct {
   size_t speedMB;
   char *randomBuffer;
   size_t numThreads;
+  size_t *go;
   positionContainer **allPC;
   char *benchmarkName;
   size_t anywrites;
@@ -162,8 +171,43 @@ typedef struct {
 static void *runThread(void *arg) {
   threadInfoType *threadContext = (threadInfoType*)arg;
   if (verbose >= 2) {
-    fprintf(stderr,"*info* thread[%zd] job is '%s'\n", threadContext->id, threadContext->jobstring);
+    fprintf(stderr,"*info* thread[%zd] job is '%s', size = %zd\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
   }
+
+
+  // allocate the position array space
+  // create the positions and the r/w status
+  //    threadContext->seqFiles = seqFiles;
+  //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
+  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain);
+  
+  if (verbose >= 2) {
+    positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, !threadContext->metaData);
+  }
+  
+  if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos);
+  
+  if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun);
+  
+  //      positionPrintMinMax(threadContext->pos.positions, threadContext->pos.sz, threadContext->minbdSize, threadContext->maxbdSize, threadContext->minSizeInBytes, threadContext->maxSizeInBytes);
+  threadContext->anywrites = (threadContext->rw < 1); 
+  calcLBA(&threadContext->pos); // calc LBA coverage
+  
+  
+  if (threadContext->uniqueSeeds) {
+    positionContainerUniqueSeeds(&threadContext->pos, threadContext->seed, threadContext->verifyUnique);
+  } else if (threadContext->metaData) {
+    positionContainerAddMetadataChecks(&threadContext->pos);
+  }
+  
+  if (threadContext->dumpPos /* && !iRandom*/) {
+    positionContainerDump(&threadContext->pos, threadContext->dumpPos);
+  }
+  
+  
+  CALLOC(threadContext->randomBuffer, threadContext->highBlockSize, 1);
+  memset(threadContext->randomBuffer, 0, threadContext->highBlockSize);
+  generateRandomBufferCyclic(threadContext->randomBuffer, threadContext->highBlockSize, threadContext->seed, threadContext->highBlockSize);
 
   size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
   int fd,  direct = O_DIRECT;
@@ -270,6 +314,14 @@ static void *runThread(void *arg) {
     fprintf(stderr,"*info* byteLimit %zd (%.03lf GiB), iteratorInc %zd, iteratorMax %zd\n", byteLimit, TOGiB(byteLimit), iteratorInc, iteratorMax);
   }
 
+  if (threadContext->id == threadContext->numThreads-1) {
+    *threadContext->go = 1;
+  }
+  
+  while(*threadContext->go == 0) {
+    usleep(10);
+  }
+  //  fprintf(stderr,"*info* starting thread %zd\n", threadContext->id);
   size_t totalB = 0, ioerrors = 0;
   while (keepRunning) {
     // 
@@ -357,6 +409,11 @@ static void *runThreadTimer(void *arg) {
   if (TIMEPERLINE <= 0) TIMEPERLINE = 0.00001;
   double ignorefirst = threadContext->ignorefirst;
   if (ignorefirst < 0) ignorefirst = 0;
+
+  while(*threadContext->go == 0) {
+    usleep(1000);
+  }
+  
   
   if (verbose >= 2) {
     fprintf(stderr,"*info* timer thread, threads %zd, %.2lf per line, ignore first %.2lf seconds, %s, finish time %zd\n", threadContext->numThreads, TIMEPERLINE, ignorefirst, threadContext->benchmarkName, threadContext->finishTime);
@@ -694,9 +751,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   const size_t UUID = thetime * 10;
 
     
-  
+
+  size_t *go = malloc(sizeof(size_t));
+  *go = 0;
   
   for (int i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
+    
+    threadContext[i].go = go;
     threadContext[i].filePrefix = filePrefix;
     threadContext[i].mysqloptions = mysqloptions;
     threadContext[i].mysqloptions2 = mysqloptions2;
@@ -977,6 +1038,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
+    threadContext[i].jobdeviceid = job->deviceid[i];
     threadContext[i].waitfor = 0;
     threadContext[i].prewait = 0;
     threadContext[i].blockSize = bs;
@@ -1215,41 +1277,23 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       threadContext[i].prewait = waitfor;
     }
 
-    threadContext[i].pos.maxbdSize = threadContext[i].maxbdSize;
+    //    threadContext[i].pos.maxbdSize = threadContext[i].maxbdSize;
     
+
+    positionContainerSetup(&threadContext[i].pos, mp);
+    threadContext[i].seqFiles = seqFiles;
+    threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
+    threadContext[i].rw = rw;
+    threadContext[i].startingBlock = startingBlock;
+    threadContext[i].mod = mod;
+    threadContext[i].remain = remain;
+    threadContext[i].metaData = metaData;
+    threadContext[i].uniqueSeeds = uniqueSeeds;
+    threadContext[i].verifyUnique = verifyUnique;
+    threadContext[i].dumpPos = dumpPos;
     
-    /*if (iRandom == 0) */{ // if iRandom set, then don't setup positions here, do it in the runThread. e.g. -c n
-      positionContainerSetup(&threadContext[i].pos, mp);
-
-      // allocate the position array space
-      // create the positions and the r/w status
-      threadContext[i].seqFiles = seqFiles;
-      threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-      size_t anywrites = positionContainerCreatePositions(&threadContext[i].pos, job->deviceid[i], threadContext[i].seqFiles, threadContext[i].seqFilesMaxSizeBytes, rw, &threadContext[i].len, MIN(4096,threadContext[i].blockSize), startingBlock, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].seed, mod, remain);
-
-      if (verbose >= 2) {
-	positionContainerCheck(&threadContext[i].pos, threadContext[i].minbdSize, threadContext[i].maxbdSize, !metaData);
-      }
-      
-      if (threadContext[i].seqFiles == 0) positionContainerRandomize(&threadContext[i].pos);
-
-      if (threadContext[i].jumbleRun) positionContainerJumble(&threadContext[i].pos, threadContext[i].jumbleRun);
-      
-      //      positionPrintMinMax(threadContext[i].pos.positions, threadContext[i].pos.sz, threadContext[i].minbdSize, threadContext[i].maxbdSize, threadContext[i].minSizeInBytes, threadContext[i].maxSizeInBytes);
-      threadContext[i].anywrites = anywrites;
-      calcLBA(&threadContext[i].pos); // calc LBA coverage
 
 
-      if (uniqueSeeds) {
-	positionContainerUniqueSeeds(&threadContext[i].pos, threadContext[i].seed, verifyUnique);
-      } else if (metaData) {
-	positionContainerAddMetadataChecks(&threadContext[i].pos);
-      }
-
-      if (dumpPos /* && !iRandom*/) {
-	positionContainerDump(&threadContext[i].pos, dumpPos);
-      }
-    }
 
     /*    if (mp <= threadContext[i].queueDepth) {
       threadContext[i].queueDepth = mp;
@@ -1260,7 +1304,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   } // setup all threads
 
   // print a warning if the contents are the same as the thread 0
-  size_t exactsame = 0, checkedsame = 0;
+  /*  size_t exactsame = 0, checkedsame = 0;
   for (int i = 1; i < num; i++) {
     for (size_t j = 0; j < MIN(50, threadContext[i].pos.sz); j++) {
       if (j < threadContext[0].pos.sz) {
@@ -1272,20 +1316,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	}
       }
     }
-  }
+    } 
+  
   if (exactsame > checkedsame / 2) {
     fprintf(stderr,"*WARNING* positions aren't unique, match between thread 0 and other threads = %.1lf%%\n", exactsame*100.0/checkedsame);
   }
+  */
 	
   
-
-  // set the starting time
-  for (int i = 0; i < num; i++) { 
-    CALLOC(threadContext[i].randomBuffer, threadContext[i].highBlockSize, 1);
-    memset(threadContext[i].randomBuffer, 0, threadContext[i].highBlockSize);
-    generateRandomBufferCyclic(threadContext[i].randomBuffer, threadContext[i].highBlockSize, threadContext[i].seed, threadContext[i].highBlockSize);
-  }
-
 
   
   // use the device and timing info from context[num]

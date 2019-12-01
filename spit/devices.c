@@ -326,25 +326,35 @@ size_t smallestBDSize(deviceDetails *devList, size_t devCount) {
 
 
 size_t getIOPSestimate(const char *fn, const size_t blocksize) {
-  char *suf = getSuffix(fn);
 
-  if (getRotational(suf)) {
-    if (suf) {free(suf);}
-    size_t iop = 500L*1024*1024 / blocksize;  // 500MB/s rotational
-    if (iop < 300) iop = 300; // but at least 300 IOPS
-    return iop;
-  }
+  
   
   int fd = open(fn, O_RDONLY);
   if (fd > 0) {
     unsigned int major, minor;
     majorAndMinor(fd, &major, &minor);
+    
     if (major == 252) {
       // nsulate
       size_t iop =  20L*1024*1024*1024 / blocksize; // 20GB/s / blocksize
       if (iop < 10) iop = 10;
       return iop;
-    } else { 
+    } if (major == 1) {
+      //      fprintf(stderr,"*info* RAM\n");
+      size_t iop = 20L*1024L*1024*1024L / blocksize; // 20GB/s / blocksize;
+      if (iop < 10) iop = 10;
+      return iop;
+    } else {
+      char *suf = getSuffix(fn);
+      if (getRotational(suf)) {
+	fprintf(stderr,"rot\n");
+	if (suf) {free(suf);}
+	size_t iop = 500L*1024*1024 / blocksize;  // 500MB/s rotational
+	if (iop < 300) iop = 300; // but at least 300 IOPS
+	return iop;
+      }
+
+      // not rot
       size_t iop = 3L*1024L*1024*1024 / 2L / blocksize; // 12Gb/sec for one device
       if (iop < 10) iop = 10;
       return iop;
