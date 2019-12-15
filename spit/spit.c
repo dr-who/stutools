@@ -325,7 +325,7 @@ void usage() {
   fprintf(stdout,"  spit -p G100                  # precondition job, writing random overwrite LBA size\n");
   fprintf(stdout,"  spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks\n");
   fprintf(stdout,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n"); 
-  fprintf(stdout,"  spit -s 0.1 -i 5              # and ignore first 5 seconds of performance\n");
+  fprintf(stdout,"  spit -s 0.1 -i 5              # and ignore first 5 GiB of performance\n");
   fprintf(stdout,"  spit -v                       # verify the writes after a run\n");
   fprintf(stdout,"  spit -P filename              # dump positions to filename\n");
   fprintf(stdout,"  spit -c wG_j4                 # The _ represents to divide the G value evenly between threads\n");
