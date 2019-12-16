@@ -96,5 +96,7 @@ int getRotational(const char *suf);
 size_t dirtyPagesBytes();
 size_t getCachedBytes();
 
+int runCommand(char *program, char *argv_list[]);
+
 #endif
 

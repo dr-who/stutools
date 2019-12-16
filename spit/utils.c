@@ -20,6 +20,7 @@
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <pwd.h>
 #include <linux/hdreg.h>
 #include <assert.h>
@@ -735,6 +736,76 @@ size_t getCachedBytes() {
 
     }
     fclose(fp);
+  }
+  return ret;
+}
+
+// from: https://www.geeksforgeeks.org/difference-fork-exec/
+// examples
+//  char* envp[] = { "some", "environment", NULL };
+int runCommand(char *program, char *argv_list[]) {
+  pid_t  pid; 
+  int ret = 1; 
+  int status; 
+  pid = fork(); 
+  if (pid == -1){ 
+     
+    // pid == -1 means error occured 
+    fprintf(stderr,"can't fork, error occured\n"); 
+    exit(EXIT_FAILURE); 
+  } else if (pid == 0){ 
+  
+    // pid == 0 means child process created 
+    // getpid() returns process id of calling process 
+    //     fprintf(stderr,"child process, pid = %u\n",getpid()); 
+     
+    // the argv list first argument should point to   
+    // filename associated with file being executed 
+    // the array pointer must be terminated by NULL  
+    // pointer 
+     
+    // the execv() only return if error occured. 
+    // The return value is -1 
+    execvp(program, argv_list); 
+    exit(0); 
+  } else{ 
+    // a positive number is returned for the pid of 
+    // parent process 
+    // getppid() returns process id of parent of  
+    // calling process 
+    //     fprintf(stderr,"parent process, pid = %u\n",getppid()); 
+     
+    // the parent process calls waitpid() on the child 
+    // waitpid() system call suspends execution of  
+    // calling process until a child specified by pid 
+    // argument has changed state 
+    // see wait() man page for all the flags or options 
+    // used here  
+    if (waitpid(pid, &status, 0) > 0) {
+
+      //       fprintf(stderr,"%d %d\n", WIFEXITED(status), WEXITSTATUS(status));
+       
+      if (WIFEXITED(status) && !WEXITSTATUS(status))  
+	fprintf(stderr,"*info* program execution successful\n"); 
+              
+      else if (WIFEXITED(status) && WEXITSTATUS(status)) { 
+	if (WEXITSTATUS(status) == 127) { 
+	   
+	  // execv failed 
+	  fprintf(stderr,"execv failed\n"); 
+	} 
+	else 
+	  fprintf(stderr,"program terminated normally,"
+		  " but returned a non-zero status\n");                 
+      } 
+      else 
+	fprintf(stderr,"program didn't terminate normally\n");             
+    }  
+    else { 
+      // waitpid() failed 
+      fprintf(stderr,"waitpid() failed\n"); 
+    } 
+    //     exit(0); 
   }
   return ret;
 }

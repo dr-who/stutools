@@ -53,18 +53,13 @@ void calcLBA(positionContainer *pc) {
 positionType *createPositions(size_t num) {
   positionType *p;
   if (num == 0) {
-    fprintf(stderr,"*warning* createPositions num was 0?\n");
+    fprintf(stderr,"*warning* createPositions num was 0\n");
     return NULL;
   }
   //fprintf(stderr,"create positions %zd\n", num);
   CALLOC(p, num, sizeof(positionType));
   return p;
 }
-
-/*void freePositions(positionType *p) {
-  free(p);  p = NULL;
-  }*/
-
 
 int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSizeBytes, const size_t maxbdSizeBytes, size_t exitonerror) {
   const size_t num = pc->sz;

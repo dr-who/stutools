@@ -41,7 +41,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(preconditions);
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "b:c:f:F:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:f:F:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:")) != -1) {
     size_t jcount = 1;
     switch (opt) {
     case 'b': {}
@@ -79,6 +79,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       break;
     case 'd':
       *dumpPositions = atoi(optarg);
+      break;
+    case 'e': {}
+      double delay = atof(optarg);
+      jobAddExec(j, optarg, delay);
       break;
     case 'i':
       *ignorefirst = atof(optarg) * 1024.0 * 1024.0 * 1024.0;
@@ -335,6 +339,7 @@ void usage() {
   fprintf(stdout,"  spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with QD=1\n");
   fprintf(stdout,"  spit ... -c ws0UG_ -v -j32    # Generates r/w pairs with unique seeds, as above, unique thread ranges\n");
   fprintf(stdout,"  spit ... -c ws1S250           # S option targets a speed in MB/s by adding usleep() between operations. Low speeds only\n");
+  fprintf(stdout,"  spit -e \"5,echo five\"         # exec a bash -c CMD string after 5 seconds, quotes are required\n");
   exit(0);
 }
 
@@ -362,6 +367,8 @@ int main(int argc, char *argv[]) {
     fuzz = (strcmp(argv[1],"fuzz") == 0);
     if (fuzz) fuzzdevice = argv[2];
   }
+
+  
 
   // don't run if swap is on
   if (swapTotal() > 0) {

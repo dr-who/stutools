@@ -10,11 +10,13 @@ typedef struct {
   char **strings;
   char **devices;
   int *deviceid;
+  double *delay;
 } jobType;
  
 
 void jobInit(jobType *j);
 void jobAdd(jobType *j, const char *jobstring);
+void jobAddExec(jobType *j, const char *jobstring, const double delay);
 void jobDump(jobType *j);
 void jobFree(jobType *j);
 size_t jobCount(jobType *j);

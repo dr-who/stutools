@@ -31,12 +31,14 @@ void jobInit(jobType *job) {
   job->strings = NULL;
   job->devices = NULL;
   job->deviceid = NULL;
+  job->delay = NULL;
 }
 
 void jobAddBoth(jobType *job, char *device, char *jobstring) {
   job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
   job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
-  job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int*));
+  job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int));
+  job->delay = realloc(job->delay, (job->count+1) * sizeof(double));
   job->strings[job->count] = strdup(jobstring);
   job->devices[job->count] = strdup(device);
   int deviceid = job->count;
@@ -50,14 +52,26 @@ void jobAddBoth(jobType *job, char *device, char *jobstring) {
   job->count++;
 }
 
-void jobAdd(jobType *job, const char *jobstring) {
+void jobAdd3(jobType *job, const char *jobstring, const double delay) {
   job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
   job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
   job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int*));
+  job->delay = realloc(job->delay, (job->count+1) * sizeof(double));
   job->strings[job->count] = strdup(jobstring);
   job->devices[job->count] = NULL;
   job->deviceid[job->count] = 0;
+  job->delay[job->count] = delay;
   job->count++;
+}
+
+
+void jobAdd(jobType *job, const char *jobstring) {
+  jobAdd3(job, jobstring, 0);
+}
+
+
+void jobAddExec(jobType *job, const char *jobstring, const double delay) {
+  jobAdd3(job, jobstring, delay);
 }
 
 void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount) {
@@ -92,7 +106,7 @@ void jobFileSequence(jobType *job) {
 void jobDump(jobType *job) {
   fprintf(stderr,"*info* jobDump: %zd\n", jobCount(job));
   for (int i = 0; i < job->count; i++) {
-    fprintf(stderr,"*  info* job %d, device %s, deviceid %d, string %s\n", i, job->devices[i], job->deviceid[i], job->strings[i]);
+    fprintf(stderr,"*  info* job %d, device %s, deviceid %d, delay %.g, string %s\n", i, job->devices[i], job->deviceid[i], job->delay[i], job->strings[i]);
   }
 }
 
@@ -109,6 +123,7 @@ void jobFree(jobType *job) {
   }
   free(job->strings); job->strings = NULL;
   free(job->devices); job->devices = NULL;
+  free(job->delay); job->delay = NULL;
   jobInit(job);
 }
 
@@ -122,6 +137,7 @@ typedef struct {
   size_t finishTime; // the overall thread finish time
   size_t waitfor;
   size_t prewait;
+  size_t exec;
   char *jobstring;
   char *jobdevice;
   int jobdeviceid;
@@ -173,6 +189,18 @@ static void *runThread(void *arg) {
   if (verbose >= 2) {
     fprintf(stderr,"*info* thread[%zd] job is '%s', size = %zd\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
   }
+
+
+  if (threadContext->exec) {
+    sleep(threadContext->prewait);
+    char *comma = strchr(threadContext->jobstring, ',');
+    if (comma && *(comma+1)) {
+      char *env[] = {"/bin/bash", "-c", comma+1, NULL};
+      runCommand("/bin/bash", env);
+      return NULL;
+    }
+  }
+
 
 
   // allocate the position array space
@@ -274,7 +302,7 @@ static void *runThread(void *arg) {
   }
   if (suffix) free(suffix);
 
-  if (threadContext->finishTime < threadContext->runTime) {
+  if (!threadContext->exec && (threadContext->finishTime < threadContext->runTime)) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishTime);
   }
   //  double localrange = TOGB(threadContext->maxbdSize - threadContext->minbdSize);
@@ -291,6 +319,7 @@ static void *runThread(void *arg) {
   // do the mahi
   double starttime = timedouble();
   sleep(threadContext->prewait);
+
   size_t iteratorCount = 0, iteratorInc = 1, iteratorMax = 0;
 
   size_t byteLimit = 0;
@@ -856,10 +885,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	}
 	localminbdsize = alignedNumber(lowg, 4096);
 	localmaxbdsize = alignedNumber(highg, 4096);
-	/*	if (minSizeInBytes == maxSizeInBytes) { 
-	  minSizeInBytes = 0;
-	  }*/
-	//	fprintf(stderr,"*info* G used as [%.2lf-%.2lf] GB from range [%.2lf-%.2lf]\n", TOGB(localminbdsize), TOGB(localmaxbdsize), TOGB(minSizeInBytes), TOGB(maxSizeInBytes));
       }
     }
 
@@ -1040,7 +1065,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].jobdevice = job->devices[i];
     threadContext[i].jobdeviceid = job->deviceid[i];
     threadContext[i].waitfor = 0;
-    threadContext[i].prewait = 0;
+    threadContext[i].exec = (job->delay[i] != 0);
+    threadContext[i].prewait = job->delay[i];
     threadContext[i].blockSize = bs;
     threadContext[i].highBlockSize = highbs;
     threadContext[i].rerandomize = 0;
@@ -1280,7 +1306,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     //    threadContext[i].pos.maxbdSize = threadContext[i].maxbdSize;
     
 
-    positionContainerSetup(&threadContext[i].pos, mp);
+    if (!threadContext[i].exec) {
+      positionContainerSetup(&threadContext[i].pos, mp);
+    }
     threadContext[i].seqFiles = seqFiles;
     threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
     threadContext[i].rw = rw;
@@ -1292,38 +1320,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].verifyUnique = verifyUnique;
     threadContext[i].dumpPos = dumpPos;
     
-
-
-
-    /*    if (mp <= threadContext[i].queueDepth) {
-      threadContext[i].queueDepth = mp;
-      }*/
-
-
-    // add threadContext[i].pos a pointer alias to a pool for the timer
   } // setup all threads
-
-  // print a warning if the contents are the same as the thread 0
-  /*  size_t exactsame = 0, checkedsame = 0;
-  for (int i = 1; i < num; i++) {
-    for (size_t j = 0; j < MIN(50, threadContext[i].pos.sz); j++) {
-      if (j < threadContext[0].pos.sz) {
-	checkedsame++;
-	if (threadContext[i].pos.positions[j].pos == threadContext[0].pos.positions[j].pos) {
-	  if (threadContext[i].pos.positions[j].action == threadContext[0].pos.positions[j].action) {
-	    exactsame++;
-	  }
-	}
-      }
-    }
-    } 
-  
-  if (exactsame > checkedsame / 2) {
-    fprintf(stderr,"*WARNING* positions aren't unique, match between thread 0 and other threads = %.1lf%%\n", exactsame*100.0/checkedsame);
-  }
-  */
-	
-  
 
   
   // use the device and timing info from context[num]
