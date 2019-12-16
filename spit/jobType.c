@@ -191,16 +191,6 @@ static void *runThread(void *arg) {
   }
 
 
-  if (threadContext->exec) {
-    sleep(threadContext->prewait);
-    char *comma = strchr(threadContext->jobstring, ',');
-    if (comma && *(comma+1)) {
-      char *env[] = {"/bin/bash", "-c", comma+1, NULL};
-      runCommand("/bin/bash", env);
-      return NULL;
-    }
-  }
-
 
 
   // allocate the position array space
@@ -319,6 +309,17 @@ static void *runThread(void *arg) {
   // do the mahi
   double starttime = timedouble();
   sleep(threadContext->prewait);
+
+  if (threadContext->exec) {
+    char *comma = strchr(threadContext->jobstring, ',');
+    if (comma && *(comma+1)) {
+      char *env[] = {"/bin/bash", "-c", comma+1, NULL};
+      runCommand("/bin/bash", env);
+      return NULL;
+    }
+  }
+  
+
 
   size_t iteratorCount = 0, iteratorInc = 1, iteratorMax = 0;
 
