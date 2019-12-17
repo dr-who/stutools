@@ -426,7 +426,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   if (((pc->sz) * ((pc->minbs + pc->maxbs)/2)) < (maxbdSize - minbdSize) * 0.95) {
     // if we can't get good coverage
     if ((sf == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) {
-      fprintf(stderr,"*info* using randomSubSample (with replacement) mode\n");
+      if (verbose >= 2) fprintf(stderr,"*info* using randomSubSample (with replacement) mode\n");
       randomSubSample = 1;
     }
   }

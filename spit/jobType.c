@@ -165,6 +165,7 @@ typedef struct {
   size_t numThreads;
   size_t waitForThreads;
   size_t *go;
+  pthread_mutex_t *gomutex;
   positionContainer **allPC;
   char *benchmarkName;
   size_t anywrites;
@@ -309,13 +310,28 @@ static void *runThread(void *arg) {
 
 
   // do the mahi
+  pthread_mutex_lock(threadContext->gomutex);
+  (*threadContext->go)++;
+  pthread_mutex_unlock(threadContext->gomutex);
+  
+  while(*threadContext->go < threadContext->waitForThreads) {
+    usleep(10);
+  }
+  if (verbose >= 1)
+    fprintf(stderr,"*info* starting thread %zd ('%s')\n", threadContext->id, threadContext->jobstring);
+
+  
   double starttime = timedouble();
-  sleep(threadContext->prewait);
+  if (threadContext->prewait) {
+    fprintf(stderr,"*info* sleeping for %zd\n", threadContext->prewait);
+    sleep(threadContext->prewait);
+  }
 
   if (threadContext->exec) {
     char *comma = strchr(threadContext->jobstring, ',');
     if (comma && *(comma+1)) {
       char *env[] = {"/bin/bash", "-c", comma+1, NULL};
+      fprintf(stderr,"*info* executing '%s'\n", threadContext->jobstring);
       runCommand("/bin/bash", env);
       return NULL;
     }
@@ -346,12 +362,6 @@ static void *runThread(void *arg) {
     fprintf(stderr,"*info* byteLimit %zd (%.03lf GiB), iteratorInc %zd, iteratorMax %zd\n", byteLimit, TOGiB(byteLimit), iteratorInc, iteratorMax);
   }
 
-  (*threadContext->go)++;
-  
-  while(*threadContext->go < threadContext->waitForThreads) {
-    usleep(10);
-  }
-  //  fprintf(stderr,"*info* starting thread %zd\n", threadContext->id);
   size_t totalB = 0, ioerrors = 0;
   while (keepRunning) {
     // 
@@ -443,6 +453,7 @@ static void *runThreadTimer(void *arg) {
 
   while(*threadContext->go < threadContext->waitForThreads) {
     usleep(10);
+    //    fprintf(stderr,"."); fflush(stderr);
   }
   //  fprintf(stderr,"%zd %zd\n", *threadContext->go, threadContext->waitForThreads);
   
@@ -1346,6 +1357,15 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   if (threadContext[num].pos.diskStats) {
     diskStatStart(threadContext[num].pos.diskStats);
   }
+
+  
+  pthread_mutex_t mutex;
+  pthread_mutex_init(&mutex, NULL);
+  for (int i = 0; i < num; i++) {
+    threadContext[i].gomutex = &mutex;
+  }
+    
+  
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   for (int i = 0; i < num; i++) {
     pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
