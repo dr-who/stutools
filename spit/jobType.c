@@ -55,7 +55,7 @@ void jobAddBoth(jobType *job, char *device, char *jobstring) {
 void jobAdd3(jobType *job, const char *jobstring, const double delay) {
   job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
   job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
-  job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int*));
+  job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int));
   job->delay = realloc(job->delay, (job->count+1) * sizeof(double));
   job->strings[job->count] = strdup(jobstring);
   job->devices[job->count] = NULL;
@@ -118,6 +118,7 @@ void jobDumpAll(jobType *job) {
 
 void jobFree(jobType *job) {
   for (int i = 0; i < job->count; i++) {
+    //    fprintf(stderr,"freeinging %d of %d\n", i, job->count);
     if (job->strings[i]) {free(job->strings[i]); job->strings[i] = NULL;}
     if (job->devices[i]) {free(job->devices[i]); job->devices[i] = NULL;}
   }
@@ -412,6 +413,7 @@ static void *runThread(void *arg) {
 char *getValue(const char *os, const char *prefix) {
   assert(prefix);
   if (!os) {
+    //    abort();
     return strdup("NULL");
   }
 
@@ -1307,9 +1309,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     //    threadContext[i].pos.maxbdSize = threadContext[i].maxbdSize;
     
 
-    if (!threadContext[i].exec) {
-      positionContainerSetup(&threadContext[i].pos, mp);
-    }
+    positionContainerSetup(&threadContext[i].pos, mp);
     threadContext[i].seqFiles = seqFiles;
     threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
     threadContext[i].rw = rw;
@@ -1343,6 +1343,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   // wait for all threads
   for (int i = 0; i < num; i++) {
     pthread_join(pt[i], NULL);
+    lengthsFree(&threadContext[i].len);
   }
   keepRunning = 0; // the 
   // now wait for the timer thread (probably don't need this)
@@ -1463,7 +1464,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   }
   
   
-  
+
+  free(go);
   free(allThreadsPC);
   free(threadContext);
   free(pt);

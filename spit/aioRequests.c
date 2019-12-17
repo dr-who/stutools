@@ -521,6 +521,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   free(data[0]);
   free(data);
+  free(dataseed);
   free(readdata[0]);
   free(readdata);
   free(freeQueue);
