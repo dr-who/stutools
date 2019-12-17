@@ -23,8 +23,8 @@ int DEPTH=100;
 size_t finished;
 int verbose = 0;
 int keepRunning = 1;
-char *benchmarkFile = NULL;
-FILE *bfp = NULL;
+char *benchmarkFile = NULL, *logFile = NULL;
+FILE *bfp = NULL, *lfp = NULL;
 int openmode = 0;
 char *dirPrefix = NULL;
 size_t verify = 0, dofdatasync = 0;
@@ -130,7 +130,7 @@ void* worker(void *arg)
   double starttime = timedouble(), lasttime = starttime;
   size_t lastfin = 0, pass = 0;
   
-  char outstring[1000];
+  char outstring[1000], logstring[1000];
 
   while (!finished) {
     for (size_t i = 0; !finished && i < numfiles; i++) {
@@ -162,15 +162,22 @@ void* worker(void *arg)
 	    const double tm = thistime - lasttime;
 	    lasttime = thistime;
 	      
-	    sprintf(outstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), free %.0lf, dirty %.0lf, cached %.0lf\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB((secsum - lastsecsum) * 1.0)/tm, thistime - starttime, tm, TOMiB(freeRAM()), TOMiB(dirtyPagesBytes()), TOMiB(getCachedBytes()));
+	    sprintf(logstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), free %.0lf, dirty %.0lf, cached %.0lf\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB((secsum - lastsecsum) * 1.0)/tm, thistime - starttime, tm, TOMiB(freeRAM()), TOMiB(dirtyPagesBytes()), TOMiB(getCachedBytes()));
+
+	    sprintf(outstring, "%.3lf\t%zd\t%.0lf\n", thistime - starttime, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm));
+	    
+
 	    lasttime = thistime;
 	    lastsecsum = secsum;
 
-	    if (bfp) {
-	      fprintf(bfp, "%s", outstring);
-	      fflush(bfp);
+	    if (lfp) {
+	      fprintf(lfp, "%s", logstring); fflush(bfp);
 	    }
-	    fprintf(stderr,"%s", outstring);
+	    if (bfp) {
+	      fprintf(bfp, "%s", outstring); fflush(bfp);
+	    }
+
+	    fprintf(stderr,"%s", logstring);
 	  }
 	}
 	// do the mahi
@@ -251,7 +258,8 @@ void usage() {
   fprintf(stdout, "  Worker threads are spawned and the files are created in a loop.\n");
   fprintf(stdout, "\nOptions:\n");
   fprintf(stdout, "  -A         \tallocate RAM per file\n");
-  fprintf(stdout, "  -B file    \tlog file\n");
+  fprintf(stdout, "  -B file    \tbenchmarke file\n");
+  fprintf(stdout, "  -L file    \tstderr/logfile\n");
   fprintf(stdout, "  -d         \tdirect mode (O_DIRECT)\n");
   fprintf(stdout, "  -D         \tpagecache mode (default)\n");
   fprintf(stdout, "  -F path    \tset the path for testing\n");
@@ -279,13 +287,16 @@ int main(int argc, char *argv[]) {
   size_t unique = 1;
   size_t timelimit = 0;
   
-  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:vSH:")) != -1) {
+  while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:vSH:L:")) != -1) {
     switch (opt) {
     case 'A':
       allocatePerFile = 1;
       break;
     case 'B':
       benchmarkFile = optarg;
+      break;
+    case 'L':
+      logFile = optarg;
       break;
     case 'D':
       openmode = 0;
@@ -428,6 +439,14 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (logFile) {
+    fprintf(stderr,"*info* opening log file '%s'\n", logFile);
+    lfp = fopen(logFile, "wt");
+    if (!lfp) {
+      perror("fsfiller");exit(1);
+    }
+  }
+
 
   // setup worker threads
   pthread_t *tid = calloc(threads, sizeof(pthread_t)); assert(tid);
@@ -471,5 +490,9 @@ int main(int argc, char *argv[]) {
 
   if (bfp) {
     fclose(bfp);
+  }
+
+  if (lfp) {
+    fclose(lfp);
   }
 }
