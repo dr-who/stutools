@@ -163,6 +163,7 @@ typedef struct {
   size_t speedMB;
   char *randomBuffer;
   size_t numThreads;
+  size_t waitForThreads;
   size_t *go;
   positionContainer **allPC;
   char *benchmarkName;
@@ -345,11 +346,9 @@ static void *runThread(void *arg) {
     fprintf(stderr,"*info* byteLimit %zd (%.03lf GiB), iteratorInc %zd, iteratorMax %zd\n", byteLimit, TOGiB(byteLimit), iteratorInc, iteratorMax);
   }
 
-  if (threadContext->id == threadContext->numThreads-1) {
-    *threadContext->go = 1;
-  }
+  (*threadContext->go)++;
   
-  while(*threadContext->go == 0) {
+  while(*threadContext->go < threadContext->waitForThreads) {
     usleep(10);
   }
   //  fprintf(stderr,"*info* starting thread %zd\n", threadContext->id);
@@ -442,7 +441,7 @@ static void *runThreadTimer(void *arg) {
   double ignorefirst = threadContext->ignorefirst;
   if (ignorefirst < 0) ignorefirst = 0;
 
-  while(*threadContext->go == 0) {
+  while(*threadContext->go < threadContext->waitForThreads) {
     usleep(1000);
   }
   
@@ -1322,6 +1321,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].dumpPos = dumpPos;
     
   } // setup all threads
+
+  size_t waitft = 0;
+  for (int i = 0; i < num; i++) {
+    if (threadContext[i].exec == 0) {
+      waitft++;
+    }
+  }
+  for (int i = 0; i < num; i++) {
+    threadContext[i].waitForThreads = waitft;
+  }
+
+
 
   
   // use the device and timing info from context[num]

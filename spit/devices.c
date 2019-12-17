@@ -346,9 +346,10 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize) {
       return iop;
     } else {
       char *suf = getSuffix(fn);
-      if (getRotational(suf)) {
+      int rr = getRotational(suf);
+      if (suf) {free(suf);}
+      if (rr) {
 	fprintf(stderr,"rot\n");
-	if (suf) {free(suf);}
 	size_t iop = 500L*1024*1024 / blocksize;  // 500MB/s rotational
 	if (iop < 300) iop = 300; // but at least 300 IOPS
 	return iop;
