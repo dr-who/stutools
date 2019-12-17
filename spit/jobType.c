@@ -442,9 +442,9 @@ static void *runThreadTimer(void *arg) {
   if (ignorefirst < 0) ignorefirst = 0;
 
   while(*threadContext->go < threadContext->waitForThreads) {
-    usleep(1000);
+    usleep(10);
   }
-  
+  //  fprintf(stderr,"%zd %zd\n", *threadContext->go, threadContext->waitForThreads);
   
   if (verbose >= 2) {
     fprintf(stderr,"*info* timer thread, threads %zd, %.2lf per line, ignore first %.2lf seconds, %s, finish time %zd\n", threadContext->numThreads, TIMEPERLINE, ignorefirst, threadContext->benchmarkName, threadContext->finishTime);
@@ -549,67 +549,67 @@ static void *runThreadTimer(void *arg) {
 	
 	if (twb + trb >= ignorefirst) {
 
-	const double gaptime = thistime - lastprintedtime;
+	  const double gaptime = thistime - lastprintedtime;
 
-	double readB     = (trb - last_trb) / gaptime;
-	double readIOPS  = (tri - last_tri) / gaptime;
+	  double readB     = (trb - last_trb) / gaptime;
+	  double readIOPS  = (tri - last_tri) / gaptime;
 	
-	double writeB    = (twb - last_twb) / gaptime;
-	double writeIOPS = (twi - last_twi) / gaptime;
+	  double writeB    = (twb - last_twb) / gaptime;
+	  double writeIOPS = (twi - last_twi) / gaptime;
 	
-	if ((tri - last_tri) || (twi - last_twi) || (devicerb - last_devicerb) || (devicewb - last_devicewb)) { // if any IOs in the period to display note the time
-	  lastprintedtime = thistime;
-	}
+	  if ((tri - last_tri) || (twi - last_twi) || (devicerb - last_devicerb) || (devicewb - last_devicewb)) { // if any IOs in the period to display note the time
+	    lastprintedtime = thistime;
+	  }
 
-	const double elapsed = thistime - starttime;
-	fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
-	//fprintf(stderr,"%5.0lf", TOMB(readB));
-	commaPrint0dp(stderr, TOMB(readB));
-	fprintf(stderr," MB/s (");
-	//fprintf(stderr,"%7.0lf", readIOPS);
-	commaPrint0dp(stderr, readIOPS);
-	fprintf(stderr," IOPS / %.0lf), write ", (readIOPS == 0) ? 0 : (readB * 1.0) / (readIOPS));
+	  const double elapsed = thistime - starttime;
+	  fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
+	  //fprintf(stderr,"%5.0lf", TOMB(readB));
+	  commaPrint0dp(stderr, TOMB(readB));
+	  fprintf(stderr," MB/s (");
+	  //fprintf(stderr,"%7.0lf", readIOPS);
+	  commaPrint0dp(stderr, readIOPS);
+	  fprintf(stderr," IOPS / %.0lf), write ", (readIOPS == 0) ? 0 : (readB * 1.0) / (readIOPS));
 
-	//fprintf(stderr,"%5.0lf", TOMB(writeB));
-	commaPrint0dp(stderr, TOMB(writeB));
-	fprintf(stderr," MB/s (");
-	//fprintf(stderr,"%7.0lf", writeIOPS);
-	commaPrint0dp(stderr, writeIOPS);
+	  //fprintf(stderr,"%5.0lf", TOMB(writeB));
+	  commaPrint0dp(stderr, TOMB(writeB));
+	  fprintf(stderr," MB/s (");
+	  //fprintf(stderr,"%7.0lf", writeIOPS);
+	  commaPrint0dp(stderr, writeIOPS);
 	
-	fprintf(stderr," IOPS / %.0lf), total %.2lf GiB", (writeIOPS == 0) ? 0 : (writeB * 1.0) / (writeIOPS), TOGiB(trb + twb));
-	if (verbose >= 1) {
-	  fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, gaptime);
-	}
-	if (threadContext->pos.diskStats) {
-	  fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s)", TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
-	}
-	fprintf(stderr,"\n");
+	  fprintf(stderr," IOPS / %.0lf), total %.2lf GiB", (writeIOPS == 0) ? 0 : (writeB * 1.0) / (writeIOPS), TOGiB(trb + twb));
+	  if (verbose >= 1) {
+	    fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, gaptime);
+	  }
+	  if (threadContext->pos.diskStats) {
+	    fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s)", TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
+	  }
+	  fprintf(stderr,"\n");
 
-	if (fp) {
-	  fprintf(fp, "%.4lf\t%lf\t%.1lf\t%.0lf\t%.1lf\t%.0lf\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
-	  fflush(fp);
-	}
+	  if (fp) {
+	    fprintf(fp, "%.4lf\t%lf\t%.1lf\t%.0lf\t%.1lf\t%.0lf\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
+	    fflush(fp);
+	  }
 	
-	if (threadContext->exitIOPS && twb > threadContext->maxbdSize) {
-	  if (writeIOPS + readIOPS < threadContext->exitIOPS) {
-	    exitcount++;
-	    if (exitcount >= 10) {
-	      fprintf(stderr,"*warning* early exit after %.1lf GB due to %zd periods of low IOPS (%.0lf < % zd)\n", TOGB(twb), exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
-	      keepRunning = 0;
-	      break;
+	  if (threadContext->exitIOPS && twb > threadContext->maxbdSize) {
+	    if (writeIOPS + readIOPS < threadContext->exitIOPS) {
+	      exitcount++;
+	      if (exitcount >= 10) {
+		fprintf(stderr,"*warning* early exit after %.1lf GB due to %zd periods of low IOPS (%.0lf < % zd)\n", TOGB(twb), exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
+		keepRunning = 0;
+		break;
+	      }
 	    }
 	  }
-	}
 
-      last_trb = trb;
-      last_tri = tri;
-      last_twb = twb;
-      last_twi = twi;
-	}
-      lasttime = thistime;
+	  last_trb = trb;
+	  last_tri = tri;
+	  last_twb = twb;
+	  last_twi = twi;
+	} // ignore first
+	lasttime = thistime;
     }
     usleep(1000000*TIMEPERLINE/10); // display to 0.001 s
-
+    
     if (thistime > starttime + threadContext->finishTime + 30) {
       fprintf(stderr,"*error* still running! watchdog termination (%.0lf > %.0lf + %zd\n", thistime, starttime, threadContext->finishTime + 30);
       keepRunning = 0;
@@ -1328,7 +1328,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       waitft++;
     }
   }
-  for (int i = 0; i < num; i++) {
+  for (int i = 0; i < num + 1; i++) { // plus one as the last one [num] is the timer thread
     threadContext[i].waitForThreads = waitft;
   }
 
