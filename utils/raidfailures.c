@@ -5,16 +5,16 @@
 #include <assert.h>
 
 
-float *setup(char *fn, int maxdays, int quiet) {
+float *setup(char *fn, int maxdays, int verbose) {
 
   float *f = calloc(sizeof(float), maxdays);
 
   FILE *fp = fopen(fn, "rt");
   float a,b,c;
   if (fp) {
-    if (!quiet) fprintf(stderr,"*info* opening failure rate file '%s'\n", fn);
+    if (verbose) fprintf(stderr,"*info* opening failure rate file '%s'\n", fn);
     while (fscanf(fp, "%f %f %f\n", &a, &b, &c) > 0) {
-      if (!quiet) fprintf(stderr,"%f %f %f\n", a,b,c);
+      if (verbose) fprintf(stderr,"%f %f %f\n", a,b,c);
       for (size_t i = a; i < b; i++) {
 	if (i < maxdays) 
 	  f[i] = c;
@@ -32,7 +32,7 @@ float *setup(char *fn, int maxdays, int quiet) {
     }
   }
 
-  if (!quiet) fprintf(stderr,"The last day has a (yearly) failure rate of %.2lf\n", f[maxdays-1]);
+  if (verbose) fprintf(stderr,"The last day has a (yearly) failure rate of %.2lf\n", f[maxdays-1]);
   
   return f;
 }
@@ -78,19 +78,19 @@ int cmpfunc (const void * a, const void * b) {
    return ( *(int*)a - *(int*)b );
 }
 
-void usage() {
-  fprintf(stderr,"usage: ./raidfailures -k k -m m [-y years] [-d daysthreshold] [-s samples(10000)] [-q (quiet)] [-p prob.txt]\n");
+void usage(int years, int rebuild, int samples) {
+  fprintf(stderr,"usage: ./raidfailures -k k -m m [-y years(%d)] [-d rebuilddays(%d)] [-s samples(%d)] [-p prob.txt] [-v (verbose)]\n", years, rebuild, samples);
 }
 
 
 int main(int argc, char *argv[]) {
 	
   optind = 0;
-  int k = 0, m = 0, rebuildthreshold = 1, opt = 0, verbose = 0, samples = 1000, quiet = 0;
+  int k = 0, m = 0, rebuildthreshold = 7, opt = 0, verbose = 0, samples = 1000;
   char *dumpprobs = NULL;
   double years = 5;
   
-  while ((opt = getopt(argc, argv, "k:m:y:d:vqs:p:")) != -1) {
+  while ((opt = getopt(argc, argv, "k:m:y:d:vs:p:")) != -1) {
     switch(opt) {
     case 'k':
       k = atoi(optarg);
@@ -110,14 +110,11 @@ int main(int argc, char *argv[]) {
     case 's':
       samples = atoi(optarg);
       break;
-    case 'q':
-      quiet = 1;
-      break;
     case 'v':
       verbose++;
       break;
     default:
-      usage();
+      usage(years, rebuildthreshold, samples);
       exit(1);
     }
   }
@@ -125,19 +122,19 @@ int main(int argc, char *argv[]) {
   int maxdays = years * 365;
 
   if ((k<1) || (m<1) || (maxdays < k+m)) {
-    usage();
+    usage(years, rebuildthreshold, samples);
     exit(1);
   }
 
 
-  if (!quiet) {
+  if (verbose) {
     fprintf(stderr,"*info* stutools: Monte-Carlo failure simulator\n");
     fprintf(stderr,"*info* k %d, m %d, years %.1lf, rebuild threshold %d\n", k, m, years, rebuildthreshold);
   }
   
   srand48(41);
   
-  float *f = setup("hdd-failrates.dat", maxdays, quiet);
+  float *f = setup("hdd-failrates.dat", maxdays, verbose);
   if (dumpprobs) dump(dumpprobs, f, maxdays);
   
 
@@ -164,17 +161,16 @@ int main(int argc, char *argv[]) {
     qsort(diskdead, drives, sizeof(int), cmpfunc);
     int tdl = 0;
     for (size_t i = 0; i < drives; i++) {
-      if (verbose && !quiet) {
-	fprintf(stderr, "device %2zd fail day: %d ", i, diskdead[i]);
-	fprintf(stderr, "\n");
+      if (verbose >= 2) {
+	fprintf(stderr, "device %2zd fail day: %d\n", i, diskdead[i]);
       }
       if (diskdead[i]) {
 	if ((i > m) && (diskdead[i-m])) { // m 2, dead on 3
 	  if (diskdead[i] - diskdead[i-m] < rebuildthreshold) {
 	    for (size_t j = i-m; j <= i; j++) {
-	      if (!quiet) fprintf(stderr,"dates: %d\n", diskdead[j]);
+	      if (verbose >= 2) fprintf(stderr,"dates: %d\n", diskdead[j]);
 	    }
-	    if (!quiet) fprintf(stderr,"> %d drives died while rebuilding (year %.1lf) %d and %d\n", m, diskdead[i]/365.0, diskdead[i-m], diskdead[i]);
+	    if (verbose) fprintf(stderr,"> %d drives died while rebuilding (year %.1lf) %d and %d\n", m, diskdead[i]/365.0, diskdead[i-m], diskdead[i]);
 	    tdl = diskdead[i];
 	    break;
 	  }
@@ -186,7 +182,7 @@ int main(int argc, char *argv[]) {
     } else {
       bad++;
     }
-    if (!quiet) fprintf(stderr, "Arrays that failed at least once in %.1lf years and rebuilt under %d days. Total %d, Failed array, %d, Failed %% %.1lf %% (sample %zd)\n", years, rebuildthreshold, ok, bad, bad*100.0/(ok+bad), s+1);
+    if (verbose) fprintf(stderr, "Arrays that failed at least once in %.1lf years and rebuilt under %d days. Total %d, Failed array, %d, Failed %% %.1lf %% (sample %zd)\n", years, rebuildthreshold, ok, bad, bad*100.0/(ok+bad), s+1);
   }
 
   fprintf(stdout, "%.1lf\n", bad * 100.0 / (ok+bad));
