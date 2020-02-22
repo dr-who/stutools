@@ -186,7 +186,7 @@ int main(int argc, char *argv[]) {
     } else {
       bad++;
     }
-    if (!quiet) fprintf(stderr, "Arrays that failed at least once. Total %d, Failed array, %d, Failed %% %.1lf %%\n", ok, bad, bad*100.0/(ok+bad));
+    if (!quiet) fprintf(stderr, "Arrays that failed at least once in %.1lf years and rebuilt under %d days. Total %d, Failed array, %d, Failed %% %.1lf %% (sample %zd)\n", years, rebuildthreshold, ok, bad, bad*100.0/(ok+bad), s+1);
   }
 
   fprintf(stdout, "%.1lf\n", bad * 100.0 / (ok+bad));
