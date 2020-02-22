@@ -12,7 +12,7 @@ float *setup(char *fn, int maxdays, int verbose) {
   FILE *fp = fopen(fn, "rt");
   float a,b,c;
   if (fp) {
-    if (verbose) fprintf(stderr,"*info* opening failure rate file '%s'\n", fn);
+    if (verbose) fprintf(stderr,"*info* opening survival rate file '%s'\n", fn);
     while (fscanf(fp, "%f %f %f\n", &a, &b, &c) > 0) {
       if (verbose) fprintf(stderr,"%f %f %f\n", a,b,c);
       for (size_t i = a; i < b; i++) {
@@ -32,7 +32,7 @@ float *setup(char *fn, int maxdays, int verbose) {
     }
   }
 
-  if (verbose) fprintf(stderr,"The last day has a (yearly) failure rate of %.2lf\n", f[maxdays-1]);
+  if (verbose) fprintf(stderr,"The last day has a (yearly) survival rate of %.2lf\n", f[maxdays-1]);
   
   return f;
 }
@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
   
   srand48(41);
   
-  float *f = setup("hdd-failrates.dat", maxdays, verbose);
+  float *f = setup("hdd-surviverates.dat", maxdays, verbose);
   if (dumpprobs) dump(dumpprobs, f, maxdays);
   
 
