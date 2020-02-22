@@ -79,7 +79,7 @@ int cmpfunc (const void * a, const void * b) {
 }
 
 void usage(int years, int rebuild, int samples) {
-  fprintf(stderr,"usage: ./raidfailures -k k -m m [-y years(%d)] [-d rebuilddays(%d)] [-s samples(%d)] [-p prob.txt] [-v (verbose)]\n", years, rebuild, samples);
+  fprintf(stderr,"usage: ./raidfailures -k k -m m [-y years(%d)] [-r rebuilddays(%d)] [-s samples(%d)] [-p prob.txt] [-v (verbose)]\n", years, rebuild, samples);
 }
 
 
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
   char *dumpprobs = NULL;
   double years = 5;
   
-  while ((opt = getopt(argc, argv, "k:m:y:d:vs:p:")) != -1) {
+  while ((opt = getopt(argc, argv, "k:m:y:r:vs:p:")) != -1) {
     switch(opt) {
     case 'k':
       k = atoi(optarg);
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
     case 'y':
       years = atof(optarg);
       break;
-    case 'd':
+    case 'r':
       rebuildthreshold = atoi(optarg);
       break;
     case 'p':
