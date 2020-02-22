@@ -24,6 +24,7 @@ float *setup(char *fn, int maxdays, int verbose) {
       if (i < maxdays) 
 	f[i] = c;
     }
+    fclose(fp);
   }
 
   for (size_t i = 0; i < maxdays; i++) {
@@ -186,6 +187,8 @@ int main(int argc, char *argv[]) {
   }
 
   fprintf(stdout, "%.1lf\n", bad * 100.0 / (ok+bad));
+  if (d) free(d);
+  if (f) free(f);
 
   return 0;
 }
