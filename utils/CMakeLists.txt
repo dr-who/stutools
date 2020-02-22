@@ -11,6 +11,9 @@ add_executable(dist dist.c)
 
 add_executable(ramtester ramtester.c)
 
+add_executable(raidfailures raidfailures.c)
+
+
 
 
 
