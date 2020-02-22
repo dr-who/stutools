@@ -68,6 +68,7 @@ void diskStatLoadProc(diskStatType *d);
 void diskStatInfo(diskStatType *d);
 
 void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite1);
+size_t diskStatTBTimeSpentIO(diskStatType *d);
 
 #endif
 

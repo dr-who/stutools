@@ -57,6 +57,12 @@ size_t diskStatTBWrite(diskStatType *d) {
 }
 
 
+size_t diskStatTBTimeSpentIO(diskStatType *d) { // in ms
+  if (!d) return 0;
+  return d->finishSecTimeio - d->startSecTimeio;
+}
+
+
 void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, size_t *totalReadIO, size_t *totalWriteIO, double *util, size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed) {
   if (!d) return;
   if (d->startSecRead > d->finishSecRead) {
