@@ -17,6 +17,7 @@
 extern volatile int keepRunning;
 
 #define DISPLAYEVERY 1
+#define PAGESZ 4096
 
 size_t aioMultiplePositions( positionContainer *p,
 			     const size_t sz,
@@ -40,6 +41,7 @@ size_t aioMultiplePositions( positionContainer *p,
   int ret;
   struct iocb **cbs;
   struct io_event *events;
+  struct iovec** iovecs;
   if (origQD >= sz)  {
     origQD = sz;
     fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", origQD, verbose);
@@ -84,6 +86,11 @@ size_t aioMultiplePositions( positionContainer *p,
     }
   }
   assert(maxSize > 0);
+
+  CALLOC(iovecs, QD, sizeof(struct iovec*));
+  for (size_t i = 0; i < QD; i++) {
+    CALLOC(iovecs[i], maxSize / PAGESZ, sizeof(struct iovec));
+  }
   
   /* setup I/O control block, randomised just for this run. So we can check verification afterwards */
   char **data = NULL;
@@ -188,6 +195,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	if (positions[pos].action != 'S') { // if we have some positions, sz > 0
 	  const size_t newpos = positions[pos].pos;
 	  const size_t len = positions[pos].len;
+	  const size_t pagecnt = len / PAGESZ;
 
 	  assert(headOfQueue < QD);
 	  qdIndex = freeQueue[headOfQueue];
@@ -210,8 +218,14 @@ size_t aioMultiplePositions( positionContainer *p,
 		generateRandomBuffer(readdata[qdIndex], positions[pos].len, positions[pos].seed);
 		dataseed[qdIndex] = positions[pos].seed;
 		}*/
-
-	      io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
+	      struct iovec* iovec = iovecs[qdIndex];
+	      for (size_t pIndex = 0; pIndex < pagecnt; ++pIndex) {
+	          // reverse order to not be contiguous
+              iovec[pIndex].iov_base = (readdata[qdIndex] + maxSize) - (pIndex + 1) * PAGESZ;
+              iovec[pIndex].iov_len = PAGESZ;
+	      }
+	      io_prep_preadv(cbs[qdIndex], fd, iovec, pagecnt, newpos);
+	      //io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 	      cbs[qdIndex]->data = &positions[pos];
 	    } else if (positions[pos].action=='F') {
 	      if (verbose >= 2) {fprintf(stderr,"[%zd] flush qdIndex=%d\n", newpos, qdIndex);}
@@ -516,9 +530,10 @@ size_t aioMultiplePositions( positionContainer *p,
   free(events);
   for (size_t i = 0; i < QD; i++) {
     free(cbs[i]);
+    free(iovecs[i]);
   }
   free(cbs);
-
+  free(iovecs);
   free(data[0]);
   free(data);
   free(dataseed);
