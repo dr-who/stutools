@@ -41,6 +41,7 @@ typedef struct {
   size_t iocount;
   double elapsed;
   size_t o_direct;
+  size_t sorted;
 } threadInfoType;
 
 // sorting function, used by qsort
@@ -143,9 +144,15 @@ static void *runThread(void *arg) {
   unsigned short lastid = -1;
 
   size_t gap = threadContext->endExc - threadContext->startInc;
-  
-  qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), seedcompare);
 
+  if (threadContext->id == 1) {
+    if (threadContext->sorted) {
+      fprintf(stderr,"*info* sorting positions\n");
+      qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), seedcompare);
+    } else {
+      fprintf(stderr,"*info* positions are unsorted\n");
+    }
+  }
   
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
     if (threadContext->pc->positions[i].deviceid != lastid) {
@@ -220,7 +227,7 @@ static void *runThread(void *arg) {
  * Input is sorted
  *
  */
-int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct) {
+int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted) {
 
   positionContainerInfo(pc);
 
@@ -254,6 +261,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
     threadContext[i].iocount = 0;
     threadContext[i].elapsed = 0;
     threadContext[i].o_direct = o_direct;
+    threadContext[i].sorted = sorted;
 
     //        fprintf(stderr,"*info* starting thread[%zd] in range [%zd, %zd)\n", i, threadContext[i].startInc, threadContext[i].endExc);
     

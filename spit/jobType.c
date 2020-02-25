@@ -1479,7 +1479,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	  direct = 0;
 	}
       }
-      int errors = verifyPositions(&mergedpc, 256, job, direct); 
+      int errors = verifyPositions(&mergedpc, 256, job, direct, 1 /* sorted */); 
       if (errors) {
 	exit(1);
       }
