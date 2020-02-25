@@ -222,8 +222,10 @@ void positionContainerCollapse(positionContainer *merged) {
   fprintf(stderr,"*info* sorting %zd actions that have completed\n", merged->sz);
   qsort(merged->positions, merged->sz, sizeof(positionType), poscompare);
 
+#ifdef DEBUG
   size_t maxbs = merged->maxbs;
   assert(maxbs > 0);
+#endif
 
   for (size_t i = 0; i < merged->sz; i++) {
     if ((toupper(merged->positions[i].action) != 'R') && (merged->positions[i].finishTime > 0)) {
