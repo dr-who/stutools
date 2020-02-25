@@ -310,7 +310,7 @@ int getRotational(const char *suf) {
     sprintf(s, "/sys/block/%s/queue/rotational", suf);
     fp = fopen(s, "rt");
     if (!fp) {
-      perror(s);
+      //      perror(s);
       goto wvret;
     }
     
