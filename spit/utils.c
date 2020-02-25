@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <time.h>
 #include <sys/time.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
@@ -12,24 +11,17 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <syslog.h>
-#include <errno.h>
-#include <limits.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <pwd.h>
-#include <linux/hdreg.h>
 #include <assert.h>
+#include <linux/hdreg.h>
 
 #include "utils.h"
 
 extern int keepRunning;
-
-
 
 /*struct timeval gettm() {
   struct timeval now;

@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.6)
-project (stutools)
+project (stutools C)
 
 execute_process(COMMAND git rev-parse HEAD
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

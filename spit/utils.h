@@ -3,12 +3,19 @@
 
 #include <malloc.h>
 #include <string.h>
+#include <stdio.h> // FILE
 
 #include "logSpeed.h"
+
+// https://www.openwall.com/lists/musl/2020/01/20/4
+#ifndef __GLIBC__
+#define ioctl(fd, req, ...) ioctl(fd, (int)(req), ##__VA_ARGS__)
+#endif
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 #define MAX(x,y) (((x) > (y)) ? (x) : (y))
 #define ABS(x) (((x) > 0) ? (x) : (-(x)))
+
 #define TOPiB(x) ((x)/1024.0/1024/1024/1024/1024)
 #define TOPB(x) ((x)/1000.0/1000/1000/1000/1000)
 
@@ -24,7 +31,6 @@
 
 /*#define CALLOC(x, y, z) {x = calloc(y, z); if (!(x)) {fprintf(stderr,"ooom!!\n");abort();}}*/
 #define CALLOC(x, y, z) {/*fprintf(stderr,"CALLOC %s %d, size %zd\n", __FILE__, __LINE__, ((((size_t)((y) * (z)))/4096 + 1) * 4096));*/ x = memalign(4096, (((size_t)((y) * (z)))/4096 + 1) * 4096); if(x) memset(x, 0, (((size_t)((y) * (z)))/4096 + 1) * 4096);  if (!(x)) {fprintf(stderr,"*error* out of memory! ooom!! %zd\n", (((size_t)((y) * (z)))/4096 + 1) * 4096);abort();}}
-
 
 #define DIFF(x,y) ((x) > (y)) ? ((x)-(y)) : ((y) - (x))
 
