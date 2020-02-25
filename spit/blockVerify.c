@@ -145,14 +145,34 @@ static void *runThread(void *arg) {
 
   size_t gap = threadContext->endExc - threadContext->startInc;
 
-  if (threadContext->id == 1) {
+  if (threadContext->id == 0) {
     if (threadContext->sorted) {
       fprintf(stderr,"*info* sorting positions\n");
       qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), seedcompare);
     } else {
-      fprintf(stderr,"*info* positions are unsorted\n");
+      fprintf(stderr,"*info* positions are shuffled\n");
+      unsigned int seed = threadContext->id;
+      for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
+	size_t j = i;
+	while ((j = (threadContext->startInc + rand_r(&seed) % gap)) == i) {
+	  ;
+	}
+	// swap i and j
+	positionType p = threadContext->pc->positions[i];
+	threadContext->pc->positions[i] = threadContext->pc->positions[j];
+	threadContext->pc->positions[j] = p;
+      }
     }
+
+    /*int print = 0;
+    fprintf(stderr,"*info* first 10 positions in thread 0\n");
+    for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
+      print++;
+      fprintf(stderr,"*info* num %zd\n", threadContext->pc->positions[i].pos);
+      if (print >= 10) break;
+      }*/
   }
+
   
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
     if (threadContext->pc->positions[i].deviceid != lastid) {
