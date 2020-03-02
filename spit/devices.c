@@ -23,11 +23,17 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
       return &(*devs)[i];
     }
   }
+
+  // Get the realpath
+  char *base_path = realpath( fn, NULL );
+  if( strcmp( base_path, fn ) != 0 )
+    fprintf(stderr, "*info* %s -> %s\n", fn, base_path );
+
   *devs = (deviceDetails*) realloc(*devs, (1024 * sizeof(deviceDetails))); // todo, max 1024 drives XXX
   (*devs)[*numDevs].fd = 0;
   (*devs)[*numDevs].bdSize = 0;
   (*devs)[*numDevs].shouldBeSize = 0;
-  (*devs)[*numDevs].devicename = strdup(fn);
+  (*devs)[*numDevs].devicename = base_path;
   (*devs)[*numDevs].exclusive = 0;
   (*devs)[*numDevs].isBD = 0;
   (*devs)[*numDevs].ctxIndex = 0;

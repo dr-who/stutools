@@ -264,6 +264,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
   if (verbose) jobDump(j);
 
+  for(size_t i = 0; i < deviceCount; i++ ) {
+    free( deviceList[ i ].devicename );
+  }
+
   return 0;
 }
 
