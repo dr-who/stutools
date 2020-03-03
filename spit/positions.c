@@ -412,7 +412,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					unsigned short seedin,
 					const size_t mod,
 					const size_t remain,
-					const size_t fourkEveryMiB
+					const double fourkEveryMiB
 					) {
 
   positionType *positions = pc->positions;
@@ -420,7 +420,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   pc->maxbs = lengthsMax(len);
   pc->maxbdSize = maxbdSize;
   if (fourkEveryMiB) {
-    fprintf(stderr,"*info* inserting a 4KiB operation every %zd MiB\n", fourkEveryMiB);
+    fprintf(stderr,"*info* inserting a 4KiB operation every %.1lf MiB\n", fourkEveryMiB);
   }
   
   assert(pc->minbs <= pc->maxbs);
@@ -664,11 +664,11 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   return anywrites;
 }
 
-void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const size_t minbdSize, const size_t maxbdSize, unsigned short seed, const size_t fourkEveryMiB) {
+void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const size_t minbdSize, const size_t maxbdSize, unsigned short seed, const double fourkEveryMiB) {
   if (pc || readorwrite || minbdSize || maxbdSize || seed || fourkEveryMiB) {
   }
   
-  fprintf(stderr,"*info* insertFourkEveryMiB: %zd MiB, initially %zd positions\n", fourkEveryMiB, pc->sz);
+  fprintf(stderr,"*info* insertFourkEveryMiB: %.1lf MiB, initially %zd positions\n", fourkEveryMiB, pc->sz);
   
   if (pc->sz > 0) {
     size_t last = pc->positions[0].pos, count = 0;

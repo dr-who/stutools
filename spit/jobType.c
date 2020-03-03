@@ -183,7 +183,7 @@ typedef struct {
   char *commandstring;
   char *filePrefix;
   size_t o_direct;
-  size_t fourkEveryMiB;
+  double fourkEveryMiB;
   lengthsType len;
 } threadInfoType;
 
@@ -1140,11 +1140,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
-    size_t fourkEveryMiB = 0;
+    double fourkEveryMiB = 0;
     {
       char *sf = strchr(job->strings[i], 'a');
       if (sf && *(sf+1)) {
-	fourkEveryMiB = atoi(sf+1);
+	fourkEveryMiB = atof(sf+1);
       }
       threadContext[i].fourkEveryMiB = fourkEveryMiB;
     }
