@@ -691,6 +691,7 @@ void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const 
 	  last = pc->positions[i].pos;
 	  newpos[newindex++] = pc->positions[i];
 	  newpos[newindex-1].pos = (thiscount++) * 4096;
+	  newpos[newindex-1].len = 4096;
 	}
       }
 
