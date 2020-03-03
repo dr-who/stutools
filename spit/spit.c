@@ -344,7 +344,8 @@ void usage() {
   fprintf(stdout,"  spit ... -c ws0UG_ -v -j32    # Generates r/w pairs with unique seeds, as above, unique thread ranges\n");
   fprintf(stdout,"  spit ... -c ws1S250           # S option targets a speed in MB/s by adding usleep() between operations. Low speeds only\n");
   fprintf(stdout,"  spit -e \"5,echo five\"         # exec a bash -c CMD string after 5 seconds, quotes are required\n");
-  fprintf(stdout,"  spit -c wk1024za7             # every 7 MiB of operations perform a jump back to the start of device. Dump with -d to see\n");
+  fprintf(stdout,"  spit -c wk1024za7             # every 'a' MiB of operations perform a jump back to the start of device. Dump with -d to see\n");
+  fprintf(stdout,"  spit -c wk1024za3A8           # 'A' means to add 8 KiB after every position after 3 MiB\n");
   exit(0);
 }
 

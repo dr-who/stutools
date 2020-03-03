@@ -412,7 +412,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					unsigned short seedin,
 					const size_t mod,
 					const size_t remain,
-					const double fourkEveryMiB
+					const double fourkEveryMiB,
+					const size_t jumpKiB
 					) {
 
   positionType *positions = pc->positions;
@@ -660,13 +661,13 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   free(positionsCurrent);
 
   if (fourkEveryMiB > 0) {
-    insertFourkEveryMiB(pc, readorwrite, minbdSize, maxbdSize, seed, fourkEveryMiB);
+    insertFourkEveryMiB(pc, readorwrite, minbdSize, maxbdSize, seed, fourkEveryMiB, jumpKiB);
   }
 
   return anywrites;
 }
 
-void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const size_t minbdSize, const size_t maxbdSize, unsigned int seed, const double fourkEveryMiB) {
+void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const size_t minbdSize, const size_t maxbdSize, unsigned int seed, const double fourkEveryMiB, const size_t jumpKiB) {
   if (pc || readorwrite || minbdSize || maxbdSize || seed || fourkEveryMiB) {
   }
   
@@ -674,27 +675,49 @@ void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const 
   
   if (pc->sz > 0) {
     size_t last = pc->positions[0].pos, count = 0;
-    for (size_t i = 0; i < pc->sz; i++) {
-      if (pc->positions[i].pos - last >= fourkEveryMiB * 1024 * 1024) {
-	count++;
-	last = pc->positions[i].pos;
+    if (jumpKiB == 0) {
+      for (size_t i = 0; i < pc->sz; i++) {
+	if (pc->positions[i].pos - last >= fourkEveryMiB * 1024 * 1024) {
+	  count++;
+	  last = pc->positions[i].pos;
+	}
       }
     }
     fprintf(stderr,"*info* need to insert %zd random operations\n", count);
-    if (count > 0) {
+    {
       
       positionType *newpos;
       CALLOC(newpos, pc->sz + count, sizeof(positionType));
-      size_t newindex = 0; 
+      size_t newindex = 0, cumjump = 0;
       last = pc->positions[0].pos;
-      for (size_t i = 0; i < pc->sz; i++) {
-	newpos[newindex++] = pc->positions[i];
+      
+      for (size_t i = 0; i < pc->sz; i++) { // iterate through all, either copy or insert then copy
+	//	fprintf(stderr,"%zd %zd %zd %zd\n", i, pc->sz, newindex, pc->sz + count);
 	if (pc->positions[i].pos - last >= fourkEveryMiB * 1024 * 1024) {
-	  last = pc->positions[i].pos;
-	  newpos[newindex++] = pc->positions[i];
-	  newpos[newindex-1].pos = (rand_r(&seed) % count) * 4096;
-	  newpos[newindex-1].len = 4096;
+	  if (jumpKiB == 0) { //insert random
+	    // insert
+	    assert(newindex < pc->sz + count);
+	    newpos[newindex] = pc->positions[i]; // copy action and seed
+	    newpos[newindex].pos = (rand_r(&seed) % count) * 4096;
+	    newpos[newindex].len = 4096;
+	    newindex++;
+	    // copy existing
+	    if (i < pc->sz) {
+	      newpos[newindex] = pc->positions[i];
+	    }
+	    last = newpos[newindex].pos;
+	  } else { // offset pos
+	    assert(newindex < pc->sz + count);
+	    newpos[newindex] = pc->positions[i];
+	    cumjump += alignedNumber(jumpKiB * 1024, 4096);
+	    newpos[newindex].pos += cumjump;
+	    last = newpos[newindex].pos;
+	  }
+	} else {
+	  assert(newindex < pc->sz + count);
+	  newpos[newindex] = pc->positions[i];
 	}
+	newindex++;
       }
 
       positionType *tod = pc->positions;

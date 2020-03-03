@@ -184,6 +184,7 @@ typedef struct {
   char *filePrefix;
   size_t o_direct;
   double fourkEveryMiB;
+  size_t jumpK;
   lengthsType len;
 } threadInfoType;
 
@@ -201,7 +202,7 @@ static void *runThread(void *arg) {
   // create the positions and the r/w status
   //    threadContext->seqFiles = seqFiles;
   //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB);
+  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK);
   
   if (verbose >= 2) {
     positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, !threadContext->metaData);
@@ -952,6 +953,33 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
     
+    double fourkEveryMiB = 0;
+    {
+      char *sf = strchr(job->strings[i], 'a');
+      if (sf && *(sf+1)) {
+	fourkEveryMiB = atof(sf+1);
+      }
+      threadContext[i].fourkEveryMiB = fourkEveryMiB;
+    }
+	
+
+
+    {
+      size_t jumpK = 0; // jumpK of 0 means random else means add KiB
+      char *charI = strchr(job->strings[i], 'A');
+      
+      if (charI && *(charI + 1)) {
+	jumpK = atoi(charI + 1);
+	if (threadContext[i].fourkEveryMiB == 0) { // if A specified then apply it always
+	  threadContext[i].fourkEveryMiB = 0.0001;
+	}
+      }
+      threadContext[i].jumpK = jumpK;
+      if (jumpK) {
+	fprintf(stderr,"*info* jumpKiB set to %zd\n", threadContext[i].jumpK);
+      }
+    }
+    
 
 
 
@@ -1140,15 +1168,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
-    double fourkEveryMiB = 0;
-    {
-      char *sf = strchr(job->strings[i], 'a');
-      if (sf && *(sf+1)) {
-	fourkEveryMiB = atof(sf+1);
-      }
-      threadContext[i].fourkEveryMiB = fourkEveryMiB;
-    }
-	
 
     {
       char *sf = strchr(job->strings[i], 's');
