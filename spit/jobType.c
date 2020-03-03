@@ -183,6 +183,7 @@ typedef struct {
   char *commandstring;
   char *filePrefix;
   size_t o_direct;
+  size_t fourkEveryMiB;
   lengthsType len;
 } threadInfoType;
 
@@ -200,7 +201,7 @@ static void *runThread(void *arg) {
   // create the positions and the r/w status
   //    threadContext->seqFiles = seqFiles;
   //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain);
+  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB);
   
   if (verbose >= 2) {
     positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, !threadContext->metaData);
@@ -1139,6 +1140,15 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
+    size_t fourkEveryMiB = 0;
+    {
+      char *sf = strchr(job->strings[i], 'a');
+      if (sf && *(sf+1)) {
+	fourkEveryMiB = atoi(sf+1);
+      }
+      threadContext[i].fourkEveryMiB = fourkEveryMiB;
+    }
+	
 
     {
       char *sf = strchr(job->strings[i], 's');

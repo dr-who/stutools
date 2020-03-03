@@ -63,7 +63,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					const size_t bdSizeTotal,
 					unsigned short seed,
 					const size_t mod,
-					const size_t remain
+					const size_t remain,
+					const size_t fourkEveryMiB
 					);
 
 //void freePositions(positionType *p);
@@ -98,6 +99,7 @@ void positionPrintMinMax(positionType *positions, const size_t count, const size
 void positionContainerDump(positionContainer *pc, const size_t countToShow);
 void positionContainerCheckOverlap(const positionContainer *merged);
 void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed, const int andVerify);
+void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const size_t minbdSize, const size_t maxbdSize, unsigned short seed, const size_t fourkEveryMiB);
 
 #endif
 

@@ -411,13 +411,17 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					const size_t maxbdSize,
 					unsigned short seedin,
 					const size_t mod,
-					const size_t remain
+					const size_t remain,
+					const size_t fourkEveryMiB
 					) {
 
   positionType *positions = pc->positions;
   pc->minbs = lengthsMin(len);
   pc->maxbs = lengthsMax(len);
   pc->maxbdSize = maxbdSize;
+  if (fourkEveryMiB) {
+    fprintf(stderr,"*info* inserting a 4KiB operation every %zd MiB\n", fourkEveryMiB);
+  }
   
   assert(pc->minbs <= pc->maxbs);
   unsigned int seed = seedin; // set the seed, thats why it was passed
@@ -653,10 +657,54 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   free(poss); 
   free(positionsStart); 
   free(positionsEnd); 
-  free(positionsCurrent); 
+  free(positionsCurrent);
+
+  insertFourkEveryMiB(pc, readorwrite, minbdSize, maxbdSize, seed, fourkEveryMiB);
 
   return anywrites;
 }
+
+void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const size_t minbdSize, const size_t maxbdSize, unsigned short seed, const size_t fourkEveryMiB) {
+  if (pc || readorwrite || minbdSize || maxbdSize || seed || fourkEveryMiB) {
+  }
+  
+  fprintf(stderr,"*info* insertFourkEveryMiB: %zd MiB, initially %zd positions\n", fourkEveryMiB, pc->sz);
+  
+  if (pc->sz > 0) {
+    size_t last = pc->positions[0].pos, count = 0;
+    for (size_t i = 0; i < pc->sz; i++) {
+      if (pc->positions[i].pos - last >= fourkEveryMiB * 1024 * 1024) {
+	count++;
+	last = pc->positions[i].pos;
+      }
+    }
+    fprintf(stderr,"*info* need to insert %zd random operations\n", count);
+    if (count > 0) {
+      
+      positionType *newpos;
+      CALLOC(newpos, pc->sz + count, sizeof(positionType));
+      size_t newindex = 0, thiscount = 0;
+      last = pc->positions[0].pos;
+      for (size_t i = 0; i < pc->sz; i++) {
+	newpos[newindex++] = pc->positions[i];
+	if (pc->positions[i].pos - last >= fourkEveryMiB * 1024 * 1024) {
+	  last = pc->positions[i].pos;
+	  newpos[newindex++] = pc->positions[i];
+	  newpos[newindex-1].pos = (thiscount++) * 4096;
+	}
+      }
+
+      positionType *tod = pc->positions;
+      pc->positions = newpos;
+      free(tod);
+      pc->sz += count;
+
+      fprintf(stderr,"*info* new number of positions: %zd\n", pc->sz);
+
+    }
+  }
+}
+
 
 
 void positionContainerRandomize(positionContainer *pc) {
