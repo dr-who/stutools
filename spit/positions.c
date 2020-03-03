@@ -659,7 +659,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   free(positionsEnd); 
   free(positionsCurrent);
 
-  insertFourkEveryMiB(pc, readorwrite, minbdSize, maxbdSize, seed, fourkEveryMiB);
+  if (fourkEveryMiB > 0) {
+    insertFourkEveryMiB(pc, readorwrite, minbdSize, maxbdSize, seed, fourkEveryMiB);
+  }
 
   return anywrites;
 }
