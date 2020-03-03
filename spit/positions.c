@@ -666,7 +666,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   return anywrites;
 }
 
-void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const size_t minbdSize, const size_t maxbdSize, unsigned short seed, const double fourkEveryMiB) {
+void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const size_t minbdSize, const size_t maxbdSize, unsigned int seed, const double fourkEveryMiB) {
   if (pc || readorwrite || minbdSize || maxbdSize || seed || fourkEveryMiB) {
   }
   
@@ -685,14 +685,14 @@ void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const 
       
       positionType *newpos;
       CALLOC(newpos, pc->sz + count, sizeof(positionType));
-      size_t newindex = 0, thiscount = 0;
+      size_t newindex = 0; 
       last = pc->positions[0].pos;
       for (size_t i = 0; i < pc->sz; i++) {
 	newpos[newindex++] = pc->positions[i];
 	if (pc->positions[i].pos - last >= fourkEveryMiB * 1024 * 1024) {
 	  last = pc->positions[i].pos;
 	  newpos[newindex++] = pc->positions[i];
-	  newpos[newindex-1].pos = (thiscount++) * 4096;
+	  newpos[newindex-1].pos = (rand_r(&seed) % count) * 4096;
 	  newpos[newindex-1].len = 4096;
 	}
       }
