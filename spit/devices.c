@@ -27,7 +27,7 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
   // Get the realpath
   char *base_path = realpath( fn, NULL );
   if( base_path == NULL )
-    base_path = "";
+    base_path = strdup( fn );
   if( strcmp( base_path, fn ) != 0 )
     fprintf(stderr, "*info* %s -> %s\n", fn, base_path );
 
