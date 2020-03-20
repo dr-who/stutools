@@ -36,6 +36,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   size_t deviceCount = 0;
   size_t tripleX = 0;
   size_t commandstringpos = 0;
+  size_t added = 0;
   
   jobInit(j);
   jobInit(preconditions);
@@ -90,7 +91,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       break;
     case 'I':
       {}
-      size_t added = loadDeviceDetails(optarg, &deviceList, &deviceCount);
+      added = loadDeviceDetails(optarg, &deviceList, &deviceCount);
       fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
       break;
     case 'f':
@@ -200,7 +201,18 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
   // scale up using the -j 
   if (extraparalleljobs) {
+    if (added) {
+      fprintf(stderr,"*warning* it's unusual to add -j along with -I. This is probably wrong.\n");
+    }
     jobMultiply(j, extraparalleljobs, NULL, 0);
+  }
+
+  if (added) {
+    for (size_t i = 0; i < jobCount(j); i++) {
+      if (strstr(j->strings[i], "G_")) {
+	fprintf(stderr,"*warning* it's very weird to add G_ with -I. dev: %s, %s. This is probably wrong.\n", j->devices[i], j->strings[i]);
+      }
+    }
   }
 
   //  jobDump(j);
