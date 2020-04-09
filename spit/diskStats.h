@@ -61,7 +61,11 @@ void diskStatFinish(diskStatType *d);
 void getProcDiskstats(FILE *fp, const unsigned int major, const unsigned int minor, size_t *sread, size_t *swritten, size_t *stimeIO, size_t *readcompl, size_t *writecompl);
 
 size_t diskStatTBRead(diskStatType *d);
+size_t diskStatTBReadIOs(diskStatType *d);
+
 size_t diskStatTBWrite(diskStatType *d);
+size_t diskStatTBWriteIOs(diskStatType *d);
+
 void diskStatRestart(diskStatType *d);
 void diskStatLoadProc(diskStatType *d);
 

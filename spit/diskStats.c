@@ -51,9 +51,19 @@ size_t diskStatTBRead(diskStatType *d) {
   return (d->finishSecRead - d->startSecRead) * 512L;
 }
 
+size_t diskStatTBReadIOs(diskStatType *d) {
+  if (!d) return 0;
+  return (d->finishIORead - d->startIORead);
+}
+
 size_t diskStatTBWrite(diskStatType *d) {
   if (!d) return 0;
   return (d->finishSecWrite - d->startSecWrite) * 512L;
+}
+
+size_t diskStatTBWriteIOs(diskStatType *d) {
+  if (!d) return 0;
+  return (d->finishIOWrite - d->startIOWrite);
 }
 
 

@@ -534,7 +534,7 @@ static void *runThreadTimer(void *arg) {
 
       trb = 0; twb = 0;  tri = 0;  twi = 0;
       
-      double devicerb = 0, devicewb = 0, devicetimeio = 0;
+      double devicerb = 0, devicewb = 0, devicetimeio = 0, devicereadio = 0, devicewriteio = 0;
       
 	for (size_t j = 0; j < threadContext->numThreads;j++) {
 	  assert(threadContext->allPC);
@@ -556,7 +556,9 @@ static void *runThreadTimer(void *arg) {
 	if (threadContext->pos.diskStats) {
 	  diskStatFinish(threadContext->pos.diskStats);
 	  devicerb += diskStatTBRead(threadContext->pos.diskStats);
+	  devicereadio = diskStatTBReadIOs(threadContext->pos.diskStats); // io
 	  devicewb += diskStatTBWrite(threadContext->pos.diskStats);
+	  devicewriteio = diskStatTBWriteIOs(threadContext->pos.diskStats); // io
 	  devicetimeio = diskStatTBTimeSpentIO(threadContext->pos.diskStats);
 	  diskStatRestart(threadContext->pos.diskStats); // reset
 	}
@@ -595,7 +597,7 @@ static void *runThreadTimer(void *arg) {
 	    fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, gaptime);
 	  }
 	  if (threadContext->pos.diskStats) {
-	    fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s, %%util %.0lf)", TOMB(devicerb / gaptime), TOMB(devicewb / gaptime), 100.0 * devicetimeio / (gaptime*1000));
+	    fprintf(stderr," (R %.0lf MB/s, W %.0lf MB/s, %% %.0lf, IO/s %.0lf)", TOMB(devicerb / gaptime), TOMB(devicewb / gaptime), 100.0 * devicetimeio / (gaptime*1000), devicereadio + devicewriteio);
 	  }
 	  fprintf(stderr,"\n");
 
