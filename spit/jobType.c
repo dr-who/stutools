@@ -406,6 +406,10 @@ static void *runThread(void *arg) {
   if (verbose) fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
   threadContext->pos.elapsedTime = timedouble() - starttime;
 
+  pthread_mutex_lock(threadContext->gomutex);
+  (*threadContext->go)--;
+  pthread_mutex_unlock(threadContext->gomutex);
+
   //  if (verbose) {fprintf(stderr,"*info* starting fdatasync()..."); fflush(stderr);}
   //  fdatasync(fd); // make sure all the data is on disk before we axe off the ioc
   //  if (verbose) {fprintf(stderr," finished\n"); fflush(stderr);}
@@ -578,7 +582,11 @@ static void *runThreadTimer(void *arg) {
 	  }
 
 	  const double elapsed = thistime - starttime;
-	  fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, threadContext->numThreads);
+
+          pthread_mutex_lock(threadContext->gomutex);
+          fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, *threadContext->go);
+          pthread_mutex_unlock(threadContext->gomutex);
+
 	  //fprintf(stderr,"%5.0lf", TOMB(readB));
 	  commaPrint0dp(stderr, TOMB(readB));
 	  fprintf(stderr," MB/s (");
@@ -1393,6 +1401,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   
   pthread_mutex_t mutex;
   pthread_mutex_init(&mutex, NULL);
+  threadContext[num].gomutex = &mutex;
   for (int i = 0; i < num; i++) {
     threadContext[i].gomutex = &mutex;
   }
