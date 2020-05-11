@@ -18,6 +18,8 @@
 #include <pwd.h>
 #include <assert.h>
 #include <linux/hdreg.h>
+#include <numa.h>
+#include <numaif.h>
 
 #include "utils.h"
 
@@ -800,4 +802,42 @@ int runCommand(char *program, char *argv_list[]) {
     //     exit(0); 
   }
   return ret;
+}
+
+int getNumaCount() {
+    return numa_max_node() + 1;
+}
+
+int getNumHardwareThreads() {
+    return numa_num_task_cpus();
+}
+
+int cpuCountPerNuma( int numa ) {
+    assert( getNumaCount() > 0 );
+    assert( numa >= 0 && numa < getNumaCount() );
+
+    struct bitmask* bm = numa_allocate_cpumask();
+    numa_node_to_cpus( numa, bm );
+    unsigned int cpu_count = numa_bitmask_weight( bm );
+    numa_bitmask_free( bm );
+    return cpu_count;
+}
+
+void getThreadIDs( int numa, int* numa_cpu_list ) {
+    assert( getNumaCount() > 0 );
+    assert( numa >= 0 && numa < getNumaCount() );
+    assert( numa_cpu_list != NULL );
+
+    struct bitmask* bm = numa_allocate_cpumask();
+    numa_node_to_cpus( numa, bm );
+
+    size_t cur_list_idx = 0;
+    for( int tid = 0; tid < getNumHardwareThreads(); ++tid ) {
+        if( numa_bitmask_isbitset( bm, tid ) ) {
+            assert( cur_list_idx < (size_t)cpuCountPerNuma( numa ) );
+            numa_cpu_list[ cur_list_idx++ ] = tid;
+        }
+    }
+    
+    numa_bitmask_free( bm );
 }

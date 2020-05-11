@@ -12,34 +12,34 @@ set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wall -pedantic --std=c9
 add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c)
 
 add_executable(spit spit.c)
-target_link_libraries(spit spitlib m aio pthread)
+target_link_libraries(spit spitlib m aio pthread numa)
 
 add_executable(randdd randdd.c)
-target_link_libraries(randdd spitlib m aio pthread)
+target_link_libraries(randdd spitlib m aio pthread numa)
 
 add_executable(fsfiller fsfiller.c)
-target_link_libraries(fsfiller spitlib m aio pthread)
+target_link_libraries(fsfiller spitlib m aio pthread numa)
 
 add_executable(spitchecker verify.c)
-target_link_libraries(spitchecker spitlib m aio pthread)
+target_link_libraries(spitchecker spitlib m aio pthread numa)
 
 add_executable(fuzz fuzz.c)
-target_link_libraries(fuzz spitlib m aio pthread)
+target_link_libraries(fuzz spitlib m aio pthread numa)
 
 add_executable(bdinfo bdinfo.c)
-target_link_libraries(bdinfo spitlib m aio pthread)
+target_link_libraries(bdinfo spitlib m aio pthread numa)
 
 add_executable(dtest directories.c)
-target_link_libraries(dtest spitlib m aio pthread)
+target_link_libraries(dtest spitlib m aio pthread numa)
 
 add_executable(hist hist.c)
-target_link_libraries(hist spitlib m)
+target_link_libraries(hist spitlib m numa)
 
 #add_executable(testpositions testpositions.c)
 #target_link_libraries(testpositions spitlib m pthread aio)
 
 add_executable(testDiskStats testDiskStats.c)
-target_link_libraries(testDiskStats spitlib m)
+target_link_libraries(testDiskStats spitlib m numa)
 
 install(TARGETS spit fsfiller spitchecker fuzz bdinfo dtest hist DESTINATION bin)
 

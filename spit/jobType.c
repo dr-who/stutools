@@ -783,7 +783,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 		   const size_t maxSizeInBytes,
 		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
 		   unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
-		   char *mysqloptions, char *mysqloptions2, char *commandstring) {
+		   char *mysqloptions, char *mysqloptions2, char *commandstring, int doNumaBinding) {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -1408,8 +1408,44 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     
   
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
-  for (int i = 0; i < num; i++) {
-    pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]));
+
+  int numa_count = getNumaCount();
+  int do_numa = doNumaBinding && numa_count > 0;
+  fprintf( stderr, "*info* numa binding: %s\n", do_numa ? "enabled" : "disabled" );
+
+  int** numa_threads = NULL;
+  if( do_numa ) {
+      fprintf( stderr, "*info* evenly allocating %d threads between %d numa nodes\n", num, numa_count );
+      numa_threads = (int**)malloc( numa_count * sizeof(int*) );
+      for( int numa = 0; numa < numa_count; numa++ ) {
+          numa_threads[ numa ] = (int*)malloc( cpuCountPerNuma( numa ) * sizeof(int) );
+          getThreadIDs( numa, numa_threads[ numa ] );
+      }
+  }
+
+  for (int tid = 0; tid < num; tid++) {
+      pthread_create(&(pt[tid]), NULL, runThread, &(threadContext[tid]));
+      if( do_numa ) {
+          int cur_numa = tid % numa_count;
+          int hw_tid = numa_threads[ cur_numa ][ tid % cpuCountPerNuma( cur_numa ) ];
+
+          cpu_set_t cpuset;
+          CPU_ZERO( &cpuset );
+          CPU_SET( hw_tid, &cpuset );
+          int rc = pthread_setaffinity_np( pt[tid], sizeof( cpu_set_t ), &cpuset );
+          assert( rc == 0 );
+
+          if( verbose ) {
+              fprintf( stderr, "*info* pinned thread %d to numa %d (cpu %d)\n", tid, cur_numa, hw_tid );
+          }
+      }
+  }
+
+  if( do_numa ) {
+      for( int numa = 0; numa < getNumaCount(); numa++ ) {
+          free( numa_threads[ numa ] );
+      }
+      free( numa_threads );
   }
 
   // wait for all threads
@@ -1617,7 +1653,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, NULL, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL); 
+    jobRunThreads(preconditions, count, NULL, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, 1); 
     fprintf(stderr,"*info* preconditioning complete\n"); fflush(stderr);
   }
   return 0;

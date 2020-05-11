@@ -104,5 +104,10 @@ size_t getCachedBytes();
 
 int runCommand(char *program, char *argv_list[]);
 
+int getNumaCount();
+int getNumHardwareThreads();
+int cpuCountPerNuma( int numa );
+void getThreadIDs( int numa, int* numa_cpu_list );
+
 #endif
 

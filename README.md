@@ -8,7 +8,7 @@ Stu's Powerful I/O Tester (spit)
 
 ## Dependencies
 
-      apt install libaio-dev
+      apt install libaio-dev libnuma-dev
 
 ## Install
 
