@@ -26,7 +26,8 @@ char *savePositions = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst, char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix) {
+		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
+                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding) {
   int opt;
 
   char *device = NULL;
@@ -42,7 +43,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(preconditions);
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "b:c:f:F:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:f:F:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:n")) != -1) {
     size_t jcount = 1;
     switch (opt) {
     case 'b': {}
@@ -167,6 +168,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'X':
       tripleX++;
       break;
+    case 'n':
+        *doNumaBinding = 0;
+        break;
     default:
       exit(1);
       break;
@@ -303,7 +307,8 @@ void usage() {
   fprintf(stdout,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
   fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GiB region, rand r in the 2-3 GiB region\n");
   fprintf(stdout,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
-  fprintf(stdout,"  spit -f ... -j 32             # duplicate all the commands 32 times\n");
+  fprintf(stdout,"  spit -f ... -j 32             # duplicate all the commands 32 times. If available, distribute & pin threads to each numa node.\n");
+  fprintf(stdout,"  spit -f ... -j 32 -n          # duplicate all the commands 32 times, but do not pin the threads to specific numa nodes\n");
   fprintf(stdout,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
   fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread wait 4 then random read\n");
@@ -425,13 +430,14 @@ int main(int argc, char *argv[]) {
     diskStatType d;
     size_t verify = 0;
     double timeperline = 1, ignoreFirst = 0;
+    int doNumaBinding = 1;
     
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
     char *mysqloptions = NULL, *mysqloptions2 = NULL;
 
     char commandstring[1000];
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding);
     
 
     printPowerMode();
@@ -458,7 +464,7 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, intHandler);
     signal(SIGINT, intHandler);
 
-    jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring);
+    jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, doNumaBinding);
     
     jobFree(j);
     free(j);
