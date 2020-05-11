@@ -1411,11 +1411,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   int numa_count = getNumaCount();
   int do_numa = doNumaBinding && numa_count > 0;
-  fprintf( stderr, "*info* numa binding: %s\n", do_numa ? "enabled" : "disabled" );
+  fprintf( stderr, "*info* NUMA binding: %s\n", do_numa ? "enabled" : "disabled" );
 
   int** numa_threads = NULL;
   if( do_numa ) {
-      fprintf( stderr, "*info* evenly allocating %d threads between %d numa nodes\n", num, numa_count );
+      fprintf( stderr, "*info* evenly allocating %d threads between %d NUMA nodes\n", num, numa_count );
       numa_threads = (int**)malloc( numa_count * sizeof(int*) );
       for( int numa = 0; numa < numa_count; numa++ ) {
           numa_threads[ numa ] = (int*)malloc( cpuCountPerNuma( numa ) * sizeof(int) );
@@ -1436,7 +1436,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
           assert( rc == 0 );
 
           if( verbose ) {
-              fprintf( stderr, "*info* pinned thread %d to numa %d (cpu %d)\n", tid, cur_numa, hw_tid );
+              fprintf( stderr, "*info* pinned thread %d to NUMA %d (cpu %d)\n", tid, cur_numa, hw_tid );
           }
       }
   }

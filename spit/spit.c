@@ -307,8 +307,8 @@ void usage() {
   fprintf(stdout,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
   fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GiB region, rand r in the 2-3 GiB region\n");
   fprintf(stdout,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
-  fprintf(stdout,"  spit -f ... -j 32             # duplicate all the commands 32 times. If available, distribute & pin threads to each numa node.\n");
-  fprintf(stdout,"  spit -f ... -j 32 -n          # duplicate all the commands 32 times, but do not pin the threads to specific numa nodes\n");
+  fprintf(stdout,"  spit -f ... -j 32             # duplicate all the commands 32 times. If available, distribute & pin threads to each NUMA node.\n");
+  fprintf(stdout,"  spit -f ... -j 32 -n          # duplicate all the commands 32 times, but do not pin the threads to specific NUMA nodes\n");
   fprintf(stdout,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
   fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread wait 4 then random read\n");
