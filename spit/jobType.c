@@ -1433,7 +1433,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
           CPU_ZERO( &cpuset );
           CPU_SET( hw_tid, &cpuset );
           int rc = pthread_setaffinity_np( pt[tid], sizeof( cpu_set_t ), &cpuset );
+
           assert( rc == 0 );
+
+          if (rc) {
+            fprintf(stderr,"*error* failed to pin thread %d to NUMA %d (cpu %d)\n", tid, cur_numa, hw_tid);
+            exit(-1);
+          }
 
           if( verbose ) {
               fprintf( stderr, "*info* pinned thread %d to NUMA %d (cpu %d)\n", tid, cur_numa, hw_tid );
