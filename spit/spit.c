@@ -48,6 +48,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     switch (opt) {
     case 'j':
       jglobalcount = atoi(optarg);
+      fprintf(stderr,"*DEPRECATED, WILL BE REMOVED SOON* please move the j option into the -c command string\n");
       break;
     }
   }
@@ -80,7 +81,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       commandstring[commandstringpos] = 0;
 
       char *charJ = strchr(optarg, 'j');
+
       int addthej = jglobalcount;
+      if (charJ) {
+	//	fprintf(stderr,"has a j\n");
+	addthej = 0;
+      }		
+      
       int joption = 0;
       if (charJ && *(charJ+1)) {
 	joption = atoi(charJ + 1);
@@ -100,6 +107,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	} else {
 	  sprintf(temp,"%s#%zd", optarg, i);
 	}
+	//	fprintf(stderr,"Adding %s\n", temp);
 	jobAdd(j, temp);
       }
       break;
