@@ -92,6 +92,8 @@ int createFile(const char *filename, const size_t sz);
 void commaPrint0dp(FILE *fp, double d);
 int getWriteCache(const char *devicesuffix);
 int splitRange(const char *charBS, double *low, double *high);
+int splitRangeChar(const char *charBS, double *low, double *high, char *retch);
+
 char *getModel(const char *suffix);
 size_t freeRAM();
 size_t canCreateFile(const char *filename, const size_t sz);

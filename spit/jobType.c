@@ -875,6 +875,20 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
+    int jcount = 1;
+    { // specify the block device size in GiB
+      char *charG = strchr(job->strings[i], 'j');
+      if (charG && *(charG+1)) {
+	jcount = atoi(charG+1);
+      }
+    }
+    int jindex = 0;
+    { // specify the block device size in GiB
+      char *charG = strchr(job->strings[i], '#');
+      if (charG && *(charG+1)) {
+	jindex = atoi(charG+1);
+      }
+    }
     
     size_t mod = 1;
     size_t remain = 0;
@@ -883,16 +897,17 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       if (charG && *(charG+1)) {
 	double lowg = 0, highg = 0;
 
-	if ((num > 1) && (*(charG+1) == '_')) {
+	if ((jcount > 1) && (*(charG+1) == '_')) {
 	  // 2: 1/1
-	  lowg = minSizeInBytes + (i * 1.0 / (num)) * (maxSizeInBytes - minSizeInBytes);
-	  highg = minSizeInBytes + ((i+1) * 1.0 / (num)) * (maxSizeInBytes - minSizeInBytes);
-	} else if ((num > 1) && (*(charG+1) == '%')) {
+	  lowg = minSizeInBytes + (jindex * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
+	  highg = minSizeInBytes + ((jindex+1) * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
+	} else if ((jcount > 1) && (*(charG+1) == '%')) {
 	  // 2: 1/1
-	  mod = num;
+	  mod = jcount;
 	  remain = i;
 	} else {
-	  splitRange(charG + 1, &lowg, &highg);
+	  char retch = '-';
+	  splitRangeChar(charG + 1, &lowg, &highg, &retch);
 	  if (lowg > highg) {
 	    fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
 	    lowg = 0;
@@ -900,6 +915,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	  }
 	  lowg = lowg * 1024 * 1024 * 1024;
 	  highg = highg * 1024 * 1024 * 1024;
+
+	  if (retch == '_') {
+	    size_t __lowg = (size_t)lowg + (jindex * 1.0 / (jcount)) * (size_t)(highg - lowg);
+	    size_t __highg = (size_t)lowg + ((jindex+1) * 1.0 / (jcount)) * (size_t)(highg - lowg);
+	    lowg = __lowg;
+	    highg = __highg;
+	  }
+	  
 	}
 	if (lowg == highg) { // if both the same, same as just having 1
 	  lowg = minSizeInBytes;

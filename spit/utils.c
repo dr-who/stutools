@@ -675,13 +675,33 @@ int splitRange(const char *charBS, double *low, double *high) {
     *low = strtod(charBS, &endp);
     *high = *low;
     retvalue = 1;
-    if (*endp == '-') {
+    if ((*endp == '-') || (*endp == '_')) {
       *high = atof(endp+1);
       retvalue = 2;
     }
   }
   return retvalue;
 }
+
+int splitRangeChar(const char *charBS, double *low, double *high, char *retch) {
+  int retvalue = 0;
+  if (charBS) {
+    
+    char *endp = NULL;
+    *low = strtod(charBS, &endp);
+    *high = *low;
+    retvalue = 1;
+    if ((*endp == '-') || (*endp == '_')) {
+      if (retch) {
+	*retch = *endp;
+      }
+      *high = atof(endp+1);
+      retvalue = 2;
+    }
+  }
+  return retvalue;
+}
+
 
 size_t dirtyPagesBytes() {
   long ret = 0;

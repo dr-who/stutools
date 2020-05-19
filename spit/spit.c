@@ -76,7 +76,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	fprintf(stderr,"*info* adding command '%s' x %zd times\n", optarg, jcount);
       }
       for (size_t i = 0; i < jcount; i++) {
-	jobAdd(j, optarg);
+	char temp[1000];
+	sprintf(temp,"%s#%zd", optarg, i);
+	jobAdd(j, temp);
       }
       break;
     case 'd':
