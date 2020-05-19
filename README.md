@@ -26,6 +26,9 @@ Stu's Powerful I/O Tester (spit)
 
       spit -f device -c wk64j3 -c rk64j2    # three writers, two reader threads
 
+      spit -f device -c wk64s0G10-20j4 -c rk4-8G20-100j64   # two ranges [10-20]
+                                   and [20-100] GB, varying threads and I/O type.
+
 
 ## SNIA Common tests
       spit -f device -p G -c wk64    # precondition random 4k writes, test seq writes 64KiB
