@@ -31,7 +31,6 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   int opt;
 
   char *device = NULL;
-  int extraparalleljobs = 0;
 
   deviceDetails *deviceList = NULL;
   size_t deviceCount = 0;
@@ -43,8 +42,18 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(preconditions);
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "b:c:f:F:G:t:j:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:n")) != -1) {
-    size_t jcount = 1;
+  size_t jglobalcount = 1;
+  
+  while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:n")) != -1) {
+    switch (opt) {
+    case 'j':
+      jglobalcount = atoi(optarg);
+      break;
+    }
+  }
+  optind = 0;
+  
+  while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:n")) != -1) {
     switch (opt) {
     case 'b': {}
       *minSizeInBytes = alignedNumber(atol(optarg), 4096);
@@ -69,16 +78,28 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       memcpy(commandstring + commandstringpos, optarg, strlen(optarg));
       commandstringpos += strlen(optarg);
       commandstring[commandstringpos] = 0;
-      
+
       char *charJ = strchr(optarg, 'j');
+      int addthej = jglobalcount;
+      int joption = 0;
       if (charJ && *(charJ+1)) {
-	jcount = atoi(charJ + 1);
-	if (jcount < 1) jcount = 1;
+	joption = atoi(charJ + 1);
+	if (joption < 1) joption = 1;
+      }
+      size_t jcount = jglobalcount; // global is the default
+      if (joption) jcount = joption; // overwritten by an option
+
+      if (jcount > 1) {
 	fprintf(stderr,"*info* adding command '%s' x %zd times\n", optarg, jcount);
       }
+      
       for (size_t i = 0; i < jcount; i++) {
 	char temp[1000];
-	sprintf(temp,"%s#%zd", optarg, i);
+	if (addthej) {
+	  sprintf(temp,"%sj%zd#%zd", optarg, jcount, i);
+	} else {
+	  sprintf(temp,"%s#%zd", optarg, i);
+	}
 	jobAdd(j, temp);
       }
       break;
@@ -101,6 +122,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'f':
       device = optarg;
       break;
+    case 'j':
+      break;
     case 'F':
       *filePrefix = strdup(optarg);
       addDeviceDetails(optarg, &deviceList, &deviceCount);
@@ -117,10 +140,6 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
 	exit(1);
       }
-      break;
-    case 'j':
-      extraparalleljobs = atoi(optarg) - 1;
-      if (extraparalleljobs < 0) extraparalleljobs = 0;
       break;
     case 'M':
       *mysqloptions = strdup(optarg);
@@ -207,12 +226,12 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   }
 
   // scale up using the -j 
-  if (extraparalleljobs) {
+  /*  if (extraparalleljobs) {
     if (added) {
       fprintf(stderr,"*warning* it's unusual to add -j along with -I. This is probably wrong.\n");
     }
     jobMultiply(j, extraparalleljobs, NULL, 0);
-  }
+    }*/
 
   if (added) {
     for (size_t i = 0; i < jobCount(j); i++) {
@@ -361,7 +380,7 @@ void usage() {
   fprintf(stdout,"  spit -F fileprefix -j128      # creates files from .0001 to .0128\n");
   fprintf(stdout,"  spit ... -c ws0u -v           # Uses a unique seed (u) per operation (mod 65536)\n");
   fprintf(stdout,"  spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with QD=1\n");
-  fprintf(stdout,"  spit ... -c ws0UG_ -v -j32    # Generates r/w pairs with unique seeds, as above, unique thread ranges\n");
+  fprintf(stdout,"  spit ... -c ws0UG_j32 -v      # Generates r/w pairs with unique seeds, as above, unique thread ranges\n");
   fprintf(stdout,"  spit ... -c ws1S250           # S option targets a speed in MB/s by adding usleep() between operations. Low speeds only\n");
   fprintf(stdout,"  spit -e \"5,echo five\"         # exec a bash -c CMD string after 5 seconds, quotes are required\n");
   fprintf(stdout,"  spit -c wk1024za7             # every 'a' MiB of operations perform a jump back to the start of device. Dump with -d to see\n");
