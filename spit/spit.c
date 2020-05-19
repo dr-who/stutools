@@ -96,7 +96,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       size_t jcount = jglobalcount; // global is the default
       if (joption) jcount = joption; // overwritten by an option
 
-      if (jcount > 1) {
+      if (verbose && jcount > 1) {
 	fprintf(stderr,"*info* adding command '%s' x %zd times\n", optarg, jcount);
       }
       
@@ -474,7 +474,7 @@ int main(int argc, char *argv[]) {
     printPowerMode();
 
     size_t actualSize = maxSizeInBytes - minSizeInBytes;
-    fprintf(stderr,"*info* bdSize range [%.2lf-%.2lf] GB, range %.2lf GB (%zd bytes), [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
+    fprintf(stderr,"*info* block range [%.2lf-%.2lf] GB, size %.2lf GB (%zd bytes). Range [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
     if (actualSize < 4096) {
       fprintf(stderr,"*error* block device too small.\n");
       exit(1);
