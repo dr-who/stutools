@@ -323,27 +323,37 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
   size_t lastbd = 0;
 
 
-  if (numFiles > 0) lastbd = p[0].maxbdSize;
+  size_t maxbd = 0;
+  if (numFiles > 0) {
+    lastbd = (p[0].maxbdSize - p[0].minbdSize);
+    maxbd = p[0].maxbdSize;
+  }
 
   for (size_t i = 0; i < numFiles; i++) {
-    //fprintf(stderr,"*info* containerMerge input %zd, size %zd, bdSize %zd\n", i, p[i].sz, p[i].maxbdSize);
+    if (verbose) {
+      fprintf(stderr,"*info* containerMerge input %zd, size %zd, bdSize [%.3lf, %.3lf]\n", i, p[i].sz, TOGiB(p[i].minbdSize), TOGiB(p[i].maxbdSize));
+    }
     total += p[i].sz;
     if (i > 0) {
-      if (p[i].maxbdSize != lastbd) {
+      long diff = (long)p[i].maxbdSize - (long)p[i].minbdSize;
+      diff = diff - lastbd;
+    
+      if (ABS(diff) > 4096) {
 	if (verbose) {
-	  fprintf(stderr,"*warning* not all the devices have the same size (%zd != %zd)\n", p[i].maxbdSize, lastbd);
+	  fprintf(stderr,"*warning* not all the devices have the same size (%zd != %zd)\n", p[i].maxbdSize - p[i].minbdSize, lastbd);
 	}
 	//	exit(1);
       }
     }
-    lastbd = p[i].maxbdSize;
+    lastbd = p[i].maxbdSize - p[i].minbdSize;
+    if (p[i].maxbdSize > maxbd) maxbd = p[i].maxbdSize;
   }
   positionContainer merged;
   positionContainerInit(&merged, 0);
   positionContainerSetupFromPC(&merged, p);
   merged.sz = total;
   merged.positions = createPositions(total);
-  merged.maxbdSize = lastbd;
+  merged.maxbdSize = maxbd;
   
   size_t startpos = 0;
   for (size_t i = 0; i < numFiles; i++) {

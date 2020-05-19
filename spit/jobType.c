@@ -319,8 +319,9 @@ static void *runThread(void *arg) {
   while(*threadContext->go < threadContext->waitForThreads) {
     usleep(10);
   }
-  if (verbose >= 1)
+  if (verbose >= 2) {
     fprintf(stderr,"*info* starting thread %zd ('%s')\n", threadContext->id, threadContext->jobstring);
+  }
 
   
   double starttime = timedouble();
@@ -403,7 +404,9 @@ static void *runThread(void *arg) {
     if (verbose) fprintf(stderr,"*info* finished pass %zd\n", iteratorCount);
   }
 
-  if (verbose) fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
+  if (verbose >= 2) {
+    fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
+  }
   threadContext->pos.elapsedTime = timedouble() - starttime;
 
   pthread_mutex_lock(threadContext->gomutex);
@@ -1065,7 +1068,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     size_t mp = (size_t) ((threadContext[i].maxbdSize - threadContext[i].minbdSize) / bs);
     
     if (verbose) {
-      fprintf(stderr,"*info* device '%s', size %.3lf GiB, minsize of %zd, maximum %zd positions\n", job->devices[i], TOGiB(threadContext[i].maxbdSize), bs, mp);
+      fprintf(stderr,"*info* device '%s', size [%.3lf, %.3lf] %.3lf GiB, minsize of %zd, maximum %zd positions\n", job->devices[i], TOGiB(threadContext[i].minbdSize), TOGiB(threadContext[i].maxbdSize), TOGiB(threadContext[i].maxbdSize - threadContext[i].minbdSize), bs, mp);
     }
 
     // use 1/4 of free RAM
@@ -1441,7 +1444,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
             exit(-1);
           }
 
-          if( verbose ) {
+          if (verbose >= 2) {
               fprintf( stderr, "*info* pinned thread %d to NUMA %d (cpu %d)\n", tid, cur_numa, hw_tid );
           }
       }
