@@ -64,6 +64,17 @@ Stu's Powerful I/O Tester (spit)
       spit -f device -c wk2048x1    # x1 means write the LBA size once (or a Glow-high range),
                                     instead of being time limited.
 
+## NUMA binding
+
+      By default the spit threads are distributed evenly between the NUMA nodes. To disable
+      NUMA pinning use the -n option. For example with j51 (51 threads) spit may output:
+
+      *info* NUMA[0] 26 pinned on 24 hardware threads, NUMA[1] 25 pinned on 24 hardware threads,
+
+      To bind all threads to NUMA node 0 use -U 0. The output will then be:
+
+      *info* NUMA[0] 51 pinned on 24 hardware threads, NUMA[1] 0 pinned on 24 hardware threads,
+
 
 ## SNIA Common tests
       spit -f device -p G -c wk64    # precondition random 4k writes, test seq writes 64KiB
