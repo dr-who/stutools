@@ -1487,7 +1487,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   if( do_numa ) {
       fprintf( stderr, "*info* " );
       for( int numa = 0; numa < numa_count; numa++ ) {
-          fprintf( stderr, "NUMA[%d] %d pinned on %d hardware threads, ", numa, numa_thread_counter[ numa ], cpuCountPerNuma( numa ) );
+          const char* delim = numa > 0 ? ", " : "";
+          fprintf( stderr, "%sNUMA[%d] %d pinned on %d hardware threads", delim, numa, numa_thread_counter[ numa ], cpuCountPerNuma( numa ) );
           free( numa_threads[ numa ] );
       }
       fprintf( stderr, "\n" );
