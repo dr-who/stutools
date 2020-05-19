@@ -38,6 +38,8 @@ Stu's Powerful I/O Tester (spit)
 
       spit -f device -c wk64s0j32 -v # add -v to verify the writes
 
+      spit -f /dev/md0 -c ... -O rawdevices.txt  # perform actions on a meta device and show amplification
+
 ## Read and more complex tests
 
       spit -f device -c rs0         # random reads 4KiB
@@ -64,6 +66,13 @@ Stu's Powerful I/O Tester (spit)
       spit -f device -c wk2048x1    # x1 means write the LBA size once (or a Glow-high range),
                                     instead of being time limited.
 
+## Multiple input files and utilization
+
+      spit -I listofdevices.txt -c w  # will read a list of devices from the file.
+
+      spit -f device -c ... -O listofdevices.txt  # will display the r/w/IO operations on the devices.
+                                    This is used to see meta-device amplification and phy IO.
+
 ## NUMA binding
 
       By default the spit threads are distributed evenly between the NUMA nodes. To disable
@@ -74,6 +83,20 @@ Stu's Powerful I/O Tester (spit)
       To bind all threads to NUMA node 0 use -U 0. The output will then be:
 
       *info* NUMA[0] 51 pinned on 24 hardware threads, NUMA[1] 0 pinned on 24 hardware threads,
+
+## File system tests
+
+      The -f (lowercase) filename will create a SINGLE file with that name. Capital -F prefix will
+      create MULTIPLE files, one per thread.
+
+      spit -f filename -G 10 -c wk4-8s0  # create a 10 GiB file and perform random variable length
+                                   writes on the file.        
+
+      spit -F /mnt/prefix -G 10 -c wk64j128  # In 128 threads, create a file per thread, 10 GB in size,
+      	                           run for the default 10 seconds.
+
+      spit -F /mnt/prefix -G 10 -c wk64j128x1  # In 128 threads, create a file per thread, 10 GB in size,
+                                   write each file once. e.g. create 128 x 10 G files.
 
 
 ## SNIA Common tests
