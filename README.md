@@ -19,15 +19,45 @@ Stu's Powerful I/O Tester (spit)
 
       man -l spit/man.1
 
-## Simple tests
-      spit -f device -c wk64    # test seq writes 64KiB
+## Write tests
 
-      spit -f device -c rs0     # test rand reads 4KiB
+      spit -f device -c wk64        # test seq writes 64KiB, starting a random location
+
+      spit -f device -c wk64z       # test seq writes 64KiB, starting from block 0.
+
+      spit -f device -c wk64s0      # random writes 64KiB
+
+      spit -f device -c wk64s0j64   # random writes 64KiB, using 64 threads with overlapping ranges
+
+      spit -f device -c wk64s0j64G_ # random writes 64KiB, using 64 threads, non overlapping ranges
+
+      spit -f device -c wk64s0j64G10-20 # random writes 64KiB, 64t, overlapping LBA range [10-20] GB
+
+      spit -f device -c wk64s0j64G10_20 # random writes 64KiB, 64t, non-overlapping LBA range [10-20] GB
+                                     note the underscore range delimits non-overlapping ranges.
+
+      spit -f device -c wk64s0j32 -v # add -v to verify the writes
+
+## Read and more complex tests
+
+      spit -f device -c rs0         # random reads 4KiB
+
+      spit -f device -c rs0j64      # random reads 4KiB, 64 threads
+
+      spit -f device -c rs0j64G_    # random reads 4KiB, 64 threads, non-overlapping LBA range
+
+      spit -f device -c rs0jj2G_ -d 10 # dump the first 10 positions in each thread
 
       spit -f device -c wk64j3 -c rk64j2    # three writers, two reader threads
 
+      spit -f device -c wk4-128j3 -P positions.txt  # variable block range, three overlapping
+                                    range, positions written out
+
+      spitchecker positions.txt     # verify the previous writes, say after a reboot.
+                                    Same code as the -v verification option.
+
       spit -f device -c wk64s0G10-20j4 -c rk4-8G20-100j64   # two ranges [10-20]
-                                   and [20-100] GB, varying threads and I/O type.
+                                    and [20-100] GB, varying threads and I/O type.
 
 
 ## SNIA Common tests
