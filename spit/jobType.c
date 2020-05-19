@@ -1441,23 +1441,29 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   int numa_count = getNumaCount();
   int do_numa = doNumaBinding && numa_count > 0;
-  fprintf( stderr, "*info* NUMA binding: %s\n", do_numa ? "enabled" : "disabled" );
 
   int** numa_threads = NULL;
+  int* numa_thread_counter = NULL;
   if( do_numa ) {
-      fprintf( stderr, "*info* evenly allocating %d threads between %d NUMA nodes\n", num, numa_count );
       numa_threads = (int**)malloc( numa_count * sizeof(int*) );
+
       for( int numa = 0; numa < numa_count; numa++ ) {
           numa_threads[ numa ] = (int*)malloc( cpuCountPerNuma( numa ) * sizeof(int) );
           getThreadIDs( numa, numa_threads[ numa ] );
       }
+
+      numa_thread_counter = (int*)malloc( numa_count * sizeof( int ) );
+      memset( numa_thread_counter, 0, numa_count * sizeof( int ) );
+  } else {
+      fprintf( stderr, "*info* NUMA binding disabled\n" );
   }
 
   for (int tid = 0; tid < num; tid++) {
       pthread_create(&(pt[tid]), NULL, runThread, &(threadContext[tid]));
       if( do_numa ) {
           int cur_numa = tid % numa_count;
-          int hw_tid = numa_threads[ cur_numa ][ tid % cpuCountPerNuma( cur_numa ) ];
+          ++numa_thread_counter[ cur_numa ];
+          int hw_tid = numa_threads[ cur_numa ][ ( tid / numa_count ) % cpuCountPerNuma( cur_numa ) ];
 
           cpu_set_t cpuset;
           CPU_ZERO( &cpuset );
@@ -1478,10 +1484,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   }
 
   if( do_numa ) {
+      fprintf( stderr, "*info* " );
       for( int numa = 0; numa < getNumaCount(); numa++ ) {
+          fprintf( stderr, "NUMA[%d] %d pinned on %d hardware threads, ", numa, numa_thread_counter[ numa ], cpuCountPerNuma( numa ) );
           free( numa_threads[ numa ] );
       }
+      fprintf( stderr, "\n" );
       free( numa_threads );
+      free( numa_thread_counter );
   }
 
   // wait for all threads
