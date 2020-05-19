@@ -880,6 +880,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       char *charG = strchr(job->strings[i], 'j');
       if (charG && *(charG+1)) {
 	jcount = atoi(charG+1);
+	if (jcount < 1) jcount=1;
       }
     }
     int jindex = 0;
@@ -887,6 +888,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       char *charG = strchr(job->strings[i], '#');
       if (charG && *(charG+1)) {
 	jindex = atoi(charG+1);
+	if (jindex < 0) jindex=0;
       }
     }
     

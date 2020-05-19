@@ -73,6 +73,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       char *charJ = strchr(optarg, 'j');
       if (charJ && *(charJ+1)) {
 	jcount = atoi(charJ + 1);
+	if (jcount < 1) jcount = 1;
 	fprintf(stderr,"*info* adding command '%s' x %zd times\n", optarg, jcount);
       }
       for (size_t i = 0; i < jcount; i++) {
