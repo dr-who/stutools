@@ -362,7 +362,9 @@ static void *runThread(void *arg) {
   }
   
   if (threadContext->id == 0) {
-    fprintf(stderr,"*info* byteLimit %zd (%.03lf GiB), iteratorInc %zd, iteratorMax %zd\n", byteLimit, TOGiB(byteLimit), iteratorInc, iteratorMax);
+    if (verbose) {
+      fprintf(stderr,"*info* byteLimit %zd (%.03lf GiB), iteratorInc %zd, iteratorMax %zd\n", byteLimit, TOGiB(byteLimit), iteratorInc, iteratorMax);
+    }
   }
 
   size_t totalB = 0, ioerrors = 0;
