@@ -59,6 +59,11 @@ Stu's Powerful I/O Tester (spit)
       spit -f device -c wk64s0G10-20j4 -c rk4-8G20-100j64   # two ranges [10-20]
                                     and [20-100] GB, varying threads and I/O type.
 
+      spit -f device -c wk4P1000000 # write to only 1,000,000 positions for cache testing
+
+      spit -f device -c wk2048x1    # x1 means write the LBA size once (or a Glow-high range),
+                                    instead of being time limited.
+
 
 ## SNIA Common tests
       spit -f device -p G -c wk64    # precondition random 4k writes, test seq writes 64KiB
