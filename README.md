@@ -76,7 +76,7 @@ Stu's Powerful I/O Tester (spit)
 ## NUMA binding
 
       By default the spit threads are distributed evenly between the NUMA nodes. To disable
-      NUMA pinning use the -n option. For example with j51 (51 threads) spit may output:
+      NUMA pinning use the -u option. For example with j51 (51 threads) spit may output:
 
       *info* NUMA[0] 26 pinned on 24 hardware threads, NUMA[1] 25 pinned on 24 hardware threads,
 
