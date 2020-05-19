@@ -1436,11 +1436,16 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].gomutex = &mutex;
   }
     
-  
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
 
   int numa_count = getNumaCount();
-  int do_numa = doNumaBinding && numa_count > 0;
+  // -1 default, -2 disable, >= 0 bind to specific numa
+  int do_numa = doNumaBinding >= -1 && numa_count > 0;
+  int default_binding = doNumaBinding == -1;
+  if( !default_binding && doNumaBinding >= numa_count ) {
+      fprintf( stderr, "Given NUMA[%d] is out of range. Max valid NUMA is %d\n", doNumaBinding, numa_count - 1 );
+      exit( 1 );
+  }
 
   int** numa_threads = NULL;
   int* numa_thread_counter = NULL;
@@ -1461,22 +1466,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   for (int tid = 0; tid < num; tid++) {
       pthread_create(&(pt[tid]), NULL, runThread, &(threadContext[tid]));
       if( do_numa ) {
-          int cur_numa = tid % numa_count;
+          assert( doNumaBinding < numa_count || "Numa node out of range" );
+          int cur_numa = default_binding ? tid % numa_count : doNumaBinding;
+          
           ++numa_thread_counter[ cur_numa ];
           int hw_tid = numa_threads[ cur_numa ][ ( tid / numa_count ) % cpuCountPerNuma( cur_numa ) ];
 
-          cpu_set_t cpuset;
-          CPU_ZERO( &cpuset );
-          CPU_SET( hw_tid, &cpuset );
-          int rc = pthread_setaffinity_np( pt[tid], sizeof( cpu_set_t ), &cpuset );
-
-          assert( rc == 0 );
-
+          int rc = pinThread( &pt[tid], hw_tid );
           if (rc) {
-            fprintf(stderr,"*error* failed to pin thread %d to NUMA %d (cpu %d)\n", tid, cur_numa, hw_tid);
-            exit(-1);
+              fprintf(stderr,"*error* failed to pin thread %d to NUMA %d (cpu %d)\n", tid, cur_numa, hw_tid);
+              exit(-1);
           }
-
+          
           if (verbose >= 2) {
               fprintf( stderr, "*info* pinned thread %d to NUMA %d (cpu %d)\n", tid, cur_numa, hw_tid );
           }
@@ -1485,7 +1486,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   if( do_numa ) {
       fprintf( stderr, "*info* " );
-      for( int numa = 0; numa < getNumaCount(); numa++ ) {
+      for( int numa = 0; numa < numa_count; numa++ ) {
           fprintf( stderr, "NUMA[%d] %d pinned on %d hardware threads, ", numa, numa_thread_counter[ numa ], cpuCountPerNuma( numa ) );
           free( numa_threads[ numa ] );
       }

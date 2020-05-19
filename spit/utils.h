@@ -4,6 +4,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <stdio.h> // FILE
+#include <pthread.h>
 
 #include "logSpeed.h"
 
@@ -110,6 +111,7 @@ int getNumaCount();
 int getNumHardwareThreads();
 int cpuCountPerNuma( int numa );
 void getThreadIDs( int numa, int* numa_cpu_list );
+int pinThread( pthread_t* thread, int hw_tid ); 
 
 #endif
 

@@ -39,7 +39,7 @@ target_link_libraries(hist spitlib m numa)
 #target_link_libraries(testpositions spitlib m pthread aio)
 
 add_executable(testDiskStats testDiskStats.c)
-target_link_libraries(testDiskStats spitlib m numa)
+target_link_libraries(testDiskStats spitlib m numa pthread)
 
 install(TARGETS spit fsfiller spitchecker fuzz bdinfo dtest hist DESTINATION bin)
 

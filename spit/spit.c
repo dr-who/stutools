@@ -44,7 +44,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   optind = 0;
   size_t jglobalcount = 1;
   
-  while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:n")) != -1) {
+  while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:")) != -1) {
     switch (opt) {
     case 'j':
       jglobalcount = atoi(optarg);
@@ -54,7 +54,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   }
   optind = 0;
   
-  while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:n")) != -1) {
+  while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:")) != -1) {
     switch (opt) {
     case 'b': {}
       *minSizeInBytes = alignedNumber(atol(optarg), 4096);
@@ -198,8 +198,23 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'X':
       tripleX++;
       break;
-    case 'n':
-        *doNumaBinding = 0;
+    case 'U':
+        if( *doNumaBinding == -2 ) {
+            fprintf( stderr, "Cannot bind to NUMA if NUMA binding is disabled\n" );
+            exit(1);
+        }        
+        *doNumaBinding = atoi(optarg);
+        if( *doNumaBinding < 0 ) {
+            fprintf( stderr, "NUMA node invalid: NUMA nodes must be >= 0 \n" );
+            exit( 1 );
+        }
+        break;
+    case 'u':
+        if( *doNumaBinding >= 0 ) {
+            fprintf( stderr, "Cannot bind to NUMA if NUMA binding is disabled\n" );
+	    exit(1);
+        }
+        *doNumaBinding = -2;
         break;
     default:
       exit(1);
@@ -338,7 +353,8 @@ void usage() {
   fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GiB region, rand r in the 2-3 GiB region\n");
   fprintf(stdout,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
   fprintf(stdout,"  spit -f ... -j 32             # duplicate all the commands 32 times. If available, distribute & pin threads to each NUMA node.\n");
-  fprintf(stdout,"  spit -f ... -j 32 -n          # duplicate all the commands 32 times, but do not pin the threads to specific NUMA nodes\n");
+  fprintf(stdout,"  spit -f ... -j 32 -u          # duplicate all the commands 32 times, but do not pin the threads to specific NUMA nodes\n");
+  fprintf(stdout,"  spit -f ... -j 32 -U 0        # duplicate all the commands 32 times, pin all threads to  NUMA node 0\n");
   fprintf(stdout,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
   fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread wait 4 then random read\n");
@@ -461,7 +477,7 @@ int main(int argc, char *argv[]) {
     diskStatType d;
     size_t verify = 0;
     double timeperline = 1, ignoreFirst = 0;
-    int doNumaBinding = 1;
+    int doNumaBinding = -1; // -1 default, -2 disable, >= 0 bind to specific numa
     
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;

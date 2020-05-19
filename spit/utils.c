@@ -861,3 +861,11 @@ void getThreadIDs( int numa, int* numa_cpu_list ) {
     
     numa_bitmask_free( bm );
 }
+
+int pinThread( pthread_t* thread, int hw_tid ) {
+    cpu_set_t cpuset;
+    CPU_ZERO( &cpuset );
+    CPU_SET( hw_tid, &cpuset );
+    int rc = pthread_setaffinity_np( *thread, sizeof( cpu_set_t ), &cpuset );
+    return rc;
+}
