@@ -438,13 +438,6 @@ int main(int argc, char *argv[]) {
     if (fuzz) fuzzdevice = argv[2];
   }
 
-  
-
-  // don't run if swap is on
-  if (swapTotal() > 0) {
-    fprintf(stderr,"*warning* spit needs swap to be off for consistent numbers. `sudo swapoff -a`\n");
-  }
-
   // set OOM adjust to 1,000 to make this program be killed first
   FILE *fp = fopen("/proc/self/oom_score_adj", "wt");
   fprintf(fp,"1000\n");
@@ -454,6 +447,10 @@ int main(int argc, char *argv[]) {
   double starttime = timedouble();
 
   fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], VERSION);
+
+  if (swapTotal() > 0) {
+    fprintf(stderr,"*warning* spit needs swap to be off for consistent numbers. `sudo swapoff -a`\n");
+  }
 
   char **argv2 = NULL;
   int argc2;
@@ -487,6 +484,10 @@ int main(int argc, char *argv[]) {
     handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding);
     
 
+    if (j->count < 1) {
+      fprintf(stderr,"*error* missing -c command options\n");
+      break;
+    }
     printPowerMode();
 
     size_t actualSize = maxSizeInBytes - minSizeInBytes;
