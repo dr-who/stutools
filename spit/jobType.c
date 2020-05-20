@@ -1115,13 +1115,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     //        fprintf(stderr,"*info* runX %zd ttr %zd\n", threadContext[i].multipleTimes, threadContext[i].runTime);
     if ((long)threadContext[i].runTime > 0) { // only limit based on time if the time is positive
 
-      int ESTIMATEIOPS=getIOPSestimate(job->devices[i], bs);
+      
+      int ESTIMATEIOPS=getIOPSestimate(job->devices[i], bs, (i == 0) && verbose);
       
       countintime = threadContext[i].runTime * ESTIMATEIOPS;
       if ((verbose || (countintime < mp)) && (i == 0)) {
 	fprintf(stderr,"*info* in %zd seconds, at %d a second, would have at most ", threadContext[i].runTime, ESTIMATEIOPS);
 	commaPrint0dp(stderr, countintime);
-	fprintf(stderr," positions (run %zd times)\n", threadContext[i].runXtimesTI);
+	fprintf(stderr," positions\n");
       }
     } else {
       if (i==0) fprintf(stderr,"*info* skipping time based limits\n");

@@ -333,43 +333,43 @@ size_t smallestBDSize(deviceDetails *devList, size_t devCount) {
 }
 
 
-size_t getIOPSestimate(const char *fn, const size_t blocksize) {
-
-  
+size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose) {
   
   int fd = open(fn, O_RDONLY);
+  // default speed is 20GB/s
+  size_t iop =  20L*1024*1024*1024 / blocksize; // 20GB/s / blocksize
   if (fd > 0) {
     unsigned int major, minor;
     majorAndMinor(fd, &major, &minor);
     
     if (major == 252) {
       // nsulate
-      size_t iop =  20L*1024*1024*1024 / blocksize; // 20GB/s / blocksize
+      iop =  50L*1024*1024*1024 / blocksize; // if Nsulate then 50GB/s / blocksize
       if (iop < 10) iop = 10;
-      return iop;
     } if (major == 1) {
       //      fprintf(stderr,"*info* RAM\n");
-      size_t iop = 20L*1024L*1024*1024L / blocksize; // 20GB/s / blocksize;
+      iop = 40L*1024L*1024*1024L / blocksize; // if RAM them 40GB/s / blocksize;
       if (iop < 10) iop = 10;
-      return iop;
     } else {
       char *suf = getSuffix(fn);
       int rr = getRotational(suf);
       if (suf) {free(suf);}
       if (rr) {
 	//	fprintf(stderr,"rot\n");
-	size_t iop = 500L*1024*1024 / blocksize;  // 500MB/s rotational
-	if (iop < 300) iop = 300; // but at least 300 IOPS
-	return iop;
+	iop = 500L*1024*1024 / blocksize;  // 500MB/s rotational
+	if (iop < 500) iop = 500; // but at least 500 IOPS
       }
 
       // not rot
-      size_t iop = 3L*1024L*1024*1024 / 2L / blocksize; // 12Gb/sec for one device
+      iop = 3L*1024L*1024*1024 / 2L / blocksize; // 12Gb/sec for one device
       if (iop < 10) iop = 10;
-      return iop;
     }
   } else {
     perror(fn);
-    return 1;
+    iop = 1;
   }
+  if (verbose) {
+    fprintf(stderr,"*info* I/O estimate '%s' is %zd IOPS x %zd = %.1lf GiB/s (%.1lf Gib/s)\n", fn, iop, blocksize, TOGiB(iop * blocksize), TOGiB(iop * blocksize * 8));
+  }
+  return iop;
 }
