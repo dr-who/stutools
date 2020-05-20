@@ -48,7 +48,7 @@ Stu's Powerful I/O Tester (spit)
 
       spit -f device -c rs0j64G_    # random reads 4KiB, 64 threads, non-overlapping LBA range
 
-      spit -f device -c rs0jj2G_ -d 10 # dump the first 10 positions in each thread
+      spit -f device -c rs0j2G_ -d 10 # dump the first 10 positions in each thread
 
       spit -f device -c wk64j3 -c rk64j2    # three writers, two reader threads
 
