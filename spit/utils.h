@@ -111,7 +111,7 @@ int getNumaCount();
 int getNumHardwareThreads();
 int cpuCountPerNuma( int numa );
 void getThreadIDs( int numa, int* numa_cpu_list );
-int pinThread( pthread_t* thread, int hw_tid ); 
+int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid ); 
 
 #endif
 

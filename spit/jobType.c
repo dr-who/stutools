@@ -1471,16 +1471,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
           int cur_numa = default_binding ? tid % numa_count : doNumaBinding;
           
           ++numa_thread_counter[ cur_numa ];
-          int hw_tid = numa_threads[ cur_numa ][ ( tid / numa_count ) % cpuCountPerNuma( cur_numa ) ];
-
-          int rc = pinThread( &pt[tid], hw_tid );
+          int rc = pinThread( &pt[tid], numa_threads[ cur_numa ], cpuCountPerNuma( cur_numa ) );
           if (rc) {
-              fprintf(stderr,"*error* failed to pin thread %d to NUMA %d (cpu %d)\n", tid, cur_numa, hw_tid);
+              fprintf(stderr,"*error* failed to pin thread %d to NUMA %d\n", tid, cur_numa);
               exit(-1);
           }
           
           if (verbose >= 2) {
-              fprintf( stderr, "*info* pinned thread %d to NUMA %d (cpu %d)\n", tid, cur_numa, hw_tid );
+              fprintf( stderr, "*info* pinned thread %d to NUMA %d\n", tid, cur_numa);
           }
       }
   }
