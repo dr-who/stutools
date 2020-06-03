@@ -83,7 +83,7 @@ char *getScheduler(const char *path);
 size_t alignedNumber(size_t num, size_t alignment);
 size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits, const size_t randomValue);
 
-  
+
 
 void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log);
 
@@ -111,7 +111,7 @@ int getNumaCount();
 int getNumHardwareThreads();
 int cpuCountPerNuma( int numa );
 void getThreadIDs( int numa, int* numa_cpu_list );
-int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid ); 
+int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid );
 
 #endif
 

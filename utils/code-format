@@ -1,4 +1,4 @@
 #!/bin/bash
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-astyle --style=linux --indent=spaces=2 $(find ${DIR}/../spit/*.c)
+astyle --style=linux --indent=spaces=2 $(find ${DIR}/../spit/*.c) $(find ${DIR}/../spit/*.h)

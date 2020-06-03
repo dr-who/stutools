@@ -21,7 +21,7 @@ typedef struct {
   size_t startSecTimeio;
   size_t startIORead;
   size_t startIOWrite;
-  
+
   size_t finishSecRead;
   size_t finishSecWrite;
   size_t finishSecTimeio;
@@ -31,7 +31,7 @@ typedef struct {
   size_t deviceCount;
   size_t deviceCountAlloc;
   devSnapshotType *deviceStats;
-  
+
   size_t allocDevices;
   int *majorArray;
   int *minorArray;
