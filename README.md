@@ -166,3 +166,8 @@ Stu's Powerful I/O Tester (spit)
       spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with QD=1
       spit ... -c ws0UG_ -v -j32    # Generates r/w pairs with unique seeds, as above, unique thread ranges
       spit ... -c ws1S250           # S option targets a speed in MB/s by adding usleep() between operations. 
+
+## Code Formatting
+
+      apt install astyle
+      ./utils/code-format
