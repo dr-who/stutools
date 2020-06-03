@@ -555,7 +555,7 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *max_io_bytes, size_
       }
     }
 
-    
+
     // first physical
     sprintf(s, "/sys/block/%s/queue/logical_block_size", suffix);
     fp = fopen(s, "rt");

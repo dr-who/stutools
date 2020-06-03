@@ -193,7 +193,7 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, siz
       char *sched = getScheduler(suffix);
 
       size_t max_io_bytes = 256 * 1024;
-      
+
       getPhyLogSizes(suffix, &phy, &max_io_bytes, &log);
       //      if (verbose >= 2) {
       //	fprintf(stderr,"  *info* physical_block_size %zd, logical_block_size %zd\n", phy, log);

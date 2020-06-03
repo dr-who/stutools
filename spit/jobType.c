@@ -271,7 +271,7 @@ static void *runThread(void *arg)
     for (int i = 0; i < (int)threadContext->pos.sz; i++) {
       if (threadContext->highBlockSize > max_io_bytes) {
         fprintf(stderr,"*warning* device '%s' will split I/O size %zd [max_sectors_kb %zd bytes]\n", threadContext->jobdevice, threadContext->highBlockSize, max_io_bytes);
-	break;
+        break;
       }
     }
   }
