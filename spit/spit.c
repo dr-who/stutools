@@ -18,16 +18,17 @@
 #include "spitfuzz.h"
 
 #define DEFAULTTIME 10
-  
+
 int verbose = 0;
 int keepRunning = 1;
 char *benchmarkName = NULL;
 char *savePositions = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
-		size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
-		unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
-                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding) {
+                size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
+                unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
+                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding)
+{
   int opt;
 
   char *device = NULL;
@@ -37,13 +38,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   size_t tripleX = 0;
   size_t commandstringpos = 0;
   size_t added = 0;
-  
+
   jobInit(j);
   jobInit(preconditions);
 
   optind = 0;
   size_t jglobalcount = 1;
-  
+
   while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:")) != -1) {
     switch (opt) {
     case 'j':
@@ -53,80 +54,83 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     }
   }
   optind = 0;
-  
+
   while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:")) != -1) {
     switch (opt) {
-    case 'b': {}
-      *minSizeInBytes = alignedNumber(atol(optarg), 4096);
-      *maxSizeInBytes = alignedNumber(atol(optarg), 4096);
-      if (*minSizeInBytes == *maxSizeInBytes) { 
-	*minSizeInBytes = 0;
-      }
-      if (*minSizeInBytes > *maxSizeInBytes) {
-	fprintf(stderr,"*error* low range needs to be lower [%zd, %zd]\n", *minSizeInBytes, *maxSizeInBytes);
-	exit(1);
-      }
-      break;
+    case 'b':
+    {}
+    *minSizeInBytes = alignedNumber(atol(optarg), 4096);
+    *maxSizeInBytes = alignedNumber(atol(optarg), 4096);
+    if (*minSizeInBytes == *maxSizeInBytes) {
+      *minSizeInBytes = 0;
+    }
+    if (*minSizeInBytes > *maxSizeInBytes) {
+      fprintf(stderr,"*error* low range needs to be lower [%zd, %zd]\n", *minSizeInBytes, *maxSizeInBytes);
+      exit(1);
+    }
+    break;
 
     case 'B':
       benchmarkName = strdup(optarg);
       break;
-    case 'c': {}
-      if (commandstringpos > 0) {
-	commandstring[commandstringpos++] = ' ';
-      }
+    case 'c':
+    {}
+    if (commandstringpos > 0) {
+      commandstring[commandstringpos++] = ' ';
+    }
       //      strncpy(commandstring + commandstringpos, optarg, strlen(optarg));
-      memcpy(commandstring + commandstringpos, optarg, strlen(optarg));
-      commandstringpos += strlen(optarg);
-      commandstring[commandstringpos] = 0;
+    memcpy(commandstring + commandstringpos, optarg, strlen(optarg));
+    commandstringpos += strlen(optarg);
+    commandstring[commandstringpos] = 0;
 
-      char *charJ = strchr(optarg, 'j');
+    char *charJ = strchr(optarg, 'j');
 
-      int addthej = jglobalcount;
-      if (charJ) {
-	//	fprintf(stderr,"has a j\n");
-	addthej = 0;
-      }		
-      
-      int joption = 0;
-      if (charJ && *(charJ+1)) {
-	joption = atoi(charJ + 1);
-	if (joption < 1) joption = 1;
-      }
-      size_t jcount = jglobalcount; // global is the default
-      if (joption) jcount = joption; // overwritten by an option
+    int addthej = jglobalcount;
+    if (charJ) {
+      //	fprintf(stderr,"has a j\n");
+      addthej = 0;
+    }
 
-      if (verbose && jcount > 1) {
-	fprintf(stderr,"*info* adding command '%s' x %zd times\n", optarg, jcount);
+    int joption = 0;
+    if (charJ && *(charJ+1)) {
+      joption = atoi(charJ + 1);
+      if (joption < 1) joption = 1;
+    }
+    size_t jcount = jglobalcount; // global is the default
+    if (joption) jcount = joption; // overwritten by an option
+
+    if (verbose && jcount > 1) {
+      fprintf(stderr,"*info* adding command '%s' x %zd times\n", optarg, jcount);
+    }
+
+    for (size_t i = 0; i < jcount; i++) {
+      char temp[1000];
+      if (addthej) {
+        sprintf(temp,"%sj%zd#%zd", optarg, jcount, i);
+      } else {
+        sprintf(temp,"%s#%zd", optarg, i);
       }
-      
-      for (size_t i = 0; i < jcount; i++) {
-	char temp[1000];
-	if (addthej) {
-	  sprintf(temp,"%sj%zd#%zd", optarg, jcount, i);
-	} else {
-	  sprintf(temp,"%s#%zd", optarg, i);
-	}
-	//	fprintf(stderr,"Adding %s\n", temp);
-	jobAdd(j, temp);
-      }
-      break;
+      //	fprintf(stderr,"Adding %s\n", temp);
+      jobAdd(j, temp);
+    }
+    break;
     case 'd':
       *dumpPositions = atoi(optarg);
       break;
-    case 'e': {}
-      double delay = atof(optarg);
-      jobAddExec(j, optarg, delay);
-      break;
+    case 'e':
+    {}
+    double delay = atof(optarg);
+    jobAddExec(j, optarg, delay);
+    break;
     case 'i':
       *ignorefirst = atof(optarg) * 1024.0 * 1024.0 * 1024.0;
       fprintf(stderr,"*info* ignoring first %.1lf GiB of the test\n", TOGiB(*ignorefirst));
       break;
     case 'I':
-      {}
-      added = loadDeviceDetails(optarg, &deviceList, &deviceCount);
-      fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
-      break;
+    {}
+    added = loadDeviceDetails(optarg, &deviceList, &deviceCount);
+    fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
+    break;
     case 'f':
       device = optarg;
       break;
@@ -136,19 +140,20 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       *filePrefix = strdup(optarg);
       addDeviceDetails(optarg, &deviceList, &deviceCount);
       break;
-    case 'G': {}
-      double lowg = 0, highg = 0;
-      splitRange(optarg, &lowg, &highg);
-      *minSizeInBytes = alignedNumber(1024L * lowg * 1024 * 1024, 4096);
-      *maxSizeInBytes = alignedNumber(1024L * highg * 1024 * 1024, 4096);
-      if (*minSizeInBytes == *maxSizeInBytes) { 
-	*minSizeInBytes = 0;
-      }
-      if (*minSizeInBytes > *maxSizeInBytes) {
-	fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
-	exit(1);
-      }
-      break;
+    case 'G':
+    {}
+    double lowg = 0, highg = 0;
+    splitRange(optarg, &lowg, &highg);
+    *minSizeInBytes = alignedNumber(1024L * lowg * 1024 * 1024, 4096);
+    *maxSizeInBytes = alignedNumber(1024L * highg * 1024 * 1024, 4096);
+    if (*minSizeInBytes == *maxSizeInBytes) {
+      *minSizeInBytes = 0;
+    }
+    if (*minSizeInBytes > *maxSizeInBytes) {
+      fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
+      exit(1);
+    }
+    break;
     case 'M':
       *mysqloptions = strdup(optarg);
       break;
@@ -169,9 +174,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'q':
       *defaultqd = atoi(optarg);
       if (*defaultqd < 1) {
-	*defaultqd = 1;
+        *defaultqd = 1;
       } else if (*defaultqd > 65535) {
-	*defaultqd = 65535;
+        *defaultqd = 65535;
       }
       break;
     case 'R':
@@ -184,9 +189,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 't':
       *timetorun = atoi(optarg);
       if (*timetorun == 0) {
-	fprintf(stderr,"*error* zero isn't a valid time. -t -1 for a long time\n");
-	exit(1);
-	//	*timetorun = (size_t)-1; // run for ever
+        fprintf(stderr,"*error* zero isn't a valid time. -t -1 for a long time\n");
+        exit(1);
+        //	*timetorun = (size_t)-1; // run for ever
       }
       break;
     case 'v':
@@ -199,23 +204,23 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       tripleX++;
       break;
     case 'U':
-        if( *doNumaBinding == -2 ) {
-            fprintf( stderr, "Cannot bind to NUMA if NUMA binding is disabled\n" );
-            exit(1);
-        }        
-        *doNumaBinding = atoi(optarg);
-        if( *doNumaBinding < 0 ) {
-            fprintf( stderr, "NUMA node invalid: NUMA nodes must be >= 0 \n" );
-            exit( 1 );
-        }
-        break;
+      if( *doNumaBinding == -2 ) {
+        fprintf( stderr, "Cannot bind to NUMA if NUMA binding is disabled\n" );
+        exit(1);
+      }
+      *doNumaBinding = atoi(optarg);
+      if( *doNumaBinding < 0 ) {
+        fprintf( stderr, "NUMA node invalid: NUMA nodes must be >= 0 \n" );
+        exit( 1 );
+      }
+      break;
     case 'u':
-        if( *doNumaBinding >= 0 ) {
-            fprintf( stderr, "Cannot bind to NUMA if NUMA binding is disabled\n" );
-	    exit(1);
-        }
-        *doNumaBinding = -2;
-        break;
+      if( *doNumaBinding >= 0 ) {
+        fprintf( stderr, "Cannot bind to NUMA if NUMA binding is disabled\n" );
+        exit(1);
+      }
+      *doNumaBinding = -2;
+      break;
     default:
       exit(1);
       break;
@@ -248,7 +253,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     jobMultiply(preconditions, 1, deviceList, deviceCount);
   }
 
-  // scale up using the -j 
+  // scale up using the -j
   /*  if (extraparalleljobs) {
     if (added) {
       fprintf(stderr,"*warning* it's unusual to add -j along with -I. This is probably wrong.\n");
@@ -259,7 +264,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   if (added) {
     for (size_t i = 0; i < jobCount(j); i++) {
       if (strstr(j->strings[i], "G_")) {
-	fprintf(stderr,"*warning* it's very weird to add G_ with -I. dev: %s, %s. This is probably wrong.\n", j->devices[i], j->strings[i]);
+        fprintf(stderr,"*warning* it's very weird to add G_ with -I. dev: %s, %s. This is probably wrong.\n", j->devices[i], j->strings[i]);
       }
     }
   }
@@ -269,58 +274,58 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   if (*filePrefix) { // update prefix to be prefix.1..n
     jobFileSequence(j);
   }
-    
+
   // check the file, create or resize
-    size_t fsize = 0;
-    for (size_t i = 0; i < jobCount(j); i++) {
-      device = j->devices[i];
-      size_t isAFile = 0;
-      
-      if (!fileExists(device)) { // nothing is there, create a file
-	//fprintf(stderr,"*warning* will need to create '%s'\n", device);
-	isAFile = 1;
-      } else {
-	// it's there
-	if (isBlockDevice(device) == 2) {
-	  // it's a file
-	  isAFile = 1;
-	}
-	
-	if (tripleX < 3) {
-	  if (!canOpenExclusively(device)) {
-	    fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
-	    exit(-1);
-	  }
-	}
+  size_t fsize = 0;
+  for (size_t i = 0; i < jobCount(j); i++) {
+    device = j->devices[i];
+    size_t isAFile = 0;
+
+    if (!fileExists(device)) { // nothing is there, create a file
+      //fprintf(stderr,"*warning* will need to create '%s'\n", device);
+      isAFile = 1;
+    } else {
+      // it's there
+      if (isBlockDevice(device) == 2) {
+        // it's a file
+        isAFile = 1;
       }
 
-      if (*filePrefix == NULL) {
-	fsize = fileSizeFromName(device);
-	if (isAFile) {
-	  if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
-	    *maxSizeInBytes = totalRAM() * 2;
-	  }
-	  if (fsize != *maxSizeInBytes) { // check the on disk size
-	    int ret = createFile(device, *maxSizeInBytes);
-	    if (ret) {
-	      exit(1);
-	    }
-	  }
-	} else {
-	  // if you specify -G too big or it's 0 then set it to the existing file size
-	  if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
-	    if (*maxSizeInBytes > fsize) {
-	      fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
-	    }
-	    *maxSizeInBytes = fsize;
-	    if (*minSizeInBytes > fsize) {
-	      fprintf(stderr,"*warning* limiting size to %d, ignoring -G\n", 0);
-	      *minSizeInBytes = 0;
-	    }
-	  }
-	} // i
-      } // fileprefix == 0
+      if (tripleX < 3) {
+        if (!canOpenExclusively(device)) {
+          fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
+          exit(-1);
+        }
+      }
     }
+
+    if (*filePrefix == NULL) {
+      fsize = fileSizeFromName(device);
+      if (isAFile) {
+        if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
+          *maxSizeInBytes = totalRAM() * 2;
+        }
+        if (fsize != *maxSizeInBytes) { // check the on disk size
+          int ret = createFile(device, *maxSizeInBytes);
+          if (ret) {
+            exit(1);
+          }
+        }
+      } else {
+        // if you specify -G too big or it's 0 then set it to the existing file size
+        if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
+          if (*maxSizeInBytes > fsize) {
+            fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
+          }
+          *maxSizeInBytes = fsize;
+          if (*minSizeInBytes > fsize) {
+            fprintf(stderr,"*warning* limiting size to %d, ignoring -G\n", 0);
+            *minSizeInBytes = 0;
+          }
+        }
+      } // i
+    } // fileprefix == 0
+  }
 
 
   if (verbose) jobDump(j);
@@ -332,7 +337,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   return 0;
 }
 
-void usage() {
+void usage()
+{
   fprintf(stdout,"\nUsage:\n  spit [-f device] [-c string] [-c string] ... [-c string]\n");
   fprintf(stdout,"\nExamples:\n");
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
@@ -395,7 +401,7 @@ void usage() {
   fprintf(stdout,"  spit -c wZ1                   # Z is the starting offset. -z is -Z0\n");
   fprintf(stdout,"  spit -p G100                  # precondition job, writing random overwrite LBA size\n");
   fprintf(stdout,"  spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks\n");
-  fprintf(stdout,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n"); 
+  fprintf(stdout,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n");
   fprintf(stdout,"  spit -s 0.1 -i 5              # and ignore first 5 GiB of performance\n");
   fprintf(stdout,"  spit -v                       # verify the writes after a run\n");
   fprintf(stdout,"  spit -P filename              # dump positions to filename\n");
@@ -414,7 +420,8 @@ void usage() {
 }
 
 
-void intHandler(int d) {
+void intHandler(int d)
+{
   if (d) {}
   fprintf(stderr,"got signal\n");
   keepRunning = 0;
@@ -424,7 +431,8 @@ void intHandler(int d) {
  * main
  *
  */
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 #ifndef VERSION
 #define VERSION __TIMESTAMP__
 #endif
@@ -468,21 +476,21 @@ int main(int argc, char *argv[]) {
       argc2 = argc;
       argv2 = argv;
     }
-        
+
     size_t defaultQD = 16;
     unsigned short seed = 0;
     diskStatType d;
     size_t verify = 0;
     double timeperline = 1, ignoreFirst = 0;
     int doNumaBinding = -1; // -1 default, -2 disable, >= 0 bind to specific numa
-    
+
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
     char *mysqloptions = NULL, *mysqloptions2 = NULL;
 
     char commandstring[1000];
     handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding);
-    
+
 
     if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
@@ -496,14 +504,14 @@ int main(int argc, char *argv[]) {
       fprintf(stderr,"*error* block device too small.\n");
       exit(1);
     }
-    
+
     if (preconditions) {
       keepRunning = 1;
       signal(SIGTERM, intHandler);
       signal(SIGINT, intHandler);
       jobRunPreconditions(preconditions, preconditions->count, minSizeInBytes, maxSizeInBytes);
     }
-    
+
     keepRunning = 1;
     diskStatType *p = &d;
     if (!d.allocDevices) {
@@ -513,18 +521,18 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
 
     jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, doNumaBinding);
-    
+
     jobFree(j);
     free(j);
-    
+
     jobFree(preconditions);
     free(preconditions);
     diskStatFree(&d);
 
     if (fuzz) {
       for (int i = 0; i < argc2; i++) {
-	free(argv2[i]);
-	argv2[i] = NULL;
+        free(argv2[i]);
+        argv2[i] = NULL;
       }
       free(argv2);
       argv2 = NULL;
@@ -537,15 +545,15 @@ int main(int argc, char *argv[]) {
       free(mysqloptions2);
       mysqloptions2 = NULL;
     }
-    
+
     //    if (timedouble() - starttime > 3600) break;
-  }
-  while (fuzz);
+  } while (fuzz);
 
   if (benchmarkName) free(benchmarkName);
-  
-  fprintf(stderr,"*info* exiting.\n"); fflush(stderr);
+
+  fprintf(stderr,"*info* exiting.\n");
+  fflush(stderr);
   exit(0);
 }
-  
-  
+
+

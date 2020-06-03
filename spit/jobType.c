@@ -26,7 +26,8 @@
 extern volatile int keepRunning;
 extern int verbose;
 
-void jobInit(jobType *job) {
+void jobInit(jobType *job)
+{
   job->count = 0;
   job->strings = NULL;
   job->devices = NULL;
@@ -34,7 +35,8 @@ void jobInit(jobType *job) {
   job->delay = NULL;
 }
 
-void jobAddBoth(jobType *job, char *device, char *jobstring) {
+void jobAddBoth(jobType *job, char *device, char *jobstring)
+{
   job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
   job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
   job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int));
@@ -52,7 +54,8 @@ void jobAddBoth(jobType *job, char *device, char *jobstring) {
   job->count++;
 }
 
-void jobAdd3(jobType *job, const char *jobstring, const double delay) {
+void jobAdd3(jobType *job, const char *jobstring, const double delay)
+{
   job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
   job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
   job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int));
@@ -65,33 +68,37 @@ void jobAdd3(jobType *job, const char *jobstring, const double delay) {
 }
 
 
-void jobAdd(jobType *job, const char *jobstring) {
+void jobAdd(jobType *job, const char *jobstring)
+{
   jobAdd3(job, jobstring, 0);
 }
 
 
-void jobAddExec(jobType *job, const char *jobstring, const double delay) {
+void jobAddExec(jobType *job, const char *jobstring, const double delay)
+{
   jobAdd3(job, jobstring, delay);
 }
 
-void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount) {
+void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount)
+{
   const int origcount = job->count;
   for (int i = 0; i < origcount; i++) {
     for (size_t n = 0; n < extrajobs; n++) {
       if (deviceCount == 0) {
-	jobAddBoth(job, job->devices[i], job->strings[i]);
+        jobAddBoth(job, job->devices[i], job->strings[i]);
       } else {
-	for (size_t d = 1; d < deviceCount; d++) {
-	  jobAddBoth(job, deviceList[d].devicename, job->strings[i]);
-	}
+        for (size_t d = 1; d < deviceCount; d++) {
+          jobAddBoth(job, deviceList[d].devicename, job->strings[i]);
+        }
       }
     }
   }
 }
-  
 
 
-void jobFileSequence(jobType *job) {
+
+void jobFileSequence(jobType *job)
+{
   const int origcount = job->count;
   for (int i = 0; i < origcount; i++) {
     char s[1000];
@@ -101,30 +108,42 @@ void jobFileSequence(jobType *job) {
     job->deviceid[i] = i;
   }
 }
-  
 
-void jobDump(jobType *job) {
+
+void jobDump(jobType *job)
+{
   fprintf(stderr,"*info* jobDump: %zd\n", jobCount(job));
   for (int i = 0; i < job->count; i++) {
     fprintf(stderr,"*  info* job %d, device %s, deviceid %d, delay %.g, string %s\n", i, job->devices[i], job->deviceid[i], job->delay[i], job->strings[i]);
   }
 }
 
-void jobDumpAll(jobType *job) {
+void jobDumpAll(jobType *job)
+{
   for (int i = 0; i < job->count; i++) {
     fprintf(stderr,"*info* job %d, string %s\n", i, job->strings[i]);
   }
 }
 
-void jobFree(jobType *job) {
+void jobFree(jobType *job)
+{
   for (int i = 0; i < job->count; i++) {
     //    fprintf(stderr,"freeinging %d of %d\n", i, job->count);
-    if (job->strings[i]) {free(job->strings[i]); job->strings[i] = NULL;}
-    if (job->devices[i]) {free(job->devices[i]); job->devices[i] = NULL;}
+    if (job->strings[i]) {
+      free(job->strings[i]);
+      job->strings[i] = NULL;
+    }
+    if (job->devices[i]) {
+      free(job->devices[i]);
+      job->devices[i] = NULL;
+    }
   }
-  free(job->strings); job->strings = NULL;
-  free(job->devices); job->devices = NULL;
-  free(job->delay); job->delay = NULL;
+  free(job->strings);
+  job->strings = NULL;
+  free(job->devices);
+  job->devices = NULL;
+  free(job->delay);
+  job->delay = NULL;
   jobInit(job);
 }
 
@@ -155,7 +174,7 @@ typedef struct {
   size_t startingBlock;
   size_t mod;
   size_t remain;
-  int rerandomize; 
+  int rerandomize;
   int addBlockSize;
   size_t runXtimesTI;
   size_t multipleTimes;
@@ -189,7 +208,8 @@ typedef struct {
 } threadInfoType;
 
 
-static void *runThread(void *arg) {
+static void *runThread(void *arg)
+{
   threadInfoType *threadContext = (threadInfoType*)arg;
   if (verbose >= 2) {
     fprintf(stderr,"*info* thread[%zd] job is '%s', size = %zd\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
@@ -203,31 +223,31 @@ static void *runThread(void *arg) {
   //    threadContext->seqFiles = seqFiles;
   //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
   positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK);
-  
+
   if (verbose >= 2) {
     positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, !threadContext->metaData);
   }
-  
+
   if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos);
-  
+
   if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun);
-  
+
   //      positionPrintMinMax(threadContext->pos.positions, threadContext->pos.sz, threadContext->minbdSize, threadContext->maxbdSize, threadContext->minSizeInBytes, threadContext->maxSizeInBytes);
-  threadContext->anywrites = (threadContext->rw < 1); 
+  threadContext->anywrites = (threadContext->rw < 1);
   calcLBA(&threadContext->pos); // calc LBA coverage
-  
-  
+
+
   if (threadContext->uniqueSeeds) {
     positionContainerUniqueSeeds(&threadContext->pos, threadContext->seed, threadContext->verifyUnique);
   } else if (threadContext->metaData) {
     positionContainerAddMetadataChecks(&threadContext->pos);
   }
-  
+
   if (threadContext->dumpPos /* && !iRandom*/) {
     positionContainerDump(&threadContext->pos, threadContext->dumpPos);
   }
-  
-  
+
+
   CALLOC(threadContext->randomBuffer, threadContext->highBlockSize, 1);
   memset(threadContext->randomBuffer, 0, threadContext->highBlockSize);
   generateRandomBufferCyclic(threadContext->randomBuffer, threadContext->highBlockSize, threadContext->seed, threadContext->highBlockSize);
@@ -250,13 +270,13 @@ static void *runThread(void *arg) {
 
     for (int i = 0; i < (int)threadContext->pos.sz; i++) {
       if (threadContext->pos.positions[i].len < logbs) {
-	fprintf(stderr,"*error* device '%s' doesn't support size %d [logical bs %zd]\n", threadContext->jobdevice, threadContext->pos.positions[i].len, logbs);
-	exit(1);
+        fprintf(stderr,"*error* device '%s' doesn't support size %d [logical bs %zd]\n", threadContext->jobdevice, threadContext->pos.positions[i].len, logbs);
+        exit(1);
       }
     }
   }
-  
-  
+
+
   if (threadContext->anywrites) {
     if (threadContext->filePrefix) {
       // always create new file on prefix and writes, delete existing
@@ -270,11 +290,12 @@ static void *runThread(void *arg) {
     fd = open(threadContext->jobdevice, O_RDONLY | direct);
     if (verbose >= 2) fprintf(stderr,"*info* open with O_RDONLY\n");
   }
-    
+
   if (fd < 0) {
     fprintf(stderr,"*error* problem opening '%s' with direct=%d, writes=%zd\n", threadContext->jobdevice, direct, threadContext->anywrites);
     fprintf(stderr,"*info* some filesystems don't support direct, maybe add D to the command string.\n");
-    perror(threadContext->jobdevice); exit(-1);
+    perror(threadContext->jobdevice);
+    exit(-1);
   }
 
   char *suffix = getSuffix(threadContext->jobdevice);
@@ -315,7 +336,7 @@ static void *runThread(void *arg) {
   pthread_mutex_lock(threadContext->gomutex);
   (*threadContext->go)++;
   pthread_mutex_unlock(threadContext->gomutex);
-  
+
   while(*threadContext->go < threadContext->waitForThreads) {
     usleep(10);
   }
@@ -323,7 +344,7 @@ static void *runThread(void *arg) {
     fprintf(stderr,"*info* starting thread %zd ('%s')\n", threadContext->id, threadContext->jobstring);
   }
 
-  
+
   double starttime = timedouble();
   if (threadContext->prewait) {
     fprintf(stderr,"*info* sleeping for %zd\n", threadContext->prewait);
@@ -339,7 +360,7 @@ static void *runThread(void *arg) {
       return NULL;
     }
   }
-  
+
 
 
   size_t iteratorCount = 0, iteratorInc = 1, iteratorMax = 0;
@@ -360,7 +381,7 @@ static void *runThread(void *arg) {
       iteratorMax = -1;
     }
   }
-  
+
   if (threadContext->id == 0) {
     if (verbose) {
       fprintf(stderr,"*info* byteLimit %zd (%.03lf GiB), iteratorInc %zd, iteratorMax %zd\n", byteLimit, TOGiB(byteLimit), iteratorInc, iteratorMax);
@@ -369,38 +390,40 @@ static void *runThread(void *arg) {
 
   size_t totalB = 0, ioerrors = 0;
   while (keepRunning) {
-    // 
+    //
     totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors, threadContext->QDbarrier);
 
     // check exit constraints
     if (byteLimit) {
       if (totalB >= byteLimit) {
-	break;
+        break;
       }
     } else {
       if (timedouble() > starttime + threadContext->finishTime)
-	break;
+        break;
     }
 
     iteratorCount += iteratorInc;
 
     if (verbose >= 1) {
-      if (!keepRunning && threadContext->id == 0) {fprintf(stderr,"*info* interrupted...\n");}
+      if (!keepRunning && threadContext->id == 0) {
+        fprintf(stderr,"*info* interrupted...\n");
+      }
     }
     if (iteratorMax > 0) {
       if (iteratorCount >= iteratorMax) {
-	break;
+        break;
       }
     }
     if (keepRunning && (threadContext->rerandomize || threadContext->addBlockSize)) {
       if (threadContext->rerandomize) {
-	if (verbose >= 2) fprintf(stderr,"*info* shuffling positions, 1st = %zd\n", threadContext->pos.positions[0].pos);
-	positionContainerRandomize(&threadContext->pos);
+        if (verbose >= 2) fprintf(stderr,"*info* shuffling positions, 1st = %zd\n", threadContext->pos.positions[0].pos);
+        positionContainerRandomize(&threadContext->pos);
       }
       if (threadContext->addBlockSize) {
-	if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions, 1st = %zd\n", threadContext->highBlockSize, threadContext->pos.positions[0].pos);
-	positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->minbdSize, threadContext->maxbdSize);
-      }	
+        if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions, 1st = %zd\n", threadContext->highBlockSize, threadContext->pos.positions[0].pos);
+        positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->minbdSize, threadContext->maxbdSize);
+      }
     }
     sleep(threadContext->waitfor);
     if (verbose) fprintf(stderr,"*info* finished pass %zd\n", iteratorCount);
@@ -430,7 +453,8 @@ static void *runThread(void *arg) {
 }
 
 
-char *getValue(const char *os, const char *prefix) {
+char *getValue(const char *os, const char *prefix)
+{
   assert(prefix);
   if (!os) {
     //    abort();
@@ -438,7 +462,7 @@ char *getValue(const char *os, const char *prefix) {
   }
 
   const int plen = strlen(prefix);
-  
+
   char *i=strstr(os, prefix);
   if (!i) {
     return strdup("NULL");
@@ -454,7 +478,8 @@ char *getValue(const char *os, const char *prefix) {
   }
 }
 
-static void *runThreadTimer(void *arg) {
+static void *runThreadTimer(void *arg)
+{
   threadInfoType *threadContext = (threadInfoType*)arg;
   double TIMEPERLINE = threadContext->timeperline;
   //  if (TIMEPERLINE < 0.000001) TIMEPERLINE=0.000001;
@@ -467,7 +492,7 @@ static void *runThreadTimer(void *arg) {
     //    fprintf(stderr,"."); fflush(stderr);
   }
   //  fprintf(stderr,"%zd %zd\n", *threadContext->go, threadContext->waitForThreads);
-  
+
   if (verbose >= 2) {
     fprintf(stderr,"*info* timer thread, threads %zd, %.2lf per line, ignore first %.2lf seconds, %s, finish time %zd\n", threadContext->numThreads, TIMEPERLINE, ignorefirst, threadContext->benchmarkName, threadContext->finishTime);
   }
@@ -485,13 +510,13 @@ static void *runThreadTimer(void *arg) {
     if (threadContext->mysqloptions) {
       fpmysql = fopen(s, "wt");
       if (!fpmysql) {
-	perror(s);
+        perror(s);
       } else {
-	fprintf(fpmysql, "# start of file\n");
-	fflush(fpmysql);
+        fprintf(fpmysql, "# start of file\n");
+        fflush(fpmysql);
       }
     }
-    
+
     if (fp) {
       fprintf(stderr,"*info* benchmark file '%s' (MySQL '%s')\n", threadContext->benchmarkName, s);
     } else {
@@ -507,12 +532,12 @@ static void *runThreadTimer(void *arg) {
   double lastprintedtime = lasttime;
 
   // grab the start, setup the "last" values
-  for (size_t j = 0; j < threadContext->numThreads;j++) {
+  for (size_t j = 0; j < threadContext->numThreads; j++) {
     assert(threadContext->allPC);
     if (threadContext->allPC && threadContext->allPC[j]) {
       last_tri += threadContext->allPC[j]->readIOs;
       last_trb += threadContext->allPC[j]->readBytes;
-      
+
       last_twi += threadContext->allPC[j]->writtenIOs;
       last_twb += threadContext->allPC[j]->writtenBytes;
     }
@@ -528,127 +553,130 @@ static void *runThreadTimer(void *arg) {
       printlinecount++;
       // find a nice time for next values
       if (threadContext->timeperline <= 0) { // if -s set to <= 0
-	if (thistime - starttime < 0.1) { // 10ms for 1 s
-	  TIMEPERLINE = 0.001;
-	} else  if (thistime - starttime < 10) { // 10ms for 1 s
-	  TIMEPERLINE = 0.01;
-	} else if (thistime - starttime < 30) { // 10ms for up to 5 sec
-	  TIMEPERLINE = 0.1;
-	} else {
-	  TIMEPERLINE = 1;
-	}
+        if (thistime - starttime < 0.1) { // 10ms for 1 s
+          TIMEPERLINE = 0.001;
+        } else  if (thistime - starttime < 10) { // 10ms for 1 s
+          TIMEPERLINE = 0.01;
+        } else if (thistime - starttime < 30) { // 10ms for up to 5 sec
+          TIMEPERLINE = 0.1;
+        } else {
+          TIMEPERLINE = 1;
+        }
       }
       nicetime = thistime - starttime + TIMEPERLINE;
       nicetime = (size_t)(floor(nicetime / TIMEPERLINE)) * TIMEPERLINE;
 
-      trb = 0; twb = 0;  tri = 0;  twi = 0;
-      
+      trb = 0;
+      twb = 0;
+      tri = 0;
+      twi = 0;
+
       double devicerb = 0, devicewb = 0, devicetimeio = 0, devicereadio = 0, devicewriteio = 0;
 
       const size_t max_q_disk = 10;
-      long cur_qd[ max_q_disk ];      
+      long cur_qd[ max_q_disk ];
       const size_t max_q_disk_str_len = 1024;
       char max_q_disk_str[ max_q_disk_str_len ];
 
-        for (size_t j = 0; j < threadContext->numThreads;j++) {
-	  assert(threadContext->allPC);
-	  if (threadContext->allPC && threadContext->allPC[j]) {
-	    tri += threadContext->allPC[j]->readIOs;
-	    trb += threadContext->allPC[j]->readBytes;
-	    
-	    twi += threadContext->allPC[j]->writtenIOs;
-	    twb += threadContext->allPC[j]->writtenBytes;
-	  }
-	}
-	
-	total_printed_r_bytes = trb;
-	total_printed_r_iops =  tri;
+      for (size_t j = 0; j < threadContext->numThreads; j++) {
+        assert(threadContext->allPC);
+        if (threadContext->allPC && threadContext->allPC[j]) {
+          tri += threadContext->allPC[j]->readIOs;
+          trb += threadContext->allPC[j]->readBytes;
 
-	total_printed_w_bytes = twb;
-	total_printed_w_iops =  twi;
-	
-	if (threadContext->pos.diskStats) {
-	  diskStatFinish(threadContext->pos.diskStats);
-	  devicerb += diskStatTBRead(threadContext->pos.diskStats);
-	  devicereadio = diskStatTBReadIOs(threadContext->pos.diskStats); // io
-	  devicewb += diskStatTBWrite(threadContext->pos.diskStats);
-	  devicewriteio = diskStatTBWriteIOs(threadContext->pos.diskStats); // io
-	  devicetimeio = diskStatTBTimeSpentIO(threadContext->pos.diskStats);
-          diskStatMaxQD(threadContext->pos.diskStats, cur_qd, max_q_disk);
-          diskStatMaxQDStr(cur_qd, max_q_disk, max_q_disk_str, max_q_disk_str_len);
-	  diskStatRestart(threadContext->pos.diskStats); // reset
-	}
-	
-	if (twb + trb >= ignorefirst) {
+          twi += threadContext->allPC[j]->writtenIOs;
+          twb += threadContext->allPC[j]->writtenBytes;
+        }
+      }
 
-	  const double gaptime = thistime - lastprintedtime;
+      total_printed_r_bytes = trb;
+      total_printed_r_iops =  tri;
 
-	  double readB     = (trb - last_trb) / gaptime;
-	  double readIOPS  = (tri - last_tri) / gaptime;
-	
-	  double writeB    = (twb - last_twb) / gaptime;
-	  double writeIOPS = (twi - last_twi) / gaptime;
-	
-	  if ((tri - last_tri) || (twi - last_twi) || (devicerb - last_devicerb) || (devicewb - last_devicewb)) { // if any IOs in the period to display note the time
-	    lastprintedtime = thistime;
-	  }
+      total_printed_w_bytes = twb;
+      total_printed_w_iops =  twi;
 
-	  const double elapsed = thistime - starttime;
+      if (threadContext->pos.diskStats) {
+        diskStatFinish(threadContext->pos.diskStats);
+        devicerb += diskStatTBRead(threadContext->pos.diskStats);
+        devicereadio = diskStatTBReadIOs(threadContext->pos.diskStats); // io
+        devicewb += diskStatTBWrite(threadContext->pos.diskStats);
+        devicewriteio = diskStatTBWriteIOs(threadContext->pos.diskStats); // io
+        devicetimeio = diskStatTBTimeSpentIO(threadContext->pos.diskStats);
+        diskStatMaxQD(threadContext->pos.diskStats, cur_qd, max_q_disk);
+        diskStatMaxQDStr(cur_qd, max_q_disk, max_q_disk_str, max_q_disk_str_len);
+        diskStatRestart(threadContext->pos.diskStats); // reset
+      }
 
-          pthread_mutex_lock(threadContext->gomutex);
-          fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, *threadContext->go);
-          pthread_mutex_unlock(threadContext->gomutex);
+      if (twb + trb >= ignorefirst) {
 
-	  //fprintf(stderr,"%5.0lf", TOMB(readB));
-	  commaPrint0dp(stderr, TOMB(readB));
-	  fprintf(stderr," MB/s (");
-	  //fprintf(stderr,"%7.0lf", readIOPS);
-	  commaPrint0dp(stderr, readIOPS);
-	  fprintf(stderr," IOPS / %.0lf), write ", (readIOPS == 0) ? 0 : (readB * 1.0) / (readIOPS));
+        const double gaptime = thistime - lastprintedtime;
 
-	  //fprintf(stderr,"%5.0lf", TOMB(writeB));
-	  commaPrint0dp(stderr, TOMB(writeB));
-	  fprintf(stderr," MB/s (");
-	  //fprintf(stderr,"%7.0lf", writeIOPS);
-	  commaPrint0dp(stderr, writeIOPS);
-	
-	  fprintf(stderr," IOPS / %.0lf), total %.2lf GiB", (writeIOPS == 0) ? 0 : (writeB * 1.0) / (writeIOPS), TOGiB(trb + twb));
-	  if (verbose >= 1) {
-	    fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, gaptime);
-	  }
-	  if (threadContext->pos.diskStats) {
-	    fprintf(stderr,
-                    " (R %.0lf MB/s, W %.0lf MB/s, %% %.0lf, IO/s %.0lf, Max%zu Q %s)",
-                    TOMB(devicerb / gaptime), TOMB(devicewb / gaptime), 100.0 * devicetimeio / (gaptime*1000),
-                    (devicereadio + devicewriteio)/gaptime, max_q_disk, max_q_disk_str);
-	  }
-	  fprintf(stderr,"\n");
+        double readB     = (trb - last_trb) / gaptime;
+        double readIOPS  = (tri - last_tri) / gaptime;
 
-	  if (fp) {
-	    fprintf(fp, "%.4lf\t%lf\t%.1lf\t%.0lf\t%.1lf\t%.0lf\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
-	    fflush(fp);
-	  }
-	
-	  if (threadContext->exitIOPS && twb > threadContext->maxbdSize) {
-	    if (writeIOPS + readIOPS < threadContext->exitIOPS) {
-	      exitcount++;
-	      if (exitcount >= 10) {
-		fprintf(stderr,"*warning* early exit after %.1lf GB due to %zd periods of low IOPS (%.0lf < % zd)\n", TOGB(twb), exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
-		keepRunning = 0;
-		break;
-	      }
-	    }
-	  }
+        double writeB    = (twb - last_twb) / gaptime;
+        double writeIOPS = (twi - last_twi) / gaptime;
 
-	  last_trb = trb;
-	  last_tri = tri;
-	  last_twb = twb;
-	  last_twi = twi;
-	} // ignore first
-	lasttime = thistime;
+        if ((tri - last_tri) || (twi - last_twi) || (devicerb - last_devicerb) || (devicewb - last_devicewb)) { // if any IOs in the period to display note the time
+          lastprintedtime = thistime;
+        }
+
+        const double elapsed = thistime - starttime;
+
+        pthread_mutex_lock(threadContext->gomutex);
+        fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, *threadContext->go);
+        pthread_mutex_unlock(threadContext->gomutex);
+
+        //fprintf(stderr,"%5.0lf", TOMB(readB));
+        commaPrint0dp(stderr, TOMB(readB));
+        fprintf(stderr," MB/s (");
+        //fprintf(stderr,"%7.0lf", readIOPS);
+        commaPrint0dp(stderr, readIOPS);
+        fprintf(stderr," IOPS / %.0lf), write ", (readIOPS == 0) ? 0 : (readB * 1.0) / (readIOPS));
+
+        //fprintf(stderr,"%5.0lf", TOMB(writeB));
+        commaPrint0dp(stderr, TOMB(writeB));
+        fprintf(stderr," MB/s (");
+        //fprintf(stderr,"%7.0lf", writeIOPS);
+        commaPrint0dp(stderr, writeIOPS);
+
+        fprintf(stderr," IOPS / %.0lf), total %.2lf GiB", (writeIOPS == 0) ? 0 : (writeB * 1.0) / (writeIOPS), TOGiB(trb + twb));
+        if (verbose >= 1) {
+          fprintf(stderr," == %zd %zd %zd %zd s=%.5lf == ", trb, tri, twb, twi, gaptime);
+        }
+        if (threadContext->pos.diskStats) {
+          fprintf(stderr,
+                  " (R %.0lf MB/s, W %.0lf MB/s, %% %.0lf, IO/s %.0lf, Max%zu Q %s)",
+                  TOMB(devicerb / gaptime), TOMB(devicewb / gaptime), 100.0 * devicetimeio / (gaptime*1000),
+                  (devicereadio + devicewriteio)/gaptime, max_q_disk, max_q_disk_str);
+        }
+        fprintf(stderr,"\n");
+
+        if (fp) {
+          fprintf(fp, "%.4lf\t%lf\t%.1lf\t%.0lf\t%.1lf\t%.0lf\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
+          fflush(fp);
+        }
+
+        if (threadContext->exitIOPS && twb > threadContext->maxbdSize) {
+          if (writeIOPS + readIOPS < threadContext->exitIOPS) {
+            exitcount++;
+            if (exitcount >= 10) {
+              fprintf(stderr,"*warning* early exit after %.1lf GB due to %zd periods of low IOPS (%.0lf < % zd)\n", TOGB(twb), exitcount, writeIOPS + readIOPS, threadContext->exitIOPS);
+              keepRunning = 0;
+              break;
+            }
+          }
+        }
+
+        last_trb = trb;
+        last_tri = tri;
+        last_twb = twb;
+        last_twi = twi;
+      } // ignore first
+      lasttime = thistime;
     }
     usleep(1000000*TIMEPERLINE/10); // display to 0.001 s
-    
+
     if (thistime > starttime + threadContext->finishTime + 30) {
       fprintf(stderr,"*error* still running! watchdog termination (%.0lf > %.0lf + %zd\n", thistime, starttime, threadContext->finishTime + 30);
       keepRunning = 0;
@@ -656,7 +684,8 @@ static void *runThreadTimer(void *arg) {
     }
   }
   if (fp) {
-    fclose(fp); fp = NULL;
+    fclose(fp);
+    fp = NULL;
   }
 
   //  fprintf(stderr,"start %.0lf last printed %.0lf this %.0lf actual %.0lf\n",0.0f, lastprintedtime - starttime, thistime - lastprintedtime, thistime - starttime);
@@ -691,7 +720,7 @@ static void *runThreadTimer(void *arg) {
     {
       char *value = getValue(threadContext->mysqloptions2, "machine=");
       if (strcmp(value,"NULL")==0) {
-	value = hostname();
+        value = hostname();
       }
       fprintf(fpmysql, ", machine='%s'", value);
       if (value) free(value);
@@ -784,8 +813,8 @@ static void *runThreadTimer(void *arg) {
   }
 
 
-  
-  
+
+
   if (verbose) fprintf(stderr,"*info* finished thread timer\n");
   keepRunning = 0;
   return NULL;
@@ -794,11 +823,12 @@ static void *runThreadTimer(void *arg) {
 
 
 void jobRunThreads(jobType *job, const int num, char *filePrefix,
-		   const size_t minSizeInBytes,
-		   const size_t maxSizeInBytes,
-		   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
-		   unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
-		   char *mysqloptions, char *mysqloptions2, char *commandstring, int doNumaBinding) {
+                   const size_t minSizeInBytes,
+                   const size_t maxSizeInBytes,
+                   const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
+                   unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
+                   char *mysqloptions, char *mysqloptions2, char *commandstring, int doNumaBinding)
+{
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
 
@@ -820,13 +850,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   const double thetime = timedouble();
   const size_t UUID = thetime * 10;
 
-    
+
 
   size_t *go = malloc(sizeof(size_t));
   *go = 0;
-  
+
   for (int i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
-    
+
     threadContext[i].go = go;
     threadContext[i].filePrefix = filePrefix;
     threadContext[i].mysqloptions = mysqloptions;
@@ -864,7 +894,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     size_t bs = 4096, highbs = 4096;
 
     lengthsInit(&threadContext[i].len);
-    
+
     if (verbose >= 2) {
       fprintf(stderr,"*info* setting up thread %d\n", i);
     }
@@ -876,10 +906,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       if (bs < 512) bs = 512;
       highbs = bs;
       if (*endp == '-') {
-	int nextv = atoi(endp+1);
-	if (nextv > 0) {
-	  highbs = 1024L * 1024 * nextv;
-	}
+        int nextv = atoi(endp+1);
+        if (nextv > 0) {
+          highbs = 1024L * 1024 * nextv;
+        }
       }
     }
     if (highbs < bs) {
@@ -888,86 +918,90 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
     int jcount = 1;
-    { // specify the block device size in GiB
+    {
+      // specify the block device size in GiB
       char *charG = strchr(job->strings[i], 'j');
       if (charG && *(charG+1)) {
-	jcount = atoi(charG+1);
-	if (jcount < 1) jcount=1;
+        jcount = atoi(charG+1);
+        if (jcount < 1) jcount=1;
       }
     }
     int jindex = 0;
-    { // specify the block device size in GiB
+    {
+      // specify the block device size in GiB
       char *charG = strchr(job->strings[i], '#');
       if (charG && *(charG+1)) {
-	jindex = atoi(charG+1);
-	if (jindex < 0) jindex=0;
+        jindex = atoi(charG+1);
+        if (jindex < 0) jindex=0;
       }
     }
-    
+
     size_t mod = 1;
     size_t remain = 0;
-    { // specify the block device size in GiB
+    {
+      // specify the block device size in GiB
       char *charG = strchr(job->strings[i], 'G');
       if (charG && *(charG+1)) {
-	double lowg = 0, highg = 0;
+        double lowg = 0, highg = 0;
 
-	if ((jcount > 1) && (*(charG+1) == '_')) {
-	  // 2: 1/1
-	  lowg = minSizeInBytes + (jindex * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
-	  highg = minSizeInBytes + ((jindex+1) * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
-	} else if ((jcount > 1) && (*(charG+1) == '%')) {
-	  // 2: 1/1
-	  mod = jcount;
-	  remain = i;
-	} else {
-	  char retch = '-';
-	  splitRangeChar(charG + 1, &lowg, &highg, &retch);
-	  if (lowg > highg) {
-	    fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
-	    lowg = 0;
-	    //	  exit(1);
-	  }
-	  lowg = lowg * 1024 * 1024 * 1024;
-	  highg = highg * 1024 * 1024 * 1024;
+        if ((jcount > 1) && (*(charG+1) == '_')) {
+          // 2: 1/1
+          lowg = minSizeInBytes + (jindex * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
+          highg = minSizeInBytes + ((jindex+1) * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
+        } else if ((jcount > 1) && (*(charG+1) == '%')) {
+          // 2: 1/1
+          mod = jcount;
+          remain = i;
+        } else {
+          char retch = '-';
+          splitRangeChar(charG + 1, &lowg, &highg, &retch);
+          if (lowg > highg) {
+            fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
+            lowg = 0;
+            //	  exit(1);
+          }
+          lowg = lowg * 1024 * 1024 * 1024;
+          highg = highg * 1024 * 1024 * 1024;
 
-	  if (retch == '_') {
-	    size_t __lowg = (size_t)lowg + (jindex * 1.0 / (jcount)) * (size_t)(highg - lowg);
-	    size_t __highg = (size_t)lowg + ((jindex+1) * 1.0 / (jcount)) * (size_t)(highg - lowg);
-	    lowg = __lowg;
-	    highg = __highg;
-	  }
-	  
-	}
-	if (lowg == highg) { // if both the same, same as just having 1
-	  lowg = minSizeInBytes;
-	}
-	if (lowg < minSizeInBytes) lowg = minSizeInBytes;
-	if (lowg > maxSizeInBytes) lowg = minSizeInBytes;
-	if (highg > maxSizeInBytes) highg = maxSizeInBytes;
-	if (highg < minSizeInBytes) highg = minSizeInBytes;
-	if (highg - lowg < 4096) { // if both the same, same as just having 1
-	  lowg = minSizeInBytes;
-	  highg = maxSizeInBytes;
-	}
-	localminbdsize = alignedNumber(lowg, 4096);
-	localmaxbdsize = alignedNumber(highg, 4096);
+          if (retch == '_') {
+            size_t __lowg = (size_t)lowg + (jindex * 1.0 / (jcount)) * (size_t)(highg - lowg);
+            size_t __highg = (size_t)lowg + ((jindex+1) * 1.0 / (jcount)) * (size_t)(highg - lowg);
+            lowg = __lowg;
+            highg = __highg;
+          }
+
+        }
+        if (lowg == highg) { // if both the same, same as just having 1
+          lowg = minSizeInBytes;
+        }
+        if (lowg < minSizeInBytes) lowg = minSizeInBytes;
+        if (lowg > maxSizeInBytes) lowg = minSizeInBytes;
+        if (highg > maxSizeInBytes) highg = maxSizeInBytes;
+        if (highg < minSizeInBytes) highg = minSizeInBytes;
+        if (highg - lowg < 4096) { // if both the same, same as just having 1
+          lowg = minSizeInBytes;
+          highg = maxSizeInBytes;
+        }
+        localminbdsize = alignedNumber(lowg, 4096);
+        localmaxbdsize = alignedNumber(highg, 4096);
       }
     }
 
-    { // specify the block device size in bytes
+    {
+      // specify the block device size in bytes
       char *charG = strchr(job->strings[i], 'b');
       if (charG && *(charG+1)) {
-	double lowg = 0, highg = 0;
-	splitRange(charG + 1, &lowg, &highg);
-	localminbdsize = lowg;
-	localmaxbdsize = highg;
-	if (localminbdsize == localmaxbdsize) { 
-	  localminbdsize = 0;
-	}
-	if (minSizeInBytes > maxSizeInBytes) {
-	  fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
-	  exit(1);
-	}
+        double lowg = 0, highg = 0;
+        splitRange(charG + 1, &lowg, &highg);
+        localminbdsize = lowg;
+        localmaxbdsize = highg;
+        if (localminbdsize == localmaxbdsize) {
+          localminbdsize = 0;
+        }
+        if (minSizeInBytes > maxSizeInBytes) {
+          fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
+          exit(1);
+        }
       }
     }
 
@@ -980,56 +1014,58 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       limit = (size_t) (strtod(charLimit+1, &endp) * 1024 * 1024 * 1024);
       if (limit == 0) limit = (size_t)-1;
     }
-    
+
 
     {
       char *charI = strchr(job->strings[i], 'I');
-      
+
       if (charI && *(charI + 1)) {
-	threadContext[num].exitIOPS = atoi(charI + 1);
-	fprintf(stderr,"*info* exit IOPS set to %zd\n", threadContext[num].exitIOPS);
+        threadContext[num].exitIOPS = atoi(charI + 1);
+        fprintf(stderr,"*info* exit IOPS set to %zd\n", threadContext[num].exitIOPS);
       }
     }
-    
+
 
     {
       char *charI = strchr(job->strings[i], 'J');
-      
+
       if (charI && *(charI + 1)) {
-	int v = atoi(charI + 1);
-	if (v < 1) {v = 1;}
-	threadContext[i].jumbleRun = v;
-	fprintf(stderr,"*info* jumbleRun set to %zd\n", threadContext[i].jumbleRun);
+        int v = atoi(charI + 1);
+        if (v < 1) {
+          v = 1;
+        }
+        threadContext[i].jumbleRun = v;
+        fprintf(stderr,"*info* jumbleRun set to %zd\n", threadContext[i].jumbleRun);
       }
     }
-    
+
     double fourkEveryMiB = 0;
     {
       char *sf = strchr(job->strings[i], 'a');
       if (sf && *(sf+1)) {
-	fourkEveryMiB = atof(sf+1);
+        fourkEveryMiB = atof(sf+1);
       }
       threadContext[i].fourkEveryMiB = fourkEveryMiB;
     }
-	
+
 
 
     {
       size_t jumpK = 0; // jumpK of 0 means random else means add KiB
       char *charI = strchr(job->strings[i], 'A');
-      
+
       if (charI && *(charI + 1)) {
-	jumpK = atoi(charI + 1);
-	if (threadContext[i].fourkEveryMiB == 0) { // if A specified then apply it always
-	  threadContext[i].fourkEveryMiB = 0.0001;
-	}
+        jumpK = atoi(charI + 1);
+        if (threadContext[i].fourkEveryMiB == 0) { // if A specified then apply it always
+          threadContext[i].fourkEveryMiB = 0.0001;
+        }
       }
       threadContext[i].jumpK = jumpK;
       if (jumpK) {
-	fprintf(stderr,"*info* jumpKiB set to %zd\n", threadContext[i].jumpK);
+        fprintf(stderr,"*info* jumpKiB set to %zd\n", threadContext[i].jumpK);
       }
     }
-    
+
 
 
 
@@ -1038,10 +1074,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       char *oOS = strchr(job->strings[i], 'O');
       if (oOS) {
-	threadContext[i].runTime = -1;
-	threadContext[i].finishTime = -1;
-	threadContext[num].finishTime = -1; // the timer
-	runXtimes = 1;
+        threadContext[i].runTime = -1;
+        threadContext[i].finishTime = -1;
+        threadContext[num].finishTime = -1; // the timer
+        runXtimes = 1;
       }
     }
 
@@ -1057,17 +1093,17 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     {
       char *charX = strchr(job->strings[i], 'X');
-      
+
       if (charX && *(charX+1)) {
-	runXtimes = atoi(charX + 1);
-	threadContext[i].runTime = -1;
-	threadContext[i].finishTime = -1;
-	threadContext[num].finishTime = -1; // the timer
+        runXtimes = atoi(charX + 1);
+        threadContext[i].runTime = -1;
+        threadContext[i].finishTime = -1;
+        threadContext[num].finishTime = -1; // the timer
       }
     }
     threadContext[i].runXtimesTI = runXtimes;
-    
-    
+
+
 
     size_t actualfs = fileSizeFromName(job->devices[i]);
     threadContext[i].minbdSize = localminbdsize;
@@ -1075,12 +1111,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if (threadContext[i].filePrefix == NULL) {
       // if it should be there
       if (threadContext[i].maxbdSize > actualfs) {
-	threadContext[i].maxbdSize = actualfs;
-	fprintf(stderr,"*warning* file is smaller than specified file, shrinking to %zd\n", threadContext[i].maxbdSize);
+        threadContext[i].maxbdSize = actualfs;
+        fprintf(stderr,"*warning* file is smaller than specified file, shrinking to %zd\n", threadContext[i].maxbdSize);
       }
     }
 
-        charBS = strchr(job->strings[i], 'k');
+    charBS = strchr(job->strings[i], 'k');
     if (charBS && *(charBS+1)) {
 
       char *endp = NULL;
@@ -1088,29 +1124,29 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       if (bs < 512) bs = 512;
       highbs = bs;
       if (*endp == '-' || *endp == ':') {
-	int nextv = atoi(endp+1);
-	if (nextv > 0) {
-	  highbs = 1024 * nextv;
-	}
+        int nextv = atoi(endp+1);
+        if (nextv > 0) {
+          highbs = 1024 * nextv;
+        }
       }
-      if (*endp == '-') 
-	lengthsSetupLowHighAlignSeq(&threadContext[i].len, bs, highbs, 4096);
+      if (*endp == '-')
+        lengthsSetupLowHighAlignSeq(&threadContext[i].len, bs, highbs, 4096);
       else
-	lengthsSetupLowHighAlignPower(&threadContext[i].len, bs, highbs, 4096);	
+        lengthsSetupLowHighAlignPower(&threadContext[i].len, bs, highbs, 4096);
     } else {
       lengthsAdd(&threadContext[i].len, bs, 1);
     }
 
-    
+
     size_t mp = (size_t) ((threadContext[i].maxbdSize - threadContext[i].minbdSize) / bs);
-    
+
     if (verbose) {
       fprintf(stderr,"*info* device '%s', size [%.3lf, %.3lf] %.3lf GiB, minsize of %zd, maximum %zd positions\n", job->devices[i], TOGiB(threadContext[i].minbdSize), TOGiB(threadContext[i].maxbdSize), TOGiB(threadContext[i].maxbdSize - threadContext[i].minbdSize), bs, mp);
     }
 
     // use 1/4 of free RAM
     size_t useRAM = MIN((size_t)15L*1024*1024*1024, freeRAM() / 2); // 1L*1024*1024*1024;
-    
+
     //    fprintf(stderr,"use ram %zd\n", useRAM);
     size_t fitinram = useRAM / num / sizeof(positionType);
     if ((verbose || (fitinram < mp)) && (i == 0)) {
@@ -1120,19 +1156,19 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
 
-    
+
     size_t countintime = mp;
     //        fprintf(stderr,"*info* runX %zd ttr %zd\n", threadContext[i].multipleTimes, threadContext[i].runTime);
     if ((long)threadContext[i].runTime > 0) { // only limit based on time if the time is positive
 
-      
+
       int ESTIMATEIOPS=getIOPSestimate(job->devices[i], bs, (i == 0) && verbose);
-      
+
       countintime = threadContext[i].runTime * ESTIMATEIOPS;
       if ((verbose || (countintime < mp)) && (i == 0)) {
-	fprintf(stderr,"*info* in %zd seconds, at %d a second, would have at most ", threadContext[i].runTime, ESTIMATEIOPS);
-	commaPrint0dp(stderr, countintime);
-	fprintf(stderr," positions\n");
+        fprintf(stderr,"*info* in %zd seconds, at %d a second, would have at most ", threadContext[i].runTime, ESTIMATEIOPS);
+        commaPrint0dp(stderr, countintime);
+        fprintf(stderr," positions\n");
       }
     } else {
       if (i==0) fprintf(stderr,"*info* skipping time based limits\n");
@@ -1141,7 +1177,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if (limit != (size_t)-1) {
       sizeLimitCount = limit / bs;
       if (i == 0) {
-	fprintf(stderr,"*info* to limit sum of lengths to %.1lf GiB, with avg size of %zd, requires %zd positions\n", TOGiB(limit), bs, sizeLimitCount);
+        fprintf(stderr,"*info* to limit sum of lengths to %.1lf GiB, with avg size of %zd, requires %zd positions\n", TOGiB(limit), bs, sizeLimitCount);
       }
     }
 
@@ -1149,12 +1185,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if (mp2 != mp) {
       mp = mp2;
       if (verbose) {
-	//      if (i == 0) {
-	fprintf(stderr,"*info* device '%s', positions limited to %zd\n", job->devices[i], mp);
-	//      }
+        //      if (i == 0) {
+        fprintf(stderr,"*info* device '%s', positions limited to %zd\n", job->devices[i], mp);
+        //      }
       }
     }
-      
+
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
     threadContext[i].jobdeviceid = job->deviceid[i];
@@ -1171,11 +1207,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     float rw = 0;
     for (size_t k = 0; k < strlen(job->strings[i]); k++) {
       if (job->strings[i][k] == 'r') {
-	rcount++;
-	rwtotal++;
+        rcount++;
+        rwtotal++;
       } else if (job->strings[i][k] == 'w') {
-	wcount++;
-	rwtotal++;
+        wcount++;
+        rwtotal++;
       }
     }
     if (rwtotal == 0) {
@@ -1187,34 +1223,34 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       char *sf = strchr(job->strings[i], 'p');
       if (sf && *(sf+1)) {
-	rw = atof(sf + 1);
+        rw = atof(sf + 1);
       }
     }
-    
+
     threadContext[i].rw = rw;
 
     int flushEvery = 0;
     for (size_t k = 0; k < strlen(job->strings[i]); k++) {
       if (job->strings[i][k] == 'F') {
-	if (flushEvery == 0) {
-	  flushEvery = 1;
-	} else {
-	  flushEvery *= 10;
-	}
+        if (flushEvery == 0) {
+          flushEvery = 1;
+        } else {
+          flushEvery *= 10;
+        }
       }
     }
     threadContext[i].flushEvery = flushEvery;
 
-    
+
 
     size_t metaData = 0;
     {
       // metaData mode is random, verify all writes and flushing
       char *iR = strchr(job->strings[i], 'm');
       if (iR) {
-	metaData = 1;
-	seqFiles = 0;
-	threadContext[i].flushEvery = 1;
+        metaData = 1;
+        seqFiles = 0;
+        threadContext[i].flushEvery = 1;
       }
     }
 
@@ -1223,26 +1259,26 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
-	double low = 0, high = 0;
-	int ret = splitRange(sf + 1, &low, &high);
-	if (ret == 0) {
-	} else if (ret == 1) {
-	  seqFilesMaxSizeBytes = 0;
-	} else {
-	  seqFilesMaxSizeBytes = ceil(high) * 1024;
-	}
-	seqFiles = ceil(low);
+        double low = 0, high = 0;
+        int ret = splitRange(sf + 1, &low, &high);
+        if (ret == 0) {
+        } else if (ret == 1) {
+          seqFilesMaxSizeBytes = 0;
+        } else {
+          seqFilesMaxSizeBytes = ceil(high) * 1024;
+        }
+        seqFiles = ceil(low);
       }
     }
 
 
-    
+
     {
       char *sf = strchr(job->strings[i], '@');
       if (sf) {
-	fprintf(stderr,"*warning* ignoring results for command '%s'\n", job->strings[i]);
-	threadContext[i].ignoreResults = 1;
-	threadContext[num].allPC[i] = NULL;
+        fprintf(stderr,"*warning* ignoring results for command '%s'\n", job->strings[i]);
+        threadContext[i].ignoreResults = 1;
+        threadContext[num].allPC[i] = NULL;
       }
     }
 
@@ -1250,14 +1286,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       char *iR = strchr(job->strings[i], 'n');
       if (iR) {// && *(iR+1)) {
-	threadContext[i].rerandomize = 1;
+        threadContext[i].rerandomize = 1;
       }
     }
 
     {
       char *iR = strchr(job->strings[i], 'N');
       if (iR) {// && *(iR+1)) {
-	threadContext[i].addBlockSize = 1;
+        threadContext[i].addBlockSize = 1;
       }
     }
 
@@ -1266,31 +1302,31 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       char *iTO = strchr(job->strings[i], 'T');
       if (iTO) {
-	threadContext[i].runTime = atoi(iTO+1);
+        threadContext[i].runTime = atoi(iTO+1);
       }
     }
 
     {
       char *iTO = strchr(job->strings[i], 't');
       if (iTO) {
-	threadContext[i].finishTime = atoi(iTO+1);
+        threadContext[i].finishTime = atoi(iTO+1);
       }
     }
 
 
     size_t qDepth = origqd, QDbarrier = 0;
-   
+
     {
       char *qdd = strchr(job->strings[i], 'q');
       if (qdd && *(qdd+1)) {
-	qDepth = atoi(qdd+1);
+        qDepth = atoi(qdd+1);
       }
     }
     {
       char *qdd = strchr(job->strings[i], 'Q');
       if (qdd && *(qdd+1)) {
-	QDbarrier = 1;
-	qDepth = atoi(qdd+1);
+        QDbarrier = 1;
+        qDepth = atoi(qdd+1);
       }
     }
 
@@ -1301,14 +1337,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     char *pChar = strchr(job->strings[i], 'P');
     {
       if (pChar && *(pChar+1)) {
-	size_t newmp = atoi(pChar + 1);
-	if (newmp < mp) {
-	  mp = newmp;
-	}
-	if (mp < 1) mp = 1;
-	if (mp <= qDepth) {
-	  qDepth = mp;
-	}
+        size_t newmp = atoi(pChar + 1);
+        if (newmp < mp) {
+          mp = newmp;
+        }
+        if (mp < 1) mp = 1;
+        if (mp <= qDepth) {
+          qDepth = mp;
+        }
       }
     }
 
@@ -1317,10 +1353,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       // metaData mode is random, verify all writes and flushing, sets QD to 1
       char *iR = strchr(job->strings[i], 'u');
       if (iR) {
-	metaData = 1;
-	threadContext[i].flushEvery = 1;
-	uniqueSeeds = 1;
-	//	qDepth = 1;
+        metaData = 1;
+        threadContext[i].flushEvery = 1;
+        uniqueSeeds = 1;
+        //	qDepth = 1;
       }
     }
 
@@ -1329,11 +1365,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       // metaData mode is random, verify all writes and flushing, sets QD to 1
       char *iR = strchr(job->strings[i], 'U');
       if (iR) {
-	metaData = 1;
-	threadContext[i].flushEvery = 1;
-	uniqueSeeds = 1;
-	qDepth = 1;
-	verifyUnique = 1;
+        metaData = 1;
+        threadContext[i].flushEvery = 1;
+        uniqueSeeds = 1;
+        qDepth = 1;
+        verifyUnique = 1;
       }
     }
 
@@ -1349,19 +1385,19 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       char *ZChar = strchr(job->strings[i], 'Z');
       if (ZChar && *(ZChar+1)) {
-	startingBlock = atoi(ZChar + 1);
-	if (startingBlock < 0) {
-	  startingBlock = 0;
-	}
+        startingBlock = atoi(ZChar + 1);
+        if (startingBlock < 0) {
+          startingBlock = 0;
+        }
       }
     }
 
     {
       char *RChar = strchr(job->strings[i], 'R');
       if (RChar && *(RChar+1)) {
-	seed = atoi(RChar + 1); // if specified
+        seed = atoi(RChar + 1); // if specified
       } else {
-	if (i > 0) seed++;
+        if (i > 0) seed++;
       }
     }
     threadContext[i].seed = seed;
@@ -1371,18 +1407,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       char *RChar = strchr(job->strings[i], 'S');
       if (RChar && *(RChar+1)) {
-	speedMB = atoi(RChar + 1); // if specified
+        speedMB = atoi(RChar + 1); // if specified
       }
     }
     threadContext[i].speedMB = speedMB;
 
-    
+
     char *Wchar = strchr(job->strings[i], 'W');
     if (Wchar && *(Wchar+1)) {
       size_t waitfor = atoi(Wchar + 1);
       if (waitfor > timetorun) {
-	waitfor = timetorun;
-	fprintf(stderr,"*warning* waiting decreased to %zd\n", waitfor);
+        waitfor = timetorun;
+        fprintf(stderr,"*warning* waiting decreased to %zd\n", waitfor);
       }
       threadContext[i].waitfor = waitfor;
     }
@@ -1391,14 +1427,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if (Wchar && *(Wchar+1)) {
       size_t waitfor = atoi(Wchar + 1);
       if (waitfor > timetorun) {
-	waitfor = timetorun;
-	fprintf(stderr,"*warning* waiting decreased to %zd\n", waitfor);
+        waitfor = timetorun;
+        fprintf(stderr,"*warning* waiting decreased to %zd\n", waitfor);
       }
       threadContext[i].prewait = waitfor;
     }
 
     //    threadContext[i].pos.maxbdSize = threadContext[i].maxbdSize;
-    
+
 
     positionContainerSetup(&threadContext[i].pos, mp);
     threadContext[i].seqFiles = seqFiles;
@@ -1411,7 +1447,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].uniqueSeeds = uniqueSeeds;
     threadContext[i].verifyUnique = verifyUnique;
     threadContext[i].dumpPos = dumpPos;
-    
+
   } // setup all threads
 
   size_t waitft = 0;
@@ -1426,7 +1462,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
 
-  
+
   // use the device and timing info from context[num]
   threadContext[num].pos.diskStats = d;
   threadContext[num].timeperline = timeperline;
@@ -1439,14 +1475,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     diskStatStart(threadContext[num].pos.diskStats);
   }
 
-  
+
   pthread_mutex_t mutex;
   pthread_mutex_init(&mutex, NULL);
   threadContext[num].gomutex = &mutex;
   for (int i = 0; i < num; i++) {
     threadContext[i].gomutex = &mutex;
   }
-    
+
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
 
   int numa_count = getNumaCount();
@@ -1454,55 +1490,55 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   int do_numa = doNumaBinding >= -1 && numa_count > 0;
   int default_binding = doNumaBinding == -1;
   if( !default_binding && doNumaBinding >= numa_count ) {
-      fprintf( stderr, "Given NUMA[%d] is out of range. Max valid NUMA is %d\n", doNumaBinding, numa_count - 1 );
-      exit( 1 );
+    fprintf( stderr, "Given NUMA[%d] is out of range. Max valid NUMA is %d\n", doNumaBinding, numa_count - 1 );
+    exit( 1 );
   }
 
   int** numa_threads = NULL;
   int* numa_thread_counter = NULL;
   if( do_numa ) {
-      numa_threads = (int**)malloc( numa_count * sizeof(int*) );
+    numa_threads = (int**)malloc( numa_count * sizeof(int*) );
 
-      for( int numa = 0; numa < numa_count; numa++ ) {
-          numa_threads[ numa ] = (int*)malloc( cpuCountPerNuma( numa ) * sizeof(int) );
-          getThreadIDs( numa, numa_threads[ numa ] );
-      }
+    for( int numa = 0; numa < numa_count; numa++ ) {
+      numa_threads[ numa ] = (int*)malloc( cpuCountPerNuma( numa ) * sizeof(int) );
+      getThreadIDs( numa, numa_threads[ numa ] );
+    }
 
-      numa_thread_counter = (int*)malloc( numa_count * sizeof( int ) );
-      memset( numa_thread_counter, 0, numa_count * sizeof( int ) );
+    numa_thread_counter = (int*)malloc( numa_count * sizeof( int ) );
+    memset( numa_thread_counter, 0, numa_count * sizeof( int ) );
   } else {
-      fprintf( stderr, "*info* NUMA binding disabled\n" );
+    fprintf( stderr, "*info* NUMA binding disabled\n" );
   }
 
   for (int tid = 0; tid < num; tid++) {
-      pthread_create(&(pt[tid]), NULL, runThread, &(threadContext[tid]));
-      if( do_numa ) {
-          assert( doNumaBinding < numa_count || "Numa node out of range" );
-          int cur_numa = default_binding ? tid % numa_count : doNumaBinding;
-          
-          ++numa_thread_counter[ cur_numa ];
-          int rc = pinThread( &pt[tid], numa_threads[ cur_numa ], cpuCountPerNuma( cur_numa ) );
-          if (rc) {
-              fprintf(stderr,"*error* failed to pin thread %d to NUMA %d\n", tid, cur_numa);
-              exit(-1);
-          }
-          
-          if (verbose >= 2) {
-              fprintf( stderr, "*info* pinned thread %d to NUMA %d\n", tid, cur_numa);
-          }
+    pthread_create(&(pt[tid]), NULL, runThread, &(threadContext[tid]));
+    if( do_numa ) {
+      assert( doNumaBinding < numa_count || "Numa node out of range" );
+      int cur_numa = default_binding ? tid % numa_count : doNumaBinding;
+
+      ++numa_thread_counter[ cur_numa ];
+      int rc = pinThread( &pt[tid], numa_threads[ cur_numa ], cpuCountPerNuma( cur_numa ) );
+      if (rc) {
+        fprintf(stderr,"*error* failed to pin thread %d to NUMA %d\n", tid, cur_numa);
+        exit(-1);
       }
+
+      if (verbose >= 2) {
+        fprintf( stderr, "*info* pinned thread %d to NUMA %d\n", tid, cur_numa);
+      }
+    }
   }
 
   if( do_numa ) {
-      fprintf( stderr, "*info* " );
-      for( int numa = 0; numa < numa_count; numa++ ) {
-          const char* delim = numa > 0 ? ", " : "";
-          fprintf( stderr, "%sNUMA[%d] %d pinned on %d hardware threads", delim, numa, numa_thread_counter[ numa ], cpuCountPerNuma( numa ) );
-          free( numa_threads[ numa ] );
-      }
-      fprintf( stderr, "\n" );
-      free( numa_threads );
-      free( numa_thread_counter );
+    fprintf( stderr, "*info* " );
+    for( int numa = 0; numa < numa_count; numa++ ) {
+      const char* delim = numa > 0 ? ", " : "";
+      fprintf( stderr, "%sNUMA[%d] %d pinned on %d hardware threads", delim, numa, numa_thread_counter[ numa ], cpuCountPerNuma( numa ) );
+      free( numa_threads[ numa ] );
+    }
+    fprintf( stderr, "\n" );
+    free( numa_threads );
+    free( numa_thread_counter );
   }
 
   // wait for all threads
@@ -1510,13 +1546,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     pthread_join(pt[i], NULL);
     lengthsFree(&threadContext[i].len);
   }
-  keepRunning = 0; // the 
+  keepRunning = 0; // the
   // now wait for the timer thread (probably don't need this)
   pthread_join(pt[num], NULL);
 
 
   if (savePositions || verify) {
-    // print stats 
+    // print stats
     for (int i = 0; i < num; i++) {
       positionLatencyStats(&threadContext[i].pos, i);
     }
@@ -1526,25 +1562,27 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     for (int i = 0; i < num; i++) {
       origpc[i] = threadContext[i].pos;
     }
-    
+
     positionContainer mergedpc = positionContainerMerge(origpc, num);
 
     if (savePositions) {
-      fprintf(stderr, "*info* saving positions to '%s' ... ", savePositions);  fflush(stderr);
+      fprintf(stderr, "*info* saving positions to '%s' ... ", savePositions);
+      fflush(stderr);
       positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
-      fprintf(stderr, "finished\n"); fflush(stderr);
+      fprintf(stderr, "finished\n");
+      fflush(stderr);
     }
-    
+
     // histogram
     histogramType histRead, histWrite;
     histSetup(&histRead, 0, 10, 1e-6);
     histSetup(&histWrite, 0, 10, 1e-6);
-    
+
     for (int i = 0; i < (int) mergedpc.sz; i++) {
-      if (mergedpc.positions[i].action == 'R') 
-	histAdd(&histRead, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
-      else if (mergedpc.positions[i].action == 'W') 
-	histAdd(&histWrite, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
+      if (mergedpc.positions[i].action == 'R')
+        histAdd(&histRead, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
+      else if (mergedpc.positions[i].action == 'W')
+        histAdd(&histWrite, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
     }
     double median, three9, four9, five9;
     if (histCount(&histRead)) {
@@ -1554,25 +1592,26 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
       FILE *fp = fopen("spit-latency-read.gnu", "wt");
       if (fp) {
-	fprintf(fp, "set key above\n");
-	fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
-	fprintf(fp, "set log y\n");
-	fprintf(fp, "set xtics auto\n");
-	fprintf(fp, "set y2tics 10\n");
-	fprintf(fp, "set grid\n");
-	fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
-	fprintf(fp, "set y2range [0:100]\n");
-	fprintf(fp, "set xlabel 'Time (ms)'\n");
-	fprintf(fp, "set ylabel 'Count'\n");
-	fprintf(fp, "set y2label 'Confidence level'\n");
-	fprintf(fp, "plot 'spit-latency-read.txt' using 1:2 with imp title 'Read Latency', 'spit-latency-read.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
+        fprintf(fp, "set key above\n");
+        fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
+        fprintf(fp, "set log y\n");
+        fprintf(fp, "set xtics auto\n");
+        fprintf(fp, "set y2tics 10\n");
+        fprintf(fp, "set grid\n");
+        fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
+        fprintf(fp, "set y2range [0:100]\n");
+        fprintf(fp, "set xlabel 'Time (ms)'\n");
+        fprintf(fp, "set ylabel 'Count'\n");
+        fprintf(fp, "set y2label 'Confidence level'\n");
+        fprintf(fp, "plot 'spit-latency-read.txt' using 1:2 with imp title 'Read Latency', 'spit-latency-read.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
       } else {
-	perror("filename");
+        perror("filename");
       }
       if (fp) {
-	fclose(fp); fp = NULL;
+        fclose(fp);
+        fp = NULL;
       }
-      
+
     }
     if (histCount(&histWrite)) {
       histSumPercentages(&histWrite, &median, &three9, &four9, &five9, 1000);
@@ -1581,43 +1620,44 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
       FILE *fp = fopen("spit-latency-write.gnu", "wt");
       if (fp) {
-	fprintf(fp, "set key above\n");
-	fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
-	fprintf(fp, "set log y\n");
-	fprintf(fp, "set xtics auto\n");
-	fprintf(fp, "set y2tics 10\n");
-	fprintf(fp, "set grid\n");
-	fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
-	fprintf(fp, "set y2range [0:100]\n");
-	fprintf(fp, "set xlabel 'Time (ms)'\n");
-	fprintf(fp, "set ylabel 'Count'\n");
-	fprintf(fp, "set y2label 'Confidence Level'\n");
-	fprintf(fp, "plot 'spit-latency-write.txt' using 1:2 with imp title 'Write Latency', 'spit-latency-write.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
+        fprintf(fp, "set key above\n");
+        fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
+        fprintf(fp, "set log y\n");
+        fprintf(fp, "set xtics auto\n");
+        fprintf(fp, "set y2tics 10\n");
+        fprintf(fp, "set grid\n");
+        fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
+        fprintf(fp, "set y2range [0:100]\n");
+        fprintf(fp, "set xlabel 'Time (ms)'\n");
+        fprintf(fp, "set ylabel 'Count'\n");
+        fprintf(fp, "set y2label 'Confidence Level'\n");
+        fprintf(fp, "plot 'spit-latency-write.txt' using 1:2 with imp title 'Write Latency', 'spit-latency-write.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
       } else {
-	perror("filename");
+        perror("filename");
       }
       if (fp) {
-	fclose(fp); fp = NULL;
+        fclose(fp);
+        fp = NULL;
       }
-      
+
     }
     histFree(&histRead);
     histFree(&histWrite);
-    
+
     if (verify) {
       positionContainerCheckOverlap(&mergedpc);
       size_t direct = O_DIRECT;
       for (int i = 0; i < num; i++) { // check all threads, if any aren't direct
-	if (threadContext[i].o_direct == 0) {
-	  direct = 0;
-	}
+        if (threadContext[i].o_direct == 0) {
+          direct = 0;
+        }
       }
-      int errors = verifyPositions(&mergedpc, 256, job, direct, 1 /* sorted */); 
+      int errors = verifyPositions(&mergedpc, 256, job, direct, 1 /* sorted */);
       if (errors) {
-	exit(1);
+        exit(1);
       }
     }
-    
+
     positionContainerFree(&mergedpc);
     free(origpc);
   }
@@ -1627,8 +1667,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     positionContainerFree(&threadContext[i].pos);
     free(threadContext[i].randomBuffer);
   }
-  
-  
+
+
 
   free(go);
   free(allThreadsPC);
@@ -1637,82 +1677,88 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 }
 
 
-void jobAddDeviceToAll(jobType *job, const char *device) {
+void jobAddDeviceToAll(jobType *job, const char *device)
+{
   for (int i = 0; i < job->count; i++) {
     job->devices[i] = strdup(device);
   }
 }
 
-size_t jobCount(jobType *job) {
+size_t jobCount(jobType *job)
+{
   return job->count;
 }
 
-size_t jobRunPreconditions(jobType *preconditions, const size_t count, const size_t minSizeBytes, const size_t maxSizeBytes) {
+size_t jobRunPreconditions(jobType *preconditions, const size_t count, const size_t minSizeBytes, const size_t maxSizeBytes)
+{
   if (count) {
     size_t gSize = alignedNumber(maxSizeBytes, 4096);
     size_t coverage = 1;
     size_t jumble = 0;
-    
+
     for (int i = 0; i < (int) count; i++) {
       fprintf(stderr,"*info* precondition %d: device '%s', command '%s'\n", i+1, preconditions->devices[i], preconditions->strings[i]);
       {
-	char *charG = strchr(preconditions->strings[i], 'G');
-	if (charG && *(charG+1)) {
-	  // a G num is specified
-	  gSize = alignedNumber(1024L * atof(charG + 1) * 1024 * 1024, 4096);
-	}
+        char *charG = strchr(preconditions->strings[i], 'G');
+        if (charG && *(charG+1)) {
+          // a G num is specified
+          gSize = alignedNumber(1024L * atof(charG + 1) * 1024 * 1024, 4096);
+        }
       }
 
 
       double blockSize = 4;
       {
-	char *charG = strchr(preconditions->strings[i], 'k');
-	if (charG && *(charG+1)) {
-	  // a k value is specified
-	  blockSize = atof(charG + 1);
-	}
+        char *charG = strchr(preconditions->strings[i], 'k');
+        if (charG && *(charG+1)) {
+          // a k value is specified
+          blockSize = atof(charG + 1);
+        }
       }
 
       size_t seqFiles = 0;
-      {// seq or random
-	char *charG = strchr(preconditions->strings[i], 's');
-	if (charG && *(charG+1)) {
-	  seqFiles = atoi(charG + 1);
-	}
+      {
+        // seq or random
+        char *charG = strchr(preconditions->strings[i], 's');
+        if (charG && *(charG+1)) {
+          seqFiles = atoi(charG + 1);
+        }
       }
       if (seqFiles != 0) {
-	jumble = 1;
+        jumble = 1;
       }
-      
+
       size_t exitIOPS = 25000; // 100MB/s lowerbound
-      {// seq or random
-	char *charG = strchr(preconditions->strings[i], 'I');
-	if (charG && *(charG+1)) {
-	  exitIOPS = atoi(charG + 1);
-	}
+      {
+        // seq or random
+        char *charG = strchr(preconditions->strings[i], 'I');
+        if (charG && *(charG+1)) {
+          exitIOPS = atoi(charG + 1);
+        }
       }
 
       if (gSize == 0) {
-	char *charT = strchr(preconditions->strings[i], 'T');
-	if (charT && *(charT+1)) {
-	  // a T num is specified
-	  gSize = 1024 * (size_t)(atof(charT + 1) * 1024 * 1024 * 1024);
-	}
+        char *charT = strchr(preconditions->strings[i], 'T');
+        if (charT && *(charT+1)) {
+          // a T num is specified
+          gSize = 1024 * (size_t)(atof(charT + 1) * 1024 * 1024 * 1024);
+        }
       }
-      
+
       if (gSize) {
-	coverage = (size_t) (ceil(gSize / 1.0 / maxSizeBytes));
-	fprintf(stderr,"*info* %zd / %zd = X%zd coverage\n", gSize, maxSizeBytes, coverage);
+        coverage = (size_t) (ceil(gSize / 1.0 / maxSizeBytes));
+        fprintf(stderr,"*info* %zd / %zd = X%zd coverage\n", gSize, maxSizeBytes, coverage);
       }
-      
+
       char s[100];
       sprintf(s, "w k%g z s%zd J%zd b%zd X%zd nN I%zd q512", blockSize, seqFiles, jumble, maxSizeBytes, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, NULL, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, 1); 
-    fprintf(stderr,"*info* preconditioning complete\n"); fflush(stderr);
+    jobRunThreads(preconditions, count, NULL, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, 1);
+    fprintf(stderr,"*info* preconditioning complete\n");
+    fflush(stderr);
   }
   return 0;
 }
-    
+

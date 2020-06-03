@@ -13,7 +13,8 @@
 int verbose = 0;
 int keepRunning = 1;
 
-int main( int argc, char* argv[] ) {
+int main( int argc, char* argv[] )
+{
   printf("DEVICE\t\tIS_BD\tSIZE(GiB)\tIN_USE\n");//\tW/CACHE\n");
   for (int i = 1; i < argc; ++i ) {
     const char* bd_path = argv[ i ];
@@ -25,7 +26,7 @@ int main( int argc, char* argv[] ) {
     int write_cache = -1;
     int fd = open(bd_path, O_RDWR | O_DIRECT, S_IRUSR | S_IWUSR );
     if(fd>0) {
-      
+
       close(fd);
     }
     */

@@ -11,12 +11,14 @@
 #include "diskStats.h"
 #include "utils.h"
 
-void diskStatSetup(diskStatType *d) {
+void diskStatSetup(diskStatType *d)
+{
   if (!d) return;
   memset(d, 0, sizeof(diskStatType));
 }
 
-void diskStatAddDrive(diskStatType *d, int fd) {
+void diskStatAddDrive(diskStatType *d, int fd)
+{
   if (!d) return;
   unsigned int major = 0, minor = 0;
   assert(d);
@@ -34,60 +36,68 @@ void diskStatAddDrive(diskStatType *d, int fd) {
 
 
 
-void diskStatAddStart(diskStatType *d, size_t reads, size_t writes) {
+void diskStatAddStart(diskStatType *d, size_t reads, size_t writes)
+{
   if (!d) return;
   d->startSecRead += reads;
   d->startSecWrite += writes;
 }
 
-void diskStatAddFinish(diskStatType *d, size_t reads, size_t writes) {
+void diskStatAddFinish(diskStatType *d, size_t reads, size_t writes)
+{
   if (!d) return;
   d->finishSecRead += reads;
   d->finishSecWrite += writes;
 }
 
-size_t diskStatTBRead(diskStatType *d) {
+size_t diskStatTBRead(diskStatType *d)
+{
   if (!d) return 0;
   return (d->finishSecRead - d->startSecRead) * 512L;
 }
 
-size_t diskStatTBReadIOs(diskStatType *d) {
+size_t diskStatTBReadIOs(diskStatType *d)
+{
   if (!d) return 0;
   return (d->finishIORead - d->startIORead);
 }
 
-size_t diskStatTBWrite(diskStatType *d) {
+size_t diskStatTBWrite(diskStatType *d)
+{
   if (!d) return 0;
   return (d->finishSecWrite - d->startSecWrite) * 512L;
 }
 
-size_t diskStatTBWriteIOs(diskStatType *d) {
+size_t diskStatTBWriteIOs(diskStatType *d)
+{
   if (!d) return 0;
   return (d->finishIOWrite - d->startIOWrite);
 }
 
 
-size_t diskStatTBTimeSpentIO(diskStatType *d) { // in ms
+size_t diskStatTBTimeSpentIO(diskStatType *d)   // in ms
+{
   if (!d) return 0;
   return d->finishSecTimeio - d->startSecTimeio;
 }
 
 
-void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, size_t *totalReadIO, size_t *totalWriteIO, double *util, size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed) {
+void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, size_t *totalReadIO, size_t *totalWriteIO, double *util, size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed)
+{
   if (!d) return;
   if (d->startSecRead > d->finishSecRead) {
     fprintf(stderr,"start more than fin!\n");
-  } 
+  }
   if (d->startSecWrite > d->finishSecWrite) {
     fprintf(stderr,"start more than fin2!\n");
-  } 
+  }
   *totalReadBytes = (d->finishSecRead - d->startSecRead) * 512L;
   *totalWriteBytes =(d->finishSecWrite - d->startSecWrite) * 512L;
   *totalReadIO = (d->finishIORead - d->startIORead);
   *totalWriteIO = (d->finishIOWrite - d->startIOWrite);
-  
+
   *util = 100.0 * ((d->finishSecTimeio - d->startSecTimeio)/1000.0 / d->allocDevices) / elapsed;
-  
+
   if (verbose && (shouldReadBytes || shouldWriteBytes)) {
     if (*totalReadBytes)
       fprintf(stderr,"*info* read  amplification: should be %zd (%.3lf GiB), actual read  %zd (%.3lf GiB), %.2lf%%, %zd device(s)\n", shouldReadBytes, TOGiB(shouldReadBytes), *totalReadBytes, TOGiB(*totalReadBytes), *totalReadBytes*100.0/shouldReadBytes, d->allocDevices);
@@ -99,7 +109,8 @@ void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWrite
 }
 
 
-void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite) {
+void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite)
+{
   if (!d) return;
   diskStatLoadProc(d); // get the latest numbers
 
@@ -113,26 +124,30 @@ void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *sti
     devSnapshotType *s = &d->deviceStats[j];
 
     for (size_t i = 0; i < d->allocDevices; i++) { // from devices.txt
-      
-      if ((d->majorArray[i] == (int)s->major) &&
-	  (d->minorArray[i] == (int)s->minor)) {
 
-	*sread = (*sread) + s->secRead;
-	*swritten = (*swritten) + s->secWrite;
-	*stimeio = (*stimeio) + s->secTimeIO;
-	*ioread = (*ioread) + s->IORead;
-	*iowrite = (*iowrite) + s->IOWrite;
-	// found a match, escape
-	break;
+      if ((d->majorArray[i] == (int)s->major) &&
+          (d->minorArray[i] == (int)s->minor)) {
+
+        *sread = (*sread) + s->secRead;
+        *swritten = (*swritten) + s->secWrite;
+        *stimeio = (*stimeio) + s->secTimeIO;
+        *ioread = (*ioread) + s->IORead;
+        *iowrite = (*iowrite) + s->IOWrite;
+        // found a match, escape
+        break;
       }
     }
   }
 }
 
-void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
+void diskStatFromFilelist(diskStatType *d, const char *path, int verbose)
+{
   if (!d) return;
   FILE *fp = fopen(path, "rt");
-  if (!fp) {fprintf(stderr,"can't open %s!\n", path);exit(1);}
+  if (!fp) {
+    fprintf(stderr,"can't open %s!\n", path);
+    exit(1);
+  }
 
   char *line = NULL;
   size_t len = 0;
@@ -142,21 +157,21 @@ void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
   while ((read = getline(&line, &len, fp)) != -1) {
     if (sscanf(line, "%s", str) >= 1) {
       if (isBlockDevice(str)) {
-	int fd = open(str, O_RDONLY);
-	if (fd < 0) {
-	  perror("problem");
-	}
-	if (verbose) {
-	  char *suffix = getSuffix(str);
-	  char *sched = getScheduler(suffix);
-	  fprintf(stderr,"*info* scheduler for %s is [%s]\n", str, sched);
-	  free(sched);
-	  free(suffix);
-	}
-	diskStatAddDrive(d, fd);
-	close (fd);
+        int fd = open(str, O_RDONLY);
+        if (fd < 0) {
+          perror("problem");
+        }
+        if (verbose) {
+          char *suffix = getSuffix(str);
+          char *sched = getScheduler(suffix);
+          fprintf(stderr,"*info* scheduler for %s is [%s]\n", str, sched);
+          free(sched);
+          free(suffix);
+        }
+        diskStatAddDrive(d, fd);
+        close (fd);
       } else {
-	fprintf(stderr,"*warning* %s is not a block device\n", str);
+        fprintf(stderr,"*warning* %s is not a block device\n", str);
       }
     }
   }
@@ -167,7 +182,8 @@ void diskStatFromFilelist(diskStatType *d, const char *path, int verbose) {
 }
 
 
-void diskStatStart(diskStatType *d) {
+void diskStatStart(diskStatType *d)
+{
   fprintf(stderr,"*info* diskStats start\n");
   if (!d) return;
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
@@ -179,7 +195,8 @@ void diskStatStart(diskStatType *d) {
   d->startIOWrite = iowrite;
 }
 
-void diskStatRestart(diskStatType *d) {
+void diskStatRestart(diskStatType *d)
+{
   if (!d) return;
   d->startSecRead = d->finishSecRead;
   d->startSecWrite = d->finishSecWrite;
@@ -188,7 +205,8 @@ void diskStatRestart(diskStatType *d) {
   d->startIOWrite = d->finishIOWrite;
 }
 
-void diskStatFinish(diskStatType *d) {
+void diskStatFinish(diskStatType *d)
+{
   if (!d) return;
   size_t sread = 0, swritten = 0, stimeio = 0, ioread = 0, iowrite = 0;
   diskStatUsage(d, &sread, &swritten, &stimeio, &ioread, &iowrite);
@@ -199,17 +217,28 @@ void diskStatFinish(diskStatType *d) {
   d->finishIOWrite = iowrite;
 }
 
-void diskStatFree(diskStatType *d) {
+void diskStatFree(diskStatType *d)
+{
   if (!d) return;
-  if (d->majorArray) {free(d->majorArray); d->majorArray = NULL;}
-  if (d->minorArray) {free(d->minorArray); d->minorArray = NULL;}
-  if (d->deviceStats) {free(d->deviceStats); d->deviceStats = NULL;}
+  if (d->majorArray) {
+    free(d->majorArray);
+    d->majorArray = NULL;
+  }
+  if (d->minorArray) {
+    free(d->minorArray);
+    d->minorArray = NULL;
+  }
+  if (d->deviceStats) {
+    free(d->deviceStats);
+    d->deviceStats = NULL;
+  }
   d->deviceCount = 0;
   d->allocDevices = 0;
 }
 
 
-void majorAndMinor(int fd, unsigned int *major, unsigned int *minor) {
+void majorAndMinor(int fd, unsigned int *major, unsigned int *minor)
+{
   struct stat buf;
   if (fstat(fd, &buf) == 0) {
     dev_t dt = buf.st_rdev;
@@ -219,8 +248,9 @@ void majorAndMinor(int fd, unsigned int *major, unsigned int *minor) {
     fprintf(stderr,"*warning* can't get major/minor\n");
   }
 }
-  
-void diskStatLoadProc(diskStatType *d) {
+
+void diskStatLoadProc(diskStatType *d)
+{
   FILE *fp = fopen("/proc/diskstats", "rt");
   if (!fp) {
     fprintf(stderr,"can't open diskstats!\n");
@@ -253,40 +283,43 @@ void diskStatLoadProc(diskStatType *d) {
   fclose(fp);
 }
 
-void diskStatInfo(diskStatType *d) {
+void diskStatInfo(diskStatType *d)
+{
 
   fprintf(stderr,"*info* /proc/diskstat rows %zd\n", d->deviceCount);
   fprintf(stderr,"*info* matching devices %zd\n", d->allocDevices);
-  
+
   for (size_t i = 0; i < d->allocDevices; i++) {
     fprintf(stderr, "[%zd] major %d, minor %d\n", i, d->majorArray[i], d->minorArray[i]);
   }
 }
 
-void diskStatMaxQD( diskStatType *d, long* qds, size_t n_qd ) {
-    assert( n_qd > 0 );
-    memset( qds, -1, n_qd * sizeof( qds[ 0 ] ) );
-    
-    for( size_t dev = 0; dev < d->allocDevices; dev++ ) {
-        for( size_t q = 0; q < n_qd; q++ ) {
-            if( d->deviceStats[ dev ].inflight > qds[ q ] ) {
-                qds[ q ] = d->deviceStats[ dev ].inflight;
-                break;
-            }
-        }
+void diskStatMaxQD( diskStatType *d, long* qds, size_t n_qd )
+{
+  assert( n_qd > 0 );
+  memset( qds, -1, n_qd * sizeof( qds[ 0 ] ) );
+
+  for( size_t dev = 0; dev < d->allocDevices; dev++ ) {
+    for( size_t q = 0; q < n_qd; q++ ) {
+      if( d->deviceStats[ dev ].inflight > qds[ q ] ) {
+        qds[ q ] = d->deviceStats[ dev ].inflight;
+        break;
+      }
     }
+  }
 }
 
-void diskStatMaxQDStr(long* cur_qd, size_t max_q_disk, char* max_q_disk_str, size_t max_q_disk_str_len) {
-    memset( max_q_disk_str, 0, max_q_disk_str_len );
+void diskStatMaxQDStr(long* cur_qd, size_t max_q_disk, char* max_q_disk_str, size_t max_q_disk_str_len)
+{
+  memset( max_q_disk_str, 0, max_q_disk_str_len );
 
-    size_t count = 0;
-    for( size_t i = 0; i < max_q_disk; i++ ) {
-        const char* delim = i == 0 ? "" : "/";
-        if( cur_qd[ i ] < 0 ) {
-            count += sprintf( max_q_disk_str + count, "%s-", delim );
-        } else {
-            count += sprintf( max_q_disk_str + count, "%s%ld", delim, cur_qd[ i ] );
-        }
+  size_t count = 0;
+  for( size_t i = 0; i < max_q_disk; i++ ) {
+    const char* delim = i == 0 ? "" : "/";
+    if( cur_qd[ i ] < 0 ) {
+      count += sprintf( max_q_disk_str + count, "%s-", delim );
+    } else {
+      count += sprintf( max_q_disk_str + count, "%s%ld", delim, cur_qd[ i ] );
     }
+  }
 }

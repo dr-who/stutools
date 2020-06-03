@@ -8,7 +8,8 @@
 int verbose = 0;
 int keepRunning = 0;
 
-int main() {
+int main()
+{
   positionContainer pc;
   positionContainerInit(&pc, 0);
   positionContainerSetup(&pc, 1);
@@ -29,7 +30,7 @@ int main() {
 
   //  positionContainerMultiply(&pc, 1);  positionContainerMultiply(&pc, 1);
   positionContainerInfo(&pc);
-  
+
   positionContainer pc2 = positionContainerMultiply(&pc, 2);
   positionContainerInfo(&pc2);
   positionContainerFree(&pc);
@@ -37,7 +38,7 @@ int main() {
   positionContainer pc3 = positionContainerMultiply(&pc2, 4);
   positionContainerInfo(&pc3);
   positionContainerFree(&pc2);
-  
+
 
   positionContainerJumble(&pc3, 1);
   positionContainerInfo(&pc3);
@@ -73,4 +74,4 @@ int main() {
   return 0;
 }
 
-  
+

@@ -18,13 +18,14 @@
 #include "positions.h"
 #include "utils.h"
 #include "blockVerify.h"
-  
+
 int verbose = 1;
 int keepRunning = 1;
 size_t waitEvery = 0;
 
 
-void intHandler(int d) {
+void intHandler(int d)
+{
   if (d) {}
   fprintf(stderr,"got signal\n");
   keepRunning = 0;
@@ -34,7 +35,8 @@ void intHandler(int d) {
  * main
  *
  */
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
@@ -48,20 +50,23 @@ int main(int argc, char *argv[]) {
   int opt = 0;
   size_t o_direct = O_DIRECT;
   size_t sort = 1;
-  
+
   while ((opt = getopt(argc, argv, "Dt:n")) != -1) {
     switch (opt) {
-    case 'D': o_direct = 0;
+    case 'D':
+      o_direct = 0;
       break;
-    case 't': threads = atoi(optarg);
+    case 't':
+      threads = atoi(optarg);
       break;
-    case 'n': sort = 0;
+    case 'n':
+      sort = 0;
       break;
     default:
       break;
     }
   }
-  
+
   size_t numFiles = argc -optind;
   fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd\n", numFiles, threads, sort);
 
@@ -69,7 +74,7 @@ int main(int argc, char *argv[]) {
   CALLOC(origpc, numFiles, sizeof(positionContainer));
 
   jobType job;
-  
+
   for (int i= optind; i < argc; i++) {
     fprintf(stderr,"*info* position file: %s\n", argv[i]);
     FILE *fp = fopen(argv[i], "rt");
@@ -88,18 +93,21 @@ int main(int argc, char *argv[]) {
   positionContainer pc = positionContainerMerge(origpc, numFiles);
   positionContainerCheckOverlap(&pc);
 
-  
+
   fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
 
   // verify must be sorted
   int errors = verifyPositions(&pc, threads, &job, o_direct, sort);
 
-  if (!keepRunning) {fprintf(stderr,"*warning* early verification termination\n");}
+  if (!keepRunning) {
+    fprintf(stderr,"*warning* early verification termination\n");
+  }
 
   for (size_t i = 0; i < numFiles; i++) {
     positionContainerFree(&origpc[i]);
   }
-  free(origpc); origpc=NULL;
+  free(origpc);
+  origpc=NULL;
 
   positionContainerFree(&pc);
 
@@ -109,5 +117,5 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
 }
-  
-  
+
+

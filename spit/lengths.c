@@ -9,7 +9,8 @@
 #include "lengths.h"
 #include "utils.h"
 
-void lengthsInit(lengthsType *l) {
+void lengthsInit(lengthsType *l)
+{
   l->size = 0;
   l->len = NULL;
   l->freq = NULL;
@@ -19,14 +20,16 @@ void lengthsInit(lengthsType *l) {
   l->max = 0;
 }
 
-void lengthsFree(lengthsType *l) {
+void lengthsFree(lengthsType *l)
+{
   if (l->len) free(l->len);
   l->len = NULL;
   if (l->freq) free(l->freq);
   l->freq = NULL;
 }
 
-void lengthsAdd(lengthsType *l, const size_t len, size_t freq) {
+void lengthsAdd(lengthsType *l, const size_t len, size_t freq)
+{
   if (freq < 1) freq = 1;
   l->size++;
   l->len = realloc(l->len, (l->size) * sizeof(lengthsType));
@@ -39,11 +42,13 @@ void lengthsAdd(lengthsType *l, const size_t len, size_t freq) {
   //  fprintf(stderr,"add %zd freq %zd sum %zd\n", len, freq, l->sum);
 }
 
-size_t lengthsSize(const lengthsType *l) {
+size_t lengthsSize(const lengthsType *l)
+{
   return l->size;
 }
 
-size_t lengthsGet(const lengthsType *l, unsigned int *seed) {
+size_t lengthsGet(const lengthsType *l, unsigned int *seed)
+{
   if (l->size == 0) {
     return 0;
   } else if (l->size == 1) {
@@ -63,29 +68,34 @@ size_t lengthsGet(const lengthsType *l, unsigned int *seed) {
   //  return l->len[pos];
 }
 
-size_t lengthsMin(const lengthsType *l) {
+size_t lengthsMin(const lengthsType *l)
+{
   return l->min;
 }
 
-size_t lengthsMax(const lengthsType *l) {
+size_t lengthsMax(const lengthsType *l)
+{
   return l->max;
 }
 
 
-void lengthsSetupLowHighAlignSeq(lengthsType *l, size_t min, size_t max, size_t align) {
+void lengthsSetupLowHighAlignSeq(lengthsType *l, size_t min, size_t max, size_t align)
+{
   for (size_t i = min; i <= max; i += align) {
     lengthsAdd(l, alignedNumber(i, align), 1);
   }
 }
 
-void lengthsSetupLowHighAlignPower(lengthsType *l, size_t min, size_t max, size_t align) {
+void lengthsSetupLowHighAlignPower(lengthsType *l, size_t min, size_t max, size_t align)
+{
   if (align) {}
   for (size_t i = min; i <= max; i = i*2) {
     lengthsAdd(l, i, 1);
   }
 }
 
-void lengthsDump(const lengthsType *l) {
+void lengthsDump(const lengthsType *l)
+{
   fprintf(stderr,"*info* lengths dump (min %zd, max %zd)\n", l->min, l->max);
   for (size_t i = 0; i < l->size; i++) {
     fprintf(stderr,"*info*   [%zd] %zd, %zd\n", i, l->len[i], l->freq[i]);
@@ -106,5 +116,5 @@ void lengthsDump(const lengthsType *l) {
   exit(0);
 
 }
-  
+
 */

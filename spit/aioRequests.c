@@ -19,24 +19,25 @@ extern volatile int keepRunning;
 #define DISPLAYEVERY 1
 
 size_t aioMultiplePositions( positionContainer *p,
-			     const size_t sz,
-			     const double finishTime,
-			     const size_t finishBytes,
-			     size_t origQD,
-			     const int verbose,
-			     const int tableMode, 
-			     size_t alignment,
-			     size_t *ios,
-			     size_t *totalRB,
-			     size_t *totalWB,
-			     const size_t oneShot,
-			     const int dontExitOnErrors,
-			     const int fd,
-			     int flushEvery,
-			     const size_t targetMBps,
-			     size_t *ioerrors,
-			     size_t QDbarrier
-			     ) {
+                             const size_t sz,
+                             const double finishTime,
+                             const size_t finishBytes,
+                             size_t origQD,
+                             const int verbose,
+                             const int tableMode,
+                             size_t alignment,
+                             size_t *ios,
+                             size_t *totalRB,
+                             size_t *totalWB,
+                             const size_t oneShot,
+                             const int dontExitOnErrors,
+                             const int fd,
+                             int flushEvery,
+                             const size_t targetMBps,
+                             size_t *ioerrors,
+                             size_t QDbarrier
+                           )
+{
   int ret;
   struct iocb **cbs;
   struct io_event *events;
@@ -51,7 +52,7 @@ size_t aioMultiplePositions( positionContainer *p,
   positionType *positions = p->positions;
 
 
-  
+
   //  const double alignbits = log(alignment)/log(2);
   //  assert (alignbits == (size_t)alignbits);
 
@@ -84,7 +85,7 @@ size_t aioMultiplePositions( positionContainer *p,
     }
   }
   assert(maxSize > 0);
-  
+
   /* setup I/O control block, randomised just for this run. So we can check verification afterwards */
   char **data = NULL;
   CALLOC(data, QD, sizeof(char*));
@@ -113,7 +114,7 @@ size_t aioMultiplePositions( positionContainer *p,
   for (size_t i = 0; i < QD; i++) {
     freeQueue[i] = i;
   }
-  
+
   // grab [headOfQueue], put back onto [tailOfQueue]
 
   // there are 256 queue slots
@@ -148,7 +149,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   size_t submitted = 0, flushPos = 0, received = 0;
   size_t totalWriteBytes = 0, totalReadBytes = 0;
-  
+
   size_t lastBytes = 0, lastIOCount = 0;
 
   struct timespec timeout;
@@ -171,7 +172,7 @@ size_t aioMultiplePositions( positionContainer *p,
   size_t timesinceMB = 0;
   double timesleep = 500000;
 
-  
+
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishTime %lf\n", sz, finishTime);
   while (keepRunning && ((thistime = timedouble()) < finishTime)) {
     assert (pos < sz);
@@ -179,144 +180,153 @@ size_t aioMultiplePositions( positionContainer *p,
     if (inFlight > QD) {
       fprintf(stderr,"*error* inFlight %zd %zd\n", inFlight, QD);
     }
-	thistime = timedouble();
+    thistime = timedouble();
     while (sz && inFlight < QD && keepRunning) {
       if (!positions[pos].inFlight) {
-      
-      // submit requests, one at a time
-	assert(pos < sz);
-	if (positions[pos].action != 'S') { // if we have some positions, sz > 0
-	  const size_t newpos = positions[pos].pos;
-	  const size_t len = positions[pos].len;
 
-	  assert(headOfQueue < QD);
-	  qdIndex = freeQueue[headOfQueue];
-	  assert(qdIndex >= 0);
+        // submit requests, one at a time
+        assert(pos < sz);
+        if (positions[pos].action != 'S') { // if we have some positions, sz > 0
+          const size_t newpos = positions[pos].pos;
+          const size_t len = positions[pos].len;
 
-	  assert(positions[pos].inFlight == 0);
+          assert(headOfQueue < QD);
+          qdIndex = freeQueue[headOfQueue];
+          assert(qdIndex >= 0);
 
-	  // setup the request
-	  if (fd >= 0) {
-	    positions[pos].q = qdIndex;
-	    positions[pos].inFlight = 1;
+          assert(positions[pos].inFlight == 0);
 
-	    // watermark the block with the position on the device
-	    
-	    if (positions[pos].action=='R') {
-	      if (verbose >= 2) {fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);}
+          // setup the request
+          if (fd >= 0) {
+            positions[pos].q = qdIndex;
+            positions[pos].inFlight = 1;
 
-	      /*
-	      if (positions[pos].seed != dataseed[qdIndex]) {
-		generateRandomBuffer(readdata[qdIndex], positions[pos].len, positions[pos].seed);
-		dataseed[qdIndex] = positions[pos].seed;
-		}*/
+            // watermark the block with the position on the device
 
-	      io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
-	      cbs[qdIndex]->data = &positions[pos];
-	    } else if (positions[pos].action=='F') {
-	      if (verbose >= 2) {fprintf(stderr,"[%zd] flush qdIndex=%d\n", newpos, qdIndex);}
+            if (positions[pos].action=='R') {
+              if (verbose >= 2) {
+                fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);
+              }
 
-	      io_prep_fsync(cbs[qdIndex], fd);
-	      cbs[qdIndex]->data = &positions[pos];
-	    } else if (positions[pos].action == 'W') {
-	      if (verbose >= 2) {fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);}
+              /*
+              if (positions[pos].seed != dataseed[qdIndex]) {
+              generateRandomBuffer(readdata[qdIndex], positions[pos].len, positions[pos].seed);
+              dataseed[qdIndex] = positions[pos].seed;
+              }*/
 
-	      if (positions[pos].seed != dataseed[qdIndex]) {
-		generateRandomBuffer(data[qdIndex], positions[pos].len, positions[pos].seed);
-		dataseed[qdIndex] = positions[pos].seed;
-	      }
+              io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
+              cbs[qdIndex]->data = &positions[pos];
+            } else if (positions[pos].action=='F') {
+              if (verbose >= 2) {
+                fprintf(stderr,"[%zd] flush qdIndex=%d\n", newpos, qdIndex);
+              }
 
-	      size_t *posdest = (size_t*)data[qdIndex];
-	      *posdest = newpos;
+              io_prep_fsync(cbs[qdIndex], fd);
+              cbs[qdIndex]->data = &positions[pos];
+            } else if (positions[pos].action == 'W') {
+              if (verbose >= 2) {
+                fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);
+              }
 
-	      size_t *uuiddest = (size_t*)data[qdIndex] + 1;
-	      *uuiddest = p->UUID;
+              if (positions[pos].seed != dataseed[qdIndex]) {
+                generateRandomBuffer(data[qdIndex], positions[pos].len, positions[pos].seed);
+                dataseed[qdIndex] = positions[pos].seed;
+              }
 
-	      if (positions[pos].verify) {
-		if (positions[positions[pos].verify].finishTime == 0) {
-		  positions[pos].verify = 0;
-		}
-	      }
+              size_t *posdest = (size_t*)data[qdIndex];
+              *posdest = newpos;
 
-	      io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
-	      cbs[qdIndex]->data = &positions[pos];
+              size_t *uuiddest = (size_t*)data[qdIndex] + 1;
+              *uuiddest = p->UUID;
 
-	      flushPos++;
-	    }
-	    
-	    positions[pos].submitTime = thistime;
-	    positions[pos].finishTime = 0;
+              if (positions[pos].verify) {
+                if (positions[positions[pos].verify].finishTime == 0) {
+                  positions[pos].verify = 0;
+                }
+              }
+
+              io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
+              cbs[qdIndex]->data = &positions[pos];
+
+              flushPos++;
+            }
+
+            positions[pos].submitTime = thistime;
+            positions[pos].finishTime = 0;
 
 
-	    // for the speed limiting
-	    	    timesinceMB += len;
+            // for the speed limiting
+            timesinceMB += len;
 
-	    ret = io_submit(ioc, 1, &cbs[qdIndex]);
-	      
-	    if (ret > 0) {
-	      // if success
-	      freeQueue[headOfQueue] = -1; // take off queue
-	      //	      freeQueue[headOfQueue] = -1;
-	      headOfQueue++; if (headOfQueue == QD) headOfQueue = 0;
+            ret = io_submit(ioc, 1, &cbs[qdIndex]);
 
-	      inFlight++;
-	      //	      lastsubmit = thistime; // last good submit
-	      submitted++;
-	      if (verbose >= 2 || (newpos & (alignment - 1))) {
-		fprintf(stderr,"fd %d, pos %zd (%% %zd = %zd ... %s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, alignment, newpos % alignment, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
-	      }
-	      
-	    } else {
-	      *ioerrors = (*ioerrors) + 1;
-	      fprintf(stderr,"io_submit() failed, ret = %d\n", ret); perror("io_submit()"); if(!dontExitOnErrors) abort();
-	    }
-	  }
-	}
+            if (ret > 0) {
+              // if success
+              freeQueue[headOfQueue] = -1; // take off queue
+              //	      freeQueue[headOfQueue] = -1;
+              headOfQueue++;
+              if (headOfQueue == QD) headOfQueue = 0;
+
+              inFlight++;
+              //	      lastsubmit = thistime; // last good submit
+              submitted++;
+              if (verbose >= 2 || (newpos & (alignment - 1))) {
+                fprintf(stderr,"fd %d, pos %zd (%% %zd = %zd ... %s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, alignment, newpos % alignment, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+              }
+
+            } else {
+              *ioerrors = (*ioerrors) + 1;
+              fprintf(stderr,"io_submit() failed, ret = %d\n", ret);
+              perror("io_submit()");
+              if(!dontExitOnErrors) abort();
+            }
+          }
+        }
       } else {
-	if (verbose >= 1) {
-	  fprintf(stderr,"*info* position collision %zd\n",pos);
-	}
+        if (verbose >= 1) {
+          fprintf(stderr,"*info* position collision %zd\n",pos);
+        }
       }
 
       // onto the next one
       pos++;
       if (pos >= sz) {
-	if (oneShot) {
-	  //	      	      fprintf(stderr,"end of function one shot\n");
-	  goto endoffunction; // only go through once
-	}
-	pos = 0; // don't go over the end of the array
+        if (oneShot) {
+          //	      	      fprintf(stderr,"end of function one shot\n");
+          goto endoffunction; // only go through once
+        }
+        pos = 0; // don't go over the end of the array
       }
     } // while not enough inflight
-    
+
     double timeelapsed = timedouble() - last;
     if (timeelapsed >= DISPLAYEVERY) {
       const double speed = TOMB(1.0*(totalReadBytes + totalWriteBytes - lastBytes) / timeelapsed);
       const double IOspeed = 1.0*(received - lastIOCount) / timeelapsed;
       //if (benchl) logSpeedAdd2(benchl, TOMB(totalReadBytes + totalWriteBytes - lastBytes), (received - lastIOCount));
       if (!tableMode) {
-	if (verbose != -1) {
-	  //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
-	  fprintf(stderr,"[%.1lf] %.1lf GB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", thistime - start, TOGB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
-	}
-	if (verbose >= 2) {
-	  if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
-	}
+        if (verbose != -1) {
+          //	      fprintf(stderr,"[%.1lf] %.1lf GiB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", gt - start, TOGiB(totalReadBytes + totalWriteBytes), inFlight, received, pos, submitted / (gt - start), speed);
+          fprintf(stderr,"[%.1lf] %.1lf GB, qd: %zd, op: %zd, [%zd], %.0lf IO/s, %.1lf MB/s\n", thistime - start, TOGB(totalReadBytes + totalWriteBytes), inFlight, received, pos, IOspeed, speed);
+        }
+        if (verbose >= 2) {
+          if (flush_count) fprintf(stderr,"*info* avg flush time %.4lf (min %.4lf, max %.4lf)\n", flush_totaltime / flush_count, flush_mintime, flush_maxtime);
+        }
       }
       lastBytes = totalReadBytes + totalWriteBytes;
       lastIOCount = received;
       last = thistime;
     }
-  
+
     if (flushEvery) {
       //      if (flushPos >= flushEvery) {
-	flushPos = flushPos - flushEvery;
-	if (verbose >= 2) {
-	  fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
-	}
-	fsync(fd);
-	flush_count++;
-	//      }
+      flushPos = flushPos - flushEvery;
+      if (verbose >= 2) {
+        fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
+      }
+      fsync(fd);
+      flush_count++;
+      //      }
     }
 
 
@@ -326,43 +336,43 @@ size_t aioMultiplePositions( positionContainer *p,
       double resettime = tttime - timesincereset;
       size_t speed = (timesinceMB / 1024.0 / 1024.0) / resettime;
       if (resettime > 0.1) {
-	if (speed > targetMBps) {
-	  if (timesleep == 0) timesleep = 1;
+        if (speed > targetMBps) {
+          if (timesleep == 0) timesleep = 1;
 
-	  timesleep = timesleep * 1.02;
-		  
-	  timesincereset = tttime;
-	  timesinceMB = 0;
-		  
-	} else if (speed < targetMBps) {
+          timesleep = timesleep * 1.02;
 
-	  timesleep = timesleep / 1.02;
-	  if (timesleep < 0) timesleep = 0;
+          timesincereset = tttime;
+          timesinceMB = 0;
 
-	  timesincereset = tttime;
-	  timesinceMB = 0;
-	} else {
-	  timesincereset = tttime;
-	  timesinceMB = 0;
-	}
-	//	fprintf(stderr,"*info* sleep %.3lf, speed %zd, target %zd\n", timesleep, speed, targetMBps);
+        } else if (speed < targetMBps) {
+
+          timesleep = timesleep / 1.02;
+          if (timesleep < 0) timesleep = 0;
+
+          timesincereset = tttime;
+          timesinceMB = 0;
+        } else {
+          timesincereset = tttime;
+          timesinceMB = 0;
+        }
+        //	fprintf(stderr,"*info* sleep %.3lf, speed %zd, target %zd\n", timesleep, speed, targetMBps);
       }
       struct timespec nanslp = {0,timesleep};
       nanosleep(&nanslp, NULL);
     }
 
-    
+
     // return, 1..inFlight wait for a bit
     if (QDbarrier) {
       if (inFlight >= QD) {
-	ret = io_getevents(ioc, QD, inFlight, events, &timeout);
+        ret = io_getevents(ioc, QD, inFlight, events, &timeout);
       } else {
-	ret = 0;
+        ret = 0;
       }
     } else {
       ret = io_getevents(ioc, 1, inFlight, events, &timeout);
     }
-    
+
     //    }
     if (ret > 0) {
       //      lastreceive = timedouble();
@@ -370,75 +380,76 @@ size_t aioMultiplePositions( positionContainer *p,
       // verify it's all ok
       size_t rio = 0, rlen = 0, wio = 0, wlen = 0;
       for (int j = 0; j < ret; j++) {
-	//	struct iocb *my_iocb = events[j].obj;
-	//if (alll) logSpeedAdd2(alll, TOMB(events[j].res), 1);
-	struct iocb *my_iocb = events[j].obj;
-	positionType *pp = (positionType*) my_iocb->data;
-	assert(pp->inFlight);
-
-	
-	int rescode = events[j].res;
-	int rescode2 = events[j].res2;
-
-	if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
-	  *ioerrors = (*ioerrors) + 1;
-	  if (printed++ < 10) {
-	    fprintf(stderr,"*error* AIO failure codes: res=%d and res2=%d, [%zd] = %zd, inFlight %zd, returned %d results\n", rescode, rescode2, pos, positions[pos].pos, inFlight, ret);
-	    //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
-	    //	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
-	  } else {
-	      
-	    //	    fprintf(stderr,"*error* further output supressed\n");
-	  }
-	  if (*ioerrors > 1000000) {
-	    fprintf(stderr,"*info* over %zd IO errors. Exiting...\n", *ioerrors);
-	    exit(-1);
-	  }
-	    
-
-	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
-	} else {
-	  //	  fprintf(stderr,"---> %d %d\n", rescode, rescode2);
-	  //successful result
-
-	  //	  if (pp->success) {
-	  //	    fprintf(stderr,"*warning* AIO duplicate result at position %zd\n", pp->pos);
-	  //	  }
-	  
-	  //fprintf(stderr,"'%c' %d %u\n", pp->action, pp->q, pp->len);
-	  if (pp->action == 'R') {
-	    rio++;
-	    rlen += pp->len;
-	  } else if (pp->action == 'W') {
-	    wio++;
-	    wlen += pp->len;
-	  }
+        //	struct iocb *my_iocb = events[j].obj;
+        //if (alll) logSpeedAdd2(alll, TOMB(events[j].res), 1);
+        struct iocb *my_iocb = events[j].obj;
+        positionType *pp = (positionType*) my_iocb->data;
+        assert(pp->inFlight);
 
 
-	  if (pp->verify && (pp->action == 'R')) {
-	    //	    if (pp->seed != dataseed[pp->q]) {
-	    //	    //n	      generateRandomBuffer(readdata[pp->q], pp->len, pp->seed);
-	    //	      dataseed[pp->q] = pp->seed;
-	    //	    }
-	    
-	    // if we know we have written we can check, or if we have read a previous write
-	    size_t *uucheck = NULL, *poscheck = NULL;
-	    poscheck = (size_t*)readdata[pp->q];
-	    uucheck = (size_t*)readdata[pp->q] + 1;
-	  
-	    if (((p->UUID != *uucheck) || (pp->pos != *poscheck)) && (positions[pp->verify].finishTime)) {
-	      fprintf(stderr,"*error* position[%zd] '%c' R=%d (success %d) ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pos, pp->action, pp->seed, pp->success, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
-	      fprintf(stderr,"*error* Maybe: combinations of meta-data 'm', multiple threads 'j' and without G_ may fail\n");
-	      fprintf(stderr,"*error* as the different threads will clobber data from other threads in real time\n");
-	      fprintf(stderr,"*error* Potentially write to -P positions.txt and check after data is written\n");
-	      abort();
-	    }
-	  }
-	} // else if no error
-	pp->finishTime = timedouble();
-	pp->success = 1; // the action has completed
-	pp->inFlight = 0;
-	freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
+        int rescode = events[j].res;
+        int rescode2 = events[j].res2;
+
+        if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
+          *ioerrors = (*ioerrors) + 1;
+          if (printed++ < 10) {
+            fprintf(stderr,"*error* AIO failure codes: res=%d and res2=%d, [%zd] = %zd, inFlight %zd, returned %d results\n", rescode, rescode2, pos, positions[pos].pos, inFlight, ret);
+            //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
+            //	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
+          } else {
+
+            //	    fprintf(stderr,"*error* further output supressed\n");
+          }
+          if (*ioerrors > 1000000) {
+            fprintf(stderr,"*info* over %zd IO errors. Exiting...\n", *ioerrors);
+            exit(-1);
+          }
+
+
+          //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
+        } else {
+          //	  fprintf(stderr,"---> %d %d\n", rescode, rescode2);
+          //successful result
+
+          //	  if (pp->success) {
+          //	    fprintf(stderr,"*warning* AIO duplicate result at position %zd\n", pp->pos);
+          //	  }
+
+          //fprintf(stderr,"'%c' %d %u\n", pp->action, pp->q, pp->len);
+          if (pp->action == 'R') {
+            rio++;
+            rlen += pp->len;
+          } else if (pp->action == 'W') {
+            wio++;
+            wlen += pp->len;
+          }
+
+
+          if (pp->verify && (pp->action == 'R')) {
+            //	    if (pp->seed != dataseed[pp->q]) {
+            //	    //n	      generateRandomBuffer(readdata[pp->q], pp->len, pp->seed);
+            //	      dataseed[pp->q] = pp->seed;
+            //	    }
+
+            // if we know we have written we can check, or if we have read a previous write
+            size_t *uucheck = NULL, *poscheck = NULL;
+            poscheck = (size_t*)readdata[pp->q];
+            uucheck = (size_t*)readdata[pp->q] + 1;
+
+            if (((p->UUID != *uucheck) || (pp->pos != *poscheck)) && (positions[pp->verify].finishTime)) {
+              fprintf(stderr,"*error* position[%zd] '%c' R=%d (success %d) ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pos, pp->action, pp->seed, pp->success, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
+              fprintf(stderr,"*error* Maybe: combinations of meta-data 'm', multiple threads 'j' and without G_ may fail\n");
+              fprintf(stderr,"*error* as the different threads will clobber data from other threads in real time\n");
+              fprintf(stderr,"*error* Potentially write to -P positions.txt and check after data is written\n");
+              abort();
+            }
+          }
+        } // else if no error
+        pp->finishTime = timedouble();
+        pp->success = 1; // the action has completed
+        pp->inFlight = 0;
+        freeQueue[tailOfQueue++] = pp->q;
+        if (tailOfQueue == QD) tailOfQueue = 0;
       } // for j
 
       p->readIOs += rio;
@@ -452,19 +463,19 @@ size_t aioMultiplePositions( positionContainer *p,
       inFlight -= ret;
       received += ret;
     }
-    
+
     if (finishBytes && (totalWriteBytes + totalReadBytes >= finishBytes)) {
       //      fprintf(stderr,"....%zd %zd\n", finishBytes, totalWriteBytes + totalReadBytes);
       break;
     }
-      
-    
+
+
     //    if (ret < 0) {
-      //      fprintf(stderr,"eek\n");
+    //      fprintf(stderr,"eek\n");
     //    }
   } // while keepRunning
 
- endoffunction:
+endoffunction:
   // receive outstanding I/Os
 
   {}
@@ -474,45 +485,46 @@ size_t aioMultiplePositions( positionContainer *p,
   while (inFlight) {
     count++;
     if (count > 3600) break;
-    
+
     if (inFlight) {
       int ret = io_getevents(ioc, 0, inFlight, events, NULL);
       if (ret > 0) {
-	for (int j = 0; j < ret; j++) {
-	  // TODO refactor into the same code as above
-	  struct iocb *my_iocb = events[j].obj;
-	  positionType *pp = (positionType*) my_iocb->data;
+        for (int j = 0; j < ret; j++) {
+          // TODO refactor into the same code as above
+          struct iocb *my_iocb = events[j].obj;
+          positionType *pp = (positionType*) my_iocb->data;
 
-	  freeQueue[tailOfQueue++] = pp->q; if (tailOfQueue == QD) tailOfQueue = 0;
-	  
-	  pp->finishTime = timedouble();
-	  pp->inFlight = 0;
-	  pp->success = 1; // the action has completed
+          freeQueue[tailOfQueue++] = pp->q;
+          if (tailOfQueue == QD) tailOfQueue = 0;
 
-	  if (pp->action == 'R') {
-	    p->readIOs++;
-	    p->readBytes += pp->len;
-	    totalReadBytes += pp->len;
-	  } else if (pp->action == 'W') {
-	    p->writtenIOs++;
-	    p->writtenBytes += pp->len;
-	    totalWriteBytes += pp->len;
-	  }
-	}
-	inFlight -= ret;
+          pp->finishTime = timedouble();
+          pp->inFlight = 0;
+          pp->success = 1; // the action has completed
+
+          if (pp->action == 'R') {
+            p->readIOs++;
+            p->readBytes += pp->len;
+            totalReadBytes += pp->len;
+          } else if (pp->action == 'W') {
+            p->writtenIOs++;
+            p->writtenBytes += pp->len;
+            totalWriteBytes += pp->len;
+          }
+        }
+        inFlight -= ret;
       } else {
-	if (count > 5 && (timedouble() - lastprint >=3)) {
-	  fprintf(stderr,"*warning* waiting for %zd IOs in flight, iteration %zd, %zd seconds...\n", inFlight, count, (size_t)(timedouble() - snaptime));
-	  lastprint = timedouble();
-	}
-	usleep(10000);
+        if (count > 5 && (timedouble() - lastprint >=3)) {
+          fprintf(stderr,"*warning* waiting for %zd IOs in flight, iteration %zd, %zd seconds...\n", inFlight, count, (size_t)(timedouble() - snaptime));
+          lastprint = timedouble();
+        }
+        usleep(10000);
       }
     }
   }
   if (inFlight) {
     fprintf(stderr,"*warning* inFlight requests still = %zd\n", inFlight);
   }
-  
+
   free(events);
   for (size_t i = 0; i < QD; i++) {
     free(cbs[i]);
@@ -532,7 +544,7 @@ size_t aioMultiplePositions( positionContainer *p,
   if (inFlight) {
     fprintf(stderr,"*info* io_destroy() succeeded\n");
   }
-  
+
   *ios = received;
 
   *totalWB = totalWriteBytes;
@@ -541,7 +553,7 @@ size_t aioMultiplePositions( positionContainer *p,
   for (size_t i = 0; i < pos; i++) {
     assert(positions[i].submitTime > 0);
   }
-  
+
   return (*totalWB) + (*totalRB);
 }
 

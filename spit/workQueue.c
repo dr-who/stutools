@@ -13,21 +13,24 @@
 #include <string.h>
 
 
-void workQueueInit(workQueueType *queue, const size_t size) {
+void workQueueInit(workQueueType *queue, const size_t size)
+{
   queue->allocsz = size;
   queue->sz = 0;
   queue->head = 0;
   queue->finished = 0;
   queue->tail = 0;
   queue->startTime = 0;
-  queue->actions = calloc(size, sizeof(workQueueActionType)); assert(queue->actions);
+  queue->actions = calloc(size, sizeof(workQueueActionType));
+  assert(queue->actions);
   if (pthread_mutex_init(&queue->lock, NULL) != 0) {
-    printf("\n mutex init has failed\n"); 
+    printf("\n mutex init has failed\n");
     exit(1);
   }
 }
 
-int workQueuePush(workQueueType *queue, workQueueActionType action) {
+int workQueuePush(workQueueType *queue, workQueueActionType action)
+{
   int ret = 0;
 
   if (queue->sz < queue->allocsz-1) {
@@ -35,7 +38,7 @@ int workQueuePush(workQueueType *queue, workQueueActionType action) {
     if (queue->head >= queue->allocsz) {
       queue->head = 0;
     }
-    pthread_mutex_lock(&queue->lock); 
+    pthread_mutex_lock(&queue->lock);
     queue->sz++;
     if (queue->startTime == 0) {
       queue->startTime = timedouble();
@@ -46,7 +49,7 @@ int workQueuePush(workQueueType *queue, workQueueActionType action) {
     fprintf(stderr,"*warning* not adding, full %zd\n", queue->sz);
   }
 
-  return ret; // 0 is ok 
+  return ret; // 0 is ok
 }
 
 /*
@@ -70,23 +73,24 @@ int workQueuePop(workQueueType *queue, workQueueActionType *ret) {
 }
 */
 
-size_t workQueuePopArray(workQueueType *queue, workQueueActionType *actionArray, const size_t size) {
+size_t workQueuePopArray(workQueueType *queue, workQueueActionType *actionArray, const size_t size)
+{
   int ret = 0;
   if (queue->sz >= 1) {
     while ((unsigned int) ret < size) {
       if (queue->tail != queue->head) {
-	actionArray[ret] = queue->actions[queue->tail];
-	pthread_mutex_lock(&queue->lock);
-	queue->tail++;
-	if (queue->tail >= queue->allocsz) {
-	  queue->tail = 0;
-	}
-	queue->sz--;
-	queue->sizeSum += actionArray[ret].size;
-	pthread_mutex_unlock(&queue->lock);
-	ret++;
+        actionArray[ret] = queue->actions[queue->tail];
+        pthread_mutex_lock(&queue->lock);
+        queue->tail++;
+        if (queue->tail >= queue->allocsz) {
+          queue->tail = 0;
+        }
+        queue->sz--;
+        queue->sizeSum += actionArray[ret].size;
+        pthread_mutex_unlock(&queue->lock);
+        ret++;
       } else {
-	break;
+        break;
       }
     }
   } else {
@@ -97,7 +101,8 @@ size_t workQueuePopArray(workQueueType *queue, workQueueActionType *actionArray,
 }
 
 
-void workQueueFree(workQueueType *queue) {
+void workQueueFree(workQueueType *queue)
+{
   queue->sz = 0;
   if (queue->actions) free(queue->actions);
   queue->actions = NULL;
@@ -105,7 +110,8 @@ void workQueueFree(workQueueType *queue) {
 }
 
 
-size_t workQueueNum(workQueueType *queue) {
+size_t workQueueNum(workQueueType *queue)
+{
   pthread_mutex_lock(&queue->lock);
 
   size_t sz = queue->sz;
@@ -114,7 +120,8 @@ size_t workQueueNum(workQueueType *queue) {
 }
 
 
-size_t workQueueFinished(workQueueType *queue) {
+size_t workQueueFinished(workQueueType *queue)
+{
   pthread_mutex_lock(&queue->lock);
 
   size_t sz = queue->finished;
@@ -123,7 +130,8 @@ size_t workQueueFinished(workQueueType *queue) {
 }
 
 
-size_t workQueueFinishedSize(workQueueType *queue) {
+size_t workQueueFinishedSize(workQueueType *queue)
+{
   pthread_mutex_lock(&queue->lock);
 
   size_t sz = queue->sizeSum;

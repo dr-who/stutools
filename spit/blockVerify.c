@@ -65,7 +65,8 @@ static int seedcompare(const void *p1, const void *p2)
 
 
 
-int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff, const int seed) {
+int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff, const int seed)
+{
   const size_t pos = p->pos;
   const size_t len = p->len;
 
@@ -86,8 +87,8 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
       fprintf(stderr,"*error* encoded positions are wrong %zd (from disk) and %zd (at position %zd)\n", *p1, *p2, pos);
       return -3;
     }
-    
-    
+
+
     if (strncmp(buf+16, randomBuffer+16, p->len-16-2)==0) {
       return 0;
       // ok
@@ -96,17 +97,17 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
     if (*diff < 3) {
       size_t lines = 0, starterror = 0;
       for (size_t i = 16; i < len; i++) {
-	if (buf[i] != randomBuffer[i]) {
-	  if (lines < 10) 
-	    fprintf(stderr,"*error* difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, i, buf[i], randomBuffer[i], seed);
-	  if (lines == 0) starterror = i;
-	  lines++;
-	}
+        if (buf[i] != randomBuffer[i]) {
+          if (lines < 10)
+            fprintf(stderr,"*error* difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, i, buf[i], randomBuffer[i], seed);
+          if (lines == 0) starterror = i;
+          lines++;
+        }
       }
       fprintf(stderr,"*error* total characters incorrect %zd from %d\n", lines, p->len);
 
       //awk '{if((($2>=3415666688) && $2+$7<=(3415666688+122880)) || ($2+$7>=3415666688 && $2<3415666688)) print}' positions.txt
-	
+
       size_t *poscheck = (size_t*)buf;
       size_t *uucheck = (size_t*)buf + 1;
       fprintf(stderr,"*error* poscheck at the start %zd, uuid %zd\n", *poscheck, *uucheck);
@@ -120,13 +121,14 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
       fprintf(stderr,"*error* difference at block[%zd], len=%zd\n   disk:     %s\n   shouldbe: %s\n", pos, len, s1, s2);*/
     }
     *diff = (*diff)+1;
-    
+
     return -3;
   }
 }
 
 
-static void *runThread(void *arg) {
+static void *runThread(void *arg)
+{
 
   threadInfoType *threadContext = (threadInfoType*)arg; // grab the thread threadContext args
 
@@ -138,7 +140,7 @@ static void *runThread(void *arg) {
   size_t lastseed = -1;
   positionType *positions = threadContext->pc->positions;
   size_t diff = 0;
-  
+
 
   int fd = 0;
   unsigned short lastid = -1;
@@ -153,14 +155,14 @@ static void *runThread(void *arg) {
       fprintf(stderr,"*info* positions are shuffled\n");
       unsigned int seed = threadContext->id;
       for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
-	size_t j = i;
-	while ((j = (threadContext->startInc + rand_r(&seed) % gap)) == i) {
-	  ;
-	}
-	// swap i and j
-	positionType p = threadContext->pc->positions[i];
-	threadContext->pc->positions[i] = threadContext->pc->positions[j];
-	threadContext->pc->positions[j] = p;
+        size_t j = i;
+        while ((j = (threadContext->startInc + rand_r(&seed) % gap)) == i) {
+          ;
+        }
+        // swap i and j
+        positionType p = threadContext->pc->positions[i];
+        threadContext->pc->positions[i] = threadContext->pc->positions[j];
+        threadContext->pc->positions[j] = p;
       }
     }
 
@@ -173,42 +175,44 @@ static void *runThread(void *arg) {
       }*/
   }
 
-  
+
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
     if (threadContext->pc->positions[i].deviceid != lastid) {
       //      fprintf(stderr,"[%d] lastid %d this %d\n", threadContext->id, lastid, threadContext->pc->positions[i].deviceid);
       lastid = threadContext->pc->positions[i].deviceid;
       if (fd != 0) {
-	close(fd);
+        close(fd);
       }
       if ((i==0) && (threadContext->o_direct == 0)) {
-	fprintf(stderr,"*info* turning off O_DIRECT for verification\n");
+        fprintf(stderr,"*info* turning off O_DIRECT for verification\n");
       }
       fd = open(threadContext->job->devices[threadContext->pc->positions[i].deviceid], O_RDONLY | threadContext->o_direct);
       //      if (threadContext->id == 0)
       //	fprintf(stderr,"*info* opening file %s in O_RDONLY | O_DIRECT\n", threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
       if (fd < 0) {
-	fprintf(stderr,"*info* if the file system doesn't support O_DIRECT you may need the -D option\n");
-	perror(threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
-	exit(-1);
+        fprintf(stderr,"*info* if the file system doesn't support O_DIRECT you may need the -D option\n");
+        perror(threadContext->job->devices[threadContext->pc->positions[i].deviceid]);
+        exit(-1);
       }
     }
     if (threadContext->id == 0) {
       // print progress
       size_t gap = threadContext->endExc - threadContext->startInc - 1;
       if (isatty(fileno(stderr))) {
-	fprintf(stderr,"*progress* %.1lf %%\r", (gap == 0) ? 100 : (i - threadContext->startInc) * 100.0 / gap);
-	fflush(stderr);
+        fprintf(stderr,"*progress* %.1lf %%\r", (gap == 0) ? 100 : (i - threadContext->startInc) * 100.0 / gap);
+        fflush(stderr);
       }
     }
-    if (!keepRunning) {break;}
+    if (!keepRunning) {
+      break;
+    }
     if (positions[i].action == 'W' && positions[i].finishTime>0) {
       threadContext->bytesRead += positions[i].len;
       if (positions[i].seed != lastseed) {
-	generateRandomBuffer(randombuf, threadContext->pc->maxbs, positions[i].seed);
-	lastseed = positions[i].seed;
+        generateRandomBuffer(randombuf, threadContext->pc->maxbs, positions[i].seed);
+        lastseed = positions[i].seed;
       }
-	
+
       //      double start = timedouble();
       size_t pos = threadContext->pc->positions[i].pos;
       memcpy(randombuf, &pos, sizeof(size_t));
@@ -216,14 +220,22 @@ static void *runThread(void *arg) {
 
       //      threadContext->elapsed = timedouble() - start;
       switch (ret) {
-      case 0: threadContext->correct++; break;
-      case -1: threadContext->ioerrors++; break;
-      case -2: threadContext->lenerrors++; break;
-      case -3: threadContext->incorrect++; break;
+      case 0:
+        threadContext->correct++;
+        break;
+      case -1:
+        threadContext->ioerrors++;
+        break;
+      case -2:
+        threadContext->lenerrors++;
+        break;
+      case -3:
+        threadContext->incorrect++;
+        break;
       default:
-	break;
+        break;
       }
-      
+
       threadContext->iocount++;
 
     }
@@ -242,12 +254,13 @@ static void *runThread(void *arg) {
 
 
 
-  
+
 /**
  * Input is sorted
  *
  */
-int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted) {
+int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted)
+{
 
   positionContainerInfo(pc);
 
@@ -265,7 +278,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
   CALLOC(threadContext, threads, sizeof(threadInfoType));
 
   double start = timedouble();
-    
+
   for (size_t i =0 ; i < threads; i++) {
     threadContext[i].job = job;
     threadContext[i].id = i;
@@ -284,7 +297,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
     threadContext[i].sorted = sorted;
 
     //        fprintf(stderr,"*info* starting thread[%zd] in range [%zd, %zd)\n", i, threadContext[i].startInc, threadContext[i].endExc);
-    
+
     if (pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]))) {
       fprintf(stderr,"*error* can't create a thread\n");
       exit(-1);
@@ -299,14 +312,14 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
 
   size_t tr = 0;
   size_t correct = 0, incorrect = 0, ioerrors = 0, lenerrors = 0, iocount = 0;
-  
+
   for (size_t i = 0; i < threads; i++) {
     correct += threadContext[i].correct;
     incorrect += threadContext[i].incorrect;
     ioerrors += threadContext[i].ioerrors;
     lenerrors += threadContext[i].lenerrors;
     iocount += threadContext[i].iocount;
-    
+
     tr += threadContext[i].bytesRead;
   }
   size_t ops = correct + incorrect + ioerrors + lenerrors;
@@ -321,5 +334,5 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
 }
 
 
-  
+
 

@@ -10,7 +10,8 @@
 #include "utils.h"
 
 
-double logSpeedInit(volatile logSpeedType *l) {
+double logSpeedInit(volatile logSpeedType *l)
+{
   l->starttime = timedouble();
   l->lasttime = l->starttime;
   l->num = 0;
@@ -21,7 +22,8 @@ double logSpeedInit(volatile logSpeedType *l) {
   return l->starttime;
 }
 
-void logSpeedReset(logSpeedType *l) {
+void logSpeedReset(logSpeedType *l)
+{
   if (l) {
     l->starttime = timedouble();
     l->lasttime = l->starttime;
@@ -30,20 +32,23 @@ void logSpeedReset(logSpeedType *l) {
 }
 
 
-double logSpeedTime(logSpeedType *l) {
+double logSpeedTime(logSpeedType *l)
+{
   return l->lasttime - l->starttime;
 }
 
 
 // if no count
-int logSpeedAdd(logSpeedType *l, double value) {
+int logSpeedAdd(logSpeedType *l, double value)
+{
   return logSpeedAdd2(l, value, 0);
 }
 
 
-int logSpeedAdd2(logSpeedType *l, double value, size_t count) {
+int logSpeedAdd2(logSpeedType *l, double value, size_t count)
+{
   assert(l);
-    
+
   if (l->num >= l->alloc) {
     l->alloc = l->alloc * 2 + 1;
     l->rawtime = realloc(l->rawtime, l->alloc * sizeof(double));
@@ -51,7 +56,7 @@ int logSpeedAdd2(logSpeedType *l, double value, size_t count) {
     l->rawcount = realloc(l->rawcount, l->alloc * sizeof(size_t));
     //    fprintf(stderr,"skipping...\n"); sleep(1);
     //    fprintf(stderr,"new size %zd\n", l->num);
-  } 
+  }
   // fprintf(stderr,"it's been %zd bytes in %lf time, is %lf, total %zd, %lf,  %lf sec\n", value, timegap, value/timegap, l->total, l->total/logSpeedTime(l), logSpeedTime(l));
   l->rawtime[l->num] = timedouble();
   l->lasttime = l->rawtime[l->num];
@@ -64,7 +69,8 @@ int logSpeedAdd2(logSpeedType *l, double value, size_t count) {
   return l->num;
 }
 
-double logSpeedMean(logSpeedType *l) {
+double logSpeedMean(logSpeedType *l)
+{
   if (l->num <= 1) {
     return 0;
   } else {
@@ -72,12 +78,14 @@ double logSpeedMean(logSpeedType *l) {
   }
 }
 
-size_t logSpeedN(logSpeedType *l) {
+size_t logSpeedN(logSpeedType *l)
+{
   return l->num;
 }
-  
 
-void logSpeedFree(logSpeedType *l) {
+
+void logSpeedFree(logSpeedType *l)
+{
   free(l->rawtime);
   free(l->rawvalues);
   free(l->rawcount);
@@ -87,7 +95,8 @@ void logSpeedFree(logSpeedType *l) {
 }
 
 
-void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char *description, size_t bdSize, size_t origBdSize, double rwratio, size_t flushing, size_t seqFiles, size_t lowbs, size_t highbs, const char *cli) {
+void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char *description, size_t bdSize, size_t origBdSize, double rwratio, size_t flushing, size_t seqFiles, size_t lowbs, size_t highbs, const char *cli)
+{
   //  logSpeedMedian(l);
   //  if (format) {
   //    fprintf(stderr, "*info* logSpeedDump format %d\n", format);
@@ -96,7 +105,10 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
   size_t counttotal = 0;
 
   FILE *fp = fopen(fn, "wt");
-  if (!fp) {perror(fn); exit(-1);}
+  if (!fp) {
+    perror(fn);
+    exit(-1);
+  }
 
   if (format == MYSQL) {
     // first dump to MySQL format
@@ -106,15 +118,21 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
     //    int fd = mkstemp(filename);
     //    if (fd < 0) {perror(filename);exit(-1);}
     fprintf(fp, "create table if not exists runs (id int auto_increment, primary key(id), time datetime, hostname text, domainname text, RAM int, threads int, bdSize float, origBdSize float,rw float, flush int, seqFiles int, lowbs int, highbs int, runtime float, mib float, iops int, description text, cli text);\n"
-		"create table if not exists rawvalues (id int, time double, globaltime double, MiB int, SumMiB int, IOs int, SumIOs int);\n");
+            "create table if not exists rawvalues (id int, time double, globaltime double, MiB int, SumMiB int, IOs int, SumIOs int);\n");
 
     fprintf(fp, "start transaction;\n");
 
-    
+
 
     char hostname[1000], domainname[1000];
-    int w = gethostname(hostname, 1000); if (w != 0) {hostname[0] = 0;}
-    w = getdomainname(domainname, 1000); if (w != 0) {domainname[0] = 0;}
+    int w = gethostname(hostname, 1000);
+    if (w != 0) {
+      hostname[0] = 0;
+    }
+    w = getdomainname(domainname, 1000);
+    if (w != 0) {
+      domainname[0] = 0;
+    }
 
 
     double runtime = 0;
@@ -122,7 +140,7 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
     size_t iops = 0;
 
 
-    // calc the 
+    // calc the
     for (size_t i = 0; i < l->num; i++) {
       valuetotal += l->rawvalues[i];
       counttotal += l->rawcount[i];
@@ -130,9 +148,9 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
       mib = valuetotal / runtime;
       iops = counttotal / runtime;
     }
-	
+
     fprintf(fp, "insert into runs(description, time, hostname, domainname, RAM, threads, bdSize, origBdSize, rw, flush, seqFiles, lowbs, highbs, cli, runtime, mib, iops) values (\"%s\", NOW(), \"%s\", \"%s\", %zd, %zd, %.1lf, %.1lf, %.1lf, %zd, %zd, %zd, %zd, \"%s\", %.1lf, %zd, %zd);\n",
-	    (description==NULL)?"":description, hostname, domainname, (size_t)(TOGiB(totalRAM()) + 0.5), numThreads(), TOGiB(bdSize), TOGiB(origBdSize), rwratio, flushing, seqFiles, lowbs, highbs, cli, runtime, mib, iops);
+            (description==NULL)?"":description, hostname, domainname, (size_t)(TOGiB(totalRAM()) + 0.5), numThreads(), TOGiB(bdSize), TOGiB(origBdSize), rwratio, flushing, seqFiles, lowbs, highbs, cli, runtime, mib, iops);
 
     valuetotal = 0;
     counttotal = 0;
@@ -142,10 +160,10 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
       fprintf(fp, "insert into rawvalues(id, time,globaltime,MiB,SumMiB,IOs,SumIOs) VALUES(last_insert_id(), %.6lf,%.6lf,%.2lf,%.2lf,%zd,%zd);\n", l->rawtime[i] - l->starttime, l->rawtime[i], l->rawvalues[i], valuetotal, l->rawcount[i], counttotal);
     }
 
-    
+
     fprintf(fp,"commit;\n");
 
-  
+
   } else if (format != JSON) {// if plain format
     for (size_t i = 0; i < l->num; i++) {
       valuetotal += l->rawvalues[i];
@@ -165,8 +183,9 @@ void logSpeedDump(logSpeedType *l, const char *fn, const int format, const char 
   }
 
 
-      
-  fclose(fp); fp = NULL;
+
+  fclose(fp);
+  fp = NULL;
 }
 
 

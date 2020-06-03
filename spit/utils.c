@@ -31,7 +31,8 @@ extern int keepRunning;
   return now;
   }*/
 
-inline double timedouble() {
+inline double timedouble()
+{
   struct timeval now;
   gettimeofday(&now, NULL);
   double tm = ((double)now.tv_sec * 1000000.0) + now.tv_usec;
@@ -39,13 +40,15 @@ inline double timedouble() {
   return tm/1000000.0;
 }
 
-size_t fileSize(int fd) {
+size_t fileSize(int fd)
+{
   size_t sz = lseek(fd, 0L, SEEK_END);
   lseek(fd, 0L, SEEK_SET);
   return sz;
 }
 
-size_t fileSizeFromName(const char *path) {
+size_t fileSizeFromName(const char *path)
+{
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
     //    fprintf(stderr,"*info* no file present '%s'\n", path);
@@ -58,7 +61,8 @@ size_t fileSizeFromName(const char *path) {
   return sz;
 }
 
-size_t fileExists(const char *path) {
+size_t fileExists(const char *path)
+{
   int fd = open(path, O_RDONLY);
   if (fd >= 0) {
     close(fd);
@@ -68,14 +72,16 @@ size_t fileExists(const char *path) {
   }
 }
 
-size_t blockDeviceSizeFromFD(const int fd) {
+size_t blockDeviceSizeFromFD(const int fd)
+{
   size_t file_size_in_bytes = 0;
   ioctl(fd, BLKGETSIZE64, &file_size_in_bytes);
   return file_size_in_bytes;
 }
-  
 
-size_t blockDeviceSize(const char *path) {
+
+size_t blockDeviceSize(const char *path)
+{
 
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
@@ -95,17 +101,21 @@ size_t blockDeviceSize(const char *path) {
 }
 
 
-size_t swapTotal() {
+size_t swapTotal()
+{
 
   FILE *fp = fopen("/proc/swaps", "rt");
-  if (fp == NULL) {perror("/proc/swaps");return 0;}
-  
+  if (fp == NULL) {
+    perror("/proc/swaps");
+    return 0;
+  }
+
   size_t ts= 0;
 
   char *line = NULL;
   size_t len = 0;
   ssize_t read = 0;
-  
+
   while ((read = getline(&line, &len, fp)) != -1) {
     if (line[0] == '/') {
       // a /dev line
@@ -113,12 +123,12 @@ size_t swapTotal() {
       char name[1000], part[1000];
       int s = sscanf(line, "%s %s %zu", name, part, &size);
       if (s == 3) {
-	// in /proc the size is in KiB
-	ts += (size << 10);
+        // in /proc the size is in KiB
+        ts += (size << 10);
       }
     }
   }
-  
+
   free(line);
   fclose(fp);
 
@@ -126,7 +136,8 @@ size_t swapTotal() {
 }
 
 
-double loadAverage() {
+double loadAverage()
+{
   FILE *fp = fopen("/proc/loadavg", "rt");
   if (fp == NULL) {
     perror("can't open /proc/loadavg");
@@ -141,7 +152,8 @@ double loadAverage() {
 }
 
 
-int isBlockDevice(const char *name) {
+int isBlockDevice(const char *name)
+{
   struct stat sb;
   int ret;
 
@@ -151,23 +163,40 @@ int isBlockDevice(const char *name) {
   }
 
   switch (sb.st_mode & S_IFMT) { // check the filetype bits
-  case S_IFBLK:  ret=1; break; //printf("block device\n");            break;
-  case S_IFCHR:  ret=0; break; // printf("character device\n");        break;
-  case S_IFDIR:  ret=0; break; // printf("directory\n");               break;
-  case S_IFIFO:  ret=0; break; // printf("FIFO/pipe\n");               break;
-  case S_IFLNK:  ret=0; break; // retprintf("symlink\n");                 break;
-  case S_IFREG:  ret=2; break; // printf("regular file\n");            break;
-  case S_IFSOCK: ret=0; break ; //printf("socket\n");                  break;
-  default:   ret=0; break; //    printf("unknown?\n");                break;
+  case S_IFBLK:
+    ret=1;
+    break; //printf("block device\n");            break;
+  case S_IFCHR:
+    ret=0;
+    break; // printf("character device\n");        break;
+  case S_IFDIR:
+    ret=0;
+    break; // printf("directory\n");               break;
+  case S_IFIFO:
+    ret=0;
+    break; // printf("FIFO/pipe\n");               break;
+  case S_IFLNK:
+    ret=0;
+    break; // retprintf("symlink\n");                 break;
+  case S_IFREG:
+    ret=2;
+    break; // printf("regular file\n");            break;
+  case S_IFSOCK:
+    ret=0;
+    break ; //printf("socket\n");                  break;
+  default:
+    ret=0;
+    break; //    printf("unknown?\n");                break;
   }
-    
+
   return ret;
 }
 
 // /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
 
 #define POWERPATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor"
-void printPowerMode() {
+void printPowerMode()
+{
   FILE *fp = fopen(POWERPATH, "rt");
   if (fp) {
     char s[1000];
@@ -183,7 +212,8 @@ void printPowerMode() {
 
 
 
-void dropCaches() {
+void dropCaches()
+{
   FILE *fp = fopen("/proc/sys/vm/drop_caches", "wt");
   if (fp == NULL) {
     fprintf(stderr,"error: you need sudo/root permission to drop caches\n");
@@ -199,7 +229,8 @@ void dropCaches() {
 }
 
 
-char* queueType(char *path) {
+char* queueType(char *path)
+{
   if (path) {
   }
   FILE *fp = fopen("/sys/block/sda/device/queue_type", "rt");
@@ -219,47 +250,55 @@ char* queueType(char *path) {
 }
 
 
-size_t numThreads() {
+size_t numThreads()
+{
   return sysconf(_SC_NPROCESSORS_ONLN);
 }
 
-size_t totalRAM() {
+size_t totalRAM()
+{
   struct sysinfo info;
   sysinfo(&info);
   return info.totalram;
 }
 
-size_t getUptime() {
+size_t getUptime()
+{
   struct sysinfo info;
   sysinfo(&info);
   return info.uptime;
 }
 
-size_t freeRAM() {
+size_t freeRAM()
+{
   struct sysinfo info;
   sysinfo(&info);
   return info.freeram;
 }
 
-size_t totalShared() {
+size_t totalShared()
+{
   struct sysinfo info;
   sysinfo(&info);
   return info.sharedram;
 }
 
-size_t totalBuffer() {
+size_t totalBuffer()
+{
   struct sysinfo info;
   sysinfo(&info);
   return info.bufferram;
 }
 
-char *OSRelease() {
+char *OSRelease()
+{
   struct utsname buf;
   uname (&buf);
   return strdup(buf.release);
 }
 
-int getWriteCacheStatus(int fd) {
+int getWriteCacheStatus(int fd)
+{
   unsigned long val = 0;
   if (ioctl(fd, HDIO_GET_WCACHE, &val) >= 0) {
     fprintf(stderr,"*info* write cache setting for %d is %lu\n", fd, val);
@@ -269,7 +308,8 @@ int getWriteCacheStatus(int fd) {
   return val;
 }
 
-int getWriteCache(const char *suf) {
+int getWriteCache(const char *suf)
+{
   char s[200],s2[200];
   int ret = 0;
   FILE *fp = NULL;
@@ -280,12 +320,12 @@ int getWriteCache(const char *suf) {
       ret = -1;
       goto wvret;
     }
-    
+
     if (fscanf(fp, "%s %s", s, s2) == 2) {
       if (strcasecmp(s2, "back") == 0) {
-	// write back, only for consumer testing
-	ret = 1;
-	goto wvret;
+        // write back, only for consumer testing
+        ret = 1;
+        goto wvret;
       }
     }
   } else {
@@ -293,18 +333,19 @@ int getWriteCache(const char *suf) {
     ret = -2;
   }
   // write through is ret code 0
- wvret:
+wvret:
   if (fp) fclose(fp);
   return ret;
 }
-  
 
 
-int getRotational(const char *suf) {
+
+int getRotational(const char *suf)
+{
   if (suf == NULL) {
     return 0; // if null then not rotational
   }
-     
+
   char s[200];
   int rot = 0;
   FILE *fp = NULL;
@@ -315,19 +356,20 @@ int getRotational(const char *suf) {
       //      perror(s);
       goto wvret;
     }
-    
+
     if (fscanf(fp, "%d", &rot) == 1) {
       //
     }
   }
- wvret:
+wvret:
   if (fp) fclose(fp);
   return rot;
 }
-  
 
 
-char *hostname() {
+
+char *hostname()
+{
   char s[1000];
   gethostname(s, 999);
   if (strchr(s,'.')) {
@@ -338,7 +380,8 @@ char *hostname() {
 
 
 // the block size random buffer. Nice ASCII
-size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned short seedin, size_t cyclic) {
+size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned short seedin, size_t cyclic)
+{
   size_t sumcount = 0;
 
   if (cyclic > size || cyclic == 0) cyclic = size;
@@ -348,7 +391,7 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
   }
 
   unsigned int seed = seedin;
-  
+
   const char verystartpoint = ' ' + (rand_r(&seed) % 30);
   const char jump = (rand_r(&seed) % 3) + 1;
   char startpoint = verystartpoint;
@@ -360,15 +403,15 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
       startpoint = verystartpoint;
     }
   }
-  
+
   char s[1000];
   memset(s, 0, 1000);
   const size_t topr = sprintf(s, "________________stutools - %s - %06d\n", "spit", seedin);
   //  strncpy(buffer, s, topr);
   memcpy(buffer, s, topr);
-    
+
   for (size_t j = cyclic; j < size; j++) {
-    buffer[j] = buffer[j % cyclic];   
+    buffer[j] = buffer[j % cyclic];
   }
 
   {
@@ -378,18 +421,20 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
       exit(1);
     }
   }
-  
+
   return sumcount;
 }
 
 
 
-size_t generateRandomBuffer(char *buffer, const size_t size, const unsigned short seed) {
+size_t generateRandomBuffer(char *buffer, const size_t size, const unsigned short seed)
+{
   //  if (seed == 0) printf("ooon\n");
   return generateRandomBufferCyclic(buffer, size, seed, size);
 }
 
-size_t checksumBuffer(const char *buffer, const size_t size) {
+size_t checksumBuffer(const char *buffer, const size_t size)
+{
   size_t checksum = 0;
   for (size_t i = 50; i < size; i++) {
     checksum += (i ^ buffer[i]);
@@ -399,7 +444,8 @@ size_t checksumBuffer(const char *buffer, const size_t size) {
 
 
 /* creates a new string */
-char *getSuffix(const char *path) {
+char *getSuffix(const char *path)
+{
   if (!path) return NULL;
   int found = -1;
   for (size_t i = strlen(path)-1; i > 0; i--) {
@@ -416,11 +462,12 @@ char *getSuffix(const char *path) {
 }
 
 
-char *getScheduler(const char *suffix) {
+char *getScheduler(const char *suffix)
+{
   if (suffix) {
     char s[1000];
     sprintf(s, "/sys/block/%s/queue/scheduler", suffix);
-    FILE *fp = fopen(s, "rt"); 
+    FILE *fp = fopen(s, "rt");
     if (!fp) {
       //      perror(s);
       return strdup("problem");
@@ -438,21 +485,22 @@ char *getScheduler(const char *suffix) {
 
 
 
-char *getModel(const char *suffix) {
+char *getModel(const char *suffix)
+{
   if (suffix) {
     size_t len = 1000;
     char *s;
     CALLOC(s, len, 1);
 
     sprintf(s, "/sys/block/%s/device/model", suffix);
-    FILE *fp = fopen(s, "rt"); 
+    FILE *fp = fopen(s, "rt");
     if (fp) {
       int ret = getline(&s, &len, fp);
       fclose(fp);
-      
+
       if (ret > 1) {
-	s[ret - 1] = 0;
-	return s;
+        s[ret - 1] = 0;
+        return s;
       }
     } else {
       free(s);
@@ -464,7 +512,8 @@ char *getModel(const char *suffix) {
 }
 
 
-void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
+void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log)
+{
   *phy = 512;
   *log = 512;
   if (suffix) {
@@ -472,23 +521,24 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
     // first physical
     sprintf(s, "/sys/block/%s/queue/physical_block_size", suffix);
     int d, ret;
-    FILE *fp = fopen(s, "rt"); 
+    FILE *fp = fopen(s, "rt");
     if (!fp) {
       //      fprintf(stderr,"*error* problem opening %s: returning 512\n", s);
     } else {
-    //    fprintf(stderr,"opened %s\n", s);
+      //    fprintf(stderr,"opened %s\n", s);
       ret = fscanf(fp, "%d", &d);
       if (ret == 1) {
-	*phy = d;
+        *phy = d;
       }
       if (fp) {
-	fclose(fp); fp = NULL;
+        fclose(fp);
+        fp = NULL;
       }
     }
 
-      // first physical
+    // first physical
     sprintf(s, "/sys/block/%s/queue/logical_block_size", suffix);
-    fp = fopen(s, "rt"); 
+    fp = fopen(s, "rt");
     if (!fp) {
       //      fprintf(stderr,"*error* problem opening %s: returning 512\n", s);
       *log = 512;
@@ -496,20 +546,22 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log) {
       //    fprintf(stderr,"opened %s\n", s);
       ret = fscanf(fp, "%d", &d);
       if (ret == 1) {
-	*log = d;
+        *log = d;
       }
       if (fp) {
-	fclose(fp); fp = NULL;
+        fclose(fp);
+        fp = NULL;
       }
     }
   }
 }
 
 
-size_t alignedNumber(size_t num, size_t alignment) {
+size_t alignedNumber(size_t num, size_t alignment)
+{
   size_t ret = num;
   if (alignment) {
-    
+
     ret = num / alignment;
     //    fprintf(stderr,"num %zd / %zd = ret %zd\n", num, alignment, ret);
     if (num % alignment > num/2) {
@@ -524,18 +576,19 @@ size_t alignedNumber(size_t num, size_t alignment) {
 }
 
 // return the blockSize
-inline size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits, size_t randomValue) {
+inline size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits, size_t randomValue)
+{
   if (highbsBytes == 0) {
     return 0;
   }
-  
+
   assert(alignmentbits < 100);
 
   size_t lowbs_k = lowbsBytes >> alignmentbits; // 1 / 4096 = 0
   //  if (lowbs_k < 1) lowbs_k = 1;
   size_t highbs_k = highbsBytes >> alignmentbits;   // 8 / 4096 = 2
   //  if (highbs_k < 1) highbs_k = 1;
-  
+
   size_t randombs_k = lowbs_k;
   if (highbs_k > lowbs_k) {
     randombs_k += (randomValue % (highbs_k - lowbs_k + 1));
@@ -556,7 +609,8 @@ int startsWith(const char *pre, const char *str)
 }
 
 
-int canOpenExclusively(const char *fn) {
+int canOpenExclusively(const char *fn)
+{
   int fd = open(fn, O_RDWR | O_EXCL);
   if (fd < 0) {
     return 0;
@@ -566,7 +620,8 @@ int canOpenExclusively(const char *fn) {
 }
 
 
-size_t canCreateFile(const char *filename, const size_t sz) {
+size_t canCreateFile(const char *filename, const size_t sz)
+{
   fprintf(stderr,"*info* creating '%s', size %zd bytes (%.3g GiB)\n", filename, sz, TOGiB(sz));
   int fd = open(filename, O_RDWR | O_CREAT | O_DIRECT | O_TRUNC, S_IRUSR | S_IWUSR);
   if (fd < 0)
@@ -577,14 +632,15 @@ size_t canCreateFile(const char *filename, const size_t sz) {
 #else
   size_t create_size = sz;
 #endif
-  
+
   close(fd);
   remove(filename);
   return create_size;
 }
 
 
-int createFile(const char *filename, const size_t sz) {
+int createFile(const char *filename, const size_t sz)
+{
   if (!filename) {
     fprintf(stderr,"*error* no filename\n");
     exit(1);
@@ -597,7 +653,7 @@ int createFile(const char *filename, const size_t sz) {
   }
 
   /*  size_t create_sz = canCreateFile(filename, sz);
-  if (create_sz) { // if it fallocated any file at all 
+  if (create_sz) { // if it fallocated any file at all
     if (create_sz != sz) { // and if it's wrong size
       fprintf(stderr,"*error* can't create filename '%s', limited to size %zd (%.1lf GiB)\n", filename, create_sz, TOGiB(create_sz));
       exit(-1);
@@ -611,7 +667,8 @@ int createFile(const char *filename, const size_t sz) {
     fprintf(stderr,"*warning* parts of the file will be in the page cache/RAM.\n");
     fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd < 0) {
-      perror(filename);return 1;
+      perror(filename);
+      return 1;
     }
   }
 
@@ -619,7 +676,7 @@ int createFile(const char *filename, const size_t sz) {
   char *buf = NULL;
 
 #define CREATECHUNK (1024*1024)
-  
+
   CALLOC(buf, 1, CREATECHUNK);
   generateRandomBuffer(buf, CREATECHUNK, 42);
   fprintf(stderr,"*info* slow writing '%s' %zd (%.3lf GiB)\n", filename, sz, TOGiB(sz));
@@ -631,7 +688,9 @@ int createFile(const char *filename, const size_t sz) {
     totalw += wrote;
     //    fprintf(stderr,"wrote %zd, %.3lf MB/s\n", totalw, TOMB(wrote / (timedouble() - timestart)));
     if (wrote < 0) {
-      perror("createFile");free(buf);return 1;
+      perror("createFile");
+      free(buf);
+      return 1;
     }
     towriteMiB -= wrote;
   }
@@ -648,7 +707,8 @@ int createFile(const char *filename, const size_t sz) {
   return 0;
 }
 
-void commaPrint0dp(FILE *fp, double d) {
+void commaPrint0dp(FILE *fp, double d)
+{
   if (d >= 1000) {
     const size_t dd = d;
     d=0;
@@ -667,10 +727,11 @@ void commaPrint0dp(FILE *fp, double d) {
 
 // 0 means no values, 1 means one, 2 means two values
 
-int splitRange(const char *charBS, double *low, double *high) {
+int splitRange(const char *charBS, double *low, double *high)
+{
   int retvalue = 0;
   if (charBS) {
-    
+
     char *endp = NULL;
     *low = strtod(charBS, &endp);
     *high = *low;
@@ -683,17 +744,18 @@ int splitRange(const char *charBS, double *low, double *high) {
   return retvalue;
 }
 
-int splitRangeChar(const char *charBS, double *low, double *high, char *retch) {
+int splitRangeChar(const char *charBS, double *low, double *high, char *retch)
+{
   int retvalue = 0;
   if (charBS) {
-    
+
     char *endp = NULL;
     *low = strtod(charBS, &endp);
     *high = *low;
     retvalue = 1;
     if ((*endp == '-') || (*endp == '_')) {
       if (retch) {
-	*retch = *endp;
+        *retch = *endp;
       }
       *high = atof(endp+1);
       retvalue = 2;
@@ -703,7 +765,8 @@ int splitRangeChar(const char *charBS, double *low, double *high, char *retch) {
 }
 
 
-size_t dirtyPagesBytes() {
+size_t dirtyPagesBytes()
+{
   long ret = 0;
   FILE *fp = fopen("/proc/meminfo", "rt");
   if (fp) {
@@ -712,14 +775,14 @@ size_t dirtyPagesBytes() {
     size_t len = 0;
     ssize_t read = 0;
     char s[100];
-    
+
     while ((read = getline(&line, &len, fp)) != -1) {
       if (sscanf(line, "%s %ld", s, &temp)==2) {
-	if (strcmp(s, "Dirty:")==0) {
-	  ret = temp * 1024; // stored in KiB
-	  //	  fprintf(stderr,"*info* dirty %ld bytes\n", ret);
-	  break;
-	}
+        if (strcmp(s, "Dirty:")==0) {
+          ret = temp * 1024; // stored in KiB
+          //	  fprintf(stderr,"*info* dirty %ld bytes\n", ret);
+          break;
+        }
       }
 
     }
@@ -729,7 +792,8 @@ size_t dirtyPagesBytes() {
 }
 
 
-size_t getCachedBytes() {
+size_t getCachedBytes()
+{
   long ret = 0;
   FILE *fp = fopen("/proc/meminfo", "rt");
   if (fp) {
@@ -738,14 +802,14 @@ size_t getCachedBytes() {
     size_t len = 0;
     ssize_t read = 0;
     char s[100];
-    
+
     while ((read = getline(&line, &len, fp)) != -1) {
       if (sscanf(line, "%s %ld", s, &temp)==2) {
-	if (strcmp(s, "Cached:")==0) {
-	  ret = temp * 1024; // stored in KiB
-	  //	  fprintf(stderr,"*info* dirty %ld bytes\n", ret);
-	  break;
-	}
+        if (strcmp(s, "Cached:")==0) {
+          ret = temp * 1024; // stored in KiB
+          //	  fprintf(stderr,"*info* dirty %ld bytes\n", ret);
+          break;
+        }
       }
 
     }
@@ -757,117 +821,120 @@ size_t getCachedBytes() {
 // from: https://www.geeksforgeeks.org/difference-fork-exec/
 // examples
 //  char* envp[] = { "some", "environment", NULL };
-int runCommand(char *program, char *argv_list[]) {
-  pid_t  pid; 
-  int ret = 1; 
-  int status; 
-  pid = fork(); 
-  if (pid == -1){ 
-     
-    // pid == -1 means error occured 
-    fprintf(stderr,"can't fork, error occured\n"); 
-    exit(EXIT_FAILURE); 
-  } else if (pid == 0){ 
-  
-    // pid == 0 means child process created 
-    // getpid() returns process id of calling process 
-    //     fprintf(stderr,"child process, pid = %u\n",getpid()); 
-     
-    // the argv list first argument should point to   
-    // filename associated with file being executed 
-    // the array pointer must be terminated by NULL  
-    // pointer 
-     
-    // the execv() only return if error occured. 
-    // The return value is -1 
-    execvp(program, argv_list); 
-    exit(0); 
-  } else{ 
-    // a positive number is returned for the pid of 
-    // parent process 
-    // getppid() returns process id of parent of  
-    // calling process 
-    //     fprintf(stderr,"parent process, pid = %u\n",getppid()); 
-     
-    // the parent process calls waitpid() on the child 
-    // waitpid() system call suspends execution of  
-    // calling process until a child specified by pid 
-    // argument has changed state 
-    // see wait() man page for all the flags or options 
-    // used here  
+int runCommand(char *program, char *argv_list[])
+{
+  pid_t  pid;
+  int ret = 1;
+  int status;
+  pid = fork();
+  if (pid == -1) {
+
+    // pid == -1 means error occured
+    fprintf(stderr,"can't fork, error occured\n");
+    exit(EXIT_FAILURE);
+  } else if (pid == 0) {
+
+    // pid == 0 means child process created
+    // getpid() returns process id of calling process
+    //     fprintf(stderr,"child process, pid = %u\n",getpid());
+
+    // the argv list first argument should point to
+    // filename associated with file being executed
+    // the array pointer must be terminated by NULL
+    // pointer
+
+    // the execv() only return if error occured.
+    // The return value is -1
+    execvp(program, argv_list);
+    exit(0);
+  } else {
+    // a positive number is returned for the pid of
+    // parent process
+    // getppid() returns process id of parent of
+    // calling process
+    //     fprintf(stderr,"parent process, pid = %u\n",getppid());
+
+    // the parent process calls waitpid() on the child
+    // waitpid() system call suspends execution of
+    // calling process until a child specified by pid
+    // argument has changed state
+    // see wait() man page for all the flags or options
+    // used here
     if (waitpid(pid, &status, 0) > 0) {
 
       //       fprintf(stderr,"%d %d\n", WIFEXITED(status), WEXITSTATUS(status));
-       
-      if (WIFEXITED(status) && !WEXITSTATUS(status))  
-	fprintf(stderr,"*info* program execution successful\n"); 
-              
-      else if (WIFEXITED(status) && WEXITSTATUS(status)) { 
-	if (WEXITSTATUS(status) == 127) { 
-	   
-	  // execv failed 
-	  fprintf(stderr,"execv failed\n"); 
-	} 
-	else 
-	  fprintf(stderr,"program terminated normally,"
-		  " but returned a non-zero status\n");                 
-      } 
-      else 
-	fprintf(stderr,"program didn't terminate normally\n");             
-    }  
-    else { 
-      // waitpid() failed 
-      fprintf(stderr,"waitpid() failed\n"); 
-    } 
-    //     exit(0); 
+
+      if (WIFEXITED(status) && !WEXITSTATUS(status))
+        fprintf(stderr,"*info* program execution successful\n");
+
+      else if (WIFEXITED(status) && WEXITSTATUS(status)) {
+        if (WEXITSTATUS(status) == 127) {
+
+          // execv failed
+          fprintf(stderr,"execv failed\n");
+        } else
+          fprintf(stderr,"program terminated normally,"
+                  " but returned a non-zero status\n");
+      } else
+        fprintf(stderr,"program didn't terminate normally\n");
+    } else {
+      // waitpid() failed
+      fprintf(stderr,"waitpid() failed\n");
+    }
+    //     exit(0);
   }
   return ret;
 }
 
-int getNumaCount() {
-    return numa_max_node() + 1;
+int getNumaCount()
+{
+  return numa_max_node() + 1;
 }
 
-int getNumHardwareThreads() {
-    return numa_num_task_cpus();
+int getNumHardwareThreads()
+{
+  return numa_num_task_cpus();
 }
 
-int cpuCountPerNuma( int numa ) {
-    assert( getNumaCount() > 0 );
-    assert( numa >= 0 && numa < getNumaCount() );
+int cpuCountPerNuma( int numa )
+{
+  assert( getNumaCount() > 0 );
+  assert( numa >= 0 && numa < getNumaCount() );
 
-    struct bitmask* bm = numa_allocate_cpumask();
-    numa_node_to_cpus( numa, bm );
-    unsigned int cpu_count = numa_bitmask_weight( bm );
-    numa_bitmask_free( bm );
-    return cpu_count;
+  struct bitmask* bm = numa_allocate_cpumask();
+  numa_node_to_cpus( numa, bm );
+  unsigned int cpu_count = numa_bitmask_weight( bm );
+  numa_bitmask_free( bm );
+  return cpu_count;
 }
 
-void getThreadIDs( int numa, int* numa_cpu_list ) {
-    assert( getNumaCount() > 0 );
-    assert( numa >= 0 && numa < getNumaCount() );
-    assert( numa_cpu_list != NULL );
+void getThreadIDs( int numa, int* numa_cpu_list )
+{
+  assert( getNumaCount() > 0 );
+  assert( numa >= 0 && numa < getNumaCount() );
+  assert( numa_cpu_list != NULL );
 
-    struct bitmask* bm = numa_allocate_cpumask();
-    numa_node_to_cpus( numa, bm );
+  struct bitmask* bm = numa_allocate_cpumask();
+  numa_node_to_cpus( numa, bm );
 
-    size_t cur_list_idx = 0;
-    for( int tid = 0; tid < getNumHardwareThreads(); ++tid ) {
-        if( numa_bitmask_isbitset( bm, tid ) ) {
-            assert( cur_list_idx < (size_t)cpuCountPerNuma( numa ) );
-            numa_cpu_list[ cur_list_idx++ ] = tid;
-        }
+  size_t cur_list_idx = 0;
+  for( int tid = 0; tid < getNumHardwareThreads(); ++tid ) {
+    if( numa_bitmask_isbitset( bm, tid ) ) {
+      assert( cur_list_idx < (size_t)cpuCountPerNuma( numa ) );
+      numa_cpu_list[ cur_list_idx++ ] = tid;
     }
-    
-    numa_bitmask_free( bm );
+  }
+
+  numa_bitmask_free( bm );
 }
 
-int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid ) {
-    cpu_set_t cpuset;
-    CPU_ZERO( &cpuset );
-    for( size_t tid = 0; tid < n_hw_tid; tid++ ) {
-        CPU_SET( hw_tids[ tid ], &cpuset );
-    }
-    int rc = pthread_setaffinity_np( *thread, sizeof( cpu_set_t ), &cpuset );
-    return rc;
+int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid )
+{
+  cpu_set_t cpuset;
+  CPU_ZERO( &cpuset );
+  for( size_t tid = 0; tid < n_hw_tid; tid++ ) {
+    CPU_SET( hw_tids[ tid ], &cpuset );
+  }
+  int rc = pthread_setaffinity_np( *thread, sizeof( cpu_set_t ), &cpuset );
+  return rc;
 }

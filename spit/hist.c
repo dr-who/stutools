@@ -4,7 +4,8 @@
 
 #include "histogram.h"
 
-int main() {
+int main()
+{
   histogramType h;
 
   histSetup(&h, 0, 100, 0.1);

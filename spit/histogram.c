@@ -7,7 +7,8 @@
 #include "utils.h"
 #include "histogram.h"
 
-void histSetup(histogramType *h, const double min, const double max, const double binscale) {
+void histSetup(histogramType *h, const double min, const double max, const double binscale)
+{
   h->min = min; // 0 s
   h->max = max; // 10 s
   h->binScale = ceil(1 / binscale); // 0.1ms for 1 seconds is 10,000 bins
@@ -20,11 +21,12 @@ void histSetup(histogramType *h, const double min, const double max, const doubl
   //  fprintf(stderr,"*info* [%lf,%lf], binscale %zd, numBins %zd\n", h->min, h->max, h->binScale, h->arraySize);
 }
 
-void histAdd(histogramType *h, double value) {
+void histAdd(histogramType *h, double value)
+{
   size_t bin = 0;
 
   if (value < 0) value = 0;
-  
+
   bin = (size_t) (value * h->binScale);
   if (bin > h->arraySize) {
     bin = h->arraySize;
@@ -34,17 +36,20 @@ void histAdd(histogramType *h, double value) {
   h->dataCount++;
 }
 
-size_t histCount(histogramType *h) {
+size_t histCount(histogramType *h)
+{
   return h->dataCount;
 }
 
 // mean is 0 if no data
-double histMean(const histogramType *h) {
+double histMean(const histogramType *h)
+{
   return h->dataSum / h->dataCount;
 }
 
 
-void histSum(histogramType *h) {
+void histSum(histogramType *h)
+{
   double sum = 0;
   for (size_t i = 0; i <= h->arraySize; i++) {
     sum += h->bin[i];
@@ -54,7 +59,8 @@ void histSum(histogramType *h) {
   h->dataSum = 1;
 }
 
-void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale) {
+void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale)
+{
   histSum(h);
   assert(h->dataSum);
 
@@ -65,7 +71,7 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
   *five9 = 0;
 
   int okmedian = 0, okthree9 = 0, okfour9 = 0, okfive9 = 0;
-  
+
   for (size_t i = 0; i <= h->arraySize; i++) {
     double value = i * 1.0 / h->binScale;
     if (h->binSum[i] >= maxsum * 0.5 && !okmedian) {
@@ -76,12 +82,12 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
       okthree9 = 1;
       *three9 = value * scale;
     }
-    
+
     if (h->binSum[i] >= floor(maxsum * 0.9999) && !okfour9) {
       okfour9 = 1;
       *four9 = value * scale;
     }
-    
+
     if (h->binSum[i] >= floor(maxsum * 0.99999) && !okfive9) {
       okfive9 = 1;
       *five9 = value * scale;
@@ -89,11 +95,12 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
   }
 }
 
-  
-  
-    
 
-void histSave(histogramType *h, const char *filename, const size_t scale) {
+
+
+
+void histSave(histogramType *h, const char *filename, const size_t scale)
+{
   histSum(h);
   assert(h->dataSum);
 
@@ -101,7 +108,10 @@ void histSave(histogramType *h, const char *filename, const size_t scale) {
 
 
   FILE *fp = fopen(filename, "wt");
-  if (!fp) {perror(filename); return;}
+  if (!fp) {
+    perror(filename);
+    return;
+  }
 
   for (size_t i = 0; i <= h->arraySize; i++) {
     fprintf(fp, "%.2lf\t%zd\t%.1lf\n", i * scale * 1.0 / h->binScale, h->bin[i], 100.0 * h->binSum[i] / maxvalue);
@@ -113,7 +123,8 @@ void histSave(histogramType *h, const char *filename, const size_t scale) {
   // calculate
 }
 
-void histFree(histogramType *h) {
+void histFree(histogramType *h)
+{
   if (h->bin) {
     free(h->bin);
   }
@@ -122,4 +133,4 @@ void histFree(histogramType *h) {
     h->binSum = NULL;
   }
 }
-  
+

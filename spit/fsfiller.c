@@ -42,7 +42,8 @@ typedef struct {
 } threadInfoType;
 
 
-size_t diskSpace(const char *prefix) {
+size_t diskSpace(const char *prefix)
+{
   struct statvfs buf;
 
   statvfs(prefix, &buf);
@@ -50,23 +51,24 @@ size_t diskSpace(const char *prefix) {
   t = t * buf.f_bsize;
   return t;
 }
-    
 
-int createAction(const char *filename, char *buf, const size_t size, const size_t writesize) {
+
+int createAction(const char *filename, char *buf, const size_t size, const size_t writesize)
+{
   int fd = open(filename, openmode | O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-  
+
   if (fd > 0) {
     size_t towrite = size;
     while (towrite > 0) {
       int written = write(fd, buf, MIN(towrite, writesize));
       //      fprintf(stderr,"%s %zd\n", filename, MIN(towrite, writesize));
       if (written > 0) {
-	towrite -= written;
+        towrite -= written;
       } else if (written == 0) {
-	fprintf(stderr,"zero byte write\n");
+        fprintf(stderr,"zero byte write\n");
       } else {
-	perror("write");
-	break;
+        perror("write");
+        break;
       }
     }
     if (dofdatasync) fsync(fd);
@@ -82,10 +84,11 @@ int createAction(const char *filename, char *buf, const size_t size, const size_
 
 
 
-int readAction(const char *filename, char *buf, size_t size) {
+int readAction(const char *filename, char *buf, size_t size)
+{
   int fd = open(filename, openmode | O_RDONLY);
   int ret = -1;
-  
+
   if (fd > 0) {
     ret = 0;
     size_t toread = 0;
@@ -93,16 +96,16 @@ int readAction(const char *filename, char *buf, size_t size) {
     while (toread != size) {
       int readd = read(fd, buf, size);
       if (readd > 0) {
-	toread += readd;
+        toread += readd;
       } else if (readd == 0) {
-	zerocount++;
-	fprintf(stderr,"'%s' truncated at %zd before size %zd\n", filename, toread, size);
-	ret = -3;
-	break;
+        zerocount++;
+        fprintf(stderr,"'%s' truncated at %zd before size %zd\n", filename, toread, size);
+        ret = -3;
+        break;
       } else {
-	ret = -2;
-	perror("read");
-	break;
+        ret = -2;
+        perror("read");
+        break;
       }
     }
     close(fd);
@@ -116,123 +119,129 @@ int readAction(const char *filename, char *buf, size_t size) {
   return ret;
 }
 
-void* worker(void *arg) 
+void* worker(void *arg)
 {
   threadInfoType *threadContext = (threadInfoType*)arg;
   const size_t totalfilespace = threadContext->totalFileSpace;
   size_t numfiles = threadContext->numfiles;
 
-  char *verifybuf = aligned_alloc(4096, threadContext->filesize); assert(verifybuf);
-  char *s = aligned_alloc(4096, 1024*1024); assert(s);
+  char *verifybuf = aligned_alloc(4096, threadContext->filesize);
+  assert(verifybuf);
+  char *s = aligned_alloc(4096, 1024*1024);
+  assert(s);
   char *buf = NULL;
 
   size_t processed = 0, sum = 0, skipped = 0, secsum = 0, lastsecsum = 0;
   double starttime = timedouble(), lasttime = starttime;
   size_t lastfin = 0, pass = 0;
-  
+
   char outstring[1000], logstring[1000];
 
   while (!finished) {
     for (size_t i = 0; !finished && i < numfiles; i++) {
 
       if (!buf || allocatePerFile) {
-	if (buf) free(buf);
-	buf = aligned_alloc(4096, threadContext->filesize); assert(buf);
-	memset(buf, threadContext->threadid, threadContext->filesize);
+        if (buf) free(buf);
+        buf = aligned_alloc(4096, threadContext->filesize);
+        assert(buf);
+        memset(buf, threadContext->threadid, threadContext->filesize);
       }
-      
+
 
       if (i == 0) {
-	pass++;
+        pass++;
       }
       const size_t wqfin = processed;
 
-	  
+
       {
-	if (threadContext->threadid == 0) {
-	  const double thistime = timedouble();
-	  const double tm = thistime - lasttime;
+        if (threadContext->threadid == 0) {
+          const double thistime = timedouble();
+          const double tm = thistime - lasttime;
 
-	    
-	  if (tm > 1) {
-	    const size_t fin = wqfin - lastfin;
-	    lastfin = wqfin;
-	      
-	    const double thistime = timedouble();
-	    const double tm = thistime - lasttime;
-	    lasttime = thistime;
-	      
-	    sprintf(logstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), free %.0lf, dirty %.0lf, cached %.0lf\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB((secsum - lastsecsum) * 1.0)/tm, thistime - starttime, tm, TOMiB(freeRAM()), TOMiB(dirtyPagesBytes()), TOMiB(getCachedBytes()));
 
-	    sprintf(outstring, "%.3lf\t%zd\t%.0lf\n", thistime - starttime, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm));
-	    
+          if (tm > 1) {
+            const size_t fin = wqfin - lastfin;
+            lastfin = wqfin;
 
-	    lasttime = thistime;
-	    lastsecsum = secsum;
+            const double thistime = timedouble();
+            const double tm = thistime - lasttime;
+            lasttime = thistime;
 
-	    if (lfp) {
-	      fprintf(lfp, "%s", logstring); fflush(bfp);
-	    }
-	    if (bfp) {
-	      fprintf(bfp, "%s", outstring); fflush(bfp);
-	    }
+            sprintf(logstring, "*info* [%zd] [pass %zd] [fileid %zd (%zd) / %zd], files %zd, %.0lf files/second, %.1lf GB, %.2lf LBA, %.0lf MB/s, %.1lf seconds (%.1lf), free %.0lf, dirty %.0lf, cached %.0lf\n", threadContext->maxthreads, pass, wqfin, wqfin % threadContext->numfiles, threadContext->numfiles, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm), TOGB(sum), sum * 1.0/totalfilespace, TOMB((secsum - lastsecsum) * 1.0)/tm, thistime - starttime, tm, TOMiB(freeRAM()), TOMiB(dirtyPagesBytes()), TOMiB(getCachedBytes()));
 
-	    fprintf(stderr,"%s", logstring);
-	  }
-	}
-	// do the mahi
-	
-	unsigned int thisseed = threadContext->fileid[i] + threadContext->threadid;
-	size_t val = rand_r(&thisseed);
-	//	const size_t val = threadContext->fileid[i] + (i * threadContext->threadid);
-	if (dirPrefix) {
-	  sprintf(s, "%s/%02x/%02x/%010zd.thread.%zd", dirPrefix, (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
-	} else {
-	  sprintf(s, "%02x/%02x/%010zd.thread.%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
-	}
-	//	fprintf(stderr,"thread %zd, id %zd, filename '%s', dirPrefix '%s'\n", threadContext->threadid, val, s, dirPrefix ? dirPrefix : "");
-	  
-	//      	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
-	switch (threadContext->actions[i]) {
-	case 'W': 
-	  if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
-	    processed++;
-	    sum += (threadContext->maxthreads * threadContext->filesize);
-	    secsum  = sum;
+            sprintf(outstring, "%.3lf\t%zd\t%.0lf\n", thistime - starttime, processed * threadContext->maxthreads, (fin * threadContext->maxthreads/ tm));
 
-	    if (verify) {
-	      memset(verifybuf, 0xff, threadContext->filesize);
-	      int ret = readAction(s, verifybuf, threadContext->filesize);
-	      if (ret == 0) {
-		if (memcmp(buf, verifybuf, threadContext->filesize) != 0) {
-		  fprintf(stderr,"*error* verification error on %s", s);
-		  exit(1);
-		} else {
-		  if (verbose) fprintf(stderr,"*info* verified file %s OK, char %d\n", s, verifybuf[0]);
-		}
-	      } else {
-		perror(s);
-		exit(1);
-	      }
-	    }
-	    
-	  }
-	  break;
-	case 'R': {}
-	  int ret = readAction(s, buf, threadContext->filesize);
-	  if (ret == 0) {
-	    processed++;
-	    //	      fprintf(stderr,"%s\n", s);
-	    //	    fprintf(stderr,"process %zd ret %d\n", processed, ret);
-	    sum += (threadContext->maxthreads * threadContext->filesize);
-	  } else {
-	    //	    fprintf(stderr,"processed %zd, skipped %s\n", wqfin, s);
-	    skipped++;
-	  }
-	  break;
-	default:
-	  abort();
-	}
+
+            lasttime = thistime;
+            lastsecsum = secsum;
+
+            if (lfp) {
+              fprintf(lfp, "%s", logstring);
+              fflush(bfp);
+            }
+            if (bfp) {
+              fprintf(bfp, "%s", outstring);
+              fflush(bfp);
+            }
+
+            fprintf(stderr,"%s", logstring);
+          }
+        }
+        // do the mahi
+
+        unsigned int thisseed = threadContext->fileid[i] + threadContext->threadid;
+        size_t val = rand_r(&thisseed);
+        //	const size_t val = threadContext->fileid[i] + (i * threadContext->threadid);
+        if (dirPrefix) {
+          sprintf(s, "%s/%02x/%02x/%010zd.thread.%zd", dirPrefix, (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
+        } else {
+          sprintf(s, "%02x/%02x/%010zd.thread.%zd", (((unsigned int)val)/DEPTH) % DEPTH, ((unsigned int)val)%DEPTH, val, threadContext->threadid);
+        }
+        //	fprintf(stderr,"thread %zd, id %zd, filename '%s', dirPrefix '%s'\n", threadContext->threadid, val, s, dirPrefix ? dirPrefix : "");
+
+        //      	  	  	  fprintf(stderr,"[%zd] %c %s\n", action.id, action.type, action.payload);
+        switch (threadContext->actions[i]) {
+        case 'W':
+          if (createAction(s, buf, threadContext->filesize, threadContext->writesize) == 0) {
+            processed++;
+            sum += (threadContext->maxthreads * threadContext->filesize);
+            secsum  = sum;
+
+            if (verify) {
+              memset(verifybuf, 0xff, threadContext->filesize);
+              int ret = readAction(s, verifybuf, threadContext->filesize);
+              if (ret == 0) {
+                if (memcmp(buf, verifybuf, threadContext->filesize) != 0) {
+                  fprintf(stderr,"*error* verification error on %s", s);
+                  exit(1);
+                } else {
+                  if (verbose) fprintf(stderr,"*info* verified file %s OK, char %d\n", s, verifybuf[0]);
+                }
+              } else {
+                perror(s);
+                exit(1);
+              }
+            }
+
+          }
+          break;
+        case 'R':
+        {}
+        int ret = readAction(s, buf, threadContext->filesize);
+        if (ret == 0) {
+          processed++;
+          //	      fprintf(stderr,"%s\n", s);
+          //	    fprintf(stderr,"process %zd ret %d\n", processed, ret);
+          sum += (threadContext->maxthreads * threadContext->filesize);
+        } else {
+          //	    fprintf(stderr,"processed %zd, skipped %s\n", wqfin, s);
+          skipped++;
+        }
+        break;
+        default:
+          abort();
+        }
       }
     }
   }
@@ -247,7 +256,8 @@ int threads = 32;
 size_t filesize = 360*1024;
 size_t writesize = 1024*1024;
 
-void usage() {
+void usage()
+{
 
   fprintf(stdout, "Usage:\n");
   fprintf(stdout, "  fsfiller -F mountpath [-D] [-t 0] [-T %d] [-k %zd] [-K %zd] [-u] [-w] [-R 42] [option] [option]\n\n", threads, filesize/1024, writesize/1024);
@@ -275,10 +285,11 @@ void usage() {
   fprintf(stdout, "  -U         \tnon-unique filenames (with replacement)\n");
   fprintf(stdout, "  -v         \tverify each write\n");
   fprintf(stdout, "  -V         \tverbose\n");
-    
+
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 
 
   int read = 0;
@@ -286,7 +297,7 @@ int main(int argc, char *argv[]) {
   unsigned int seed = 42;
   size_t unique = 1;
   size_t timelimit = 0;
-  
+
   while ((opt = getopt(argc, argv, "T:Vk:K:hrwB:R:uUsDdt:F:vSH:L:")) != -1) {
     switch (opt) {
     case 'A':
@@ -354,7 +365,7 @@ int main(int argc, char *argv[]) {
       verbose++;
       break;
     }
-    
+
   }
 
   if (help) {
@@ -366,13 +377,13 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*warning* SWAP should be off. Pausing for 20 seconds (or you can just `swapoff -a`)\n");
     sleep(20);
   }
-   
-  
-      
+
+
+
   size_t totalfilespace;
   if (dirPrefix) totalfilespace = diskSpace(dirPrefix);
   else totalfilespace = diskSpace(".");
-  
+
   size_t numFiles = (totalfilespace / filesize) * 0.93 / threads;
 
 
@@ -384,15 +395,17 @@ int main(int argc, char *argv[]) {
     dropCaches();
   }
 
-  size_t *fileid = calloc(numFiles, sizeof(size_t)); assert(fileid);
-  char *actions = calloc(numFiles, sizeof(char)); assert(actions);
+  size_t *fileid = calloc(numFiles, sizeof(size_t));
+  assert(fileid);
+  char *actions = calloc(numFiles, sizeof(char));
+  assert(actions);
 
   if (read) {
     memset(actions, 'R', numFiles);
   } else {
     memset(actions, 'W', numFiles);
   }
-    
+
   for (size_t i = 0; i < numFiles; i++) {
     if (unique) { // unique 1 or 2 for seq
       fileid[i] = i;
@@ -400,7 +413,7 @@ int main(int argc, char *argv[]) {
       fileid[i] = rand() % numFiles;
     }
   }
-  if (unique == 1) { // if randomise 
+  if (unique == 1) { // if randomise
     for (size_t i = 0; i < numFiles; i++) {
       const size_t j = rand() % numFiles;
       size_t tmp = fileid[i];
@@ -410,7 +423,7 @@ int main(int argc, char *argv[]) {
   }
 
   finished = 0;
-  
+
   char s[1000];
   fprintf(stderr,"*info* making %d top level directories\n", DEPTH);
   for (int id = 0; id < DEPTH; id++) {
@@ -435,7 +448,8 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* opening benchmark file '%s'\n", benchmarkFile);
     bfp = fopen(benchmarkFile, "wt");
     if (!bfp) {
-      perror("fsfiller");exit(1);
+      perror("fsfiller");
+      exit(1);
     }
   }
 
@@ -443,17 +457,20 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* opening log file '%s'\n", logFile);
     lfp = fopen(logFile, "wt");
     if (!lfp) {
-      perror("fsfiller");exit(1);
+      perror("fsfiller");
+      exit(1);
     }
   }
 
 
   // setup worker threads
-  pthread_t *tid = calloc(threads, sizeof(pthread_t)); assert(tid);
-  
-  threadInfoType *threadinfo = calloc(threads, sizeof(threadInfoType)); assert(threadinfo);
-  
-  for (int i = 0; i < threads; i++){
+  pthread_t *tid = calloc(threads, sizeof(pthread_t));
+  assert(tid);
+
+  threadInfoType *threadinfo = calloc(threads, sizeof(threadInfoType));
+  assert(threadinfo);
+
+  for (int i = 0; i < threads; i++) {
     threadinfo[i].threadid = i;
     threadinfo[i].maxthreads = threads;
     threadinfo[i].writesize = writesize;
@@ -464,7 +481,7 @@ int main(int argc, char *argv[]) {
     threadinfo[i].fileid = fileid;
     int error = pthread_create(&(tid[i]), NULL, &worker, &threadinfo[i]); // start threads
     if (error != 0) {
-      printf("\nThread can't be created :[%s]", strerror(error)); 
+      printf("\nThread can't be created :[%s]", strerror(error));
     }
   }
 
@@ -472,14 +489,14 @@ int main(int argc, char *argv[]) {
   while (!finished) {
     if (timelimit) {
       if (timedouble() - starttime >= timelimit) {
-	finished = 1;
-	break;
+        finished = 1;
+        break;
       }
     }
     sleep(1);
   }
 
-  for (int i = 0; i < threads; i++){
+  for (int i = 0; i < threads; i++) {
     pthread_join(tid[i], NULL);
   }
 

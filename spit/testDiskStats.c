@@ -4,7 +4,8 @@
 
 int keepRunning = 1;
 
-int main() {
+int main()
+{
   diskStatType d;
 
   diskStatSetup(&d);
@@ -23,4 +24,4 @@ int main() {
 }
 
 
-  
+

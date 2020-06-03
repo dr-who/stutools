@@ -15,7 +15,8 @@
 
 int keepRunning = 1;
 
-void makeFile(const char *filename, const char *buffer, const size_t size, const size_t chunk) {
+void makeFile(const char *filename, const char *buffer, const size_t size, const size_t chunk)
+{
 
   int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, 0600);
   if (fd < 0) {
@@ -31,7 +32,8 @@ void makeFile(const char *filename, const char *buffer, const size_t size, const
 
 
 
-void readFile(const char *filename, char *buffer, const size_t size, const size_t chunk) {
+void readFile(const char *filename, char *buffer, const size_t size, const size_t chunk)
+{
 
   int fd = open(filename, O_RDONLY | O_DIRECT, 0600);
   if (fd < 0) {
@@ -47,7 +49,8 @@ void readFile(const char *filename, char *buffer, const size_t size, const size_
 
 
 
-void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk, logSpeedType *ls) {
+void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk, logSpeedType *ls)
+{
   const size_t size = KiB * 1000;
 
   struct stat st = {0};
@@ -60,7 +63,8 @@ void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
 
   char *buffer = aligned_alloc(size * sizeof(char), 4096);
   if (!buffer) {
-    fprintf(stderr,"can't malloc\n");exit(1);
+    fprintf(stderr,"can't malloc\n");
+    exit(1);
   }
 
   if (ls) logSpeedReset(ls);
@@ -78,7 +82,8 @@ void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
 
 
 
-void readDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk, logSpeedType *ls) {
+void readDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk, logSpeedType *ls)
+{
   const size_t size = KiB * 1000;
 
   char s[1024];
@@ -86,7 +91,8 @@ void readDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
 
   char *buffer = aligned_alloc(size * sizeof(char), 4096);
   if (!buffer) {
-    fprintf(stderr,"can't malloc\n");exit(1);
+    fprintf(stderr,"can't malloc\n");
+    exit(1);
   }
 
   if (ls) logSpeedReset(ls);
@@ -104,8 +110,9 @@ void readDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
 
 
 
-int main() {
-  
+int main()
+{
+
   const size_t KB=360;
   fprintf(stderr,"Starting test: %.1lf MB\n", KB / 1000.0);
   const size_t count=10000;
