@@ -232,14 +232,14 @@ void diskStatLoadProc(diskStatType *d) {
   d->deviceCount = 0;
   char str[1000];
   while ((read = getline(&line, &len, fp)) != -1) {
-    long mj, mn, s;
+    long mj, mn, s, inflight;
     size_t read1, write1, timespentIO, readcompl1, writecompl1;
     d->deviceCount++;
     if (d->deviceCount > d->deviceCountAlloc) {
       d->deviceCountAlloc++;
       d->deviceStats = realloc(d->deviceStats, d->deviceCountAlloc * sizeof(devSnapshotType));
     }
-    sscanf(line,"%ld %ld %s %zu %ld %zu %ld %zu %ld %zu %ld %ld %zu", &mj, &mn, str, &readcompl1, &s, &read1, &s, &writecompl1, &s, &write1, &s, &s, &timespentIO);
+    sscanf(line,"%ld %ld %s %zu %ld %zu %ld %zu %ld %zu %ld %ld %zu", &mj, &mn, str, &readcompl1, &s, &read1, &s, &writecompl1, &s, &write1, &s, &inflight, &timespentIO);
     d->deviceStats[d->deviceCount - 1].major = mj;
     d->deviceStats[d->deviceCount - 1].minor = mn;
     d->deviceStats[d->deviceCount - 1].secRead = read1;
@@ -247,6 +247,7 @@ void diskStatLoadProc(diskStatType *d) {
     d->deviceStats[d->deviceCount - 1].IORead = readcompl1;
     d->deviceStats[d->deviceCount - 1].IOWrite = writecompl1;
     d->deviceStats[d->deviceCount - 1].secTimeIO = timespentIO;
+    d->deviceStats[d->deviceCount - 1].inflight = inflight;
   }
   free(line);
   fclose(fp);
@@ -262,6 +263,30 @@ void diskStatInfo(diskStatType *d) {
   }
 }
 
+void diskStatMaxQD( diskStatType *d, long* qds, size_t n_qd ) {
+    assert( n_qd > 0 );
+    memset( qds, -1, n_qd * sizeof( qds[ 0 ] ) );
+    
+    for( size_t dev = 0; dev < d->allocDevices; dev++ ) {
+        for( size_t q = 0; q < n_qd; q++ ) {
+            if( d->deviceStats[ dev ].inflight > qds[ q ] ) {
+                qds[ q ] = d->deviceStats[ dev ].inflight;
+                break;
+            }
+        }
+    }
+}
 
-   
-  
+void diskStatMaxQDStr(long* cur_qd, size_t max_q_disk, char* max_q_disk_str, size_t max_q_disk_str_len) {
+    memset( max_q_disk_str, 0, max_q_disk_str_len );
+
+    size_t count = 0;
+    for( size_t i = 0; i < max_q_disk; i++ ) {
+        const char* delim = i == 0 ? "" : "/";
+        if( cur_qd[ i ] < 0 ) {
+            count += sprintf( max_q_disk_str + count, "%s-", delim );
+        } else {
+            count += sprintf( max_q_disk_str + count, "%s%ld", delim, cur_qd[ i ] );
+        }
+    }
+}
