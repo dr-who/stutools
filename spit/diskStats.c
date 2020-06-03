@@ -26,10 +26,12 @@ void diskStatAddDrive(diskStatType *d, int fd)
   d->allocDevices++;
   d->majorArray = realloc(d->majorArray, d->allocDevices * sizeof(int));
   d->minorArray = realloc(d->minorArray, d->allocDevices * sizeof(int));
+  d->inflightArray = realloc(d->inflightArray, d->allocDevices * sizeof(long));
   //  d->sizeArray = realloc(d->sizeArray, d->allocDevices * sizeof(size_t));
 
   d->majorArray[d->allocDevices-1] = major;
   d->minorArray[d->allocDevices-1] = minor;
+  d->inflightArray[d->allocDevices-1] = 0;
   //  d->sizeArray[d->allocDevices-1] = blockDeviceSizeFromFD(fd);
   //    fprintf(stderr,"diskStatAddDrive fd %d, major %u, minor %u\n", fd, major, minor);
 }
@@ -119,6 +121,7 @@ void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *sti
   *stimeio = 0;
   *ioread = 0;
   *iowrite = 0;
+  memset(d->inflightArray, -1, d->allocDevices );
 
   for (size_t j = 0; j < d->deviceCount; j++) { // from /proc/diskstats
     devSnapshotType *s = &d->deviceStats[j];
@@ -133,6 +136,7 @@ void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *sti
         *stimeio = (*stimeio) + s->secTimeIO;
         *ioread = (*ioread) + s->IORead;
         *iowrite = (*iowrite) + s->IOWrite;
+        d->inflightArray[i] = s->inflight;
         // found a match, escape
         break;
       }
@@ -232,6 +236,10 @@ void diskStatFree(diskStatType *d)
     free(d->deviceStats);
     d->deviceStats = NULL;
   }
+  if (d->inflightArray) {
+    free(d->inflightArray);
+    d->inflightArray = NULL;
+  }
   d->deviceCount = 0;
   d->allocDevices = 0;
 }
@@ -294,32 +302,30 @@ void diskStatInfo(diskStatType *d)
   }
 }
 
-void diskStatMaxQD( diskStatType *d, long* qds, size_t n_qd )
+int compareQDs(const void* a, const void* b)
 {
-  assert( n_qd > 0 );
-  memset( qds, -1, n_qd * sizeof( qds[ 0 ] ) );
-
-  for( size_t dev = 0; dev < d->allocDevices; dev++ ) {
-    for( size_t q = 0; q < n_qd; q++ ) {
-      if( d->deviceStats[ dev ].inflight > qds[ q ] ) {
-        qds[ q ] = d->deviceStats[ dev ].inflight;
-        break;
-      }
-    }
-  }
+  return *(int*)a < *(int*)b;
 }
 
-void diskStatMaxQDStr(long* cur_qd, size_t max_q_disk, char* max_q_disk_str, size_t max_q_disk_str_len)
+void diskStatMaxQDStr(diskStatType *d, size_t n_print, char* max_q_disk_str, size_t max_q_disk_str_len)
 {
+  // Sort inflight
+  qsort( d->inflightArray, d->allocDevices, sizeof( d->inflightArray[ 0 ] ), compareQDs );
+
+  // Zero string
   memset( max_q_disk_str, 0, max_q_disk_str_len );
 
+  // Print to string
   size_t count = 0;
-  for( size_t i = 0; i < max_q_disk; i++ ) {
+  count += sprintf( max_q_disk_str + count, "Max%lu Q ", n_print );
+
+  for( size_t i = 0; i < n_print; i++ ) {
     const char* delim = i == 0 ? "" : "/";
-    if( cur_qd[ i ] < 0 ) {
-      count += sprintf( max_q_disk_str + count, "%s-", delim );
+    if( i < d->allocDevices ) {
+      count += sprintf( max_q_disk_str + count, "%s%ld", delim, d->inflightArray[ i ] );
     } else {
-      count += sprintf( max_q_disk_str + count, "%s%ld", delim, cur_qd[ i ] );
+      count += sprintf( max_q_disk_str + count, "%s-", delim );
     }
   }
 }
+

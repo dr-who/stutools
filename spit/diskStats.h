@@ -35,6 +35,7 @@ typedef struct {
   size_t allocDevices;
   int *majorArray;
   int *minorArray;
+  long *inflightArray;
 } diskStatType;
 
 
@@ -75,7 +76,6 @@ void diskStatInfo(diskStatType *d);
 void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *stimeio, size_t *ioread, size_t *iowrite1);
 size_t diskStatTBTimeSpentIO(diskStatType *d);
 
-void diskStatMaxQD(diskStatType *d, long* qds, size_t n_qd);
-void diskStatMaxQDStr(long* cur_qd, size_t max_q_disk, char* max_q_disk_str, size_t max_q_disk_str_len);
+void diskStatMaxQDStr(diskStatType *d, size_t n_print, char* max_q_disk_str, size_t max_q_disk_str_len);
 #endif
 
