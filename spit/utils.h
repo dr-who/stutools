@@ -85,7 +85,8 @@ size_t randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const 
 
 
 
-void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log);
+//void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log);
+void getPhyLogSizes(const char *suffix, size_t *phy, size_t *max_io_bytes, size_t *log);
 
 int startsWith(const char *pre, const char *str);
 int canOpenExclusively(const char *fn);

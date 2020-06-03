@@ -512,10 +512,11 @@ char *getModel(const char *suffix)
 }
 
 
-void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log)
+void getPhyLogSizes(const char *suffix, size_t *phy, size_t *max_io_bytes, size_t *log)
 {
   *phy = 512;
   *log = 512;
+  *max_io_bytes = 256 * 1024;
   if (suffix) {
     char s[1000];
     // first physical
@@ -536,6 +537,25 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *log)
       }
     }
 
+    // /sys/block/sda/queue/max_hw_sectors_kb
+    sprintf(s, "/sys/block/%s/queue/max_hw_sectors_kb", suffix);
+    fp = fopen(s, "rt");
+    if (!fp) {
+      fprintf(stderr,"*error* problem opening %s: returning max_io_bytes 256 KiB\n", s);
+      *max_io_bytes = 256 * 1024;
+    } else {
+      //    fprintf(stderr,"opened %s\n", s);
+      ret = fscanf(fp, "%d", &d);
+      if (ret == 1) {
+        *max_io_bytes = d * 1024;
+      }
+      if (fp) {
+        fclose(fp);
+        fp = NULL;
+      }
+    }
+
+    
     // first physical
     sprintf(s, "/sys/block/%s/queue/logical_block_size", suffix);
     fp = fopen(s, "rt");

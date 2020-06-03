@@ -263,15 +263,15 @@ static void *runThread(void *arg)
   // check block sizes
   {
     char *suffix = getSuffix(threadContext->jobdevice);
-    size_t phybs, logbs;
-    getPhyLogSizes(suffix, &phybs, &logbs);
+    size_t phybs, logbs, max_io_bytes;
+    getPhyLogSizes(suffix, &phybs, &max_io_bytes, &logbs);
     //    fprintf(stderr,"*info* device %s, physical io size %zd, logical io size %zd\n", threadContext->jobdevice, phybs, logbs);
     free(suffix);
 
     for (int i = 0; i < (int)threadContext->pos.sz; i++) {
-      if (threadContext->pos.positions[i].len < logbs) {
-        fprintf(stderr,"*error* device '%s' doesn't support size %d [logical bs %zd]\n", threadContext->jobdevice, threadContext->pos.positions[i].len, logbs);
-        exit(1);
+      if (threadContext->highBlockSize > max_io_bytes) {
+        fprintf(stderr,"*warning* device '%s' will split I/O size %zd [max_hw_sectors_kb %zd bytes]\n", threadContext->jobdevice, threadContext->highBlockSize, max_io_bytes);
+	break;
       }
     }
   }
