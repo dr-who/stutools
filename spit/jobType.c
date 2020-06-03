@@ -601,6 +601,14 @@ static void *runThreadTimer(void *arg)
         devicewb += diskStatTBWrite(threadContext->pos.diskStats);
         devicewriteio = diskStatTBWriteIOs(threadContext->pos.diskStats); // io
         devicetimeio = diskStatTBTimeSpentIO(threadContext->pos.diskStats);
+
+        if( verbose >= 2 ) {
+          for ( size_t i = 0; i < threadContext->pos.diskStats->allocDevices; i++ ) {
+            const char* delim = i == 0 ? "" : " ";
+            fprintf( stderr, "%s%s(%ld)", delim, threadContext->pos.diskStats->suffixArray[i], threadContext->pos.diskStats->inflightArray[i] );
+          }
+          fprintf( stderr, "\n" );
+        }
         diskStatMaxQDStr(threadContext->pos.diskStats, n_inflight_print, cur_disk_inflight_str, cur_disk_inflight_str_len);
         diskStatRestart(threadContext->pos.diskStats); // reset
       }

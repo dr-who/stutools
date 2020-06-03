@@ -17,7 +17,7 @@ void diskStatSetup(diskStatType *d)
   memset(d, 0, sizeof(diskStatType));
 }
 
-void diskStatAddDrive(diskStatType *d, int fd)
+void diskStatAddDrive(diskStatType *d, int fd, char* suffix)
 {
   if (!d) return;
   unsigned int major = 0, minor = 0;
@@ -26,11 +26,13 @@ void diskStatAddDrive(diskStatType *d, int fd)
   d->allocDevices++;
   d->majorArray = realloc(d->majorArray, d->allocDevices * sizeof(int));
   d->minorArray = realloc(d->minorArray, d->allocDevices * sizeof(int));
+  d->suffixArray = realloc(d->suffixArray, d->allocDevices * sizeof(const char*));
   d->inflightArray = realloc(d->inflightArray, d->allocDevices * sizeof(long));
   //  d->sizeArray = realloc(d->sizeArray, d->allocDevices * sizeof(size_t));
 
   d->majorArray[d->allocDevices-1] = major;
   d->minorArray[d->allocDevices-1] = minor;
+  d->suffixArray[d->allocDevices-1] = suffix;
   d->inflightArray[d->allocDevices-1] = 0;
   //  d->sizeArray[d->allocDevices-1] = blockDeviceSizeFromFD(fd);
   //    fprintf(stderr,"diskStatAddDrive fd %d, major %u, minor %u\n", fd, major, minor);
@@ -165,14 +167,22 @@ void diskStatFromFilelist(diskStatType *d, const char *path, int verbose)
         if (fd < 0) {
           perror("problem");
         }
+
+        char* real_path = realpath( str, NULL );
+        char *suffix = NULL;
+        if (real_path) {
+          suffix = getSuffix(real_path);
+          free(real_path);
+        } else {
+          suffix = getSuffix(str);
+        }
+
         if (verbose) {
-          char *suffix = getSuffix(str);
           char *sched = getScheduler(suffix);
           fprintf(stderr,"*info* scheduler for %s is [%s]\n", str, sched);
           free(sched);
-          free(suffix);
         }
-        diskStatAddDrive(d, fd);
+        diskStatAddDrive(d, fd, suffix);
         close (fd);
       } else {
         fprintf(stderr,"*warning* %s is not a block device\n", str);
@@ -235,6 +245,14 @@ void diskStatFree(diskStatType *d)
   if (d->deviceStats) {
     free(d->deviceStats);
     d->deviceStats = NULL;
+  }
+  if (d->suffixArray) {
+    for (size_t i = 0; i < d->allocDevices; i++ ) {
+      if( d->suffixArray[ i ] ) {
+        free( d->suffixArray[ i ] );
+      }
+    }
+    free(d->suffixArray);
   }
   if (d->inflightArray) {
     free(d->inflightArray);

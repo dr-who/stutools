@@ -35,6 +35,7 @@ typedef struct {
   size_t allocDevices;
   int *majorArray;
   int *minorArray;
+  char **suffixArray;
   long *inflightArray;
 } diskStatType;
 
@@ -50,7 +51,7 @@ void diskStatFree(diskStatType *d);
 void diskStatAddStart(diskStatType *d, size_t readSectors, size_t writeSectors);
 void diskStatAddFinish(diskStatType *d, size_t readSectors, size_t writeSectors);
 void diskStatSummary(diskStatType *d, size_t *totalReadBytes, size_t *totalWriteBytes, size_t *totalReadIO, size_t *totalWriteIO, double *util, size_t shouldReadBytes, size_t shouldWriteBytes, int verbose, double elapsed);
-void diskStatAddDrive(diskStatType *d, int fd);
+void diskStatAddDrive(diskStatType *d, int fd, char* suffix);
 
 void diskStatFromFilelist(diskStatType *d, const char *path, int verbose);
 
