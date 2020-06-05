@@ -411,7 +411,7 @@ static void *runThread(void *arg)
 
     if (threadContext->performPreDiscard) {
       if (threadContext->anywrites && discard_max_bytes) {
-	performDiscard(fd, threadContext->jobdevice, threadContext->minbdSize, threadContext->maxbdSize, discard_max_bytes, discard_granularity, 0);
+	performDiscard(fd, threadContext->jobdevice, threadContext->minbdSize, threadContext->maxbdSize, discard_max_bytes, discard_granularity, NULL, 0);
       }
     }
 

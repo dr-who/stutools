@@ -1012,21 +1012,25 @@ int getDiscardInfo(const char *suffix, size_t *discard_max_bytes, size_t *discar
 }
   
 
-int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, const int verbose) {
+int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, double *maxdelay_secs, const int verbose) {
   int err = 0;
+  double before = 0, delta = 0, start = 0, elapsed = 0;
+
+  if (maxdelay_secs) *maxdelay_secs = 0;
 
   int calls = ceil(high * 1.0 / max_bytes);
-  if (path) {
+  if (path && verbose) {
     fprintf(stderr,"*info* starting discarding %s, [%.3lf GiB, %.3lf GiB], in %d calls of at most %zd bytes...\n", path, TOGiB(low), TOGiB(high), calls, max_bytes);
   }
   
   if (high - low >= discard_granularity) {
 
+    start = timedouble();
     for (size_t i = low; i < high; i+= max_bytes) {
       
       unsigned long range[2];
       
-      range[0] = alignedNumber(i, discard_granularity);
+      range[0] = i;
       range[1] = MIN(high - i, max_bytes);
       
       if (verbose) {
@@ -1034,13 +1038,21 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
       }
       
       err = 0;
+      before = timedouble();
       if ((err = ioctl(fd, BLKDISCARD, &range))) {
 	fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", path, err);
 	perror("trim");
       }
+      delta = timedouble() - before;
+      if (maxdelay_secs) {
+	if (delta > *maxdelay_secs) {
+	  *maxdelay_secs = delta;
+	}
+      }
     }
-    if (path) {
-      fprintf(stderr,"... finished discarding %s\n", path);
+    elapsed = timedouble() - start;
+    if (path && verbose) {
+      fprintf(stderr,"... finished discarding %s. Worse sub-trim delay of %.1lf ms. Total time %.1lf secs\n", path, (maxdelay_secs) ? (*maxdelay_secs) * 1000.0 : 0, elapsed);
     }
   } else {
     err = 1;

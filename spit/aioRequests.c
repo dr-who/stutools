@@ -195,7 +195,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	    if (discard_max_bytes >= alignment) {
 	      if (verbose >= 2) fprintf(stderr,"*info* trim at %zd len = %zd\n", newpos, len);
 	      positions[pos].submitTime = timedouble();
-	      performDiscard(fd, NULL, newpos, newpos+len, maxSize, alignment, 0);
+	      performDiscard(fd, NULL, newpos, newpos+len, maxSize, alignment, NULL, 0);
 	      p->writtenIOs++;
 	      positions[pos].finishTime = timedouble();
 	    }

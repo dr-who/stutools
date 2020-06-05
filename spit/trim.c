@@ -21,14 +21,29 @@ int keepRunning = 1;
 
 int main(int argc, char *argv[]) {
 
-  if (argc < 2) {
-    fprintf(stderr,"./trim /dev/device\n");
-    exit(-1);
+  int opt, verbose = 0;
+  
+  while ((opt = getopt(argc, argv, "V" )) != -1) {
+    switch (opt) {
+    case 'V':
+      verbose++;
+      break;
+    }
   }
 
-  char *dev = argv[1];
+  char *dev = NULL;
+  for (;optind < argc; optind++) {
+    dev = argv[optind];
+  }
+
+  if (!dev) {
+    fprintf(stderr, "*info* usage ./trim [-V] device\n");
+    exit(1);
+  }
+
   unsigned long low = 0;
   unsigned long high = fileSizeFromName(dev);
+  double maxdelay_secs = 0;
 
   if (isBlockDevice(dev) == 1) {
     int fd = open(dev, O_RDWR | O_EXCL | O_DIRECT );
@@ -37,8 +52,11 @@ int main(int argc, char *argv[]) {
       getDiscardInfo(getSuffix(dev), &d_max_bytes, &d_granularity, &d_zeroes);
       
       if (fd >= 0) {
-	performDiscard(fd, dev, low, high, d_max_bytes, d_granularity, 1);
+	double start = timedouble();
+	performDiscard(fd, dev, low, high, d_max_bytes, d_granularity, &maxdelay_secs, verbose);
 	close(fd);
+	double elapsed = timedouble() - start;
+	fprintf(stdout, "%s\t%.3lf\t%.3lf\t%.0lf GB\t%zd\n", dev, elapsed, maxdelay_secs, TOGB(high), d_max_bytes);
       } else {
 	perror(dev);
       }
