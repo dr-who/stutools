@@ -21,10 +21,13 @@ int keepRunning = 1;
 
 int main(int argc, char *argv[]) {
 
-  int opt, verbose = 0;
+  int opt, verbose = 0, header = 1;
   
-  while ((opt = getopt(argc, argv, "V" )) != -1) {
+  while ((opt = getopt(argc, argv, "hV" )) != -1) {
     switch (opt) {
+    case 'h':
+      header = 1;
+      break;
     case 'V':
       verbose++;
       break;
@@ -45,6 +48,10 @@ int main(int argc, char *argv[]) {
   unsigned long high = fileSizeFromName(dev);
   double maxdelay_secs = 0;
 
+  if (header) {
+    //              "/dev/sda 8.332   ntf(stdout, "device\ttime (s)\tmax (s)\tsize\tTRIM size\n");
+    fprintf(stdout, "device   \ttime\tmax_s\tsize\tTRIM size\n");
+  }
   if (isBlockDevice(dev) == 1) {
     int fd = open(dev, O_RDWR | O_EXCL | O_DIRECT );
     if (fd >= 0) {
