@@ -34,44 +34,45 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  char *dev = NULL;
-  for (;optind < argc; optind++) {
-    dev = argv[optind];
-  }
-
-  if (!dev) {
-    fprintf(stderr, "*info* usage ./trim [-V] device\n");
+  if (optind >= argc) {
+    fprintf(stderr, "*info* usage ./trim [-V] device ... device\n");
     exit(1);
   }
 
-  unsigned long low = 0;
-  unsigned long high = fileSizeFromName(dev);
-  double maxdelay_secs = 0;
+  char *dev = NULL;
+  for (;optind < argc; optind++) {
+    dev = argv[optind];
 
-  if (header) {
-    //              "/dev/sda 8.332   ntf(stdout, "device\ttime (s)\tmax (s)\tsize\tTRIM size\n");
-    fprintf(stdout, "device   \ttime\tmax_s\tsize\tTRIM size\n");
-  }
-  if (isBlockDevice(dev) == 1) {
-    int fd = open(dev, O_RDWR | O_EXCL | O_DIRECT );
-    if (fd >= 0) {
-      size_t d_max_bytes = 0, d_granularity = 0, d_zeroes = 0;
-      getDiscardInfo(getSuffix(dev), &d_max_bytes, &d_granularity, &d_zeroes);
-      
+    unsigned long low = 0;
+    unsigned long high = fileSizeFromName(dev);
+    double maxdelay_secs = 0;
+
+    if (header) {
+      //              "/dev/sda 8.332   ntf(stdout, "device\ttime (s)\tmax (s)\tsize\tTRIM size\n");
+      fprintf(stdout, "device   \ttime(s)\tmax(s)\tsize\tTRIM size\n");
+      header = 0;
+    }
+    if (isBlockDevice(dev) == 1) {
+      int fd = open(dev, O_RDWR | O_EXCL | O_DIRECT );
       if (fd >= 0) {
-	double start = timedouble();
-	performDiscard(fd, dev, low, high, d_max_bytes, d_granularity, &maxdelay_secs, verbose);
-	close(fd);
-	double elapsed = timedouble() - start;
-	fprintf(stdout, "%s\t%.3lf\t%.3lf\t%.0lf GB\t%zd\n", dev, elapsed, maxdelay_secs, TOGB(high), d_max_bytes);
+	size_t d_max_bytes = 0, d_granularity = 0, d_zeroes = 0;
+	getDiscardInfo(getSuffix(dev), &d_max_bytes, &d_granularity, &d_zeroes);
+      
+	if (fd >= 0) {
+	  double start = timedouble();
+	  performDiscard(fd, dev, low, high, d_max_bytes, d_granularity, &maxdelay_secs, verbose);
+	  close(fd);
+	  double elapsed = timedouble() - start;
+	  fprintf(stdout, "%s\t%.3lf\t%.3lf\t%.0lf GB\t%zd\n", dev, elapsed, maxdelay_secs, TOGB(high), d_max_bytes);
+	} else {
+	  perror(dev);
+	}
       } else {
-	perror(dev);
+	fprintf(stderr,"*error* couldn't open %s exclusively\n", dev);
       }
     } else {
-      fprintf(stderr,"*error* couldn't open %s exclusively\n", dev);
+      fprintf(stderr,"*error* a block device is required as an argument\n");
     }
-  } else {
-    fprintf(stderr,"*error* a block device is required as an argument\n");
   }
 
   return 0;
