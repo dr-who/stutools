@@ -289,19 +289,20 @@ void diskStatLoadProc(diskStatType *d)
   char str[1000];
   while ((read = getline(&line, &len, fp)) != -1) {
     long mj, mn, s, inflight;
-    size_t read1, write1, timespentIO, readcompl1, writecompl1;
+    size_t read1, write1, timespentIO, readcompl1, writecompl1, discardcount1 = 0;
     d->deviceCount++;
     if (d->deviceCount > d->deviceCountAlloc) {
       d->deviceCountAlloc++;
       d->deviceStats = realloc(d->deviceStats, d->deviceCountAlloc * sizeof(devSnapshotType));
     }
-    sscanf(line,"%ld %ld %s %zu %ld %zu %ld %zu %ld %zu %ld %ld %zu", &mj, &mn, str, &readcompl1, &s, &read1, &s, &writecompl1, &s, &write1, &s, &inflight, &timespentIO);
+    sscanf(line,"%ld %ld %s %zu %ld %zu %ld %zu %ld %zu %ld %ld %zu %zu", &mj, &mn, str, &readcompl1, &s, &read1, &s, &writecompl1, &s, &write1, &s, &inflight, &timespentIO, &discardcount1);
+    //    fprintf(stderr,"==%zu\n", discardcount1);
     d->deviceStats[d->deviceCount - 1].major = mj;
     d->deviceStats[d->deviceCount - 1].minor = mn;
     d->deviceStats[d->deviceCount - 1].secRead = read1;
     d->deviceStats[d->deviceCount - 1].secWrite = write1;
     d->deviceStats[d->deviceCount - 1].IORead = readcompl1;
-    d->deviceStats[d->deviceCount - 1].IOWrite = writecompl1;
+    d->deviceStats[d->deviceCount - 1].IOWrite = writecompl1 + discardcount1;
     d->deviceStats[d->deviceCount - 1].secTimeIO = timespentIO;
     d->deviceStats[d->deviceCount - 1].inflight = inflight;
   }

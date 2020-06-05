@@ -42,7 +42,9 @@ Stu's Powerful I/O Tester (spit)
 
 ## TRIM/Discard tests
 
-      spit -f device -c wx5 -G10 -T # write 10GiB at a time, trimming before each iteration, repeat 5 times.
+      spit -f device -c ts0 -G10    # perform random trims 
+
+      spit -f device -c wx5 -G10 -T # write 10GiB at a time, trimming the LBA before each iteration ('T'), repeat 5 times.
 
 ## Read and more complex tests
 

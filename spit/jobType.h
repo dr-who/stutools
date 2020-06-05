@@ -14,6 +14,12 @@ typedef struct {
 } jobType;
 
 
+typedef struct {
+  double rprob;
+  double wprob;
+  double tprob;
+} probType;
+
 void jobInit(jobType *j);
 void jobAdd(jobType *j, const char *jobstring);
 void jobAddExec(jobType *j, const char *jobstring, const double delay);

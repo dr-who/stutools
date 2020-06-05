@@ -23,7 +23,8 @@ size_t aioMultiplePositions( positionContainer *p,
                              int flushEvery,
                              const size_t targetMBps,
                              size_t *ioerrors,
-                             size_t QDbarrier
+                             size_t QDbarrier,
+			     const size_t discard_max_bytes
                            );
 
 int aioVerifyWrites(positionType *positions,

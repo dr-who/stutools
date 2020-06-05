@@ -170,7 +170,7 @@ typedef struct {
   size_t metaData;
   size_t QDbarrier;
   size_t flushEvery;
-  double rw;
+  probType rw;
   size_t startingBlock;
   size_t mod;
   size_t remain;
@@ -234,7 +234,7 @@ static void *runThread(void *arg)
   if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun);
 
   //      positionPrintMinMax(threadContext->pos.positions, threadContext->pos.sz, threadContext->minbdSize, threadContext->maxbdSize, threadContext->minSizeInBytes, threadContext->maxSizeInBytes);
-  threadContext->anywrites = (threadContext->rw < 1);
+  threadContext->anywrites = (threadContext->rw.wprob > 0) || (threadContext->rw.tprob > 0);
   calcLBA(&threadContext->pos); // calc LBA coverage
 
 
@@ -329,7 +329,7 @@ static void *runThread(void *arg)
     sumrange += threadContext->pos.positions[i].len;
   }
   if (verbose >= 1)
-    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, q%zd (Q%zd) R/w=%.2g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->QDbarrier, threadContext->rw, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->multipleTimes, threadContext->runXtimesTI);
+    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, q%zd (Q%zd) r/w/t=%.1g/%.1g/%.1g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->QDbarrier, threadContext->rw.rprob, threadContext->rw.wprob, threadContext->rw.tprob, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->multipleTimes, threadContext->runXtimesTI);
 
 
   // do the mahi
@@ -411,14 +411,14 @@ static void *runThread(void *arg)
 
     if (threadContext->performDiscard) {
       if (threadContext->anywrites && discard_max_bytes) {
-	performDiscard(fd, threadContext->jobdevice, threadContext->minbdSize, threadContext->maxbdSize, discard_max_bytes, discard_granularity);
+	performDiscard(fd, threadContext->jobdevice, threadContext->minbdSize, threadContext->maxbdSize, discard_max_bytes, discard_granularity, 0);
       }
     }
 
 
     
     //
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize || threadContext->performDiscard, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors, threadContext->QDbarrier);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize || threadContext->performDiscard, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors, threadContext->QDbarrier, discard_max_bytes);
 
     // check exit constraints
     if (byteLimit) {
@@ -1239,31 +1239,44 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].addBlockSize = 0;
 
     // do this here to allow repeatable random numbers
-    int rcount = 0, wcount = 0, rwtotal = 0;
-    float rw = 0;
+    int rcount = 0, wcount = 0, rwt_total = 0, tcount = 0;
+    double rprob = 0, wprob = 0, tprob = 0;
+
     for (size_t k = 0; k < strlen(job->strings[i]); k++) {
       if (job->strings[i][k] == 'r') {
         rcount++;
-        rwtotal++;
+        rwt_total++;
       } else if (job->strings[i][k] == 'w') {
         wcount++;
-        rwtotal++;
+        rwt_total++;
+      } else if (job->strings[i][k] == 't') {
+	tcount++;
+	rwt_total++;
       }
     }
-    if (rwtotal == 0) {
-      rw = 0.5; // default to 50/50 mix read/write
-    } else {
-      rw = rcount * 1.0 / rwtotal;
+    if (rwt_total == 0) {
+      rprob = 0.5;
+      wprob = 0.5;
+    }  else {
+      rprob = rcount * 1.0 / rwt_total;
+      wprob = wcount * 1.0 / rwt_total;
+      tprob = tcount * 1.0 / rwt_total;
     }
+  
 
     {
       char *sf = strchr(job->strings[i], 'p');
       if (sf && *(sf+1)) {
-        rw = atof(sf + 1);
+	rprob = atof(sf + 1);
+	wprob = 1.0 - rprob;
+	tprob = 0;
       }
     }
 
-    threadContext[i].rw = rw;
+    threadContext[i].rw.rprob = rprob;
+    threadContext[i].rw.wprob = wprob;
+    threadContext[i].rw.tprob = tprob;
+    fprintf(stderr,"*info* setting action probabilities r=%.2lf, w=%.2lf, t=%.2lf\n", rprob, wprob, tprob);
 
     int flushEvery = 0;
     for (size_t k = 0; k < strlen(job->strings[i]); k++) {
@@ -1335,7 +1348,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
 
-    {
+    /*    {
       char *iTO = strchr(job->strings[i], 'T');
       if (iTO) {
         threadContext[i].runTime = atoi(iTO+1);
@@ -1347,7 +1360,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       if (iTO) {
         threadContext[i].finishTime = atoi(iTO+1);
       }
-    }
+      } */
 
 
     size_t qDepth = origqd, QDbarrier = 0;
@@ -1475,7 +1488,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     positionContainerSetup(&threadContext[i].pos, mp);
     threadContext[i].seqFiles = seqFiles;
     threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-    threadContext[i].rw = rw;
+    threadContext[i].rw.rprob = rprob;
+    threadContext[i].rw.wprob = wprob;
+    threadContext[i].rw.tprob = tprob;
     threadContext[i].startingBlock = startingBlock;
     threadContext[i].mod = mod;
     threadContext[i].remain = remain;
@@ -1599,6 +1614,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       origpc[i] = threadContext[i].pos;
     }
 
+    positionContainerSave(origpc, "a.a", origpc->maxbdSize, 0, job);
+      
     positionContainer mergedpc = positionContainerMerge(origpc, num);
 
     if (savePositions) {
@@ -1773,14 +1790,6 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
         }
       }
 
-      if (gSize == 0) {
-        char *charT = strchr(preconditions->strings[i], 'T');
-        if (charT && *(charT+1)) {
-          // a T num is specified
-          gSize = 1024 * (size_t)(atof(charT + 1) * 1024 * 1024 * 1024);
-        }
-      }
-
       if (gSize) {
         coverage = (size_t) (ceil(gSize / 1.0 / maxSizeBytes));
         fprintf(stderr,"*info* %zd / %zd = X%zd coverage\n", gSize, maxSizeBytes, coverage);
@@ -1791,7 +1800,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, NULL, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, 1 /*NUMA*/, 0 /* TRIM */);
+    jobRunThreads(preconditions, count, NULL, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, -1 /*NUMA*/, 0 /* TRIM */);
     fprintf(stderr,"*info* preconditioning complete\n");
     fflush(stderr);
   }

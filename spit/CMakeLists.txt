@@ -17,6 +17,9 @@ target_link_libraries(spit spitlib m aio pthread numa)
 add_executable(randdd randdd.c)
 target_link_libraries(randdd spitlib m aio pthread numa)
 
+add_executable(trim trim.c)
+target_link_libraries(trim spitlib m aio pthread numa)
+
 add_executable(fsfiller fsfiller.c)
 target_link_libraries(fsfiller spitlib m aio pthread numa)
 

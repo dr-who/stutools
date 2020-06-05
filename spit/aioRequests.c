@@ -35,7 +35,8 @@ size_t aioMultiplePositions( positionContainer *p,
                              int flushEvery,
                              const size_t targetMBps,
                              size_t *ioerrors,
-                             size_t QDbarrier
+                             size_t QDbarrier,
+			     const size_t discard_max_bytes
                            )
 {
   int ret;
@@ -190,6 +191,18 @@ size_t aioMultiplePositions( positionContainer *p,
           const size_t newpos = positions[pos].pos;
           const size_t len = positions[pos].len;
 
+	  if (positions[pos].action == 'T') {
+	    if (discard_max_bytes >= alignment) {
+	      if (verbose >= 2) fprintf(stderr,"*info* trim at %zd len = %zd\n", newpos, len);
+	      positions[pos].submitTime = timedouble();
+	      performDiscard(fd, NULL, newpos, newpos+len, maxSize, alignment, 0);
+	      p->writtenIOs++;
+	      positions[pos].finishTime = timedouble();
+	    }
+
+	    goto nextpos;
+	  }
+	      
           assert(headOfQueue < QD);
           qdIndex = freeQueue[headOfQueue];
           assert(qdIndex >= 0);
@@ -249,7 +262,10 @@ size_t aioMultiplePositions( positionContainer *p,
               cbs[qdIndex]->data = &positions[pos];
 
               flushPos++;
-            }
+            } else {
+	      fprintf(stderr,"unknown action %c\n", positions[pos].action);
+	      abort();
+	    }
 
             positions[pos].submitTime = thistime;
             positions[pos].finishTime = 0;
@@ -287,6 +303,8 @@ size_t aioMultiplePositions( positionContainer *p,
           fprintf(stderr,"*info* position collision %zd\n",pos);
         }
       }
+
+    nextpos:      
 
       // onto the next one
       pos++;
@@ -551,7 +569,9 @@ endoffunction:
   *totalRB = totalReadBytes;
 
   for (size_t i = 0; i < pos; i++) {
-    assert(positions[i].submitTime > 0);
+    if (positions[i].action == 'R' || positions[i].action == 'W') {
+      assert(positions[i].submitTime > 0);
+    }
   }
 
   return (*totalWB) + (*totalRB);

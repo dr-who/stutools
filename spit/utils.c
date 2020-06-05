@@ -1012,11 +1012,14 @@ int getDiscardInfo(const char *suffix, size_t *discard_max_bytes, size_t *discar
 }
   
 
-int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity) {
+int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, const int verbose) {
   int err = 0;
 
   int calls = ceil(high * 1.0 / max_bytes);
-  fprintf(stderr,"*info* starting discarding %s, [%.3lf GiB, %.3lf GiB], in %d calls of at most %zd bytes...\n", path, TOGiB(low), TOGiB(high), calls, max_bytes);
+  if (path) {
+    fprintf(stderr,"*info* starting discarding %s, [%.3lf GiB, %.3lf GiB], in %d calls of at most %zd bytes...\n", path, TOGiB(low), TOGiB(high), calls, max_bytes);
+  }
+  
   if (high - low >= discard_granularity) {
 
     for (size_t i = low; i < high; i+= max_bytes) {
@@ -1026,11 +1029,9 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
       range[0] = alignedNumber(i, discard_granularity);
       range[1] = MIN(high - i, max_bytes);
       
-      /*      if (1) {
+      if (verbose) {
 	fprintf(stderr, "*info* sending trim/BLKDISCARD command to %s [%ld, %ld] [%.3lf GiB, %.3lf GiB]\n", path, range[0], range[0] + range[1], TOGiB(range[0]), TOGiB(range[0] + range[1]));
-      } else {
-	fprintf(stderr, "%.1lf%%\r", i * 100.0 / (high - low));fflush(stderr);
-	}*/
+      }
       
       err = 0;
       if ((err = ioctl(fd, BLKDISCARD, &range))) {
@@ -1038,8 +1039,9 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
 	perror("trim");
       }
     }
-    fprintf(stderr,"... finished discarding %s\n", path);
-    //    fprintf(stderr, "\n");
+    if (path) {
+      fprintf(stderr,"... finished discarding %s\n", path);
+    }
   } else {
     err = 1;
     fprintf(stderr,"*error* discard range is too small\n");

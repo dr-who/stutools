@@ -168,7 +168,7 @@ void positionContainerCheckOverlap(const positionContainer *merged)
 {
 
   if (verbose) {
-    size_t readcount = 0, writecount = 0, notcompletedcount = 0, conflict = 0;
+    size_t readcount = 0, writecount = 0, notcompletedcount = 0, conflict = 0, trimcount = 0;
     positionType *pp = merged->positions;
     for (size_t i = 0; i < merged->sz; i++,pp++) {
       if (pp->finishTime == 0 || pp->submitTime == 0) {
@@ -176,10 +176,11 @@ void positionContainerCheckOverlap(const positionContainer *merged)
       } else {
         if (pp->action == 'W') writecount++;
         else if (pp->action == 'R') readcount++;
+	else if (pp->action == 'T') trimcount++;
         else conflict++;
       }
     }
-    fprintf(stderr,"*info* checkOverlap: reads %zd, writes %zd, conflicts %zd, not completed %zd\n", readcount, writecount, conflict, notcompletedcount);
+    fprintf(stderr,"*info* checkOverlap: reads %zd, writes %zd, trims %zd, conflicts %zd, not completed %zd\n", readcount, writecount, trimcount, conflict, notcompletedcount);
   }
 
   size_t printed = 0;
@@ -290,15 +291,16 @@ void positionContainerCollapse(positionContainer *merged)
       }
     }
   }
-  size_t actionsr = 0, actionsw = 0, conflicts = 0;
+  size_t actionsr = 0, actionsw = 0, conflicts = 0, actionst = 0;
   positionType *pp = merged->positions;
   for (size_t i = 0; i < merged->sz; i++,pp++) {
     char action = pp->action;
     if (action == 'R') actionsr++;
     else if (action == 'W') actionsw++;
+    else if (action == 'T') actionst++;
     else conflicts++;
   }
-  fprintf(stderr,"*info* unique actions: reads %zd, writes %zd, conflicts %zd\n", actionsr, actionsw, conflicts);
+  fprintf(stderr,"*info* unique actions: reads %zd, writes %zd, trims %zd, conflicts %zd\n", actionsr, actionsw, actionst, conflicts);
 }
 
 
@@ -423,7 +425,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                         const unsigned short deviceid,
                                         const int sf,
                                         const size_t sf_maxsizebytes,
-                                        const double readorwrite,
+                                        const probType readorwrite,
                                         const lengthsType *len,
                                         //const size_t lowbs,
                                         //					const size_t bs,
@@ -638,16 +640,20 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     }
     positions[i] = poss[index];
     char newaction = 'R';
-    if (readorwrite == 1) {
+    if (readorwrite.rprob == 1) {
       newaction = 'R';
-    } else if (readorwrite == 0) {
+    } else if (readorwrite.wprob == 1) {
       newaction = 'W'; // don't use drand unless you have to
       anywrites = 1;
     } else {
-      if (drand48() <= readorwrite)
+      double d = drand48(); // between [0,1]
+      if (d <= readorwrite.rprob)
         newaction = 'R';
-      else {
-        newaction = 'W';
+      else if (d <= readorwrite.rprob + readorwrite.wprob) {
+	newaction = 'W';
+        anywrites = 1;
+      } else {
+        newaction = 'T';
         anywrites = 1;
       }
     }
@@ -686,17 +692,16 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   free(positionsCurrent);
 
   if (fourkEveryMiB > 0) {
-    insertFourkEveryMiB(pc, readorwrite, minbdSize, maxbdSize, seed, fourkEveryMiB, jumpKiB);
+    insertFourkEveryMiB(pc, minbdSize, maxbdSize, seed, fourkEveryMiB, jumpKiB);
   }
 
   return anywrites;
 }
 
-void insertFourkEveryMiB(positionContainer *pc, const double readorwrite, const size_t minbdSize, const size_t maxbdSize, unsigned int seed, const double fourkEveryMiB, const size_t jumpKiB)
+void insertFourkEveryMiB(positionContainer *pc, const size_t minbdSize, const size_t maxbdSize, unsigned int seed, const double fourkEveryMiB, const size_t jumpKiB)
 {
-  if (pc || readorwrite || minbdSize || maxbdSize || seed || fourkEveryMiB) {
+  if (minbdSize || maxbdSize) {
   }
-
   fprintf(stderr,"*info* insertFourkEveryMiB: %.1lf MiB, initially %zd positions\n", fourkEveryMiB, pc->sz);
 
   if (pc->sz > 0) {
@@ -873,16 +878,17 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
 {
   fprintf(stderr,"*info*: total number of positions %zd\n", pc->sz);
   const positionType *positions = pc->positions;
-  size_t rcount = 0, wcount = 0;
+  size_t rcount = 0, wcount = 0, tcount = 0;
   for (size_t i = 0; i < pc->sz; i++) {
     if (positions[i].action == 'R') rcount++;
     else if (positions[i].action == 'W') wcount++;
+    else if (positions[i].action == 'T') tcount++;
 
     if (i < countToShow) {
       fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7d\tdevice %d\tverify %d\tseed %6d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed);
     }
   }
-  fprintf(stderr,"\tSummary: p%.2g, reads %zd, writes %zd\n", rcount * 1.0 / pc->sz, rcount, wcount);
+  fprintf(stderr,"\tSummary: reads %zd, writes %zd, trims %zd\n", rcount, wcount, tcount);
 }
 
 

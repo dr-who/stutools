@@ -115,7 +115,7 @@ void getThreadIDs( int numa, int* numa_cpu_list );
 int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid );
 
 int getDiscardInfo(const char *suffix, size_t *discard_max_bytes, size_t *discard_granularity, size_t *discard_zeroes_data);
-int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity);
+int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, const int verbose);
 
 #endif
 
