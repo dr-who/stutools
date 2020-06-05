@@ -398,14 +398,10 @@ static void *runThread(void *arg)
   if (verbose) {
     fprintf(stderr,"*info* discardInfo: %zd bytes / %zd bytes / zeroes_data %zd\n", discard_max_bytes, discard_granularity, discard_zeroes_data);
   }
-  
-  if (threadContext->anywrites && fd) {
-    unsigned int major, minor;
-    majorAndMinor(fd, &major, &minor);
-    if (major == 252 || verbose) { // if nsulate
-      if (major == 252 && discard_max_bytes == 0) {
-	fprintf(stderr,"*error* TRIM/DISCARD is not supported and it should be\n");
-      }
+
+  if (threadContext->anywrites && fd && threadContext->performDiscard) {
+    if (discard_max_bytes == 0) {
+      fprintf(stderr,"*error* TRIM/DISCARD is not supported and it has been specified\n");
     }
   }
 
