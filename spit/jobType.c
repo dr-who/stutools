@@ -205,6 +205,7 @@ typedef struct {
   double fourkEveryMiB;
   size_t jumpK;
   lengthsType len;
+  int performDiscard;
 } threadInfoType;
 
 
@@ -260,13 +261,11 @@ static void *runThread(void *arg)
   }
   threadContext->o_direct = direct;
 
+  char *suffix = getSuffix(threadContext->jobdevice);
   // check block sizes
   {
-    char *suffix = getSuffix(threadContext->jobdevice);
     size_t phybs, logbs, max_io_bytes;
     getPhyLogSizes(suffix, &phybs, &max_io_bytes, &logbs);
-    //    fprintf(stderr,"*info* device %s, physical io size %zd, logical io size %zd\n", threadContext->jobdevice, phybs, logbs);
-    free(suffix);
 
     for (int i = 0; i < (int)threadContext->pos.sz; i++) {
       if (threadContext->highBlockSize > max_io_bytes) {
@@ -298,7 +297,9 @@ static void *runThread(void *arg)
     exit(-1);
   }
 
-  char *suffix = getSuffix(threadContext->jobdevice);
+
+
+//    fprintf(stderr,"*info* device %s, physical io size %zd, logical io size %zd\n", threadContext->jobdevice, phybs, logbs);
 
   if (verbose) {
     char *model = getModel(suffix);
@@ -316,7 +317,6 @@ static void *runThread(void *arg)
     //    threadContext->ignoreResults = 1;
     fprintf(stderr,"*****************\n");
   }
-  if (suffix) free(suffix);
 
   if (!threadContext->exec && (threadContext->finishTime < threadContext->runTime)) {
     fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishTime);
@@ -381,6 +381,11 @@ static void *runThread(void *arg)
       iteratorMax = -1;
     }
   }
+  if (threadContext->performDiscard) {
+    iteratorMax = threadContext->multipleTimes;
+    //    iteratorInc = 1; // if discard, do that before each run
+    //    iteratorMax = -1; // if discard, do that before each run
+  }
 
   if (threadContext->id == 0) {
     if (verbose) {
@@ -388,10 +393,36 @@ static void *runThread(void *arg)
     }
   }
 
+  size_t discard_max_bytes, discard_granularity, discard_zeroes_data;
+  getDiscardInfo(suffix, &discard_max_bytes, &discard_granularity, &discard_zeroes_data);
+  if (verbose) {
+    fprintf(stderr,"*info* discardInfo: %zd bytes / %zd bytes / zeroes_data %zd\n", discard_max_bytes, discard_granularity, discard_zeroes_data);
+  }
+  
+  if (threadContext->anywrites && fd) {
+    unsigned int major, minor;
+    majorAndMinor(fd, &major, &minor);
+    if (major == 252 || verbose) { // if nsulate
+      if (major == 252 && discard_max_bytes == 0) {
+	fprintf(stderr,"*error* TRIM/DISCARD is not supported and it should be\n");
+      }
+    }
+  }
+
+  
   size_t totalB = 0, ioerrors = 0;
   while (keepRunning) {
+
+    if (threadContext->performDiscard) {
+      if (threadContext->anywrites && discard_max_bytes) {
+	performDiscard(fd, threadContext->jobdevice, threadContext->minbdSize, threadContext->maxbdSize, discard_max_bytes, discard_granularity);
+      }
+    }
+
+
+    
     //
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors, threadContext->QDbarrier);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize || threadContext->performDiscard, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors, threadContext->QDbarrier);
 
     // check exit constraints
     if (byteLimit) {
@@ -428,6 +459,8 @@ static void *runThread(void *arg)
     sleep(threadContext->waitfor);
     if (verbose) fprintf(stderr,"*info* finished pass %zd\n", iteratorCount);
   }
+  if (suffix) free(suffix);
+
 
   if (verbose >= 2) {
     fprintf(stderr,"*info [thread %zd] finished '%s'\n", threadContext->id, threadContext->jobstring);
@@ -833,7 +866,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const size_t maxSizeInBytes,
                    const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
                    unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
-                   char *mysqloptions, char *mysqloptions2, char *commandstring, int doNumaBinding)
+                   char *mysqloptions, char *mysqloptions2, char *commandstring, const int doNumaBinding, const int performDiscard)
 {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -870,6 +903,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].commandstring = commandstring;
     threadContext[i].ignoreResults = 0;
     threadContext[i].id = i;
+    threadContext[i].performDiscard = performDiscard;
     threadContext[i].runTime = timetorun;
     threadContext[i].multipleTimes = 0;
     threadContext[i].finishTime = timetorun;
@@ -1761,7 +1795,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, NULL, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, 1);
+    jobRunThreads(preconditions, count, NULL, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, 1 /*NUMA*/, 0 /* TRIM */);
     fprintf(stderr,"*info* preconditioning complete\n");
     fflush(stderr);
   }

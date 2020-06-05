@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <math.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
@@ -958,3 +959,92 @@ int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid )
   int rc = pthread_setaffinity_np( *thread, sizeof( cpu_set_t ), &cpuset );
   return rc;
 }
+
+
+int getDiscardInfo(const char *suffix, size_t *discard_max_bytes, size_t *discard_granularity, size_t *discard_zeroes_data) {
+  *discard_max_bytes = 0;
+  *discard_granularity = 0;
+  *discard_zeroes_data = 0;
+  
+  char s[1000];
+  sprintf(s, "/sys/block/%s/queue/discard_max_bytes", suffix);
+  FILE *fp = fopen(s, "rt");
+  long ret = 0, d = 0;
+  if (fp) {
+    ret = fscanf(fp, "%ld", &d);
+    if (ret == 1) {
+      *discard_max_bytes = d;
+    }
+    if (fp) {
+      fclose(fp);
+      fp = NULL;
+    }
+  }
+
+  sprintf(s, "/sys/block/%s/queue/discard_granularity", suffix);
+  fp = fopen(s, "rt");
+  if (fp) {
+    ret = fscanf(fp, "%ld", &d);
+    if (ret == 1) {
+      *discard_granularity = d;
+    }
+    if (fp) {
+      fclose(fp);
+      fp = NULL;
+    }
+  }
+
+
+  sprintf(s, "/sys/block/%s/queue/discard_zeroes_data", suffix);
+  fp = fopen(s, "rt");
+  if (fp) {
+    ret = fscanf(fp, "%ld", &d);
+    if (ret == 1) {
+      *discard_zeroes_data = d;
+    }
+    if (fp) {
+      fclose(fp);
+      fp = NULL;
+    }
+  }
+
+  return 0;
+}
+  
+
+int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity) {
+  int err = 0;
+
+  int calls = ceil(high * 1.0 / max_bytes);
+  fprintf(stderr,"*info* discarding %s, [%.3lf GiB, %.3lf GiB], in %d calls of at most %zd bytes\n", path, TOGiB(low), TOGiB(high), calls, max_bytes);
+  if (high - low >= discard_granularity) {
+
+    for (size_t i = low; i < high; i+= max_bytes) {
+      
+      unsigned long range[2];
+      
+      range[0] = alignedNumber(i, discard_granularity);
+      range[1] = MIN(high - i, max_bytes);
+      
+      /*      if (1) {
+		fprintf(stderr, "*info* sending trim/BLKDISCARD command to %s [%ld, %ld] [%.3lf GiB, %.3lf GiB]\n", path, range[0], range[0] + range[1], TOGiB(range[0]), TOGiB(range[0] + range[1]));
+      } else {
+	fprintf(stderr, "%.1lf%%\r", i * 100.0 / (high - low));fflush(stderr);
+	}*/
+      
+      err = 0;
+      if ((err = ioctl(fd, BLKDISCARD, &range))) {
+	fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", path, err);
+	perror("trim");
+      }
+    }
+    //    fprintf(stderr, "\n");
+  } else {
+    err = 1;
+    fprintf(stderr,"*error* discard range is too small\n");
+  }
+    
+  
+  return err;
+}
+

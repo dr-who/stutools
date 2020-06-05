@@ -27,7 +27,7 @@ char *savePositions = NULL;
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
                 unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
-                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding)
+                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding, int *performDiscard)
 {
   int opt;
 
@@ -38,6 +38,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   size_t tripleX = 0;
   size_t commandstringpos = 0;
   size_t added = 0;
+  *performDiscard = 0;
 
   jobInit(j);
   jobInit(preconditions);
@@ -45,7 +46,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   optind = 0;
   size_t jglobalcount = 1;
 
-  while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:")) != -1) {
+  const char *getoptstring = "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:T";
+
+  while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
     case 'j':
       jglobalcount = atoi(optarg);
@@ -55,7 +58,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   }
   optind = 0;
 
-  while ((opt = getopt(argc, argv, "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:")) != -1) {
+  while ((opt = getopt(argc, argv, getoptstring)) != -1) {
     switch (opt) {
     case 'b':
     {}
@@ -193,6 +196,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
         exit(1);
         //	*timetorun = (size_t)-1; // run for ever
       }
+      break;
+    case 'T':
+      *performDiscard = 1;
       break;
     case 'v':
       *verify = 1;
@@ -416,6 +422,7 @@ void usage()
   fprintf(stdout,"  spit -c wk1024za7             # every 'a' MiB of operations perform a jump back to the start of device. Dump with -d to see\n");
   fprintf(stdout,"  spit -c wk1024za3A8           # 'A' means to add 8 KiB after every position after 3 MiB\n");
   fprintf(stdout,"  spit -c ws1G5_10j16           # specify a low and high GiB range, to be evenly split by 16 threads (_)\n");
+  fprintf(stdout,"  spit -c wx3 -G4 -T            # perform DISCARD/TRIM operations before each write iteration\n");
   exit(0);
 }
 
@@ -483,13 +490,14 @@ int main(int argc, char *argv[])
     size_t verify = 0;
     double timeperline = 1, ignoreFirst = 0;
     int doNumaBinding = -1; // -1 default, -2 disable, >= 0 bind to specific numa
+    int performDiscard = 0;
 
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
     char *mysqloptions = NULL, *mysqloptions2 = NULL;
 
     char commandstring[1000];
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performDiscard);
 
 
     if (j->count < 1) {
@@ -520,7 +528,7 @@ int main(int argc, char *argv[])
     signal(SIGTERM, intHandler);
     signal(SIGINT, intHandler);
 
-    jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, doNumaBinding);
+    jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, doNumaBinding, performDiscard);
 
     jobFree(j);
     free(j);

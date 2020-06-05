@@ -40,6 +40,10 @@ Stu's Powerful I/O Tester (spit)
 
       spit -f /dev/md0 -c ... -O rawdevices.txt  # perform actions on a meta device and show amplification
 
+## TRIM/Discard tests
+
+      spit -f device -c wx5 -G10 -T # write 10GiB at a time, trimming before each iteration, repeat 5 times.
+
 ## Read and more complex tests
 
       spit -f device -c rs0         # random reads 4KiB
