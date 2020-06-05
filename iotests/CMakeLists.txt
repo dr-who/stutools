@@ -25,5 +25,3 @@ target_link_libraries(ramEater stutools)
 add_executable(aioRWTest aioRWTest.c)
 target_link_libraries(aioRWTest stutools m aio pthread)
 
-add_executable(trim trim.c)
-target_link_libraries(trim stutools)
