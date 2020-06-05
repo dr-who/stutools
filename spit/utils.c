@@ -1016,7 +1016,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
   int err = 0;
 
   int calls = ceil(high * 1.0 / max_bytes);
-  fprintf(stderr,"*info* discarding %s, [%.3lf GiB, %.3lf GiB], in %d calls of at most %zd bytes\n", path, TOGiB(low), TOGiB(high), calls, max_bytes);
+  fprintf(stderr,"*info* starting discarding %s, [%.3lf GiB, %.3lf GiB], in %d calls of at most %zd bytes...\n", path, TOGiB(low), TOGiB(high), calls, max_bytes);
   if (high - low >= discard_granularity) {
 
     for (size_t i = low; i < high; i+= max_bytes) {
@@ -1027,7 +1027,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
       range[1] = MIN(high - i, max_bytes);
       
       /*      if (1) {
-		fprintf(stderr, "*info* sending trim/BLKDISCARD command to %s [%ld, %ld] [%.3lf GiB, %.3lf GiB]\n", path, range[0], range[0] + range[1], TOGiB(range[0]), TOGiB(range[0] + range[1]));
+	fprintf(stderr, "*info* sending trim/BLKDISCARD command to %s [%ld, %ld] [%.3lf GiB, %.3lf GiB]\n", path, range[0], range[0] + range[1], TOGiB(range[0]), TOGiB(range[0] + range[1]));
       } else {
 	fprintf(stderr, "%.1lf%%\r", i * 100.0 / (high - low));fflush(stderr);
 	}*/
@@ -1038,6 +1038,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
 	perror("trim");
       }
     }
+    fprintf(stderr,"... finished discarding %s\n", path);
     //    fprintf(stderr, "\n");
   } else {
     err = 1;
