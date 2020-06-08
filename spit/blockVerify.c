@@ -56,8 +56,8 @@ static int seedcompare(const void *p1, const void *p2)
     if (pos1->seed < pos2->seed) return -1;
     else if (pos1->seed > pos2->seed) return 1;
     else {
-      if (pos1->pos < pos2->pos) return -1;
-      else if (pos1->pos > pos2->pos) return 1;
+      if (pos1->submitTime < pos2->submitTime) return -1;
+      else if (pos1->submitTime > pos2->submitTime) return 1;
       else return 0;
     }
   }
