@@ -53,13 +53,9 @@ static int seedcompare(const void *p1, const void *p2)
   if (pos1->deviceid < pos2->deviceid) return -1;
   else if (pos1->deviceid > pos2->deviceid) return 1;
   else {
-    if (pos1->seed < pos2->seed) return -1;
-    else if (pos1->seed > pos2->seed) return 1;
-    else {
-      if (pos1->submitTime < pos2->submitTime) return -1;
-      else if (pos1->submitTime > pos2->submitTime) return 1;
-      else return 0;
-    }
+    if (pos1->submitTime < pos2->submitTime) return -1;
+    else if (pos1->submitTime > pos2->submitTime) return 1;
+    else return 0;
   }
 }
 
@@ -149,8 +145,8 @@ static void *runThread(void *arg)
 
   if (threadContext->id == 0) {
     if (threadContext->sorted) {
-      fprintf(stderr,"*info* sorting positions based on submitTime\n");
-      qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), seedcompare);
+      fprintf(stderr,"*info* already sorted positions based on submitTime\n");
+      //      qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), seedcompare);
     } else {
       fprintf(stderr,"*info* positions are shuffled\n");
       unsigned int seed = threadContext->id;
@@ -166,12 +162,12 @@ static void *runThread(void *arg)
       }
     }
 
-    /*int print = 0;
+    /* int print = 0;
     fprintf(stderr,"*info* first 10 positions in thread 0\n");
     for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
       print++;
-      fprintf(stderr,"*info* num %zd\n", threadContext->pc->positions[i].pos);
-      if (print >= 10) break;
+      fprintf(stderr,"*info* num %zd, seed %d, submitTime %lf\n", threadContext->pc->positions[i].pos, threadContext->pc->positions[i].seed, threadContext->pc->positions[i].submitTime);
+      if (print >= 100) break;
       }*/
   }
 
@@ -272,6 +268,8 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
 
   size_t num = pc->sz;
 
+  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
+
   pthread_t *pt = NULL;
   CALLOC(pt, threads, sizeof(pthread_t));
   threadInfoType *threadContext;
@@ -294,7 +292,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
     threadContext[i].iocount = 0;
     threadContext[i].elapsed = 0;
     threadContext[i].o_direct = o_direct;
-    threadContext[i].sorted = sorted;
+    threadContext[i].sorted = 1 || sorted;
 
     //        fprintf(stderr,"*info* starting thread[%zd] in range [%zd, %zd)\n", i, threadContext[i].startInc, threadContext[i].endExc);
 
