@@ -1276,7 +1276,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].rw.rprob = rprob;
     threadContext[i].rw.wprob = wprob;
     threadContext[i].rw.tprob = tprob;
-    fprintf(stderr,"*info* setting action probabilities r=%.2lf, w=%.2lf, t=%.2lf\n", rprob, wprob, tprob);
+
+    if (verbose) {
+      fprintf(stderr,"*info* [t%d] setting action probabilities r=%.2lf, w=%.2lf, t=%.2lf\n", i, rprob, wprob, tprob);
+    }
 
     int flushEvery = 0;
     for (size_t k = 0; k < strlen(job->strings[i]); k++) {
