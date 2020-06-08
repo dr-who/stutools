@@ -149,7 +149,7 @@ static void *runThread(void *arg)
 
   if (threadContext->id == 0) {
     if (threadContext->sorted) {
-      fprintf(stderr,"*info* sorting positions\n");
+      fprintf(stderr,"*info* sorting positions based on submitTime\n");
       qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), seedcompare);
     } else {
       fprintf(stderr,"*info* positions are shuffled\n");

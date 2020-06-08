@@ -183,6 +183,13 @@ void positionContainerCheckOverlap(const positionContainer *merged)
     fprintf(stderr,"*info* checkOverlap: reads %zd, writes %zd, trims %zd, conflicts %zd, not completed %zd\n", readcount, writecount, trimcount, conflict, notcompletedcount);
   }
 
+  // check they are sorted based on position, otherwise we can't prune
+  for (size_t i = 0; i < merged->sz - 1; i++) {
+    if (merged->positions[i].deviceid == merged->positions[i+1].deviceid) {
+      assert(merged->positions[i].pos <= merged->positions[i+1].pos);
+    }
+  }
+
   size_t printed = 0;
   for (size_t i = 0; i < merged->sz - 1; i++) {
     if ((merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') && (merged->positions[i].deviceid == merged->positions[i+1].deviceid)) {
