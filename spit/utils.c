@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#include <limits.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <malloc.h>
@@ -517,7 +518,7 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *max_io_bytes, size_
 {
   *phy = 512;
   *log = 512;
-  *max_io_bytes = 256 * 1024;
+  *max_io_bytes = INT_MAX;
   if (suffix) {
     char s[1000];
     // first physical
