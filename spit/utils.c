@@ -543,8 +543,8 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *max_io_bytes, size_
     sprintf(s, "/sys/block/%s/queue/max_sectors_kb", suffix);
     fp = fopen(s, "rt");
     if (!fp) {
-      fprintf(stderr,"*error* problem opening %s: returning max_io_bytes 256 KiB\n", s);
-      *max_io_bytes = 256 * 1024;
+      //      fprintf(stderr,"*error* problem opening %s: returning max_io_bytes 256 KiB\n", s);
+      //      *max_io_bytes = 256 * 1024;
     } else {
       //    fprintf(stderr,"opened %s\n", s);
       ret = fscanf(fp, "%d", &d);
