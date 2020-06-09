@@ -1772,6 +1772,14 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
         }
       }
 
+      {
+        char *charG = strchr(preconditions->strings[i], 'M');
+        if (charG && *(charG+1)) {
+          // a k value is specified
+          blockSize = atof(charG + 1) * 1024;
+        }
+      }
+
       size_t seqFiles = 0;
       {
         // seq or random
@@ -1784,7 +1792,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
         jumble = 1;
       }
 
-      size_t exitIOPS = 25000; // 100MB/s lowerbound
+      size_t exitIOPS = MAX(100*1024 / blockSize, 100); // 100MB/s lowerbound
       {
         // seq or random
         char *charG = strchr(preconditions->strings[i], 'I');
@@ -1799,7 +1807,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       }
 
       char s[100];
-      sprintf(s, "w k%g z s%zd J%zd b%zd X%zd nN I%zd q512", blockSize, seqFiles, jumble, maxSizeBytes, coverage, exitIOPS);
+      sprintf(s, "w k%g z s%zd J%zd b%zd X%zd nN I%zd q64", blockSize, seqFiles, jumble, maxSizeBytes, coverage, exitIOPS);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
