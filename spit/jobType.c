@@ -688,7 +688,7 @@ static void *runThreadTimer(void *arg)
         fprintf(stderr,"\n");
 
         if (fp) {
-          fprintf(fp, "%.4lf\t%lf\t%.1lf\t%.0lf\t%.1lf\t%.0lf\t%.1lf\t%.1lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb / gaptime), TOMB(devicewb / gaptime));
+          fprintf(fp, "%.4lf\t%lf\t%.1lf\t%.0lf\t%.1lf\t%.0lf\t%.1lf\t%.1lf\t%.0lf\n", elapsed, thistime, TOMB(readB), readIOPS, TOMB(writeB), writeIOPS, TOMB(devicerb / gaptime), TOMB(devicewb / gaptime), threadContext->pos.diskStats ? 100.0 * devicetimeio / (gaptime*1000) : 0);
           fflush(fp);
         }
 
