@@ -1758,21 +1758,23 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 {
   if (count) {
     size_t gSize = alignedNumber(maxSizeBytes, 4096);
-    size_t coverage = 1;
+    size_t coverage = 2;
     size_t jumble = 0;
 
     for (int i = 0; i < (int) count; i++) {
       fprintf(stderr,"*info* precondition %d: device '%s', command '%s'\n", i+1, preconditions->devices[i], preconditions->strings[i]);
+      fprintf(stderr,"*info* size of the block device %zd (%.3lf GiB)\n", maxSizeBytes, TOGiB(maxSizeBytes));
+    
       {
         char *charG = strchr(preconditions->strings[i], 'G');
         if (charG && *(charG+1)) {
           // a G num is specified
           gSize = alignedNumber(1024L * atof(charG + 1) * 1024 * 1024, 4096);
+	  fprintf(stderr,"*info* specified G value %zd (%.3lf GiB)\n", gSize, TOGiB(gSize));
         }
       }
 
-
-      double blockSize = 4;
+      double blockSize = 1024; // default to 1M
       {
         char *charG = strchr(preconditions->strings[i], 'k');
         if (charG && *(charG+1)) {
@@ -1789,7 +1791,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
         }
       }
 
-      size_t seqFiles = 0;
+      size_t seqFiles = 1;
       {
         // seq or random
         char *charG = strchr(preconditions->strings[i], 's');
@@ -1801,7 +1803,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
         jumble = 1;
       }
 
-      size_t exitIOPS = MAX(100*1024 / blockSize, 100); // 100MB/s lowerbound
+      size_t exitIOPS = MAX(200 * 1024 / blockSize, 10); // 200MB/s lowerbound means far too slow, the speed of one drive
       {
         // seq or random
         char *charG = strchr(preconditions->strings[i], 'I');
@@ -1810,20 +1812,26 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
         }
       }
 
-      if (gSize) {
-        coverage = (size_t) (ceil(gSize / 1.0 / maxSizeBytes));
-        fprintf(stderr,"*info* %zd / %zd = X%zd coverage\n", gSize, maxSizeBytes, coverage);
-      }
-
+      fprintf(stderr,"*info* coverage %zd, with an IOPS limit of %zd (%.0lf MiB/sec) after %.3lf GiB is written\n", coverage, exitIOPS, exitIOPS * blockSize / 1024, TOGiB(gSize));     
+      
       char s[100];
-      sprintf(s, "w k%g z s%zd J%zd b%zd X%zd nN I%zd q64", blockSize, seqFiles, jumble, maxSizeBytes, coverage, exitIOPS);
+      sprintf(s, "w k%g z s%zd J%zd b%zd X%zd nN I%zd q64", blockSize, seqFiles, jumble, gSize, coverage, exitIOPS); // X1 not x1 means run once then rerandomise
+      fprintf(stderr,"*info* '%s'\n", s);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, NULL, minSizeBytes, maxSizeBytes, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, -1 /*NUMA*/, 0 /* TRIM */);
-    fprintf(stderr,"*info* preconditioning complete\n");
+    jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, -1 /*NUMA*/, 0 /* TRIM */);
+    fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");
+    sleep(10);
     fflush(stderr);
   }
   return 0;
 }
+
+
+
+
+
+
+
 

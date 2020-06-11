@@ -39,7 +39,11 @@ size_t aioMultiplePositions( positionContainer *p,
 			     const size_t discard_max_bytes
                            )
 {
-  int ret;
+  int ret, checkTime = 1;
+  if (finishTime < timedouble()) {
+    checkTime = 0;
+  }
+  
   struct iocb **cbs;
   struct io_event *events;
   if (origQD >= sz)  {
@@ -175,7 +179,11 @@ size_t aioMultiplePositions( positionContainer *p,
 
 
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishTime %lf\n", sz, finishTime);
-  while (keepRunning && ((thistime = timedouble()) < finishTime)) {
+  while (keepRunning) {
+    thistime = timedouble();
+    if (checkTime && (thistime > finishTime)) {
+      break;
+    }
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
     if (inFlight > QD) {
