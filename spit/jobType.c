@@ -155,7 +155,7 @@ typedef struct {
   size_t minSizeInBytes;
   size_t maxSizeInBytes;
   size_t finishTime; // the overall thread finish time
-  size_t waitfor;
+  double waitfor;
   size_t prewait;
   size_t exec;
   char *jobstring;
@@ -192,7 +192,7 @@ typedef struct {
   size_t seqFiles;
   size_t seqFilesMaxSizeBytes;
   size_t jumbleRun;
-  size_t runTime; // the time for a round
+  double runTime; // the time for a round
   size_t ignoreResults;
   size_t exitIOPS;
   double timeperline;
@@ -319,7 +319,7 @@ static void *runThread(void *arg)
   }
 
   if (!threadContext->exec && (threadContext->finishTime < threadContext->runTime)) {
-    fprintf(stderr,"*warning* timing %zd > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishTime);
+    fprintf(stderr,"*warning* timing %.1lf > %zd doesn't make sense\n", threadContext->runTime, threadContext->finishTime);
   }
   //  double localrange = TOGB(threadContext->maxbdSize - threadContext->minbdSize);
   // minSizeInBytes is the -G range. If there are multiple threads carving the LBA up, it'll be specified as the min/max bdsize
@@ -329,7 +329,7 @@ static void *runThread(void *arg)
     sumrange += threadContext->pos.positions[i].len;
   }
   if (verbose >= 1)
-    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, q%zd (Q%zd) r/w/t=%.1g/%.1g/%.1g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%zd T%zd t%zd x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->QDbarrier, threadContext->rw.rprob, threadContext->rw.wprob, threadContext->rw.tprob, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->multipleTimes, threadContext->runXtimesTI);
+    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, q%zd (Q%zd) r/w/t=%.1g/%.1g/%.1g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%.1lf T%.1lf t%zd x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->QDbarrier, threadContext->rw.rprob, threadContext->rw.wprob, threadContext->rw.tprob, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runTime, threadContext->finishTime, threadContext->multipleTimes, threadContext->runXtimesTI);
 
 
   // do the mahi
@@ -452,7 +452,7 @@ static void *runThread(void *arg)
         positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->minbdSize, threadContext->maxbdSize);
       }
     }
-    sleep(threadContext->waitfor);
+    usleep(threadContext->waitfor * 1000.0 * 1000); // micro seconds
     if (verbose) fprintf(stderr,"*info* finished pass %zd\n", iteratorCount);
   }
   if (suffix) free(suffix);
@@ -1202,7 +1202,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
       countintime = threadContext[i].runTime * ESTIMATEIOPS;
       if ((verbose || (countintime < mp)) && (i == 0)) {
-        fprintf(stderr,"*info* in %zd seconds, at %d a second, would have at most ", threadContext[i].runTime, ESTIMATEIOPS);
+        fprintf(stderr,"*info* in %.1lf seconds, at %d a second, would have at most ", threadContext[i].runTime, ESTIMATEIOPS);
         commaPrint0dp(stderr, countintime);
         fprintf(stderr," positions\n");
       }
@@ -1467,11 +1467,20 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     char *Wchar = strchr(job->strings[i], 'W');
     if (Wchar && *(Wchar+1)) {
-      size_t waitfor = atoi(Wchar + 1);
-      if (waitfor > timetorun) {
-        waitfor = timetorun;
-        fprintf(stderr,"*warning* waiting decreased to %zd\n", waitfor);
+
+      char *endp = NULL;
+      double runfor = strtod(Wchar + 1, &endp); if (runfor < 0) runfor = 0;
+      double waitfor = runfor;
+      if (*endp == '-' || *endp == ':') {
+        waitfor = atof(endp+1); if (waitfor < 0) waitfor = 0;
       }
+
+      if (verbose) fprintf(stderr,"*info* alternating time parameter W%.1lf:%.1lf\n", runfor, waitfor);
+      if (timeperline > runfor / 2) {
+	fprintf(stderr,"*warning* recommendation that -s %.2g is used to get the granularity required\n", runfor / 2);
+      }
+      
+      threadContext[i].runTime = runfor;
       threadContext[i].waitfor = waitfor;
     }
 

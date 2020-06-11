@@ -357,7 +357,9 @@ void usage()
   fprintf(stdout,"  spit -f device -c k8          # set block size to 8 KiB\n");
   fprintf(stdout,"  spit -f device -c k4-128      # set block range to 4 to 128 KiB, every 4 KiB\n");
   fprintf(stdout,"  spit -f device -c k4:1024     # set block range to 4 to 1024 KiB, in powers of 2\n");
-  fprintf(stdout,"  spit -f device -c W5          # wait for 5 seconds before commencing I/O\n");
+  fprintf(stdout,"  spit -f device -c W5          # do 5 seconds worth of IO then wait for 5 seconds\n");
+  fprintf(stdout,"  spit -f device -c W0.1:4      # do 0.1 seconds worth of IO then wait for 4 seconds\n");
+  fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread, run 4, wait 4 repeat\n");
   fprintf(stdout,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stdout,"  spit -f device -c r -G 1      # 1 GiB device size\n");
   fprintf(stdout,"  spit -f device -b 10240000    # specify the max device size in bytes\n");
@@ -369,7 +371,6 @@ void usage()
   fprintf(stdout,"  spit -f ... -j 32 -U 0        # duplicate all the commands 32 times, pin all threads to  NUMA node 0\n");
   fprintf(stdout,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
-  fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread wait 4 then random read\n");
   fprintf(stdout,"  spit -f ... -c wR42           # set the per command seed with R\n");
   fprintf(stdout,"  spit -f ... -c wF             # (F)lush after every write of FF for 10, FFF for 100 ...\n");
   fprintf(stdout,"  spit -f ... -c rrrrw          # do 4 reads for every write\n");
@@ -391,7 +392,7 @@ void usage()
   fprintf(stdout,"  spit -f ... -c ws1J4          # jumble/reverse groups of 4 positions\n");
   fprintf(stdout,"  spit -f ... -c wx2O           # sequentially (s1) write 200%% LBA, no time limit\n");
   fprintf(stdout,"  spit -f ... -c ws0            # random defaults to 3x LBA\n");
-  fprintf(stdout,"  spit -f ... -c ws1W2T2 -t60   # Alternate wait 2, run for 2 seconds\n");
+  fprintf(stdout,"  spit -f ... -c ws1W2:1 -t60   # Alternate run for 2 seconds, wait for 1 second\n");
   fprintf(stdout,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
   fprintf(stdout,"  spit -f .... -R seed          # set the initial seed, -j will increment per job\n");
   fprintf(stdout,"  spit -f .... -Q qd            # set the per job default queue depth\n");
