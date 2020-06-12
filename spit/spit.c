@@ -23,15 +23,14 @@ int verbose = 0;
 int keepRunning = 1;
 char *benchmarkName = NULL;
 char *savePositions = NULL;
+char *device = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
                 unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
-                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding, int *performPreDiscard)
+                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding, int *performPreDiscard, int *reportMode)
 {
   int opt;
-
-  char *device = NULL;
 
   deviceDetails *deviceList = NULL;
   size_t deviceCount = 0;
@@ -39,6 +38,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   size_t commandstringpos = 0;
   size_t added = 0;
   *performPreDiscard = 0;
+  *reportMode = 0;
 
   jobInit(j);
   jobInit(preconditions);
@@ -46,7 +46,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   optind = 0;
   size_t jglobalcount = 1;
 
-  const char *getoptstring = "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:T";
+  const char *getoptstring = "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:Tr";
 
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
@@ -135,7 +135,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
     break;
     case 'f':
-      device = optarg;
+      device = strdup(optarg);
       break;
     case 'j':
       break;
@@ -186,6 +186,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       *seed = (unsigned short)atoi(optarg);
       fprintf(stderr,"*info* initial seed: %d\n", *seed);
       break;
+    case 'r':
+      *reportMode = 1;
+      break;
     case 's':
       *timeperline = atof(optarg);
       break;
@@ -228,7 +231,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       *doNumaBinding = -2;
       break;
     default:
-      exit(1);
+      //      exit(1);
       break;
     }
   }
@@ -437,6 +440,56 @@ void intHandler(int d)
   keepRunning = 0;
 }
 
+
+void doReport() {
+
+  if (!device) {
+    fprintf(stderr,"*error* no -f device provided\n");
+    return;
+  }
+  
+  diskStatType d;
+  diskStatSetup(&d);
+
+  size_t fsize = MIN(10 * 1024 * 1024, fileSizeFromName(device)); // the first xx MiB
+
+  if (fsize <= 0) {
+    fprintf(stderr, "*error* no file called '%s'\n", device);
+    return;
+  }
+
+  size_t blockSize1[] = {4,8,16,32,64,128,256,512,1024,2048,4096,4};
+  size_t blockSize2[] = {4,8,16,32,64,128,256,512,1024,2048,4096,2048};
+    
+  for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
+    jobType *j = malloc(sizeof(jobType));
+    jobInit(j);
+    char s[100];
+    sprintf(s, "w s0 k%zd-%zd j%zd P100 x1", blockSize1[i], blockSize2[i], 1 + i);
+    jobAdd(j, s); // x1 is LBA, X1 should be 100
+    jobAddDeviceToAll(j, "/dev/sda");
+    jobRunThreads(j, j->count, NULL, 0, fsize, 3, 0, NULL, 32, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0);
+    
+    jobFree(j);
+    free(j);
+  }
+
+  for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
+    jobType *j = malloc(sizeof(jobType));
+    jobInit(j);
+    char s[100];
+    sprintf(s, "m s0 k%zd-%zd j%zd P100 x1", blockSize1[i], blockSize2[i], 1 + i);
+    jobAdd(j, s); // x1 is LBA, X1 should be 100
+    jobAddDeviceToAll(j, "/dev/sda");
+    jobRunThreads(j, j->count, NULL, 0, fsize, 3, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.01 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0);
+    jobFree(j);
+    free(j);
+  }
+  
+  diskStatFree(&d);
+}
+
+
 /**
  * main
  *
@@ -494,73 +547,79 @@ int main(int argc, char *argv[])
     double timeperline = 1, ignoreFirst = 0;
     int doNumaBinding = -1; // -1 default, -2 disable, >= 0 bind to specific numa
     int performPreDiscard = 0;
+    int reportMode = 0;
 
     diskStatSetup(&d);
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
     char *mysqloptions = NULL, *mysqloptions2 = NULL;
 
     char commandstring[1000];
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode);
 
-
-    if (j->count < 1) {
+    if (reportMode) {
+      doReport();
+    } else if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
-      break;
-    }
-    printPowerMode();
+    } else { // run some jobs
+      printPowerMode();
 
-    size_t actualSize = maxSizeInBytes - minSizeInBytes;
-    fprintf(stderr,"*info* block range [%.2lf-%.2lf] GB, size %.2lf GB (%zd bytes). Range [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
-    if (actualSize < 4096) {
-      fprintf(stderr,"*error* block device too small.\n");
-      exit(1);
-    }
+      size_t actualSize = maxSizeInBytes - minSizeInBytes;
+      fprintf(stderr,"*info* block range [%.2lf-%.2lf] GB, size %.2lf GB (%zd bytes). Range [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
+      if (actualSize < 4096) {
+	fprintf(stderr,"*error* block device too small.\n");
+	exit(1);
+      }
 
-    if (preconditions) {
+      if (preconditions) {
+	keepRunning = 1;
+	signal(SIGTERM, intHandler);
+	signal(SIGINT, intHandler);
+	jobRunPreconditions(preconditions, preconditions->count, minSizeInBytes, maxSizeInBytes);
+      }
+
       keepRunning = 1;
+      diskStatType *p = &d;
+      if (!d.allocDevices) {
+	p = NULL;
+      }
       signal(SIGTERM, intHandler);
       signal(SIGINT, intHandler);
-      jobRunPreconditions(preconditions, preconditions->count, minSizeInBytes, maxSizeInBytes);
-    }
 
-    keepRunning = 1;
-    diskStatType *p = &d;
-    if (!d.allocDevices) {
-      p = NULL;
-    }
-    signal(SIGTERM, intHandler);
-    signal(SIGINT, intHandler);
+      jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, doNumaBinding, performPreDiscard);
 
-    jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, doNumaBinding, performPreDiscard);
+      diskStatFree(&d);
+
+      if (fuzz) {
+	for (int i = 0; i < argc2; i++) {
+	  free(argv2[i]);
+	  argv2[i] = NULL;
+	}
+	free(argv2);
+	argv2 = NULL;
+      }
+      if (mysqloptions) {
+	free(mysqloptions);
+	mysqloptions = NULL;
+      }
+      if (mysqloptions2) {
+	free(mysqloptions2);
+	mysqloptions2 = NULL;
+      }
+
+    } // end of job
 
     jobFree(j);
     free(j);
 
     jobFree(preconditions);
     free(preconditions);
-    diskStatFree(&d);
 
-    if (fuzz) {
-      for (int i = 0; i < argc2; i++) {
-        free(argv2[i]);
-        argv2[i] = NULL;
-      }
-      free(argv2);
-      argv2 = NULL;
-    }
-    if (mysqloptions) {
-      free(mysqloptions);
-      mysqloptions = NULL;
-    }
-    if (mysqloptions2) {
-      free(mysqloptions2);
-      mysqloptions2 = NULL;
-    }
 
     //    if (timedouble() - starttime > 3600) break;
   } while (fuzz);
 
   if (benchmarkName) free(benchmarkName);
+  if (device) free(device);
 
   fprintf(stderr,"*info* exiting.\n");
   fflush(stderr);

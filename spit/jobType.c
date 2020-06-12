@@ -142,6 +142,8 @@ void jobFree(jobType *job)
   job->strings = NULL;
   free(job->devices);
   job->devices = NULL;
+  free(job->deviceid);
+  job->deviceid = NULL;
   free(job->delay);
   job->delay = NULL;
   jobInit(job);
@@ -1180,6 +1182,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       fprintf(stderr,"*info* device '%s', size [%.3lf, %.3lf] %.3lf GiB, minsize of %zd, maximum %zd positions\n", job->devices[i], TOGiB(threadContext[i].minbdSize), TOGiB(threadContext[i].maxbdSize), TOGiB(threadContext[i].maxbdSize - threadContext[i].minbdSize), bs, mp);
     }
 
+
     // use 1/4 of free RAM
     size_t useRAM = MIN((size_t)15L*1024*1024*1024, freeRAM() / 2); // 1L*1024*1024*1024;
 
@@ -1626,7 +1629,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       origpc[i] = threadContext[i].pos;
     }
 
-    positionContainerSave(origpc, "a.a", origpc->maxbdSize, 0, job);
+    //    positionContainerSave(origpc, "a.a", origpc->maxbdSize, 0, job);
       
     positionContainer mergedpc = positionContainerMerge(origpc, num);
 
@@ -1636,7 +1639,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
       fprintf(stderr, "finished\n");
       fflush(stderr);
-    }
 
     // histogram
     histogramType histRead, histWrite;
@@ -1708,6 +1710,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
     histFree(&histRead);
     histFree(&histWrite);
+    }
 
     if (verify) {
       positionContainerCheckOverlap(&mergedpc);
@@ -1717,7 +1720,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
           direct = 0;
         }
       }
-      int errors = verifyPositions(&mergedpc, 256, job, direct, 1 /* sorted */);
+      int errors = verifyPositions(&mergedpc, MIN(256, mergedpc.sz), job, direct, 1 /* sorted */);
       if (errors) {
         exit(1);
       }
