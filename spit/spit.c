@@ -467,7 +467,7 @@ void doReport() {
     char s[100];
     sprintf(s, "w s0 k%zd-%zd j%zd P100 x1", blockSize1[i], blockSize2[i], 1 + i);
     jobAdd(j, s); // x1 is LBA, X1 should be 100
-    jobAddDeviceToAll(j, "/dev/sda");
+    jobAddDeviceToAll(j, device);
     jobRunThreads(j, j->count, NULL, 0, fsize, 3, 0, NULL, 32, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0);
     
     jobFree(j);
@@ -480,7 +480,7 @@ void doReport() {
     char s[100];
     sprintf(s, "m s0 k%zd-%zd j%zd P100 x1", blockSize1[i], blockSize2[i], 1 + i);
     jobAdd(j, s); // x1 is LBA, X1 should be 100
-    jobAddDeviceToAll(j, "/dev/sda");
+    jobAddDeviceToAll(j, device);
     jobRunThreads(j, j->count, NULL, 0, fsize, 3, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.01 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0);
     jobFree(j);
     free(j);
