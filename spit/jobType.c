@@ -1281,7 +1281,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].rw.tprob = tprob;
 
     if (verbose || tprob) {
-      fprintf(stderr,"*info* [t%d] setting action probabilities r=%.2lf, w=%.2lf, t=%.2lf\n", i, rprob, wprob, tprob);
+      fprintf(stderr,"*info* [t%d] setting action probabilities r=%.2g, w=%.2g, t=%.2g\n", i, rprob, wprob, tprob);
     }
 
     int flushEvery = 0;
