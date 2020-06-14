@@ -1,6 +1,11 @@
-
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 2.8)
 project (stutools)
+
+get_directory_property(hasParent PARENT_DIRECTORY)
+if(NOT hasParent)
+  include( ${CMAKE_CURRENT_SOURCE_DIR}/../utils/Version.cmake)
+endif()
+  
 
 include (CTest)
 

@@ -1,18 +1,7 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 2.8)
 project (stutools C)
 
-execute_process(COMMAND git rev-parse HEAD
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT_HASH
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-execute_process(COMMAND git log -1 --format=%cd
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT_DATE
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-add_definitions( -DVERSION="${GIT_COMMIT_HASH} - ${GIT_COMMIT_DATE}" )
-message(STATUS "Building stutools ${GIT_COMMIT_HASH} (${GIT_COMMIT_DATE})")
+include(${CMAKE_CURRENT_SOURCE_DIR}/utils/Version.cmake)
 
 add_subdirectory(iotests)
 add_subdirectory(spit)
