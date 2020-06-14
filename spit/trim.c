@@ -57,6 +57,12 @@ int main(int argc, char *argv[]) {
       if (fd >= 0) {
 	size_t d_max_bytes = 0, d_granularity = 0, d_zeroes = 0;
 	getDiscardInfo(getSuffix(dev), &d_max_bytes, &d_granularity, &d_zeroes);
+
+	if (verbose >= 2) {
+	  fprintf(stderr,"*info* max_bytes: %zd\n", d_max_bytes);
+	  fprintf(stderr,"*info* granularity: %zd\n", d_granularity);
+	  fprintf(stderr,"*info* zeroes data: %zd\n", d_zeroes);
+	}
       
 	if (fd >= 0) {
 	  double start = timedouble();
