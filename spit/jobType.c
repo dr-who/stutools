@@ -1280,7 +1280,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].rw.wprob = wprob;
     threadContext[i].rw.tprob = tprob;
 
-    if (verbose) {
+    if (verbose || tprob) {
       fprintf(stderr,"*info* [t%d] setting action probabilities r=%.2lf, w=%.2lf, t=%.2lf\n", i, rprob, wprob, tprob);
     }
 
