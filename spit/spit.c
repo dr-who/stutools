@@ -441,7 +441,7 @@ void intHandler(int d)
 }
 
 
-void doReport() {
+void doReport(size_t timetorun) {
 
   if (!device) {
     fprintf(stderr,"*error* no -f device provided\n");
@@ -472,7 +472,7 @@ void doReport() {
   double starttime = timedouble();
   int round = 0;
   
-  while (timedouble() - starttime < 60) {
+  while (timedouble() - starttime < timetorun) {
     fprintf(stderr,"==== Round %d ====\n", ++round);
     
     for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
@@ -574,7 +574,7 @@ int main(int argc, char *argv[])
     handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode);
 
     if (reportMode) {
-      doReport();
+      doReport(timetorun);
     } else if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
     } else { // run some jobs
