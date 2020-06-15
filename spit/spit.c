@@ -478,6 +478,7 @@ void doReport() {
     for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
       jobInit(&j);
       sprintf(s, "w s0 k%zd-%zd j%zd P100 x1", blockSize1[i], blockSize2[i], 1 + i);
+      fprintf(stderr,"++++ running '%s'\n", s);
       jobAdd(&j, s); // x1 is LBA, X1 should be 100
       jobAddDeviceToAll(&j, device);
       jobRunThreads(&j, j.count, NULL, 0, fsize, 3, 0, NULL, 32, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0);
@@ -486,6 +487,7 @@ void doReport() {
     for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
       jobInit(&j);
       sprintf(s, "m s0 k%zd-%zd j%zd P100 x1", blockSize1[i], blockSize2[i], 1 + i);
+      fprintf(stderr,"++++ running '%s'\n", s);
       jobAdd(&j, s); // x1 is LBA, X1 should be 100
       jobAddDeviceToAll(&j, device);
       jobRunThreads(&j, j.count, NULL, 0, fsize, 3, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.01 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0);
@@ -494,6 +496,7 @@ void doReport() {
     for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
       jobInit(&j);
       sprintf(s, "r s0 k%zd-%zd j%zd x1", blockSize1[i], blockSize2[i], 1 + i);
+      fprintf(stderr,"++++ running '%s'\n", s);
       jobAdd(&j, s); // x1 is LBA, X1 should be 100
       jobAddDeviceToAll(&j, device);
       jobRunThreads(&j, j.count, NULL, 0, fsize, 3, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 1 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0);
