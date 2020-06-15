@@ -20,6 +20,13 @@ typedef struct {
   double tprob;
 } probType;
 
+typedef struct {
+  double readIOPS;
+  double writeIOPS;
+  double readMBps;
+  double writeMBps;
+} resultType;
+
 void jobInit(jobType *j);
 void jobAdd(jobType *j, const char *jobstring);
 void jobAddExec(jobType *j, const char *jobstring, const double delay);
@@ -32,7 +39,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const size_t maxSizeInBytes,
                    const size_t timetorun, const size_t dumpPos, char *benchmarkName, const size_t origqd,
                    unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
-                   char *mysqloptions, char *mysqloptions2, char *commandstring, const int doNumaBinding, const int performDiscard);
+                   char *mysqloptions, char *mysqloptions2, char *commandstring, const int doNumaBinding, const int performDiscard, resultType *result);
 
 void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount);
 void jobAddDeviceToAll(jobType *j, const char *device);
