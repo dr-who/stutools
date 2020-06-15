@@ -447,6 +447,11 @@ void doReport() {
     fprintf(stderr,"*error* no -f device provided\n");
     return;
   }
+
+  if (!canOpenExclusively(device)) {
+    fprintf(stderr,"*error* device already open!\n");
+    return;
+  }
   
   diskStatType d;
   diskStatSetup(&d);
