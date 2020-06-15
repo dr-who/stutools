@@ -78,5 +78,8 @@ void diskStatUsage(diskStatType *d, size_t *sread, size_t *swritten, size_t *sti
 size_t diskStatTBTimeSpentIO(diskStatType *d);
 
 void diskStatMaxQDStr(diskStatType *d, size_t n_print, char* max_q_disk_str, size_t max_q_disk_str_len);
+
+void majorAndMinorFromFilename(char *filename, unsigned int *major, unsigned int *minor);
+
 #endif
 

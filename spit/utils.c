@@ -514,6 +514,34 @@ char *getModel(const char *suffix)
 }
 
 
+char *getCPUModel()
+{
+  size_t len = 1000;
+  char *s, *retval = NULL;
+  CALLOC(s, len, 1);
+  
+  sprintf(s, "/proc/cpuinfo");
+  FILE *fp = fopen(s, "rt");
+  int ret = 0;
+  if (fp) {
+    while ((ret = getline(&s, &len, fp)) > 0) {
+      char first[100], sec[100];
+      if (sscanf(s, "%s %s", first, sec) >= 2) {
+	if ((strcmp(first,"model") == 0) && (strcmp(sec,"name")) == 0) {
+	  s[ret - 1] = 0;
+	  retval = strdup(strstr(s, ":") + 2);
+	  break;
+	}
+      }
+    }
+  } else {
+    perror(s);
+  }
+  if (s) free(s);
+  return retval;
+}
+
+
 void getPhyLogSizes(const char *suffix, size_t *phy, size_t *max_io_bytes, size_t *log)
 {
   *phy = 512;

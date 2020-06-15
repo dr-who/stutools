@@ -3,6 +3,10 @@
 #include "jobType.h"
 #include <signal.h>
 
+#ifndef VERSION
+#define VERSION __TIMESTAMP__
+#endif
+
 /**
  * spit.c
  *
@@ -453,7 +457,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
     return;
   }
 
-  if (maxSizeInBytes == 0) maxSizeInBytes = 100 * 1024 * 1024;
+  if (maxSizeInBytes == 0) maxSizeInBytes = 10 * 1024 * 1024;
 
   char text[100];
   time_t now = time(NULL);
@@ -462,7 +466,36 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
   strftime(text, sizeof(text)-1, "%Y-%m-%d", t);
  
   
-  fprintf(stdout, "== Report: `%s`, %zd seconds, %.3lf GiB (%s)\n\n", device, timetorun, TOGiB(maxSizeInBytes), text);
+  fprintf(stdout, "== Report: `stutools: spit`\n");
+
+  unsigned int major, minor;
+  majorAndMinorFromFilename(device, &major, &minor);
+
+  char *suffix = getSuffix(device);
+  
+  fprintf(stdout, " Device: %s (major %d, minor %d)\n", device, major, minor);
+  size_t bdsize = fileSizeFromName(device);
+  char *model = getModel(suffix);
+  fprintf(stdout, " Model: %s\n", model);
+  if (model) free(model);
+  if (suffix) free(suffix);
+  fprintf(stdout, " Device size: %.3lf GB\n", TOGB(bdsize));
+  fprintf(stdout, " Testing size: %.3lf GB (%.3lf %% of device)\n", TOGB(maxSizeInBytes), 100.0 * maxSizeInBytes / bdsize);
+  char *host = hostname();
+  fprintf(stdout, " Machine: %s\n", host);
+  char *cpumodel = getCPUModel();
+  fprintf(stdout, " CPU: %s\n", cpumodel);
+  if (cpumodel) free(cpumodel);
+  if (host) free(host);
+  fprintf(stdout, " NUMA nodes: %d\n", getNumaCount());
+  fprintf(stdout, " Thread count: %d\n", getNumHardwareThreads());
+  char *os = OSRelease();
+  fprintf(stdout, " OS: %s\n", os);
+  if (os) free(os);
+  fprintf(stdout, " RAM: %.0lf GiB\n", TOGiB(totalRAM()));
+  fprintf(stdout, " Report date: %s\n", text);
+  fprintf(stdout, " stutools: %s\n", VERSION);
+  fprintf(stdout, "\n\n");
   
   diskStatType d;
   diskStatSetup(&d);
@@ -563,7 +596,8 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
     fprintf(stdout, "|===\n\n");
     fflush(stdout);
 
-    
+
+    //
     fprintf(stdout, "==== Random Read\n\n");
     fprintf(stdout, "[cols=\"<3,^1,^1,^1,^1\", options=\"header\"]\n");
     fprintf(stdout, "|===\n");
@@ -582,6 +616,29 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
     }
     fprintf(stdout, "|===\n\n");
     fflush(stdout);
+
+
+
+    //
+    fprintf(stdout, "==== Random 70%% Read / 30%% Write\n\n");
+    fprintf(stdout, "[cols=\"<3,^1,^1,^1,^1\", options=\"header\"]\n");
+    fprintf(stdout, "|===\n");
+    fprintf(stdout, "| Command | Read IOPS | Write IOPS | Read MB/s | Write MB/s\n");
+    
+
+    for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
+      jobInit(&j);
+      sprintf(s, "p0.7 s0 k%zd-%zd G_ j%d x%zd", blockSize1[i], blockSize2[i], 1, xcopies);
+      fprintf(stderr,"++++ running '%s'\n", s);
+      jobAdd(&j, s); // x1 is LBA, X1 should be 100
+      jobAddDeviceToAll(&j, device);
+      jobRunThreads(&j, j.count, NULL, 0, fsize, 3, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0, &r);
+      fprintf(stdout, "| %s |  %.0lf | %.0lf |  %.0lf |  %.0lf\n", s, r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
+      fflush(stdout);
+    }
+    fprintf(stdout, "|===\n\n");
+    fflush(stdout);
+
   }
 
   diskStatFree(&d);
@@ -594,9 +651,6 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
  */
 int main(int argc, char *argv[])
 {
-#ifndef VERSION
-#define VERSION __TIMESTAMP__
-#endif
 
   size_t fuzz = 0, runcount = 0;
   char *fuzzdevice = NULL;
