@@ -511,6 +511,8 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
   size_t blockSize2[] = {4,8,16,32,64,128,256,512,1024,2048,4096,8,64,512,2048};
 
   size_t threadBlock[] = {16,64,256};
+
+  size_t dedupSizes[] = {1,10,100,1000,10000,100000,1000000};
   char s[100];
   jobType j;
 
@@ -571,6 +573,28 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
     fflush(stdout);
 
 
+    fprintf(stdout, "==== Write de-dup\n\n");
+    fprintf(stdout, "[cols=\"<3,^1,^1,^1,^1\", options=\"header\"]\n");
+    fprintf(stdout, "|===\n");
+    fprintf(stdout, "| Command |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+
+    for (size_t i = 0 ; i < sizeof(dedupSizes) / sizeof(size_t); i++) {
+      jobInit(&j);
+      for (size_t jj = 0 ; jj < 64; jj++) {
+	sprintf(s, "w s0 P%zd j64#%zd k4 x10", dedupSizes[i], jj);
+      }
+      jobAdd(&j, s); 
+      jobAddDeviceToAll(&j, device);
+      sprintf(s, "w s0 P%zd j64 k4 x10", dedupSizes[i]);
+      jobRunThreads(&j, j.count, NULL, 0, fsize, 3, 0, NULL, 32, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
+      fprintf(stdout, "| %s |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
+      fflush(stdout);
+    }
+    fprintf(stdout, "|===\n\n");
+    fflush(stdout);
+
+
+    
 fprintf(stdout, "==== Sequential Write\n\n");
     fprintf(stdout, "[cols=\"<3,^1,^1,^1,^1\", options=\"header\"]\n");
     fprintf(stdout, "|===\n");
