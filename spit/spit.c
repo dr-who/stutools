@@ -563,7 +563,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	}
 	jobAddDeviceToAll(&j, device);
 	jobRunThreads(&j, j.count, NULL, 0, fsize, 3, 0, NULL, 16, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
-	sprintf(s, "w s0 k%zd-%zd j%zd G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , xcopies);
+	sprintf(s, "w s1 k%zd-%zd j%zd q16 G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , xcopies);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
