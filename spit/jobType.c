@@ -404,10 +404,10 @@ static void *runThread(void *arg)
     }
   }
 
-  size_t discard_max_bytes, discard_granularity, discard_zeroes_data;
-  getDiscardInfo(suffix, &discard_max_bytes, &discard_granularity, &discard_zeroes_data);
+  size_t discard_max_bytes, discard_granularity, discard_zeroes_data, alignment_offset;
+  getDiscardInfo(suffix, &alignment_offset, &discard_max_bytes, &discard_granularity, &discard_zeroes_data);
   if (verbose) {
-    fprintf(stderr,"*info* discardInfo: %zd bytes / %zd bytes / zeroes_data %zd\n", discard_max_bytes, discard_granularity, discard_zeroes_data);
+    fprintf(stderr,"*info* discardInfo: alignment_offset %zd / max %zd / granularity %zd / zeroes_data %zd\n", alignment_offset, discard_max_bytes, discard_granularity, discard_zeroes_data);
   }
 
   if (threadContext->rw.tprob > 0 || threadContext->performPreDiscard) {
@@ -915,6 +915,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   const double thetime = timedouble();
   const size_t UUID = thetime * 10;
 
+
+  if (verbose) {
+    fprintf(stderr,"*info* low: %.1lf GiB, high: %.1lf GiB\n", TOGiB(minSizeInBytes), TOGiB(maxSizeInBytes));
+  }
 
 
   size_t *go = malloc(sizeof(size_t));

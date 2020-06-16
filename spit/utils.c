@@ -990,15 +990,32 @@ int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid )
 }
 
 
-int getDiscardInfo(const char *suffix, size_t *discard_max_bytes, size_t *discard_granularity, size_t *discard_zeroes_data) {
+int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard_max_bytes, size_t *discard_granularity, size_t *discard_zeroes_data) {
   *discard_max_bytes = 0;
   *discard_granularity = 0;
   *discard_zeroes_data = 0;
-  
+  *alignment_offset = 0;
+
   char s[1000];
-  sprintf(s, "/sys/block/%s/queue/discard_max_bytes", suffix);
+  sprintf(s, "/sys/block/%s/alignment_offset", suffix);
   FILE *fp = fopen(s, "rt");
   long ret = 0, d = 0;
+  if (fp) {
+    ret = fscanf(fp, "%ld", &d);
+    if (ret == 1) {
+      *alignment_offset = d;
+    }
+    if (fp) {
+      fclose(fp);
+      fp = NULL;
+    }
+  }
+
+
+  sprintf(s, "/sys/block/%s/queue/discard_max_bytes", suffix);
+  fp = fopen(s, "rt");
+  ret = 0;
+  d = 0;
   if (fp) {
     ret = fscanf(fp, "%ld", &d);
     if (ret == 1) {
@@ -1010,6 +1027,8 @@ int getDiscardInfo(const char *suffix, size_t *discard_max_bytes, size_t *discar
     }
   }
 
+  ret = 0;
+  d = 0;
   sprintf(s, "/sys/block/%s/queue/discard_granularity", suffix);
   fp = fopen(s, "rt");
   if (fp) {
@@ -1023,6 +1042,9 @@ int getDiscardInfo(const char *suffix, size_t *discard_max_bytes, size_t *discar
     }
   }
 
+
+  ret = 0;
+  d = 0;
 
   sprintf(s, "/sys/block/%s/queue/discard_zeroes_data", suffix);
   fp = fopen(s, "rt");
