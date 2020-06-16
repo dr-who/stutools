@@ -52,7 +52,7 @@ size_t aioMultiplePositions( positionContainer *p,
   struct io_event *events;
   if (origQD >= sz)  {
     origQD = sz;
-    fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", origQD, verbose);
+    //    fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", origQD, verbose);
     //    exit(1);
   }
   assert(origQD <= sz);
