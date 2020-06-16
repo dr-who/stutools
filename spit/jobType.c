@@ -186,6 +186,8 @@ typedef struct {
   size_t numThreads;
   size_t waitForThreads;
   size_t *go;
+  size_t *go_finished;
+  size_t youcanstart;
   pthread_mutex_t *gomutex;
   positionContainer **allPC;
   char *benchmarkName;
@@ -214,6 +216,7 @@ typedef struct {
   double result_readIOPS;
   double result_writeMBps;
   double result_readMBps;
+  double result_tm;
 } threadInfoType;
 
 
@@ -424,9 +427,19 @@ static void *runThread(void *arg)
     }
 
 
-    
-    //
+
+    /*    size_t ttt = 0;
+    for (size_t i = 0; i < threadContext->pos.sz; i++) {
+      if (threadContext->pos.positions[i].action == 'W')
+	ttt += threadContext->pos.positions[i].len;
+	}*/
+
     totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runTime, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize || threadContext->performPreDiscard, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors, threadContext->QDbarrier, discard_max_bytes);
+
+    //    if (keepRunning && byteLimit) {
+      //      fprintf(stderr,"%zd %zd ttt %zd\n", shouldWriteBytes, byteLimit, ttt);
+      //      assert(shouldWriteBytes <= ttt);
+    //    }
 
     // check exit constraints
     if (byteLimit) {
@@ -472,7 +485,7 @@ static void *runThread(void *arg)
   threadContext->pos.elapsedTime = timedouble() - starttime;
 
   pthread_mutex_lock(threadContext->gomutex);
-  (*threadContext->go)--;
+  (*threadContext->go_finished)++;
   pthread_mutex_unlock(threadContext->gomutex);
 
   //  if (verbose) {fprintf(stderr,"*info* starting fdatasync()..."); fflush(stderr);}
@@ -525,7 +538,7 @@ static void *runThreadTimer(void *arg)
   if (ignorefirst < 0) ignorefirst = 0;
 
   while(*threadContext->go < threadContext->waitForThreads) {
-    usleep(10);
+    usleep(100);
     //    fprintf(stderr,"."); fflush(stderr);
   }
   //  fprintf(stderr,"%zd %zd\n", *threadContext->go, threadContext->waitForThreads);
@@ -667,7 +680,7 @@ static void *runThreadTimer(void *arg)
         const double elapsed = thistime - starttime;
 
         pthread_mutex_lock(threadContext->gomutex);
-        fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, *threadContext->go);
+        fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, *threadContext->go - *threadContext->go_finished);
         pthread_mutex_unlock(threadContext->gomutex);
 
         //fprintf(stderr,"%5.0lf", TOMB(readB));
@@ -861,10 +874,12 @@ static void *runThreadTimer(void *arg)
   if (verbose) fprintf(stderr,"*info* finished thread timer\n");
   keepRunning = 0;
 
-  threadContext->result_writeIOPS = total_printed_w_iops / tm;
-  threadContext->result_readIOPS =  total_printed_r_iops / tm;
-  threadContext->result_writeMBps = TOMB(total_printed_w_bytes) / tm;
-  threadContext->result_readMBps = TOMB(total_printed_r_bytes) / tm;
+  threadContext->result_writeIOPS = total_printed_w_iops /tm;
+  threadContext->result_readIOPS =  total_printed_r_iops /tm;
+  threadContext->result_writeMBps = TOGiB(total_printed_w_bytes) / tm;
+  threadContext->result_readMBps = TOGiB(total_printed_r_bytes) /tm;
+  threadContext->result_tm = tm;
+  
   
   return NULL;
 }
@@ -905,9 +920,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   size_t *go = malloc(sizeof(size_t));
   *go = 0;
 
+  size_t *go_f = malloc(sizeof(size_t));
+  *go_f = 0;
+
   for (int i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
 
     threadContext[i].go = go;
+    threadContext[i].go_finished = go_f;
     threadContext[i].filePrefix = filePrefix;
     threadContext[i].mysqloptions = mysqloptions;
     threadContext[i].mysqloptions2 = mysqloptions2;

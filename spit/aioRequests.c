@@ -39,6 +39,10 @@ size_t aioMultiplePositions( positionContainer *p,
 			     const size_t discard_max_bytes
                            )
 {
+  if (sz == 0) {
+    fprintf(stderr,"*warning* sz == 0!\n");
+    return 0;
+  }
   int ret, checkTime = 1;
   if (finishTime < timedouble()) {
     checkTime = 0;
@@ -154,6 +158,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   size_t submitted = 0, flushPos = 0, received = 0;
   size_t totalWriteBytes = 0, totalReadBytes = 0;
+  size_t totalWriteSubmit = 0, totalReadSubmit = 0;
 
   size_t lastBytes = 0, lastIOCount = 0;
 
@@ -179,6 +184,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
 
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishTime %lf\n", sz, finishTime);
+  
   while (keepRunning) {
     thistime = timedouble();
     if (checkTime && (thistime > finishTime)) {
@@ -237,6 +243,13 @@ size_t aioMultiplePositions( positionContainer *p,
 
               io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
               cbs[qdIndex]->data = &positions[pos];
+
+	      if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+		goto endoffunction;
+	      }
+	      totalReadSubmit += len;
+
+	      
             } else if (positions[pos].action=='F') {
               if (verbose >= 2) {
                 fprintf(stderr,"[%zd] flush qdIndex=%d\n", newpos, qdIndex);
@@ -268,6 +281,11 @@ size_t aioMultiplePositions( positionContainer *p,
 
               io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
               cbs[qdIndex]->data = &positions[pos];
+
+	      if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+		goto endoffunction;
+	      }
+	      totalWriteSubmit += len;
 
               flushPos++;
             } else {
@@ -312,6 +330,8 @@ size_t aioMultiplePositions( positionContainer *p,
         }
       }
 
+
+      
     nextpos:      
 
       // onto the next one
@@ -319,7 +339,7 @@ size_t aioMultiplePositions( positionContainer *p,
       if (pos >= sz) {
         if (oneShot) {
           //	      	      fprintf(stderr,"end of function one shot\n");
-          goto endoffunction; // only go through once
+	  //          goto endoffunction; // only go through once
         }
         pos = 0; // don't go over the end of the array
       }
@@ -490,18 +510,13 @@ size_t aioMultiplePositions( positionContainer *p,
       received += ret;
     }
 
-    if (finishBytes && (totalWriteBytes + totalReadBytes >= finishBytes)) {
-      //      fprintf(stderr,"....%zd %zd\n", finishBytes, totalWriteBytes + totalReadBytes);
-      break;
-    }
-
 
     //    if (ret < 0) {
     //      fprintf(stderr,"eek\n");
     //    }
   } // while keepRunning
 
-endoffunction:
+ endoffunction:
   // receive outstanding I/Os
 
   {}
@@ -573,8 +588,8 @@ endoffunction:
 
   *ios = received;
 
-  *totalWB = totalWriteBytes;
-  *totalRB = totalReadBytes;
+  *totalWB = totalWriteSubmit;
+  *totalRB = totalReadSubmit;
 
   for (size_t i = 0; i < pos; i++) {
     if (positions[i].action == 'R' || positions[i].action == 'W') {

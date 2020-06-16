@@ -184,35 +184,37 @@ void positionContainerCheckOverlap(const positionContainer *merged)
   }
 
   // check they are sorted based on position, otherwise we can't prune
-  for (size_t i = 0; i < merged->sz - 1; i++) {
-    if (merged->positions[i].deviceid == merged->positions[i+1].deviceid) {
-      assert(merged->positions[i].pos <= merged->positions[i+1].pos);
-    }
-  }
-
-  size_t printed = 0;
-  for (size_t i = 0; i < merged->sz - 1; i++) {
-    if ((merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') && (merged->positions[i].deviceid == merged->positions[i+1].deviceid)) {
-      int pe = 0;
-      if (merged->positions[i].pos > merged->positions[i+1].pos) pe = 1;
-      if (pe) {
-        fprintf(stderr,"[%zd] %zd len %d %c seed %d device %d\n", i, merged->positions[i].pos, merged->positions[i].len, merged->positions[i].action, merged->positions[i].seed, merged->positions[i].deviceid);
-        i++;
-        fprintf(stderr,"[%zd] %zd len %d %c seed %d device %d\n", i, merged->positions[i].pos, merged->positions[i].len, merged->positions[i].action, merged->positions[i].seed, merged->positions[i].deviceid);
-        i--;
+  if (merged->sz > 1) {
+    for (size_t i = 0; i < merged->sz - 1; i++) {
+      if (merged->positions[i].deviceid == merged->positions[i+1].deviceid) {
+	assert(merged->positions[i].pos <= merged->positions[i+1].pos);
       }
+    }
 
-      if (merged->positions[i].seed != merged->positions[i+1].seed) {
-        if (merged->positions[i].pos + merged->positions[i].len > merged->positions[i+1].pos) {
-          if (merged->positions[i].finishTime > 0 && merged->positions[i+1].finishTime > 0) {
-            if (merged->positions[i].finishTime < merged->positions[i+1].finishTime) {
-              printed++;
-              if (printed < 10)
-                fprintf(stderr,"[%zd] *warning* problem at position %zd (len %d) %c, next %zd (len %d) %c\n", i, merged->positions[i].pos, merged->positions[i].len,  merged->positions[i].action, merged->positions[i+1].pos, merged->positions[i+1].len, merged->positions[i+1].action);
-              //	  abort();
-            }
-          }
-        }
+    size_t printed = 0;
+    for (size_t i = 0; i < merged->sz - 1; i++) {
+      if ((merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') && (merged->positions[i].deviceid == merged->positions[i+1].deviceid)) {
+	int pe = 0;
+	if (merged->positions[i].pos > merged->positions[i+1].pos) pe = 1;
+	if (pe) {
+	  fprintf(stderr,"[%zd] %zd len %d %c seed %d device %d\n", i, merged->positions[i].pos, merged->positions[i].len, merged->positions[i].action, merged->positions[i].seed, merged->positions[i].deviceid);
+	  i++;
+	  fprintf(stderr,"[%zd] %zd len %d %c seed %d device %d\n", i, merged->positions[i].pos, merged->positions[i].len, merged->positions[i].action, merged->positions[i].seed, merged->positions[i].deviceid);
+	  i--;
+	}
+
+	if (merged->positions[i].seed != merged->positions[i+1].seed) {
+	  if (merged->positions[i].pos + merged->positions[i].len > merged->positions[i+1].pos) {
+	    if (merged->positions[i].finishTime > 0 && merged->positions[i+1].finishTime > 0) {
+	      if (merged->positions[i].finishTime < merged->positions[i+1].finishTime) {
+		printed++;
+		if (printed < 10)
+		  fprintf(stderr,"[%zd] *warning* problem at position %zd (len %d) %c, next %zd (len %d) %c\n", i, merged->positions[i].pos, merged->positions[i].len,  merged->positions[i].action, merged->positions[i+1].pos, merged->positions[i+1].len, merged->positions[i+1].action);
+		//	  abort();
+	      }
+	    }
+	  }
+	}
       }
     }
   }
