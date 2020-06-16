@@ -510,7 +510,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
   size_t blockSize1[] = {4,8,16,32,64,128,256,512,1024,2048,4096,4,8, 128, 4};
   size_t blockSize2[] = {4,8,16,32,64,128,256,512,1024,2048,4096,8,64,512,2048};
 
-  size_t threadBlock[] = {16,64,256};
+  size_t threadBlock[] = {16,64};
 
   size_t dedupSizes[] = {1,10,100,1000,10000,100000,1000000};
   char s[100];
