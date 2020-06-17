@@ -580,7 +580,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	}
 	jobAddDeviceToAll(&j, device);
 	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 4, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
-	sprintf(s, "w s1 k%zd-%zd j%zd q%zd T%zd\n", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
+	sprintf(s, "w s1 k%zd-%zd j%zd q%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
@@ -644,9 +644,9 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 
 
     fprintf(stdout, "==== Write de-dup\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1,^2\", options=\"header\"]\n");
+    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
     fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s | Range (GiB)\n");
+    fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
 
     for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
       for (size_t i = 0 ; i < sizeof(dedupSizes) / sizeof(size_t); i++) {
@@ -663,7 +663,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	  high = fsize * (i+1);
 	}
 	jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 4, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
     }
@@ -672,29 +672,24 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 
 
     fprintf(stdout, "==== Random Write metadata + read\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1,^2\", options=\"header\"]\n");
+    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
     fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command |  Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s | Range (GiB)\n");
+    fprintf(stdout, "| Command |  Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
 
     for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
 	for (size_t jj = 0 ; jj < threadBlock[t]; jj++) {
-	  sprintf(s, "w s0 k%zd P100000 q2 j%zd#%zd G_ x%d", blockSize1[i], threadBlock[t], jj, 1);
+	  sprintf(s, "w s0 k%zd P100000 q2 j%zd#%zd T%zd", blockSize1[i], threadBlock[t], jj, thetime);
 	  jobAdd(&j, s); 
-	  sprintf(s, "r s0 k%zd P100000 q2 j%zd#%zd G_ x%d", blockSize2[i], threadBlock[t], jj, 1);
+	  sprintf(s, "r s0 k%zd P100000 q2 j%zd#%zd T%zd", blockSize2[i], threadBlock[t], jj, thetime);
 	  jobAdd(&j, s); 
 	}
 	
 	jobAddDeviceToAll(&j, device);
-	size_t low = 0, high = fsize;
-	if (fsize * (i+1) <= bdsize) {
-	  low = fsize * i;
-	  high = fsize * (i+1);
-	}
-	jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0, &r);
-	sprintf(s, "r s0 k%zd P100000 q2 j%zd G_ / +w k%zd", blockSize1[i], threadBlock[t], blockSize2[i]);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0, &r);
+	sprintf(s, "rs0k%zdP100000q2j%zd/+wk%zd", blockSize1[i], threadBlock[t], blockSize2[i]);
+	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
     }
@@ -704,27 +699,22 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 
     //
     fprintf(stdout, "==== Random 70%% Read / 30%% Write\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1,^2\", options=\"header\"]\n");
+    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
     fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command | Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s | Range (GiB)\n");
+    fprintf(stdout, "| Command | Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
     
 
     for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  sprintf(s, "p0.7 s0 k%zd-%zd G_ j%zd#%zd x%zd", blockSize1[i], blockSize2[i], threadBlock[t], t2, xcopies);
+	  sprintf(s, "p0.7 s0 k%zd-%zd G_ j%zd#%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t], t2, thetime);
 	  jobAdd(&j, s);
 	}
 	jobAddDeviceToAll(&j, device);
-	size_t low = 0, high = fsize;
-	if (fsize * (i+1) <= bdsize) {
-	  low = fsize * i;
-	  high = fsize * (i+1);
-	}
-	jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0, &r);
+	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0, &r);
 	sprintf(s, "p0.7 s0 k%zd-%zd G_ j%zd x%zd", blockSize1[i], blockSize2[i], threadBlock[t], xcopies);
-	fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
     }
