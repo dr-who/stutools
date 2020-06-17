@@ -265,7 +265,7 @@ static void *runThread(void *arg)
   generateRandomBufferCyclic(threadContext->randomBuffer, threadContext->highBlockSize, threadContext->seed, threadContext->highBlockSize);
 
   size_t ios = 0, shouldReadBytes = 0, shouldWriteBytes = 0;
-  int fd,  direct = O_DIRECT;
+  int fd = 0,  direct = O_DIRECT;
   if (strchr(threadContext->jobstring, 'D')) {
     fprintf(stderr,"*info* thread[%zd] turning off O_DIRECT\n", threadContext->id);
     direct = 0; // don't use O_DIRECT if the user specifes 'D'
@@ -1390,20 +1390,16 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
 
-    /*    {
-      char *iTO = strchr(job->strings[i], 'T');
-      if (iTO) {
-        threadContext[i].runTime = atoi(iTO+1);
+    char *iTO = strchr(job->strings[i], 'T');
+    if (iTO) {
+      threadContext[i].multipleTimes = 0;
+      threadContext[i].runXtimesTI = 0;
+      threadContext[i].runTime = atof(iTO+1);
+      threadContext[i].finishTime = atof(iTO+1);
+      if (verbose) {
+	fprintf(stderr,"*info* hard limiting time to execute to %.1lf seconds\n", threadContext[i].runTime);
       }
     }
-
-    {
-      char *iTO = strchr(job->strings[i], 't');
-      if (iTO) {
-        threadContext[i].finishTime = atoi(iTO+1);
-      }
-      } */
-
 
     size_t qDepth = origqd, QDbarrier = 0;
 

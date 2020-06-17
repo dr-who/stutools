@@ -365,6 +365,7 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
   if (fd > 0) {
     unsigned int major, minor;
     majorAndMinor(fd, &major, &minor);
+    close(fd);
 
     if (major == 252) {
       // nsulate

@@ -1021,10 +1021,8 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
     if (ret == 1) {
       *discard_max_bytes = d;
     }
-    if (fp) {
-      fclose(fp);
-      fp = NULL;
-    }
+    fclose(fp);
+    fp = NULL;
   }
 
   ret = 0;
@@ -1036,10 +1034,8 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
     if (ret == 1) {
       *discard_granularity = d;
     }
-    if (fp) {
-      fclose(fp);
-      fp = NULL;
-    }
+    fclose(fp);
+    fp = NULL;
   }
 
 
@@ -1053,10 +1049,8 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
     if (ret == 1) {
       *discard_zeroes_data = d;
     }
-    if (fp) {
-      fclose(fp);
-      fp = NULL;
-    }
+    fclose(fp);
+    fp = NULL;
   }
 
   return 0;
