@@ -553,7 +553,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	}
 	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 4, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
 	sprintf(s, "w s0 k%zd-%zd j%zd G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , blockSize2[i] >= 256 ? xcopies * 10 : xcopies);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.1lf–%.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
 	fflush(stdout);
       }
     }
@@ -581,7 +581,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	}
 	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 4, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
 	sprintf(s, "w s1 k%zd-%zd j%zd G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , blockSize2[i] >= 256 ? xcopies * 10 : xcopies);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.1lf–%.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
 	fflush(stdout);
       }
     }
@@ -610,7 +610,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	}
 	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 16, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
 	sprintf(s, "r s0 k%zd-%zd j%zd G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , xcopies);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.1lf–%.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
 	fflush(stdout);
       }
     }
@@ -639,7 +639,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	}
 	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 16, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
 	sprintf(s, "r s1 k%zd-%zd j%zd G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , xcopies);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.1lf–%.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
 	fflush(stdout);
       }
     }
@@ -667,7 +667,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	  high = fsize * (i+1);
 	}
 	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 4, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.1lf–%.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
 	fflush(stdout);
       }
     }
@@ -698,7 +698,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	}
 	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0, &r);
 	sprintf(s, "r s0 k%zd P100000 q2 j%zd G_ / +w k%zd", blockSize1[i], threadBlock[t], blockSize2[i]);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.1lf–%.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
 	fflush(stdout);
       }
     }
@@ -728,7 +728,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	}
 	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0, &r);
 	sprintf(s, "p0.7 s0 k%zd-%zd G_ j%zd x%zd", blockSize1[i], blockSize2[i], threadBlock[t], xcopies);
-	fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf | %.1lf–%.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
+	fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf | %.0lf–%.0lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
 	fflush(stdout);
       }
     }
