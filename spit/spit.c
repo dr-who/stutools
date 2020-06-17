@@ -480,7 +480,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
   if (model) free(model);
   model = NULL;
   fprintf(stdout, " Device size: %.3lf GB\n", TOGB(bdsize));
-  fprintf(stdout, " Testing size: %.3lf GB (%.3lf %% of device)\n", TOGB(maxSizeInBytes), 100.0 * maxSizeInBytes / bdsize);
+  fprintf(stdout, " Testing time: %zd seconds\n", timetorun);
   char *host = hostname();
 
   size_t discard_max_bytes, discard_granularity, discard_zeroes_data, alignment_offset;
