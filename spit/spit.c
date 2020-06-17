@@ -599,7 +599,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  sprintf(s, "r s0 k%zd-%zd j%zd#%zd q4 G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , t2, xcopies);
+	  sprintf(s, "r s0 k%zd-%zd j%zd#%zd q64 G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , t2, xcopies);
 	  jobAdd(&j, s); // x1 is LBA, X1 should be 100
 	}
 	jobAddDeviceToAll(&j, device);
@@ -608,7 +608,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	  low = fsize * i;
 	  high = fsize * (i+1);
 	}
-	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 4, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
+	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 16, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
 	sprintf(s, "r s0 k%zd-%zd j%zd G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , xcopies);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.1lf–%.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
 	fflush(stdout);
@@ -628,7 +628,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  sprintf(s, "r s1 k%zd-%zd j%zd#%zd q4 G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , t2, xcopies);
+	  sprintf(s, "r s1 k%zd-%zd j%zd#%zd q64 G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , t2, xcopies);
 	  jobAdd(&j, s); // x1 is LBA, X1 should be 100
 	}
 	jobAddDeviceToAll(&j, device);
@@ -637,7 +637,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	  low = fsize * i;
 	  high = fsize * (i+1);
 	}
-	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 4, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
+	jobRunThreads(&j, j.count, NULL, low, high, 3, 0, NULL, 16, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
 	sprintf(s, "r s1 k%zd-%zd j%zd G_ x%zd", blockSize1[i], blockSize2[i], threadBlock[t] , xcopies);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf | %.1lf–%.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps, TOGiB(low), TOGiB(high));
 	fflush(stdout);
