@@ -515,8 +515,8 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
     return;
   }
 
-  size_t blockSize1[] = {4,4,8,16,8, 32,64,128,256,128,512,1024,2048};
-  size_t blockSize2[] = {4,8,8,16,64,32,64,128,256,512,512,1024,2048};
+  size_t blockSize1[] = {4,4,8,16,8, 32,64,128,256,128,512,1024,2048,4, 4096};
+  size_t blockSize2[] = {4,8,8,16,64,32,64,128,256,512,512,1024,2048,4096, 4096};
 
   size_t threadBlock[] = {64};
 
