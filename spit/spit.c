@@ -708,12 +708,12 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  sprintf(s, "p0.7 s0 k%zd-%zd G_ j%zd#%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t], t2, thetime);
+	  sprintf(s, "p0.7 s0 k%zd-%zd q2 G_ j%zd#%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t], t2, thetime);
 	  jobAdd(&j, s);
 	}
 	jobAddDeviceToAll(&j, device);
 	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, 42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0, &r);
-	sprintf(s, "p0.7 s0 k%zd-%zd G_ j%zd x%zd", blockSize1[i], blockSize2[i], threadBlock[t], xcopies);
+	sprintf(s, "p0.7 s0 k%zd-%zd q2 G_ j%zd x%zd", blockSize1[i], blockSize2[i], threadBlock[t], xcopies);
 	fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
