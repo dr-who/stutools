@@ -563,7 +563,7 @@ size_t aioMultiplePositions( positionContainer *p,
     }
   }
   if (inFlight) {
-    fprintf(stderr,"*warning* inFlight requests still = %zd\n", inFlight);
+    fprintf(stderr,"*warning* timed out after %.0lf seconds. Flight requests still = %zd\n", timedouble() - snaptime, inFlight);
   }
 
   free(events);
@@ -579,7 +579,7 @@ size_t aioMultiplePositions( positionContainer *p,
   free(readdata);
   free(freeQueue);
   if (inFlight) {
-    fprintf(stderr,"*warning* about to io_destroy()\n");
+    fprintf(stderr,"*warning* about to io_destroy()... should be instant before a 'succeeded' mvessage.\n");
   }
   io_destroy(ioc);
   if (inFlight) {
