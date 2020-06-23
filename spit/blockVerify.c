@@ -173,9 +173,12 @@ static void *runThread(void *arg)
   }
 
 
+  size_t quitEarly = 0;
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
-    if (timedouble() > threadContext->finishTime) // if reached the time limit
+    if (timedouble() > threadContext->finishTime) { // if reached the time limit 
+      quitEarly = 1;
       break;
+    }
     
     if (threadContext->pc->positions[i].deviceid != lastid) {
       //      fprintf(stderr,"[%d] lastid %d this %d\n", threadContext->id, lastid, threadContext->pc->positions[i].deviceid);
@@ -239,6 +242,9 @@ static void *runThread(void *arg)
       threadContext->iocount++;
 
     }
+  }
+  if ((quitEarly) && (threadContext->id == 0)) {
+    fprintf(stderr,"*warning* verification terminated early due to time limit\n");
   }
   if (fd>0) {
     close(fd);
