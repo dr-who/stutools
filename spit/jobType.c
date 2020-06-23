@@ -1759,7 +1759,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
           direct = 0;
         }
       }
-      int errors = verifyPositions(&mergedpc, MIN(256, mergedpc.sz), job, direct, 1 /* sorted */);
+      int errors = verifyPositions(&mergedpc, MIN(256, mergedpc.sz), job, direct, 1 /* sorted */, threadContext->runTime);
       if (errors) {
         exit(1);
       }

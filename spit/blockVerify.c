@@ -42,6 +42,7 @@ typedef struct {
   double elapsed;
   size_t o_direct;
   size_t sorted;
+  double finishTime;
 } threadInfoType;
 
 // sorting function, used by qsort
@@ -173,6 +174,9 @@ static void *runThread(void *arg)
 
 
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
+    if (timedouble() > threadContext->finishTime) // if reached the time limit
+      break;
+    
     if (threadContext->pc->positions[i].deviceid != lastid) {
       //      fprintf(stderr,"[%d] lastid %d this %d\n", threadContext->id, lastid, threadContext->pc->positions[i].deviceid);
       lastid = threadContext->pc->positions[i].deviceid;
@@ -255,8 +259,14 @@ static void *runThread(void *arg)
  * Input is sorted
  *
  */
-int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted)
+int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime)
 {
+
+  const double finishTime = (runTime == 0) ? (timedouble() + 9e99) : (timedouble() + runTime);
+
+  if (runTime > 0) {
+    fprintf(stderr,"*info* verification will stop after %.1lf seconds\n", runTime);
+  }
 
   positionContainerInfo(pc);
 
@@ -290,6 +300,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
     threadContext[i].pc = pc;
     threadContext[i].bytesRead = 0;
     threadContext[i].iocount = 0;
+    threadContext[i].finishTime = finishTime;
     threadContext[i].elapsed = 0;
     threadContext[i].o_direct = o_direct;
     threadContext[i].sorted = 1 || sorted;
