@@ -30,7 +30,7 @@ char *savePositions = NULL;
 char *device = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
-                size_t *minSizeInBytes, size_t *maxSizeInBytes, size_t *timetorun, size_t *dumpPositions, size_t *defaultqd,
+                size_t *minSizeInBytes, size_t *maxSizeInBytes, double *runseconds, size_t *dumpPositions, size_t *defaultqd,
                 unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
                 char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding, int *performPreDiscard, int *reportMode)
 {
@@ -197,11 +197,11 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       *timeperline = atof(optarg);
       break;
     case 't':
-      *timetorun = atoi(optarg);
-      if (*timetorun == 0) {
+      *runseconds = atof(optarg);
+      if (*runseconds == 0) {
         fprintf(stderr,"*error* zero isn't a valid time. -t -1 for a long time\n");
         exit(1);
-        //	*timetorun = (size_t)-1; // run for ever
+        //	*runseconds = (size_t)-1; // run for ever
       }
       break;
     case 'T':
@@ -445,7 +445,7 @@ void intHandler(int d)
 }
 
 
-void doReport(size_t timetorun, size_t maxSizeInBytes) {
+void doReport(double runseconds, size_t maxSizeInBytes) {
 
   if (!device) {
     fprintf(stderr,"*error* no -f device provided\n");
@@ -480,7 +480,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
   if (model) free(model);
   model = NULL;
   fprintf(stdout, " Device size: %.3lf GB\n", TOGB(bdsize));
-  fprintf(stdout, " Testing time: %zd seconds\n", timetorun);
+  fprintf(stdout, " Testing time: %.1lf seconds\n", runseconds);
   char *host = hostname();
 
   size_t discard_max_bytes, discard_granularity, discard_zeroes_data, alignment_offset;
@@ -528,9 +528,9 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
   int round = 0;
   resultType r;
   size_t xcopies = 1;
-  size_t thetime = timetorun;
+  double thetime = runseconds;
   
-  while (timedouble() - starttime < timetorun) {
+  while (timedouble() - starttime < runseconds) {
     fprintf(stdout, "=== Round %d\n\n", ++round);
 
 
@@ -548,11 +548,11 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	  qd = 256 / threadBlock[t];
 	  if (qd < 2) qd = 2;
 	  
-	  sprintf(s, "w s0 k%zd-%zd j%zd#%zd q%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime * 2);
+	  sprintf(s, "w s0 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime * 2);
 	  jobAdd(&j, s); 
 	}
 	jobAddDeviceToAll(&j, device);
-	sprintf(s, "w s0 k%zd-%zd j%zd q%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
+	sprintf(s, "w s0 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
 	fprintf(stdout, "| %s ", s); fflush(stdout);
 	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
 	fprintf(stdout, "| %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf \n", threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
@@ -576,12 +576,12 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	  qd = 256 / threadBlock[t];
 	  if (qd < 2) qd = 2;
 
-	  sprintf(s, "w s1 k%zd-%zd j%zd#%zd q%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime * 2);
+	  sprintf(s, "w s1 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime * 2);
 	  jobAdd(&j, s); 
 	}
 	jobAddDeviceToAll(&j, device);
 	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
-	sprintf(s, "w s1 k%zd-%zd j%zd q%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
+	sprintf(s, "w s1 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
@@ -603,12 +603,12 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
 	  qd = 256 / threadBlock[t];
 	  if (qd < 2) qd = 2;
-	  sprintf(s, "r s0 k%zd-%zd j%zd#%zd q%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime);
+	  sprintf(s, "r s0 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime);
 	  jobAdd(&j, s); 
 	}
 	jobAddDeviceToAll(&j, device);
 	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
-	sprintf(s, "r s0 k%zd-%zd j%zd q%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
+	sprintf(s, "r s0 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
@@ -630,12 +630,12 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
 	  qd = 256 / threadBlock[t];
 	  if (qd < 2) qd = 2;
-	  sprintf(s, "r s1 k%zd-%zd j%zd#%zd q%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime);
+	  sprintf(s, "r s1 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime);
 	  jobAdd(&j, s); 
 	}
 	jobAddDeviceToAll(&j, device);
 	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, 42, 0, NULL /* diskstats &d*/, 0.1, 0, 1 /*verify*/, NULL, NULL, NULL, -1, 0,  &r);
-	sprintf(s, "r s1 k%zd-%zd j%zd q%zd T%zd", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
+	sprintf(s, "r s1 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
@@ -684,9 +684,9 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	for (size_t jj = 0 ; jj < threadBlock[t]; jj++) {
 	  qd = 256 / threadBlock[t];
 	  if (qd < 2) qd = 2;
-	  sprintf(s, "w s0 k%zd P100000 q%zd j%zd#%zd T%zd", blockSize1[i], qd, threadBlock[t], jj, thetime);
+	  sprintf(s, "w s0 k%zd P100000 q%zd j%zd#%zd T%.1lf", blockSize1[i], qd, threadBlock[t], jj, thetime);
 	  jobAdd(&j, s); 
-	  sprintf(s, "r s0 k%zd P100000 q%zd j%zd#%zd T%zd", blockSize2[i], qd, threadBlock[t], jj, thetime);
+	  sprintf(s, "r s0 k%zd P100000 q%zd j%zd#%zd T%.1lf", blockSize2[i], qd, threadBlock[t], jj, thetime);
 	  jobAdd(&j, s); 
 	}
 	
@@ -715,7 +715,7 @@ void doReport(size_t timetorun, size_t maxSizeInBytes) {
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
 	  qd = 256 / threadBlock[t];
 	  if (qd < 2) qd = 2;
-	  sprintf(s, "p0.7 s0 k%zd-%zd q%zd G_ j%zd#%zd T%zd", blockSize1[i], blockSize2[i], qd, threadBlock[t], t2, thetime);
+	  sprintf(s, "p0.7 s0 k%zd-%zd q%zd G_ j%zd#%zd T%.1lf", blockSize1[i], blockSize2[i], qd, threadBlock[t], t2, thetime);
 	  jobAdd(&j, s);
 	}
 	jobAddDeviceToAll(&j, device);
@@ -791,14 +791,15 @@ int main(int argc, char *argv[])
     int reportMode = 0;
 
     diskStatSetup(&d);
-    size_t minSizeInBytes = 0, maxSizeInBytes = 0, timetorun = DEFAULTTIME, dumpPositions = 0;
+    double runseconds = DEFAULTTIME;
+    size_t minSizeInBytes = 0, maxSizeInBytes = 0, dumpPositions = 0;
     char *mysqloptions = NULL, *mysqloptions2 = NULL;
 
     char commandstring[1000];
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &timetorun, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode);
 
     if (reportMode) {
-      doReport(timetorun, maxSizeInBytes);
+      doReport(runseconds, maxSizeInBytes);
     } else if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
     } else { // run some jobs
@@ -826,7 +827,7 @@ int main(int argc, char *argv[])
       signal(SIGTERM, intHandler);
       signal(SIGINT, intHandler);
 
-      jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, timetorun, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, doNumaBinding, performPreDiscard, NULL);
+      jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, runseconds, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, doNumaBinding, performPreDiscard, NULL);
 
       diskStatFree(&d);
 

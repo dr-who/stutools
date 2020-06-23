@@ -43,8 +43,12 @@ size_t aioMultiplePositions( positionContainer *p,
     fprintf(stderr,"*warning* sz == 0!\n");
     return 0;
   }
-  int ret, checkTime = 1;
-  if (finishTime < timedouble()) {
+  int ret, checkTime = finishTime > 0;
+  
+  //  fprintf(stderr,"*this time %lf set %lf\n", timedouble(), finishTime);
+
+  if ((finishTime > 0) && (finishTime < timedouble())) {
+    //    fprintf(stderr,"*warning* ignoring time as it's set in the past\n");
     checkTime = 0;
   }
   
@@ -184,11 +188,14 @@ size_t aioMultiplePositions( positionContainer *p,
 
 
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishTime %lf\n", sz, finishTime);
-  
-  while (keepRunning) {
+
+  size_t thiskeeprunning = 1;
+  while (keepRunning && thiskeeprunning) {
     thistime = timedouble();
     if (checkTime && (thistime > finishTime)) {
-      break;
+      thiskeeprunning = 0;
+      goto endoffunction;
+      //      break;
     }
     assert (pos < sz);
     if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
