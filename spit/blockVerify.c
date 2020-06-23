@@ -262,7 +262,7 @@ static void *runThread(void *arg)
 int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime)
 {
 
-  const double finishTime = (runTime == 0) ? (timedouble() + 9e99) : (timedouble() + runTime);
+  const double finishTime = (runTime <= 0) ? (timedouble() + 9e99) : (timedouble() + runTime);
 
   if (runTime > 0) {
     fprintf(stderr,"*info* verification will stop after %.1lf seconds\n", runTime);
