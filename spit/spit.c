@@ -798,6 +798,10 @@ int main(int argc, char *argv[])
     char commandstring[1000];
     handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode);
 
+    if (runseconds <= 1 && timeperline == 1) {
+      timeperline = runseconds / 10;
+    }
+
     if (reportMode) {
       doReport(runseconds, maxSizeInBytes);
     } else if (j->count < 1) {
