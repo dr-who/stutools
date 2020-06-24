@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
   fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
 
   // verify must be sorted
-  int errors = verifyPositions(&pc, threads, &job, o_direct, sort, 0 /*runtime*/);
+  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/);
 
   if (!keepRunning) {
     fprintf(stderr,"*warning* early verification termination\n");

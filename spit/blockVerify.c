@@ -74,23 +74,23 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
     fprintf(stderr,"*error* seeking to pos %zd: ", pos);
     perror("pread");
     return -1;
-  } else if (ret != (int)len) {
-    fprintf(stderr,"*error* position %zd, wrong len %zd instead of %zd\n", pos, ret, len);
+  }
+
+  int dataok = strncmp(buf+16, randomBuffer+16, p->len-16-2) == 0;
+
+  if (ret != (int)len) {
+    fprintf(stderr,"*error* position %zd, wrong len %zd instead of %zd (data ok: %d)\n", pos, ret, len, dataok);
     return -2;
   } else {
     size_t *p1 = (size_t*)buf;
     size_t *p2 = (size_t*)randomBuffer;
     if (*p1 != *p2) {
-      fprintf(stderr,"*error* encoded positions are wrong %zd (from disk) and %zd (at position %zd)\n", *p1, *p2, pos);
+      fprintf(stderr,"*error* encoded positions are wrong %zd (from disk) and %zd (at position %zd). Data ok: %d\n", *p1, *p2, pos, dataok);
       return -3;
     }
 
-
-    if (strncmp(buf+16, randomBuffer+16, p->len-16-2)==0) {
-      return 0;
-      // ok
-    }
-
+    if (dataok) return 0;
+    
     if (*diff < 3) {
       size_t lines = 0, starterror = 0;
       for (size_t i = 16; i < len; i++) {
@@ -276,6 +276,10 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
 
   positionContainerInfo(pc);
 
+  //  for (size_t i = 0; i < pc->sz; i++) {
+  //    fprintf(stderr,"[%zd] pos %zd, action '%c'\n", i, pc->positions[i].pos, pc->positions[i].action);
+  //  }
+
   if (o_direct == 0) {
     dropCaches();
   }
@@ -284,7 +288,8 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
 
   size_t num = pc->sz;
 
-  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare);
+  positionContainerCollapse(pc); // this will sort before collapsing using pos sort.
+  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare); // post collapse, sort by time
 
   pthread_t *pt = NULL;
   CALLOC(pt, threads, sizeof(pthread_t));

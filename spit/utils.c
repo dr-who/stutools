@@ -380,17 +380,27 @@ char *hostname()
   return strdup(s);
 }
 
+void checkRandomBuffer4k(const char *buffer, const size_t len) {
+  for (size_t i = 4096; i < len; i += 4096) {
+    int ret = memcmp(buffer, buffer+i, 4096);
+    if (ret) {
+      fprintf(stderr,"*error* 4k chunk starting %zd is different from chunk starting at %d (ret %d)\n", i, 0, ret);
+    }
+  }
+}
 
 // the block size random buffer. Nice ASCII
 size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned short seedin, size_t cyclic)
 {
   size_t sumcount = 0;
 
-  if (cyclic > size || cyclic == 0) cyclic = size;
+  assert(cyclic > 0);
+  assert(cyclic <= size);
+  //  if (cyclic > size || cyclic == 0) cyclic = size;
 
-  if (cyclic != size) {
-    //fprintf(stderr,"*info* generating a random buffer with a size %zd bytes, cyclic %zd bytes\n", size, cyclic);
-  }
+  //  if (cyclic != size) {
+  //    fprintf(stderr,"*info* generating a random buffer with a size %zd bytes, cyclic %zd bytes\n", size, cyclic);
+    //  }
 
   unsigned int seed = seedin;
 
@@ -399,28 +409,34 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
   char startpoint = verystartpoint;
   for (size_t j = 0; j < cyclic; j++) {
     buffer[j] = startpoint;
-    if (j >= 50) sumcount += (j ^ startpoint);
+    sumcount += (j ^ startpoint);
     startpoint += jump;
     if (startpoint > 'z') {
       startpoint = verystartpoint;
     }
   }
 
-  char s[1000];
+  /*  char s[1000];
   memset(s, 0, 1000);
   const size_t topr = sprintf(s, "________________stutools - %s - %06d\n", "spit", seedin);
   //  strncpy(buffer, s, topr);
   memcpy(buffer, s, topr);
-
-  for (size_t j = cyclic; j < size; j++) {
-    buffer[j] = buffer[j % cyclic];
+  */
+  
+  for (size_t j = cyclic; j < size; j += cyclic) {
+    memcpy(buffer + j, buffer, cyclic);
+    //    buffer[j] = buffer[j % cyclic];
   }
 
+
   {
-    size_t check2 = checksumBuffer(buffer, size);
-    if (sumcount != check2) {
-      fprintf(stderr,"*fatal* memory problem\n");
-      exit(1);
+    //    fprintf(stderr,"%zd\n", cyclic);
+    for (size_t j = 0 ; j < size; j+= cyclic) {
+      size_t check2 = checksumBuffer(buffer + j, cyclic);
+      if (sumcount != check2) {
+	fprintf(stderr,"*fatal* memory problem\n");
+	exit(1);
+      }
     }
   }
 
@@ -432,14 +448,16 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
 size_t generateRandomBuffer(char *buffer, const size_t size, const unsigned short seed)
 {
   //  if (seed == 0) printf("ooon\n");
-  return generateRandomBufferCyclic(buffer, size, seed, size);
+  return generateRandomBufferCyclic(buffer, size, seed, 4096);
 }
 
 size_t checksumBuffer(const char *buffer, const size_t size)
 {
   size_t checksum = 0;
-  for (size_t i = 50; i < size; i++) {
-    checksum += (i ^ buffer[i]);
+  char *p = (char*)buffer;
+  for (size_t i = 0; i < size; i++) {
+    checksum += (i ^ *p);
+    p++;
   }
   return checksum;
 }

@@ -18,7 +18,7 @@ extern int keepRunning;
 
 // sorting function, used by qsort
 // sort deviceid, then positions
-static int poscompare(const void *p1, const void *p2)
+int poscompare(const void *p1, const void *p2)
 {
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
@@ -239,6 +239,22 @@ void positionContainerCollapse(positionContainer *merged)
   fprintf(stderr,"*info* sorting %zd actions that have completed\n", merged->sz);
   qsort(merged->positions, merged->sz, sizeof(positionType), poscompare);
 
+  /*  fprintf(stderr,"*info* checking pre-conditions for collapse()\n");
+  positionType *pi = merged->positions;
+  for (size_t i =0 ; i < merged->sz-1; i++) {
+    positionType *pj = pi+1;
+    assert(pi->pos <= pj->pos);
+    if (pi->pos + pi->len < pj->pos) { // if this overlaps with the next
+      // most recent time first
+      if (pi->finishTime && pj->finishTime) 
+	assert(pi->finishTime <= pj->finishTime);
+    }
+    }*/
+
+  //  for (size_t i = 0; i < merged->sz; i++) {
+  //    fprintf(stderr,"[%zd] pos %zd, len %d, action '%c'\n", i, merged->positions[i].pos, merged->positions[i].len, merged->positions[i].action);
+  //  }
+  
 #ifdef DEBUG
   size_t maxbs = merged->maxbs;
   assert(maxbs > 0);
@@ -296,7 +312,9 @@ void positionContainerCollapse(positionContainer *merged)
           }
           //	fprintf(stderr,"*maybe2* %zd/%d/%d and %zd/%d/%d\n", merged->positions[i].pos, merged->positions[i].seed, merged->positions[i].deviceid, merged->positions[j].pos, merged->positions[j].seed, merged->positions[j].deviceid);
 
-        }
+        } else {
+	  abort();
+	}
       }
     }
   }
@@ -310,6 +328,11 @@ void positionContainerCollapse(positionContainer *merged)
     else conflicts++;
   }
   fprintf(stderr,"*info* unique actions: reads %zd, writes %zd, trims %zd, conflicts %zd\n", actionsr, actionsw, actionst, conflicts);
+
+  //    for (size_t i = 0; i < merged->sz; i++) {
+  //    fprintf(stderr,"[%zd] pos %zd, len %d, action '%c'\n", i, merged->positions[i].pos, merged->positions[i].len, merged->positions[i].action);
+  //  }
+
 }
 
 

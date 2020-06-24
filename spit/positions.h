@@ -41,6 +41,7 @@ typedef struct {
 } positionContainer;
 
 //positionType *createPositions(size_t num);
+int poscompare(const void *p1, const void *p2);
 
 int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSizeBytes, const size_t maxbdSizeBytes, size_t exitonerror);
 void positionContainerSave(const positionContainer *p, const char *name, const size_t bdSizeBytes, const size_t flushEvery, jobType *job);

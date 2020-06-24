@@ -72,6 +72,7 @@ void majorAndMinor(int fd, unsigned int *major, unsigned int *minor);
 int getWriteCacheStatus(int fd);
 int trimDevice(int fd, char *path, unsigned long low, unsigned long high);
 
+void checkRandomBuffer4k(const char *buffer, const size_t size);
 size_t generateRandomBuffer(char *buffer, const size_t size, unsigned short seed);
 size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned short seed, size_t cyclic);
 size_t checksumBuffer(const char *buffer, const size_t size);
