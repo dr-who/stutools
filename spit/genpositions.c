@@ -172,7 +172,9 @@ int main(int argc, char *argv[]) {
   close(fd);
 
   free(buffer);
-    
+
+  positionContainerHTML(&pc, "pileup.html");
+  
 
   if (posfile) {
     positionContainerSave(&pc, posfile, bdSize, 0, &job);

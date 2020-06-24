@@ -103,5 +103,8 @@ void positionContainerCheckOverlap(const positionContainer *merged);
 void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed, const int andVerify);
 void insertFourkEveryMiB(positionContainer *pc, const size_t minbdSize, const size_t maxbdSize, unsigned int seed, const double fourkEveryMiB, const size_t jumpKiB);
 
+void positionContainerHTML(positionContainer *p, const char *name);
+  
+
 #endif
 

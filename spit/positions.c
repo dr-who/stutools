@@ -451,6 +451,40 @@ void positionContainerSave(const positionContainer *p, const char *name, const s
   }
 }
 
+// html display
+void positionContainerHTML(positionContainer *p, const char *name)
+{
+  if (name) {
+    FILE *fp = fopen(name, "wt");
+    if (!fp) {
+      fprintf(stderr,"*error* saving file '%s' failed.\n", name);
+      perror(name);
+      return;
+    }
+
+    positionContainerCollapse(p);
+
+    fprintf(fp, "<html>\n");
+    fprintf(fp, "<html><table>\n");
+    for (size_t i = 0; i < p->sz; i++) {
+      size_t p1 = p->positions[i].pos;
+      size_t j = i;
+      while (++j < p->sz) {
+	if (p->positions[j].pos != p1) break;
+      }
+      fprintf(fp,"<tr> <!-- [%zd ... %zd] pos %zd -->\n", i, j-1, p->positions[i].pos);
+      
+      for (size_t z = i; z < j; z++ ){
+	fprintf(fp," <td rowspan=%d>%zd</td>\n", p->positions[z].len / 4096, p->positions[z].pos);
+      }
+      fprintf(fp,"</tr>\n");
+      i=j-1;
+    }
+    fprintf(fp, "</table></html>\n");
+    fclose(fp);
+  }
+}
+
 
 // create the position array
 size_t positionContainerCreatePositions(positionContainer *pc,
