@@ -465,7 +465,7 @@ void positionContainerHTML(positionContainer *p, const char *name)
     positionContainerCollapse(p);
 
     fprintf(fp, "<html>\n");
-    fprintf(fp, "<html><table>\n");
+    fprintf(fp, "<html><table border=1>\n");
     for (size_t i = 0; i < p->sz; i++) {
       size_t p1 = p->positions[i].pos;
       size_t j = i;
