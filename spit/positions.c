@@ -475,7 +475,7 @@ void positionContainerHTML(positionContainer *p, const char *name)
       fprintf(fp,"<tr> <!-- [%zd ... %zd] pos %zd -->\n", i, j-1, p->positions[i].pos);
       
       for (size_t z = i; z < j; z++ ){
-	fprintf(fp," <td rowspan=%d>%zd</td>\n", p->positions[z].len / 4096, p->positions[z].pos);
+	fprintf(fp," <td valign=top rowspan=%d>%zd</td>\n", p->positions[z].len / 4096, p->positions[z].pos);
       }
       fprintf(fp,"</tr>\n");
       i=j-1;
