@@ -586,7 +586,7 @@ size_t aioMultiplePositions( positionContainer *p,
   free(readdata);
   free(freeQueue);
   if (inFlight) {
-    fprintf(stderr,"*warning* about to io_destroy()... should be instant before a 'succeeded' mvessage.\n");
+    fprintf(stderr,"*warning* about to io_destroy()... should be instant before a 'succeeded' message.\n");
   }
   io_destroy(ioc);
   if (inFlight) {
