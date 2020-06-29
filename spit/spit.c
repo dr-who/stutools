@@ -33,7 +33,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 size_t *minSizeInBytes, size_t *maxSizeInBytes, double *runseconds, size_t *dumpPositions, size_t *defaultqd,
                 unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
                 char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding, int *performPreDiscard, int *reportMode,
-		size_t *cacheSizeBytes)
+		size_t *cacheSizeBytes, size_t *forever)
 {
   int opt;
 
@@ -42,6 +42,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   size_t tripleX = 0;
   size_t commandstringpos = 0;
   size_t added = 0;
+  *forever = 0;
   *performPreDiscard = 0;
   *reportMode = 0;
 
@@ -51,10 +52,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   optind = 0;
   size_t jglobalcount = 1;
 
-  const char *getoptstring = "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:TrC:";
+  const char *getoptstring = "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:TrC:1";
 
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
+    case '1':
+      *forever = 1;
+      break;
     case 'j':
       jglobalcount = atoi(optarg);
       fprintf(stderr,"*DEPRECATED, WILL BE REMOVED SOON* please move the j option into the -c command string\n");
@@ -448,7 +452,7 @@ void intHandler(int d)
 }
 
 
-void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes) {
+void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes, size_t forever) {
 
   if (!device) {
     fprintf(stderr,"*error* no -f device provided\n");
@@ -533,8 +537,12 @@ void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes) {
   resultType r;
   size_t xcopies = 1;
   double thetime = runseconds;
+
+  if (forever) {
+    fprintf(stderr,"*info* running forever...\n");
+  }
   
-  while (timedouble() - starttime < runseconds) {
+  while (forever || (timedouble() - starttime < runseconds)) {
     fprintf(stdout, "=== Round %d\n\n", ++round);
 
 
@@ -732,7 +740,7 @@ void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes) {
     fprintf(stdout, "|===\n\n");
     fflush(stdout);
 
-  }
+  } // while
 
   diskStatFree(&d);
 }
@@ -798,17 +806,17 @@ int main(int argc, char *argv[])
     double runseconds = DEFAULTTIME;
     size_t minSizeInBytes = 0, maxSizeInBytes = 0, dumpPositions = 0;
     char *mysqloptions = NULL, *mysqloptions2 = NULL;
-    size_t cacheSizeBytes = 0;
+    size_t cacheSizeBytes = 0, forever = 0;
 
     char commandstring[1000];
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes, &forever);
 
     if (runseconds <= 1 && timeperline == 1) {
       timeperline = runseconds / 10;
     }
 
     if (reportMode) {
-      doReport(runseconds, maxSizeInBytes, cacheSizeBytes);
+      doReport(runseconds, maxSizeInBytes, cacheSizeBytes, forever);
     } else if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
     } else { // run some jobs
