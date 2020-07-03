@@ -285,12 +285,13 @@ static void *runThread(void *arg)
 
 
   if (threadContext->anywrites) {
+    int excl = (threadContext->id == 0) ? O_EXCL : 0;
     if (threadContext->filePrefix) {
       // always create new file on prefix and writes, delete existing
-      fd = open(threadContext->jobdevice, O_RDWR | O_CREAT | O_TRUNC | direct, S_IRUSR | S_IWUSR);
+      fd = open(threadContext->jobdevice, O_RDWR | O_CREAT | O_TRUNC | direct | excl, S_IRUSR | S_IWUSR);
     } else {
       // else just open
-      fd = open(threadContext->jobdevice, O_RDWR | direct);
+      fd = open(threadContext->jobdevice, O_RDWR | direct | excl);
     }
     if (verbose >= 2) fprintf(stderr,"*info* open with O_RDWR\n");
   } else {
@@ -1586,6 +1587,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   }
 
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
+  pthread_setname_np(pt[num], strdup("spit timer"));
+  
 
   int numa_count = getNumaCount();
   // -1 default, -2 disable, >= 0 bind to specific numa
@@ -1613,7 +1616,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   }
 
   for (int tid = 0; tid < num; tid++) {
+    char s[100];
+    sprintf(s,"spit-t%d", tid);
     pthread_create(&(pt[tid]), NULL, runThread, &(threadContext[tid]));
+    pthread_setname_np(pt[tid], strdup(s));
+
     if( do_numa ) {
       assert( doNumaBinding < numa_count || "Numa node out of range" );
       int cur_numa = default_binding ? tid % numa_count : doNumaBinding;
