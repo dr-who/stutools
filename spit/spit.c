@@ -811,7 +811,7 @@ int main(int argc, char *argv[])
     char commandstring[1000];
     handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes, &forever);
 
-    if (runseconds <= 1 && timeperline == 1) {
+    if (runseconds <= 1 && runseconds > 0 && timeperline == 1) {
       timeperline = runseconds / 10;
     }
 
