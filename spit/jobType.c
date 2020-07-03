@@ -285,12 +285,12 @@ static void *runThread(void *arg)
 
 
   if (threadContext->anywrites) {
-    int excl = (threadContext->id == 0) ? O_EXCL : 0;
     if (threadContext->filePrefix) {
       // always create new file on prefix and writes, delete existing
-      fd = open(threadContext->jobdevice, O_RDWR | O_CREAT | O_TRUNC | direct | excl, S_IRUSR | S_IWUSR);
+      fd = open(threadContext->jobdevice, O_RDWR | O_CREAT | O_TRUNC | direct, S_IRUSR | S_IWUSR);
     } else {
       // else just open
+      int excl = (threadContext->id == 0) ? O_EXCL : 0;
       fd = open(threadContext->jobdevice, O_RDWR | direct | excl);
     }
     if (verbose >= 2) fprintf(stderr,"*info* open with O_RDWR\n");
