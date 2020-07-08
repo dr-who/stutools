@@ -39,7 +39,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const size_t maxSizeInBytes,
                    const double runseconds, const size_t dumpPos, char *benchmarkName, const size_t origqd,
                    unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
-                   char *mysqloptions, char *mysqloptions2, char *commandstring, const int doNumaBinding, const int performDiscard, resultType *result);
+                   char *mysqloptions, char *mysqloptions2, char *commandstring, const int doNumaBinding, const int performDiscard, resultType *result, size_t ramBytesForPositions);
 
 void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount);
 void jobAddDeviceToAll(jobType *j, const char *device);

@@ -897,7 +897,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const double runseconds, const size_t dumpPos, char *benchmarkName, const size_t origqd,
                    unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, const int doNumaBinding, const int performPreDiscard,
-		   resultType *result)
+		   resultType *result, size_t ramBytesForPositions)
 {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -1215,9 +1215,77 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     } else {
       lengthsAdd(&threadContext[i].len, bs, 1);
     }
+    threadContext[i].blockSize = bs;
+    threadContext[i].highBlockSize = highbs;
 
+
+    size_t qDepth = origqd, QDbarrier = 0;
+
+    {
+      char *qdd = strchr(job->strings[i], 'q');
+      if (qdd && *(qdd+1)) {
+        qDepth = atoi(qdd+1);
+      }
+    }
+    {
+      char *qdd = strchr(job->strings[i], 'Q');
+      if (qdd && *(qdd+1)) {
+        QDbarrier = 1;
+        qDepth = atoi(qdd+1);
+      }
+    }
+
+    threadContext[i].QDbarrier = QDbarrier;
+    if (qDepth < 1) qDepth = 1;
+    if (qDepth > 65535) qDepth = 65535;
 
     size_t mp = (size_t) ((threadContext[i].maxbdSize - threadContext[i].minbdSize) / bs);
+
+
+    char *pChar = strchr(job->strings[i], 'P');
+    {
+      if (pChar && *(pChar+1)) {
+        size_t newmp = atoi(pChar + 1);
+        if (newmp < mp) {
+          mp = newmp;
+        }
+        if (mp < 1) mp = 1;
+        if (mp <= qDepth) {
+          qDepth = mp;
+        }
+      }
+    }
+
+    size_t uniqueSeeds = 0, verifyUnique = 0, metaData = 0;
+
+    {
+      // metaData mode is random, verify all writes and flushing, sets QD to 1
+      char *iR = strchr(job->strings[i], 'u');
+      if (iR) {
+        metaData = 1;
+        threadContext[i].flushEvery = 1;
+        uniqueSeeds = 1;
+        //	qDepth = 1;
+      }
+    }
+
+
+    {
+      // metaData mode is random, verify all writes and flushing, sets QD to 1
+      char *iR = strchr(job->strings[i], 'U');
+      if (iR) {
+        metaData = 1;
+        threadContext[i].flushEvery = 1;
+        uniqueSeeds = 1;
+        qDepth = 1;
+        verifyUnique = 1;
+      }
+    }
+
+
+    threadContext[i].queueDepth = qDepth;
+    
+
 
     if (verbose) {
       fprintf(stderr,"*info* device '%s', size [%.3lf, %.3lf] %.3lf GiB, minsize of %zd, maximum %zd positions\n", job->devices[i], TOGiB(threadContext[i].minbdSize), TOGiB(threadContext[i].maxbdSize), TOGiB(threadContext[i].maxbdSize - threadContext[i].minbdSize), bs, mp);
@@ -1225,16 +1293,34 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
     // use 1/4 of free RAM
-    size_t useRAM = MIN((size_t)15L*1024*1024*1024, freeRAM() / 2); // 1L*1024*1024*1024;
-
-    //    fprintf(stderr,"use ram %zd\n", useRAM);
-    size_t fitinram = useRAM / num / sizeof(positionType);
-    if ((verbose || (fitinram < mp)) && (i == 0)) {
-      fprintf(stderr,"*info* using %.3lf GiB RAM for positions, we can store ", TOGiB(useRAM));
-      commaPrint0dp(stderr, fitinram);
-      fprintf(stderr," positions in RAM (%.1lf %%)\n", fitinram >= mp ? 100.0 : fitinram * 100.0/mp);
+    size_t useRAM = MIN((size_t)15L*1024*1024*1024, freeRAM() / 2) / num; // 1L*1024*1024*1024;
+    if (ramBytesForPositions) {
+      useRAM = ramBytesForPositions / num;
     }
 
+    size_t aioSize = 2 * threadContext[i].queueDepth * (threadContext[i].highBlockSize); // 2* as read and write
+
+    //    fprintf(stderr,"*info* RAM to use: %zd bytes (%.3lf GiB), qd = %zd, maxK %zd\n", useRAM, TOGiB(useRAM), threadContext[i].queueDepth, threadContext[i].highBlockSize);
+    if (aioSize > useRAM / 2) {
+      //      if (i == 0) {
+	fprintf(stderr,"*warning* we can't enforce RAM limits with the qd and max block size\n");
+	//      }
+    } else {
+      useRAM -= aioSize;
+    }
+
+    size_t fitinram = (useRAM / sizeof(positionType));
+    if (verbose) {
+      	fprintf(stderr,"*info* RAM required: %.1lf GiB for qd x bs, and %.1lf GiB for positions\n", TOGiB(aioSize), TOGiB(fitinram));
+    }
+
+    
+
+    if ((ramBytesForPositions || verbose || (fitinram < mp)) && (i==0)) {
+      fprintf(stderr,"*info* using %.3lf GiB RAM for positions (%d threads, %ld record size), we can store max ", TOGiB(useRAM), num, sizeof(positionType));
+      commaPrint0dp(stderr, fitinram);
+      fprintf(stderr," positions in RAM\n");
+    }
 
 
     size_t countintime = mp;
@@ -1261,13 +1347,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
+    
+    if (verbose) {
+      fprintf(stderr,"*info* sizeLimit %zu, countin time %zd, mp %zd, fitinram %zd\n", sizeLimitCount, countintime, mp, fitinram);
+    }
+
     size_t mp2 = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));
     if (mp2 != mp) {
       mp = mp2;
       if (verbose) {
-        //      if (i == 0) {
-        fprintf(stderr,"*info* device '%s', positions limited to %zd\n", job->devices[i], mp);
-        //      }
+	if (i == 0) {
+	  fprintf(stderr,"*info* device '%s', positions limited to %zd\n", job->devices[i], mp);
+	}
       }
     }
 
@@ -1277,8 +1368,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].waitfor = 0;
     threadContext[i].exec = (job->delay[i] != 0);
     threadContext[i].prewait = job->delay[i];
-    threadContext[i].blockSize = bs;
-    threadContext[i].highBlockSize = highbs;
     threadContext[i].rerandomize = 0;
     threadContext[i].addBlockSize = 0;
 
@@ -1339,7 +1428,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
 
-    size_t metaData = 0;
     {
       // metaData mode is random, verify all writes and flushing
       char *iR = strchr(job->strings[i], 'm');
@@ -1406,67 +1494,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
-    size_t qDepth = origqd, QDbarrier = 0;
-
-    {
-      char *qdd = strchr(job->strings[i], 'q');
-      if (qdd && *(qdd+1)) {
-        qDepth = atoi(qdd+1);
-      }
-    }
-    {
-      char *qdd = strchr(job->strings[i], 'Q');
-      if (qdd && *(qdd+1)) {
-        QDbarrier = 1;
-        qDepth = atoi(qdd+1);
-      }
-    }
-
-    threadContext[i].QDbarrier = QDbarrier;
-    if (qDepth < 1) qDepth = 1;
-    if (qDepth > 65535) qDepth = 65535;
-
-    char *pChar = strchr(job->strings[i], 'P');
-    {
-      if (pChar && *(pChar+1)) {
-        size_t newmp = atoi(pChar + 1);
-        if (newmp < mp) {
-          mp = newmp;
-        }
-        if (mp < 1) mp = 1;
-        if (mp <= qDepth) {
-          qDepth = mp;
-        }
-      }
-    }
-
-    size_t uniqueSeeds = 0, verifyUnique = 0;
-    {
-      // metaData mode is random, verify all writes and flushing, sets QD to 1
-      char *iR = strchr(job->strings[i], 'u');
-      if (iR) {
-        metaData = 1;
-        threadContext[i].flushEvery = 1;
-        uniqueSeeds = 1;
-        //	qDepth = 1;
-      }
-    }
-
-
-    {
-      // metaData mode is random, verify all writes and flushing, sets QD to 1
-      char *iR = strchr(job->strings[i], 'U');
-      if (iR) {
-        metaData = 1;
-        threadContext[i].flushEvery = 1;
-        uniqueSeeds = 1;
-        qDepth = 1;
-        verifyUnique = 1;
-      }
-    }
-
-
-    threadContext[i].queueDepth = qDepth;
 
 
     long startingBlock = -99999;
@@ -1873,7 +1900,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, -1 /*NUMA*/, 0 /* TRIM */, NULL /* results*/);
+    jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, -1 /*NUMA*/, 0 /* TRIM */, NULL /* results*/, 0);
     fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");
     sleep(10);
     fflush(stderr);
