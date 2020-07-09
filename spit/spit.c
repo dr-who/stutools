@@ -457,7 +457,8 @@ void intHandler(int d)
 }
 
 
-void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes, size_t forever, size_t verify, size_t ramBytesForPositions) {
+void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheSizeBytes, const size_t forever,
+	      const size_t verify, size_t ramBytesForPositions, size_t defaultqd) {
 
   if (!device) {
     fprintf(stderr,"*error* no -f device provided\n");
@@ -508,6 +509,8 @@ void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes, s
   fprintf(stdout, " CPU: %s\n", cpumodel);
   if (cpumodel) free(cpumodel);
   if (host) free(host);
+  if (defaultqd < 64) defaultqd = 64;
+  fprintf(stdout, " Queue depth total: %zd\n", defaultqd);
   fprintf(stdout, " NUMA nodes: %d\n", getNumaCount());
   fprintf(stdout, " Thread count: %d\n", getNumHardwareThreads());
   char *os = OSRelease();
@@ -565,10 +568,10 @@ void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes, s
     if (1) for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
-	size_t qd = 256;
+	size_t qd = defaultqd;
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
 	  
-	  qd = 128 / threadBlock[t];
+	  qd = defaultqd / threadBlock[t];
 	  if (qd < 1) qd = 1;
 	  
 	  sprintf(s, "w s0 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime * 2);
@@ -594,9 +597,9 @@ void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes, s
     if(1) for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
-	size_t qd = 256;
+	size_t qd = defaultqd;
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  qd = 128 / threadBlock[t];
+	  qd = defaultqd /  threadBlock[t];
 	  if (qd < 1) qd = 1;
 
 	  sprintf(s, "w s1 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime * 2);
@@ -622,9 +625,9 @@ void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes, s
     for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
-	size_t qd = 256;
+	size_t qd = defaultqd;
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  qd = 128 / threadBlock[t];
+	  qd = defaultqd /  threadBlock[t];
 	  if (qd < 1) qd = 1;
 	  sprintf(s, "r s0 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime);
 	  jobAdd(&j, s); 
@@ -649,9 +652,9 @@ void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes, s
     for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
-	size_t qd = 256;
+	size_t qd = defaultqd;
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  qd = 128 / threadBlock[t];
+	  qd = defaultqd /  threadBlock[t];
 	  if (qd < 1) qd = 1;
 	  sprintf(s, "r s1 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime);
 	  jobAdd(&j, s); 
@@ -703,9 +706,9 @@ void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes, s
     for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
-	size_t qd = 256;
+	size_t qd = defaultqd;
 	for (size_t jj = 0 ; jj < threadBlock[t]; jj++) {
-	  qd = 128 / threadBlock[t];
+	  qd = defaultqd /  threadBlock[t];
 	  if (qd < 1) qd = 1;
 	  sprintf(s, "w s0 k%zd P100000 q%zd j%zd#%zd T%.1lf", blockSize1[i], qd, threadBlock[t], jj, thetime);
 	  jobAdd(&j, s); 
@@ -734,9 +737,9 @@ void doReport(double runseconds, size_t maxSizeInBytes, size_t cacheSizeBytes, s
     for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
       for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
 	jobInit(&j);
-	size_t qd = 256;
+	size_t qd = defaultqd;
 	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  qd = 128 / threadBlock[t];
+	  qd = defaultqd /  threadBlock[t];
 	  if (qd < 1) qd = 1;
 	  sprintf(s, "p0.7 s0 k%zd-%zd q%zd G_ j%zd#%zd T%.1lf", blockSize1[i], blockSize2[i], qd, threadBlock[t], t2, thetime);
 	  jobAdd(&j, s);
@@ -828,7 +831,7 @@ int main(int argc, char *argv[])
     }
 
     if (reportMode) {
-      doReport(runseconds, maxSizeInBytes, cacheSizeBytes, forever, verify, ramBytesForPositions);
+      doReport(runseconds, maxSizeInBytes, cacheSizeBytes, forever, verify, ramBytesForPositions, defaultQD);
     } else if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
     } else { // run some jobs
