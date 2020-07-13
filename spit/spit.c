@@ -807,7 +807,7 @@ int main(int argc, char *argv[])
       argv2 = argv;
     }
 
-    size_t defaultQD = 16;
+    size_t defaultQD = 0;
     unsigned short seed = 0;
     diskStatType d;
     size_t verify = 0;
@@ -830,11 +830,14 @@ int main(int argc, char *argv[])
       timeperline = runseconds / 10;
     }
 
-    if (reportMode) {
+    if (reportMode) { 
+      if (defaultQD == 0) defaultQD = 1000; // for a report -q is the total across all threads.
       doReport(runseconds, maxSizeInBytes, cacheSizeBytes, forever, verify, ramBytesForPositions, defaultQD);
     } else if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
     } else { // run some jobs
+      if (defaultQD == 0) defaultQD = 16;
+      
       printPowerMode();
 
       size_t actualSize = maxSizeInBytes - minSizeInBytes;
