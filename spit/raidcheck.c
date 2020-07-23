@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
     }
     device = deviceList[0].devicename;
   } else {
-    fprintf(stderr,"*info* fuzz -I devices.txt -k 10 -m 6 [-R(seed) 0] [-g(start) 0.016] [-G(end) 4] [-b %zd] [-q(uiet)] [-z(zap)] [-r(rotate)]\n", blocksize);
+    fprintf(stderr,"*info* raidcheck -I devices.txt -k 10 -m 6 [-R(seed) 0] [-g(start) 0.016] [-G(end) 4] [-b %zd] [-q(uiet)] [-z(zap)] [-r(rotate)]\n", blocksize);
     exit(1);
   }
 
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*info* rotate blocks\n");
     }
 
-    fprintf(stderr,"*info* fuzz range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize);
+    fprintf(stderr,"*info* raidcheck range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize);
     srand48(seed);
     int *selection = malloc(deviceCount * sizeof(int));
     int *rotated = malloc(deviceCount * sizeof(int));
