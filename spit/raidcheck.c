@@ -218,8 +218,8 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
     fprintf(stderr,"\nUsage:\n");
     fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -b 524288 -B 4096 -XXX\n");
-    fprintf(stderr,"             Step through all devices in 512 KiB steps, setting the first 4096 bytes to 'Z'\n\n");
-    fprintf(stderr,"             on at most 'm' devices at a time. The zapped blocks are shown asciily.\n");
+    fprintf(stderr,"             Step through all devices in 512 KiB steps, setting the first 4096 bytes to 'Z'\n");
+    fprintf(stderr,"             on at most 'm' devices at a time. The zapped blocks are shown asciily.\n\n");
     fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -b 524288 -B 8192 -Z a -XXX\n");
     fprintf(stderr,"             Step through, setting the first 8192 bytes to 'a'\n\n");
     fprintf(stderr,"Bad md:\n");
