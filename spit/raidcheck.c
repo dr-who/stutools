@@ -29,15 +29,16 @@ int keepRunning = 1;
 
 
 
-void zapfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, int print, char *block)
+void zapfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, size_t writeblocksize, int print, char *block)
 {
-  if (print) fprintf(stderr,"%9x (%5.1lf GiB):  ", (unsigned int)pos, TOGiB(pos));
+  if (blocksize) {}
+  if (print) fprintf(stderr,"%9x (%5.3lf GiB):  ", (unsigned int)pos, TOGiB(pos));
 
   size_t mcount = 0;
   for (size_t i = 0; i < deviceCount; i++) {
     if (selection[i] > 0) {
-      ssize_t ret = pwrite(selection[i], block, blocksize, pos);
-      if (ret == (int)blocksize) {
+      ssize_t ret = pwrite(selection[i], block, writeblocksize, pos);
+      if (ret == (int)writeblocksize) {
         mcount++;
         if (print) fprintf(stderr,"%2d ", selection[i]);
       } else {
@@ -52,10 +53,10 @@ void zapfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, i
 
 
 
-void rotate(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t blocksize, int print, char *block)
+void rotate(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t blocksize, size_t writeblocksize, int print, char *block)
 {
+  if (writeblocksize) {}
   if (print) fprintf(stderr,"%9x (%5.1lf GiB):  ", (unsigned int)pos, TOGiB(pos));
-
 
   size_t mparity = 0;
   for (size_t i = 0; i < deviceCount; i++) {
@@ -130,18 +131,22 @@ int main(int argc, char *argv[])
   char *device = NULL;
   deviceDetails *deviceList = NULL;
   size_t deviceCount = 0;
-  size_t kdevices = 0, mdevices = 0, blocksize = 256*1024;
-  size_t startAt = 16*1024*1024, finishAt = 1024L*1024L*1024L*4;
+  size_t kdevices = 0, mdevices = 0, blocksize = 256*1024, writeblocksize = 0;
+  size_t startAt = 0*1024*1024, finishAt = 1024L*1024L*1024L*1;
   unsigned short seed = 0;
   int printevery = 1;
   int tripleX = 0;
   int zap = 1;
+  char zapChar = 'Z';
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:qXzr")) != -1) {
+  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:B:qXzZ:r")) != -1) {
     switch (opt) {
     case 'b':
-      blocksize = atoi(optarg);
+      blocksize = alignedNumber(atoi(optarg), 4096);
+      break;
+    case 'B':
+      writeblocksize = alignedNumber(atoi(optarg), 4096);
       break;
     case 'k':
       kdevices = atoi(optarg);
@@ -164,6 +169,9 @@ int main(int argc, char *argv[])
     case 'z':
       zap = 1;
       break;
+    case 'Z':
+      zapChar = optarg[0];
+      break;
     case 'r':
       zap = 0;
       break;
@@ -181,7 +189,12 @@ int main(int argc, char *argv[])
     }
   }
 
-  // first assign the device
+  blocksize = alignedNumber(blocksize, 4096);
+  if (blocksize == 0) blocksize = 4096;
+  writeblocksize = alignedNumber(writeblocksize, 4096);
+  if (writeblocksize == 0) writeblocksize = 4096;
+
+      // first assign the device
   // if one -f specified, add to all jobs
   // if -F specified (with n drives), have c x n jobs
   if (deviceCount) {
@@ -191,7 +204,23 @@ int main(int argc, char *argv[])
     }
     device = deviceList[0].devicename;
   } else {
-    fprintf(stderr,"*info* raidcheck -I devices.txt -k 10 -m 6 [-R(seed) 0] [-g(start) 0.016] [-G(end) 4] [-b %zd] [-q(uiet)] [-z(zap)] [-r(rotate)]\n", blocksize);
+    fprintf(stderr,"*info* raidcheck -I devices.txt -k 10 -m 2 [options...)\n");
+    fprintf(stderr,"\nOptions:\n");
+    fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
+    fprintf(stderr,"   -k n      the number of data devices\n");
+    fprintf(stderr,"   -m n      the number of parity devices\n");
+    fprintf(stderr,"   -g n      starting at n GiB (defaults byte 0)\n");
+    fprintf(stderr,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
+    fprintf(stderr,"   -b n      the block size to step through the devices\n");
+    fprintf(stderr,"   -B n      the length of the block size to perturb\n");
+    fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
+    fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
+    fprintf(stderr,"\nExamples:\n");
+    fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -b 524288 -B 4096 -XXX\n");
+    fprintf(stderr,"             Step through all devices in 512 KiB steps, setting the first 4096 bytes to 'Z'\n\n");
+    fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -b 524288 -B 8192 -Z a -XXX\n");
+    fprintf(stderr,"             Step through, setting the first 8192 bytes to 'a'\n");
+
     exit(1);
   }
 
@@ -202,7 +231,7 @@ int main(int argc, char *argv[])
   }
 
   size_t maxSizeInBytes = 0;
-  openDevices(deviceList, deviceCount, 0, &maxSizeInBytes, 4096, 4096, 4096, 1, tripleX==3, 1);
+  openDevices(deviceList, deviceCount, 0, &maxSizeInBytes, 4096, 4096, 4096, 1, tripleX, 1);
   infoDevices(deviceList, deviceCount);
 
 
@@ -222,13 +251,13 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*info* rotate blocks\n");
     }
 
-    fprintf(stderr,"*info* raidcheck range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize);
+    fprintf(stderr,"*info* raidcheck range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd, write block size = %zd, zapChar = '%c'\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize, writeblocksize, zapChar);
     srand48(seed);
     int *selection = malloc(deviceCount * sizeof(int));
     int *rotated = malloc(deviceCount * sizeof(int));
 
     char *block = aligned_alloc(4096, blocksize);
-    memset(block, 'Z', blocksize);
+    memset(block, zapChar, blocksize);
 
     for (size_t pos = startAt,pr=0; pos < finishAt; pos += blocksize,pr++) {
       // pick k
@@ -243,9 +272,9 @@ int main(int argc, char *argv[])
       }
 
       if (zap) {
-        zapfunc(pos, deviceCount, selection, blocksize, (pr % printevery)==0, block);
+        zapfunc(pos, deviceCount, selection, blocksize, writeblocksize, (pr % printevery)==0, block);
       } else {
-        rotate(pos, deviceCount, selection, rotated, blocksize, (pr % printevery)==0, block);
+        rotate(pos, deviceCount, selection, rotated, blocksize, writeblocksize, (pr % printevery)==0, block);
       }
     }
     free(block);
