@@ -191,8 +191,9 @@ int main(int argc, char *argv[])
 
   blocksize = alignedNumber(blocksize, 4096);
   if (blocksize == 0) blocksize = 4096;
+
+  if (writeblocksize == 0) writeblocksize = blocksize;
   writeblocksize = alignedNumber(writeblocksize, 4096);
-  if (writeblocksize == 0) writeblocksize = 4096;
 
       // first assign the device
   // if one -f specified, add to all jobs
@@ -212,7 +213,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -g n      starting at n GiB (defaults byte 0)\n");
     fprintf(stderr,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
     fprintf(stderr,"   -b n      the block size to step through the devices\n");
-    fprintf(stderr,"   -B n      the length of the block size to perturb\n");
+    fprintf(stderr,"   -B n      the length of the block size to perturb (defaults to -b value)\n");
     fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
     fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
     fprintf(stderr,"\nUsage:\n");
