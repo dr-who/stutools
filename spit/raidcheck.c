@@ -215,12 +215,30 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -B n      the length of the block size to perturb\n");
     fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
     fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
-    fprintf(stderr,"\nExamples:\n");
+    fprintf(stderr,"\nUsage:\n");
     fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -b 524288 -B 4096 -XXX\n");
     fprintf(stderr,"             Step through all devices in 512 KiB steps, setting the first 4096 bytes to 'Z'\n\n");
     fprintf(stderr,"             on at most 'm' devices at a time. The zapped blocks are shown asciily.\n");
     fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -b 524288 -B 8192 -Z a -XXX\n");
-    fprintf(stderr,"             Step through, setting the first 8192 bytes to 'a'\n");
+    fprintf(stderr,"             Step through, setting the first 8192 bytes to 'a'\n\n");
+    fprintf(stderr,"Bad md:\n");
+    fprintf(stderr,"   # cat /dev/devices.txt\n");
+    fprintf(stderr,"   /dev/ram0\n");
+    fprintf(stderr,"   /dev/ram1\n");
+    fprintf(stderr,"   /dev/ram2\n");
+    fprintf(stderr,"   /dev/ram3\n");
+    fprintf(stderr,"   # mdadm --create /dev/md0 --level=6 --raid-devices=4 $(cat devices.txt)\n");
+    fprintf(stderr,"   # cat /sys/block/md0/md/mismatch_cnt \n");
+    fprintf(stderr,"   82732\n");
+    fprintf(stderr,"   # echo check > /sys/block/md0/md/sync_action\n");
+    fprintf(stderr,"   # cat /sys/block/md0/md/mismatch_cnt \n");
+    fprintf(stderr,"   0\n");
+    fprintf(stderr,"   # raidcheck -I devices.txt -k 2 -m 2 -XXX\n");
+    fprintf(stderr,"   # echo check > /sys/block/md0/md/sync_action\n");
+    fprintf(stderr,"   # cat /sys/block/md0/md/mismatch_cnt\n");
+    fprintf(stderr,"   28952\n");
+    fprintf(stderr,"   # strings -n 4096 /dev/ram0 | grep ZZZ\n");
+    fprintf(stderr,"\n   e.g. /dev/md0 is out of sync and it can't fix it.\n");
 
     exit(1);
   }
