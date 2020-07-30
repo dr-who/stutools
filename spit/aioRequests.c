@@ -504,7 +504,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	if (pp->finishTime - pp->submitTime > 7) {
 	  slow++;
 	  char s[300];
-	  sprintf(s, "slow I/O (size=%d) %.1lf s, submission loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
+	  sprintf(s, "slow I/O (pos=%zd,size=%d) %.1lf s, submission loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
 	  syslogString("spit", s);
 	  fprintf(stderr,"*warning* %s", s);
 	}
@@ -560,7 +560,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	  if (pp->finishTime - pp->submitTime > 7) {
 	    slow++;
 	    char s[300];
-	    sprintf(s, "slow I/O (size=%d) %.1lf s, no submission/post loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
+	    sprintf(s, "slow I/O (pos=%zd, size=%d) %.1lf s, no submission/post loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
 	    syslogString("spit", s);
 	    fprintf(stderr,"*warning* %s", s);
 	  }
