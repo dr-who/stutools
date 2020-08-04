@@ -537,10 +537,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     fprintf(stderr,"*info* modulo %zd, remain %zd\n", mod, remain);
   }
 
-  if (verbose) {
-    if (startingBlock != -99999) {
-      fprintf(stderr,"*info* startingBlock is %ld\n", startingBlock);
-    }
+  if (startingBlock < 0) {
+    if (startingBlock != -99999) 
+      fprintf(stderr,"*info* starting position offset is %ld\n", startingBlock);
   }
 
   if (verbose >= 2) {
@@ -582,6 +581,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   }
   positionsEnd[toalloc-1] = maxbdSize;
 
+  
   if (verbose >= 2) {
     size_t sumgap = 0;
     for (int i = 0; i < toalloc; i++) {
@@ -693,7 +693,11 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     if (startingBlock == -99999) {
       offset = rand_r(&seed) % count;
     } else {
-      offset = startingBlock % count;
+      if (startingBlock >= 0) {
+	offset = startingBlock % count;
+      } else {
+	offset = (count + startingBlock) % count;
+      }
     }
   }
   //    fprintf(stderr,"starting offset %d\n", offset);
@@ -725,6 +729,15 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     }
     positions[i].action = newaction;
     //assert(positions[i].len >= 0);
+  }
+
+  if (sf < 1) {
+    if (verbose) {
+      fprintf(stderr,"*info* reversing positions from the end of the BD, %zd bytes (%.1lf GB)\n", maxbdSize, TOGB(maxbdSize));
+    }
+    for (size_t i = 0; i < count; i++) {
+      positions[i].pos = maxbdSize - (size_t) positions[i].len - (positions[i].pos - minbdSize);
+    }
   }
 
   if (verbose >= 2) {

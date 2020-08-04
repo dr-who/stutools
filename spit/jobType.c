@@ -1445,6 +1445,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       if (sf && *(sf+1)) {
         double low = 0, high = 0;
         int ret = splitRange(sf + 1, &low, &high);
+
         if (ret == 0) {
         } else if (ret == 1) {
           seqFilesMaxSizeBytes = 0;
@@ -1505,9 +1506,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       char *ZChar = strchr(job->strings[i], 'Z');
       if (ZChar && *(ZChar+1)) {
         startingBlock = atoi(ZChar + 1);
-        if (startingBlock < 0) {
-          startingBlock = 0;
-        }
       }
     }
 
