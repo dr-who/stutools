@@ -374,7 +374,10 @@ void usage()
   fprintf(stdout,"  spit -f device -c r           # seq read (defaults to s1 and k4)\n");
   fprintf(stdout,"  spit -f device -c w           # seq write (s1)\n");
   fprintf(stdout,"  spit -f device -c w -L1       # Limit RAM use to 1 GiBn");
-  fprintf(stdout,"  spit -f device -c rs0         # random, (s)equential is 0\n");
+  fprintf(stdout,"  spit -f device -c rs0         # random, (s)equential is 1\n");
+  fprintf(stdout,"  spit -f device -c rs1         # sequential");
+  fprintf(stdout,"  spit -f device -c rzs1        # sequential starting from position 0");
+  fprintf(stdout,"  spit -f device -c rzs-1       # reverse sequential starting from end of the device");
   fprintf(stdout,"  spit -f device -c rs0-size    # random, (s)equential is 0, max contig is size KiB\n");
   fprintf(stdout,"  spit -f device -c ws128       # 128 parallel (s)equential writes\n");
   fprintf(stdout,"  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions\n");
