@@ -160,7 +160,7 @@ size_t aioMultiplePositions( positionContainer *p,
   double last = start;
   //  double lastreceive = start;
 
-  size_t submitted = 0, flushPos = 0, received = 0;
+  size_t submitted = 0, flushPos = 0, received = 0, slow = 0;
   size_t totalWriteBytes = 0, totalReadBytes = 0;
   size_t totalWriteSubmit = 0, totalReadSubmit = 0;
 
@@ -203,7 +203,8 @@ size_t aioMultiplePositions( positionContainer *p,
       fprintf(stderr,"*error* inFlight %zd %zd\n", inFlight, QD);
     }
     thistime = timedouble();
-    while (sz && inFlight < QD && keepRunning) {
+    size_t cursubmitted = submitted;
+    while (sz && inFlight < MIN(cursubmitted * 2 + 1, QD) && keepRunning) {
       if (!positions[pos].inFlight) {
 
         // submit requests, one at a time
@@ -499,6 +500,15 @@ size_t aioMultiplePositions( positionContainer *p,
           }
         } // else if no error
         pp->finishTime = timedouble();
+	// log if slow
+	if (pp->finishTime - pp->submitTime > 7) {
+	  slow++;
+	  char s[300];
+	  sprintf(s, "slow I/O (%c,pos=%zd,size=%d) %.1lf s, submission loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
+	  syslogString("spit", s);
+	  fprintf(stderr,"*warning* %s", s);
+	}
+
         pp->success = 1; // the action has completed
         pp->inFlight = 0;
         freeQueue[tailOfQueue++] = pp->q;
@@ -546,6 +556,16 @@ size_t aioMultiplePositions( positionContainer *p,
           if (tailOfQueue == QD) tailOfQueue = 0;
 
           pp->finishTime = timedouble();
+	  // log if slow
+	  if (pp->finishTime - pp->submitTime > 7) {
+	    slow++;
+	    char s[300];
+	    sprintf(s, "slow I/O (%c,pos=%zd, size=%d) %.1lf s, no submission/post loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
+	    syslogString("spit", s);
+	    fprintf(stderr,"*warning* %s", s);
+	  }
+
+	
           pp->inFlight = 0;
           pp->success = 1; // the action has completed
 

@@ -49,6 +49,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   jobInit(j);
   jobInit(preconditions);
 
+  commandstring[0] = 0;
+
   optind = 0;
   size_t jglobalcount = 1;
 
@@ -213,6 +215,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
         fprintf(stderr,"*error* zero isn't a valid time. -t -1 for a long time\n");
         exit(1);
         //	*runseconds = (size_t)-1; // run for ever
+      }
+      if (*runseconds < 0) {
+	*runseconds = 100L * 365 * 3600 * 24; // 100 years
       }
       break;
     case 'T':
@@ -824,6 +829,7 @@ int main(int argc, char *argv[])
     size_t ramBytesForPositions = 0;
 
     char commandstring[1000];
+
     handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes, &forever, &ramBytesForPositions);
 
     if (runseconds <= 1 && runseconds > 0 && timeperline == 1) {

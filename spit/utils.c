@@ -1126,3 +1126,12 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
   return err;
 }
 
+#include <syslog.h>
+
+void syslogString(const char *prog, const char *message) {
+  setlogmask (LOG_UPTO (LOG_NOTICE));
+
+  openlog(prog, LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
+  syslog(LOG_NOTICE, message, "");
+  closelog();
+}

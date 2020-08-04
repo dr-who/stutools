@@ -16,6 +16,7 @@
 #include "positions.h"
 #include "devices.h"
 #include <math.h>
+#include <limits.h>
 #include "utils.h"
 
 #include "aioRequests.h"
@@ -276,7 +277,7 @@ static void *runThread(void *arg)
     getPhyLogSizes(suffix, &phybs, &max_io_bytes, &logbs);
 
     for (int i = 0; i < (int)threadContext->pos.sz; i++) {
-      if (threadContext->highBlockSize > max_io_bytes) {
+      if (verbose && threadContext->highBlockSize > max_io_bytes) {
         fprintf(stderr,"*warning* device '%s' will split I/O size %zd [max_sectors_kb %zd bytes]\n", threadContext->jobdevice, threadContext->highBlockSize, max_io_bytes);
         break;
       }
@@ -1325,7 +1326,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     size_t countintime = mp;
     //        fprintf(stderr,"*info* runX %zd ttr %zd\n", threadContext[i].multipleTimes, threadContext[i].runSeconds);
-    if (threadContext[i].runSeconds > 0) { // only limit based on time if the time is positive
+    if (threadContext[i].runSeconds < 3600) { // only limit based on time if it's interactive, e.g. less than an hour
 
 
       int ESTIMATEIOPS=getIOPSestimate(job->devices[i], bs, (i == 0) && verbose);
