@@ -561,11 +561,14 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
   }
   
   while (forever || (timedouble() - starttime < runseconds)) {
+    char ss[200];
     now = time(NULL);
     t = localtime(&now);
     strftime(text, sizeof(text)-1, "%Y-%m-%d %H:%M:%S", t);
 
-    fprintf(stdout, "=== Round %d (%s, elapsed %.1lf seconds)\n\n", ++round, text, timedouble() - starttime);
+    sprintf(ss, "=== Round %d (%s, elapsed %.1lf seconds)\n", ++round, text, timedouble() - starttime);
+    fprintf(stdout, "%s\n", ss);
+    syslogString("spit", ss);
 
 
     fprintf(stdout, "==== Random Write\n\n");
