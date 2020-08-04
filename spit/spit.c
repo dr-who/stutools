@@ -379,8 +379,8 @@ void usage()
   fprintf(stdout,"  spit -f device -c rzs1        # sequential starting from position 0\n");
   fprintf(stdout,"  spit -f device -c rzs-1       # reverse sequential starting from end of the device\n");
   fprintf(stdout,"  spit -f device -c rs0-size    # random, (s)equential is 0, max contig is size KiB\n");
-  fprintf(stdout,"  spit -f device -c ws128       # 128 parallel (s)equential writes\n");
-  fprintf(stdout,"  spit -f device -c rs128P1000  # 128 parallel writes, 1000 positions\n");
+  fprintf(stdout,"  spit -f device -c ws2         # 2 contiguous regions on the device. Add -d 10 to dump positions\n");
+  fprintf(stdout,"  spit -f device -c ws128       # 128 contiguous regions on the device\n");
   fprintf(stdout,"  spit -f device -c k8          # set block size to 8 KiB\n");
   fprintf(stdout,"  spit -f device -c k4-128      # set block range to 4 to 128 KiB, every 4 KiB\n");
   fprintf(stdout,"  spit -f device -c k4:1024     # set block range to 4 to 1024 KiB, in powers of 2\n");
