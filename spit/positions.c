@@ -958,8 +958,9 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
 {
   fprintf(stderr,"*info*: total number of positions %zd\n", pc->sz);
   const positionType *positions = pc->positions;
-  size_t rcount = 0, wcount = 0, tcount = 0;
+  size_t rcount = 0, wcount = 0, tcount = 0, hash = 0;
   for (size_t i = 0; i < pc->sz; i++) {
+    hash = (hash + i) + positions[i].action + positions[i].pos + positions[i].len;
     if (positions[i].action == 'R') rcount++;
     else if (positions[i].action == 'W') wcount++;
     else if (positions[i].action == 'T') tcount++;
@@ -968,7 +969,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
       fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7d\tdevice %d\tverify %d\tseed %6d\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed);
     }
   }
-  fprintf(stderr,"\tSummary: reads %zd, writes %zd, trims %zd\n", rcount, wcount, tcount);
+  fprintf(stderr,"\tSummary[%d]: reads %zd, writes %zd, trims %zd, hash %lx\n", positions[0].seed, rcount, wcount, tcount, hash);
 }
 
 
