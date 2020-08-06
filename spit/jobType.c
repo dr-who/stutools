@@ -210,6 +210,7 @@ typedef struct {
   double fourkEveryMiB;
   size_t jumpK;
   lengthsType len;
+  size_t firstPPositions;
   int performPreDiscard;
 
   // results
@@ -232,15 +233,15 @@ static void *runThread(void *arg)
   // create the positions and the r/w status
   //    threadContext->seqFiles = seqFiles;
   //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK);
+  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions);
 
   if (verbose >= 2) {
     positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, !threadContext->metaData);
   }
 
-  if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos);
+  if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos, threadContext->seed);
 
-  if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun);
+  if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun, threadContext->seed);
 
   //      positionPrintMinMax(threadContext->pos.positions, threadContext->pos.sz, threadContext->minbdSize, threadContext->maxbdSize, threadContext->minSizeInBytes, threadContext->maxSizeInBytes);
   threadContext->anywrites = (threadContext->rw.wprob > 0) || (threadContext->rw.tprob > 0);
@@ -467,7 +468,7 @@ static void *runThread(void *arg)
     if (keepRunning && (threadContext->rerandomize || threadContext->addBlockSize)) {
       if (threadContext->rerandomize) {
         if (verbose >= 2) fprintf(stderr,"*info* shuffling positions, 1st = %zd\n", threadContext->pos.positions[0].pos);
-        positionContainerRandomize(&threadContext->pos);
+        positionContainerRandomize(&threadContext->pos, threadContext->seed);
       }
       if (threadContext->addBlockSize) {
         if (verbose >= 2) fprintf(stderr,"*info* adding %zd to all positions, 1st = %zd\n", threadContext->highBlockSize, threadContext->pos.positions[0].pos);
@@ -1243,10 +1244,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     size_t mp = (size_t) ((threadContext[i].maxbdSize - threadContext[i].minbdSize) / bs);
 
 
+    threadContext[i].firstPPositions = 0;
     char *pChar = strchr(job->strings[i], 'P');
     {
       if (pChar && *(pChar+1)) {
         size_t newmp = atoi(pChar + 1);
+	threadContext[i].firstPPositions = newmp;
         if (newmp < mp) {
           mp = newmp;
         }

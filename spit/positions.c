@@ -503,7 +503,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                         const size_t mod,
                                         const size_t remain,
                                         const double fourkEveryMiB,
-                                        const size_t jumpKiB
+                                        const size_t jumpKiB,
+					const size_t firstPPositions
                                        )
 {
 
@@ -520,10 +521,10 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   srand48(seed);
 
   size_t anywrites = 0, randomSubSample = 0;
-
+  
   if (((pc->sz) * ((pc->minbs + pc->maxbs)/2)) < (maxbdSize - minbdSize) * 0.95) {
     // if we can't get good coverage
-    if ((sf == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) {
+    if ((sf == 0) && (firstPPositions == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) {
       if (verbose >= 2) fprintf(stderr,"*info* using randomSubSample (with replacement) mode\n");
       randomSubSample = 1;
     }
@@ -599,6 +600,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     positionsCurrent[i] = positionsStart[i];
   }
 
+  unsigned short xsubi[3] = {seed,seed,seed};
   // do it nice
   count = 0;
   while (count < pc->sz) {
@@ -637,7 +639,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         //	if (j + thislen > positionsEnd[i]) {abort();fprintf(stderr,"hit the end"); continue;positionsCurrent[i] += thislen; break;}
 
         if (randomSubSample) {
-          poss[count].pos = randomBlockSize(minbdSize, maxbdSize - thislen, alignbits, drand48() * (maxbdSize - thislen - minbdSize));
+          poss[count].pos = randomBlockSize(minbdSize, maxbdSize - thislen, alignbits, erand48(xsubi) * (maxbdSize - thislen - minbdSize));
           assert(poss[count].pos >= minbdSize);
           assert(poss[count].pos + thislen <= maxbdSize);
         } else {
@@ -716,7 +718,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
       newaction = 'W'; // don't use drand unless you have to
       anywrites = 1;
     } else {
-      double d = drand48(); // between [0,1]
+      double d = erand48(xsubi); // between [0,1]
       if (d <= readorwrite.rprob)
         newaction = 'R';
       else if (d <= readorwrite.rprob + readorwrite.wprob) {
@@ -731,7 +733,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     //assert(positions[i].len >= 0);
   }
 
-  if (sf < 1) {
+  if (sf < 0) {
     if (verbose) {
       fprintf(stderr,"*info* reversing positions from the end of the BD, %zd bytes (%.1lf GB)\n", maxbdSize, TOGB(maxbdSize));
     }
@@ -843,11 +845,10 @@ void insertFourkEveryMiB(positionContainer *pc, const size_t minbdSize, const si
 
 
 
-void positionContainerRandomize(positionContainer *pc)
+void positionContainerRandomize(positionContainer *pc, unsigned int seed)
 {
   const size_t count = pc->sz;
   positionType *positions = pc->positions;
-  unsigned int seed = lrand48();
 
   //fprintf(stderr,"*info* shuffling the array %zd\n", count);
   for (size_t shuffle = 0; shuffle < 1; shuffle++) {
@@ -912,7 +913,7 @@ void positionPrintMinMax(positionType *positions, const size_t count, const size
 
 
 
-void positionContainerJumble(positionContainer *pc, const size_t jumble)
+void positionContainerJumble(positionContainer *pc, const size_t jumble, unsigned int seed)
 {
   size_t count = pc->sz;
   positionType *positions = pc->positions;
@@ -924,7 +925,7 @@ void positionContainerJumble(positionContainer *pc, const size_t jumble)
   while (i2 < count - jumble) {
     for (size_t j = 0 ; j < jumble; j++) {
       size_t start = i2 + j;
-      size_t swappos = i2 + (lrand48() % jumble);
+      size_t swappos = i2 + (rand_r(&seed) % jumble);
       if (swappos < count) {
         // swap
         positionType p = positions[start];

@@ -66,7 +66,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                         const size_t mod,
                                         const size_t remain,
                                         const double fourkEveryMiB,
-                                        const size_t jumpKiB
+                                        const size_t jumpKiB,
+					const size_t firstPPositions
                                        );
 
 //void freePositions(positionType *p);
@@ -81,7 +82,7 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd);
 
 void positionContainerInfo(const positionContainer *pc);
 void positionLatencyStats(positionContainer *pc, const int threadid);
-void positionContainerRandomize(positionContainer *pc);
+void positionContainerRandomize(positionContainer *pc, unsigned int seed);
 void positionContainerAddMetadataChecks(positionContainer *pc);
 
 void positionContainerInfo(const positionContainer *pc);
@@ -91,7 +92,7 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
 void positionContainerCollapse(positionContainer *merged);
 
 positionContainer positionContainerMultiply(const positionContainer *original, const size_t multiply);
-void positionContainerJumble(positionContainer *pc, const size_t jumble);
+void positionContainerJumble(positionContainer *pc, const size_t jumble, unsigned int seed);
 
 void calcLBA(positionContainer *pc);
 void positionAddBlockSize(positionType *positions, const size_t count, const size_t addSize, const size_t minbdSize, const size_t maxbdSize);
