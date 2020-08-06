@@ -212,6 +212,7 @@ typedef struct {
   lengthsType len;
   size_t firstPPositions;
   int performPreDiscard;
+  int notexclusive;
 
   // results
   double result_writeIOPS;
@@ -294,6 +295,7 @@ static void *runThread(void *arg)
     } else {
       // else just open
       int excl = (threadContext->id == 0) ? O_EXCL : 0;
+      if (threadContext->notexclusive) excl = 0;
       fd = open(threadContext->jobdevice, O_RDWR | direct | excl);
       if (verbose) fprintf(stderr,"*info* open with O_RDWR, direct=%d, excl=%d\n", direct, excl);
     }
@@ -900,7 +902,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const double runseconds, const size_t dumpPos, char *benchmarkName, const size_t origqd,
                    unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, const int doNumaBinding, const int performPreDiscard,
-		   resultType *result, size_t ramBytesForPositions)
+		   resultType *result, size_t ramBytesForPositions, size_t notexclusive)
 {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -910,6 +912,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   keepRunning = 1;
 
+  if (notexclusive) {
+    fprintf(stderr,"*warning* opening devices without O_EXCL\n");
+  }
+  
   if (seed == 0) {
     const double d = timedouble() * 100.0; // use the fractions so up/return is different
     const unsigned long d2 = (unsigned long)d;
@@ -938,6 +944,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   for (int i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
 
     threadContext[i].go = go;
+    threadContext[i].notexclusive = notexclusive;
     threadContext[i].go_finished = go_f;
     threadContext[i].filePrefix = filePrefix;
     threadContext[i].mysqloptions = mysqloptions;
@@ -1903,7 +1910,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, -1 /*NUMA*/, 0 /* TRIM */, NULL /* results*/, 0);
+    jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, -1 /*NUMA*/, 0 /* TRIM */, NULL /* results*/, 0, 0);
     fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");
     sleep(10);
     fflush(stderr);
