@@ -290,12 +290,13 @@ static void *runThread(void *arg)
     if (threadContext->filePrefix) {
       // always create new file on prefix and writes, delete existing
       fd = open(threadContext->jobdevice, O_RDWR | O_CREAT | O_TRUNC | direct, S_IRUSR | S_IWUSR);
+      if (verbose) fprintf(stderr,"*info* open with O_RDWR, direct=%d, no excl specified\n", direct);
     } else {
       // else just open
       int excl = (threadContext->id == 0) ? O_EXCL : 0;
       fd = open(threadContext->jobdevice, O_RDWR | direct | excl);
+      if (verbose) fprintf(stderr,"*info* open with O_RDWR, direct=%d, excl=%d\n", direct, excl);
     }
-    if (verbose >= 2) fprintf(stderr,"*info* open with O_RDWR\n");
   } else {
     fd = open(threadContext->jobdevice, O_RDONLY | direct);
     if (verbose >= 2) fprintf(stderr,"*info* open with O_RDONLY\n");
