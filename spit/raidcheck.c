@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
       } else {
 	finishAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
       }
-      fprintf(stderr,"*info* finish at %zd (%.4lf GiB, %.3lf MiB)\n", finishAt, TOGiB(finishAt), TOMiB(finishAt));
+      //      fprintf(stderr,"*info* finish at %zd (%.4lf GiB, %.3lf MiB)\n", finishAt, TOGiB(finishAt), TOMiB(finishAt));
       break;
     case 'g':
       if (strchr(optarg,'M') || strchr(optarg,'m')) {
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
       } else {
 	startAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
       }
-      fprintf(stderr,"*info* start at %zd (%.4lf GiB, %.3lf MiB)\n", startAt, TOGiB(startAt), TOMiB(startAt));
+      //      fprintf(stderr,"*info* start at %zd (%.4lf GiB, %.3lf MiB)\n", startAt, TOGiB(startAt), TOMiB(startAt));
       break;
     case 'm':
       mdevices = atoi(optarg);
@@ -203,9 +203,15 @@ int main(int argc, char *argv[])
   if (blocksize == 0) blocksize = 4096;
 
   if (writeblocksize == 0) writeblocksize = blocksize;
+  if (writeblocksize > blocksize) writeblocksize = blocksize;
+
   writeblocksize = alignedNumber(writeblocksize, 4096);
 
-      // first assign the device
+  // align the numbers to the blocksize
+  startAt = alignedNumber(startAt, blocksize);
+  finishAt = alignedNumber(finishAt, blocksize);
+  
+  // first assign the device
   // if one -f specified, add to all jobs
   // if -F specified (with n drives), have c x n jobs
   if (deviceCount) {
@@ -256,6 +262,9 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  fprintf(stderr,"*info* aligned start:  %lx (%zd, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt), TOGiB(startAt));
+  fprintf(stderr,"*info* aligned finish: %lx (%zd, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt), TOGiB(finishAt));
+
   fprintf(stderr,"*info* k = %zd, m = %zd, device count %zd, seed = %d\n", kdevices, mdevices, deviceCount, seed);
   if (kdevices + mdevices != deviceCount) {
     fprintf(stderr,"*error* k + m need to add to %zd\n", deviceCount);
@@ -283,7 +292,7 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*info* rotate blocks\n");
     }
 
-    fprintf(stderr,"*info* raidcheck range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd, write block size = %zd, zapChar = '%c'\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize, writeblocksize, zapChar);
+    fprintf(stderr,"*info* range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd, write block size = %zd, zapChar = '%c'\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize, writeblocksize, zapChar);
     srand48(seed);
     int *selection = malloc(deviceCount * sizeof(int));
     int *rotated = malloc(deviceCount * sizeof(int));
