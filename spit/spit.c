@@ -566,7 +566,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
     t = localtime(&now);
     strftime(text, sizeof(text)-1, "%Y-%m-%d %H:%M:%S", t);
 
-    sprintf(ss, "=== Round %d (%s, elapsed %.1lf seconds)\n", ++round, text, timedouble() - starttime);
+    sprintf(ss, "=== Round %d (%s, elapsed %.1lf seconds, %.2lf days)\n", ++round, text, timedouble() - starttime, (timedouble() - starttime) / 86400.0);
     fprintf(stdout, "%s\n", ss);
     syslogString("spit", ss);
 
