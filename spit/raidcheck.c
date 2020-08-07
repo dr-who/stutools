@@ -230,11 +230,12 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -g 16M    starting at 16 MiB\n");
     fprintf(stderr,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
     fprintf(stderr,"   -G 32M    finishing at 32 MiB\n");
-    fprintf(stderr,"   -b n      the block size to step through the devices\n");
+    fprintf(stderr,"   -b n      the block size to step through the devices (defaults to 256 KiB)\n");
     fprintf(stderr,"   -B n      the length of the block size to perturb (defaults to -b value)\n");
     fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
     fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
     fprintf(stderr,"\nUsage:\n");
+    fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -g 16M -XXX\n\n");
     fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -b 524288 -B 4096 -XXX\n");
     fprintf(stderr,"             Step through all devices in 512 KiB steps, setting the first 4096 bytes to 'Z'\n");
     fprintf(stderr,"             on at most 'm' devices at a time. The zapped blocks are shown asciily.\n\n");
