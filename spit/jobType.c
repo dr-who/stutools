@@ -1314,9 +1314,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     //    fprintf(stderr,"*info* RAM to use: %zd bytes (%.3lf GiB), qd = %zd, maxK %zd\n", useRAM, TOGiB(useRAM), threadContext[i].queueDepth, threadContext[i].highBlockSize);
     if (aioSize > useRAM / 2) {
-      //      if (i == 0) {
+      if (i == 0) {
 	fprintf(stderr,"*warning* we can't enforce RAM limits with the qd and max block size\n");
-	//      }
+      }
     } else {
       useRAM -= aioSize;
     }
