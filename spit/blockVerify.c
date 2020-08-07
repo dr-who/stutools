@@ -345,7 +345,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
   size_t ops = correct + incorrect + ioerrors + lenerrors;
   assert (ops == iocount);
 
-  fprintf(stderr,"*info* verify: correct %zd, incorrect %zd, ioerrors %zd, %zd ops (%.0lf IOPS), %.1lf GB, %.1lf s (threads=%zd), %.1lf MB/s\n", correct, incorrect, ioerrors, ops, ops/elapsed, TOGB(tr), elapsed, threads, TOMB(tr)/elapsed);
+  fprintf(stderr,"*info* verify: correct %zd, incorrect %zd, ioerrors %zd, %zd ops (%.0lf IOPS), %.1lf GB (%.1lf GiB), %.1lf s (threads=%zd), %.1lf MB/s\n", correct, incorrect, ioerrors, ops, ops/elapsed, TOGB(tr), TOGiB(tr), elapsed, threads, TOMB(tr)/elapsed);
 
   free(pt);
   free(threadContext);
