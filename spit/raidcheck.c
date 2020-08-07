@@ -152,10 +152,20 @@ int main(int argc, char *argv[])
       kdevices = atoi(optarg);
       break;
     case 'G':
-      finishAt = 1024L * 1024L * 1024L * atof(optarg);
+      if (strchr(optarg,'M') || strchr(optarg,'m')) {
+	finishAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
+      } else {
+	finishAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
+      }
+      fprintf(stderr,"*info* finish at %zd (%.4lf GiB, %.3lf MiB)\n", finishAt, TOGiB(finishAt), TOMiB(finishAt));
       break;
     case 'g':
-      startAt = 1024L * 1024L * 1024L * atof(optarg);
+      if (strchr(optarg,'M') || strchr(optarg,'m')) {
+	startAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
+      } else {
+	startAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
+      }
+      fprintf(stderr,"*info* start at %zd (%.4lf GiB, %.3lf MiB)\n", startAt, TOGiB(startAt), TOMiB(startAt));
       break;
     case 'm':
       mdevices = atoi(optarg);
@@ -211,7 +221,9 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -k n      the number of data devices\n");
     fprintf(stderr,"   -m n      the number of parity devices\n");
     fprintf(stderr,"   -g n      starting at n GiB (defaults byte 0)\n");
+    fprintf(stderr,"   -g 16M    starting at 16 MiB\n");
     fprintf(stderr,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
+    fprintf(stderr,"   -G 32M    finishing at 32 MiB\n");
     fprintf(stderr,"   -b n      the block size to step through the devices\n");
     fprintf(stderr,"   -B n      the length of the block size to perturb (defaults to -b value)\n");
     fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
