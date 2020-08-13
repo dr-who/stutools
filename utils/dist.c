@@ -181,8 +181,9 @@ int main(int argc, char *argv[]) {
   size_t ignore = 0;
   size_t showline = 0;
   size_t showtotal = 0;
+  double scaletotal = 1;
   
-  while ((opt = getopt(argc, argv, "a:hmnsi:lt")) != -1) {
+  while ((opt = getopt(argc, argv, "a:hmnsi:ltT:")) != -1) {
     switch(opt) {
     case 'a':
       average = atoi(optarg);
@@ -208,6 +209,10 @@ int main(int argc, char *argv[]) {
       break;
     case 't':
       showtotal = 1;
+      break;
+    case 'T':
+      scaletotal = atof(optarg);
+      fprintf(stderr,"*info* scaling the total value / %.2lf\n", scaletotal);
       break;
     case 'm':
       mean = 1;
@@ -238,7 +243,7 @@ int main(int argc, char *argv[]) {
       if (showline) fprintf(stdout,"%zd\t", sample);
       fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1), nlSortedSmoothed(&n));
       if (mean) fprintf(stdout,"\t%g", nlMean(&n));
-      if (showtotal) fprintf(stdout,"\t%.2lf", nlSum(&n));
+      if (showtotal) fprintf(stdout,"\t%lf", nlSum(&n) / scaletotal);
       fprintf(stdout, "\n");
     }
   }
