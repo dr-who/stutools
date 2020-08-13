@@ -557,7 +557,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
           pp->finishTime = timedouble();
 	  // log if slow
-	  if (pp->finishTime - pp->submitTime > 7) {
+	  if (pp->finishTime - pp->submitTime > 30) {
 	    slow++;
 	    char s[300];
 	    sprintf(s, "slow I/O (%c,pos=%zd, size=%d) %.1lf s, no submission/post loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
