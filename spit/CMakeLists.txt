@@ -34,6 +34,9 @@ target_link_libraries(spitchecker spitlib m aio pthread numa)
 add_executable(raidcheck raidcheck.c)
 target_link_libraries(raidcheck spitlib m aio pthread numa)
 
+add_executable(devcontents devcontents.c)
+target_link_libraries(devcontents spitlib m aio pthread numa)
+
 add_executable(bdinfo bdinfo.c)
 target_link_libraries(bdinfo spitlib m aio pthread numa)
 
