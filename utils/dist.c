@@ -213,6 +213,10 @@ int main(int argc, char *argv[]) {
     case 'T':
       scaletotal = atof(optarg);
       fprintf(stderr,"*info* scaling the total value / %.2lf\n", scaletotal);
+      if (scaletotal == 0) {
+	fprintf(stderr,"*error* -T 0 isn't valid\n");
+	exit(1);
+      }
       break;
     case 'm':
       mean = 1;
