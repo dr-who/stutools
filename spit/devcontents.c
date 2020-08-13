@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -g 16M    starting at 16 MiB\n");
     fprintf(stderr,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
     fprintf(stderr,"   -G 32M    finishing at 32 MiB\n");
-    fprintf(stderr,"   -b n      the block size to step through the devices (defaults to 256 KiB)\n");
-    fprintf(stderr,"   -w n      first n bytes per 4096 block to display (defaults to %zd)\n", width);
+    fprintf(stderr,"   -b n      the block size to step through the devices (defaults to %zd bytes)\n", blocksize);
+    fprintf(stderr,"   -w n      first n bytes per block to display (defaults to %zd)\n", width);
     exit(1);
   }
 
@@ -108,7 +108,13 @@ int main(int argc, char *argv[])
   if (fd < 0) {
     perror(device);
   } else {
-    unsigned char buf[4096];
+    unsigned char *buf = NULL;
+    buf = malloc(blocksize);
+    if (!buf) {
+      fprintf(stderr,"*warning* OOM\n");
+      exit(1);
+    }
+    
     int firstgap = 0;
 
     fprintf(stdout,"%9s\t%6s\t%8s\t%6s\t%6s\t%6s\t%6s\t%s\n", "pos", "p(MiB)", "pos", "p%256K", "min", "max", "range", "contents...");
@@ -121,12 +127,12 @@ int main(int argc, char *argv[])
     }
     for (size_t pos = startAt; pos < finishAt; pos += blocksize) {
       int min = 0, max = 0, range = 0;
-      int r = pread(fd, buf, 4096, pos);
+      int r = pread(fd, buf, blocksize, pos);
       if (r == 0) {
 	perror(device);
 	exit(1);
       }
-      analyse(buf, 0, 4096, &min, &max, &range);
+      analyse(buf, 0, blocksize, &min, &max, &range);
       if (range > 1) {
 	memcpy(pbuf, buf, width);
 	pbuf[width] = 0;
@@ -148,6 +154,9 @@ int main(int argc, char *argv[])
     }
       
     close(fd);
+    if (buf) {
+      free(buf);
+    }
   }
   
 
