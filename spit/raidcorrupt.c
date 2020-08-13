@@ -221,7 +221,8 @@ int main(int argc, char *argv[])
     }
     device = deviceList[0].devicename;
   } else {
-    fprintf(stderr,"*info* raidcheck -I devices.txt -k 10 -m 2 [options...)\n");
+    fprintf(stderr,"*info* raidcorrupt -I devices.txt -k 10 -m 2 [options...)\n");
+    fprintf(stderr,"\nCorrupt underlying devices under a software RAID array\n");
     fprintf(stderr,"\nOptions:\n");
     fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
     fprintf(stderr,"   -k n      the number of data devices\n");
@@ -235,11 +236,11 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
     fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
     fprintf(stderr,"\nUsage:\n");
-    fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -g 16M -XXX\n\n");
-    fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -b 524288 -B 4096 -XXX\n");
+    fprintf(stderr,"   raidcorrupt -I devices.txt -k 4 -m 2 -g 16M -XXX\n\n");
+    fprintf(stderr,"   raidcorrupt -I devices.txt -k 4 -m 2 -b 524288 -B 4096 -XXX\n");
     fprintf(stderr,"             Step through all devices in 512 KiB steps, setting the first 4096 bytes to 'Z'\n");
     fprintf(stderr,"             on at most 'm' devices at a time. The zapped blocks are shown asciily.\n\n");
-    fprintf(stderr,"   raidcheck -I devices.txt -k 4 -m 2 -b 524288 -B 8192 -Z a -XXX\n");
+    fprintf(stderr,"   raidcorrupt -I devices.txt -k 4 -m 2 -b 524288 -B 8192 -Z a -XXX\n");
     fprintf(stderr,"             Step through, setting the first 8192 bytes to 'a'\n\n");
     fprintf(stderr,"Bad md:\n");
     fprintf(stderr,"   # cat /dev/devices.txt\n");
@@ -253,7 +254,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   # echo check > /sys/block/md0/md/sync_action\n");
     fprintf(stderr,"   # cat /sys/block/md0/md/mismatch_cnt \n");
     fprintf(stderr,"   0\n");
-    fprintf(stderr,"   # raidcheck -I devices.txt -k 2 -m 2 -XXX\n");
+    fprintf(stderr,"   # raidcorrupt -I devices.txt -k 2 -m 2 -XXX\n");
     fprintf(stderr,"   # echo check > /sys/block/md0/md/sync_action\n");
     fprintf(stderr,"   # cat /sys/block/md0/md/mismatch_cnt\n");
     fprintf(stderr,"   28952\n");

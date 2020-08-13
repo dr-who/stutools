@@ -31,8 +31,8 @@ target_link_libraries(fsfiller spitlib m aio pthread numa)
 add_executable(spitchecker verify.c)
 target_link_libraries(spitchecker spitlib m aio pthread numa)
 
-add_executable(raidcheck raidcheck.c)
-target_link_libraries(raidcheck spitlib m aio pthread numa)
+add_executable(raidcorrupt raidcorrupt.c)
+target_link_libraries(raidcorrupt spitlib m aio pthread numa)
 
 add_executable(devcontents devcontents.c)
 target_link_libraries(devcontents spitlib m aio pthread numa)
@@ -56,7 +56,7 @@ target_link_libraries(genpositions spitlib m aio pthread numa)
 add_executable(testDiskStats testDiskStats.c)
 target_link_libraries(testDiskStats spitlib m numa pthread)
 
-install(TARGETS spit fsfiller spitchecker raidcheck bdinfo dtest hist DESTINATION bin)
+install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist DESTINATION bin)
 
 # first check the position validation/collision collapsing is working
 #add_test(tds testDiskStats)
