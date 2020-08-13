@@ -18,6 +18,7 @@ typedef struct {
   size_t sorted;
   pointType *values;
   size_t ever, window;
+  double sum;
 } numListType;
 
 void nlInit(numListType *n, int window) {
@@ -27,6 +28,7 @@ void nlInit(numListType *n, int window) {
   n->sorted = 0;
   n->ever = 0;
   n->window = window;
+  n->sum = 0;
 }
 
 void nlFree(numListType *n) {
@@ -38,6 +40,7 @@ void nlFree(numListType *n) {
 
 size_t nlAdd(numListType *n, double value) {
 
+  n->sum += value;
   size_t addat = n->num;
 
   if (n->num < n->window ) {
@@ -74,6 +77,9 @@ static int nl_sortfunction(const void *origp1, const void *origp2)
   else return 0;
 }
 
+double nlSum(numListType *n) {
+  return n->sum;
+}
 
 void nlSort(numListType *n) {
   if (!n->sorted) {
@@ -96,7 +102,33 @@ double nlSortedPos(numListType *n, double pos) {
     return n->values[i].value;
     //  }
 }
-    
+
+
+double nlSortedSmoothed(numListType *n) {
+  nlSort(n);
+  double v = 0;
+  double weight = 0;
+  double tot = 0;
+  size_t oldest = INT_MAX;
+
+  for (size_t i = 0; i < n->num; i++) {
+    if (n->values[i].age < oldest) oldest = n->values[i].age;
+  }
+  
+  for (size_t i = 0; i < n->num; i++) {
+    v = n->values[i].age - oldest + 1;
+    assert(v > 0);
+
+    weight += v;
+    tot += n->values[i].value * v;
+  }
+  if (weight > 0) {
+    tot = tot / weight;
+  }
+
+  return tot;
+}
+
 
 double nlMedian(numListType *n) {
   if (n->num > 0) {
@@ -130,7 +162,12 @@ void usage(int averagedefault) {
   fprintf(stderr,"\nExamples:\n");
   fprintf(stderr,"  dist        # defaults to %d samples\n", averagedefault);
   fprintf(stderr,"  dist -n     # no header\n");
+  fprintf(stderr,"  dist -m     # add a mean value\n");
+  fprintf(stderr,"  dist -s     # add a triangular smoothed value\n");
   fprintf(stderr,"  dist -a 2   # window set to 2 samples\n");
+  fprintf(stderr,"  dist -i n   # ignore first n samples\n");
+  fprintf(stderr,"  dist -l     # add line/sample value\n");
+  fprintf(stderr,"  dist -t     # add total/sum value\n");
 }
 
 
@@ -140,8 +177,12 @@ int main(int argc, char *argv[]) {
   const int averagedefault = 60;
   int average = averagedefault, mean = 0;
   size_t header = 0;
+  size_t smoothed = 0;
+  size_t ignore = 0;
+  size_t showline = 0;
+  size_t showtotal = 0;
   
-  while ((opt = getopt(argc, argv, "a:hmn")) != -1) {
+  while ((opt = getopt(argc, argv, "a:hmnsi:lt")) != -1) {
     switch(opt) {
     case 'a':
       average = atoi(optarg);
@@ -154,6 +195,19 @@ int main(int argc, char *argv[]) {
     case 'h':
       usage(averagedefault);
       exit(1);
+      break;
+    case 'i':
+      ignore = atoi(optarg);
+      fprintf(stderr,"*info* ignoring first %zd samples\n", ignore);
+      break;
+    case 'l':
+      showline = 1;
+      break;
+    case 's':
+      smoothed = 1;
+      break;
+    case 't':
+      showtotal = 1;
       break;
     case 'm':
       mean = 1;
@@ -169,17 +223,22 @@ int main(int argc, char *argv[]) {
   nlInit(&n, average);
 
   double v = 0;
-
+  size_t sample = 0;
+  
   while (scanf("%lf", &v) == 1) {
+    sample++;
+    if (sample <= ignore) continue;
     //    fprintf(stdout,"*info* in %g\n", v);
     nlAdd(&n, v);
     if (n.num > 0) {
       if (!header) {
 	header=1;
-	fprintf(stdout,"'0%%'\t'0.15%%'\t'2.5%%'\t'16%%'\t'50%%'\t'84%%'\t'97.5%%'\t'99.85%%'\t'100%%'%s\n", (mean==0)?"":"\tmean");
+	fprintf(stdout,"%s'0%%'\t'0.15%%'\t'2.5%%'\t'16%%'\t'50%%'\t'84%%'\t'97.5%%'\t'99.85%%'\t'100%%'%s%s%s\n", (showline==0)?"":"line\t", (mean==0)?"":"\tmean", (smoothed==0)?"":"\tsmoothed", (showtotal==0)?"":"\ttotal");
       }
-      fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1));
+      if (showline) fprintf(stdout,"%zd\t", sample);
+      fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1), nlSortedSmoothed(&n));
       if (mean) fprintf(stdout,"\t%g", nlMean(&n));
+      if (showtotal) fprintf(stdout,"\t%.2lf", nlSum(&n));
       fprintf(stdout, "\n");
     }
   }
