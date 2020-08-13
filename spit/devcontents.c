@@ -90,6 +90,7 @@ int main(int argc, char *argv[])
   
   if (!device) {
     fprintf(stderr,"*info* devcontents -f /dev/device [options...)\n");
+    fprintf(stderr,"\nDisplay the contents of a block device\n");
     fprintf(stderr,"\nOptions:\n");
     fprintf(stderr,"   -f dev    specify the device\n");
     fprintf(stderr,"   -g n      starting at n GiB (defaults byte 0)\n");
