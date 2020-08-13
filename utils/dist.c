@@ -241,7 +241,8 @@ int main(int argc, char *argv[]) {
 	fprintf(stdout,"%s'0%%'\t'0.15%%'\t'2.5%%'\t'16%%'\t'50%%'\t'84%%'\t'97.5%%'\t'99.85%%'\t'100%%'%s%s%s\n", (showline==0)?"":"line\t", (mean==0)?"":"\tmean", (smoothed==0)?"":"\tsmoothed", (showtotal==0)?"":"\ttotal");
       }
       if (showline) fprintf(stdout,"%zd\t", sample);
-      fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1), nlSortedSmoothed(&n));
+      fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1));
+      if (smoothed) fprintf(stdout, "\t%g", nlSortedSmoothed(&n));
       if (mean) fprintf(stdout,"\t%g", nlMean(&n));
       if (showtotal) fprintf(stdout,"\t%lf", nlSum(&n) / scaletotal);
       fprintf(stdout, "\n");
