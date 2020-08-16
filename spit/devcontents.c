@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 	exit(1);
       }
       analyse(buf, 0, blocksize, &min, &max, &range);
-      if (range > 1) {
+      if (max > 1) {
 	memcpy(pbuf, buf, width);
 	pbuf[width] = 0;
 	for (size_t j = 0; j < width; j++) {
