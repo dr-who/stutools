@@ -233,7 +233,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -G 32M    finishing at 32 MiB\n");
     fprintf(stderr,"   -b n      the block size to step through the devices (defaults to 256 KiB)\n");
     fprintf(stderr,"   -B n      the length of the block size to perturb (defaults to -b value)\n");
-    fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
+    fprintf(stderr,"   -R seed   sets the starting seed\n");
     fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
     fprintf(stderr,"\nUsage:\n");
     fprintf(stderr,"   raidcorrupt -I devices.txt -k 4 -m 2 -g 16M -XXX\n\n");
