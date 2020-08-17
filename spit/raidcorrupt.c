@@ -236,6 +236,11 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -R seed   sets the starting seed\n");
     fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
     fprintf(stderr,"\nUsage:\n");
+    fprintf(stderr,"   Assuming the RAID array has been created with 4+2 (4 data, plus 2 parity)\n\n");
+    fprintf(stderr,"   raidcorrupt -k 6 -m 0    # steps of 256 KiB, don't change any data\n");
+    fprintf(stderr,"   raidcorrupt -k 5 -m 1    # steps of 256 KiB, pick a device every 256K\n");
+    fprintf(stderr,"   raidcorrupt -k 4 -m 2    # pick two devices for every 256KiB stripe and corrupt\n");
+    fprintf(stderr,"   raidcorrupt -k 3 -m 3    # pick three devices every 256KiB. Causes data loss\n");
     fprintf(stderr,"   raidcorrupt -I devices.txt -k 4 -m 2 -g 16M -XXX\n\n");
     fprintf(stderr,"   raidcorrupt -I devices.txt -k 4 -m 2 -b 524288 -B 4096 -XXX\n");
     fprintf(stderr,"             Step through all devices in 512 KiB steps, setting the first 4096 bytes to 'Z'\n");
