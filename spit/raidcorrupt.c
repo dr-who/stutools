@@ -272,6 +272,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -B n      the length of the block size to perturb (defaults to -b value)\n");
     fprintf(stderr,"   -R seed   sets the starting seed\n");
     fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
+    fprintf(stderr,"   -q        quieter mode. Output 1/64 lines each 'q'. -qq is very quiet\n");
     fprintf(stderr,"\nUsage:\n");
     fprintf(stderr,"   Assuming the RAID array has been created with 4+2 (4 data, plus 2 parity)\n\n");
     fprintf(stderr,"   raidcorrupt -k 6 -m 0    # steps of 256 KiB, don't change any data\n");
