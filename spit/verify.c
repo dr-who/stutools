@@ -50,11 +50,15 @@ int main(int argc, char *argv[])
   int opt = 0;
   size_t o_direct = O_DIRECT;
   size_t sort = 1;
+  size_t displayJSON = 0;
 
-  while ((opt = getopt(argc, argv, "Dt:n")) != -1) {
+  while ((opt = getopt(argc, argv, "Dt:nj")) != -1) {
     switch (opt) {
     case 'D':
       o_direct = 0;
+      break;
+    case 'j':
+      displayJSON = 1;
       break;
     case 't':
       threads = atoi(optarg);
@@ -97,7 +101,8 @@ int main(int argc, char *argv[])
   fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
 
   // verify must be sorted
-  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/);
+  size_t correct, incorrect, ioerrors;
+  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors);
 
   if (!keepRunning) {
     fprintf(stderr,"*warning* early verification termination\n");
@@ -110,6 +115,10 @@ int main(int argc, char *argv[])
   origpc=NULL;
 
   positionContainerFree(&pc);
+
+  if (displayJSON) {
+    fprintf(stdout,"{\n\t\"correct\": \"%zd\",\n\t\"incorrect\": \"%zd\",\n\t\"ioerrors\": \"%zd\"\n}\n", correct, incorrect, ioerrors);
+  }
 
   if (errors) {
     exit(1);
