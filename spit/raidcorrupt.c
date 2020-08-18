@@ -53,7 +53,36 @@ void zapfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, s
 
 
 
-void rotate(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t blocksize, size_t writeblocksize, int print, char *block)
+void xorfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, size_t writeblocksize, int print, char *block)
+{
+  if (blocksize) {}
+  if (print) fprintf(stderr,"%9x (%5.3lf GiB):  ", (unsigned int)pos, TOGiB(pos));
+
+  size_t mcount = 0;
+  for (size_t i = 0; i < deviceCount; i++) {
+    if (selection[i] > 0) {
+      ssize_t ret = pread(selection[i], block, writeblocksize, pos);
+      fprintf(stderr,"%ld\n", ret);
+      for (ssize_t j = 0; j < ret; j++) {
+	block[j] = block[j] ^ 127;
+      }
+      ret = pwrite(selection[i], block, writeblocksize, pos);
+      if (ret == (int)writeblocksize) {
+        mcount++;
+        if (print) fprintf(stderr,"%2d ", selection[i]);
+      } else {
+        //	perror("wow");
+      }
+    } else {
+      if (print) fprintf(stderr,"   ");
+    }
+  }
+  if (print) fprintf(stderr,"\t[%zd]\n", mcount);
+}
+
+
+
+void rotatefunc(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t blocksize, size_t writeblocksize, int print, char *block)
 {
   if (writeblocksize) {}
   if (print) fprintf(stderr,"%9x (%5.1lf GiB):  ", (unsigned int)pos, TOGiB(pos));
@@ -137,10 +166,12 @@ int main(int argc, char *argv[])
   int printevery = 1;
   int tripleX = 0;
   int zap = 1;
+  int xor = 0;
+  int rotate = 0;
   char zapChar = 'Z';
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:B:qXzZ:r")) != -1) {
+  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:B:qxXzZ:r")) != -1) {
     switch (opt) {
     case 'b':
       blocksize = alignedNumber(atoi(optarg), 4096);
@@ -178,18 +209,23 @@ int main(int argc, char *argv[])
       break;
     case 'z':
       zap = 1;
+      xor = 0;
       break;
     case 'Z':
       zapChar = optarg[0];
       break;
     case 'r':
-      zap = 0;
+      rotate = 1;
       break;
     case 'I':
     {}
     loadDeviceDetails(optarg, &deviceList, &deviceCount);
       //      fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
     break;
+    case 'x':
+      xor = 1;
+      zap = 0;
+      break;
     case 'X':
       tripleX++;
       break;
@@ -227,6 +263,8 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -I file   specifies the list of underlying block devices\n");
     fprintf(stderr,"   -k n      the number of data devices\n");
     fprintf(stderr,"   -m n      the number of parity devices\n");
+    fprintf(stderr,"   -z        zap the block, make all bytes 'Z'\n");
+    fprintf(stderr,"   -x        XOR the block with 0x7f. Run twice to revert.\n");
     fprintf(stderr,"   -g n      starting at n GiB (defaults byte 0)\n");
     fprintf(stderr,"   -g 16M    starting at 16 MiB\n");
     fprintf(stderr,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
@@ -289,13 +327,15 @@ int main(int argc, char *argv[])
     fprintf(stderr,"*error* not enough devices to open\n");
   } else {
     // enough drives
-    if (mdevices < 2) {
+    if (mdevices < 2 && rotate) {
       zap = 1; // if only 1 drive, you have to zap
     }
 
     if (zap) {
       fprintf(stderr,"*info* zap blocks\n");
-    } else {
+    } else if (xor) {
+      fprintf(stderr,"*info* read/XOR/write blocks\n");
+    } else { 
       fprintf(stderr,"*info* rotate blocks\n");
     }
 
@@ -321,8 +361,10 @@ int main(int argc, char *argv[])
 
       if (zap) {
         zapfunc(pos, deviceCount, selection, blocksize, writeblocksize, (pr % printevery)==0, block);
+      } else if (xor) {
+        xorfunc(pos, deviceCount, selection, blocksize, writeblocksize, (pr % printevery)==0, block);
       } else {
-        rotate(pos, deviceCount, selection, rotated, blocksize, writeblocksize, (pr % printevery)==0, block);
+        rotatefunc(pos, deviceCount, selection, rotated, blocksize, writeblocksize, (pr % printevery)==0, block);
       }
     }
     free(block);
