@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
   char zapChar = 'Z';
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:B:qxXzZ:r")) != -1) {
+  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:B:qxXzZ:rf:")) != -1) {
     switch (opt) {
     case 'b':
       blocksize = alignedNumber(atoi(optarg), 4096);
@@ -215,6 +215,9 @@ int main(int argc, char *argv[])
       break;
     case 'r':
       rotate = 1;
+      break;
+    case 'f':
+      addDeviceDetails(strdup(optarg), &deviceList, &deviceCount);
       break;
     case 'I':
     {}
@@ -273,6 +276,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -R seed   sets the starting seed\n");
     fprintf(stderr,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
     fprintf(stderr,"   -q        quieter mode. Output 1/64 lines each 'q'. -qq is very quiet\n");
+    fprintf(stderr,"   -f dev    the unusual case of specifying a single block device\n");
     fprintf(stderr,"\nUsage:\n");
     fprintf(stderr,"   Assuming the RAID array has been created with 4+2 (4 data, plus 2 parity)\n\n");
     fprintf(stderr,"   raidcorrupt -k 6 -m 0    # steps of 256 KiB, don't change any data\n");
@@ -312,7 +316,7 @@ int main(int argc, char *argv[])
 
   fprintf(stderr,"*info* k = %zd, m = %zd, device count %zd, seed = %d\n", kdevices, mdevices, deviceCount, seed);
   if (kdevices + mdevices != deviceCount) {
-    fprintf(stderr,"*error* k + m need to add to %zd\n", deviceCount);
+    fprintf(stderr,"*error* k + m need to sum to %zd\n", deviceCount);
     exit(1);
   }
 
