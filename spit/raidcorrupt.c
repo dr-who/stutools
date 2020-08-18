@@ -110,36 +110,39 @@ void rotatefunc(size_t pos, size_t deviceCount, int *selection, int *rotated, si
   }
   rotated[firstpos] = lastfd;
 
+  for (size_t i = 0; i < deviceCount; i++) {
+    //    fprintf(stderr,"%d   %d\n", selection[i], rotated[i]);
+  }
+
 
   size_t mcount = 0, ok = 0;
   char *firstblock = aligned_alloc(4096, blocksize);
   for (size_t i = 0; i <deviceCount; i++) {
     if (selection[i] > 0) {
       mcount++;
-      //            fprintf(stderr,"*info* read from %d, write to %d\n", selection[i], rotated[i]);
-
-      ssize_t retr;
+      ssize_t retr = 0, retw = 0;
 
       if (mcount==1) {
+	//	fprintf(stderr,"read FIRST from %d\n", rotated[i]);
         retr = pread(rotated[i], firstblock, blocksize, pos); // keep a copy of what it's clobbered
+	if (retr < 0) perror("raidcorrupt");
       }
 
-      retr = pread(selection[i], block, blocksize, pos);
-
-      ssize_t retw;
+      //      fprintf(stderr,"mcount %zd par %zd\n", mcount, mparity);
       if (mcount < mparity) {
-        retw = pwrite(rotated[i], block, blocksize, pos);
+	retr = pread(selection[i], block, blocksize, pos);
+	if (retr < 0) perror("raidcorrupt");
+	//	fprintf(stderr,"read from %d\n", selection[i]);
+        retw = pwrite(rotated[i], block, blocksize, pos); // copy the most recent read to the rotated
+	if (retw != (ssize_t) blocksize) perror("raidcorrupt");
+	//	fprintf(stderr,"write to %d\n", rotated[i]);
       } else {
-        retw = pwrite(rotated[i], firstblock, blocksize, pos);
+        retw = pwrite(rotated[i], firstblock, blocksize, pos); // finish off
+	if (retw != (ssize_t) blocksize) perror("raidcorrupt");
+	//	fprintf(stderr,"write first to %d\n", rotated[i]);
       }
-
-
-      if ((retw == (int)blocksize) && (retr == retw)) {
-        ok++;
-        if (print) fprintf(stderr,"%2d ", selection[i]);
-      } else {
-        perror("wow");
-      }
+      if (print) fprintf(stderr,"%3d", rotated[i]);
+      ok++;
     } else {
       if (print) fprintf(stderr,"   ");
     }
@@ -209,12 +212,15 @@ int main(int argc, char *argv[])
     case 'z':
       zap = 1;
       xor = 0;
+      rotate = 0;
       break;
     case 'Z':
       zapChar = optarg[0];
       break;
     case 'r':
       rotate = 1;
+      zap = 0;
+      xor = 0;
       break;
     case 'f':
       addDeviceDetails(strdup(optarg), &deviceList, &deviceCount);
@@ -227,6 +233,7 @@ int main(int argc, char *argv[])
     case 'x':
       xor = 1;
       zap = 0;
+      rotate = 0;
       break;
     case 'X':
       tripleX++;
@@ -267,6 +274,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -m n      the number of parity devices\n");
     fprintf(stderr,"   -z        zap the block, make all bytes 'Z'\n");
     fprintf(stderr,"   -x        XOR the block with 0x7f. Run twice to revert.\n");
+    fprintf(stderr,"   -r        rotate the blocks between devices.\n");
     fprintf(stderr,"   -g n      starting at n GiB (defaults byte 0)\n");
     fprintf(stderr,"   -g 16M    starting at 16 MiB\n");
     fprintf(stderr,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
@@ -331,8 +339,8 @@ int main(int argc, char *argv[])
     fprintf(stderr,"*error* not enough devices to open\n");
   } else {
     // enough drives
-    if (mdevices < 2 && rotate) {
-      zap = 1; // if only 1 drive, you have to zap
+    if (rotate && mdevices < 2) {
+      fprintf(stderr,"*warning* rotation doesn't work with %zd parity\n", mdevices);
     }
 
     if (zap) {
@@ -343,7 +351,7 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*info* rotate blocks\n");
     }
 
-    fprintf(stderr,"*info* range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd, write block size = %zd, zapChar = '%c'\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize, writeblocksize, zapChar);
+    fprintf(stderr,"*info* range [%.3lf GiB - %.3lf GiB) [%zd - %zd), block size = %zd, write block size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize, writeblocksize);
     srand48(seed);
     int *selection = malloc(deviceCount * sizeof(int));
     int *rotated = malloc(deviceCount * sizeof(int));
