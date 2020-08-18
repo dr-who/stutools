@@ -62,7 +62,6 @@ void xorfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, s
   for (size_t i = 0; i < deviceCount; i++) {
     if (selection[i] > 0) {
       ssize_t ret = pread(selection[i], block, writeblocksize, pos);
-      fprintf(stderr,"%ld\n", ret);
       for (ssize_t j = 0; j < ret; j++) {
 	block[j] = block[j] ^ 127;
       }
