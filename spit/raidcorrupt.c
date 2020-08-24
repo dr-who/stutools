@@ -84,7 +84,6 @@ void xorfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, s
 
 void decimalfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, size_t writeblocksize, int print, char *block)
 {
-  fprintf(stderr,"*info* decimalfunc\n");
   if (blocksize) {}
   if (print) fprintf(stderr,"%9x (%5.3lf GiB):  ", (unsigned int)pos, TOGiB(pos));
 
@@ -389,6 +388,8 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*info* zap blocks\n");
     } else if (xor) {
       fprintf(stderr,"*info* read/XOR/write blocks\n");
+    } else if (decimal) {
+      fprintf(stderr,"*info* ASCII [0-9] becomes 9-value\n");
     } else { 
       fprintf(stderr,"*info* rotate blocks\n");
     }
