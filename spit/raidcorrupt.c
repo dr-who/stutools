@@ -81,6 +81,38 @@ void xorfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, s
 
 
 
+
+void decimalfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, size_t writeblocksize, int print, char *block)
+{
+  fprintf(stderr,"*info* decimalfunc\n");
+  if (blocksize) {}
+  if (print) fprintf(stderr,"%9x (%5.3lf GiB):  ", (unsigned int)pos, TOGiB(pos));
+
+  size_t mcount = 0;
+  for (size_t i = 0; i < deviceCount; i++) {
+    if (selection[i] > 0) {
+      ssize_t ret = pread(selection[i], block, writeblocksize, pos);
+      for (ssize_t j = 0; j < ret; j++) {
+	if ((block[j] >= '0') && (block[j] <= '9')) {
+	  block[j] = '0' + ('9' - (int)block[j]);
+	}
+      }
+      ret = pwrite(selection[i], block, writeblocksize, pos);
+      if (ret == (int)writeblocksize) {
+        mcount++;
+        if (print) fprintf(stderr,"%2d ", selection[i]);
+      } else {
+        //	perror("wow");
+      }
+    } else {
+      if (print) fprintf(stderr,"   ");
+    }
+  }
+  if (print) fprintf(stderr,"\t[%zd]\n", mcount);
+}
+
+
+
 void rotatefunc(size_t pos, size_t deviceCount, int *selection, int *rotated, size_t blocksize, size_t writeblocksize, int print, char *block)
 {
   if (writeblocksize) {}
@@ -170,16 +202,23 @@ int main(int argc, char *argv[])
   int zap = 1;
   int xor = 0;
   int rotate = 0;
+  int decimal = 0;
   char zapChar = 'Z';
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:B:qxXzZ:rf:")) != -1) {
+  while ((opt = getopt(argc, argv, "I:k:m:G:g:R:b:B:qxXzZ:rf:d")) != -1) {
     switch (opt) {
     case 'b':
       blocksize = alignedNumber(atoi(optarg), 4096);
       break;
     case 'B':
       writeblocksize = alignedNumber(atoi(optarg), 4096);
+      break;
+    case 'd':
+      decimal = 1;
+      xor = 0;
+      rotate = 0;
+      zap = 0;
       break;
     case 'k':
       kdevices = atoi(optarg);
@@ -213,6 +252,7 @@ int main(int argc, char *argv[])
       zap = 1;
       xor = 0;
       rotate = 0;
+      decimal = 0;
       break;
     case 'Z':
       zapChar = optarg[0];
@@ -221,6 +261,7 @@ int main(int argc, char *argv[])
       rotate = 1;
       zap = 0;
       xor = 0;
+      decimal = 0;
       break;
     case 'f':
       addDeviceDetails(strdup(optarg), &deviceList, &deviceCount);
@@ -275,6 +316,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -z        zap the block, make all bytes 'Z'\n");
     fprintf(stderr,"   -x        XOR the block with 0x7f. Run twice to revert.\n");
     fprintf(stderr,"   -r        rotate the blocks between devices.\n");
+    fprintf(stderr,"   -d        change digits [0-9] to 9-value. Run twice to revert.\n");
     fprintf(stderr,"   -g n      starting at n GiB (defaults byte 0)\n");
     fprintf(stderr,"   -g 16M    starting at 16 MiB\n");
     fprintf(stderr,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
@@ -373,6 +415,8 @@ int main(int argc, char *argv[])
 
       if (zap) {
         zapfunc(pos, deviceCount, selection, blocksize, writeblocksize, (pr % printevery)==0, block);
+      } else if (decimal) {
+        decimalfunc(pos, deviceCount, selection, blocksize, writeblocksize, (pr % printevery)==0, block);
       } else if (xor) {
         xorfunc(pos, deviceCount, selection, blocksize, writeblocksize, (pr % printevery)==0, block);
       } else {
