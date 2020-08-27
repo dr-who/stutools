@@ -1140,7 +1140,7 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd)
         }
       }
       if (seenpathbefore == -1) {
-        jobAddBoth(&job, path, "w");
+        jobAddBoth(&job, path, "w", -1);
         seenpathbefore = job.count - 1;
       }
       //

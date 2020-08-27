@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
 
   jobType job;
   jobInit(&job);
-  jobAddBoth(&job, device, "w");
+  jobAddBoth(&job, device, "w", -1);
 
   char *buffer;
   CALLOC(buffer, blockHigh, sizeof(char));

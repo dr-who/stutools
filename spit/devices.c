@@ -71,17 +71,33 @@ size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs)
   char *line = NULL;
   size_t len = 0;
   ssize_t read;
+  int numa = -1;
+  int hasanuma = 0;
 
   while ((read = getline(&line, &len, fp)) != -1) {
     //    printf("Retrieved line of length %zu :\n", read);
     line[strlen(line)-1] = 0; // erase the \n
-    addDeviceDetails(line, devs, numDevs);
+    numa = -1;
+
+    char *space = strchr(line, ' ');
+    if (space) {
+      *space = 0;
+      numa = atoi(space+1);
+      if (!hasanuma) hasanuma = 1;
+    }
+    
+    deviceDetails *d = addDeviceDetails(line, devs, numDevs);
+    d->numa = numa;
+    //    fprintf(stderr,"--> %s %d\n", line, numa);
     //    addDeviceToAnalyse(line);
     add++;
     //    printf("%s", line);
   }
 
   free(line);
+  if (hasanuma) {
+    fprintf(stderr,"*info* specified drive list has a NUMA column\n");
+  }
 
   fclose(fp);
   fp = NULL;

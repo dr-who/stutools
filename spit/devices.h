@@ -13,6 +13,7 @@ typedef struct {
   int exclusive;
   int isBD;
   int ctxIndex;
+  int numa;
 } deviceDetails;
 
 // a set of functions to keep io contexts together

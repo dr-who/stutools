@@ -11,6 +11,7 @@ typedef struct {
   char **devices;
   int *deviceid;
   double *delay;
+  int *suggestedNUMA;
 } jobType;
 
 
@@ -41,9 +42,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, const int doNumaBinding, const int performDiscard, resultType *result, size_t ramBytesForPositions, size_t notexclusive);
 
-void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount);
+void jobMultiply(jobType *retjobs, jobType *job, deviceDetails *deviceList, size_t deviceCount);
+
+//  void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount);
 void jobAddDeviceToAll(jobType *j, const char *device);
-void jobAddBoth(jobType *job, char *device, char *jobstring);
+void jobAddBoth(jobType *job, char *device, char *jobstring, int suggestNUMA);
 void jobFileSequence(jobType *job);
 size_t jobRunPreconditions(jobType *preconditions, const size_t count, const size_t minSizeBytes, const size_t maxSizeBytes);
 

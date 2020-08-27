@@ -46,8 +46,12 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   *performPreDiscard = 0;
   *reportMode = 0;
 
-  jobInit(j);
-  jobInit(preconditions);
+  jobType jtemp;
+  jobInit(&jtemp);
+
+  jobType pretemp;
+  jobInit(&pretemp);
+
 
   commandstring[0] = 0;
 
@@ -127,7 +131,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
         sprintf(temp,"%s#%zd", optarg, i);
       }
       //	fprintf(stderr,"Adding %s\n", temp);
-      jobAdd(j, temp);
+      jobAdd(&jtemp, temp);
     }
     break;
     case 'd':
@@ -136,7 +140,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'e':
     {}
     double delay = atof(optarg);
-    jobAddExec(j, optarg, delay);
+    jobAddExec(&jtemp, optarg, delay);
     break;
     case 'i':
       *ignorefirst = atof(optarg) * 1024.0 * 1024.0 * 1024.0;
@@ -145,10 +149,11 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'I':
     {}
     added = loadDeviceDetails(optarg, &deviceList, &deviceCount);
-    fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
+    if (added) fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
     break;
     case 'f':
-      device = strdup(optarg);
+      addDeviceDetails(strdup(optarg), &deviceList, &deviceCount);
+      //      device = strdup(optarg);
       break;
     case 'j':
       break;
@@ -185,7 +190,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       //      fprintf(stderr,"*info* raw devices for amplification analysis: %zd\n", d->numDevices);
       break;
     case 'p': // pre-conditions
-      jobAdd(preconditions, optarg);
+      jobAdd(&pretemp, optarg);
       break;
     case 'P':
       savePositions = optarg;
@@ -259,14 +264,15 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   // first assign the device
   // if one -f specified, add to all jobs
   // if -F specified (with n drives), have c x n jobs
-  if (deviceCount) {
+  /*  if (deviceCount) {
     // if we have a list of files, overwrite the first one, ignoring -f
     if (device) {
       fprintf(stderr,"*warning* ignoring the value from -f\n");
     }
     device = deviceList[0].devicename;
-  }
+    }*/
 
+  /*
   if (device) {
     // set the first device to all of the jobs
     jobAddDeviceToAll(j, device);
@@ -275,12 +281,37 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     fprintf(stderr,"*error* no device specified\n");
     exit(1);
   }
+  */
 
+  //  fprintf(stderr,"device count: %zd\n", deviceCount);
+  //  fprintf(stderr,"job count: %d\n", jtemp.count);
+  //  fprintf(stderr,"pre count: %d\n", pretemp.count);
+
+  jobInit(j);
+  jobInit(preconditions);
+  
   if (deviceCount) {
     // scale up based on the -I list
-    jobMultiply(j, 1, deviceList, deviceCount);
-    jobMultiply(preconditions, 1, deviceList, deviceCount);
+    // multiply j x deviceList
+    jobMultiply(j, &jtemp, deviceList, deviceCount);
+    jobMultiply(preconditions, &pretemp, deviceList, deviceCount);
   }
+
+  if (deviceCount > 0) {
+    device = deviceList[0].devicename;
+  } else {
+    if (deviceCount == 0) {
+      fprintf(stderr,"*error* no devices specified\n");
+    }
+    if (jtemp.count == 0) {
+      fprintf(stderr,"*error* no jobs specified\n");
+    }
+    exit(-1);
+  }
+
+
+
+  //  jobDump(j);
 
   // scale up using the -j
   /*  if (extraparalleljobs) {

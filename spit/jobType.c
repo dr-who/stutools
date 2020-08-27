@@ -33,14 +33,17 @@ void jobInit(jobType *job)
   job->strings = NULL;
   job->devices = NULL;
   job->deviceid = NULL;
+  job->suggestedNUMA = NULL;
   job->delay = NULL;
 }
 
-void jobAddBoth(jobType *job, char *device, char *jobstring)
+void jobAddBoth(jobType *job, char *device, char *jobstring, int suggestedNUMA)
 {
+  //  fprintf(stderr,"add %s, %s, %d\n", device, jobstring, suggestedNUMA);
   job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
   job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
   job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int));
+  job->suggestedNUMA = realloc(job->suggestedNUMA, (job->count+1) * sizeof(int));
   job->delay = realloc(job->delay, (job->count+1) * sizeof(double));
   job->strings[job->count] = strdup(jobstring);
   job->devices[job->count] = strdup(device);
@@ -52,19 +55,24 @@ void jobAddBoth(jobType *job, char *device, char *jobstring)
     }
   }
   job->deviceid[job->count] = deviceid;
+  job->delay[job->count] = 0;
+  job->suggestedNUMA[job->count] = suggestedNUMA;
   job->count++;
 }
 
 void jobAdd3(jobType *job, const char *jobstring, const double delay)
 {
+  //  fprintf(stderr,"add3() %s %d\n", jobstring, -1);
   job->strings = realloc(job->strings, (job->count+1) * sizeof(char*));
   job->devices = realloc(job->devices, (job->count+1) * sizeof(char*));
   job->deviceid = realloc(job->deviceid, (job->count+1) * sizeof(int));
+  job->suggestedNUMA = realloc(job->suggestedNUMA, (job->count+1) * sizeof(int));
   job->delay = realloc(job->delay, (job->count+1) * sizeof(double));
   job->strings[job->count] = strdup(jobstring);
   job->devices[job->count] = NULL;
   job->deviceid[job->count] = 0;
   job->delay[job->count] = delay;
+  job->suggestedNUMA[job->count] = -1;
   job->count++;
 }
 
@@ -80,18 +88,13 @@ void jobAddExec(jobType *job, const char *jobstring, const double delay)
   jobAdd3(job, jobstring, delay);
 }
 
-void jobMultiply(jobType *job, const size_t extrajobs, deviceDetails *deviceList, size_t deviceCount)
+void jobMultiply(jobType *retjobs, jobType *job, deviceDetails *deviceList, size_t deviceCount)
 {
   const int origcount = job->count;
   for (int i = 0; i < origcount; i++) {
-    for (size_t n = 0; n < extrajobs; n++) {
-      if (deviceCount == 0) {
-        jobAddBoth(job, job->devices[i], job->strings[i]);
-      } else {
-        for (size_t d = 1; d < deviceCount; d++) {
-          jobAddBoth(job, deviceList[d].devicename, job->strings[i]);
-        }
-      }
+    for (size_t n = 0; n < deviceCount; n++) {
+      //      fprintf(stderr,"adding...\n");
+      jobAddBoth(retjobs, deviceList[n].devicename, job->strings[i], deviceList[n].numa);
     }
   }
 }
@@ -115,7 +118,7 @@ void jobDump(jobType *job)
 {
   fprintf(stderr,"*info* jobDump: %zd\n", jobCount(job));
   for (int i = 0; i < job->count; i++) {
-    fprintf(stderr,"*  info* job %d, device %s, deviceid %d, delay %.g, string %s\n", i, job->devices[i], job->deviceid[i], job->delay[i], job->strings[i]);
+    fprintf(stderr,"*  info* job %d, device %s, deviceid %d, delay %.g, string %s, NUMA %d\n", i, job->devices[i], job->deviceid[i], job->delay[i], job->strings[i], job->suggestedNUMA[i]);
   }
 }
 
@@ -145,6 +148,8 @@ void jobFree(jobType *job)
   job->devices = NULL;
   free(job->deviceid);
   job->deviceid = NULL;
+  free(job->suggestedNUMA);
+  job->suggestedNUMA = NULL;
   free(job->delay);
   job->delay = NULL;
   jobInit(job);
@@ -163,6 +168,7 @@ typedef struct {
   char *jobstring;
   char *jobdevice;
   int jobdeviceid;
+  int jobnuma;
   size_t uniqueSeeds;
   size_t verifyUnique;
   size_t dumpPos;
@@ -1377,6 +1383,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
     threadContext[i].jobdeviceid = job->deviceid[i];
+    threadContext[i].jobnuma = job->suggestedNUMA[i];
     threadContext[i].waitfor = 0;
     threadContext[i].exec = (job->delay[i] != 0);
     threadContext[i].prewait = job->delay[i];
@@ -1626,6 +1633,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   pthread_setname_np(pt[num], strdup("spit timer"));
   
+  //  for (int i = 0; i < num; i++) {
+  //    fprintf(stderr,"%s  %d\n", threadContext[i].jobstring, threadContext[i].
 
   int numa_count = getNumaCount();
   // -1 default, -2 disable, >= 0 bind to specific numa
@@ -1661,6 +1670,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if( do_numa ) {
       assert( doNumaBinding < numa_count || "Numa node out of range" );
       int cur_numa = default_binding ? tid % numa_count : doNumaBinding;
+
+      if (threadContext[tid].jobnuma >= 0) {
+	cur_numa = threadContext[tid].jobnuma;
+      }
 
       ++numa_thread_counter[ cur_numa ];
       int rc = pinThread( &pt[tid], numa_threads[ cur_numa ], cpuCountPerNuma( cur_numa ) );
