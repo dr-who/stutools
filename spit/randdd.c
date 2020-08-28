@@ -35,7 +35,7 @@ void generate(unsigned char *buf, size_t size, unsigned int seed)
 void verifyDevice(char *device, unsigned char *buf, size_t size, const size_t offset)
 {
 
-  fprintf(stderr,"*info* allocating %zd bytes to verify\n", size);
+  fprintf(stderr,"*info* allocating %zd bytes (%.1lf GiB) to verify\n", size, TOGiB(size));
   unsigned char *readbuf = aligned_alloc(4096, size);
   if (!buf) {
     fprintf(stderr,"*error* can't allocate %zd bytes\n", size);
@@ -84,7 +84,7 @@ void verifyDevice(char *device, unsigned char *buf, size_t size, const size_t of
       }
       exit(1);
     }
-    fprintf(stderr,"*info* offset %zd, succeeded %zd byte verification of '%s'.\n*info* the first few bytes: RAM '%s', on device '%s'\n", offset, size, device, str1, str2);
+    fprintf(stderr,"*info* offset %zd (%.1lf GB), succeeded %zd byte verification of '%s'.\n*info* the first few bytes: RAM '%s', on device '%s'\n", offset, TOGB(offset), size, device, str1, str2);
     close(fd);
   } else {
     perror(device);
@@ -95,7 +95,15 @@ void verifyDevice(char *device, unsigned char *buf, size_t size, const size_t of
 
 void usage()
 {
-  fprintf(stderr,"Usage: randdd -f /dev/device [-R seed] -G size (GiB) -v (verify) -n gaps (number of locations) -T (trim)\n");
+  fprintf(stderr,"Usage: randdd -f /dev/device [-R seed] -G size (GiB) -v (verify) -n gaps (number of locations)\n");
+  fprintf(stderr,"\nWrite random/patterned data. Instant hard reboot after writing to test persistence.\n");
+  fprintf(stderr,"\nExample:\n");
+  fprintf(stderr,"  randdd -f /dev/device -G 1 && echo sysreboot/hard reboot:\n");
+  fprintf(stderr,"  ... after restart ...\n");
+  fprintf(stderr,"  randdd -f /dev/device -G 1 -v && echo OK\n");
+  fprintf(stderr,"\n");
+  fprintf(stderr,"  # write 11 locations/10 gaps across the full device\n");
+  fprintf(stderr,"  randdd -f /dev/device -G 1 -n 10\n");
 }
 
 int main(int argc, char *argv[])
@@ -113,9 +121,6 @@ int main(int argc, char *argv[])
     case 'h':
       help = 1;
       break;
-    case 'T':
-      trim = 1;
-      break;
     case 'z':
       zap = 1;
       break;
@@ -131,7 +136,6 @@ int main(int argc, char *argv[])
       break;
     case 'G':
       size = (size_t)(atof(optarg) * 1024) * 1024 * 1024;
-      fprintf(stderr,"*info* size %zd bytes (%.3lf GiB), RAM %zd bytes (%.0lf GiB)\n", size, TOGiB(size), totalRAM(), TOGiB(totalRAM()));
       if (size > totalRAM()) {
         fprintf(stderr,"*error* G ram is more than actual RAM\n");
         exit(1);
@@ -150,6 +154,10 @@ int main(int argc, char *argv[])
     usage();
     exit(1);
   }
+
+  fprintf(stderr,"*info* randd --- write random / patterned data at start/end of '%s'\n", device);
+  fprintf(stderr,"*info* size %zd bytes (%.3lf GiB), RAM %zd bytes (%.0lf GiB)\n", size, TOGiB(size), totalRAM(), TOGiB(totalRAM()));
+
 
   int fd = open(device, O_DIRECT | O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
   if (fd >= 0) {
@@ -226,7 +234,7 @@ int main(int argc, char *argv[])
 
       close(fd);
       //
-      fprintf(stderr,"*info* verifying prior write is on disk\n");
+      fprintf(stderr,"*verify* verifying prior write is on disk\n");
       for (double offset = startpos; offset <= endpos - size; offset += gap) {
         //	fprintf(stderr,"*info* start position: %zd\n", offset);
         size_t aloff = alignedNumber((size_t)(offset + 0.5), 4096);
