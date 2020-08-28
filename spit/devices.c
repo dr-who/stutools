@@ -39,6 +39,7 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
   (*devs)[*numDevs].exclusive = 0;
   (*devs)[*numDevs].isBD = 0;
   (*devs)[*numDevs].ctxIndex = 0;
+  (*devs)[*numDevs].numa = -1;
 
   //    if (verbose >= 2) {
   //      fprintf(stderr,"*info* adding -f '%s'\n", (*devs)[*numDevs].devicename);
