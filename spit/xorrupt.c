@@ -156,24 +156,24 @@ int main(int argc, char *argv[])
   }
 
   if (!device) {
-    fprintf(stderr,"*info* xorrupt -f device [-p position ... -p position] [-t time]\n");
-    fprintf(stderr,"\nTemporarily XOR a byte at an offset position, sleep then restore\n");
-    fprintf(stderr,"\nOptions:\n");
-    fprintf(stderr,"   -f device  specifies a block device\n");
-    fprintf(stderr,"   -p offset  the block device offset [defaults to byte 0]\n"); 
-    fprintf(stderr,"   -p 2k      can use k,M,G units\n");
-    fprintf(stderr,"   -p 4M      can use k,M,G units\n");
-    fprintf(stderr,"   -p 10G     can use k,M,G units\n");
-    fprintf(stderr,"   -P prob    the probability [0, 1) of applying the XOR [defaults to %.1lf)\n", probability);
-    fprintf(stderr,"   -R seed    sets the seed [defaults to %zd\n", seed);
-    fprintf(stderr,"   -r         repeat forever (usually with -t 2 say)\n");
-    fprintf(stderr,"   -t time    the time until restore [defaults to %zd]\n", runtime);
-    fprintf(stderr,"\nExamples:\n");
-    fprintf(stderr,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80\n");
-    fprintf(stderr,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2\n");
-    fprintf(stderr,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2 -P 0.5\n");
-    fprintf(stderr,"\nNote:\n");
-    fprintf(stderr,"  Control-C can be used to cancel the timer. The byte is still restored\n");
+    fprintf(stdout,"*info* xorrupt -f device [-p position ... -p position] [-t time]\n");
+    fprintf(stdout,"\nTemporarily XOR a byte at an offset position, sleep then restore\n");
+    fprintf(stdout,"\nOptions:\n");
+    fprintf(stdout,"   -f device  specifies a block device\n");
+    fprintf(stdout,"   -p offset  the block device offset [defaults to byte 0]\n"); 
+    fprintf(stdout,"   -p 2k      can use k,M,G units\n");
+    fprintf(stdout,"   -p 4M      can use k,M,G units\n");
+    fprintf(stdout,"   -p 10G     can use k,M,G units\n");
+    fprintf(stdout,"   -P prob    the probability [0, 1) of applying the XOR [defaults to %.1lf)\n", probability);
+    fprintf(stdout,"   -R seed    sets the seed [defaults to %zd\n", seed);
+    fprintf(stdout,"   -r         repeat forever (usually with -t 2 say)\n");
+    fprintf(stdout,"   -t time    the time until restore [defaults to %zd]\n", runtime);
+    fprintf(stdout,"\nExamples:\n");
+    fprintf(stdout,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80\n");
+    fprintf(stdout,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2\n");
+    fprintf(stdout,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2 -P 0.5\n");
+    fprintf(stdout,"\nNote:\n");
+    fprintf(stdout,"  Control-C can be used to cancel the timer. The byte is still restored\n");
     exit(1);
   }
 
