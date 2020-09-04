@@ -44,6 +44,7 @@ int fd;
 
 size_t maxPositions = 0;
 size_t *positions = NULL;
+int needtorestore = 0;
 
 void addToPositions(size_t pos) {
   fprintf(stderr,"*info* device position[#%zd]: %zu\n", maxPositions+1, pos);
@@ -76,6 +77,7 @@ void perturbBytes() {
     fprintf(stderr,"storing %zd: ASCII %d ('%c')... ", pos, oldBytes[i], oldBytes[i]);
     unsigned char newv = 255 ^ oldBytes[i];
     r = pwrite(fd, (void*)&newv, 1, pos);
+    needtorestore = 1;
     assert(r == 1);
     fprintf(stderr,"overwriting %zd: ASCII %d ('%c')\n", pos, newv, newv);
   }
@@ -97,6 +99,7 @@ void restoreBytes() {
       fprintf(stderr,"verified the restoration\n");
     }
   }
+  needtorestore = 0;
 }
 
 
@@ -107,10 +110,11 @@ int main(int argc, char *argv[])
 
   char *device = NULL;
   size_t pos = 0;
+  size_t repeat = 0;
   size_t runtime = 60;
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "f:p:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:p:t:r")) != -1) {
     switch (opt) {
     case 'p':
       if (strchr(optarg,'G') || strchr(optarg,'g')) {
@@ -123,6 +127,9 @@ int main(int argc, char *argv[])
 	pos = (size_t)atol(optarg);
       }
       addToPositions(pos);
+      break;
+    case 'r':
+      repeat = 1;
       break;
     case 'f':
       device = strdup(optarg);
@@ -148,6 +155,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -p 2k      can use k,M,G units\n");
     fprintf(stderr,"   -p 4M      can use k,M,G units\n");
     fprintf(stderr,"   -p 10G     can use k,M,G units\n");
+    fprintf(stderr,"   -r         repeat forever (usually with -t 2 say)\n");
     fprintf(stderr,"   -t time    the time until restore [defaults to %zd]\n", runtime);
     fprintf(stderr,"\n");
     fprintf(stderr,"Note:\n");
@@ -162,17 +170,22 @@ int main(int argc, char *argv[])
   if (fd <= 0) {
     perror(device);
   } else {
-    perturbBytes();
     
     fprintf(stderr,"*info* pausing for %zd seconds (or control-c), then restore\n", runtime);
-    double start = timedouble();
-    while (keepRunning && (timedouble() < start + runtime)) {
-      sleep(1);
+    while (keepRunning) {
+      perturbBytes();
+      
+      sleep(runtime);
+      if (repeat == 0) {
+	break;
+      } else {
+	restoreBytes();
+	sleep(runtime);
+      }
     }
-    
-    restoreBytes();
   }
 
+  if (needtorestore) restoreBytes();
 
   if (device) free(device);
 
