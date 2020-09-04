@@ -95,15 +95,15 @@ void verifyDevice(char *device, unsigned char *buf, size_t size, const size_t of
 
 void usage()
 {
-  fprintf(stderr,"Usage: randdd -f /dev/device [-R seed] -G size (GiB) -v (verify) -n gaps (number of locations)\n");
-  fprintf(stderr,"\nWrite random/patterned data. Instant hard reboot after writing to test persistence.\n");
-  fprintf(stderr,"\nExample:\n");
-  fprintf(stderr,"  randdd -f /dev/device -G 1 && echo sysreboot/hard reboot:\n");
-  fprintf(stderr,"  ... after restart ...\n");
-  fprintf(stderr,"  randdd -f /dev/device -G 1 -v && echo OK\n");
-  fprintf(stderr,"\n");
-  fprintf(stderr,"  # write 11 locations/10 gaps across the full device\n");
-  fprintf(stderr,"  randdd -f /dev/device -G 1 -n 10\n");
+  fprintf(stdout,"Usage: randdd -f /dev/device [-R seed] -G size (GiB) -v (verify) -n gaps (number of locations)\n");
+  fprintf(stdout,"\nWrite random/patterned data. Instant hard reboot after writing to test persistence.\n");
+  fprintf(stdout,"\nExample:\n");
+  fprintf(stdout,"  randdd -f /dev/device -G 1 && echo sysreboot/hard reboot:\n");
+  fprintf(stdout,"  ... after restart ...\n");
+  fprintf(stdout,"  randdd -f /dev/device -G 1 -v && echo OK\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"  # write 11 locations/10 gaps across the full device\n");
+  fprintf(stdout,"  randdd -f /dev/device -G 1 -n 10\n");
 }
 
 int main(int argc, char *argv[])
