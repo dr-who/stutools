@@ -1,18 +1,11 @@
-#define _XOPEN_SOURCE
-#define _POSIX_C_SOURCE 200809L
-#define _ISOC11_SOURCE
 #define _DEFAULT_SOURCE
 
-#include "jobType.h"
+#include <string.h>
 #include <signal.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/ioctl.h>
 #include <malloc.h>
-#include <stdio.h>
 #include <assert.h>
 
 /**
@@ -21,14 +14,6 @@
  * a byte at a time device XOR corruptor
  *
  */
-#include <stdlib.h>
-#include <string.h>
-
-#include "positions.h"
-#include "utils.h"
-#include "diskStats.h"
-
-#define DEFAULTTIME 10
 
 int verbose = 0;
 int keepRunning = 1;
@@ -143,9 +128,6 @@ int main(int argc, char *argv[])
     }
   }
 
-  // first assign the device
-  // if one -f specified, add to all jobs
-  // if -F specified (with n drives), have c x n jobs
   if (!device) {
     fprintf(stderr,"*info* xorrupt -f device [-p position ... -p position] [-t time]\n");
     fprintf(stderr,"\nTemporarily XOR a byte at an offset position, sleep then restore\n");
@@ -195,5 +177,3 @@ int main(int argc, char *argv[])
 
   exit(0);
 }
-
-
