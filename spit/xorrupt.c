@@ -140,15 +140,15 @@ int main(int argc, char *argv[])
   // if one -f specified, add to all jobs
   // if -F specified (with n drives), have c x n jobs
   if (!device) {
-    fprintf(stderr,"*info* xorrupt -f device [-p position] [-t time]\n");
+    fprintf(stderr,"*info* xorrupt -f device [-p position ... -p position] [-t time]\n");
     fprintf(stderr,"\nTemporarily XOR a byte at an offset position, sleep then restore\n");
     fprintf(stderr,"\nOptions:\n");
     fprintf(stderr,"   -f device  specifies a block device\n");
-    fprintf(stderr,"   -p offset  the block device offset [defaults to 0]\n"); 
+    fprintf(stderr,"   -p offset  the block device offset [defaults to byte 0]\n"); 
     fprintf(stderr,"   -p 2k      can use k,M,G units\n");
     fprintf(stderr,"   -p 4M      can use k,M,G units\n");
     fprintf(stderr,"   -p 10G     can use k,M,G units\n");
-    fprintf(stderr,"   -t time    the default time until restore\n");
+    fprintf(stderr,"   -t time    the time until restore [defaults to %zd]\n", runtime);
     fprintf(stderr,"\n");
     fprintf(stderr,"Note:\n");
     fprintf(stderr,"  Control-C can be used to cancel the timer. The byte is still restored\n");
