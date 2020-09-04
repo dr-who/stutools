@@ -39,34 +39,57 @@ void intHandler(int d)
   keepRunning = 0;
 }
 
-size_t bytesPerturbed = 0;
 unsigned char *oldBytes = NULL;
 int fd;
 
-void perturbBytes(size_t pos) {
-  size_t newbp = bytesPerturbed + 1;
-  oldBytes = realloc(oldBytes, newbp * sizeof(unsigned char));
-  int r = pread(fd, oldBytes + bytesPerturbed, 1, pos);
-  if (r <= 0) {
-    fprintf(stderr,"*error* offset[%zd] did not return a value\n", pos);
-    exit(1);
+size_t maxPositions = 0;
+size_t *positions = NULL;
+
+void addToPositions(size_t pos) {
+  fprintf(stderr,"*info* device position[#%zd]: %zu\n", maxPositions+1, pos);
+  positions = realloc(positions, (maxPositions+1) *sizeof(size_t));
+  positions[maxPositions] = pos;
+
+  oldBytes = realloc(oldBytes, (maxPositions+1) * sizeof(unsigned char));
+  oldBytes[maxPositions] = 0;
+  maxPositions++;
+}
+
+void freePositions() {
+  if (positions) free(positions);
+  positions = NULL;
+  if (oldBytes) free(oldBytes);
+  oldBytes = NULL;
+}
+  
+
+void perturbBytes() {
+  for (size_t i = 0; i <maxPositions; i++) {
+    size_t pos = positions[i];
+    
+    int r = pread(fd, oldBytes + i, 1, pos);
+    if (r <= 0) {
+      fprintf(stderr,"*error* offset[%zd] did not return a value\n", pos);
+      exit(1);
+    }
+    assert(r == 1);
+    fprintf(stderr,"storing %zd: ASCII %d ('%c')... ", pos, oldBytes[i], oldBytes[i]);
+    unsigned char newv = 255 ^ oldBytes[i];
+    r = pwrite(fd, (void*)&newv, 1, pos);
+    assert(r == 1);
+    fprintf(stderr,"overwriting %zd: ASCII %d ('%c')\n", pos, newv, newv);
   }
-  assert(r == 1);
-  fprintf(stderr,"storing %zd: ASCII %d ('%c')\n", pos, oldBytes[bytesPerturbed], oldBytes[bytesPerturbed]);
-  unsigned char newv = 255 ^ oldBytes[bytesPerturbed];
-  r = pwrite(fd, (void*)&newv, 1, pos);
-  assert(r == 1);
-  fprintf(stderr,"overwriting %zd: ASCII %d ('%c')\n", pos, newv, newv);
-  bytesPerturbed = newbp;
 }
 
 
-void restoreBytes(size_t pos) {
-  for (size_t i = 0; i < bytesPerturbed; i++) {
-    fprintf(stderr,"restoring %zd: ASCII %d ('%c')\n", pos, oldBytes[i], oldBytes[i]);
+void restoreBytes() {
+  for (size_t i = 0; i < maxPositions; i++) {
+    size_t pos = positions[i];
+    
+    fprintf(stderr,"restoring %zd: ASCII %d ('%c')... ", pos, oldBytes[i], oldBytes[i]);
     int r = pwrite(fd, oldBytes + i, 1, pos);
     assert(1==r);
-
+    
     unsigned char check;
     r = pread(fd, (void*)&check, 1, pos);
     assert(check == oldBytes[i]);
@@ -74,9 +97,6 @@ void restoreBytes(size_t pos) {
       fprintf(stderr,"verified the restoration\n");
     }
   }
-  
-  bytesPerturbed = 0;
-  free(oldBytes);
 }
 
 
@@ -102,7 +122,7 @@ int main(int argc, char *argv[])
       } else {
 	pos = (size_t)atol(optarg);
       }
-      fprintf(stderr,"*info* device position: %zu\n", pos);
+      addToPositions(pos);
       break;
     case 'f':
       device = strdup(optarg);
@@ -142,8 +162,7 @@ int main(int argc, char *argv[])
   if (fd <= 0) {
     perror(device);
   } else {
-    
-    perturbBytes(pos);
+    perturbBytes();
     
     fprintf(stderr,"*info* pausing for %zd seconds (or control-c), then restore\n", runtime);
     double start = timedouble();
@@ -151,12 +170,14 @@ int main(int argc, char *argv[])
       sleep(1);
     }
     
-    restoreBytes(pos);
+    restoreBytes();
   }
 
 
   if (device) free(device);
 
+  freePositions();
+  
   fflush(stderr);
 
   exit(0);
