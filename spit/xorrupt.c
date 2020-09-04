@@ -47,12 +47,14 @@ void freePositions() {
   if (oldBytes) free(oldBytes);
   oldBytes = NULL;
 }
-  
 
-void perturbBytes() {
-  for (size_t i = 0; i <maxPositions; i++) {
+
+
+
+
+void storeBytes() {
+  for (size_t i = 0; i < maxPositions; i++) {
     size_t pos = positions[i];
-    
     int r = pread(fd, oldBytes + i, 1, pos);
     if (r <= 0) {
       fprintf(stderr,"*error* offset[%zd] did not return a value\n", pos);
@@ -60,11 +62,24 @@ void perturbBytes() {
     }
     assert(r == 1);
     fprintf(stderr,"storing %zd: ASCII %d ('%c')... ", pos, oldBytes[i], oldBytes[i]);
-    unsigned char newv = 255 ^ oldBytes[i];
-    r = pwrite(fd, (void*)&newv, 1, pos);
-    needtorestore = 1;
-    assert(r == 1);
-    fprintf(stderr,"overwriting %zd: ASCII %d ('%c')\n", pos, newv, newv);
+  }
+}
+
+
+
+
+
+
+void perturbBytes(double prob) {
+  for (size_t i = 0; i <maxPositions; i++) {
+    if (drand48() < prob) {
+      size_t pos = positions[i];
+      unsigned char newv = 255 ^ oldBytes[i];
+      int r = pwrite(fd, (void*)&newv, 1, pos);
+      needtorestore = 1;
+      assert(r == 1);
+      fprintf(stderr,"overwriting %zd: ASCII %d ('%c')\n", pos, newv, newv);
+    }
   }
 }
 
@@ -97,9 +112,11 @@ int main(int argc, char *argv[])
   size_t pos = 0;
   size_t repeat = 0;
   size_t runtime = 60;
+  double probability = 1;
+  size_t seed = 42;
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "f:p:t:r")) != -1) {
+  while ((opt = getopt(argc, argv, "f:p:t:rP:R:")) != -1) {
     switch (opt) {
     case 'p':
       if (strchr(optarg,'G') || strchr(optarg,'g')) {
@@ -112,6 +129,16 @@ int main(int argc, char *argv[])
 	pos = (size_t)atol(optarg);
       }
       addToPositions(pos);
+      break;
+    case 'R':
+      seed = atoi(optarg);
+      fprintf(stderr,"*info* seed: %zd\n", seed);
+      break;
+    case 'P':
+      probability = atof(optarg);
+      if (probability < 0) probability = 0;
+      else if (probability > 1) probability = 1;
+      fprintf(stderr,"*info* probability of XOR is %.1lf [0, 1)\n", probability);
       break;
     case 'r':
       repeat = 1;
@@ -137,6 +164,8 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -p 2k      can use k,M,G units\n");
     fprintf(stderr,"   -p 4M      can use k,M,G units\n");
     fprintf(stderr,"   -p 10G     can use k,M,G units\n");
+    fprintf(stderr,"   -P prob    the probability of applying the XOR [0, 1)\n");
+    fprintf(stderr,"   -R seed    sets the seed [defaults to %zd\n", seed);
     fprintf(stderr,"   -r         repeat forever (usually with -t 2 say)\n");
     fprintf(stderr,"   -t time    the time until restore [defaults to %zd]\n", runtime);
     fprintf(stderr,"\n");
@@ -147,15 +176,18 @@ int main(int argc, char *argv[])
 
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
+  srand48(seed);
 
   fd = open(device, O_RDWR| O_SYNC, S_IRUSR | S_IWUSR);
   if (fd <= 0) {
     perror(device);
   } else {
+
+    storeBytes();
     
     fprintf(stderr,"*info* pausing for %zd seconds (or control-c), then restore\n", runtime);
     while (keepRunning) {
-      perturbBytes();
+      perturbBytes(probability);
       
       sleep(runtime);
       if (repeat == 0) {
@@ -163,6 +195,7 @@ int main(int argc, char *argv[])
       } else {
 	restoreBytes();
 	sleep(runtime);
+	fprintf(stderr,"\n");
       }
     }
   }
