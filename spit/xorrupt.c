@@ -164,12 +164,15 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -p 2k      can use k,M,G units\n");
     fprintf(stderr,"   -p 4M      can use k,M,G units\n");
     fprintf(stderr,"   -p 10G     can use k,M,G units\n");
-    fprintf(stderr,"   -P prob    the probability of applying the XOR [0, 1)\n");
+    fprintf(stderr,"   -P prob    the probability [0, 1) of applying the XOR [defaults to %.1lf)\n", probability);
     fprintf(stderr,"   -R seed    sets the seed [defaults to %zd\n", seed);
     fprintf(stderr,"   -r         repeat forever (usually with -t 2 say)\n");
     fprintf(stderr,"   -t time    the time until restore [defaults to %zd]\n", runtime);
-    fprintf(stderr,"\n");
-    fprintf(stderr,"Note:\n");
+    fprintf(stderr,"\nExamples:\n");
+    fprintf(stderr,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80\n");
+    fprintf(stderr,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2\n");
+    fprintf(stderr,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2 -P 0.5\n");
+    fprintf(stderr,"\nNote:\n");
     fprintf(stderr,"  Control-C can be used to cancel the timer. The byte is still restored\n");
     exit(1);
   }
