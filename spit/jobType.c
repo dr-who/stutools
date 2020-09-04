@@ -188,6 +188,7 @@ typedef struct {
   size_t multipleTimes;
   unsigned short seed;
   size_t speedMB;
+  unsigned short msdelay;
   char *randomBuffer;
   size_t numThreads;
   size_t waitForThreads;
@@ -259,6 +260,11 @@ static void *runThread(void *arg)
     positionContainerUniqueSeeds(&threadContext->pos, threadContext->seed, threadContext->verifyUnique);
   } else if (threadContext->metaData) {
     positionContainerAddMetadataChecks(&threadContext->pos);
+  }
+
+  if (threadContext->msdelay) {
+    positionContainerAddDelay(&threadContext->pos, threadContext->msdelay * (threadContext->id+1), threadContext->id);
+    //    threadContext->queueDepth = 1;
   }
 
   if (threadContext->dumpPos /* && !iRandom*/) {
@@ -1546,7 +1552,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         speedMB = atoi(RChar + 1); // if specified
       }
     }
-    threadContext[i].speedMB = speedMB;
+    threadContext[i].speedMB = 0;
+    threadContext[i].msdelay = speedMB; 
 
 
     char *Wchar = strchr(job->strings[i], 'W');

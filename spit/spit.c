@@ -424,9 +424,9 @@ void usage()
   fprintf(stdout,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
   fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GiB region, rand r in the 2-3 GiB region\n");
   fprintf(stdout,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
-  fprintf(stdout,"  spit -f ... -j 32             # duplicate all the commands 32 times. If available, distribute & pin threads to each NUMA node.\n");
-  fprintf(stdout,"  spit -f ... -j 32 -u          # duplicate all the commands 32 times, but do not pin the threads to specific NUMA nodes\n");
-  fprintf(stdout,"  spit -f ... -j 32 -U 0        # duplicate all the commands 32 times, pin all threads to  NUMA node 0\n");
+  fprintf(stdout,"  spit -f -c ..j32             # duplicate all the commands 32 times. If available, distribute & pin threads to each NUMA node.\n");
+  fprintf(stdout,"  spit -f -c ..j32 -u          # duplicate all the commands 32 times, but do not pin the threads to specific NUMA nodes\n");
+  fprintf(stdout,"  spit -f -c ..j32 -U 0        # duplicate all the commands 32 times, pin all threads to  NUMA node 0\n");
   fprintf(stdout,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
   fprintf(stdout,"  spit -f ... -c wR42           # set the per command seed with R\n");
@@ -452,7 +452,7 @@ void usage()
   fprintf(stdout,"  spit -f ... -c ws0            # random defaults to 3x LBA\n");
   fprintf(stdout,"  spit -f ... -c ws1W2:1 -t60   # Alternate run for 2 seconds, wait for 1 second\n");
   fprintf(stdout,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
-  fprintf(stdout,"  spit -f .... -R seed          # set the initial seed, -j will increment per job\n");
+  fprintf(stdout,"  spit -f .... -R seed          # set the initial seed, j will increment per job\n");
   fprintf(stdout,"  spit -f .... -Q qd            # set the per job default queue depth\n");
   fprintf(stdout,"  spit -f .... -c q128          # per job queue\n");
   fprintf(stdout,"  spit -f .... -c Q17           # per job queue depth, square wave/burst, 17 submits then 17 returns.\n");
@@ -472,11 +472,13 @@ void usage()
   fprintf(stdout,"  spit -P filename              # dump positions to filename\n");
   fprintf(stdout,"  spit -c wG_j4                 # The _ represents to divide the G value evenly between threads\n");
   fprintf(stdout,"  spit -B bench -M ... -N ...   # See the man page for benchmarking tips\n");
-  fprintf(stdout,"  spit -F fileprefix -j128      # creates files from .0001 to .0128\n");
+  fprintf(stdout,"  spit -F fileprefix -c ..j128  # creates files from .0001 to .0128\n");
   fprintf(stdout,"  spit ... -c ws0u -v           # Uses a unique seed (u) per operation (mod 65536)\n");
   fprintf(stdout,"  spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with QD=1\n");
   fprintf(stdout,"  spit ... -c ws0UG_j32 -v      # Generates r/w pairs with unique seeds, as above, unique thread ranges\n");
-  fprintf(stdout,"  spit ... -c ws1S250           # S option targets a speed in MB/s by adding usleep() between operations. Low speeds only\n");
+  fprintf(stdout,"  spit ... -c ws1S1a1           # Slows down, adds 1ms of delay between each operation, multiplied by threadid\n");
+  fprintf(stdout,"  spit ... -c ws1S1j5q1         # Add 1ms delay for thread1, 5ms for thread 5. Recommend q1\n");
+  fprintf(stdout,"  spit -F. -c ws1zx1j64S1q1 -G1 # creates files from .0001 to .0128, with delays\n");
   fprintf(stdout,"  spit -e \"5,echo five\"         # exec a bash -c CMD string after 5 seconds, quotes are required\n");
   fprintf(stdout,"  spit -c wk1024za7             # every 'a' MiB of operations perform a jump back to the start of device. Dump with -d to see\n");
   fprintf(stdout,"  spit -c wk1024za3A8           # 'A' means to add 8 KiB after every position after 3 MiB\n");

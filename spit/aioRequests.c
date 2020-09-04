@@ -238,7 +238,14 @@ size_t aioMultiplePositions( positionContainer *p,
 
             // watermark the block with the position on the device
 
-            if (positions[pos].action=='R') {
+            if (positions[pos].action=='D') {
+	      usleep(positions[pos].msdelay * 1000);
+	      //if (verbose >= 2) {
+	      //	      fprintf(stderr,"delay %u\n", positions[pos].msdelay * 1000);
+		//	      }
+
+	      goto nextpos;
+	    } else if (positions[pos].action=='R') {
               if (verbose >= 2) {
                 fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);
               }
