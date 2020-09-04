@@ -19,6 +19,9 @@ add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c 
 add_executable(spit spit.c)
 target_link_libraries(spit spitlib m aio pthread numa)
 
+add_executable(xorrupt xorrupt.c)
+target_link_libraries(xorrupt spitlib m aio pthread numa)
+
 add_executable(randdd randdd.c)
 target_link_libraries(randdd spitlib m aio pthread numa)
 
