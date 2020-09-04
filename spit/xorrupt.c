@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
     fprintf(stdout,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2\n");
     fprintf(stdout,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2 -P 0.5\n");
     fprintf(stdout,"\nNote:\n");
-    fprintf(stdout,"  Control-C can be used to cancel the timer. The byte is still restored\n");
+    fprintf(stdout,"  Control-C can be used to cancel the timer. The original bytes are restored\n");
     exit(1);
   }
 
