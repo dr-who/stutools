@@ -61,7 +61,7 @@ void storeBytes() {
       exit(1);
     }
     assert(r == 1);
-    fprintf(stderr,"storing %zd: ASCII %d ('%c')... ", pos, oldBytes[i], oldBytes[i]);
+    fprintf(stderr,"storing %zd: ASCII %d ('%c')\n", pos, oldBytes[i], oldBytes[i]);
   }
 }
 
