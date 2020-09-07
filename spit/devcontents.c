@@ -59,7 +59,9 @@ int main(int argc, char *argv[])
       device = optarg;
       break;
     case 'G':
-      if (strchr(optarg,'M') || strchr(optarg,'m')) {
+      if (strchr(optarg,'K') || strchr(optarg,'k')) {
+	finishAt = (size_t)(1024.0 * atof(optarg));
+      } else if (strchr(optarg,'M') || strchr(optarg,'m')) {
 	finishAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
       } else {
 	finishAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
@@ -87,6 +89,9 @@ int main(int argc, char *argv[])
   // align the numbers to the blocksize
   startAt = alignedNumber(startAt, blocksize);
   finishAt = alignedNumber(finishAt, blocksize);
+  if (finishAt < startAt) {
+    fprintf(stderr,"*error* finish is less than the start position\n");
+  }
   
   if (!device) {
     fprintf(stderr,"*info* devcontents -f /dev/device [options...)\n");
