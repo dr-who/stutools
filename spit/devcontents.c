@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
   int opt;
 
   char *device = NULL;
-  size_t blocksize = 4*1024, width = 50;
+  size_t blocksize = 4*1024, width = 70;
   size_t startAt = 0*1024*1024, finishAt = 1024L*1024L*1024L*1;
 
   optind = 0;
