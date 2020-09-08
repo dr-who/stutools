@@ -22,9 +22,9 @@ int keepRunning = 1;
 int main(int argc, char *argv[]) {
 
   int opt, verbose = 0, header = 1;
-  size_t maxSize = 0;
+  size_t minSize = 0, maxSize = 0;
   
-  while ((opt = getopt(argc, argv, "hVG:" )) != -1) {
+  while ((opt = getopt(argc, argv, "hVG:g:" )) != -1) {
     switch (opt) {
     case 'h':
       header = 1;
@@ -39,6 +39,16 @@ int main(int argc, char *argv[]) {
       }
       maxSize = alignedNumber(atof(optarg) * scale, 4096);
       break;
+    case 'g':
+      {}
+      scale = 1024L * 1024L * 1024L;
+      if (strchr(optarg, 'K') || strchr(optarg, 'k')) {
+	scale = 1024;
+      } else if (strchr(optarg, 'M') || strchr(optarg, 'm')) {
+	scale = 1024L * 1024L;
+      }
+      minSize = alignedNumber(atof(optarg) * scale, 4096);
+      break;
     case 'V':
       verbose++;
       break;
@@ -46,7 +56,14 @@ int main(int argc, char *argv[]) {
   }
 
   if (optind >= argc) {
-    fprintf(stderr, "*info* usage ./trim [-V] [-G size] device ... device\n");
+    fprintf(stderr, "*info* usage ./trim [-V] [-g size] [-G size] device ... device\n");
+    fprintf(stderr,"\nExamples:\n");
+    fprintf(stderr,"  # quickly trim the first 16 MiB on each device that can be opened exclusively.\n");
+    fprintf(stderr,"  ./trim -G 16M /dev/sd*  \n\n");
+    fprintf(stderr,"  # trim from 1 GiB to 2 GiB\n");
+    fprintf(stderr,"  ./trim -g 1G -G 2G /dev/sd*  \n\n");
+    fprintf(stderr,"  # trim from 4-16 KiB\n");
+    fprintf(stderr,"  ./trim -g 4k -G 16k /dev/sd*  \n");
     exit(1);
   }
 
@@ -62,12 +79,15 @@ int main(int argc, char *argv[]) {
 	high = maxSize;
       }
     }
+    if (minSize > 0) {
+      low = minSize;
+    }
 
     double maxdelay_secs = 0;
 
     if (header) {
       //              "/dev/sda 8.332   ntf(stdout, "device\ttime (s)\tmax (s)\tsize\tTRIM size\n");
-      fprintf(stdout, "device   \tGiB\ttime(s)\tmax(s)\tsize\tTRIM size\n");
+      fprintf(stdout, "device   \t(GiB) -\t(GiB)\ttime(s)\tmax(s)\tTRIM size\n");
       header = 0;
     }
     if (isBlockDevice(dev) == 1) {
@@ -89,7 +109,7 @@ int main(int argc, char *argv[]) {
 	  performDiscard(fd, dev, low, high, d_max_bytes, d_granularity, &maxdelay_secs, verbose);
 	  close(fd);
 	  double elapsed = timedouble() - start;
-	  fprintf(stdout, "%s\t%.3lf\t%.3lf\t%.3lf\t%.0lf GB\t%zd\n", dev, TOGiB(high), elapsed, maxdelay_secs, TOGB(high), d_max_bytes);
+	  fprintf(stdout, "%s\t%.3lf\t%.3lf\t%.3lf\t%.3lf\t%zd\n", dev, TOGiB(low), TOGiB(high), elapsed, maxdelay_secs, d_max_bytes);
 	} else {
 	  perror(dev);
 	}
