@@ -22,11 +22,22 @@ int keepRunning = 1;
 int main(int argc, char *argv[]) {
 
   int opt, verbose = 0, header = 1;
+  size_t maxSize = 0;
   
-  while ((opt = getopt(argc, argv, "hV" )) != -1) {
+  while ((opt = getopt(argc, argv, "hVG:" )) != -1) {
     switch (opt) {
     case 'h':
       header = 1;
+      break;
+    case 'G':
+      {}
+      size_t scale = 1024L * 1024L * 1024L;
+      if (strchr(optarg, 'K') || strchr(optarg, 'k')) {
+	scale = 1024;
+      } else if (strchr(optarg, 'M') || strchr(optarg, 'm')) {
+	scale = 1024L * 1024L;
+      }
+      maxSize = alignedNumber(atof(optarg) * scale, 4096);
       break;
     case 'V':
       verbose++;
@@ -35,7 +46,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (optind >= argc) {
-    fprintf(stderr, "*info* usage ./trim [-V] device ... device\n");
+    fprintf(stderr, "*info* usage ./trim [-V] [-G size] device ... device\n");
     exit(1);
   }
 
@@ -45,11 +56,18 @@ int main(int argc, char *argv[]) {
 
     unsigned long low = 0;
     unsigned long high = fileSizeFromName(dev);
+
+    if (maxSize > 0) {
+      if (maxSize < high) {
+	high = maxSize;
+      }
+    }
+
     double maxdelay_secs = 0;
 
     if (header) {
       //              "/dev/sda 8.332   ntf(stdout, "device\ttime (s)\tmax (s)\tsize\tTRIM size\n");
-      fprintf(stdout, "device   \ttime(s)\tmax(s)\tsize\tTRIM size\n");
+      fprintf(stdout, "device   \tGiB\ttime(s)\tmax(s)\tsize\tTRIM size\n");
       header = 0;
     }
     if (isBlockDevice(dev) == 1) {
@@ -57,6 +75,7 @@ int main(int argc, char *argv[]) {
       if (fd >= 0) {
 	size_t d_max_bytes = 0, d_granularity = 0, d_zeroes = 0, alignment = 0;
 	getDiscardInfo(getSuffix(dev), &alignment, &d_max_bytes, &d_granularity, &d_zeroes);
+	  
 
 	if (verbose >= 2) {
 	  fprintf(stderr,"*info* alignment: %zd\n", alignment);
@@ -70,7 +89,7 @@ int main(int argc, char *argv[]) {
 	  performDiscard(fd, dev, low, high, d_max_bytes, d_granularity, &maxdelay_secs, verbose);
 	  close(fd);
 	  double elapsed = timedouble() - start;
-	  fprintf(stdout, "%s\t%.3lf\t%.3lf\t%.0lf GB\t%zd\n", dev, elapsed, maxdelay_secs, TOGB(high), d_max_bytes);
+	  fprintf(stdout, "%s\t%.3lf\t%.3lf\t%.3lf\t%.0lf GB\t%zd\n", dev, TOGiB(high), elapsed, maxdelay_secs, TOGB(high), d_max_bytes);
 	} else {
 	  perror(dev);
 	}
