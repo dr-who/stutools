@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <assert.h>
+#include "utils.h"
 
 /**
  * xorrupt.c
@@ -109,7 +110,6 @@ int main(int argc, char *argv[])
   int opt;
 
   char *device = NULL;
-  size_t pos = 0;
   size_t repeat = 0;
   size_t runtime = 60;
   double probability = 1;
@@ -119,16 +119,24 @@ int main(int argc, char *argv[])
   while ((opt = getopt(argc, argv, "f:p:t:rP:R:")) != -1) {
     switch (opt) {
     case 'p':
+      {} size_t scale = 1;
       if (strchr(optarg,'G') || strchr(optarg,'g')) {
-	pos = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
+	scale = 1024L * 1024L * 1024L;
       } else if (strchr(optarg,'M') || strchr(optarg,'m')) {
-	pos = (size_t)(1024.0 * 1024.0 * atof(optarg));
+	scale = 1024L * 1024L;
       } else if (strchr(optarg,'K') || strchr(optarg,'k')) {
-	pos = (size_t)(1024 * atof(optarg));
-      } else {
-	pos = (size_t)atol(optarg);
+	scale = 1024L;
       }
-      addToPositions(pos);
+
+      double low, high;
+      int r = splitRange(optarg, &low, &high);
+      low = low * scale;
+      high = high * scale;
+      if (r == 1) high = low;
+      for (size_t i = low; i <= high; i++) {
+	addToPositions(i);
+	
+      }
       break;
     case 'R':
       seed = atoi(optarg);
@@ -159,15 +167,16 @@ int main(int argc, char *argv[])
     fprintf(stdout,"*info* xorrupt -f device [-p position ... -p position] [-t time]\n");
     fprintf(stdout,"\nTemporarily XOR a byte at an offset position, sleep then restore\n");
     fprintf(stdout,"\nOptions:\n");
-    fprintf(stdout,"   -f device  specifies a block device\n");
-    fprintf(stdout,"   -p offset  the block device offset [defaults to byte 0]\n"); 
-    fprintf(stdout,"   -p 2k      can use k,M,G units\n");
-    fprintf(stdout,"   -p 4M      can use k,M,G units\n");
-    fprintf(stdout,"   -p 10G     can use k,M,G units\n");
-    fprintf(stdout,"   -P prob    the probability [0, 1) of applying the XOR [defaults to %.1lf)\n", probability);
-    fprintf(stdout,"   -R seed    sets the seed [defaults to %zd\n", seed);
-    fprintf(stdout,"   -r         repeat forever (usually with -t 2 say)\n");
-    fprintf(stdout,"   -t time    the time until restore [defaults to %zd]\n", runtime);
+    fprintf(stdout,"   -f device     specifies a block device\n");
+    fprintf(stdout,"   -p offset     the block device offset [defaults to byte 0]\n"); 
+    fprintf(stdout,"   -p 2k         can use k,M,G units\n");
+    fprintf(stdout,"   -p 4096-4100  range plus can use k,M,G units\n");
+    fprintf(stdout,"   -p 4M         can use k,M,G units\n");
+    fprintf(stdout,"   -p 10G        can use k,M,G units\n");
+    fprintf(stdout,"   -P prob       the probability [0, 1) of applying the XOR [defaults to %.1lf)\n", probability);
+    fprintf(stdout,"   -R seed       sets the seed [defaults to %zd\n", seed);
+    fprintf(stdout,"   -r            repeat forever (usually with -t 2 say)\n");
+    fprintf(stdout,"   -t time       the time until restore [defaults to %zd]\n", runtime);
     fprintf(stdout,"\nExamples:\n");
     fprintf(stdout,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80\n");
     fprintf(stdout,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2\n");
