@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
 	  perror(dev);
 	}
       } else {
-	fprintf(stderr,"*error* couldn't open %s exclusively\n", dev);
+	fprintf(stderr,"*warning* couldn't open %s exclusively... skipping...\n", dev);
       }
     } else {
       fprintf(stderr,"*error* a block device is required as an argument\n");

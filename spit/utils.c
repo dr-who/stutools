@@ -1127,12 +1127,25 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
 	//	fprintf(stderr,"%lu %ld\n", range[1], i);
 	long unsigned t = pwrite(fd, trimdata, maxzero, i);
 	fsync(fd);
-	free(trimdata);
+	memset(trimdata, 'r', maxzero);
+
 	if (t != maxzero) {
 	  perror("trim");
 	} else {
-	  fprintf(stderr,"*info* actually just wrote %zd bytes data at position %zd\n", maxzero, i);
+	  fprintf(stderr,"*info* '%s' wrote %zd bytes data at position %zd\n", path, maxzero, i);
 	}
+
+	t = pread(fd, trimdata, maxzero, i);
+
+	for (size_t t = 0; t <maxzero; t++) {
+	  if (trimdata[t] != 'z') {
+	    fprintf(stderr,"*error* didn't erase the region on '%s'\n", path);
+	    break;
+	  }
+	}
+
+	free(trimdata);
+	
 	break;
       }
       delta = timedouble() - before;
