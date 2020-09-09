@@ -22,9 +22,9 @@ int keepRunning = 1;
 int main(int argc, char *argv[]) {
 
   int opt, verbose = 0, header = 1;
-  size_t minSize = 0, maxSize = 0;
+  size_t minSize = 0, maxSize = 0, zeroall = 0;
   
-  while ((opt = getopt(argc, argv, "hVG:g:" )) != -1) {
+  while ((opt = getopt(argc, argv, "hVG:g:z" )) != -1) {
     switch (opt) {
     case 'h':
       header = 1;
@@ -49,6 +49,9 @@ int main(int argc, char *argv[]) {
       }
       minSize = alignedNumber(atof(optarg) * scale, 4096);
       break;
+    case 'z':
+      zeroall = 1;
+      break;
     case 'V':
       verbose++;
       break;
@@ -58,7 +61,9 @@ int main(int argc, char *argv[]) {
   if (optind >= argc) {
     fprintf(stderr, "*info* usage ./trim [-V] [-g size] [-G size] device ... device\n");
     fprintf(stderr,"\nExamples:\n");
-    fprintf(stderr,"  # quickly trim the first 16 MiB on each device that can be opened exclusively.\n");
+    fprintf(stderr,"  # actually write zeros, TRIM doesn't always zero\n");
+    fprintf(stderr,"  ./trim -G 16M -z /dev/sd*  \n\n");
+    fprintf(stderr,"  # trim from 1 GiB to 2 GiB\n");
     fprintf(stderr,"  ./trim -G 16M /dev/sd*  \n\n");
     fprintf(stderr,"  # trim from 1 GiB to 2 GiB\n");
     fprintf(stderr,"  ./trim -g 1G -G 2G /dev/sd*  \n\n");
@@ -82,6 +87,7 @@ int main(int argc, char *argv[]) {
     if (minSize > 0) {
       low = minSize;
     }
+    if (low > high) low = high;
 
     double maxdelay_secs = 0;
 
@@ -106,7 +112,11 @@ int main(int argc, char *argv[]) {
       
 	if (fd >= 0) {
 	  double start = timedouble();
-	  performDiscard(fd, dev, low, high, d_max_bytes, d_granularity, &maxdelay_secs, verbose);
+	  if (d_zeroes) {
+	    fprintf(stderr,"*info* trim zeroes the data\n");
+	  }
+	  //	  fprintf(stderr,"dev %s, %d\n", dev, (d_zeroes==0) && zeroall);
+	  performDiscard(fd, dev, low, high, d_max_bytes, d_granularity, &maxdelay_secs, verbose, (d_zeroes==0) && zeroall);
 	  close(fd);
 	  double elapsed = timedouble() - start;
 	  fprintf(stdout, "%s\t%.3lf\t%.3lf\t%.3lf\t%.3lf\t%zd\n", dev, TOGiB(low), TOGiB(high), elapsed, maxdelay_secs, d_max_bytes);

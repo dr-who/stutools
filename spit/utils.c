@@ -1075,16 +1075,24 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
 }
   
 
-int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, double *maxdelay_secs, const int verbose) {
+int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, double *maxdelay_secs, const int verbose, int zeroall) {
   int err = 0;
   double before = 0, delta = 0, start = 0, elapsed = 0;
 
   if (maxdelay_secs) *maxdelay_secs = 0;
 
-  int calls = ceil(high * 1.0 / max_bytes);
+  int calls;
+  if (max_bytes) {
+    calls = ceil(high * 1.0 / max_bytes);
+  } else {
+    calls = 1;
+    max_bytes = high - low;
+  }
+  
   if (path && verbose) {
     fprintf(stderr,"*info* starting discarding %s, [%.3lf GiB, %.3lf GiB], in %d calls of at most %zd bytes...\n", path, TOGiB(low), TOGiB(high), calls, max_bytes);
   }
+
   
   if (high - low >= discard_granularity) {
 
@@ -1102,9 +1110,29 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
       
       err = 0;
       before = timedouble();
-      if ((err = ioctl(fd, BLKDISCARD, &range))) {
-	fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", path, err);
-	perror("trim");
+      err = ioctl(fd, BLKDISCARD, &range);
+      //      fprintf(stderr,"err %d\n", err);
+      if (err || zeroall) {
+	//fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", path, err);
+	//perform using a dd?
+	unsigned long maxzero = 128*1024*1024;
+	if (range[1] < maxzero) {
+	  maxzero = range[1];
+	}
+	char *trimdata;
+	CALLOC(trimdata, maxzero, sizeof(char));
+	memset(trimdata, 'z', maxzero);
+	assert(trimdata);
+
+	//	fprintf(stderr,"%lu %ld\n", range[1], i);
+	long unsigned t = pwrite(fd, trimdata, maxzero, i);
+	fsync(fd);
+	free(trimdata);
+	if (t != maxzero) {
+	  perror("trim");
+	} else {
+	  fprintf(stderr,"*info* actually just wrote %zd bytes data at position %zd\n", maxzero, i);
+	}
 	break;
       }
       delta = timedouble() - before;
@@ -1122,8 +1150,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
     err = 1;
     fprintf(stderr,"*error* discard range is too small\n");
   }
-    
-  
+
   return err;
 }
 
