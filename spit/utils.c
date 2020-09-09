@@ -1118,6 +1118,8 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
 	unsigned long maxzero = 128*1024*1024;
 	if (range[1] < maxzero) {
 	  maxzero = range[1];
+	} else {
+	  fprintf(stderr,"*info* truncating the zero region to be %zd bytes\n", maxzero);
 	}
 	char *trimdata;
 	CALLOC(trimdata, maxzero, sizeof(char));
