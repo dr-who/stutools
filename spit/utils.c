@@ -1112,7 +1112,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
       before = timedouble();
       err = ioctl(fd, BLKDISCARD, &range);
       //      fprintf(stderr,"err %d\n", err);
-      if (err || zeroall) {
+      if (zeroall) {
 	//fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", path, err);
 	//perform using a dd?
 	unsigned long maxzero = 128*1024*1024;
@@ -1147,6 +1147,10 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
 	free(trimdata);
 	
 	break;
+      } else {
+	if (err) {
+	  fprintf(stderr,"*warning* device '%s' doesn't support TRIM\n", path);
+	}
       }
       delta = timedouble() - before;
       if (maxdelay_secs) {
