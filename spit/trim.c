@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
       header = 0;
     }
     if (isBlockDevice(dev) == 1) {
-      int fd = open(dev, O_RDWR | O_EXCL | O_DIRECT );
+      int fd = open(dev, O_RDWR | O_SYNC | O_EXCL | O_DIRECT );
       if (fd >= 0) {
 	size_t d_max_bytes = 0, d_granularity = 0, d_zeroes = 0, alignment = 0;
 	getDiscardInfo(getSuffix(dev), &alignment, &d_max_bytes, &d_granularity, &d_zeroes);

@@ -1,4 +1,5 @@
 #define _DEFAULT_SOURCE
+#define _POSIX_C_SOURCE 200809L
 
 #include <string.h>
 #include <signal.h>
@@ -77,9 +78,18 @@ void perturbBytes(double prob) {
       size_t pos = positions[i];
       unsigned char newv = 255 ^ oldBytes[i];
       int r = pwrite(fd, (void*)&newv, 1, pos);
+      fsync(fd);
       needtorestore = 1;
       assert(r == 1);
       fprintf(stderr,"overwriting %zd: ASCII %d ('%c')\n", pos, newv, newv);
+
+      unsigned char newv2 = 'x';
+      r = pread(fd, (void*)&newv2, 1, pos);
+      if (newv2 != newv) {
+	fprintf(stderr,"*error* failed verification\n");
+	exit(1);
+      }
+
     }
   }
 }
@@ -114,10 +124,14 @@ int main(int argc, char *argv[])
   size_t runtime = 60;
   double probability = 1;
   size_t seed = 42;
+  size_t oneoff = 0;
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "f:p:t:rP:R:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:p:t:rP:R:1")) != -1) {
     switch (opt) {
+    case '1':
+      oneoff = 1;
+      break;
     case 'p':
       {} size_t scale = 1;
       if (strchr(optarg,'G') || strchr(optarg,'g')) {
@@ -177,6 +191,7 @@ int main(int argc, char *argv[])
     fprintf(stdout,"   -R seed       sets the seed [defaults to %zd\n", seed);
     fprintf(stdout,"   -r            repeat forever (usually with -t 2 say)\n");
     fprintf(stdout,"   -t time       the time until restore [defaults to %zd]\n", runtime);
+    fprintf(stdout,"   -1            execute the XOR once then exit without restoring\n");
     fprintf(stdout,"\nExamples:\n");
     fprintf(stdout,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80\n");
     fprintf(stdout,"  ./xorrupt -f /dev/sdc -p 0 -p 4k -p 80 -r -t 2\n");
@@ -190,16 +205,17 @@ int main(int argc, char *argv[])
   signal(SIGINT, intHandler);
   srand48(seed);
 
-  fd = open(device, O_RDWR| O_SYNC, S_IRUSR | S_IWUSR);
+  fd = open(device, O_RDWR, S_IRUSR | S_IWUSR);
   if (fd <= 0) {
     perror(device);
   } else {
 
     storeBytes();
     
-    fprintf(stderr,"*info* pausing for %zd seconds (or control-c), then restore\n", runtime);
+    if (!oneoff) fprintf(stderr,"*info* pausing for %zd seconds (or control-c), then restore\n", runtime);
     while (keepRunning) {
       perturbBytes(probability);
+      if (oneoff) break;
       
       sleep(runtime);
       if (repeat == 0) {
@@ -212,7 +228,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  if (needtorestore) restoreBytes();
+  if (needtorestore && !oneoff) restoreBytes();
 
   if (device) free(device);
 

@@ -1110,8 +1110,10 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
       
       err = 0;
       before = timedouble();
+
+      //      fprintf(stderr,"err %lu %lu\n", range[0], range[1]);
       err = ioctl(fd, BLKDISCARD, &range);
-      //      fprintf(stderr,"err %d\n", err);
+      
       if (zeroall) {
 	//fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", path, err);
 	//perform using a dd?
