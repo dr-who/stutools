@@ -1105,6 +1105,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
       if ((err = ioctl(fd, BLKDISCARD, &range))) {
 	fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", path, err);
 	perror("trim");
+	break;
       }
       delta = timedouble() - before;
       if (maxdelay_secs) {
