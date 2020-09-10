@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 {
   size_t sz = 0;
   if (argc < 2) {
-    fprintf(stderr,"Usage: ./pmemwreck /dev/dax0.0 [sizeInBytes (say $[32*1024*1024])]\n");
+    fprintf(stderr,"Usage: ./pmemwreck /dev/dax0.0 [sizeInBytes (say $[32*1024*1024])] \n");
     exit(1);
   }
   const char* dev = argv[1];
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     sz = maxsz;
   }
 
-  fprintf(stderr,"*info* logical size of device %zd (%.1lf GiB)\n", maxsz, TOGiB(maxsz));
+  fprintf(stderr,"*info* logical size of device %zd (%.1lf GiB), aligned to %d\n", maxsz, TOGiB(maxsz), ALIGN);
   fprintf(stderr,"*info* opening '%s', wrecking %zd bytes (%.1lf GiB), in 4096 steps\n", dev, sz, TOGiB(sz));
 
 
