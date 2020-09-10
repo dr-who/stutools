@@ -13,6 +13,8 @@
 int keepRunning = 1;
 int verbose = 0;
 
+#define ALIGN 2097152
+
 int main(int argc, char *argv[])
 {
   size_t sz = 0;
@@ -22,7 +24,7 @@ int main(int argc, char *argv[])
   }
   const char* dev = argv[1];
   if (argc == 3) {
-    sz = atol(argv[2]);
+    sz = alignedNumber(atol(argv[2]), ALIGN);
   }
 
   char sys[1000], *suffix = getSuffix(dev);
@@ -30,6 +32,7 @@ int main(int argc, char *argv[])
   FILE *fp = fopen(sys, "rt"); assert(fp);
   size_t maxsz = 0;
   int ret = fscanf(fp, "%lu", &maxsz);
+  maxsz = alignedNumber(maxsz, ALIGN);
   if (ret != 1) maxsz = 0;
   if (sz > maxsz) {
     sz = maxsz;
