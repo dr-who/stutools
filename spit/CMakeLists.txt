@@ -20,7 +20,7 @@ add_executable(spit spit.c)
 target_link_libraries(spit spitlib m aio pthread numa)
 
 add_executable(pmemwreck pmemwreck.c)
-target_link_libraries(pmemwreck)
+target_link_libraries(pmemwreck spitlib m aio pthread numa)
 
 add_executable(xorrupt xorrupt.c)
 target_link_libraries(xorrupt spitlib m aio pthread numa)

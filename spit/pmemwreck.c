@@ -8,6 +8,10 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
+#include "utils.h"
+
+int keepRunning = 1;
+int verbose = 0;
 
 int main(int argc, char *argv[])
 {
@@ -19,7 +23,18 @@ int main(int argc, char *argv[])
   const char* dev = argv[1];
   sz = atol(argv[2]);
   fprintf(stderr,"*info* opening '%s' (first %zd bytes), wrecking a byte every 4096\n", dev, sz);
-    
+
+  char sys[1000], *suffix = getSuffix(dev);
+  sprintf(sys, "/sys/bus/dax/devices/%s/size", suffix);
+  FILE *fp = fopen(sys, "rt"); assert(fp);
+  size_t maxsz = 0;
+  int ret = fscanf(fp, "%lu", &maxsz);
+  if (ret != 1) maxsz = 0;
+  fprintf(stderr,"*info* max size of device %zd\n", maxsz);
+  if (sz > maxsz) {
+    sz = maxsz;
+  }
+
   int fd = open( dev, O_RDWR );
   if( fd < 0 ) {
     perror(dev);
