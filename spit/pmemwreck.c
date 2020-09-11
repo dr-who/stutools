@@ -28,7 +28,9 @@ int main(int argc, char *argv[])
   }
 
   char sys[1000], *suffix = getSuffix(dev);
+  assert(suffix);
   sprintf(sys, "/sys/bus/dax/devices/%s/size", suffix);
+  free(suffix);
   FILE *fp = fopen(sys, "rt"); assert(fp);
   size_t maxsz = 0;
   int ret = fscanf(fp, "%lu", &maxsz);
