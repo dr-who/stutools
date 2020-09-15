@@ -240,6 +240,8 @@ size_t aioMultiplePositions( positionContainer *p,
 
             if (positions[pos].action=='D') {
 	      usleep(positions[pos].msdelay * 1000);
+	      thistime = timedouble();
+
 	      //if (verbose >= 2) {
 	      //	      fprintf(stderr,"delay %u\n", positions[pos].msdelay * 1000);
 		//	      }
