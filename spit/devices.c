@@ -269,7 +269,7 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, siz
         devs[i].fd = open(newpath, O_RDWR | O_EXCL); // if a file
         if (devs[i].fd < 0) {
           //	  fprintf(stderr,"maybe a file to create?\n");
-          perror(newpath);
+	  perror(newpath);
           goto cont;
         }
         fprintf(stderr,"*warning* couldn't open in O_DIRECT mode (filesystem constraints)\n");
@@ -413,7 +413,7 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
       if (iop < 10) iop = 10;
     }
   } else {
-    perror(fn);
+    //    perror(fn);
     iop = 1;
   }
   if (verbose) {
