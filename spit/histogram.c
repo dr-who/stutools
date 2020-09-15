@@ -34,6 +34,8 @@ void histAdd(histogramType *h, double value)
   h->bin[bin]++;
   h->dataSum += value;
   h->dataCount++;
+  //  fprintf(stderr,"value %lf, sum %lf  count %zd, mean %lf\n", value * 1000, h->dataSum, h->dataCount, 1000.0*histMean(h));
+
 }
 
 size_t histCount(histogramType *h)
@@ -55,8 +57,6 @@ void histSum(histogramType *h)
     sum += h->bin[i];
     h->binSum[i] = sum;
   }
-
-  h->dataSum = 1;
 }
 
 void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale)
