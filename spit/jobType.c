@@ -308,13 +308,19 @@ static void *runThread(void *arg)
       // else just open
       int excl = (threadContext->id == 0) ? O_EXCL : 0;
       if (threadContext->notexclusive) excl = 0;
+      if ((excl == 0) && (threadContext->id == 0)) {fprintf(stderr,"*info* open device without O_EXCL\n"); }
       fd = open(threadContext->jobdevice, O_RDWR | direct | excl);
       if (verbose) fprintf(stderr,"*info* open with O_RDWR, direct=%d, excl=%d\n", direct, excl);
     }
   } else {
-    fd = open(threadContext->jobdevice, O_RDONLY | direct);
+    int excl = (threadContext->id == 0) ? O_EXCL : 0;
+    if (threadContext->notexclusive) excl = 0;
+    if ((excl == 0) && (threadContext->id == 0)) {fprintf(stderr,"*info* open device without O_EXCL\n"); }
+    fd = open(threadContext->jobdevice, O_RDONLY | direct | excl);
     if (verbose >= 2) fprintf(stderr,"*info* open with O_RDONLY\n");
   }
+
+  
 
   if (fd < 0) {
     fprintf(stderr,"*error* problem opening '%s' with direct=%d, writes=%zd\n", threadContext->jobdevice, direct, threadContext->anywrites);
@@ -924,9 +930,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   keepRunning = 1;
 
-  if (notexclusive) {
-    fprintf(stderr,"*warning* opening devices without O_EXCL\n");
-  }
+  //  if (notexclusive) {
+  //    fprintf(stderr,"*warning* specifying to open devices without O_EXCL\n");
+  //  }
   
   if (seed == 0) {
     const double d = timedouble() * 100.0; // use the fractions so up/return is different
