@@ -412,12 +412,12 @@ void usage()
   fprintf(stdout,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
   fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GiB region, rand r in the 2-3 GiB region\n");
   fprintf(stdout,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
-  fprintf(stdout,"  spit -f -c ..j32              # duplicate all the commands 32 times. If available, distribute & pin threads to each NUMA node.\n");
-  fprintf(stdout,"  spit -f -c ..j32 -u           # duplicate all the commands 32 times, but do not pin the threads to specific NUMA nodes\n");
-  fprintf(stdout,"  spit -f -c ..j32 -U 0         # duplicate all the commands 32 times, pin all threads to  NUMA node 0\n");
-  fprintf(stdout,"  spit -f -c ..j32 -U 0,1       # duplicate all the commands 32 times, split threads evenly between NUMA node 0 and 1\n");
-  fprintf(stdout,"  spit -f -c ..j32 -U 0-2       # duplicate all the commands 32 times, split threads evenly between NUMA node 0, 1 and 2\n");
-  fprintf(stdout,"  spit -f -c ..j32 -U 0,0,1     # duplicate all the commands 32 times, split threads at a 2:1 ratio between NUMA node 0 and 1\n");
+  fprintf(stdout,"  spit -f -c ..j32              # duplicate all the commands 32 times. Pin threads to each NUMA node.\n");
+  fprintf(stdout,"  spit -f -c ..j32 -u           # j32, but do not pin the threads to specific NUMA nodes\n");
+  fprintf(stdout,"  spit -f -c ..j32 -U 0         # j32, pin all threads to  NUMA node 0\n");
+  fprintf(stdout,"  spit -f -c ..j32 -U 0,1       # j32, split threads evenly between NUMA node 0 and 1\n");
+  fprintf(stdout,"  spit -f -c ..j32 -U 0-2       # j32, split threads evenly between NUMA node 0, 1 and 2\n");
+  fprintf(stdout,"  spit -f -c ..j32 -U 0,0,1     # j32, allocate threads using a 2:1 ratio between NUMA node 0 and 1\n");
   fprintf(stdout,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
   fprintf(stdout,"  spit -f ... -c wR42           # set the per command seed with R\n");
