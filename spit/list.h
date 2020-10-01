@@ -18,7 +18,7 @@ void listDestroy(listtype *l);
 
 
 void listIterateStart(listtype *l);
-int listNext(listtype *l, long *value);
+int listNext(listtype *l, long *value, int cyclic);
 
 #endif
 

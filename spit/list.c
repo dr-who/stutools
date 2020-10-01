@@ -60,7 +60,7 @@ void listIterateStart(listtype *l) {
 }
 
 // returns 1 if valid value
-int listNext(listtype *l, long *value) {
+int listNext(listtype *l, long *value, int cyclic) {
   if (l->iterate == -1) {
     fprintf(stderr,"*error* listNext called without listIterateStart\n");
     return 0;
@@ -71,6 +71,11 @@ int listNext(listtype *l, long *value) {
     return 0;
   }
   l->iterate++;
+
+  if (cyclic) {
+    if (l->iterate >= l->len)
+      l->iterate = 0;
+  }
   return 1;
 }
 
@@ -83,7 +88,7 @@ int listNext(listtype *l, long *value) {
 
   listIterateStart(&l);
   long v;
-  while (listNext(&l, &v)) {
+  while (listNext(&l, &v, 0)) {
     fprintf(stderr,"value %ld\n", v);
   }
 
