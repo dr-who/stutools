@@ -36,7 +36,7 @@ size_t aioMultiplePositions( positionContainer *p,
                              const size_t targetMBps,
                              size_t *ioerrors,
                              size_t QDbarrier,
-			     const size_t discard_max_bytes
+                             const size_t discard_max_bytes
                            )
 {
   if (sz == 0) {
@@ -44,14 +44,14 @@ size_t aioMultiplePositions( positionContainer *p,
     return 0;
   }
   int ret, checkTime = finishTime > 0;
-  
+
   //  fprintf(stderr,"*this time %lf set %lf\n", timedouble(), finishTime);
 
   if ((finishTime > 0) && (finishTime < timedouble())) {
     //    fprintf(stderr,"*warning* ignoring time as it's set in the past\n");
     checkTime = 0;
   }
-  
+
   struct iocb **cbs;
   struct io_event *events;
   if (origQD >= sz)  {
@@ -213,18 +213,18 @@ size_t aioMultiplePositions( positionContainer *p,
           const size_t newpos = positions[pos].pos;
           const size_t len = positions[pos].len;
 
-	  if (positions[pos].action == 'T') {
-	    if (discard_max_bytes >= alignment) {
-	      if (verbose >= 2) fprintf(stderr,"*info* trim at %zd len = %zd\n", newpos, len);
-	      positions[pos].submitTime = timedouble();
-	      performDiscard(fd, NULL, newpos, newpos+len, maxSize, alignment, NULL, 0, 0);
-	      p->writtenIOs++;
-	      positions[pos].finishTime = timedouble();
-	    }
+          if (positions[pos].action == 'T') {
+            if (discard_max_bytes >= alignment) {
+              if (verbose >= 2) fprintf(stderr,"*info* trim at %zd len = %zd\n", newpos, len);
+              positions[pos].submitTime = timedouble();
+              performDiscard(fd, NULL, newpos, newpos+len, maxSize, alignment, NULL, 0, 0);
+              p->writtenIOs++;
+              positions[pos].finishTime = timedouble();
+            }
 
-	    goto nextpos;
-	  }
-	      
+            goto nextpos;
+          }
+
           assert(headOfQueue < QD);
           qdIndex = freeQueue[headOfQueue];
           assert(qdIndex >= 0);
@@ -239,15 +239,15 @@ size_t aioMultiplePositions( positionContainer *p,
             // watermark the block with the position on the device
 
             if (positions[pos].action=='D') {
-	      usleep(positions[pos].msdelay * 1000);
-	      thistime = timedouble();
+              usleep(positions[pos].msdelay * 1000);
+              thistime = timedouble();
 
-	      //if (verbose >= 2) {
-	      //	      fprintf(stderr,"delay %u\n", positions[pos].msdelay * 1000);
-		//	      }
+              //if (verbose >= 2) {
+              //	      fprintf(stderr,"delay %u\n", positions[pos].msdelay * 1000);
+              //	      }
 
-	      goto nextpos;
-	    } else if (positions[pos].action=='R') {
+              goto nextpos;
+            } else if (positions[pos].action=='R') {
               if (verbose >= 2) {
                 fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);
               }
@@ -261,12 +261,12 @@ size_t aioMultiplePositions( positionContainer *p,
               io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
               cbs[qdIndex]->data = &positions[pos];
 
-	      if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
-		goto endoffunction;
-	      }
-	      totalReadSubmit += len;
+              if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+                goto endoffunction;
+              }
+              totalReadSubmit += len;
 
-	      
+
             } else if (positions[pos].action=='F') {
               if (verbose >= 2) {
                 fprintf(stderr,"[%zd] flush qdIndex=%d\n", newpos, qdIndex);
@@ -299,16 +299,16 @@ size_t aioMultiplePositions( positionContainer *p,
               io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
               cbs[qdIndex]->data = &positions[pos];
 
-	      if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
-		goto endoffunction;
-	      }
-	      totalWriteSubmit += len;
+              if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+                goto endoffunction;
+              }
+              totalWriteSubmit += len;
 
               flushPos++;
             } else {
-	      fprintf(stderr,"unknown action %c\n", positions[pos].action);
-	      abort();
-	    }
+              fprintf(stderr,"unknown action %c\n", positions[pos].action);
+              abort();
+            }
 
             positions[pos].submitTime = thistime;
             positions[pos].finishTime = 0;
@@ -348,15 +348,15 @@ size_t aioMultiplePositions( positionContainer *p,
       }
 
 
-      
-    nextpos:      
+
+nextpos:
 
       // onto the next one
       pos++;
       if (pos >= sz) {
         if (oneShot) {
           //	      	      fprintf(stderr,"end of function one shot\n");
-	  //          goto endoffunction; // only go through once
+          //          goto endoffunction; // only go through once
         }
         pos = 0; // don't go over the end of the array
       }
@@ -509,14 +509,14 @@ size_t aioMultiplePositions( positionContainer *p,
           }
         } // else if no error
         pp->finishTime = timedouble();
-	// log if slow
-	if (pp->finishTime - pp->submitTime > 30) {
-	  slow++;
-	  char s[300];
-	  sprintf(s, "slow I/O (%c,pos=%zd,size=%d) %.1lf s, submission loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
-	  syslogString("spit", s);
-	  fprintf(stderr,"*warning* %s", s);
-	}
+        // log if slow
+        if (pp->finishTime - pp->submitTime > 30) {
+          slow++;
+          char s[300];
+          sprintf(s, "slow I/O (%c,pos=%zd,size=%d) %.1lf s, submission loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
+          syslogString("spit", s);
+          fprintf(stderr,"*warning* %s", s);
+        }
 
         pp->success = 1; // the action has completed
         pp->inFlight = 0;
@@ -542,7 +542,7 @@ size_t aioMultiplePositions( positionContainer *p,
     //    }
   } // while keepRunning
 
- endoffunction:
+endoffunction:
   // receive outstanding I/Os
 
   {}
@@ -565,16 +565,16 @@ size_t aioMultiplePositions( positionContainer *p,
           if (tailOfQueue == QD) tailOfQueue = 0;
 
           pp->finishTime = timedouble();
-	  // log if slow
-	  if (pp->finishTime - pp->submitTime > 30) {
-	    slow++;
-	    char s[300];
-	    sprintf(s, "slow I/O (%c,pos=%zd, size=%d) %.1lf s, no submission/post loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
-	    syslogString("spit", s);
-	    fprintf(stderr,"*warning* %s", s);
-	  }
+          // log if slow
+          if (pp->finishTime - pp->submitTime > 30) {
+            slow++;
+            char s[300];
+            sprintf(s, "slow I/O (%c,pos=%zd, size=%d) %.1lf s, no submission/post loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
+            syslogString("spit", s);
+            fprintf(stderr,"*warning* %s", s);
+          }
 
-	
+
           pp->inFlight = 0;
           pp->success = 1; // the action has completed
 

@@ -63,7 +63,7 @@ void xorfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksize, s
     if (selection[i] > 0) {
       ssize_t ret = pread(selection[i], block, writeblocksize, pos);
       for (ssize_t j = 0; j < ret; j++) {
-	block[j] = block[j] ^ 127;
+        block[j] = block[j] ^ 127;
       }
       ret = pwrite(selection[i], block, writeblocksize, pos);
       if (ret == (int)writeblocksize) {
@@ -92,9 +92,9 @@ void decimalfunc(size_t pos, size_t deviceCount, int *selection, size_t blocksiz
     if (selection[i] > 0) {
       ssize_t ret = pread(selection[i], block, writeblocksize, pos);
       for (ssize_t j = 0; j < ret; j++) {
-	if ((block[j] >= '0') && (block[j] <= '9')) {
-	  block[j] = '0' + ('9' - (int)block[j]);
-	}
+        if ((block[j] >= '0') && (block[j] <= '9')) {
+          block[j] = '0' + ('9' - (int)block[j]);
+        }
       }
       ret = pwrite(selection[i], block, writeblocksize, pos);
       if (ret == (int)writeblocksize) {
@@ -154,23 +154,23 @@ void rotatefunc(size_t pos, size_t deviceCount, int *selection, int *rotated, si
       ssize_t retr = 0, retw = 0;
 
       if (mcount==1) {
-	//	fprintf(stderr,"read FIRST from %d\n", rotated[i]);
+        //	fprintf(stderr,"read FIRST from %d\n", rotated[i]);
         retr = pread(rotated[i], firstblock, blocksize, pos); // keep a copy of what it's clobbered
-	if (retr < 0) perror("raidcorrupt");
+        if (retr < 0) perror("raidcorrupt");
       }
 
       //      fprintf(stderr,"mcount %zd par %zd\n", mcount, mparity);
       if (mcount < mparity) {
-	retr = pread(selection[i], block, blocksize, pos);
-	if (retr < 0) perror("raidcorrupt");
-	//	fprintf(stderr,"read from %d\n", selection[i]);
+        retr = pread(selection[i], block, blocksize, pos);
+        if (retr < 0) perror("raidcorrupt");
+        //	fprintf(stderr,"read from %d\n", selection[i]);
         retw = pwrite(rotated[i], block, blocksize, pos); // copy the most recent read to the rotated
-	if (retw != (ssize_t) blocksize) perror("raidcorrupt");
-	//	fprintf(stderr,"write to %d\n", rotated[i]);
+        if (retw != (ssize_t) blocksize) perror("raidcorrupt");
+        //	fprintf(stderr,"write to %d\n", rotated[i]);
       } else {
         retw = pwrite(rotated[i], firstblock, blocksize, pos); // finish off
-	if (retw != (ssize_t) blocksize) perror("raidcorrupt");
-	//	fprintf(stderr,"write first to %d\n", rotated[i]);
+        if (retw != (ssize_t) blocksize) perror("raidcorrupt");
+        //	fprintf(stderr,"write first to %d\n", rotated[i]);
       }
       if (print) fprintf(stderr,"%3d", rotated[i]);
       ok++;
@@ -224,17 +224,17 @@ int main(int argc, char *argv[])
       break;
     case 'G':
       if (strchr(optarg,'M') || strchr(optarg,'m')) {
-	finishAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
+        finishAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
       } else {
-	finishAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
+        finishAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
       }
       //      fprintf(stderr,"*info* finish at %zd (%.4lf GiB, %.3lf MiB)\n", finishAt, TOGiB(finishAt), TOMiB(finishAt));
       break;
     case 'g':
       if (strchr(optarg,'M') || strchr(optarg,'m')) {
-	startAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
+        startAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
       } else {
-	startAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
+        startAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
       }
       //      fprintf(stderr,"*info* start at %zd (%.4lf GiB, %.3lf MiB)\n", startAt, TOGiB(startAt), TOMiB(startAt));
       break;
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
   // align the numbers to the blocksize
   startAt = alignedNumber(startAt, blocksize);
   finishAt = alignedNumber(finishAt, blocksize);
-  
+
   // first assign the device
   // if one -f specified, add to all jobs
   // if -F specified (with n drives), have c x n jobs
@@ -390,7 +390,7 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*info* read/XOR/write blocks\n");
     } else if (decimal) {
       fprintf(stderr,"*info* ASCII [0-9] becomes 9-value\n");
-    } else { 
+    } else {
       fprintf(stderr,"*info* rotate blocks\n");
     }
 

@@ -4,31 +4,36 @@
 #include <string.h>
 #include <stdlib.h>
 
-void listConstruct(listtype *l) {
+void listConstruct(listtype *l)
+{
   l->len = 0;
   l->values = NULL;
   l->iterate = -1;
 }
 
-void listDestroy(listtype *l) {
+void listDestroy(listtype *l)
+{
   if (l->values)
     free(l->values);
   listConstruct(l);
 }
 
-void listDump(listtype *l) {
+void listDump(listtype *l)
+{
   for (int i = 0; i < l ->len ; i++) {
     fprintf(stderr,"[%d] %ld\n", i, l->values[i]);
   }
 }
 
-void listAdd(listtype *l, long value) {
+void listAdd(listtype *l, long value)
+{
   l->values = realloc(l->values, sizeof(long) * (l->len+1));
   l->values[l->len] = value;
   l->len++;
 }
 
-void listAddString(listtype *l, char *string) {
+void listAddString(listtype *l, char *string)
+{
   char *pos = string;
   char *endp = pos;
   long startrange = -1;
@@ -40,14 +45,14 @@ void listAddString(listtype *l, char *string) {
       //            fprintf(stderr,"range %ld\n", startrange);
     } else {
       if ((startrange >= 0) && (v >= l->values[startrange])) {
-	//	fprintf(stderr,"range [%zd to %ld]\n", l->values[startrange], v);
-	for (long i2 = l->values[startrange]+1; i2 <= v; i2++) {
-	  listAdd(l, i2);
-	}
-	startrange = -1;
+        //	fprintf(stderr,"range [%zd to %ld]\n", l->values[startrange], v);
+        for (long i2 = l->values[startrange]+1; i2 <= v; i2++) {
+          listAdd(l, i2);
+        }
+        startrange = -1;
       } else {
-	// just a single value
-	listAdd(l, v);
+        // just a single value
+        listAdd(l, v);
       }
     }
     pos = endp + 1;
@@ -55,12 +60,14 @@ void listAddString(listtype *l, char *string) {
 }
 
 
-void listIterateStart(listtype *l) {
+void listIterateStart(listtype *l)
+{
   l->iterate = 0;
 }
 
 // returns 1 if valid value
-int listNext(listtype *l, long *value, int cyclic) {
+int listNext(listtype *l, long *value, int cyclic)
+{
   if (l->iterate == -1) {
     fprintf(stderr,"*error* listNext called without listIterateStart\n");
     return 0;

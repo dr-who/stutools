@@ -86,7 +86,7 @@ size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs)
       numa = atoi(space+1);
       if (!hasanuma) hasanuma = 1;
     }
-    
+
     deviceDetails *d = addDeviceDetails(line, devs, numDevs);
     d->numa = numa;
     //    fprintf(stderr,"--> %s %d\n", line, numa);
@@ -269,7 +269,7 @@ void openDevices(deviceDetails *devs, size_t numDevs, const size_t sendTrim, siz
         devs[i].fd = open(newpath, O_RDWR | O_EXCL); // if a file
         if (devs[i].fd < 0) {
           //	  fprintf(stderr,"maybe a file to create?\n");
-	  perror(newpath);
+          perror(newpath);
           goto cont;
         }
         fprintf(stderr,"*warning* couldn't open in O_DIRECT mode (filesystem constraints)\n");

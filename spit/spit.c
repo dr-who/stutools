@@ -33,7 +33,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 size_t *minSizeInBytes, size_t *maxSizeInBytes, double *runseconds, size_t *dumpPositions, size_t *defaultqd,
                 unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
                 char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, char** numaBinding, int *performPreDiscard, int *reportMode,
-		size_t *cacheSizeBytes, size_t *forever, size_t *ramBytesForPositions, size_t *tripleX)
+                size_t *cacheSizeBytes, size_t *forever, size_t *ramBytesForPositions, size_t *tripleX)
 {
   int opt;
 
@@ -222,7 +222,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
         //	*runseconds = (size_t)-1; // run for ever
       }
       if (*runseconds < 0) {
-	*runseconds = 100L * 365 * 3600 * 24; // 100 years
+        *runseconds = 100L * 365 * 3600 * 24; // 100 years
       }
       break;
     case 'T':
@@ -238,11 +238,11 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       (*tripleX)++;
       break;
     case 'U':
-        *numaBinding = strdup( optarg );
-        break;
+      *numaBinding = strdup( optarg );
+      break;
     case 'u':
-        *numaBinding = "";
-        break;
+      *numaBinding = "";
+      break;
     default:
       //      exit(1);
       break;
@@ -277,7 +277,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
   jobInit(j);
   jobInit(preconditions);
-  
+
   if (deviceCount) {
     // scale up based on the -I list
     // multiply j x deviceList
@@ -490,7 +490,8 @@ void intHandler(int d)
 
 
 void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheSizeBytes, const size_t forever,
-	      const size_t verify, size_t ramBytesForPositions, size_t defaultqd) {
+              const size_t verify, size_t ramBytesForPositions, size_t defaultqd)
+{
 
   if (!device) {
     fprintf(stderr,"*error* no -f device provided\n");
@@ -507,17 +508,17 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
   char text[100];
   time_t now = time(NULL);
   struct tm *t = localtime(&now);
-  
+
   strftime(text, sizeof(text)-1, "%Y-%m-%d", t);
- 
-  
+
+
   fprintf(stdout, "== Report: `stutools: spit`\n");
 
   unsigned int major, minor;
   majorAndMinorFromFilename(device, &major, &minor);
 
   char *suffix = getSuffix(device);
-  
+
   fprintf(stdout, " Device: %s (major %d, minor %d)\n", device, major, minor);
   size_t bdsize = fileSizeFromName(device);
   char *model = getModel(suffix);
@@ -535,7 +536,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
   if (suffix) free(suffix);
   suffix = NULL;
 
-  
+
   fprintf(stdout, " Machine: %s\n", host);
   char *cpumodel = getCPUModel();
   fprintf(stdout, " CPU: %s\n", cpumodel);
@@ -552,7 +553,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
   fprintf(stdout, " Report date: %s\n", text);
   fprintf(stdout, " stutools: %s\n", VERSION);
   fprintf(stdout, "\n\n");
-  
+
   diskStatType d;
   diskStatSetup(&d);
 
@@ -566,7 +567,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
   //  size_t blockSize1[] = {4,4,8,16,8, 32,64,128,256,128,512,1024,2048,4, 4096};
   //  size_t blockSize2[] = {4,8,8,16,64,32,64,128,256,512,512,1024,2048,4096, 4096};
   size_t blockSize1[] = {3 * 1024, 4,       2048, 1024, 512, 128, 256, 128, 64, 32, 8, 16, 8, 4, 4};
-  size_t blockSize2[] = {3 * 1024, 3 * 1024,2048, 1024, 512 ,512, 256, 128, 64, 32, 64, 16, 8, 8, 4};
+  size_t blockSize2[] = {3 * 1024, 3 * 1024,2048, 1024, 512,512, 256, 128, 64, 32, 64, 16, 8, 8, 4};
 
   size_t threadBlock[] = {64};
 
@@ -583,213 +584,214 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
   if (forever) {
     fprintf(stderr,"*info* running forever...\n");
   }
-  
+
   while (forever || (timedouble() - starttime < runseconds)) {
-    char ss[200];
-    now = time(NULL);
-    t = localtime(&now);
-    strftime(text, sizeof(text)-1, "%Y-%m-%d %H:%M:%S", t);
+      char ss[200];
+      now = time(NULL);
+      t = localtime(&now);
+      strftime(text, sizeof(text)-1, "%Y-%m-%d %H:%M:%S", t);
 
-    sprintf(ss, "=== Round %d (%s, elapsed %.1lf seconds, %.2lf days)\n", ++round, text, timedouble() - starttime, (timedouble() - starttime) / 86400.0);
-    fprintf(stdout, "%s\n", ss);
-    syslogString("spit", ss);
+      sprintf(ss, "=== Round %d (%s, elapsed %.1lf seconds, %.2lf days)\n", ++round, text, timedouble() - starttime, (timedouble() - starttime) / 86400.0);
+      fprintf(stdout, "%s\n", ss);
+      syslogString("spit", ss);
 
 
-    fprintf(stdout, "==== Random Write\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
-    fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s \n");
+      fprintf(stdout, "==== Random Write\n\n");
+      fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
+      fprintf(stdout, "|===\n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s \n");
 
-    if (1) for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
-      for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
-	jobInit(&j);
-	size_t qd = defaultqd;
-	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  
-	  qd = defaultqd / threadBlock[t];
-	  if (qd < 1) qd = 1;
-	  
-	  sprintf(s, "w s0 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime * 2);
-	  jobAdd(&j, s); 
-	}
-	jobAddDeviceToAll(&j, device);
-	sprintf(s, "w s0 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
-	fprintf(stdout, "| %s ", s); fflush(stdout);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
-	fprintf(stdout, "| %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf \n", threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
-	fflush(stdout);
+      if (1) for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
+          for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
+            jobInit(&j);
+            size_t qd = defaultqd;
+            for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
+
+              qd = defaultqd / threadBlock[t];
+              if (qd < 1) qd = 1;
+
+              sprintf(s, "w s0 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], t2, qd, thetime * 2);
+              jobAdd(&j, s);
+            }
+            jobAddDeviceToAll(&j, device);
+            sprintf(s, "w s0 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
+            fprintf(stdout, "| %s ", s);
+            fflush(stdout);
+            jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
+            fprintf(stdout, "| %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf \n", threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
+            fflush(stdout);
+          }
+        }
+      fprintf(stdout, "|===\n\n");
+      fflush(stdout);
+
+
+      fprintf(stdout, "==== Sequential Write\n\n");
+      fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
+      fprintf(stdout, "|===\n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+
+      if(1) for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
+          for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
+            jobInit(&j);
+            size_t qd = defaultqd;
+            for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
+              qd = defaultqd /  threadBlock[t];
+              if (qd < 1) qd = 1;
+
+              sprintf(s, "w s1 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], t2, qd, thetime * 2);
+              jobAdd(&j, s);
+            }
+            jobAddDeviceToAll(&j, device);
+            jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
+            sprintf(s, "w s1 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
+            fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
+            fflush(stdout);
+          }
+        }
+      fprintf(stdout, "|===\n\n");
+      fflush(stdout);
+
+
+
+      fprintf(stdout, "==== Random Read\n\n");
+      fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
+      fprintf(stdout, "|===\n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+
+      for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
+        for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
+          jobInit(&j);
+          size_t qd = defaultqd;
+          for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
+            qd = defaultqd /  threadBlock[t];
+            if (qd < 1) qd = 1;
+            sprintf(s, "r s0 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], t2, qd, thetime);
+            jobAdd(&j, s);
+          }
+          jobAddDeviceToAll(&j, device);
+          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
+          sprintf(s, "r s0 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
+          fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
+          fflush(stdout);
+        }
       }
-    }
-    fprintf(stdout, "|===\n\n");
-    fflush(stdout);
+      fprintf(stdout, "|===\n\n");
+      fflush(stdout);
 
 
-    fprintf(stdout, "==== Sequential Write\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
-    fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
 
-    if(1) for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
-      for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
-	jobInit(&j);
-	size_t qd = defaultqd;
-	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  qd = defaultqd /  threadBlock[t];
-	  if (qd < 1) qd = 1;
+      fprintf(stdout, "==== Sequential Read\n\n");
+      fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
+      fprintf(stdout, "|===\n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
 
-	  sprintf(s, "w s1 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime * 2);
-	  jobAdd(&j, s); 
-	}
-	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
-	sprintf(s, "w s1 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
-	fflush(stdout);
+      for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
+        for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
+          jobInit(&j);
+          size_t qd = defaultqd;
+          for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
+            qd = defaultqd /  threadBlock[t];
+            if (qd < 1) qd = 1;
+            sprintf(s, "r s1 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], t2, qd, thetime);
+            jobAdd(&j, s);
+          }
+          jobAddDeviceToAll(&j, device);
+          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
+          sprintf(s, "r s1 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
+          fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
+          fflush(stdout);
+        }
       }
-    }
-    fprintf(stdout, "|===\n\n");
-    fflush(stdout);
+      fprintf(stdout, "|===\n\n");
+      fflush(stdout);
 
 
+      fprintf(stdout, "==== Write de-dup\n\n");
+      fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
+      fprintf(stdout, "|===\n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
 
-    fprintf(stdout, "==== Random Read\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
-    fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
-
-    for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
-      for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
-	jobInit(&j);
-	size_t qd = defaultqd;
-	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  qd = defaultqd /  threadBlock[t];
-	  if (qd < 1) qd = 1;
-	  sprintf(s, "r s0 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime);
-	  jobAdd(&j, s); 
-	}
-	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
-	sprintf(s, "r s0 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
-	fflush(stdout);
+      for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
+        for (size_t i = 0 ; i < sizeof(dedupSizes) / sizeof(size_t); i++) {
+          jobInit(&j);
+          for (size_t jj = 0 ; jj < threadBlock[t]; jj++) {
+            sprintf(s, "w s0 P%zd j%zd#%zd q16 G_ k4 x3", dedupSizes[i], threadBlock[t], jj);
+            jobAdd(&j, s);
+          }
+          jobAddDeviceToAll(&j, device);
+          sprintf(s, "w s0 P%zd j%zd q16 G_ k4 x3", dedupSizes[i], threadBlock[t]);
+          size_t low = 0, high = fsize;
+          if (fsize * (i+1) <= bdsize) {
+            low = fsize * i;
+            high = fsize * (i+1);
+          }
+          jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
+          fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
+          fflush(stdout);
+        }
       }
-    }
-    fprintf(stdout, "|===\n\n");
-    fflush(stdout);
+      fprintf(stdout, "|===\n\n");
+      fflush(stdout);
 
 
+      fprintf(stdout, "==== Random Write metadata + read\n\n");
+      fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
+      fprintf(stdout, "|===\n");
+      fprintf(stdout, "| Command |  Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
 
-    fprintf(stdout, "==== Sequential Read\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
-    fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+      for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
+        for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
+          jobInit(&j);
+          size_t qd = defaultqd;
+          for (size_t jj = 0 ; jj < threadBlock[t]; jj++) {
+            qd = defaultqd /  threadBlock[t];
+            if (qd < 1) qd = 1;
+            sprintf(s, "w s0 k%zd P100000 q%zd j%zd#%zd T%.1lf", blockSize1[i], qd, threadBlock[t], jj, thetime);
+            jobAdd(&j, s);
+            sprintf(s, "r s0 k%zd P100000 q%zd j%zd#%zd T%.1lf", blockSize2[i], qd, threadBlock[t], jj, thetime);
+            jobAdd(&j, s);
+          }
 
-    for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
-      for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
-	jobInit(&j);
-	size_t qd = defaultqd;
-	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  qd = defaultqd /  threadBlock[t];
-	  if (qd < 1) qd = 1;
-	  sprintf(s, "r s1 k%zd-%zd j%zd#%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t] , t2, qd, thetime);
-	  jobAdd(&j, s); 
-	}
-	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
-	sprintf(s, "r s1 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
-	fflush(stdout);
+          jobAddDeviceToAll(&j, device);
+          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/, NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0);
+          sprintf(s, "rs0k%zdP100000q%zdj%zd/+wk%zd", blockSize1[i], qd, threadBlock[t], blockSize2[i]);
+          fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
+          fflush(stdout);
+        }
       }
-    }
-    fprintf(stdout, "|===\n\n");
-    fflush(stdout);
+      fprintf(stdout, "|===\n\n");
+      fflush(stdout);
 
 
-    fprintf(stdout, "==== Write de-dup\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
-    fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+      //
+      fprintf(stdout, "==== Random 70%% Read / 30%% Write\n\n");
+      fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
+      fprintf(stdout, "|===\n");
+      fprintf(stdout, "| Command | Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
 
-    for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
-      for (size_t i = 0 ; i < sizeof(dedupSizes) / sizeof(size_t); i++) {
-	jobInit(&j);
-	for (size_t jj = 0 ; jj < threadBlock[t]; jj++) {
-	  sprintf(s, "w s0 P%zd j%zd#%zd q16 G_ k4 x3", dedupSizes[i], threadBlock[t], jj);
-	  jobAdd(&j, s); 
-	}
-	jobAddDeviceToAll(&j, device);
-	sprintf(s, "w s0 P%zd j%zd q16 G_ k4 x3", dedupSizes[i], threadBlock[t]);
-	size_t low = 0, high = fsize;
-	if (fsize * (i+1) <= bdsize) {
-	  low = fsize * i;
-	  high = fsize * (i+1);
-	}
-	jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
-	fflush(stdout);
+
+      for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
+        for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
+          jobInit(&j);
+          size_t qd = defaultqd;
+          for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
+            qd = defaultqd /  threadBlock[t];
+            if (qd < 1) qd = 1;
+            sprintf(s, "p0.7 s0 k%zd-%zd q%zd G_ j%zd#%zd T%.1lf", blockSize1[i], blockSize2[i], qd, threadBlock[t], t2, thetime);
+            jobAdd(&j, s);
+          }
+          jobAddDeviceToAll(&j, device);
+          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/, NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0);
+          sprintf(s, "p0.7 s0 k%zd-%zd q%zd G_ j%zd x%zd", blockSize1[i], blockSize2[i], qd, threadBlock[t], xcopies);
+          fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
+          fflush(stdout);
+        }
       }
-    }
-    fprintf(stdout, "|===\n\n");
-    fflush(stdout);
+      fprintf(stdout, "|===\n\n");
+      fflush(stdout);
 
-
-    fprintf(stdout, "==== Random Write metadata + read\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
-    fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command |  Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
-
-    for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
-      for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
-	jobInit(&j);
-	size_t qd = defaultqd;
-	for (size_t jj = 0 ; jj < threadBlock[t]; jj++) {
-	  qd = defaultqd /  threadBlock[t];
-	  if (qd < 1) qd = 1;
-	  sprintf(s, "w s0 k%zd P100000 q%zd j%zd#%zd T%.1lf", blockSize1[i], qd, threadBlock[t], jj, thetime);
-	  jobAdd(&j, s); 
-	  sprintf(s, "r s0 k%zd P100000 q%zd j%zd#%zd T%.1lf", blockSize2[i], qd, threadBlock[t], jj, thetime);
-	  jobAdd(&j, s); 
-	}
-	
-	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0);
-	sprintf(s, "rs0k%zdP100000q%zdj%zd/+wk%zd", blockSize1[i], qd, threadBlock[t], blockSize2[i]);
-	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
-	fflush(stdout);
-      }
-    }
-    fprintf(stdout, "|===\n\n");
-    fflush(stdout);
-
-
-    //
-    fprintf(stdout, "==== Random 70%% Read / 30%% Write\n\n");
-    fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
-    fprintf(stdout, "|===\n");
-    fprintf(stdout, "| Command | Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
-    
-
-    for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
-      for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
-	jobInit(&j);
-	size_t qd = defaultqd;
-	for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
-	  qd = defaultqd /  threadBlock[t];
-	  if (qd < 1) qd = 1;
-	  sprintf(s, "p0.7 s0 k%zd-%zd q%zd G_ j%zd#%zd T%.1lf", blockSize1[i], blockSize2[i], qd, threadBlock[t], t2, thetime);
-	  jobAdd(&j, s);
-	}
-	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0);
-	sprintf(s, "p0.7 s0 k%zd-%zd q%zd G_ j%zd x%zd", blockSize1[i], blockSize2[i], qd, threadBlock[t], xcopies);
-	fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
-	fflush(stdout);
-      }
-    }
-    fprintf(stdout, "|===\n\n");
-    fflush(stdout);
-
-  } // while
+    } // while
 
   diskStatFree(&d);
 }
@@ -866,34 +868,34 @@ int main(int argc, char *argv[])
       timeperline = runseconds / 10;
     }
 
-    if (reportMode) { 
+    if (reportMode) {
       if (defaultQD == 0) defaultQD = 1000; // for a report -q is the total across all threads.
       doReport(runseconds, maxSizeInBytes, cacheSizeBytes, forever, verify, ramBytesForPositions, defaultQD);
     } else if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
     } else { // run some jobs
       if (defaultQD == 0) defaultQD = 16;
-      
+
       printPowerMode();
 
       size_t actualSize = maxSizeInBytes - minSizeInBytes;
       fprintf(stderr,"*info* block range [%.2lf-%.2lf] GB, size %.2lf GB (%zd bytes). Range [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
       if (actualSize < 4096) {
-	fprintf(stderr,"*error* block device too small.\n");
-	exit(1);
+        fprintf(stderr,"*error* block device too small.\n");
+        exit(1);
       }
 
       if (preconditions) {
-	keepRunning = 1;
-	signal(SIGTERM, intHandler);
-	signal(SIGINT, intHandler);
-	jobRunPreconditions(preconditions, preconditions->count, minSizeInBytes, maxSizeInBytes);
+        keepRunning = 1;
+        signal(SIGTERM, intHandler);
+        signal(SIGINT, intHandler);
+        jobRunPreconditions(preconditions, preconditions->count, minSizeInBytes, maxSizeInBytes);
       }
 
       keepRunning = 1;
       diskStatType *p = &d;
       if (!d.allocDevices) {
-	p = NULL;
+        p = NULL;
       }
       signal(SIGTERM, intHandler);
       signal(SIGINT, intHandler);
@@ -903,20 +905,20 @@ int main(int argc, char *argv[])
       diskStatFree(&d);
 
       if (fuzz) {
-	for (int i = 0; i < argc2; i++) {
-	  free(argv2[i]);
-	  argv2[i] = NULL;
-	}
-	free(argv2);
-	argv2 = NULL;
+        for (int i = 0; i < argc2; i++) {
+          free(argv2[i]);
+          argv2[i] = NULL;
+        }
+        free(argv2);
+        argv2 = NULL;
       }
       if (mysqloptions) {
-	free(mysqloptions);
-	mysqloptions = NULL;
+        free(mysqloptions);
+        mysqloptions = NULL;
       }
       if (mysqloptions2) {
-	free(mysqloptions2);
-	mysqloptions2 = NULL;
+        free(mysqloptions2);
+        mysqloptions2 = NULL;
       }
 
     } // end of job

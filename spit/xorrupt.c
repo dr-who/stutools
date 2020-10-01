@@ -33,7 +33,8 @@ size_t maxPositions = 0;
 size_t *positions = NULL;
 int needtorestore = 0;
 
-void addToPositions(size_t pos) {
+void addToPositions(size_t pos)
+{
   fprintf(stderr,"*info* device position[#%zd]: %zu\n", maxPositions+1, pos);
   positions = realloc(positions, (maxPositions+1) *sizeof(size_t));
   positions[maxPositions] = pos;
@@ -43,7 +44,8 @@ void addToPositions(size_t pos) {
   maxPositions++;
 }
 
-void freePositions() {
+void freePositions()
+{
   if (positions) free(positions);
   positions = NULL;
   if (oldBytes) free(oldBytes);
@@ -54,7 +56,8 @@ void freePositions() {
 
 
 
-void storeBytes() {
+void storeBytes()
+{
   for (size_t i = 0; i < maxPositions; i++) {
     size_t pos = positions[i];
     int r = pread(fd, oldBytes + i, 1, pos);
@@ -72,7 +75,8 @@ void storeBytes() {
 
 
 
-void perturbBytes(double prob) {
+void perturbBytes(double prob)
+{
   for (size_t i = 0; i <maxPositions; i++) {
     if (drand48() < prob) {
       size_t pos = positions[i];
@@ -86,8 +90,8 @@ void perturbBytes(double prob) {
       unsigned char newv2 = 'x';
       r = pread(fd, (void*)&newv2, 1, pos);
       if (newv2 != newv) {
-	fprintf(stderr,"*error* failed verification\n");
-	exit(1);
+        fprintf(stderr,"*error* failed verification\n");
+        exit(1);
       }
 
     }
@@ -95,14 +99,15 @@ void perturbBytes(double prob) {
 }
 
 
-void restoreBytes() {
+void restoreBytes()
+{
   for (size_t i = 0; i < maxPositions; i++) {
     size_t pos = positions[i];
-    
+
     fprintf(stderr,"restoring %zd: ASCII %d ('%c')... ", pos, oldBytes[i], oldBytes[i]);
     int r = pwrite(fd, oldBytes + i, 1, pos);
     assert(1==r);
-    
+
     unsigned char check;
     r = pread(fd, (void*)&check, 1, pos);
     assert(check == oldBytes[i]);
@@ -133,25 +138,25 @@ int main(int argc, char *argv[])
       oneoff = 1;
       break;
     case 'p':
-      {} size_t scale = 1;
-      if (strchr(optarg,'G') || strchr(optarg,'g')) {
-	scale = 1024L * 1024L * 1024L;
-      } else if (strchr(optarg,'M') || strchr(optarg,'m')) {
-	scale = 1024L * 1024L;
-      } else if (strchr(optarg,'K') || strchr(optarg,'k')) {
-	scale = 1024L;
-      }
+    {} size_t scale = 1;
+    if (strchr(optarg,'G') || strchr(optarg,'g')) {
+      scale = 1024L * 1024L * 1024L;
+    } else if (strchr(optarg,'M') || strchr(optarg,'m')) {
+      scale = 1024L * 1024L;
+    } else if (strchr(optarg,'K') || strchr(optarg,'k')) {
+      scale = 1024L;
+    }
 
-      double low, high;
-      int r = splitRange(optarg, &low, &high);
-      low = low * scale;
-      high = high * scale;
-      if (r == 1) high = low;
-      for (size_t i = low; i <= high; i++) {
-	addToPositions(i);
-	
-      }
-      break;
+    double low, high;
+    int r = splitRange(optarg, &low, &high);
+    low = low * scale;
+    high = high * scale;
+    if (r == 1) high = low;
+    for (size_t i = low; i <= high; i++) {
+      addToPositions(i);
+
+    }
+    break;
     case 'R':
       seed = atoi(optarg);
       fprintf(stderr,"*info* seed: %zd\n", seed);
@@ -182,7 +187,7 @@ int main(int argc, char *argv[])
     fprintf(stdout,"\nTemporarily XOR a byte at an offset position, sleep then restore\n");
     fprintf(stdout,"\nOptions:\n");
     fprintf(stdout,"   -f device     specifies a block device\n");
-    fprintf(stdout,"   -p offset     the block device offset [defaults to byte 0]\n"); 
+    fprintf(stdout,"   -p offset     the block device offset [defaults to byte 0]\n");
     fprintf(stdout,"   -p 2k         can use k,M,G units\n");
     fprintf(stdout,"   -p 4096-4100  range plus can use k,M,G units\n");
     fprintf(stdout,"   -p 4M         can use k,M,G units\n");
@@ -211,19 +216,19 @@ int main(int argc, char *argv[])
   } else {
 
     storeBytes();
-    
+
     if (!oneoff) fprintf(stderr,"*info* pausing for %zd seconds (or control-c), then restore\n", runtime);
     while (keepRunning) {
       perturbBytes(probability);
       if (oneoff) break;
-      
+
       sleep(runtime);
       if (repeat == 0) {
-	break;
+        break;
       } else {
-	restoreBytes();
-	sleep(runtime);
-	fprintf(stderr,"\n");
+        restoreBytes();
+        sleep(runtime);
+        fprintf(stderr,"\n");
       }
     }
   }
@@ -233,7 +238,7 @@ int main(int argc, char *argv[])
   if (device) free(device);
 
   freePositions();
-  
+
   fflush(stderr);
 
   exit(0);

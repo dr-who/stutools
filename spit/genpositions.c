@@ -20,7 +20,8 @@ int keepRunning = 1;
 int verbose = 0;
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 
   int opt, verbose = 0;
   size_t num = 100;
@@ -31,7 +32,7 @@ int main(int argc, char *argv[]) {
   size_t uniqSeedPerWrite = 0;
   size_t sequenceChoice = 1; // default to sequential
   size_t specifiedMaxBDSize = 0;
- 
+
   while ((opt = getopt(argc, argv, "a:f:k:n:VP:us:G:" )) != -1) {
     switch (opt) {
     case 'a':
@@ -44,19 +45,19 @@ int main(int argc, char *argv[]) {
       specifiedMaxBDSize = 1024L * 1024 * 1024L * atof(optarg);
       break;
     case 'k':
-      {}
-      char *endp = NULL;
-      size_t bs = 1024 * strtod(optarg, &endp);
-      if (bs < 512) bs = 512;
-      blockLow = bs;
-      blockHigh = bs;
-      if (*endp == '-' || *endp == ':') {
-        int nextv = atoi(endp+1);
-        if (nextv > 0) {
-          blockHigh = 1024 * nextv;
-        }
+    {}
+    char *endp = NULL;
+    size_t bs = 1024 * strtod(optarg, &endp);
+    if (bs < 512) bs = 512;
+    blockLow = bs;
+    blockHigh = bs;
+    if (*endp == '-' || *endp == ':') {
+      int nextv = atoi(endp+1);
+      if (nextv > 0) {
+        blockHigh = 1024 * nextv;
       }
-      break;
+    }
+    break;
     case 'n':
       num = atoi(optarg);
       break;
@@ -90,7 +91,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* bdSize limited with -G. From %.3lf GiB  down to %.3lf GiB\n", TOGiB(bdSize), TOGiB(specifiedMaxBDSize));
     bdSize = specifiedMaxBDSize;
   }
-    
+
   size_t startByte = 0;
   size_t finishByte = bdSize;
   size_t count = 0;
@@ -119,7 +120,7 @@ int main(int argc, char *argv[]) {
     perror("genpositions");
     exit(1);
   }
-  
+
   fprintf(stderr,"*info* bd size %zd (%.3lf GiB), block low %zd, block high %zd, step %zd, pos '%s'\n", bdSize, TOGiB(bdSize), blockLow, blockHigh, stepSize, posfile);
   for (size_t pos = startByte; pos < finishByte; ) {
     size_t len = randomBlockSize(blockLow, blockHigh, 12, lrand48());
@@ -131,7 +132,7 @@ int main(int argc, char *argv[]) {
     //    buffer[len-1] = 0;
     //    fprintf(stderr,"%s\n", buffer);
 
-    
+
     if (sequenceChoice == 0) {
       // align on 4096
       pc.positions[count].pos = (lrand48() % (bdSize >> 12)) << 12;
@@ -156,16 +157,16 @@ int main(int argc, char *argv[]) {
     }
     pc.positions[count].finishTime = timedouble();
 
-    
+
     if (sequenceChoice == 1) {
       pos += stepSize;
       if (pos + blockHigh > bdSize) pos=0;
     }
 
-    
+
     count++;
     if (uniqSeedPerWrite) seed++;
-    
+
     if (count >= num)
       break;
   }
@@ -174,7 +175,7 @@ int main(int argc, char *argv[]) {
   free(buffer);
 
   positionContainerHTML(&pc, "pileup.html");
-  
+
 
   if (posfile) {
     positionContainerSave(&pc, posfile, bdSize, 0, &job);
@@ -183,6 +184,6 @@ int main(int argc, char *argv[]) {
 
   free(device);
   free(posfile);
-  
+
   return 0;
 }

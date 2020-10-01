@@ -90,7 +90,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
     }
 
     if (dataok) return 0;
-    
+
     if (*diff < 3) {
       size_t lines = 0, starterror = 0;
       for (size_t i = 16; i < len; i++) {
@@ -175,11 +175,11 @@ static void *runThread(void *arg)
 
   size_t quitEarly = 0;
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
-    if (timedouble() > threadContext->finishTime) { // if reached the time limit 
+    if (timedouble() > threadContext->finishTime) { // if reached the time limit
       quitEarly = 1;
       break;
     }
-    
+
     if (threadContext->pc->positions[i].deviceid != lastid) {
       //      fprintf(stderr,"[%d] lastid %d this %d\n", threadContext->id, lastid, threadContext->pc->positions[i].deviceid);
       lastid = threadContext->pc->positions[i].deviceid;

@@ -380,7 +380,8 @@ char *hostname()
   return strdup(s);
 }
 
-void checkRandomBuffer4k(const char *buffer, const size_t len) {
+void checkRandomBuffer4k(const char *buffer, const size_t len)
+{
   for (size_t i = 4096; i < len; i += 4096) {
     int ret = memcmp(buffer, buffer+i, 4096);
     if (ret) {
@@ -400,7 +401,7 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
 
   //  if (cyclic != size) {
   //    fprintf(stderr,"*info* generating a random buffer with a size %zd bytes, cyclic %zd bytes\n", size, cyclic);
-    //  }
+  //  }
 
   unsigned int seed = seedin;
 
@@ -422,7 +423,7 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
   //  strncpy(buffer, s, topr);
   memcpy(buffer, s, topr);
   */
-  
+
   for (size_t j = cyclic; j < size; j += cyclic) {
     memcpy(buffer + j, buffer, cyclic);
     //    buffer[j] = buffer[j % cyclic];
@@ -434,8 +435,8 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
     for (size_t j = 0 ; j < size; j+= cyclic) {
       size_t check2 = checksumBuffer(buffer + j, cyclic);
       if (sumcount != check2) {
-	fprintf(stderr,"*fatal* memory problem\n");
-	exit(1);
+        fprintf(stderr,"*fatal* memory problem\n");
+        exit(1);
       }
     }
   }
@@ -537,7 +538,7 @@ char *getCPUModel()
   size_t len = 1000;
   char *s, *retval = NULL;
   CALLOC(s, len, 1);
-  
+
   sprintf(s, "/proc/cpuinfo");
   FILE *fp = fopen(s, "rt");
   int ret = 0;
@@ -545,11 +546,11 @@ char *getCPUModel()
     while ((ret = getline(&s, &len, fp)) > 0) {
       char first[100], sec[100];
       if (sscanf(s, "%s %s", first, sec) >= 2) {
-	if ((strcmp(first,"model") == 0) && (strcmp(sec,"name")) == 0) {
-	  s[ret - 1] = 0;
-	  retval = strdup(strstr(s, ":") + 2);
-	  break;
-	}
+        if ((strcmp(first,"model") == 0) && (strcmp(sec,"name")) == 0) {
+          s[ret - 1] = 0;
+          retval = strdup(strstr(s, ":") + 2);
+          break;
+        }
       }
     }
   } else {
@@ -1008,7 +1009,8 @@ int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid )
 }
 
 
-int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard_max_bytes, size_t *discard_granularity, size_t *discard_zeroes_data) {
+int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard_max_bytes, size_t *discard_granularity, size_t *discard_zeroes_data)
+{
   *discard_max_bytes = 0;
   *discard_granularity = 0;
   *discard_zeroes_data = 0;
@@ -1073,9 +1075,10 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
 
   return 0;
 }
-  
 
-int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, double *maxdelay_secs, const int verbose, int zeroall) {
+
+int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, double *maxdelay_secs, const int verbose, int zeroall)
+{
   int err = 0;
   double before = 0, delta = 0, start = 0, elapsed = 0;
 
@@ -1088,79 +1091,79 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
     calls = 1;
     max_bytes = high - low;
   }
-  
+
   if (path && verbose) {
     fprintf(stderr,"*info* starting discarding %s, [%.3lf GiB, %.3lf GiB], in %d calls of at most %zd bytes...\n", path, TOGiB(low), TOGiB(high), calls, max_bytes);
   }
 
-  
+
   if (high - low >= discard_granularity) {
 
     start = timedouble();
     for (size_t i = low; i < high; i+= max_bytes) {
-      
+
       unsigned long range[2];
-      
+
       range[0] = i;
       range[1] = MIN(high - i, max_bytes);
-      
+
       if (verbose) {
-	fprintf(stderr, "*info* sending trim/BLKDISCARD command to %s [%ld, %ld] [%.3lf GiB, %.3lf GiB]\n", path, range[0], range[0] + range[1], TOGiB(range[0]), TOGiB(range[0] + range[1]));
+        fprintf(stderr, "*info* sending trim/BLKDISCARD command to %s [%ld, %ld] [%.3lf GiB, %.3lf GiB]\n", path, range[0], range[0] + range[1], TOGiB(range[0]), TOGiB(range[0] + range[1]));
       }
-      
+
       err = 0;
       before = timedouble();
 
       //      fprintf(stderr,"err %lu %lu\n", range[0], range[1]);
       err = ioctl(fd, BLKDISCARD, &range);
-      
+
       if (zeroall) {
-	//fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", path, err);
-	//perform using a dd?
-	unsigned long maxzero = 128*1024*1024;
-	if (range[1] < maxzero) {
-	  maxzero = range[1];
-	} else {
-	  fprintf(stderr,"*info* truncating the zero region to be %zd bytes\n", maxzero);
-	}
-	char *trimdata;
-	CALLOC(trimdata, maxzero, sizeof(char));
-	memset(trimdata, 'z', maxzero);
-	assert(trimdata);
+        //fprintf(stderr, "*error* %s: BLKDISCARD ioctl failed, error = %d\n", path, err);
+        //perform using a dd?
+        unsigned long maxzero = 128*1024*1024;
+        if (range[1] < maxzero) {
+          maxzero = range[1];
+        } else {
+          fprintf(stderr,"*info* truncating the zero region to be %zd bytes\n", maxzero);
+        }
+        char *trimdata;
+        CALLOC(trimdata, maxzero, sizeof(char));
+        memset(trimdata, 'z', maxzero);
+        assert(trimdata);
 
-	//	fprintf(stderr,"%lu %ld\n", range[1], i);
-	long unsigned t = pwrite(fd, trimdata, maxzero, i);
-	fsync(fd);
-	memset(trimdata, 'r', maxzero);
+        //	fprintf(stderr,"%lu %ld\n", range[1], i);
+        long unsigned t = pwrite(fd, trimdata, maxzero, i);
+        fsync(fd);
+        memset(trimdata, 'r', maxzero);
 
-	if (t != maxzero) {
-	  perror("trim");
-	} else {
-	  fprintf(stderr,"*info* '%s' wrote %zd bytes data at position %zd\n", path, maxzero, i);
-	}
+        if (t != maxzero) {
+          perror("trim");
+        } else {
+          fprintf(stderr,"*info* '%s' wrote %zd bytes data at position %zd\n", path, maxzero, i);
+        }
 
-	t = pread(fd, trimdata, maxzero, i);
+        t = pread(fd, trimdata, maxzero, i);
 
-	for (size_t t = 0; t <maxzero; t++) {
-	  if (trimdata[t] != 'z') {
-	    fprintf(stderr,"*error* didn't erase the region on '%s'\n", path);
-	    break;
-	  }
-	}
+        for (size_t t = 0; t <maxzero; t++) {
+          if (trimdata[t] != 'z') {
+            fprintf(stderr,"*error* didn't erase the region on '%s'\n", path);
+            break;
+          }
+        }
 
-	free(trimdata);
-	
-	break;
+        free(trimdata);
+
+        break;
       } else {
-	if (err) {
-	  fprintf(stderr,"*warning* device '%s' doesn't support TRIM\n", path);
-	}
+        if (err) {
+          fprintf(stderr,"*warning* device '%s' doesn't support TRIM\n", path);
+        }
       }
       delta = timedouble() - before;
       if (maxdelay_secs) {
-	if (delta > *maxdelay_secs) {
-	  *maxdelay_secs = delta;
-	}
+        if (delta > *maxdelay_secs) {
+          *maxdelay_secs = delta;
+        }
       }
     }
     elapsed = timedouble() - start;
@@ -1177,7 +1180,8 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
 
 #include <syslog.h>
 
-void syslogString(const char *prog, const char *message) {
+void syslogString(const char *prog, const char *message)
+{
   if (prog) {}
   setlogmask (LOG_UPTO (LOG_NOTICE));
 

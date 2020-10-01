@@ -68,7 +68,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                         const size_t remain,
                                         const double fourkEveryMiB,
                                         const size_t jumpKiB,
-					const size_t firstPPositions
+                                        const size_t firstPPositions
                                        );
 
 //void freePositions(positionType *p);
@@ -107,7 +107,7 @@ void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed, co
 void insertFourkEveryMiB(positionContainer *pc, const size_t minbdSize, const size_t maxbdSize, unsigned int seed, const double fourkEveryMiB, const size_t jumpKiB);
 
 void positionContainerHTML(positionContainer *p, const char *name);
-  
+
 
 #endif
 

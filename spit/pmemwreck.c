@@ -31,7 +31,8 @@ int main(int argc, char *argv[])
   assert(suffix);
   sprintf(sys, "/sys/bus/dax/devices/%s/size", suffix);
   free(suffix);
-  FILE *fp = fopen(sys, "rt"); assert(fp);
+  FILE *fp = fopen(sys, "rt");
+  assert(fp);
   size_t maxsz = 0;
   int ret = fscanf(fp, "%lu", &maxsz);
   maxsz = alignedNumber(maxsz, ALIGN);
@@ -70,7 +71,7 @@ int main(int argc, char *argv[])
 
 
   fprintf(stderr,"*info* %zd changes applied to devices %s\n", changes, dev);
-    
+
   close( fd );
   return 0;
 }

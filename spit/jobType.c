@@ -309,19 +309,23 @@ static void *runThread(void *arg)
       // else just open
       int excl = (threadContext->id == 0) ? O_EXCL : 0;
       if (threadContext->notexclusive) excl = 0;
-      if ((excl == 0) && (threadContext->id == 0)) {fprintf(stderr,"*info* open device without O_EXCL\n"); }
+      if ((excl == 0) && (threadContext->id == 0)) {
+        fprintf(stderr,"*info* open device without O_EXCL\n");
+      }
       fd = open(threadContext->jobdevice, O_RDWR | direct | excl);
       if (verbose) fprintf(stderr,"*info* open with O_RDWR, direct=%d, excl=%d\n", direct, excl);
     }
   } else {
     int excl = (threadContext->id == 0) ? O_EXCL : 0;
     if (threadContext->notexclusive) excl = 0;
-    if ((excl == 0) && (threadContext->id == 0)) {fprintf(stderr,"*info* open device without O_EXCL\n"); }
+    if ((excl == 0) && (threadContext->id == 0)) {
+      fprintf(stderr,"*info* open device without O_EXCL\n");
+    }
     fd = open(threadContext->jobdevice, O_RDONLY | direct | excl);
     if (verbose >= 2) fprintf(stderr,"*info* open with O_RDONLY\n");
   }
 
-  
+
 
   if (fd < 0) {
     fprintf(stderr,"*error* problem opening '%s' with direct=%d, writes=%zd\n", threadContext->jobdevice, direct, threadContext->anywrites);
@@ -438,13 +442,13 @@ static void *runThread(void *arg)
     }
   }
 
-  
+
   size_t totalB = 0, ioerrors = 0;
   while (keepRunning) {
 
     if (threadContext->performPreDiscard) {
       if (threadContext->anywrites && discard_max_bytes) {
-	performDiscard(fd, threadContext->jobdevice, threadContext->minbdSize, threadContext->maxbdSize, discard_max_bytes, discard_granularity, NULL, 0, 0);
+        performDiscard(fd, threadContext->jobdevice, threadContext->minbdSize, threadContext->maxbdSize, discard_max_bytes, discard_granularity, NULL, 0, 0);
       }
     }
 
@@ -453,14 +457,14 @@ static void *runThread(void *arg)
     /*    size_t ttt = 0;
     for (size_t i = 0; i < threadContext->pos.sz; i++) {
       if (threadContext->pos.positions[i].action == 'W')
-	ttt += threadContext->pos.positions[i].len;
-	}*/
+    ttt += threadContext->pos.positions[i].len;
+    }*/
 
     totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + threadContext->runSeconds, byteLimit, threadContext->queueDepth, -1 /* verbose */, 0, /*threadContext->randomBuffer, threadContext->highBlockSize, */ MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes,  threadContext->rerandomize || threadContext->addBlockSize || threadContext->performPreDiscard, 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors, threadContext->QDbarrier, discard_max_bytes);
 
     //    if (keepRunning && byteLimit) {
-      //      fprintf(stderr,"%zd %zd ttt %zd\n", shouldWriteBytes, byteLimit, ttt);
-      //      assert(shouldWriteBytes <= ttt);
+    //      fprintf(stderr,"%zd %zd ttt %zd\n", shouldWriteBytes, byteLimit, ttt);
+    //      assert(shouldWriteBytes <= ttt);
     //    }
 
     // check exit constraints
@@ -470,7 +474,7 @@ static void *runThread(void *arg)
       }
     } else {
       if (timedouble() > starttime + threadContext->finishSeconds) {
-	//	fprintf(stderr,"*info* timer threshold reached\n");
+        //	fprintf(stderr,"*info* timer threshold reached\n");
         break;
       }
     }
@@ -565,7 +569,7 @@ static void *runThreadTimer(void *arg)
     if (verbose) fprintf(stderr,"*info* defaulting timer to 10 years\n");
     threadContext->finishSeconds = 86400 * 365 * 10;
   }
-  
+
   while(*threadContext->go < threadContext->waitForThreads) {
     usleep(100);
     //    fprintf(stderr,"."); fflush(stderr);
@@ -908,8 +912,8 @@ static void *runThreadTimer(void *arg)
   threadContext->result_writeMBps = TOGiB(total_printed_w_bytes) / tm;
   threadContext->result_readMBps = TOGiB(total_printed_r_bytes) /tm;
   threadContext->result_tm = tm;
-  
-  
+
+
   return NULL;
 }
 
@@ -921,7 +925,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const double runseconds, const size_t dumpPos, char *benchmarkName, const size_t origqd,
                    unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, char* numaBinding, const int performPreDiscard,
-		   resultType *result, size_t ramBytesForPositions, size_t notexclusive)
+                   resultType *result, size_t ramBytesForPositions, size_t notexclusive)
 {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -934,7 +938,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   //  if (notexclusive) {
   //    fprintf(stderr,"*warning* specifying to open devices without O_EXCL\n");
   //  }
-  
+
   if (seed == 0) {
     const double d = timedouble() * 100.0; // use the fractions so up/return is different
     const unsigned long d2 = (unsigned long)d;
@@ -1276,7 +1280,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       if (pChar && *(pChar+1)) {
         size_t newmp = atoi(pChar + 1);
-	threadContext[i].firstPPositions = newmp;
+        threadContext[i].firstPPositions = newmp;
         if (newmp < mp) {
           mp = newmp;
         }
@@ -1315,7 +1319,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
     threadContext[i].queueDepth = qDepth;
-    
+
 
 
     if (verbose) {
@@ -1334,7 +1338,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     //    fprintf(stderr,"*info* RAM to use: %zd bytes (%.3lf GiB), qd = %zd, maxK %zd\n", useRAM, TOGiB(useRAM), threadContext[i].queueDepth, threadContext[i].highBlockSize);
     if (aioSize > useRAM / 2) {
       if (i == 0) {
-	fprintf(stderr,"*warning* we can't enforce RAM limits with the qd and max block size\n");
+        fprintf(stderr,"*warning* we can't enforce RAM limits with the qd and max block size\n");
       }
     } else {
       useRAM -= aioSize;
@@ -1342,10 +1346,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     size_t fitinram = (useRAM / sizeof(positionType));
     if (verbose) {
-      	fprintf(stderr,"*info* RAM required: %.1lf GiB for qd x bs, and %.1lf GiB for positions\n", TOGiB(aioSize), TOGiB(fitinram));
+      fprintf(stderr,"*info* RAM required: %.1lf GiB for qd x bs, and %.1lf GiB for positions\n", TOGiB(aioSize), TOGiB(fitinram));
     }
 
-    
+
 
     if ((ramBytesForPositions || verbose || (fitinram < mp)) && (i==0)) {
       fprintf(stderr,"*info* using %.3lf GiB RAM for positions (%d threads, %ld record size), we can store max ", TOGiB(useRAM), num, sizeof(positionType));
@@ -1378,7 +1382,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
-    
+
     if (verbose) {
       fprintf(stderr,"*info* sizeLimit %zu, countin time %zd, mp %zd, fitinram %zd\n", sizeLimitCount, countintime, mp, fitinram);
     }
@@ -1387,9 +1391,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if (mp2 != mp) {
       mp = mp2;
       if (verbose) {
-	if (i == 0) {
-	  fprintf(stderr,"*info* device '%s', positions limited to %zd\n", job->devices[i], mp);
-	}
+        if (i == 0) {
+          fprintf(stderr,"*info* device '%s', positions limited to %zd\n", job->devices[i], mp);
+        }
       }
     }
 
@@ -1415,8 +1419,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         wcount++;
         rwt_total++;
       } else if (job->strings[i][k] == 't') {
-	tcount++;
-	rwt_total++;
+        tcount++;
+        rwt_total++;
       }
     }
     if (rwt_total == 0) {
@@ -1427,14 +1431,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       wprob = wcount * 1.0 / rwt_total;
       tprob = tcount * 1.0 / rwt_total;
     }
-  
+
 
     {
       char *sf = strchr(job->strings[i], 'p');
       if (sf && *(sf+1)) {
-	rprob = atof(sf + 1);
-	wprob = 1.0 - rprob;
-	tprob = 0;
+        rprob = atof(sf + 1);
+        wprob = 1.0 - rprob;
+        tprob = 0;
       }
     }
 
@@ -1523,7 +1527,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       threadContext[i].runSeconds = atof(iTO+1);
       threadContext[i].finishSeconds = atof(iTO+1);
       if (verbose) {
-	fprintf(stderr,"*info* hard limiting time to execute to %.1lf seconds\n", threadContext[i].runSeconds);
+        fprintf(stderr,"*info* hard limiting time to execute to %.1lf seconds\n", threadContext[i].runSeconds);
       }
     }
 
@@ -1560,24 +1564,26 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
     threadContext[i].speedMB = 0;
-    threadContext[i].msdelay = speedMB; 
+    threadContext[i].msdelay = speedMB;
 
 
     char *Wchar = strchr(job->strings[i], 'W');
     if (Wchar && *(Wchar+1)) {
 
       char *endp = NULL;
-      double runfor = strtod(Wchar + 1, &endp); if (runfor < 0) runfor = 0;
+      double runfor = strtod(Wchar + 1, &endp);
+      if (runfor < 0) runfor = 0;
       double waitfor = runfor;
       if (*endp == '-' || *endp == ':') {
-        waitfor = atof(endp+1); if (waitfor < 0) waitfor = 0;
+        waitfor = atof(endp+1);
+        if (waitfor < 0) waitfor = 0;
       }
 
       if (verbose) fprintf(stderr,"*info* alternating time parameter W%.1lf:%.1lf\n", runfor, waitfor);
       if (timeperline > runfor / 2) {
-	fprintf(stderr,"*warning* recommendation that -s %.2g is used to get the granularity required\n", runfor / 2);
+        fprintf(stderr,"*warning* recommendation that -s %.2g is used to get the granularity required\n", runfor / 2);
       }
-      
+
       threadContext[i].runSeconds = runfor;
       threadContext[i].waitfor = waitfor;
     }
@@ -1646,7 +1652,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   pthread_create(&(pt[num]), NULL, runThreadTimer, &(threadContext[num]));
   pthread_setname_np(pt[num], strdup("spit timer"));
-  
+
   //  for (int i = 0; i < num; i++) {
   //    fprintf(stderr,"%s  %d\n", threadContext[i].jobstring, threadContext[i].
 
@@ -1668,11 +1674,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     listConstruct(&numaList);
     if( strcmp(numaBinding, "all") == 0 ) {
-        for( int i = 0; i < numa_count; i++ ) {
-            listAdd(&numaList, i);
-        }
+      for( int i = 0; i < numa_count; i++ ) {
+        listAdd(&numaList, i);
+      }
     } else {
-        listAddString(&numaList, numaBinding);
+      listAddString(&numaList, numaBinding);
     }
     listIterateStart(&numaList);
   } else {
@@ -1687,36 +1693,36 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     if( do_numa ) {
 
-        long numa = 0;
-        listNext(&numaList, &numa, 1);
-        assert( numa >= 0 );
-        assert( numa < numa_count );
+      long numa = 0;
+      listNext(&numaList, &numa, 1);
+      assert( numa >= 0 );
+      assert( numa < numa_count );
 
-        // If -I drive.txt, each thread may have a suggest numa already
-        if (threadContext[tid].jobnuma >= 0) {
-	   numa = threadContext[tid].jobnuma;
-        } else {
-            threadContext[tid].jobnuma = numa;
-        }
+      // If -I drive.txt, each thread may have a suggest numa already
+      if (threadContext[tid].jobnuma >= 0) {
+        numa = threadContext[tid].jobnuma;
+      } else {
+        threadContext[tid].jobnuma = numa;
+      }
 
-        ++numa_thread_counter[ numa ];
-        int rc = pinThread( &pt[tid], numa_threads[ numa ], cpuCountPerNuma( numa ) );
-        if (rc) {
-            fprintf(stderr,"*error* failed to pin thread %d to NUMA %ld\n", tid, numa);
-            exit(-1);
-        }
+      ++numa_thread_counter[ numa ];
+      int rc = pinThread( &pt[tid], numa_threads[ numa ], cpuCountPerNuma( numa ) );
+      if (rc) {
+        fprintf(stderr,"*error* failed to pin thread %d to NUMA %ld\n", tid, numa);
+        exit(-1);
+      }
 
-        if (verbose >= 2) {
-            fprintf( stderr, "*info* pinned thread %d to NUMA %ld\n", tid, numa);
-        }
+      if (verbose >= 2) {
+        fprintf( stderr, "*info* pinned thread %d to NUMA %ld\n", tid, numa);
+      }
     }
   }
 
   if(verbose >=2 ) {
-      fprintf(stderr, "TID\tNUMA\n");
-      for(int tid = 0; tid < num; tid++) {
-          fprintf(stderr, "%d\t%d\n", tid, threadContext[tid].jobnuma );
-      }
+    fprintf(stderr, "TID\tNUMA\n");
+    for(int tid = 0; tid < num; tid++) {
+      fprintf(stderr, "%d\t%d\n", tid, threadContext[tid].jobnuma );
+    }
   }
 
   if( do_numa ) {
@@ -1761,7 +1767,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
     //    positionContainerSave(origpc, "a.a", origpc->maxbdSize, 0, job);
-      
+
     positionContainer mergedpc = positionContainerMerge(origpc, num);
 
     if (savePositions) {
@@ -1771,76 +1777,76 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       fprintf(stderr, "finished\n");
       fflush(stderr);
 
-    // histogram
-    histogramType histRead, histWrite;
-    histSetup(&histRead, 0, 10, 1e-6);
-    histSetup(&histWrite, 0, 10, 1e-6);
+      // histogram
+      histogramType histRead, histWrite;
+      histSetup(&histRead, 0, 10, 1e-6);
+      histSetup(&histWrite, 0, 10, 1e-6);
 
-    for (int i = 0; i < (int) mergedpc.sz; i++) {
-      if (mergedpc.positions[i].action == 'R')
-        histAdd(&histRead, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
-      else if (mergedpc.positions[i].action == 'W')
-        histAdd(&histWrite, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
-    }
-    double median, three9, four9, five9;
-    if (histCount(&histRead)) {
-      histSumPercentages(&histRead, &median, &three9, &four9, &five9, 1000);
-      fprintf(stderr,"*info* read latency:  mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000 * histMean(&histRead), median, three9, four9, five9);
-      histSave(&histRead, "spit-latency-read.txt", 1000);
-
-      FILE *fp = fopen("spit-latency-read.gnu", "wt");
-      if (fp) {
-        fprintf(fp, "set key above\n");
-        fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
-        fprintf(fp, "set log y\n");
-        fprintf(fp, "set xtics auto\n");
-        fprintf(fp, "set y2tics 10\n");
-        fprintf(fp, "set grid\n");
-        fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
-        fprintf(fp, "set y2range [0:100]\n");
-        fprintf(fp, "set xlabel 'Time (ms)'\n");
-        fprintf(fp, "set ylabel 'Count'\n");
-        fprintf(fp, "set y2label 'Confidence level'\n");
-        fprintf(fp, "plot 'spit-latency-read.txt' using 1:2 with imp title 'Read Latency', 'spit-latency-read.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
-      } else {
-        perror("filename");
+      for (int i = 0; i < (int) mergedpc.sz; i++) {
+        if (mergedpc.positions[i].action == 'R')
+          histAdd(&histRead, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
+        else if (mergedpc.positions[i].action == 'W')
+          histAdd(&histWrite, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
       }
-      if (fp) {
-        fclose(fp);
-        fp = NULL;
-      }
+      double median, three9, four9, five9;
+      if (histCount(&histRead)) {
+        histSumPercentages(&histRead, &median, &three9, &four9, &five9, 1000);
+        fprintf(stderr,"*info* read latency:  mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000 * histMean(&histRead), median, three9, four9, five9);
+        histSave(&histRead, "spit-latency-read.txt", 1000);
 
-    }
-    if (histCount(&histWrite)) {
-      histSumPercentages(&histWrite, &median, &three9, &four9, &five9, 1000);
-      fprintf(stderr,"*info* write latency: mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histWrite), median, three9, four9, five9);
-      histSave(&histWrite, "spit-latency-write.txt", 1000);
+        FILE *fp = fopen("spit-latency-read.gnu", "wt");
+        if (fp) {
+          fprintf(fp, "set key above\n");
+          fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
+          fprintf(fp, "set log y\n");
+          fprintf(fp, "set xtics auto\n");
+          fprintf(fp, "set y2tics 10\n");
+          fprintf(fp, "set grid\n");
+          fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
+          fprintf(fp, "set y2range [0:100]\n");
+          fprintf(fp, "set xlabel 'Time (ms)'\n");
+          fprintf(fp, "set ylabel 'Count'\n");
+          fprintf(fp, "set y2label 'Confidence level'\n");
+          fprintf(fp, "plot 'spit-latency-read.txt' using 1:2 with imp title 'Read Latency', 'spit-latency-read.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
+        } else {
+          perror("filename");
+        }
+        if (fp) {
+          fclose(fp);
+          fp = NULL;
+        }
 
-      FILE *fp = fopen("spit-latency-write.gnu", "wt");
-      if (fp) {
-        fprintf(fp, "set key above\n");
-        fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
-        fprintf(fp, "set log y\n");
-        fprintf(fp, "set xtics auto\n");
-        fprintf(fp, "set y2tics 10\n");
-        fprintf(fp, "set grid\n");
-        fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
-        fprintf(fp, "set y2range [0:100]\n");
-        fprintf(fp, "set xlabel 'Time (ms)'\n");
-        fprintf(fp, "set ylabel 'Count'\n");
-        fprintf(fp, "set y2label 'Confidence Level'\n");
-        fprintf(fp, "plot 'spit-latency-write.txt' using 1:2 with imp title 'Write Latency', 'spit-latency-write.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
-      } else {
-        perror("filename");
       }
-      if (fp) {
-        fclose(fp);
-        fp = NULL;
-      }
+      if (histCount(&histWrite)) {
+        histSumPercentages(&histWrite, &median, &three9, &four9, &five9, 1000);
+        fprintf(stderr,"*info* write latency: mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histWrite), median, three9, four9, five9);
+        histSave(&histWrite, "spit-latency-write.txt", 1000);
 
-    }
-    histFree(&histRead);
-    histFree(&histWrite);
+        FILE *fp = fopen("spit-latency-write.gnu", "wt");
+        if (fp) {
+          fprintf(fp, "set key above\n");
+          fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
+          fprintf(fp, "set log y\n");
+          fprintf(fp, "set xtics auto\n");
+          fprintf(fp, "set y2tics 10\n");
+          fprintf(fp, "set grid\n");
+          fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
+          fprintf(fp, "set y2range [0:100]\n");
+          fprintf(fp, "set xlabel 'Time (ms)'\n");
+          fprintf(fp, "set ylabel 'Count'\n");
+          fprintf(fp, "set y2label 'Confidence Level'\n");
+          fprintf(fp, "plot 'spit-latency-write.txt' using 1:2 with imp title 'Write Latency', 'spit-latency-write.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
+        } else {
+          perror("filename");
+        }
+        if (fp) {
+          fclose(fp);
+          fp = NULL;
+        }
+
+      }
+      histFree(&histRead);
+      histFree(&histWrite);
     }
 
     if (verify) {
@@ -1898,13 +1904,13 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
     for (int i = 0; i < (int) count; i++) {
       fprintf(stderr,"*info* precondition %d: device '%s', command '%s'\n", i+1, preconditions->devices[i], preconditions->strings[i]);
       fprintf(stderr,"*info* size of the block device %zd (%.3lf GiB)\n", maxSizeBytes, TOGiB(maxSizeBytes));
-    
+
       {
         char *charG = strchr(preconditions->strings[i], 'G');
         if (charG && *(charG+1)) {
           // a G num is specified
           gSize = alignedNumber(1024L * atof(charG + 1) * 1024 * 1024, 4096);
-	  fprintf(stderr,"*info* specified G value %zd (%.3lf GiB)\n", gSize, TOGiB(gSize));
+          fprintf(stderr,"*info* specified G value %zd (%.3lf GiB)\n", gSize, TOGiB(gSize));
         }
       }
 
@@ -1946,8 +1952,8 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
         }
       }
 
-      fprintf(stderr,"*info* coverage %zd, with an IOPS limit of %zd (%.0lf MiB/sec) after %.3lf GiB is written\n", coverage, exitIOPS, exitIOPS * blockSize / 1024, TOGiB(gSize));     
-      
+      fprintf(stderr,"*info* coverage %zd, with an IOPS limit of %zd (%.0lf MiB/sec) after %.3lf GiB is written\n", coverage, exitIOPS, exitIOPS * blockSize / 1024, TOGiB(gSize));
+
       char s[100];
       sprintf(s, "w k%g z s%zd J%zd b%zd X%zd nN I%zd q64", blockSize, seqFiles, jumble, gSize, coverage, exitIOPS); // X1 not x1 means run once then rerandomise
       fprintf(stderr,"*info* '%s'\n", s);

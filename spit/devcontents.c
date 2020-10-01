@@ -9,7 +9,7 @@
 #include <assert.h>
 
 /**
- * devcontents 
+ * devcontents
  *
  * iterate through a device, displaying the contents
  *
@@ -27,10 +27,11 @@ int verbose = 0;
 int keepRunning = 1;
 
 
-void analyse(unsigned char *buf, int low, int high, int *m, int *x, int *range) {
+void analyse(unsigned char *buf, int low, int high, int *m, int *x, int *range)
+{
   int min = 256;
   int max = 0;
-  
+
   for (int i = low; i < high; i++) {
     if (buf[i] > max) max=buf[i];
     if (buf[i] < min) min=buf[i];
@@ -40,7 +41,7 @@ void analyse(unsigned char *buf, int low, int high, int *m, int *x, int *range) 
   *range = max - min + 1;
 }
 
-      
+
 int main(int argc, char *argv[])
 {
   int opt;
@@ -60,19 +61,19 @@ int main(int argc, char *argv[])
       break;
     case 'G':
       if (strchr(optarg,'K') || strchr(optarg,'k')) {
-	finishAt = (size_t)(1024.0 * atof(optarg));
+        finishAt = (size_t)(1024.0 * atof(optarg));
       } else if (strchr(optarg,'M') || strchr(optarg,'m')) {
-	finishAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
+        finishAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
       } else {
-	finishAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
+        finishAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
       }
       //      fprintf(stderr,"*info* finish at %zd (%.4lf GiB, %.3lf MiB)\n", finishAt, TOGiB(finishAt), TOMiB(finishAt));
       break;
     case 'g':
       if (strchr(optarg,'M') || strchr(optarg,'m')) {
-	startAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
+        startAt = (size_t)(1024.0 * 1024.0 * atof(optarg));
       } else {
-	startAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
+        startAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
       }
       //      fprintf(stderr,"*info* start at %zd (%.4lf GiB, %.3lf MiB)\n", startAt, TOGiB(startAt), TOMiB(startAt));
       break;
@@ -92,7 +93,7 @@ int main(int argc, char *argv[])
   if (finishAt < startAt) {
     fprintf(stderr,"*error* finish is less than the start position\n");
   }
-  
+
   if (!device) {
     fprintf(stderr,"*info* devcontents -f /dev/device [options...)\n");
     fprintf(stderr,"\nDisplay the contents of a block device\n");
@@ -120,11 +121,11 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*warning* OOM\n");
       exit(1);
     }
-    
+
     int firstgap = 0;
 
     fprintf(stdout,"%9s\t%6s\t%8s\t%6s\t%6s\t%6s\t%6s\t%s\n", "pos", "p(MiB)", "pos", "p%256K", "min", "max", "range", "contents...");
-    
+
     unsigned char *pbuf = NULL;
     pbuf = malloc(width + 1);
     if (!pbuf) {
@@ -135,36 +136,36 @@ int main(int argc, char *argv[])
       int min = 0, max = 0, range = 0;
       int r = pread(fd, buf, blocksize, pos);
       if (r == 0) {
-	perror(device);
-	exit(1);
+        perror(device);
+        exit(1);
       }
       analyse(buf, 0, blocksize, &min, &max, &range);
       if (max > 1) {
-	memcpy(pbuf, buf, width);
-	pbuf[width] = 0;
-	for (size_t j = 0; j < width; j++) {
-	  if (pbuf[j] < 32) pbuf[j] = '_';
-	  if (pbuf[j] >= 127) pbuf[j] = ' ';
-	}
-	fprintf(stdout,"0x%07zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, pbuf);
-	firstgap = 1;
+        memcpy(pbuf, buf, width);
+        pbuf[width] = 0;
+        for (size_t j = 0; j < width; j++) {
+          if (pbuf[j] < 32) pbuf[j] = '_';
+          if (pbuf[j] >= 127) pbuf[j] = ' ';
+        }
+        fprintf(stdout,"0x%07zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, pbuf);
+        firstgap = 1;
       } else {
-	if (firstgap) {
-	  fprintf(stdout,"...\n");
-	  firstgap = 0;
-	}
+        if (firstgap) {
+          fprintf(stdout,"...\n");
+          firstgap = 0;
+        }
       }
     }
     if (pbuf) {
       free(pbuf);
     }
-      
+
     close(fd);
     if (buf) {
       free(buf);
     }
   }
-  
+
 
   fprintf(stderr,"*info* exiting.\n");
   fflush(stderr);
