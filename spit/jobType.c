@@ -1726,13 +1726,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   }
 
   if( do_numa ) {
-    fprintf( stderr, "*info* " );
+    fprintf( stderr, "*info* NUMA allocation [" );
     for( int numa = 0; numa < numa_count; numa++ ) {
       const char* delim = numa > 0 ? ", " : "";
-      fprintf( stderr, "%sNUMA[%d] %d pinned on %d hardware threads", delim, numa, numa_thread_counter[ numa ], cpuCountPerNuma( numa ) );
+      fprintf( stderr, "%s%d", delim, numa_thread_counter[ numa ]);
       free( numa_threads[ numa ] );
     }
-    fprintf( stderr, "\n" );
+    fprintf( stderr, "]\n" );
     free( numa_threads );
     free( numa_thread_counter );
   }
