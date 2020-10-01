@@ -1726,7 +1726,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   }
 
   if( do_numa ) {
-    fprintf( stderr, "*info* NUMA allocation [" );
+    fprintf( stderr, "*info* NUMA allocation for %d threads [", num);
     for( int numa = 0; numa < numa_count; numa++ ) {
       const char* delim = numa > 0 ? ", " : "";
       fprintf( stderr, "%s%d", delim, numa_thread_counter[ numa ]);
