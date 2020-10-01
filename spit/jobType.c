@@ -18,6 +18,7 @@
 #include <math.h>
 #include <limits.h>
 #include "utils.h"
+#include "list.h"
 
 #include "aioRequests.h"
 #include "diskStats.h"
@@ -919,7 +920,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const size_t maxSizeInBytes,
                    const double runseconds, const size_t dumpPos, char *benchmarkName, const size_t origqd,
                    unsigned short seed, const char *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
-                   char *mysqloptions, char *mysqloptions2, char *commandstring, const int doNumaBinding, const int performPreDiscard,
+                   char *mysqloptions, char *mysqloptions2, char *commandstring, char* numaBinding, const int performPreDiscard,
 		   resultType *result, size_t ramBytesForPositions, size_t notexclusive)
 {
   pthread_t *pt;
@@ -1649,17 +1650,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   //  for (int i = 0; i < num; i++) {
   //    fprintf(stderr,"%s  %d\n", threadContext[i].jobstring, threadContext[i].
 
+  int do_numa = strcmp( numaBinding, "" ) != 0;
   int numa_count = getNumaCount();
-  // -1 default, -2 disable, >= 0 bind to specific numa
-  int do_numa = doNumaBinding >= -1 && numa_count > 0;
-  int default_binding = doNumaBinding == -1;
-  if( !default_binding && doNumaBinding >= numa_count ) {
-    fprintf( stderr, "Given NUMA[%d] is out of range. Max valid NUMA is %d\n", doNumaBinding, numa_count - 1 );
-    exit( 1 );
-  }
-
   int** numa_threads = NULL;
   int* numa_thread_counter = NULL;
+  listtype numaList;
   if( do_numa ) {
     numa_threads = (int**)malloc( numa_count * sizeof(int*) );
 
@@ -1670,6 +1665,16 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     numa_thread_counter = (int*)malloc( numa_count * sizeof( int ) );
     memset( numa_thread_counter, 0, numa_count * sizeof( int ) );
+
+    listConstruct(&numaList);
+    if( strcmp(numaBinding, "all") == 0 ) {
+        for( int i = 0; i < numa_count; i++ ) {
+            listAdd(&numaList, i);
+        }
+    } else {
+        listAddString(&numaList, numaBinding);
+    }
+    listIterateStart(&numaList);
   } else {
     fprintf( stderr, "*info* NUMA binding disabled\n" );
   }
@@ -1681,24 +1686,37 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     pthread_setname_np(pt[tid], strdup(s));
 
     if( do_numa ) {
-      assert( doNumaBinding < numa_count || "Numa node out of range" );
-      int cur_numa = default_binding ? tid % numa_count : doNumaBinding;
 
-      if (threadContext[tid].jobnuma >= 0) {
-	cur_numa = threadContext[tid].jobnuma;
-      }
+        long numa = 0;
+        listNext(&numaList, &numa, 1);
+        assert( numa >= 0 );
+        assert( numa < numa_count );
 
-      ++numa_thread_counter[ cur_numa ];
-      int rc = pinThread( &pt[tid], numa_threads[ cur_numa ], cpuCountPerNuma( cur_numa ) );
-      if (rc) {
-        fprintf(stderr,"*error* failed to pin thread %d to NUMA %d\n", tid, cur_numa);
-        exit(-1);
-      }
+        // If -I drive.txt, each thread may have a suggest numa already
+        if (threadContext[tid].jobnuma >= 0) {
+	   numa = threadContext[tid].jobnuma;
+        } else {
+            threadContext[tid].jobnuma = numa;
+        }
 
-      if (verbose >= 2) {
-        fprintf( stderr, "*info* pinned thread %d to NUMA %d\n", tid, cur_numa);
-      }
+        ++numa_thread_counter[ numa ];
+        int rc = pinThread( &pt[tid], numa_threads[ numa ], cpuCountPerNuma( numa ) );
+        if (rc) {
+            fprintf(stderr,"*error* failed to pin thread %d to NUMA %ld\n", tid, numa);
+            exit(-1);
+        }
+
+        if (verbose >= 2) {
+            fprintf( stderr, "*info* pinned thread %d to NUMA %ld\n", tid, numa);
+        }
     }
+  }
+
+  if(verbose >=2 ) {
+      fprintf(stderr, "TID\tNUMA\n");
+      for(int tid = 0; tid < num; tid++) {
+          fprintf(stderr, "%d\t%d\n", tid, threadContext[tid].jobnuma );
+      }
   }
 
   if( do_numa ) {
@@ -1936,7 +1954,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, -1 /*NUMA*/, 0 /* TRIM */, NULL /* results*/, 0, 0);
+    jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0);
     fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");
     sleep(10);
     fflush(stderr);

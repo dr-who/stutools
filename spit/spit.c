@@ -32,7 +32,7 @@ char *device = NULL;
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 size_t *minSizeInBytes, size_t *maxSizeInBytes, double *runseconds, size_t *dumpPositions, size_t *defaultqd,
                 unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
-                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, int* doNumaBinding, int *performPreDiscard, int *reportMode,
+                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, char** numaBinding, int *performPreDiscard, int *reportMode,
 		size_t *cacheSizeBytes, size_t *forever, size_t *ramBytesForPositions, size_t *tripleX)
 {
   int opt;
@@ -238,23 +238,11 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       (*tripleX)++;
       break;
     case 'U':
-      if( *doNumaBinding == -2 ) {
-        fprintf( stderr, "Cannot bind to NUMA if NUMA binding is disabled\n" );
-        exit(1);
-      }
-      *doNumaBinding = atoi(optarg);
-      if( *doNumaBinding < 0 ) {
-        fprintf( stderr, "NUMA node invalid: NUMA nodes must be >= 0 \n" );
-        exit( 1 );
-      }
-      break;
+        *numaBinding = strdup( optarg );
+        break;
     case 'u':
-      if( *doNumaBinding >= 0 ) {
-        fprintf( stderr, "Cannot bind to NUMA if NUMA binding is disabled\n" );
-        exit(1);
-      }
-      *doNumaBinding = -2;
-      break;
+        *numaBinding = "";
+        break;
     default:
       //      exit(1);
       break;
@@ -624,7 +612,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
 	jobAddDeviceToAll(&j, device);
 	sprintf(s, "w s0 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
 	fprintf(stdout, "| %s ", s); fflush(stdout);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, -1, 0,  &r, ramBytesForPositions, 0);
+	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
 	fprintf(stdout, "| %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf \n", threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
@@ -650,7 +638,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
 	  jobAdd(&j, s); 
 	}
 	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, -1, 0,  &r, ramBytesForPositions, 0);
+	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
 	sprintf(s, "w s1 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
@@ -677,7 +665,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
 	  jobAdd(&j, s); 
 	}
 	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, -1, 0,  &r, ramBytesForPositions, 0);
+	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
 	sprintf(s, "r s0 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
@@ -704,7 +692,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
 	  jobAdd(&j, s); 
 	}
 	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, -1, 0,  &r, ramBytesForPositions, 0);
+	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
 	sprintf(s, "r s1 k%zd-%zd j%zd q%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
@@ -733,7 +721,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
 	  low = fsize * i;
 	  high = fsize * (i+1);
 	}
-	jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, -1, 0,  &r, ramBytesForPositions, 0);
+	jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
       }
@@ -761,7 +749,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
 	}
 	
 	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, -1, 0, &r, ramBytesForPositions, 0);
+	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0);
 	sprintf(s, "rs0k%zdP100000q%zdj%zd/+wk%zd", blockSize1[i], qd, threadBlock[t], blockSize2[i]);
 	fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
@@ -789,7 +777,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
 	  jobAdd(&j, s);
 	}
 	jobAddDeviceToAll(&j, device);
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, -1, 0, &r, ramBytesForPositions, 0);
+	jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/ , NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0);
 	sprintf(s, "p0.7 s0 k%zd-%zd q%zd G_ j%zd x%zd", blockSize1[i], blockSize2[i], qd, threadBlock[t], xcopies);
 	fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, r.readMBps, r.writeMBps);
 	fflush(stdout);
@@ -856,7 +844,7 @@ int main(int argc, char *argv[])
     diskStatType d;
     size_t verify = 0;
     double timeperline = 1, ignoreFirst = 0;
-    int doNumaBinding = -1; // -1 default, -2 disable, >= 0 bind to specific numa
+    char *numaBinding = "all";
     int performPreDiscard = 0;
     int reportMode = 0;
 
@@ -869,7 +857,7 @@ int main(int argc, char *argv[])
 
     char commandstring[1000];
 
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &doNumaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes, &forever, &ramBytesForPositions, &tripleX);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &numaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes, &forever, &ramBytesForPositions, &tripleX);
 
     if (runseconds <= 1 && runseconds > 0 && timeperline == 1) {
       timeperline = runseconds / 10;
@@ -907,7 +895,7 @@ int main(int argc, char *argv[])
       signal(SIGTERM, intHandler);
       signal(SIGINT, intHandler);
 
-      jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, runseconds, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, doNumaBinding, performPreDiscard, NULL, ramBytesForPositions, tripleX==3);
+      jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, runseconds, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, numaBinding, performPreDiscard, NULL, ramBytesForPositions, tripleX==3);
 
       diskStatFree(&d);
 
