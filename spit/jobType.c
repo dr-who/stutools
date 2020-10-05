@@ -411,7 +411,7 @@ static void *runThread(void *arg)
   size_t roundByteLimit = 0, totalByteLimit = 0, posLimit = 0, totalPosLimit = 0; // set two of the limits to 0
   // the other limit is threadContext->runSeconds
   float timeLimit = threadContext->runSeconds;
-  size_t doRounds = 1; // do rounds with n or N
+  size_t doRounds = 0; // don't do rounds
   
   if (threadContext->rerandomize || threadContext->addBlockSize || threadContext->runonce) {
     // n or N option
@@ -422,28 +422,24 @@ static void *runThread(void *arg)
       roundByteLimit = outerrange ; // if x2 n  
       totalByteLimit = roundByteLimit * iteratorMax;
       timeLimit = INF_SECONDS;
+      doRounds = 1; // but do if nN with x
     } else if (threadContext->positionLimit || threadContext->runonce) {
-      iteratorMax = threadContext->positionLimit;
       posLimit = threadContext->pos.sz;
       totalPosLimit = posLimit * iteratorMax;
       timeLimit = INF_SECONDS;
       if (threadContext->runonce) {
-	iteratorMax = 0;
-	doRounds = 0;
+	iteratorMax = 0; // don't do rounds with O
+      } else {
+	iteratorMax = threadContext->positionLimit;
+	doRounds = 1; // but do if nN with X
       }
-    } else {
-      doRounds = 0; // n or N wihout an x
     }
   } else if (threadContext->LBAtimes) {
     // specifing an x option
     // if we specify xn
-    doRounds = 0;
     roundByteLimit = outerrange * threadContext->LBAtimes;
   } else if (threadContext->positionLimit) {
-    doRounds = 0;
     posLimit = threadContext->pos.sz * threadContext->positionLimit;
-  } else {
-    doRounds = 0; // time only without x X or n or N
   }
 
   //  if (threadContext->performPreDiscard) {
