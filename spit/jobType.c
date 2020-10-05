@@ -431,6 +431,8 @@ static void *runThread(void *arg)
 	iteratorMax = 0;
 	doRounds = 0;
       }
+    } else {
+      doRounds = 0; // n or N wihout an x
     }
   } else if (threadContext->LBAtimes) {
     // specifing an x option
@@ -440,7 +442,9 @@ static void *runThread(void *arg)
   } else if (threadContext->positionLimit) {
     doRounds = 0;
     posLimit = threadContext->pos.sz * threadContext->positionLimit;
-  } 
+  } else {
+    doRounds = 0; // time only without x X or n or N
+  }
 
   //  if (threadContext->performPreDiscard) {
   //    iteratorMax = threadContext->LBAtimes;
