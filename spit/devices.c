@@ -384,11 +384,10 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
     close(fd);
 
     if (major == 252) {
-      // nsulate
-      iop =  50L*1024*1024*1024 / blocksize; // if Nsulate then 50GB/s / blocksize
+      // nsulate/HPSc
+      iop =  50L*1024*1024*1024 / blocksize; // if 50GB/s / blocksize
       if (iop < 10) iop = 10;
-    }
-    if (major == 1) {
+    } else if (major == 1) {
       //      fprintf(stderr,"*info* RAM\n");
       iop = 40L*1024L*1024*1024L / blocksize; // if RAM them 40GB/s / blocksize;
       if (iop < 10) iop = 10;
@@ -417,7 +416,7 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
     iop = 1;
   }
   if (verbose) {
-    fprintf(stderr,"*info* I/O estimate '%s' is %zd IOPS x %zd = %.1lf GiB/s (%.1lf Gib/s)\n", fn, iop, blocksize, TOGiB(iop * blocksize), TOGiB(iop * blocksize * 8));
+    fprintf(stderr,"*info* I/O estimate '%s' is %zd IOPS x %zd = %.1lf GiB/s (%.1lf GiB/s)\n", fn, iop, blocksize, TOGiB(iop * blocksize), TOGiB(iop * blocksize * 8));
   }
   return iop;
 }
