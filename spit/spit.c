@@ -434,12 +434,12 @@ void usage()
   fprintf(stdout,"  spit -f ... -c s1n            # do a sequential pass, then shuffles the positions\n");
   fprintf(stdout,"  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB\n");
   fprintf(stdout,"  spit -f ... -c P10G1-2        # The first 10 positions starting from 1GiB. It needs the lower range.\n");
-  fprintf(stdout,"  spit -f ... -c P10x100        # multiply the number of positions by x, here it's 100\n");
+  fprintf(stdout,"  spit -f ... -c P10X100        # multiply the number of positions by X, here it's 100, so 1,000 positions\n");
   fprintf(stdout,"  spit -f ... -c wM1            # set block size 1M\n");
   fprintf(stdout,"  spit -f ... -c O              # One-shot, not time based\n");
   fprintf(stdout,"  spit -f ... -c t2             # specify the time per thread\n");
   fprintf(stdout,"  spit -f ... -c ws1J4          # jumble/reverse groups of 4 positions\n");
-  fprintf(stdout,"  spit -f ... -c wx2O           # sequentially (s1) write 200%% LBA, no time limit\n");
+  fprintf(stdout,"  spit -f ... -c wx20           # sequentially (s1) write 20x LBA, no time limit\n");
   fprintf(stdout,"  spit -f ... -c ws0            # random defaults to 3x LBA\n");
   fprintf(stdout,"  spit -f ... -c ws1W2:1 -t60   # Alternate run for 2 seconds, wait for 1 second\n");
   fprintf(stdout,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
@@ -450,6 +450,7 @@ void usage()
   fprintf(stdout,"  spit -f .... -c wns0X10       # writing the number of positions 10 times, not time based\n");
   fprintf(stdout,"  spit -c x5                    # writing the block device size 5 times, not time based\n");
   fprintf(stdout,"  spit -c P10x1                 # write 10 positions until the entire device size is written\n");
+  fprintf(stdout,"  spit -c P10x3                 # write 10 positions until the entire device size is written three times\n");
   fprintf(stdout,"  spit -c P10X1                 # write 10 positions\n");
   fprintf(stdout,"  spit -c P10000X100            # write the same 10,000 positions 100 times\n");
   fprintf(stdout,"  spit -c P10000                # write the same 10,000 positions based on the time\n");
@@ -474,7 +475,7 @@ void usage()
   fprintf(stdout,"  spit -c wk1024za7             # every 'a' MiB of operations perform a jump back to the start of device. Dump with -d to see\n");
   fprintf(stdout,"  spit -c wk1024za3A8           # 'A' means to add 8 KiB after every position after 3 MiB\n");
   fprintf(stdout,"  spit -c ws1G5_10j16           # specify a low and high GiB range, to be evenly split by 16 threads (_)\n");
-  fprintf(stdout,"  spit -c wx3 -G4 -T            # perform pre-DISCARD/TRIM operations before each write iteration\n");
+  fprintf(stdout,"  spit -c wx3 -G4 -T            # perform pre-DISCARD/TRIM operations before each round\n");
   fprintf(stdout,"  spit -c ts0                   # Use a sync DISCARD/TRIM I/O type\n");
   fprintf(stdout,"  spit -c rrwts0                # 50%% read, 25%% writes and 25%% trim I/O random operations\n");
   exit(0);
@@ -879,7 +880,7 @@ int main(int argc, char *argv[])
       printPowerMode();
 
       size_t actualSize = maxSizeInBytes - minSizeInBytes;
-      fprintf(stderr,"*info* block range [%.2lf-%.2lf] GB, size %.2lf GB (%zd bytes). Range [%.3lf-%.3lf] TB\n", TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
+      fprintf(stderr,"*info* block range [%.2lf-%.2lf] GiB, size %.2lf GiB (%zd bytes). Range [%.3lf-%.3lf] TiB\n", TOGiB(minSizeInBytes), TOGiB(maxSizeInBytes), TOGiB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
       if (actualSize < 4096) {
         fprintf(stderr,"*error* block device too small.\n");
         exit(1);

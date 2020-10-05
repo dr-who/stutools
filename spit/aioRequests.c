@@ -29,7 +29,7 @@ size_t aioMultiplePositions( positionContainer *p,
                              size_t *ios,
                              size_t *totalRB,
                              size_t *totalWB,
-                             const size_t oneShot,
+                             const size_t posLimit,
                              const int dontExitOnErrors,
                              const int fd,
                              int flushEvery,
@@ -46,7 +46,10 @@ size_t aioMultiplePositions( positionContainer *p,
   int ret, checkTime = finishTime > 0;
 
   //  fprintf(stderr,"*this time %lf set %lf\n", timedouble(), finishTime);
-
+  //  if (posLimit) {
+  //    if (verbose) fprintf(stderr,"*info* limit positions to %zd\n", posLimit);
+    //  }
+  
   if ((finishTime > 0) && (finishTime < timedouble())) {
     //    fprintf(stderr,"*warning* ignoring time as it's set in the past\n");
     checkTime = 0;
@@ -354,11 +357,12 @@ nextpos:
       // onto the next one
       pos++;
       if (pos >= sz) {
-        if (oneShot) {
-          //	      	      fprintf(stderr,"end of function one shot\n");
-          //          goto endoffunction; // only go through once
-        }
-        pos = 0; // don't go over the end of the array
+	pos = 0;
+      }
+      if (posLimit && (submitted >= posLimit)) {
+	// if Px is passed in
+	//fprintf(stderr,"end of function one shot\n");
+	goto endoffunction; // only go through once
       }
     } // while not enough inflight
 

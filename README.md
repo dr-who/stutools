@@ -79,6 +79,14 @@ Stu's Powerful I/O Tester (spit)
       spit -f device -c ... -O listofdevices.txt  # will display the r/w/IO operations on the devices.
                                     This is used to see meta-device amplification and phy IO.
 
+## Limits
+
+      The limits can be per LBA multiple using the 'x' option. e.g. x1 is the LBA size.
+
+      Or by position using the 'X' option. X1 is the number of positions.
+
+      Or by time using the local 'T' (time) option. T2 is two seconds. The xXT options can't be combined.
+
 ## NUMA binding
 
       By default the spit threads are distributed evenly between the NUMA nodes. To disable
@@ -89,6 +97,8 @@ Stu's Powerful I/O Tester (spit)
       To bind all threads to NUMA node 0 use -U 0. The output will then be:
 
       *info* NUMA[0] 51 pinned on 24 hardware threads, NUMA[1] 0 pinned on 24 hardware threads,
+
+      The -U format allows a list (-U 1,2) and a range (-U 0-3,5).
 
 ## File system tests
 

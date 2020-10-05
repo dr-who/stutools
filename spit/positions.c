@@ -850,7 +850,7 @@ void positionContainerRandomize(positionContainer *pc, unsigned int seed)
   const size_t count = pc->sz;
   positionType *positions = pc->positions;
 
-  //fprintf(stderr,"*info* shuffling the array %zd\n", count);
+  if (verbose)  fprintf(stderr,"*info* shuffling/randomizing the array of %zd values, seed %u\n", count, seed);
   for (size_t shuffle = 0; shuffle < 1; shuffle++) {
     for (size_t i = 0; i < count; i++) {
       size_t j = i;
@@ -872,9 +872,9 @@ void positionAddBlockSize(positionType *positions, const size_t count, const siz
 {
   if (minbdSize) {}
   if (maxbdSize) {}
-  //  if (verbose >= 1) {
-  fprintf(stderr,"*info* adding %zd size\n", addSize);
-  //  }
+  if (verbose) {
+    fprintf(stderr,"*info* adding %zd size\n", addSize);
+  }
   positionType *p = positions;
   for (size_t i = 0; i < count; i++) {
     p->pos += addSize;

@@ -1092,7 +1092,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
     max_bytes = high - low;
   }
 
-  if (path && verbose) {
+  if (path) {
     fprintf(stderr,"*info* starting discarding %s, [%.3lf GiB, %.3lf GiB], in %d calls of at most %zd bytes...\n", path, TOGiB(low), TOGiB(high), calls, max_bytes);
   }
 
@@ -1167,7 +1167,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
       }
     }
     elapsed = timedouble() - start;
-    if (path && verbose) {
+    if (path) {
       fprintf(stderr,"... finished discarding %s. Worse sub-trim delay of %.1lf ms. Total time %.1lf secs\n", path, (maxdelay_secs) ? (*maxdelay_secs) * 1000.0 : 0, elapsed);
     }
   } else {
