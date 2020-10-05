@@ -295,8 +295,9 @@ static void *runThread(void *arg)
     getPhyLogSizes(suffix, &phybs, &max_io_bytes, &logbs);
 
     for (int i = 0; i < (int)threadContext->pos.sz; i++) {
-      if (verbose && threadContext->highBlockSize > max_io_bytes) {
-        fprintf(stderr,"*warning* device '%s' will split I/O size %zd [max_sectors_kb %zd bytes]\n", threadContext->jobdevice, threadContext->highBlockSize, max_io_bytes);
+      if (threadContext->highBlockSize > max_io_bytes) {
+	if (i==0) 
+	  fprintf(stderr,"*warning* device '%s' will split I/O size of %.0lf KiB [max_sectors_kb %.0lf KiB]\n", threadContext->jobdevice, TOKiB(threadContext->highBlockSize), TOKiB(max_io_bytes));
         break;
       }
     }
