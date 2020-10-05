@@ -1386,7 +1386,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       countintime = ceil(threadContext[i].runSeconds * ESTIMATEIOPS);
       //      assert (countintime >= 0);
       if ((verbose || (countintime < mp)) && (i == 0)) {
-        fprintf(stderr,"*info* in %.2lf seconds, at %d a second, would have at most %zd positions\n", threadContext[i].runSeconds, ESTIMATEIOPS, countintime);
+        fprintf(stderr,"*info* in %.2lf seconds, at %d IOPS, would have at most %zd positions\n", threadContext[i].runSeconds, ESTIMATEIOPS, countintime);
       }
     } else {
       if (i==0) fprintf(stderr,"*info* skipping time based limits\n");
