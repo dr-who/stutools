@@ -997,6 +997,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].performPreDiscard = performPreDiscard;
     threadContext[i].runSeconds = runseconds;
     threadContext[i].LBAtimes = 0;
+    threadContext[i].positionLimit = 0;
     threadContext[i].finishSeconds = runseconds;
     threadContext[i].exitIOPS = 0;
     if (i == num) {
@@ -1210,7 +1211,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     char *multLimit = strchr(job->strings[i], 'x');
     if (multLimit && *(multLimit+1)) {
       threadContext[i].LBAtimes = MAX(1, atoi(multLimit+1));
-      threadContext[i].positionLimit = 1;
+      threadContext[i].positionLimit = 0;
       threadContext[i].runSeconds = INF_SECONDS;
       threadContext[i].finishSeconds = INF_SECONDS;
       threadContext[num].finishSeconds = INF_SECONDS;
