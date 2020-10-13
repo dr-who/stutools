@@ -530,6 +530,10 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     }
   }
 
+  if (firstPPositions) {
+    randomSubSample = 1;
+  }
+
   if (pc->sz == 0) {
     fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");
   }
