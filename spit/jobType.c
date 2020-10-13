@@ -370,7 +370,7 @@ static void *runThread(void *arg)
     sumrange += threadContext->pos.positions[i].len;
   }
   if ((threadContext->id == 0) && (sumrange < outerrange*0.99)) {
-    fprintf(stderr,"*warning* sum of position ranges (%.3lf GiB) is < 99%% of specified range (%.3lf GiB)\n", TOGiB(sumrange), TOGiB(outerrange));
+    fprintf(stderr,"*warning* sum of position ranges (%zd positions covering %.3lf GiB) is < 99%% of specified range (%.3lf GiB)\n", threadContext->pos.sz, TOGiB(sumrange), TOGiB(outerrange));
   }
   if (verbose >= 1)
     fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, q%zd (Q%zd) r/w/t=%.1g/%.1g/%.1g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%.1lf T%.1lf t%.1lf x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->QDbarrier, threadContext->rw.rprob, threadContext->rw.wprob, threadContext->rw.tprob, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runSeconds, threadContext->finishSeconds, threadContext->LBAtimes, threadContext->positionLimit);
