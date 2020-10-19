@@ -457,7 +457,7 @@ nextpos:
         int rescode = events[j].res;
         int rescode2 = events[j].res2;
 
-        if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
+        if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read / IO error
           *ioerrors = (*ioerrors) + 1;
           if (printed++ < 10) {
             fprintf(stderr,"*error* AIO failure codes[fd=%d]: res=%d and res2=%d, [%zd] = %zd, inFlight %zd, returned %d results\n", fd, rescode, rescode2, pos, positions[pos].pos, inFlight, ret);
@@ -471,10 +471,8 @@ nextpos:
             fprintf(stderr,"*info* over %zd IO errors. Exiting...\n", *ioerrors);
             exit(-1);
           }
-
-
           //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
-        } else {
+        } else { // good IO
           //	  fprintf(stderr,"---> %d %d\n", rescode, rescode2);
           //successful result
 
@@ -511,8 +509,8 @@ nextpos:
               abort();
             }
           }
-        } // else if no error
-        pp->finishTime = timedouble();
+          pp->finishTime = timedouble();
+        } // good IO
         // log if slow
         if (pp->finishTime - pp->submitTime > 30) {
           slow++;
@@ -565,10 +563,20 @@ endoffunction:
           struct iocb *my_iocb = events[j].obj;
           positionType *pp = (positionType*) my_iocb->data;
 
+          int rescode = events[j].res;
+          int rescode2 = events[j].res2;
+
+          if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
+            *ioerrors = (*ioerrors) + 1;
+    
+            fprintf(stderr,"*error* AIO failure codes[fd=%d]: res=%d and res2=%d, %zd, inFlight %zd, returned %d results\n", fd, rescode, rescode2, pp->pos, inFlight, ret);
+
+          } else {        
+            pp->finishTime = timedouble();
+          }
           freeQueue[tailOfQueue++] = pp->q;
           if (tailOfQueue == QD) tailOfQueue = 0;
 
-          pp->finishTime = timedouble();
           // log if slow
           if (pp->finishTime - pp->submitTime > 30) {
             slow++;

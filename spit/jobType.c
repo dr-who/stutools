@@ -544,7 +544,7 @@ static void *runThread(void *arg)
 
   if (ioerrors) {
     fprintf(stderr,"*warning* there were %zd IO errors\n", ioerrors);
-    exit(-1);
+    // exit(-1);
   }
 
   return NULL;
