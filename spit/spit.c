@@ -884,6 +884,7 @@ int main(int argc, char *argv[])
       exitcode = doReport(runseconds, maxSizeInBytes, cacheSizeBytes, forever, verify, ramBytesForPositions, defaultQD);
     } else if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
+      exitcode = 2;
     } else { // run some jobs
       if (defaultQD == 0) defaultQD = 16;
 
