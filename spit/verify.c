@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
   signal(SIGINT, intHandler);
 
   if (argc <= 1) {
-    fprintf(stdout,"*usage* ./spitchecker [ -D ] [ -t 256 ] [ -n (shuffle)] positions*\n");
+    fprintf(stdout,"*usage* ./spitchecker [ -D ] [ -t 256 ] [ -n (don't sort)] positions*\n");
     exit(1);
   }
 
