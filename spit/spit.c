@@ -15,6 +15,7 @@
  */
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "positions.h"
 #include "utils.h"
@@ -286,7 +287,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   }
 
   if (deviceCount > 0) {
-    device = deviceList[0].devicename;
+    device = strdup(deviceList[0].devicename);
   } else {
     if (deviceCount == 0) {
       fprintf(stderr,"*error* no devices specified\n");
@@ -326,7 +327,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   // check the file, create or resize
   size_t fsize = 0;
   for (size_t i = 0; i < jobCount(j); i++) {
-    device = j->devices[i];
+    if (!device) {
+      device = strdup(j->devices[i]); // make a copy
+    }
+    
     size_t isAFile = 0;
 
     if (!fileExists(device)) { // nothing is there, create a file
@@ -341,6 +345,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
       if ((*tripleX) < 3) {
         if (!canOpenExclusively(device)) {
+	  perror(device);
           fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
           exit(-1);
         }
@@ -490,18 +495,19 @@ void intHandler(int d)
 }
 
 
-void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheSizeBytes, const size_t forever,
+int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheSizeBytes, const size_t forever,
               const size_t verify, size_t ramBytesForPositions, size_t defaultqd)
 {
 
-  if (!device) {
+  if (device == NULL) {
     fprintf(stderr,"*error* no -f device provided\n");
-    return;
+    return 1;
   }
 
   if (!canOpenExclusively(device)) {
+    perror(device);
     fprintf(stderr,"*error* device already open!\n");
-    return;
+    return 1;
   }
 
   if (maxSizeInBytes == 0) maxSizeInBytes = 50 * 1024 * 1024;
@@ -562,7 +568,7 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
 
   if (fsize <= 0) {
     fprintf(stderr, "*error* no file called '%s'\n", device);
-    return;
+    return 1;
   }
 
   //  size_t blockSize1[] = {4,4,8,16,8, 32,64,128,256,128,512,1024,2048,4, 4096};
@@ -795,6 +801,8 @@ void doReport(const double runseconds, size_t maxSizeInBytes, const size_t cache
     } // while
 
   diskStatFree(&d);
+
+  return 0;
 }
 
 
@@ -807,6 +815,8 @@ int main(int argc, char *argv[])
 
   size_t fuzz = 0, runcount = 0;
   char *fuzzdevice = NULL;
+  int exitcode = 0;
+  
   if (argc == 1) {
     usage();
   } else if (argc > 2) {
@@ -871,7 +881,7 @@ int main(int argc, char *argv[])
 
     if (reportMode) {
       if (defaultQD == 0) defaultQD = 1000; // for a report -q is the total across all threads.
-      doReport(runseconds, maxSizeInBytes, cacheSizeBytes, forever, verify, ramBytesForPositions, defaultQD);
+      exitcode = doReport(runseconds, maxSizeInBytes, cacheSizeBytes, forever, verify, ramBytesForPositions, defaultQD);
     } else if (j->count < 1) {
       fprintf(stderr,"*error* missing -c command options\n");
     } else { // run some jobs
@@ -939,7 +949,7 @@ int main(int argc, char *argv[])
 
   fprintf(stderr,"*info* exiting.\n");
   fflush(stderr);
-  exit(0);
+  exit(exitcode);
 }
 
 
