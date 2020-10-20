@@ -391,6 +391,7 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
       //      fprintf(stderr,"*info* RAM\n");
       iop = 40L*1024L*1024*1024L / blocksize; // if RAM them 40GB/s / blocksize;
       if (iop < 10) iop = 10;
+      if (iop > 5000000) iop = 5000000;
     } else if (major == 9) {
       //      fprintf(stderr,"*mdadm*\n");
       iop = 20L*1024L*1024*1024L / blocksize; // assume mdadm can do 20GB/s / blocksize;

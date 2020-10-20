@@ -78,6 +78,8 @@ set_tests_properties(testspitfail2 PROPERTIES WILL_FAIL TRUE )
 add_test(testspitfail3  spit -r)
 set_tests_properties(testspitfail3 PROPERTIES WILL_FAIL TRUE )
 
+add_test(testspitwk512b  spit -f wow -G 0.5 -c ws1k0.5 -v -V -t 1)
+
 add_test(testspitws1V  spit -f wow -G 0.5 -c ws1 -v -V -t 5)
 add_test(testspitgenerate1 genpositions -f wow -k 4-16 -a 16 -n 10000 -P p.txt)
 add_test(testspitgenerate1v spitchecker p.txt)
