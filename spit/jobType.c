@@ -1243,7 +1243,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       // if it should be there
       if (threadContext[i].maxbdSize > actualfs) {
         threadContext[i].maxbdSize = actualfs;
-        fprintf(stderr,"*warning* file is smaller than specified file, shrinking to %zd\n", threadContext[i].maxbdSize);
+        fprintf(stderr,"*warning* file '%s' is smaller than specified file, shrinking to %zd\n", job->devices[i], threadContext[i].maxbdSize);
       }
     }
 
