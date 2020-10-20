@@ -395,13 +395,16 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
 {
   size_t sumcount = 0;
 
-  assert(cyclic > 0);
-  assert(cyclic <= size);
   //  if (cyclic > size || cyclic == 0) cyclic = size;
 
   //  if (cyclic != size) {
   //    fprintf(stderr,"*info* generating a random buffer with a size %zd bytes, cyclic %zd bytes\n", size, cyclic);
-  //  }
+    //  }
+
+  assert(cyclic > 0);
+  //  assert(cyclic <= size);
+  if (cyclic > size) cyclic = size;
+
 
   unsigned int seed = seedin;
 
