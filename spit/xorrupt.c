@@ -82,6 +82,10 @@ void perturbBytes(double prob)
       size_t pos = positions[i];
       unsigned char newv = 255 ^ oldBytes[i];
       int r = pwrite(fd, (void*)&newv, 1, pos);
+      if (r <= 0) {
+	fprintf(stderr,"*error* offset[%zd] did not return a value\n", pos);
+	exit(1);
+      }
       fsync(fd);
       needtorestore = 1;
       assert(r == 1);
