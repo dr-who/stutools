@@ -26,6 +26,9 @@
 extern int keepRunning;
 extern int verbose;
 
+int maxPositions = 0;
+int curPositions = 0;
+
 typedef struct {
   jobType *job;
   int id;
@@ -143,6 +146,8 @@ static void *runThread(void *arg)
   unsigned short lastid = -1;
 
   size_t gap = threadContext->endExc - threadContext->startInc;
+  __atomic_fetch_add(&maxPositions, gap, __ATOMIC_SEQ_CST);
+
 
   if (threadContext->id == 0) {
     if (threadContext->sorted) {
@@ -175,6 +180,9 @@ static void *runThread(void *arg)
 
   size_t quitEarly = 0;
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
+
+    __atomic_fetch_add(&curPositions, 1, __ATOMIC_SEQ_CST);
+
     if (timedouble() > threadContext->finishTime) { // if reached the time limit
       quitEarly = 1;
       break;
@@ -198,11 +206,11 @@ static void *runThread(void *arg)
         exit(-1);
       }
     }
-    if (threadContext->id == 0) {
+    if (threadContext->id == threadContext->numThreads-1) {
       // print progress
       size_t gap = threadContext->endExc - threadContext->startInc - 1;
       if (isatty(fileno(stderr))) {
-        fprintf(stderr,"*progress* %.1lf %%\r", (gap == 0) ? 100 : (i - threadContext->startInc) * 100.0 / gap);
+        fprintf(stderr,"*progress* %.1lf %%\r", (gap == 0) ? 100 : (curPositions * 100.0) / maxPositions);
         fflush(stderr);
       }
     }
