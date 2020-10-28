@@ -26,8 +26,8 @@
 extern int keepRunning;
 extern int verbose;
 
-int maxPositions = 0;
-int curPositions = 0;
+_Atomic int maxPositions = 0;
+_Atomic int curPositions = 0;
 
 typedef struct {
   jobType *job;
@@ -146,7 +146,8 @@ static void *runThread(void *arg)
   unsigned short lastid = -1;
 
   size_t gap = threadContext->endExc - threadContext->startInc;
-  __atomic_fetch_add(&maxPositions, gap, __ATOMIC_SEQ_CST);
+  maxPositions += gap;
+  //  __atomic_fetch_add(&maxPositions, gap, __ATOMIC_SEQ_CST);
 
 
   if (threadContext->id == 0) {
@@ -181,7 +182,8 @@ static void *runThread(void *arg)
   size_t quitEarly = 0;
   for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
 
-    __atomic_fetch_add(&curPositions, 1, __ATOMIC_SEQ_CST);
+    //    __atomic_fetch_add(&curPositions, 1, __ATOMIC_SEQ_CST);
+    curPositions++;
 
     if (timedouble() > threadContext->finishTime) { // if reached the time limit
       quitEarly = 1;
