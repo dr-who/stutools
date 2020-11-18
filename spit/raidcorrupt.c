@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
   char *device = NULL;
   deviceDetails *deviceList = NULL;
   size_t deviceCount = 0;
-  size_t kdevices = 0, mdevices = 0, blocksize = 256*1024, writeblocksize = 0;
+  size_t kdevices = 0, mlow = 0, mhigh = 0, blocksize = 256*1024, writeblocksize = 0;
   size_t startAt = 0*1024*1024, finishAt = 1024L*1024L*1024L*1;
   unsigned short seed = 0;
   int printevery = 1;
@@ -239,7 +239,11 @@ int main(int argc, char *argv[])
       //      fprintf(stderr,"*info* start at %zd (%.4lf GiB, %.3lf MiB)\n", startAt, TOGiB(startAt), TOMiB(startAt));
       break;
     case 'm':
-      mdevices = atoi(optarg);
+      {}
+      double low = 0, high = 0;
+      splitRange(optarg, &low, &high);
+      mlow = low;
+      mhigh = high;
       break;
     case 'R':
       seed = atoi(optarg);
@@ -312,6 +316,7 @@ int main(int argc, char *argv[])
     fprintf(stdout,"   -I file   specifies the list of underlying block devices\n");
     fprintf(stdout,"   -k n      the number of data devices\n");
     fprintf(stdout,"   -m n      the number of parity devices\n");
+    fprintf(stdout,"   -m range  a range of parity devices. e.g. -m 0-4\n");
     fprintf(stdout,"   -z        zap the block, make all bytes 'Z'\n");
     fprintf(stdout,"   -x        XOR the block with 0x7f. Run twice to revert.\n");
     fprintf(stdout,"   -r        rotate the blocks between devices.\n");
@@ -332,6 +337,7 @@ int main(int argc, char *argv[])
     fprintf(stdout,"   raidcorrupt -k 5 -m 1    # steps of 256 KiB, corrupt a device every 256KiB\n");
     fprintf(stdout,"   raidcorrupt -k 4 -m 2    # pick two devices for every 256KiB stripe and corrupt\n");
     fprintf(stdout,"   raidcorrupt -k 3 -m 3    # pick three devices every 256KiB. Causes data loss\n");
+    fprintf(stdout,"   raidcorrupt -k 4 -m 0-2  # pick between 0 and 2 devices every 256KiB. Causes data loss\n");
     fprintf(stdout,"   raidcorrupt -I devices.txt -k 4 -m 2 -g 16M -XXX\n\n");
     fprintf(stdout,"   raidcorrupt -I devices.txt -k 4 -m 2 -b 524288 -B 4096 -XXX\n");
     fprintf(stdout,"             Step through all devices in 512 KiB steps, setting the first 4096 bytes to 'Z'\n");
@@ -363,9 +369,9 @@ int main(int argc, char *argv[])
   fprintf(stderr,"*info* aligned start:  %lx (%zd, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt), TOGiB(startAt));
   fprintf(stderr,"*info* aligned finish: %lx (%zd, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt), TOGiB(finishAt));
 
-  fprintf(stderr,"*info* k = %zd, m = %zd, device count %zd, seed = %d\n", kdevices, mdevices, deviceCount, seed);
-  if (kdevices + mdevices != deviceCount) {
-    fprintf(stderr,"*error* k + m need to sum to %zd\n", deviceCount);
+  fprintf(stderr,"*info* k = %zd, m = [%zd, %zd], device count %zd, seed = %d\n", kdevices, mlow, mhigh, deviceCount, seed);
+  if (kdevices + mhigh > deviceCount) {
+    fprintf(stderr,"*error* k + m needs to be <= %zd\n", deviceCount);
     exit(1);
   }
 
@@ -380,8 +386,8 @@ int main(int argc, char *argv[])
     fprintf(stderr,"*error* not enough devices to open\n");
   } else {
     // enough drives
-    if (rotate && mdevices < 2) {
-      fprintf(stderr,"*warning* rotation doesn't work with %zd parity\n", mdevices);
+    if (rotate && mlow < 2) {
+      fprintf(stderr,"*warning* rotation doesn't work with %zd parity\n", mlow);
     }
 
     if (zap) {
@@ -406,7 +412,9 @@ int main(int argc, char *argv[])
       // pick k
       memset(selection, 0, deviceCount * sizeof(int));
       memset(rotated, 0, deviceCount * sizeof(int));
-      for (size_t i = 0; i < mdevices; i++) {
+
+      const size_t corrupt = mlow + lrand48() % (mhigh - mlow + 1);
+      for (size_t i = 0; i < corrupt; i++) {
         int r = lrand48() % deviceCount;
         while (selection[r] != 0) {
           r = lrand48() % deviceCount;
