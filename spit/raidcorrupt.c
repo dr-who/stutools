@@ -325,8 +325,8 @@ int main(int argc, char *argv[])
     fprintf(stdout,"   -g 16M    starting at 16 MiB\n");
     fprintf(stdout,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
     fprintf(stdout,"   -G 32M    finishing at 32 MiB\n");
-    fprintf(stdout,"   -b n      the block size to step through the devices (defaults to 256 KiB)\n");
-    fprintf(stdout,"   -B n      the length of the block size to perturb (defaults to -b value)\n");
+    fprintf(stdout,"   -b n      the strip size to step through the devices (defaults to 256 KiB)\n");
+    fprintf(stdout,"   -B n      the length of the strip size to perturb (defaults to -b value)\n");
     fprintf(stdout,"   -R seed   sets the starting seed\n");
     fprintf(stdout,"   -XXX      opens the devices without O_EXCL. You will need this with RAID devices\n");
     fprintf(stdout,"   -q        quieter mode. Output 1/64 lines each 'q'. -qq is very quiet\n");
