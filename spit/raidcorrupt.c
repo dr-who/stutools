@@ -400,7 +400,7 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*info* rotate blocks\n");
     }
 
-    fprintf(stderr,"*info* range [%.3lf GiB - %.3lf GiB) [%zd - %zd), strip size = %zd, write strip size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize, writeblocksize);
+    fprintf(stderr,"*info* range [%.3lf GiB - %.3lf GiB) [%zd - %zd), step strip size = %zd, write strip size = %zd\n", TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize, writeblocksize);
     srand48(seed);
     int *selection = malloc(deviceCount * sizeof(int));
     int *rotated = malloc(deviceCount * sizeof(int));
