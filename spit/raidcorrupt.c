@@ -336,7 +336,7 @@ int main(int argc, char *argv[])
     fprintf(stdout,"   raidcorrupt -k 6 -m 0    # steps of 256 KiB, don't change any data\n");
     fprintf(stdout,"   raidcorrupt -k 5 -m 1    # steps of 256 KiB, corrupt a device every 256KiB\n");
     fprintf(stdout,"   raidcorrupt -k 4 -m 2    # pick two devices for every 256KiB stripe and corrupt\n");
-    fprintf(stdout,"   raidcorrupt -k 4 -m 0-2  # pick between 0 and 2 devices every 256KiB.n");
+    fprintf(stdout,"   raidcorrupt -k 4 -m 0-2  # pick between 0 and 2 devices every 256KiB\n");
     fprintf(stdout,"   raidcorrupt -k 3 -m 3    # pick three devices every 256KiB. Causes data loss\n");
     fprintf(stdout,"   raidcorrupt -I devices.txt -k 4 -m 2 -g 16M -XXX\n\n");
     fprintf(stdout,"   raidcorrupt -I devices.txt -k 4 -m 2 -b 524288 -B 4096 -XXX\n");
