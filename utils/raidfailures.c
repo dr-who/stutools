@@ -153,7 +153,7 @@ void usage(int years, int rebuild, int samples) {
 int main(int argc, char *argv[]) {
 
   optind = 0;
-  int k = 0, m = 0, rebuildthreshold = 7, opt = 0, verbose = 0, samples = 1000;
+  int k = 0, m = 0, rebuilddays = 7, opt = 0, verbose = 0, samples = 1000;
   char *dumpprobs = NULL;
   double years = 5;
   
@@ -169,7 +169,7 @@ int main(int argc, char *argv[]) {
       years = atof(optarg);
       break;
     case 'r':
-      rebuildthreshold = atoi(optarg);
+      rebuilddays = atoi(optarg);
       break;
     case 'p':
       dumpprobs = optarg;
@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
       verbose++;
       break;
     default:
-      usage(years, rebuildthreshold, samples);
+      usage(years, rebuilddays, samples);
       exit(1);
     }
   }
@@ -189,13 +189,13 @@ int main(int argc, char *argv[]) {
   int maxdays = years * 365;
 
   if ((k<1) || (m<1) || (maxdays < k+m)) {
-    usage(years, rebuildthreshold, samples);
+    usage(years, rebuilddays, samples);
     exit(1);
   }
 
 
   fprintf(stderr,"*info* stutools: Monte-Carlo failure simulator\n");
-  fprintf(stderr,"*info* k %d, m %d, years %.1lf, rebuild threshold %d\n", k, m, years, rebuildthreshold);
+  fprintf(stderr,"*info* k %d, m %d, years %.1lf, rebuild days %d\n", k, m, years, rebuilddays);
   
   srand48(41);
   
@@ -208,10 +208,11 @@ int main(int argc, char *argv[]) {
   
   arrayLifeType a = setupArray(maxdays, drives);
 
-  int rebuilding = 0;
+  int rebuilding = 0, rebuildingtotal = 0;
   for (size_t s = 0; s < samples; s++) {
     clearArray(&a, maxdays, drives);
-    int death = simulateArray(&a, f, maxdays, drives, rebuildthreshold, m, verbose, &rebuilding);
+    int death = simulateArray(&a, f, maxdays, drives, rebuilddays, m, verbose, &rebuilding);
+    rebuildingtotal += rebuilding;
     if (verbose > 1) {
       dumpArray(&a, maxdays, drives, m);
     }
@@ -221,11 +222,11 @@ int main(int argc, char *argv[]) {
     } else {
       bad++;
     }
-    if (verbose) fprintf(stderr, "Arrays that failed at least once in %.1lf years and rebuilt under %d maxdays. Total %d, Failed array, %d, Failed %% %.1lf %% (sample %zd)\n", years, rebuildthreshold, ok, bad, bad*100.0/(ok+bad), s+1);
+    if (verbose) fprintf(stderr, "Arrays that failed at least once in %.1lf years and rebuilt under %d maxdays. Total %d, Failed array, %d, Failed %% %.1lf %% (sample %zd)\n", years, rebuilddays, ok, bad, bad*100.0/(ok+bad), s+1);
   }
   freeArray(&a, maxdays, drives);
 
-  fprintf(stdout, "%.1lf\n", bad * 100.0 / (ok+bad));
+  fprintf(stdout, "%.1lf\t%.1lf\n", bad * 100.0 / (ok+bad), 100.0*rebuildingtotal / (samples * maxdays));
   if (f) free(f);
 
   return 0;
