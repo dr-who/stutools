@@ -5,7 +5,19 @@
 #include <assert.h>
 
 
-float *setup(char *fn, int maxdays, int verbose) {
+typedef struct {
+  size_t n;
+  int *drive;
+} arrayDayType;
+
+typedef struct {
+  size_t numDays;
+  arrayDayType *day;
+  size_t *failedOnDay;
+} arrayLifeType;
+  
+
+float *setupProbs(char *fn, int maxdays, int verbose) {
 
   float *f = calloc(sizeof(float), maxdays);
 
@@ -38,7 +50,7 @@ float *setup(char *fn, int maxdays, int verbose) {
   return f;
 }
 
-void dump(const char *fn, const float *days, const int maxdays) {
+void dumpProbs(const char *fn, const float *days, const int maxdays) {
   FILE *fp = fopen(fn, "wt");
   if (fp) {
     for (size_t i = 0; i < maxdays; i++) {
@@ -52,32 +64,86 @@ void dump(const char *fn, const float *days, const int maxdays) {
 }
 
 
+arrayLifeType setupArray(const int days, const int n) {
+  arrayLifeType a;
+  a.numDays = days;
+  a.day = calloc(days, sizeof(arrayDayType));
+  a.failedOnDay = calloc(days, sizeof(size_t));
+  for (size_t i = 0; i < days; i++) {
+    a.day[i].n = n;
+    a.day[i].drive = calloc(n, sizeof(int));
+  }
+  return a;
+}
 
-void days(char *d, const int num) {
-  for (size_t i = 0; i <num; i++) {
-    d[i] = '.';
+void dumpArray(const arrayLifeType *a, const int days, const int n, const int m) {
+  for (int j = 0; j < days; j++) {
+    fprintf(stderr,"[%3d] ", j);
+    for (int i = 0; i < n; i++) {
+      fprintf(stderr," %3d", a->day[j].drive[i]);
+    }
+    fprintf(stderr,"  --> %3zd", a->failedOnDay[j]);
+    if (a->failedOnDay[j] > m) fprintf(stderr," ****** FAILED ******");
+    fprintf(stderr,"\n");
   }
 }
 
-int simulate(char *days, float *f, const int num) {
-  int alive = 1;
-  int deathday = 0;
-  
-  for (size_t i = 0; i < num; i++) {
-    float ran = drand48();
-    if (!alive || (ran < ((1-f[i])/365.0))) {
-      if (alive) deathday = i;
-      alive = 0;
-      days[i] = 'x';
+void clearArray(arrayLifeType *a, const int days, const int n) {
+  for (int j = 0; j < days; j++) {
+    a->failedOnDay[j] = 0;
+    for (int i = 0; i < n; i++) {
+      a->day[j].drive[i] = 0;
     }
   }
-  return deathday;
 }
 
-
-int cmpfunc (const void * a, const void * b) {
-   return ( *(int*)a - *(int*)b );
+void freeArray(arrayLifeType *a, const int days, const int n) {
+  for (int j = 0; j < days; j++) {
+    free(a->day[j].drive);
+  }
+  free(a->failedOnDay);
+  free(a->day);
 }
+      
+
+
+int simulateArray(arrayLifeType *a, float *f, const int days, const int n, const int rebuild, const int m, const int verbose, int *rebuilding) {
+  for (int j = 0; j < days; j++) {
+    for (int i = 0; i < n; i++) {
+      float ran = drand48();
+      int prev = 0;
+      if (j>0) prev = a->day[j-1].drive[i];
+
+      if ((prev>0) || (ran < ((1-f[j])/365.0))) {
+	a->day[j].drive[i] = prev+1;
+	a->failedOnDay[j]++;
+	if (a->day[j].drive[i] > rebuild) {
+	  a->day[j].drive[i] = 0;
+	  a->failedOnDay[j]--;
+	}
+      }
+    }
+  }
+  int death = 0;
+  *rebuilding = 0;
+  for (int j = 0; j < days; j++) {
+    if (a->failedOnDay[j]) {
+      (*rebuilding)++;
+      
+      if (a->failedOnDay[j] > m) {
+	if (verbose > 0) {
+	  fprintf(stderr,"day %d, failed drives %zd\n", j, a->failedOnDay[j]);
+	}
+	death++;
+      }
+    }
+  }
+  if (verbose) {
+    fprintf(stderr,"*info* days %d, rebuilding days %d (%.1lf%%), death %d\n", days, *rebuilding, 100.0*(*rebuilding)/days, death);
+  }
+  return death;
+}
+
 
 void usage(int years, int rebuild, int samples) {
   fprintf(stderr,"usage: ./raidfailures -k k -m m [-y years(%d)] [-r rebuilddays(%d)] [-s samples(%d)] [-p prob.txt] [-v (verbose)]\n", years, rebuild, samples);
@@ -85,7 +151,7 @@ void usage(int years, int rebuild, int samples) {
 
 
 int main(int argc, char *argv[]) {
-	
+
   optind = 0;
   int k = 0, m = 0, rebuildthreshold = 7, opt = 0, verbose = 0, samples = 1000;
   char *dumpprobs = NULL;
@@ -128,66 +194,38 @@ int main(int argc, char *argv[]) {
   }
 
 
-  if (verbose) {
-    fprintf(stderr,"*info* stutools: Monte-Carlo failure simulator\n");
-    fprintf(stderr,"*info* k %d, m %d, years %.1lf, rebuild threshold %d\n", k, m, years, rebuildthreshold);
-  }
+  fprintf(stderr,"*info* stutools: Monte-Carlo failure simulator\n");
+  fprintf(stderr,"*info* k %d, m %d, years %.1lf, rebuild threshold %d\n", k, m, years, rebuildthreshold);
   
   srand48(41);
   
-  float *f = setup("hdd-surviverates.dat", maxdays, verbose);
-  if (dumpprobs) dump(dumpprobs, f, maxdays);
-  
-
-  char *d = malloc(maxdays);
+  float *f = setupProbs("hdd-surviverates.dat", maxdays, verbose);
+  if (dumpprobs) dumpProbs(dumpprobs, f, maxdays);
 
   const int drives = k + m;
 
   int ok = 0, bad = 0;
   
+  arrayLifeType a = setupArray(maxdays, drives);
+
+  int rebuilding = 0;
   for (size_t s = 0; s < samples; s++) {
-    int death = 0, diskdead[drives];
-    
-    for (size_t i = 0; i < drives; i++) {
-      diskdead[i] = i;
+    clearArray(&a, maxdays, drives);
+    int death = simulateArray(&a, f, maxdays, drives, rebuildthreshold, m, verbose, &rebuilding);
+    if (verbose > 1) {
+      dumpArray(&a, maxdays, drives, m);
     }
 
-    // simulate each drive
-    for (size_t i = 0; i < drives; i++) {
-      days(d, maxdays);
-      death = simulate(d, f, maxdays);
-      diskdead[i] = death;
-    }
-
-    qsort(diskdead, drives, sizeof(int), cmpfunc);
-    int tdl = 0;
-    for (size_t i = 0; i < drives; i++) {
-      if (verbose >= 2) {
-	fprintf(stderr, "device %2zd fail day: %d\n", i, diskdead[i]);
-      }
-      if (diskdead[i]) {
-	if ((i > m) && (diskdead[i-m])) { // m 2, dead on 3
-	  if (diskdead[i] - diskdead[i-m] < rebuildthreshold) {
-	    for (size_t j = i-m; j <= i; j++) {
-	      if (verbose >= 2) fprintf(stderr,"dates: %d\n", diskdead[j]);
-	    }
-	    if (verbose) fprintf(stderr,"> %d drives died while rebuilding (year %.1lf) %d and %d\n", m, diskdead[i]/365.0, diskdead[i-m], diskdead[i]);
-	    tdl = diskdead[i];
-	    break;
-	  }
-	}
-      }
-    }
-    if (tdl == 0) {
+    if (death == 0) {
       ok++;
     } else {
       bad++;
     }
-    if (verbose) fprintf(stderr, "Arrays that failed at least once in %.1lf years and rebuilt under %d days. Total %d, Failed array, %d, Failed %% %.1lf %% (sample %zd)\n", years, rebuildthreshold, ok, bad, bad*100.0/(ok+bad), s+1);
+    if (verbose) fprintf(stderr, "Arrays that failed at least once in %.1lf years and rebuilt under %d maxdays. Total %d, Failed array, %d, Failed %% %.1lf %% (sample %zd)\n", years, rebuildthreshold, ok, bad, bad*100.0/(ok+bad), s+1);
   }
+  freeArray(&a, maxdays, drives);
 
   fprintf(stdout, "%.1lf\n", bad * 100.0 / (ok+bad));
-  if (d) free(d);
   if (f) free(f);
 
   return 0;
