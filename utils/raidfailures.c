@@ -123,7 +123,10 @@ void freeArray(arrayLifeType *a, const int days, const int n) {
       
 
 
-int simulateArray(arrayLifeType *a, float *f, const int days, const int n, const int rebuild, const int m, const int verbose, int *daysrebuilding, int *maxfailed, int *ageofdeath) {
+int simulateArray(arrayLifeType *a, float *f, const int days, const int n, const int rebuild, const int m, const int verbose, int *daysrebuilding, int *maxfailed, int *ageofdeath, int *drivesneeded) {
+
+  *drivesneeded = n;
+
   for (int j = 0; j < days; j++) {
     for (int i = 0; i < n; i++) {
       float ran = drand48();
@@ -138,6 +141,11 @@ int simulateArray(arrayLifeType *a, float *f, const int days, const int n, const
 	  a->failedOnDay[j]--;
 	}
       }
+
+      if (a->day[j].drive[i] == 1) {
+	(*drivesneeded)++;
+      }
+      
     }
   }
   int death = 0;
@@ -161,15 +169,14 @@ int simulateArray(arrayLifeType *a, float *f, const int days, const int n, const
 
 	if (founddeath ==0) {
 	  *ageofdeath = j;
-	  fprintf(stderr,"dead %d\n", j);
+	  //	  fprintf(stderr,"dead %d\n", j);
 	  founddeath = 1;
 	}
-			break;
       }
     }
   }
   if (verbose) {
-    fprintf(stderr,"*info* days %d, daysrebuilding days %d (%.1lf%%), death %d, max failed %d\n", days, *daysrebuilding, 100.0*(*daysrebuilding)/days, death, *maxfailed);
+    fprintf(stderr,"*info* days %d, daysrebuilding days %d (%.1lf%%), death %d, max failed %d, drives needed %d\n", days, *daysrebuilding, 100.0*(*daysrebuilding)/days, death, *maxfailed, *drivesneeded);
   }
   return death;
 }
@@ -245,11 +252,11 @@ int main(int argc, char *argv[]) {
   
   arrayLifeType a = setupArray(maxdays, drives);
 
-  int daysrebuilding = 0, daysrebuildingtotal = 0, globalmaxfailed = 0, globalageofdeath = 0;
+  int daysrebuilding = 0, daysrebuildingtotal = 0, globalmaxfailed = 0, globalageofdeath = 0, globaldrivesneeded = 0;
   for (size_t s = 0; s < samples; s++) {
-    int maxfailed = 0, ageofdeath = 0;
+    int maxfailed = 0, ageofdeath = 0, drivesneeded = 0;
     clearArray(&a, maxdays, drives);
-    int death = simulateArray(&a, f, maxdays, drives, rebuilddays, m, verbose, &daysrebuilding, &maxfailed, &ageofdeath);
+    int death = simulateArray(&a, f, maxdays, drives, rebuilddays, m, verbose, &daysrebuilding, &maxfailed, &ageofdeath, &drivesneeded);
     
     if (death == 0) {
       ok++;
@@ -258,6 +265,8 @@ int main(int argc, char *argv[]) {
     }    
 
     daysrebuildingtotal += daysrebuilding;
+
+    globaldrivesneeded += drivesneeded;
 
     if (maxfailed > globalmaxfailed) {
       globalmaxfailed = maxfailed;
@@ -278,7 +287,7 @@ int main(int argc, char *argv[]) {
   freeArray(&a, maxdays, drives);
 
 
-  fprintf(stdout, "%d\t%.3lf %%\t%.3lf %%\t%d maxfail\t%.3lf avgage\n", bad, bad * 100.0 / (ok+bad), 100.0*daysrebuildingtotal / (samples * maxdays), globalmaxfailed, bad==0?0:globalageofdeath * 1.0 / bad );
+  fprintf(stdout, "%d\t%.3lf %%\t%.3lf %%\t%d maxfail\t%.3lf avgage\t%d drivesneeded\n", bad, bad * 100.0 / (ok+bad), 100.0*daysrebuildingtotal / (samples * maxdays), globalmaxfailed, bad==0?0:globalageofdeath * 1.0 / bad, globaldrivesneeded / samples);
   if (f) free(f);
 
   return 0;
