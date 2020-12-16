@@ -5,7 +5,14 @@
 #include <time.h>
 #include <assert.h>
 
-
+/**
+ * Array Monte-Carlo simulator.
+ *
+ * Simulation occurs at the per drive per day level. So each simulation
+ * is a matrix of d days by n drives.
+ * 
+ * Probability estimates are read from a estimation table/file.
+ */
 typedef struct {
   size_t n;
   int *drive;
