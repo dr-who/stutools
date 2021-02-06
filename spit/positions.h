@@ -19,7 +19,7 @@ typedef struct {
   char  action;                  // 1: 'R' or 'W'
   unsigned int  success:2;               // 0.5
   unsigned int inFlight:2;
-  unsigned short msdelay;
+  double usoffset;
 } positionType;
 
 typedef struct {
@@ -84,8 +84,8 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd);
 void positionContainerInfo(const positionContainer *pc);
 void positionLatencyStats(positionContainer *pc, const int threadid);
 void positionContainerRandomize(positionContainer *pc, unsigned int seed);
-void positionContainerAddMetadataChecks(positionContainer *pc);
-void positionContainerAddDelay(positionContainer *pc, unsigned short msdelay, size_t threadid);
+void positionContainerAddMetadataChecks(positionContainer *pc, const size_t metadata);
+void positionContainerAddDelay(positionContainer *pc, unsigned long usdelay, size_t threadid);
 
 void positionContainerInfo(const positionContainer *pc);
 

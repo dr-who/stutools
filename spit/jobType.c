@@ -178,7 +178,7 @@ typedef struct {
   size_t blockSize;
   size_t highBlockSize;
   size_t queueDepth;
-  size_t metaData;
+  long metaData;
   size_t QDbarrier;
   size_t flushEvery;
   probType rw;
@@ -191,8 +191,7 @@ typedef struct {
   size_t positionLimit;
   size_t LBAtimes;
   unsigned short seed;
-  size_t speedMB;
-  unsigned short msdelay;
+  unsigned short iopstarget;
   char *randomBuffer;
   size_t numThreads;
   size_t waitForThreads;
@@ -248,7 +247,7 @@ static void *runThread(void *arg)
   positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions);
 
   if (verbose >= 2) {
-    positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, !threadContext->metaData);
+    positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, threadContext->metaData ? 0 : 1 /*don't exit if meta*/);
   }
 
   if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos, threadContext->seed);
@@ -263,12 +262,11 @@ static void *runThread(void *arg)
   if (threadContext->uniqueSeeds) {
     positionContainerUniqueSeeds(&threadContext->pos, threadContext->seed, threadContext->verifyUnique);
   } else if (threadContext->metaData) {
-    positionContainerAddMetadataChecks(&threadContext->pos);
+    positionContainerAddMetadataChecks(&threadContext->pos, threadContext->metaData);
   }
 
-  if (threadContext->msdelay) {
-    positionContainerAddDelay(&threadContext->pos, threadContext->msdelay * (threadContext->id+1), threadContext->id);
-    //    threadContext->queueDepth = 1;
+  if (threadContext->iopstarget) {
+    positionContainerAddDelay(&threadContext->pos, threadContext->iopstarget, threadContext->id);
   }
 
   if (threadContext->dumpPos /* && !iRandom*/) {
@@ -481,7 +479,7 @@ static void *runThread(void *arg)
 
     if (verbose) fprintf(stderr,"*iteration* %zd\n", iteratorCount);
 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepth, -1 /* verbose */, 0, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, threadContext->speedMB, &ioerrors, threadContext->QDbarrier, discard_max_bytes);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepth, -1 /* verbose */, 0, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, threadContext->QDbarrier, discard_max_bytes);
     totalP += posLimit;
 
     if (!doRounds) break;
@@ -1310,7 +1308,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
-    size_t uniqueSeeds = 0, verifyUnique = 0, metaData = 0;
+    size_t uniqueSeeds = 0, verifyUnique = 0;
+    long metaData = 0;
 
     {
       // metaData mode is random, verify all writes and flushing, sets QD to 1
@@ -1491,7 +1490,15 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       // metaData mode is random, verify all writes and flushing
       char *iR = strchr(job->strings[i], 'm');
       if (iR) {
-        metaData = 1;
+	metaData = -1;
+	if (*(iR+1)) {
+	  double low, high;
+	  int ret = splitRange(iR+1, &low, &high);
+	  if (ret && (low > 0)) {
+	    metaData = low;
+	  }
+	}
+	fprintf(stderr,"*info* metadata value = %ld\n", metaData);
         seqFiles = 0;
         threadContext[i].flushEvery = 1;
       }
@@ -1590,8 +1597,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         speedMB = atoi(RChar + 1); // if specified
       }
     }
-    threadContext[i].speedMB = 0;
-    threadContext[i].msdelay = speedMB;
+    threadContext[i].iopstarget = speedMB;
 
 
     char *Wchar = strchr(job->strings[i], 'W');
@@ -1627,7 +1633,19 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     //    threadContext[i].pos.maxbdSize = threadContext[i].maxbdSize;
 
+    if (metaData < 0 || metaData > (long)mp) {
+      fprintf(stderr,"*info* setting metadata to %zd\n", mp);
+      metaData = mp;
+    }
+    if (metaData) {
+      if ((long)qDepth > metaData) {
+	fprintf(stderr,"*warning* QD must be <= %zd if reading/writing. Setting QD=%zd\n", metaData, metaData);
+	qDepth = metaData;
+      }
+    }
+    threadContext[i].queueDepth = qDepth;
 
+      
     positionContainerSetup(&threadContext[i].pos, mp);
     threadContext[i].seqFiles = seqFiles;
     threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;

@@ -33,7 +33,6 @@ size_t aioMultiplePositions( positionContainer *p,
                              const int dontExitOnErrors,
                              const int fd,
                              int flushEvery,
-                             const size_t targetMBps,
                              size_t *ioerrors,
                              size_t QDbarrier,
                              const size_t discard_max_bytes
@@ -159,7 +158,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
   size_t inFlight = 0, pos = 0;
 
-  double start = timedouble();
+  const double start = timedouble();
   double last = start;
   //  double lastreceive = start;
 
@@ -185,14 +184,12 @@ size_t aioMultiplePositions( positionContainer *p,
     positions[i].success = 0;
   }
 
-  double timesincereset = timedouble();
   size_t timesinceMB = 0;
-  double timesleep = 500000;
-
 
   if (verbose >= 2)fprintf(stderr,"*info* starting...%zd, finishTime %lf\n", sz, finishTime);
 
   size_t thiskeeprunning = 1;
+	
   while (keepRunning && thiskeeprunning) {
     thistime = timedouble();
     if (checkTime && (thistime > finishTime)) {
@@ -207,164 +204,176 @@ size_t aioMultiplePositions( positionContainer *p,
     }
     thistime = timedouble();
     size_t cursubmitted = submitted;
-    while (sz && inFlight < MIN(cursubmitted * 2 + 1, QD) && keepRunning) {
-      if (!positions[pos].inFlight) {
+    //    fprintf(stderr,"pos %zd, %lf    %lf\n", pos, thistime, start + positions[pos].usoffset/1000000.0);
 
-        // submit requests, one at a time
-        assert(pos < sz);
-        if (positions[pos].action != 'S') { // if we have some positions, sz > 0
-          const size_t newpos = positions[pos].pos;
-          const size_t len = positions[pos].len;
+    
+    
+    if (thistime >= start + positions[pos].usoffset) {
+      while (sz && inFlight < MIN(cursubmitted * 2 + 1, QD) && keepRunning) {
+	if (!positions[pos].inFlight) {
 
-          if (positions[pos].action == 'T') {
-            if (discard_max_bytes >= alignment) {
-              if (verbose >= 2) fprintf(stderr,"*info* trim at %zd len = %zd\n", newpos, len);
-              positions[pos].submitTime = timedouble();
-              performDiscard(fd, NULL, newpos, newpos+len, maxSize, alignment, NULL, 0, 0);
-              p->writtenIOs++;
-              positions[pos].finishTime = timedouble();
-            }
+	  // submit requests, one at a time
+	  assert(pos < sz);
+	  if (positions[pos].action != 'S') { // if we have some positions, sz > 0
+	    const size_t newpos = positions[pos].pos;
+	    const size_t len = positions[pos].len;
 
-            goto nextpos;
-          }
+	    if (positions[pos].action == 'T') {
+	      if (discard_max_bytes >= alignment) {
+		if (verbose >= 2) fprintf(stderr,"*info* trim at %zd len = %zd\n", newpos, len);
+		positions[pos].submitTime = timedouble();
+		performDiscard(fd, NULL, newpos, newpos+len, maxSize, alignment, NULL, 0, 0);
+		p->writtenIOs++;
+		positions[pos].finishTime = timedouble();
+	      }
 
-          assert(headOfQueue < QD);
-          qdIndex = freeQueue[headOfQueue];
-          assert(qdIndex >= 0);
+	      goto nextpos;
+	    }
 
-          assert(positions[pos].inFlight == 0);
+	    assert(headOfQueue < QD);
+	    qdIndex = freeQueue[headOfQueue];
+	    assert(qdIndex >= 0);
 
-          // setup the request
-          if (fd >= 0) {
-            positions[pos].q = qdIndex;
-            positions[pos].inFlight = 1;
+	    assert(positions[pos].inFlight == 0);
 
-            // watermark the block with the position on the device
+	    // setup the request
+	    if (fd >= 0) {
+	      positions[pos].q = qdIndex;
+	      positions[pos].inFlight = 1;
 
-            if (positions[pos].action=='D') {
-              usleep(positions[pos].msdelay * 1000);
-              thistime = timedouble();
+	      // watermark the block with the position on the device
 
-              //if (verbose >= 2) {
-              //	      fprintf(stderr,"delay %u\n", positions[pos].msdelay * 1000);
-              //	      }
+	      if (positions[pos].action=='D') {
+		abort();
+		thistime = timedouble();
 
-              goto nextpos;
-            } else if (positions[pos].action=='R') {
-              if (verbose >= 2) {
-                fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);
-              }
+		//if (verbose >= 2) {
+		//	      fprintf(stderr,"delay %u\n", positions[pos].msdelay * 1000);
+		//	      }
 
-              /*
-              if (positions[pos].seed != dataseed[qdIndex]) {
-              generateRandomBuffer(readdata[qdIndex], positions[pos].len, positions[pos].seed);
-              dataseed[qdIndex] = positions[pos].seed;
-              }*/
+		goto nextpos;
+	      } else if (positions[pos].action=='R') {
+		if (verbose >= 2) {
+		  fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);
+		}
 
-              io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
-              cbs[qdIndex]->data = &positions[pos];
+		/*
+		  if (positions[pos].seed != dataseed[qdIndex]) {
+		  generateRandomBuffer(readdata[qdIndex], positions[pos].len, positions[pos].seed);
+		  dataseed[qdIndex] = positions[pos].seed;
+		  }*/
 
-              if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
-                goto endoffunction;
-              }
-              totalReadSubmit += len;
+		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
+		cbs[qdIndex]->data = &positions[pos];
 
-
-            } else if (positions[pos].action=='F') {
-              if (verbose >= 2) {
-                fprintf(stderr,"[%zd] flush qdIndex=%d\n", newpos, qdIndex);
-              }
-
-              io_prep_fsync(cbs[qdIndex], fd);
-              cbs[qdIndex]->data = &positions[pos];
-            } else if (positions[pos].action == 'W') {
-              if (verbose >= 2) {
-                fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);
-              }
-
-              if (positions[pos].seed != dataseed[qdIndex]) {
-                generateRandomBuffer(data[qdIndex], positions[pos].len, positions[pos].seed);
-                dataseed[qdIndex] = positions[pos].seed;
-              }
-
-              size_t *posdest = (size_t*)data[qdIndex];
-              *posdest = newpos;
-
-              size_t *uuiddest = (size_t*)data[qdIndex] + 1;
-              *uuiddest = p->UUID;
-
-              if (positions[pos].verify) {
-                if (positions[positions[pos].verify].finishTime == 0) {
-                  positions[pos].verify = 0;
-                }
-              }
-
-              io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
-              cbs[qdIndex]->data = &positions[pos];
-
-              if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
-                goto endoffunction;
-              }
-              totalWriteSubmit += len;
-
-              flushPos++;
-            } else {
-              fprintf(stderr,"unknown action %c\n", positions[pos].action);
-              abort();
-            }
-
-            positions[pos].submitTime = thistime;
-            positions[pos].finishTime = 0;
+		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+		  goto endoffunction;
+		}
+		totalReadSubmit += len;
 
 
-            // for the speed limiting
-            timesinceMB += len;
+	      } else if (positions[pos].action=='F') {
+		if (verbose >= 2) {
+		  fprintf(stderr,"[%zd] flush qdIndex=%d\n", newpos, qdIndex);
+		}
 
-            ret = io_submit(ioc, 1, &cbs[qdIndex]);
+		io_prep_fsync(cbs[qdIndex], fd);
+		cbs[qdIndex]->data = &positions[pos];
+	      } else if (positions[pos].action == 'W') {
+		if (verbose >= 2) {
+		  fprintf(stderr,"[%zd] write qdIndex=%d\n", newpos, qdIndex);
+		}
 
-            if (ret > 0) {
-              // if success
-              freeQueue[headOfQueue] = -1; // take off queue
-              //	      freeQueue[headOfQueue] = -1;
-              headOfQueue++;
-              if (headOfQueue == QD) headOfQueue = 0;
+		if (positions[pos].seed != dataseed[qdIndex]) {
+		  generateRandomBuffer(data[qdIndex], positions[pos].len, positions[pos].seed);
+		  dataseed[qdIndex] = positions[pos].seed;
+		}
 
-              inFlight++;
-              //	      lastsubmit = thistime; // last good submit
-              submitted++;
-              if (verbose >= 2 || (newpos & (alignment - 1))) {
-                fprintf(stderr,"fd %d, pos %zd (%% %zd = %zd ... %s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, alignment, newpos % alignment, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
-              }
+		size_t *posdest = (size_t*)data[qdIndex];
+		*posdest = newpos;
 
-            } else {
-              *ioerrors = (*ioerrors) + 1;
-              fprintf(stderr,"io_submit() failed, ret = %d\n", ret);
-              perror("io_submit()");
-              if(!dontExitOnErrors) abort();
-            }
-          }
-        }
-      } else {
-        if (verbose >= 1) {
-          fprintf(stderr,"*info* position collision %zd\n",pos);
-        }
+		size_t *uuiddest = (size_t*)data[qdIndex] + 1;
+		*uuiddest = p->UUID;
+
+		if (positions[pos].verify) {
+		  if (positions[positions[pos].verify].finishTime == 0) {
+		    positions[pos].verify = 0;
+		  }
+		}
+
+		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
+		cbs[qdIndex]->data = &positions[pos];
+
+		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+		  goto endoffunction;
+		}
+		totalWriteSubmit += len;
+
+		flushPos++;
+	      } else {
+		fprintf(stderr,"unknown action %c\n", positions[pos].action);
+		abort();
+	      }
+
+	      positions[pos].submitTime = thistime;
+	      positions[pos].finishTime = 0;
+
+
+	      // for the speed limiting
+	      timesinceMB += len;
+
+	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
+
+	      if (ret > 0) {
+		// if success
+		freeQueue[headOfQueue] = -1; // take off queue
+		//	      freeQueue[headOfQueue] = -1;
+		headOfQueue++;
+		if (headOfQueue == QD) headOfQueue = 0;
+
+		inFlight++;
+		//	      lastsubmit = thistime; // last good submit
+		submitted++;
+		if (verbose >= 2 || (newpos & (alignment - 1))) {
+		  fprintf(stderr,"fd %d, pos %zd (%% %zd = %zd ... %s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, alignment, newpos % alignment, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
+		}
+
+	      } else {
+		*ioerrors = (*ioerrors) + 1;
+		fprintf(stderr,"io_submit() failed, ret = %d\n", ret);
+		perror("io_submit()");
+		if(!dontExitOnErrors) abort();
+	      }
+	    }
+	  }
+	} else {
+	  if (verbose >= 1) {
+	    fprintf(stderr,"*info* position collision %zd\n",pos);
+	  }
+	}
+
+
+
+      nextpos:
+
+	// onto the next one
+	pos++;
+	if (pos >= sz) {
+	  pos = 0;
+	}
+	if (posLimit && (submitted >= posLimit)) {
+	  // if Px is passed in
+	  //fprintf(stderr,"end of function one shot\n");
+	  goto endoffunction; // only go through once
+	}
+      } // while not enough inflight
+    } else {
+      // if the IO hasn't started yet, sleep a bit
+      if (pos > 0) {
+	// convert to seconds, then 1/2 of it
+	//	usleep((positions[pos].usoffset - positions[pos-1].usoffset)*1000000 / 10);
       }
-
-
-
-nextpos:
-
-      // onto the next one
-      pos++;
-      if (pos >= sz) {
-	pos = 0;
-      }
-      if (posLimit && (submitted >= posLimit)) {
-	// if Px is passed in
-	//fprintf(stderr,"end of function one shot\n");
-	goto endoffunction; // only go through once
-      }
-    } // while not enough inflight
+    }
 
     double timeelapsed = timedouble() - last;
     if (timeelapsed >= DISPLAYEVERY) {
@@ -394,38 +403,6 @@ nextpos:
       fsync(fd);
       flush_count++;
       //      }
-    }
-
-
-    /// speed limiting
-    if (targetMBps) {
-      double tttime = timedouble();
-      double resettime = tttime - timesincereset;
-      size_t speed = (timesinceMB / 1024.0 / 1024.0) / resettime;
-      if (resettime > 0.1) {
-        if (speed > targetMBps) {
-          if (timesleep == 0) timesleep = 1;
-
-          timesleep = timesleep * 1.02;
-
-          timesincereset = tttime;
-          timesinceMB = 0;
-
-        } else if (speed < targetMBps) {
-
-          timesleep = timesleep / 1.02;
-          if (timesleep < 0) timesleep = 0;
-
-          timesincereset = tttime;
-          timesinceMB = 0;
-        } else {
-          timesincereset = tttime;
-          timesinceMB = 0;
-        }
-        //	fprintf(stderr,"*info* sleep %.3lf, speed %zd, target %zd\n", timesleep, speed, targetMBps);
-      }
-      struct timespec nanslp = {0,timesleep};
-      nanosleep(&nanslp, NULL);
     }
 
 

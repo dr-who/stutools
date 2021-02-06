@@ -970,7 +970,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
     else if (positions[i].action == 'T') tcount++;
 
     if (i < countToShow) {
-      fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7d\tdevice %d\tverify %d\tseed %6d\tmsdelay %u\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].msdelay);
+      fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7d\tdevice %d\tverify %d\tseed %6d\tusoffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
     }
   }
   fprintf(stderr,"\tSummary[%d]: reads %zd, writes %zd, trims %zd, hash %lx\n", positions[0].seed, rcount, wcount, tcount, hash);
@@ -1008,68 +1008,61 @@ void positionContainerSetupFromPC(positionContainer *pc, const positionContainer
 }
 
 
-void positionContainerAddMetadataChecks(positionContainer *pc)
+void positionContainerAddMetadataChecks(positionContainer *pc, const size_t metadata)
 {
-  size_t origsz = pc->sz;
-  pc->positions = realloc(pc->positions, (origsz * 2) * sizeof(positionType));
-  if (!pc->positions) {
-    fprintf(stderr,"*error* can't realloc array to %zd\n", (origsz * 2) * sizeof(positionType));
+  const size_t origsz = pc->sz;
+  
+  positionType *p = NULL;
+  CALLOC(p, 2 * origsz, sizeof(positionType));
+  if (p == NULL) {
+    fprintf(stderr,"*error* can't alloc array\n");
     exit(-1);
   }
 
-  //  unsigned short seed = 0;
-  //  if (origsz>0) seed = pc->positions[0].seed;
+  size_t newpos = 0;
+  for (size_t i = 0; i < origsz; i += metadata) {
+    size_t gap = (origsz - i > metadata) ? metadata : origsz - i;
 
-  //  for (int i = 0; i < origsz; i++) {
-  //    pc->positions[i].seed = seed++;
-  //  }
-
-  for (size_t i = origsz; i < origsz * 2; i++) {
-    pc->positions[i] = pc->positions[i - origsz];
-    if (pc->positions[i].action == 'W') {
-      pc->positions[i].action = 'R';
-      pc->positions[i].verify = i - origsz;
+    for (size_t j = 0; j < gap; j++) {
+      assert (newpos < 2*origsz);
+      p[newpos] = pc->positions[i + j];
+      p[newpos].action = 'W';
+      newpos++;
+    }
+    for (size_t j = 0; j < gap; j++) {
+      assert (newpos < 2*origsz);
+      p[newpos] = pc->positions[i + j];
+      p[newpos].action = 'R';
+      p[newpos].verify = newpos - gap;
+      newpos++;
     }
   }
-
+  free(pc->positions);
+  pc->positions = p;
   pc->sz = origsz * 2;
+  // check a read has the same position as the original write
+  //  fprintf(stderr,"*info* checking...\n");
+  for (size_t i = 0; i < pc->sz; i++) { 
+    size_t vpos = pc->positions[i].verify;
+    if (vpos > 0) {  
+      assert(pc->positions[i].pos == pc->positions[vpos].pos);
+      assert(pc->positions[i].len == pc->positions[vpos].len);
+      assert(pc->positions[i].action != pc->positions[vpos].action);
+    }
+  }
 }
 
 
 
 
-void positionContainerAddDelay(positionContainer *pc, unsigned short msdelay, size_t threadid)
+void positionContainerAddDelay(positionContainer *pc, unsigned long iops, size_t threadid)
 {
   size_t origsz = pc->sz;
-  fprintf(stderr,"*info* [t%zd] adding %u msdelay, positions %zd, new positions %zd\n", threadid, msdelay, origsz, origsz*2);
+  if (threadid == 0) fprintf(stderr,"*info* [t%zd] target %zd IOPS per thread\n", threadid, iops);
 
-  pc->positions = realloc(pc->positions, (origsz * 2) * sizeof(positionType));
-  if (!pc->positions) {
-    fprintf(stderr,"*error* can't realloc array to %zd\n", (origsz * 2) * sizeof(positionType));
-    exit(-1);
+  for (size_t i = 0; i < origsz; i++) {
+    pc->positions[i].usoffset = (i * 1.0 / iops);
   }
-
-  //  unsigned short seed = 0;
-  //  if (origsz>0) seed = pc->positions[0].seed;
-
-  //  for (int i = 0; i < origsz; i++) {
-  //    pc->positions[i].seed = seed++;
-  //  }
-
-  for (size_t i = origsz-1; i > 0; i--) {
-    pc->positions[2 * i] = pc->positions[i];
-  }
-
-  for (size_t i = 1; i < 2 * origsz; i+=2) {
-    memset(&pc->positions[i], 0, sizeof(positionType));
-    //    pc->positions[i].pos = 0;
-    //    pc->positions[i].len  = 0;
-    pc->positions[i].action = 'D';
-    pc->positions[i].msdelay = msdelay;
-  }
-
-
-  pc->sz = origsz * 2;
 }
 
 
@@ -1092,6 +1085,7 @@ void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed, co
     fprintf(stderr,"*error* can't realloc array to %zd\n", (origsz * 2) * sizeof(positionType));
     exit(-1);
   }
+  memset(pc->positions + origsz, 0, origsz);
 
   size_t j = 0;
   for (size_t i = 0; i < origsz; i++) {

@@ -40,6 +40,23 @@ Stu's Powerful I/O Tester (spit)
 
       spit -f /dev/md0 -c ... -O rawdevices.txt  # perform actions on a meta device and show amplification
 
+## Dump out the commands
+
+      spit -f .... -c ... -d 100     # dumps out the first 100 commands, to see what's happening
+
+## IOPS latency
+
+      spit -f device -c wk64s0S1000q1 -P pos.txt   # random write, 64K, target 1,000 IOPS with qd=1. Display latency
+
+               # all timing information is in the file specified with -P
+
+## Write/read alternating
+
+      spit -f device -c 'w s1 k1024 z m1'        # write then read back the same block, alternating 1:1
+
+      spit -f device -c 'w s1 k1024 z m100'      # write 1MiB blocks sequentially, every 100 writes read the last 100
+
+
 ## TRIM/Discard tests
 
       spit -f device -c ts0 -G10    # perform random trims 

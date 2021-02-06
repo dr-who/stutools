@@ -473,9 +473,9 @@ void usage()
   fprintf(stdout,"  spit ... -c ws0u -v           # Uses a unique seed (u) per operation (mod 65536)\n");
   fprintf(stdout,"  spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with QD=1\n");
   fprintf(stdout,"  spit ... -c ws0UG_j32 -v      # Generates r/w pairs with unique seeds, as above, unique thread ranges\n");
-  fprintf(stdout,"  spit ... -c ws1S1a1           # Slows down, adds 1ms of delay between each operation, multiplied by threadid\n");
-  fprintf(stdout,"  spit ... -c ws1S1j5q1         # Add 1ms delay for thread1, 5ms for thread 5. Recommend q1\n");
-  fprintf(stdout,"  spit -F. -c ws1zx1j64S1q1 -G1 # creates files from .0001 to .0128, with delays\n");
+  fprintf(stdout,"  spit ... -c ws1S100           # Targets slower IOPS, S100 targets 100 IOPS per thread, with default qd\n");
+  fprintf(stdout,"  spit ... -c ws1S1000q1        # Target 1000 IOPS, with QD=1\n");
+  fprintf(stdout,"  spit -F. -c ws1zx1j64S100q1 -G1 # creates files from .0001 to .0128, with IOPS targets\n");
   fprintf(stdout,"  spit -e \"5,echo five\"         # exec a bash -c CMD string after 5 seconds, quotes are required\n");
   fprintf(stdout,"  spit -c wk1024za7             # every 'a' MiB of operations perform a jump back to the start of device. Dump with -d to see\n");
   fprintf(stdout,"  spit -c wk1024za3A8           # 'A' means to add 8 KiB after every position after 3 MiB\n");
