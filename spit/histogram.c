@@ -62,7 +62,7 @@ void histSum(histogramType *h)
 void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale)
 {
   histSum(h);
-  assert(h->dataSum);
+  //  assert(h->dataSum);
 
   size_t maxsum = h->binSum[h->arraySize];
   *median = 0;
@@ -102,7 +102,7 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
 void histSave(histogramType *h, const char *filename, const size_t scale)
 {
   histSum(h);
-  assert(h->dataSum);
+  //  assert(h->dataSum);
 
   size_t maxvalue = h->binSum[h->arraySize];
 
