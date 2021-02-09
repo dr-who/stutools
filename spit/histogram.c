@@ -46,7 +46,7 @@ size_t histCount(histogramType *h)
 // mean is 0 if no data
 double histMean(const histogramType *h)
 {
-  return h->dataSum / h->dataCount;
+  return h->dataSum * 1.0 / h->dataCount;
 }
 
 
