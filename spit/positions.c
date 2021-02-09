@@ -425,6 +425,7 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
 void positionContainerSave(const positionContainer *p, const char *name, const size_t maxbdSizeBytes, const size_t flushEvery, jobType *job)
 {
   if (name) {
+    fprintf(stderr,"*info* saving positions to '%s' ...\n", name);
     FILE *fp = fopen(name, "wt");
     if (!fp) {
       fprintf(stderr,"*error* saving file '%s' failed.\n", name);
@@ -1115,6 +1116,7 @@ void positionContainerFree(positionContainer *pc)
 }
 
 
+/*
 void positionLatencyStats(positionContainer *pc, const int threadid)
 {
   if (threadid) {}
@@ -1137,6 +1139,7 @@ void positionLatencyStats(positionContainer *pc, const int threadid)
   }
   fflush(stderr);
 }
+*/
 
 
 jobType positionContainerLoad(positionContainer *pc, FILE *fd)

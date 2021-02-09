@@ -12,17 +12,14 @@
 #include <assert.h>
 #include <pthread.h>
 
-#include "jobType.h"
-#include "positions.h"
-#include "devices.h"
 #include <math.h>
 #include <limits.h>
+
+#include "jobType.h"
 #include "utils.h"
 #include "list.h"
-
+#include "latency.h"
 #include "aioRequests.h"
-#include "diskStats.h"
-#include "histogram.h"
 #include "blockVerify.h"
 
 extern volatile int keepRunning;
@@ -1802,118 +1799,40 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   }
 
 
-  if (savePositions || verify) {
-    // print stats
-    for (int i = 0; i < num; i++) {
-      positionLatencyStats(&threadContext[i].pos, i);
-    }
-
-    positionContainer *origpc;
-    CALLOC(origpc, num, sizeof(positionContainer));
-    for (int i = 0; i < num; i++) {
-      origpc[i] = threadContext[i].pos;
-    }
-
-    //    positionContainerSave(origpc, "a.a", origpc->maxbdSize, 0, job);
-
-    positionContainer mergedpc = positionContainerMerge(origpc, num);
-
-    if (savePositions) {
-      fprintf(stderr, "*info* saving positions to '%s' ... ", savePositions);
-      fflush(stderr);
-      positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
-      fprintf(stderr, "finished\n");
-      fflush(stderr);
-
-      // histogram
-      histogramType histRead, histWrite;
-      histSetup(&histRead, 0, 10, 1e-6);
-      histSetup(&histWrite, 0, 10, 1e-6);
-
-      for (int i = 0; i < (int) mergedpc.sz; i++) {
-        if (mergedpc.positions[i].action == 'R')
-          histAdd(&histRead, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
-        else if (mergedpc.positions[i].action == 'W')
-          histAdd(&histWrite, mergedpc.positions[i].finishTime - mergedpc.positions[i].submitTime);
-      }
-      double median, three9, four9, five9;
-      if (histCount(&histRead)) {
-        histSumPercentages(&histRead, &median, &three9, &four9, &five9, 1000);
-        fprintf(stderr,"*info* read latency:  mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000 * histMean(&histRead), median, three9, four9, five9);
-        histSave(&histRead, "spit-latency-read.txt", 1000);
-
-        FILE *fp = fopen("spit-latency-read.gnu", "wt");
-        if (fp) {
-          fprintf(fp, "set key above\n");
-          fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
-          fprintf(fp, "set log y\n");
-          fprintf(fp, "set xtics auto\n");
-          fprintf(fp, "set y2tics 10\n");
-          fprintf(fp, "set grid\n");
-          fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
-          fprintf(fp, "set y2range [0:100]\n");
-          fprintf(fp, "set xlabel 'Time (ms)'\n");
-          fprintf(fp, "set ylabel 'Count'\n");
-          fprintf(fp, "set y2label 'Confidence level'\n");
-          fprintf(fp, "plot 'spit-latency-read.txt' using 1:2 with imp title 'Read Latency', 'spit-latency-read.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
-        } else {
-          perror("filename");
-        }
-        if (fp) {
-          fclose(fp);
-          fp = NULL;
-        }
-
-      }
-      if (histCount(&histWrite)) {
-        histSumPercentages(&histWrite, &median, &three9, &four9, &five9, 1000);
-        fprintf(stderr,"*info* write latency: mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", 1000.0 * histMean(&histWrite), median, three9, four9, five9);
-        histSave(&histWrite, "spit-latency-write.txt", 1000);
-
-        FILE *fp = fopen("spit-latency-write.gnu", "wt");
-        if (fp) {
-          fprintf(fp, "set key above\n");
-          fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
-          fprintf(fp, "set log y\n");
-          fprintf(fp, "set xtics auto\n");
-          fprintf(fp, "set y2tics 10\n");
-          fprintf(fp, "set grid\n");
-          fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
-          fprintf(fp, "set y2range [0:100]\n");
-          fprintf(fp, "set xlabel 'Time (ms)'\n");
-          fprintf(fp, "set ylabel 'Count'\n");
-          fprintf(fp, "set y2label 'Confidence Level'\n");
-          fprintf(fp, "plot 'spit-latency-write.txt' using 1:2 with imp title 'Write Latency', 'spit-latency-write.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
-        } else {
-          perror("filename");
-        }
-        if (fp) {
-          fclose(fp);
-          fp = NULL;
-        }
-
-      }
-      histFree(&histRead);
-      histFree(&histWrite);
-    }
-
-    if (verify) {
-      positionContainerCheckOverlap(&mergedpc);
-      size_t direct = O_DIRECT;
-      for (int i = 0; i < num; i++) { // check all threads, if any aren't direct
-        if (threadContext[i].o_direct == 0) {
-          direct = 0;
-        }
-      }
-      int errors = verifyPositions(&mergedpc, MIN(256, mergedpc.sz), job, direct, 1 /* sorted */, threadContext->runSeconds, NULL, NULL, NULL);
-      if (errors) {
-        exit(1);
-      }
-    }
-
-    positionContainerFree(&mergedpc);
-    free(origpc);
+  positionContainer *origpc;
+  CALLOC(origpc, num, sizeof(positionContainer));
+  for (int i = 0; i < num; i++) {
+    origpc[i] = threadContext[i].pos;
   }
+  
+  latencyType lat;
+  latencySetup(&lat, origpc);
+  latencyStats(&lat);
+  latencyWriteGnuplot(&lat);
+  latencyReadGnuplot(&lat);
+  
+  positionContainer mergedpc = positionContainerMerge(origpc, num);
+
+  if (savePositions) {
+    positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
+  }
+  
+  if (verify) {
+    positionContainerCheckOverlap(&mergedpc);
+    size_t direct = O_DIRECT;
+    for (int i = 0; i < num; i++) { // check all threads, if any aren't direct
+      if (threadContext[i].o_direct == 0) {
+	direct = 0;
+      }
+    }
+    int errors = verifyPositions(&mergedpc, MIN(256, mergedpc.sz), job, direct, 1 /* sorted */, threadContext->runSeconds, NULL, NULL, NULL);
+    if (errors) {
+      exit(1);
+    }
+  }
+  
+  positionContainerFree(&mergedpc);
+  free(origpc);
 
   // free
   for (int i = 0; i < num; i++) {
