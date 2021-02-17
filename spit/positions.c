@@ -1037,7 +1037,9 @@ void positionContainerAddMetadataChecks(positionContainer *pc, const size_t meta
       //      assert (newpos < 2*origsz);
       p[newpos] = pc->positions[i + j];
       p[newpos].action = 'R';
-      p[newpos].verify = newpos - gap - 1; // min 1 for the 'P'
+      if (p[newpos - gap - 1].action == 'W') {
+	p[newpos].verify = newpos - gap - 1; // min 1 for the 'P'
+      }
       newpos++;
     }
     //    fprintf(stderr,"%zd %zd\n", newpos, maxalloc);
@@ -1062,7 +1064,7 @@ void positionContainerAddMetadataChecks(positionContainer *pc, const size_t meta
 	assert(pc->positions[i].pos == pc->positions[vpos].pos);
 	assert(pc->positions[i].len == pc->positions[vpos].len);
 	//	assert(pc->positions[i].action != pc->positions[vpos].action);
-	assert(pc->positions[vpos].action == 'R');
+	assert(pc->positions[vpos].action != 'P');
       }
     }
   }
