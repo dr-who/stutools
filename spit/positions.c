@@ -1012,9 +1012,10 @@ void positionContainerSetupFromPC(positionContainer *pc, const positionContainer
 void positionContainerAddMetadataChecks(positionContainer *pc, const size_t metadata)
 {
   const size_t origsz = pc->sz;
-  
+
   positionType *p = NULL;
-  CALLOC(p, 2 * origsz, sizeof(positionType));
+  size_t maxalloc = (4 * origsz); // a single R becomes RPWP
+  CALLOC(p, maxalloc, sizeof(positionType));
   if (p == NULL) {
     fprintf(stderr,"*error* can't alloc array\n");
     exit(-1);
@@ -1023,32 +1024,46 @@ void positionContainerAddMetadataChecks(positionContainer *pc, const size_t meta
   size_t newpos = 0;
   for (size_t i = 0; i < origsz; i += metadata) {
     size_t gap = (origsz - i > metadata) ? metadata : origsz - i;
-
+    assert (newpos < maxalloc);
     for (size_t j = 0; j < gap; j++) {
-      assert (newpos < 2*origsz);
+      //      assert (newpos < 2*origsz);
       p[newpos] = pc->positions[i + j];
-      p[newpos].action = 'W';
+      p[newpos].action = pc->positions[i + j].action;
       newpos++;
     }
+    p[newpos++].action = 'P'; // pause
+    assert (newpos < maxalloc);
     for (size_t j = 0; j < gap; j++) {
-      assert (newpos < 2*origsz);
+      //      assert (newpos < 2*origsz);
       p[newpos] = pc->positions[i + j];
       p[newpos].action = 'R';
-      p[newpos].verify = newpos - gap;
+      p[newpos].verify = newpos - gap - 1; // min 1 for the 'P'
       newpos++;
     }
+    //    fprintf(stderr,"%zd %zd\n", newpos, maxalloc);
+    assert (newpos < maxalloc);
+    p[newpos++].action = 'P'; // pause after
   }
   free(pc->positions);
+  //  fprintf(stderr,"reallo from %zd to %zd\n", maxalloc, newpos);
+  p = realloc(p, newpos * sizeof(positionType)); // truncate
   pc->positions = p;
-  pc->sz = origsz * 2;
+  pc->sz = newpos;
   // check a read has the same position as the original write
   //  fprintf(stderr,"*info* checking...\n");
-  for (size_t i = 0; i < pc->sz; i++) { 
-    size_t vpos = pc->positions[i].verify;
-    if (vpos > 0) {  
-      assert(pc->positions[i].pos == pc->positions[vpos].pos);
-      assert(pc->positions[i].len == pc->positions[vpos].len);
-      assert(pc->positions[i].action != pc->positions[vpos].action);
+  for (size_t i = 0; i < pc->sz; i++) {
+    if (pc->positions[i].action == 'P') {
+      assert(pc->positions[i-1].action != pc->positions[i].action); // check either side not p
+      assert(pc->positions[i+1].action != pc->positions[i].action); 
+      continue;
+    } else {
+      size_t vpos = pc->positions[i].verify;
+      if (vpos > 0) {  
+	assert(pc->positions[i].pos == pc->positions[vpos].pos);
+	assert(pc->positions[i].len == pc->positions[vpos].len);
+	//	assert(pc->positions[i].action != pc->positions[vpos].action);
+	assert(pc->positions[vpos].action == 'R');
+      }
     }
   }
 }
