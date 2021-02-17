@@ -159,7 +159,7 @@ size_t aioMultiplePositions( positionContainer *p,
   size_t inFlight = 0, pos = 0;
 
   const double start = timedouble();
-  double last = start;
+  double last = start, roundstart = start;
   //  double lastreceive = start;
 
   size_t submitted = 0, flushPos = 0, received = 0, slow = 0;
@@ -208,7 +208,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
     
     
-    if (thistime >= start + positions[pos].usoffset) {
+    if (thistime >= roundstart + positions[pos].usoffset) {
       while (sz && inFlight < MIN(cursubmitted * 2 + 1, QD) && keepRunning) {
 	if (!positions[pos].inFlight) {
 
@@ -368,6 +368,8 @@ size_t aioMultiplePositions( positionContainer *p,
 	pos++;
 	if (pos >= sz) {
 	  pos = 0;
+	  roundstart = timedouble(); // start of the round
+	  // 
 	}
 	if (posLimit && (submitted >= posLimit)) {
 	  // if Px is passed in
