@@ -310,6 +310,14 @@ size_t aioMultiplePositions( positionContainer *p,
 		totalWriteSubmit += len;
 
 		flushPos++;
+	      } else if (positions[pos].action == 'P')  {
+		if (inFlight > 0) {
+		  pos--;  // if in flight repeat
+		  goto nextpos;
+		} else {
+		  // else skip this one
+		  goto nextpos;
+		}
 	      } else {
 		fprintf(stderr,"unknown action %c\n", positions[pos].action);
 		abort();
