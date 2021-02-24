@@ -13,6 +13,13 @@ Stu's Powerful I/O Tester (spit)
 ## Install
 
       cmake .
+
+or on CentOS with newer compilers you might need:
+
+      CC=`which gcc` CXX=`which g++` cmake .
+
+then
+
       make -j
 
 ## Man page
