@@ -33,12 +33,12 @@ void latencyStats(latencyType *lat) {
   double median, three9, four9, five9;
   if (histCount(&lat->histRead)) {
     histSumPercentages(&lat->histRead, &median, &three9, &four9, &five9, 1);
-    fprintf(stderr,"*info* read latency:  mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", histMean(&lat->histRead), median, three9, four9, five9);
+    fprintf(stderr,"*info* read latency: n = %zd, mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", histCount(&lat->histRead), histMean(&lat->histRead), median, three9, four9, five9);
     histSave(&lat->histRead, "spit-latency-histogram-read.txt", 1);
   }
   if (histCount(&lat->histWrite)) {
     histSumPercentages(&lat->histWrite, &median, &three9, &four9, &five9, 1);
-    fprintf(stderr,"*info* write latency:  mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", histMean(&lat->histWrite), median, three9, four9, five9);
+    fprintf(stderr,"*info* write latency: n = %zd, mean = %.3lf ms, median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", histCount(&lat->histWrite), histMean(&lat->histWrite), median, three9, four9, five9);
     histSave(&lat->histWrite, "spit-latency-histogram-write.txt", 1);
   }
 }
