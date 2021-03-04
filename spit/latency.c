@@ -20,7 +20,7 @@ void latencySetup(latencyType *lat, positionContainer *pc) {
   histSetup(&lat->histRead, 0, 100, 2e-2);
   histSetup(&lat->histWrite, 0, 100, 2e-2);
   
-  for (int i = 0; i < (int) pc->sz; i++) {
+  for (int i = 0; i < (int) pc->sz; i++) if (pc->positions[i].finishTime>0) {
     if (pc->positions[i].action == 'R')
       histAdd(&lat->histRead, 1000 * (pc->positions[i].finishTime - pc->positions[i].submitTime));
     else if (pc->positions[i].action == 'W')
