@@ -340,6 +340,31 @@ wvret:
   return ret;
 }
 
+int getNumRequests(const char *suf)
+{
+  if (suf == NULL) {
+    return 0; // if null then not rotational                                                                                                                           
+  }
+
+  char s[200];
+  int nr = 0;
+  FILE *fp = NULL;
+  if (suf) {
+    sprintf(s, "/sys/block/%s/queue/nr_requests", suf);
+    fp = fopen(s, "rt");
+    if (!fp) {
+      //      perror(s);                                                                                                                                               
+      goto wvret;
+    }
+
+    if (fscanf(fp, "%d", &nr) == 1) {
+      //                                                                                                                                                               
+    }
+  }
+ wvret:
+  if (fp) fclose(fp);
+  return nr;
+}
 
 
 int getRotational(const char *suf)
