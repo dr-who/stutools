@@ -345,7 +345,7 @@ static void *runThread(void *arg)
     }
   }
   const int numRequests = getNumRequests(suffix);
-  fprintf(stderr,"*info* queue/nr_requests for '%s' = %d\n", suffix, numRequests);
+  fprintf(stderr,"*info* queue/nr_requests for %s = %d\n", threadContext->jobdevice, numRequests);
   if (getWriteCache(suffix) > 0) {
     fprintf(stderr,"*****************\n");
     fprintf(stderr,"* w a r n i n g * device %s is configured with volatile cache\n", threadContext->jobdevice);
