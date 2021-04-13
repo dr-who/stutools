@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
   size_t sz = 0;
   if (argc < 2) {
     fprintf(stderr,"Usage: ./pmemwreck /dev/dax0.0 [sizeInBytes (say $[32*1024*1024])] \n");
+    fprintf(stderr,"\nDescription:\n   Changes a byte every 4 KiB\n");
     exit(1);
   }
   const char* dev = argv[1];
