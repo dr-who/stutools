@@ -84,17 +84,44 @@ arrayLifeType setupArray(const int days, const int n) {
   return a;
 }
 
-void dumpArray(const arrayLifeType *a, const int days, const int n, const int m) {
+void dumpArrayPPM(const arrayLifeType *a, const int days, const int n, const int m) {
 
-  for (int j = 0; j < days; j++) {
-    fprintf(stderr,"[%3d] ", j);
-    for (int i = 0; i < n; i++) {
-      fprintf(stderr," %3d", a->day[j].drive[i]);
-    }
-    fprintf(stderr,"  --> %3zd", a->failedOnDay[j]);
-    if (a->failedOnDay[j] > m) fprintf(stderr," ****** FAILED ******");
-    fprintf(stderr,"\n");
+  FILE *fp = fopen("image.ppm", "wt");
+  if (fp == NULL) {
+    perror("image.ppm");
+    return;
   }
+
+  fprintf(fp, "P3\n%d %d\n%d\n", n, days, 255);
+  
+  for (int j = 0; j < days; j++) {
+    // row per day
+    int bg = 0; // white
+    if ((j==0) && (a->failedOnDay[j])) {
+      bg = 1; // yellow
+    } else if ((j>0) && (a->failedOnDay[j] > a->failedOnDay[j-1])) {
+      bg = 1;
+    }
+    
+    
+    for (int i = 0; i < n; i++) {
+      int r,g,b;
+      int f = a->failedOnDay[j];
+      
+      if (bg == 0) {r=0;g=0;b=0;}
+      else {r = 255 -f; g=255;b=0;}
+
+      if (a->day[j].drive[i]) {
+	r=255 - f;g=r; b=r;
+	if (a->failedOnDay[j] > m) {
+	  r=255; g=0; b=0;
+	}
+      }
+      fprintf(fp," %3d %3d %3d   ", r,g,b);
+    }
+    fprintf(fp,"\n");
+  }
+  fclose(fp);
 }
 
 
@@ -283,9 +310,13 @@ int main(int argc, char *argv[]) {
       globalageofdeath += ageofdeath;
       //      fprintf(stderr,"age of d %d\n", ageofdeath);
     }
-    
+
+    if (s==0) {
+      dumpArrayPPM(&a, maxdays, drives, m);
+    }
+      
     if (verbose > 1) {
-      dumpArray(&a, maxdays, drives, m);
+      //      dumpArray(&a, maxdays, drives, m);
     }
     //    saveArray(&a, maxdays, drives, m, s);
     
