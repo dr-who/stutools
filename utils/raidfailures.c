@@ -1,9 +1,10 @@
-#define _XOPEN_SOURCE
+#define _XOPEN_SOURCE 500
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
+#include <string.h>
 
 /**
  * Array Monte-Carlo simulator.
@@ -217,7 +218,14 @@ int simulateArray(arrayLifeType *a, float *f, const int days, const int n, const
 
 
 void usage(int years, int rebuild, int samples) {
-  fprintf(stderr,"usage: ./raidfailures -k k -m m [-y years(%d)] [-r rebuilddays(%d)] [-s samples(%d)] [-p prob.txt] [-v (verbose)]\n", years, rebuild, samples);
+  fprintf(stderr,"usage: ./raidfailures -k k -m m [options]\n");
+  fprintf(stderr,"\noptions:\n");
+  fprintf(stderr,"   -y years(%d)\n", years);
+  fprintf(stderr,"   -r rebuilddays(%d)\n", rebuild);
+  fprintf(stderr,"   -s samples(%d)\n", samples);
+  fprintf(stderr,"   -i hdd-surviverates.dat    # input day/survival file\n");
+  fprintf(stderr,"   -p outprobs.txt\n");
+  fprintf(stderr,"   -v (verbose)\n");
 }
 
 
@@ -227,14 +235,18 @@ int main(int argc, char *argv[]) {
   int k = 0, m = 0, rebuilddays = 7, opt = 0, verbose = 0, samples = 10000, specifieddisks = 0;
   char *dumpprobs = NULL;
   double years = 5;
+  char *inname = NULL;
   
-  while ((opt = getopt(argc, argv, "k:m:y:r:vs:p:n:")) != -1) {
+  while ((opt = getopt(argc, argv, "k:m:y:r:vs:p:n:i:h")) != -1) {
     switch(opt) {
     case 'k':
       k = atoi(optarg);
       break;
     case 'm':
       m = atoi(optarg);
+      break;
+    case 'i':
+      inname = strdup(optarg);
       break;
     case 'y':
       years = atof(optarg);
@@ -254,10 +266,15 @@ int main(int argc, char *argv[]) {
     case 'v':
       verbose++;
       break;
+    case 'h':
     default:
       usage(years, rebuilddays, samples);
       exit(1);
     }
+  }
+
+  if (inname == NULL) {
+    inname = strdup("hdd-surviverates.dat");
   }
   
   int maxdays = years * 365;
@@ -274,12 +291,20 @@ int main(int argc, char *argv[]) {
   const int drives = k + m;
 
   fprintf(stderr,"*info* stutools: Monte-Carlo k+m/RAID failure simulator (%d samples)\n", samples);
+  fprintf(stderr,"*info* input survival probs: %s\n", inname);
   fprintf(stderr,"*info* total devices %d, k %d, m %d, years %.1lf, rebuild days %d\n", drives, k, m, years, rebuilddays);
   
   srand48(time(NULL));
-  
-  float *f = setupProbs("hdd-surviverates.dat", maxdays, verbose);
-  if (dumpprobs) dumpProbs(dumpprobs, f, maxdays);
+
+  float *f = setupProbs(inname, maxdays, verbose);
+  if (dumpprobs) {
+    if (strcmp(inname, dumpprobs)==0) {
+      fprintf(stderr,"*error* don't use -p to clobber the input file\n");
+      exit(1);
+    }
+    fprintf(stderr,"*info* output per day probss: %s\n", dumpprobs);
+    dumpProbs(dumpprobs, f, maxdays);
+  }
 
 
   int ok = 0, bad = 0;
@@ -327,6 +352,7 @@ int main(int argc, char *argv[]) {
 
   fprintf(stdout, "%d\t%.3lf %%\t%.3lf %%\t%d maxfail\t%.3lf avgage\t%d drivesneeded\n", bad, bad * 100.0 / (ok+bad), 100.0*daysrebuildingtotal / (samples * maxdays), globalmaxfailed, bad==0?0:globalageofdeath * 1.0 / bad, globaldrivesneeded / samples);
   if (f) free(f);
+  if (inname) free(inname);
 
   fprintf(stdout,"\n*info* this package is open source and unvalidated. It probably contains terrible errors.\n");
   return 0;
