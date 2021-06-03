@@ -223,10 +223,13 @@ void usage(int years, int rebuild, int samples) {
   fprintf(stderr,"   -y years(%d)\n", years);
   fprintf(stderr,"   -r rebuilddays(%d)\n", rebuild);
   fprintf(stderr,"   -s samples(%d)\n", samples);
-  fprintf(stderr,"   -i hdd-surviverates.dat    # input day/survival file\n");
+  fprintf(stderr,"   -i hdd-surviverates.dat        # input day/survival file\n");
   fprintf(stderr,"   -p outprobs.txt\n");
   fprintf(stderr,"   -v (verbose)\n");
+  fprintf(stderr,"\ngraphics:\n");
+  fprintf(stderr,"   pnmtopng image.ppm >image.png  # generates a day vs disk image\n");
 }
+
 
 
 int main(int argc, char *argv[]) {
