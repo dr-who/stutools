@@ -223,12 +223,17 @@ void usage(int years, int rebuild, int samples) {
   fprintf(stderr,"   Monte-Carlo simulation of array failure given drive survival/failure\n");
   fprintf(stderr,"   probabilities\n");
   fprintf(stderr,"\noptions:\n");
+  fprintf(stderr,"   -k data devices\n");
+  fprintf(stderr,"   -m parity devices\n");
   fprintf(stderr,"   -y years(%d)\n", years);
   fprintf(stderr,"   -r rebuilddays(%d)\n", rebuild);
   fprintf(stderr,"   -s samples(%d)\n", samples);
   fprintf(stderr,"   -i hdd-surviverates.dat        # input day/survival file\n");
   fprintf(stderr,"   -p outprobs.txt\n");
   fprintf(stderr,"   -v (verbose)\n");
+  fprintf(stderr,"\noutput:\n");
+  fprintf(stderr,"  # fails, fails %%, degraded %%, max drives, average age, drives need\n");
+  fprintf(stderr,"  0	0.000 %%   11.618 %%  6 maxfail	0.000 avgage	213 drivesneeded\n");
   fprintf(stderr,"\ngraphics:\n");
   fprintf(stderr,"   pnmtopng image.ppm >image.png  # generates a day vs disk image\n");
 }
