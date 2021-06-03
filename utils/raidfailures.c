@@ -219,6 +219,9 @@ int simulateArray(arrayLifeType *a, float *f, const int days, const int n, const
 
 void usage(int years, int rebuild, int samples) {
   fprintf(stderr,"usage: ./raidfailures -k k -m m [options]\n");
+  fprintf(stderr,"\ndescription:\n");
+  fprintf(stderr,"   Monte-Carlo simulation of array failure given drive survival/failure\n");
+  fprintf(stderr,"   probabilities\n");
   fprintf(stderr,"\noptions:\n");
   fprintf(stderr,"   -y years(%d)\n", years);
   fprintf(stderr,"   -r rebuilddays(%d)\n", rebuild);
