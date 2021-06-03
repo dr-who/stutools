@@ -355,7 +355,7 @@ int main(int argc, char *argv[]) {
   if (inname) free(inname);
   if (dumpprobs) free(dumpprobs);
 
-  fprintf(stdout,"\n*info* this package is open source and unvalidated. It probably contains terrible errors.\n");
+  fprintf(stderr,"\n*info* this package is open source and unvalidated. It probably contains terrible errors.\n");
   return 0;
 }
 
