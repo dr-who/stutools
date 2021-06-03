@@ -258,7 +258,7 @@ int main(int argc, char *argv[]) {
       rebuilddays = atoi(optarg);
       break;
     case 'p':
-      dumpprobs = optarg;
+      dumpprobs = strdup(optarg);
       break;
     case 's':
       samples = atoi(optarg);
@@ -353,6 +353,7 @@ int main(int argc, char *argv[]) {
   fprintf(stdout, "%d\t%.3lf %%\t%.3lf %%\t%d maxfail\t%.3lf avgage\t%d drivesneeded\n", bad, bad * 100.0 / (ok+bad), 100.0*daysrebuildingtotal / (samples * maxdays), globalmaxfailed, bad==0?0:globalageofdeath * 1.0 / bad, globaldrivesneeded / samples);
   if (f) free(f);
   if (inname) free(inname);
+  if (dumpprobs) free(dumpprobs);
 
   fprintf(stdout,"\n*info* this package is open source and unvalidated. It probably contains terrible errors.\n");
   return 0;
