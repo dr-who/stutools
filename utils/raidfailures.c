@@ -185,12 +185,12 @@ int simulateArray(arrayLifeType *a, float *f, const int days, const int n, const
 
 	a->day[j].drive[i] = prev+1;
 	a->failedOnDay[j]++;
-	if (printarray) { fprintf(stdout, "fail "); }
+	if (printarray) { fprintf(stdout, "fail %d ",a->day[j].drive[i]); }
 
 	notfailedout = 0;
  
 	if (a->day[j].drive[i] >= rebuild) {
-	  a->day[j].drive[i] = 0;
+	  a->day[j].drive[i] = -1;
 	  a->failedOnDay[j]--;
 	  /* Record that this drive is now replaced, so new drive will
 	  have lower chance of failing compared to peers, setting
