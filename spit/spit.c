@@ -473,6 +473,7 @@ void usage()
   fprintf(stdout,"  spit -s 0.1 -i 5              # and ignore first 5 GiB of performance\n");
   fprintf(stdout,"  spit -v                       # verify the writes after a run\n");
   fprintf(stdout,"  spit -P filename              # dump positions to filename\n");
+  fprintf(stdout,"  spit -P -                     # dump positions to (stdout) and stream raw IOs without collapsing\n");
   fprintf(stdout,"  spit -c wG_j4                 # The _ represents to divide the G value evenly between threads\n");
   fprintf(stdout,"  spit -B bench -M ... -N ...   # See the man page for benchmarking tips\n");
   fprintf(stdout,"  spit -F fileprefix -c ..j128  # creates files from .0001 to .0128\n");
