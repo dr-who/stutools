@@ -57,6 +57,9 @@ int main(int argc, char *argv[])
     switch (opt) {
     case 'b':
       batches = atoi(optarg);
+      if (batches < 1) {
+	batches = 1;
+      }
       break;
     case 'D':
       o_direct = 0;
