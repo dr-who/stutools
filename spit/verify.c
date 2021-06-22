@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
     } else {
       fprintf(stderr,"*info* position file: %s\n", argv[i]);
       fp = fopen(argv[i], "rt");
+      if (!fp) {perror(argv[i]); exit(1);}
     }
     if (fp) {
       if (fp == stdin) {
