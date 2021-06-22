@@ -436,24 +436,11 @@ void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeByte
 void positionContainerSave(const positionContainer *p, FILE *fp, const size_t maxbdSizeBytes, const size_t flushEvery, jobType *job)
 {
   if (fp) {
-    //    fprintf(stderr,"*info* saving positions to '%s' ...\n", name);
-    //    FILE *fp = fopen(name, "wt");
-    //if (!fp) {
-    //      fprintf(stderr,"*error* saving file '%s' failed.\n", name);
-    //      perror(name);
-    //      return;
-    //    }
-    char *buffer;
-    CALLOC(buffer, 1000000, 1);
-    setvbuf(fp, buffer, 1000000, _IOFBF);
     const positionType *positions = p->positions;
 
     for (size_t i = 0; i < p->sz; i++) {
       positionDumpOne(fp, &positions[i], maxbdSizeBytes, flushEvery && ((i+1) % (flushEvery) == 0), job ? job->devices[positions[i].deviceid] : "");
     }
-    fclose(fp);
-    fp = NULL;
-    free(buffer);
   }
 }
 

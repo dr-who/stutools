@@ -1819,6 +1819,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   if (savePositions != stdout) {
     positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
+    fclose(savePositions);
   }
   
   if (verify) {
