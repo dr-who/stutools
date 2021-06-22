@@ -13,6 +13,7 @@
 #include "utils.h"
 #include "logSpeed.h"
 #include "aioRequests.h"
+#include "positions.h"
 
 extern volatile int keepRunning;
 
@@ -35,7 +36,9 @@ size_t aioMultiplePositions( positionContainer *p,
                              int flushEvery,
                              size_t *ioerrors,
                              size_t QDbarrier,
-                             const size_t discard_max_bytes
+                             const size_t discard_max_bytes,
+			     FILE *fp,
+			     char *jobdevice
                            )
 {
   if (sz == 0) {
@@ -498,6 +501,11 @@ size_t aioMultiplePositions( positionContainer *p,
           }
           pp->finishTime = timedouble();
         } // good IO
+        pp->success = 1; // the action has completed
+        pp->inFlight = 0;
+	if (fp) {
+	  positionDumpOne(fp, pp, maxSize, 0, jobdevice);
+	}
         // log if slow
         if (pp->finishTime - pp->submitTime > 30) {
           slow++;
@@ -507,8 +515,6 @@ size_t aioMultiplePositions( positionContainer *p,
           fprintf(stderr,"*warning* %s", s);
         }
 
-        pp->success = 1; // the action has completed
-        pp->inFlight = 0;
         freeQueue[tailOfQueue++] = pp->q;
         if (tailOfQueue == QD) tailOfQueue = 0;
       } // for j

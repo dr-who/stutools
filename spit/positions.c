@@ -421,6 +421,17 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
 }
 
 
+void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeBytes, const size_t doflush, const char *name) {
+  if (0 || (p->finishTime > 0 && !p->inFlight)) {
+    const char action = p->action;
+    fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", name, p->pos, TOGiB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime);
+    if (doflush) {
+      fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", name, (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, p->seed);
+    }
+  }
+}
+  
+
 // lots of checks
 void positionContainerSave(const positionContainer *p, FILE *fp, const size_t maxbdSizeBytes, const size_t flushEvery, jobType *job)
 {
@@ -438,13 +449,7 @@ void positionContainerSave(const positionContainer *p, FILE *fp, const size_t ma
     const positionType *positions = p->positions;
 
     for (size_t i = 0; i < p->sz; i++) {
-      if (0 || (positions[i].finishTime > 0 && !positions[i].inFlight)) {
-        const char action = positions[i].action;
-        fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", job ? job->devices[positions[i].deviceid] : "", positions[i].pos, TOGiB(positions[i].pos), positions[i].pos * 100.0 / maxbdSizeBytes, action, positions[i].len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), positions[i].seed, positions[i].submitTime, positions[i].finishTime);
-        if (flushEvery && ((i+1) % (flushEvery) == 0)) {
-          fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", job ? job->devices[positions[i].deviceid] : "", (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, positions[i].seed);
-        }
-      }
+      positionDumpOne(fp, &positions[i], maxbdSizeBytes, flushEvery && ((i+1) % (flushEvery) == 0), job ? job->devices[positions[i].deviceid] : "");
     }
     fclose(fp);
     fp = NULL;

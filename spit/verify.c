@@ -102,6 +102,9 @@ int main(int argc, char *argv[])
 	  jobFree(&job);
 	} while (jc != 0);
 	fprintf(stderr,"Errors %zd\n", errors);
+	if (errors) {
+	  exit(1);
+	}
 	//	exit(0);
       } else {
 	job = positionContainerLoad(&origpc[i - optind], fp);

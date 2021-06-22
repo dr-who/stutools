@@ -47,6 +47,8 @@ int poscompare(const void *p1, const void *p2);
 int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSizeBytes, const size_t maxbdSizeBytes, size_t exitonerror);
 void positionContainerSave(const positionContainer *p, FILE *name, const size_t bdSizeBytes, const size_t flushEvery, jobType *job);
 
+void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeBytes, const size_t doflush, const char *name);
+
 //positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxsize);
 
 //void infoPositions(const deviceDetails *devList, const size_t devCount);

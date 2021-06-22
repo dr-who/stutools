@@ -23,7 +23,9 @@ size_t aioMultiplePositions( positionContainer *p,
                              int flushEvery,
                              size_t *ioerrors,
                              size_t QDbarrier,
-                             const size_t discard_max_bytes
+                             const size_t discard_max_bytes,
+			     FILE *fp,
+			     char *jobdevice
                            );
 
 int aioVerifyWrites(positionType *positions,

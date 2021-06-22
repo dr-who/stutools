@@ -202,6 +202,7 @@ typedef struct {
   size_t UUID;
   size_t seqFiles;
   size_t seqFilesMaxSizeBytes;
+  FILE *fp;
   size_t jumbleRun;
   double runSeconds; // the time for a round
   double finishSeconds; // the overall thread finish time
@@ -478,7 +479,7 @@ static void *runThread(void *arg)
 
     if (verbose) fprintf(stderr,"*iteration* %zd\n", iteratorCount);
 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepth, -1 /* verbose */, 0, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, threadContext->QDbarrier, discard_max_bytes);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepth, -1 /* verbose */, 0, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, threadContext->QDbarrier, discard_max_bytes, threadContext->fp, threadContext->jobdevice);
     totalP += posLimit;
 
     if (!doRounds) break;
@@ -984,6 +985,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   for (int i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
 
     threadContext[i].go = go;
+    threadContext[i].fp = savePositions;
     threadContext[i].notexclusive = notexclusive;
     threadContext[i].go_finished = go_f;
     threadContext[i].filePrefix = filePrefix;
@@ -1815,7 +1817,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   
   positionContainer mergedpc = positionContainerMerge(origpc, num);
 
-  if (savePositions) {
+  if (savePositions != stdout) {
     positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
   }
   
