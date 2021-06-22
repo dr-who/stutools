@@ -1187,7 +1187,7 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
 
   while (keepRunning && (read = getline(&line, &maxline, fd) != -1)) {
     size_t pos, len, seed, tmpsize;
-    //    fprintf(stderr,"%zd\n", strlen(line));
+    //    fprintf(stderr,"in: %s %zd\n", line, strlen(line));
     char op;
     starttime = 0;
     fintime = 0;

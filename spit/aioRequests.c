@@ -582,6 +582,9 @@ endoffunction:
 
           pp->inFlight = 0;
           pp->success = 1; // the action has completed
+	  if (fp == stdout) {
+	    positionDumpOne(fp, pp, p->maxbdSize, 0, jobdevice);
+	  }
 
           if (pp->action == 'R') {
             p->readIOs++;

@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
 
 #include "jobType.h"
 #include <signal.h>
@@ -16,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "positions.h"
 #include "utils.h"
@@ -196,6 +198,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'P':
       if (strcmp(optarg, "-")==0) {
 	savePositions = stdout;
+	setlinebuf(savePositions);
 	fprintf(stderr,"*info* savePositions set to (stdout)\n");
       } else {
 	savePositions = fopen(optarg, "wt");

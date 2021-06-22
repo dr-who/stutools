@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <signal.h>
+#include <stdio.h>
 
 /**
  * verify.c
@@ -98,6 +99,7 @@ int main(int argc, char *argv[])
       if (!quiet) fprintf(stderr,"*info* position file: (stdin)\n");
       process = 0; // turn off processing
       fp = stdin;
+      setlinebuf(fp);
     } else {
       if (!quiet) fprintf(stderr,"*info* position file: %s\n", argv[i]);
       fp = fopen(argv[i], "rt");
