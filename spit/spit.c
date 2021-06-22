@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #define _DEFAULT_SOURCE
+#define _GNU_SOURCE
 
 #include "jobType.h"
 #include <signal.h>
@@ -18,6 +19,10 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "positions.h"
 #include "utils.h"
@@ -199,7 +204,20 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       if (strcmp(optarg, "-")==0) {
 	savePositions = stdout;
 	setlinebuf(savePositions);
-	fprintf(stderr,"*info* savePositions set to (stdout)\n");
+	struct stat bf;
+	fstat(fileno(savePositions),  &bf);
+	if (S_ISFIFO(bf.st_mode)) {
+	  fprintf(stderr,"*info* savePositions set to FIFO/pipe\n");
+	  fcntl(fileno(savePositions), F_SETPIPE_SZ, 0);
+	  int ld = fcntl(fileno(savePositions), F_GETPIPE_SZ);
+	  if (ld != 4096) {
+	    fprintf(stderr,"*warning* FIFO pipesize is %d\n", ld);
+	  }
+	} else {
+	  fprintf(stderr,"*info* savePositions set to (stdout)\n");
+	}
+
+	  
       } else {
 	savePositions = fopen(optarg, "wt");
 	if (!savePositions) {perror(optarg); exit(-1);}
