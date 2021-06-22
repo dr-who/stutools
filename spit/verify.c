@@ -99,15 +99,15 @@ int main(int argc, char *argv[])
 	    errors += verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors);
 	    tot_cor += correct;
 	    positionContainerFree(&pc);
+	    fprintf(stderr,"Correct %zd, errors %zd\n", tot_cor, errors);
 	  }
 	  jc = job.count;
 	  jobFree(&job);
-	  fprintf(stderr,"Correct %zd, errors %zd\n", tot_cor, errors);
 	} while (jc != 0);
 	if (errors) {
 	  exit(1);
 	}
-	//	exit(0);
+	exit(0);
       } else {
 	job = positionContainerLoad(&origpc[i - optind], fp);
       }
