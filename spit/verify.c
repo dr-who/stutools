@@ -81,9 +81,31 @@ int main(int argc, char *argv[])
 
   for (int i= optind; i < argc; i++) {
     fprintf(stderr,"*info* position file: %s\n", argv[i]);
-    FILE *fp = fopen(argv[i], "rt");
+    FILE *fp = NULL;
+    if (strcmp(argv[i], "-") == 0) { 
+      fp = stdin;
+    } else {
+      fp = fopen(argv[i], "rt");
+    }
     if (fp) {
-      job = positionContainerLoad(&origpc[i - optind], fp);
+      if (fp == stdin) {
+	size_t correct = 0, incorrect = 0, ioerrors = 0, errors = 0, jc = 0;
+	do {
+	  job = positionContainerLoadLines(&origpc[i - optind], fp, 5000);
+	  if (job.count) {
+	    positionContainer pc = positionContainerMerge(origpc, numFiles);
+	    //positionContainerCheckOverlap(&pc);
+	    errors += verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors);
+	    positionContainerFree(&pc);
+	  }
+	  jc = job.count;
+	  jobFree(&job);
+	} while (jc != 0);
+	fprintf(stderr,"Errors %zd\n", errors);
+	//	exit(0);
+      } else {
+	job = positionContainerLoad(&origpc[i - optind], fp);
+      }
       //      positionContainerInfo(&origpc[i]);
       fclose(fp);
     }

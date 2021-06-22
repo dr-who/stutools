@@ -27,7 +27,7 @@
 int verbose = 0;
 int keepRunning = 1;
 char *benchmarkName = NULL;
-char *savePositions = NULL;
+FILE *savePositions = NULL;
 char *device = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
@@ -194,8 +194,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       jobAdd(&pretemp, optarg);
       break;
     case 'P':
-      savePositions = optarg;
-      fprintf(stderr,"*info* savePositions set to '%s'\n", savePositions);
+      if (strcmp(optarg, "-")==0) {
+	savePositions = stdout;
+      } else {
+	savePositions = fopen(optarg, "wt");
+	if (!savePositions) {perror(optarg); exit(-1);}
+      }
+      fprintf(stderr,"*info* savePositions set to '%s'\n", optarg);
       break;
     case 'q':
       *defaultqd = atoi(optarg);

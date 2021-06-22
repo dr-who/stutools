@@ -10,33 +10,95 @@
 #include <sys/mman.h>
 #include "utils.h"
 
+#include <regex.h>
+
 int keepRunning = 1;
 int verbose = 0;
 
-#define ALIGN 2097152
+
+void help() {
+  fprintf(stdout,"Usage: ./pmemwreck [options] /dev/dax0.0\n");
+  fprintf(stdout,"\nDescription:\n   utilities for changed pmem contents\n");
+  fprintf(stdout,"\nOptions\n");
+  fprintf(stdout,"   -4  iterate every 4KiB block, XOR'ing first byte per block\n");
+  fprintf(stdout,"   -a  every 4KiB block, changed first 8-mer ASCII string\n");
+}
+  
 
 int main(int argc, char *argv[])
 {
-  size_t sz = 0;
-  if (argc < 2) {
-    fprintf(stderr,"Usage: ./pmemwreck /dev/dax0.0 [sizeInBytes (say $[32*1024*1024])] \n");
-    fprintf(stderr,"\nDescription:\n   Changes a byte every 4 KiB\n");
+
+  char *suffix = NULL, *dev = NULL;
+  
+  int opt = 0, command = 0, verbose = 0;
+  const char *getoptstring = "4kaf:v";
+
+  while ((opt = getopt(argc, argv, getoptstring )) != -1) {
+    switch (opt) {
+    case 'f':
+      dev = strdup(optarg);
+      suffix = getSuffix(dev);
+      fprintf(stdout,"*info* device = '%s'\n", dev);
+      break;
+    case '4':
+      command = 4;
+      break;
+    case 'a':
+      command = 1;
+      break;
+    case 'v':
+      verbose++;
+      break;
+    default:
+      break;
+    }
+  }
+  
+  if (suffix == NULL || (command == 0)) {
+    help();
     exit(1);
   }
-  const char* dev = argv[1];
-  if (argc == 3) {
-    sz = alignedNumber(atol(argv[2]), ALIGN);
-  }
 
-  char sys[1000], *suffix = getSuffix(dev);
-  assert(suffix);
-  sprintf(sys, "/sys/bus/dax/devices/%s/size", suffix);
-  free(suffix);
+  size_t sz = 0;
+  
+  char sys[1000];
+  char *path = "/sys/class/dax/";
+  fprintf(stdout,"*info* opening ... %s%s\n", path, suffix);
+  sprintf(sys, "%s%s/device/align", path, suffix);
+
+  
   FILE *fp = fopen(sys, "rt");
-  assert(fp);
+  if (!fp) {
+    // not a real fax device?
+    fprintf(stdout,"*error* not a dax?\n");
+    exit(1);
+  }
+  size_t align = 0;
+  int ret = fscanf(fp, "%lu", &align);
+  fclose(fp);
+
+  fprintf(stdout,"*info* align %zd\n", align);
+
+
+  
+  // size
+
+  sprintf(sys, "%s%s/size", path, suffix);
+  free(suffix);
+  fp = fopen(sys, "rt");
+  if (!fp) {
+    // not a real fax device?
+    fprintf(stdout,"*error* not a dax?\n");
+    exit(1);
+  }
   size_t maxsz = 0;
-  int ret = fscanf(fp, "%lu", &maxsz);
-  maxsz = alignedNumber(maxsz, ALIGN);
+  ret = fscanf(fp, "%lu", &maxsz);
+  fclose(fp);
+
+  fprintf(stdout,"*info* max size %zd\n", maxsz);
+
+
+  maxsz = alignedNumber(maxsz, align);
   if (ret != 1) maxsz = 0;
   if (sz > maxsz) {
     sz = maxsz;
@@ -44,9 +106,9 @@ int main(int argc, char *argv[])
   if (sz == 0) {
     sz = maxsz;
   }
-
-  fprintf(stderr,"*info* logical size of device %zd (%.1lf GiB), aligned to %d\n", maxsz, TOGiB(maxsz), ALIGN);
-  fprintf(stderr,"*info* opening '%s', wrecking %zd bytes (%.1lf GiB), in 4096 steps\n", dev, sz, TOGiB(sz));
+  
+  fprintf(stdout,"*info* logical size of device %zd (%.1lf GiB), aligned to %zd\n", maxsz, TOGiB(maxsz), align);
+  fprintf(stdout,"*info* opening '%s', wrecking %zd bytes (%.1lf GiB), in 4096 steps\n", dev, sz, TOGiB(sz));
 
 
   int fd = open( dev, O_RDWR );
@@ -57,21 +119,67 @@ int main(int argc, char *argv[])
 
   void * src =  mmap (0, sz, PROT_WRITE, MAP_SHARED, fd, 0);
   if (!src) {
-    fprintf(stderr,"*error* mmap failed\n");
+    fprintf(stdout,"*error* mmap failed\n");
     exit(1);
   }
   unsigned char *s = (unsigned char*)src;
-  size_t changes = 0;
-  for (size_t i = 0; i < sz; i += 4096) {
-    //      fprintf(stderr,"[%zd] changed %d to %d\n", i, s[i], 255^s[i]);
-    s[i] = 255 ^ s[i];
-    changes++;
+
+  if (command == 4) {
+    size_t changes = 0;
+    for (unsigned long i = 0; i < sz; i += 4096) {
+      if (verbose) fprintf(stderr,"[0x%lx] %d -> %d\n", i, s[i], 255^s[i]);
+      s[i] = 255 ^ s[i];
+      changes++;
+    }
+    fprintf(stdout,"*info* commandType '%d': applied %zd changes\n", command, changes);
+  } else if (command == 1) { //ascii
+
+    size_t changes = 0;
+    const int len = 8; // max match string
+    char *mstring = malloc(len + 1);
+
+    for (unsigned long i = 0; i < sz; i += 4096) {
+
+      regex_t regex;
+      regmatch_t match;
+      int reti;
+      
+      /* Compile regular expression */
+      reti = regcomp(&regex, "[A-z][A-z][A-z][A-z][A-z][A-z][A-z][A-z]", 0);
+      if (reti) {
+	fprintf(stderr, "Could not compile regex\n");
+	exit(1);
+      }
+      /* Execute regular expression */
+      char buf[4097];
+      strncpy(buf, (char*)(s+i), 4096);
+      buf[4096] = 0;
+      reti = regexec(&regex, buf, 1, &match, 0);
+      if (!reti) {
+	unsigned long pos = i+match.rm_so;
+
+	strncpy(mstring, (char*)(s+pos), len);
+	mstring[len] = 0;
+	
+	if (verbose) fprintf(stderr,"[0x%lx] changing '%s'\n", i, mstring);
+	
+	for (int z = 0; z < len ; z++) {
+	  char t = s[pos + z] + 1;
+	  s[pos + z] = t;
+	}
+      }
+
+      changes++;
+      
+      regfree(&regex);
+    }
+    fprintf(stdout,"*info* commandType '%d': applied %zd changes\n", command, changes);
+
   }
+
+  // unmap
   msync(src, sz, MS_SYNC);
   munmap(0, sz);
-
-
-  fprintf(stderr,"*info* %zd changes applied to devices %s\n", changes, dev);
 
   close( fd );
   return 0;

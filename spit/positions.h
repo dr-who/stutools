@@ -45,7 +45,7 @@ typedef struct {
 int poscompare(const void *p1, const void *p2);
 
 int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSizeBytes, const size_t maxbdSizeBytes, size_t exitonerror);
-void positionContainerSave(const positionContainer *p, const char *name, const size_t bdSizeBytes, const size_t flushEvery, jobType *job);
+void positionContainerSave(const positionContainer *p, FILE *name, const size_t bdSizeBytes, const size_t flushEvery, jobType *job);
 
 //positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxsize);
 
@@ -80,6 +80,8 @@ void positionContainerSetupFromPC(positionContainer *pc, const positionContainer
 void positionContainerFree(positionContainer *pc);
 
 jobType positionContainerLoad(positionContainer *pc, FILE *fd);
+
+jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t linesMax);
 
 void positionContainerInfo(const positionContainer *pc);
 void positionLatencyStats(positionContainer *pc, const int threadid);

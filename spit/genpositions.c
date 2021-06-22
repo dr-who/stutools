@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 
 
   if (posfile) {
-    positionContainerSave(&pc, posfile, bdSize, 0, &job);
+    positionContainerSave(&pc, stdout, bdSize, 0, &job);
   }
   positionContainerFree(&pc);
 

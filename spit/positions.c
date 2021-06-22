@@ -422,16 +422,16 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
 
 
 // lots of checks
-void positionContainerSave(const positionContainer *p, const char *name, const size_t maxbdSizeBytes, const size_t flushEvery, jobType *job)
+void positionContainerSave(const positionContainer *p, FILE *fp, const size_t maxbdSizeBytes, const size_t flushEvery, jobType *job)
 {
-  if (name) {
-    fprintf(stderr,"*info* saving positions to '%s' ...\n", name);
-    FILE *fp = fopen(name, "wt");
-    if (!fp) {
-      fprintf(stderr,"*error* saving file '%s' failed.\n", name);
-      perror(name);
-      return;
-    }
+  if (fp) {
+    //    fprintf(stderr,"*info* saving positions to '%s' ...\n", name);
+    //    FILE *fp = fopen(name, "wt");
+    //if (!fp) {
+    //      fprintf(stderr,"*error* saving file '%s' failed.\n", name);
+    //      perror(name);
+    //      return;
+    //    }
     char *buffer;
     CALLOC(buffer, 1000000, 1);
     setvbuf(fp, buffer, 1000000, _IOFBF);
@@ -1159,8 +1159,13 @@ void positionLatencyStats(positionContainer *pc, const int threadid)
 */
 
 
-jobType positionContainerLoad(positionContainer *pc, FILE *fd)
-{
+jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
+  return positionContainerLoadLines(pc, fd, 0);
+}
+
+
+
+jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLines){
 
   positionContainerInit(pc, 0);
   jobType job;
@@ -1176,7 +1181,7 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd)
   size_t pNum = 0;
   double starttime, fintime;
 
-  while ((read = getline(&line, &maxline, fd)) != -1) {
+  while (keepRunning && (read = getline(&line, &maxline, fd) != -1)) {
     size_t pos, len, seed, tmpsize;
     //    fprintf(stderr,"%zd\n", strlen(line));
     char op;
@@ -1218,6 +1223,11 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd)
       p[pNum-1].seed = seed;
       if (tmpsize > maxSize) {
         maxSize = tmpsize;
+      }
+    }
+    if (maxLines) {
+      if (pNum >= maxLines) {
+	break;
       }
     }
   }
