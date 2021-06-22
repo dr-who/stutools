@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
   signal(SIGINT, intHandler);
 
   if (argc <= 1) {
-    fprintf(stdout,"*usage* ./spitchecker [ -D ] [ -t 256 ] [ -n (don't sort)] positions*\n");
+    fprintf(stdout,"*usage* ./spitchecker [ -D ] [ -t 256 ] [ -b 5000 ] [ -n (don't sort)] positions*\n");
     exit(1);
   }
 
@@ -51,9 +51,13 @@ int main(int argc, char *argv[])
   size_t o_direct = O_DIRECT;
   size_t sort = 1;
   size_t displayJSON = 0;
+  size_t batches = 5000;
 
-  while ((opt = getopt(argc, argv, "Dt:nj")) != -1) {
+  while ((opt = getopt(argc, argv, "Dt:njb:")) != -1) {
     switch (opt) {
+    case 'b':
+      batches = atoi(optarg);
+      break;
     case 'D':
       o_direct = 0;
       break;
@@ -72,7 +76,7 @@ int main(int argc, char *argv[])
   }
 
   size_t numFiles = argc -optind;
-  fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd\n", numFiles, threads, sort);
+  fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd, batch size %zd\n", numFiles, threads, sort, batches);
 
   positionContainer *origpc;
   CALLOC(origpc, numFiles, sizeof(positionContainer));
@@ -80,11 +84,12 @@ int main(int argc, char *argv[])
   jobType job;
 
   for (int i= optind; i < argc; i++) {
-    fprintf(stderr,"*info* position file: %s\n", argv[i]);
     FILE *fp = NULL;
     if (strcmp(argv[i], "-") == 0) { 
+      fprintf(stderr,"*info* position file: (stdin)\n");
       fp = stdin;
     } else {
+      fprintf(stderr,"*info* position file: %s\n", argv[i]);
       fp = fopen(argv[i], "rt");
     }
     if (fp) {
@@ -92,7 +97,7 @@ int main(int argc, char *argv[])
 	size_t correct = 0, incorrect = 0, ioerrors = 0, errors = 0, jc = 0;
 	size_t tot_cor = 0;
 	do {
-	  job = positionContainerLoadLines(&origpc[i - optind], fp, 5000);
+	  job = positionContainerLoadLines(&origpc[i - optind], fp, batches);
 	  if (job.count) {
 	    positionContainer pc = positionContainerMerge(origpc, numFiles);
 	    //positionContainerCheckOverlap(&pc);
