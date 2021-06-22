@@ -90,18 +90,20 @@ int main(int argc, char *argv[])
     if (fp) {
       if (fp == stdin) {
 	size_t correct = 0, incorrect = 0, ioerrors = 0, errors = 0, jc = 0;
+	size_t tot_cor = 0;
 	do {
 	  job = positionContainerLoadLines(&origpc[i - optind], fp, 5000);
 	  if (job.count) {
 	    positionContainer pc = positionContainerMerge(origpc, numFiles);
 	    //positionContainerCheckOverlap(&pc);
 	    errors += verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors);
+	    tot_cor += correct;
 	    positionContainerFree(&pc);
 	  }
 	  jc = job.count;
 	  jobFree(&job);
+	  fprintf(stderr,"Correct %zd, errors %zd\n", tot_cor, errors);
 	} while (jc != 0);
-	fprintf(stderr,"Errors %zd\n", errors);
 	if (errors) {
 	  exit(1);
 	}
