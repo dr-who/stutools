@@ -503,8 +503,8 @@ size_t aioMultiplePositions( positionContainer *p,
         } // good IO
         pp->success = 1; // the action has completed
         pp->inFlight = 0;
-	if (fp) {
-	  positionDumpOne(fp, pp, maxSize, 0, jobdevice);
+	if (fp == stdout) {
+	  positionDumpOne(fp, pp, p->maxbdSize, 0, jobdevice);
 	}
         // log if slow
         if (pp->finishTime - pp->submitTime > 30) {
