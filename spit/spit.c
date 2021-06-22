@@ -196,11 +196,12 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'P':
       if (strcmp(optarg, "-")==0) {
 	savePositions = stdout;
+	fprintf(stderr,"*info* savePositions set to (stdout)\n");
       } else {
 	savePositions = fopen(optarg, "wt");
 	if (!savePositions) {perror(optarg); exit(-1);}
+	fprintf(stderr,"*info* savePositions set to '%s'\n", optarg);
       }
-      fprintf(stderr,"*info* savePositions set to '%s'\n", optarg);
       break;
     case 'q':
       *defaultqd = atoi(optarg);
