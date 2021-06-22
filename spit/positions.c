@@ -429,6 +429,9 @@ void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeByte
       fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GiB\t%u\n", name, (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, p->seed);
     }
   }
+  if (fp==stdout) {
+    fflush(fp);
+  }
 }
   
 
