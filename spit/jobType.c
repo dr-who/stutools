@@ -1829,7 +1829,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	direct = 0;
       }
     }
-    int errors = verifyPositions(&mergedpc, MIN(256, mergedpc.sz), job, direct, 1 /* sorted */, threadContext->runSeconds, NULL, NULL, NULL);
+    int errors = verifyPositions(&mergedpc, MIN(256, mergedpc.sz), job, direct, 1 /* sorted */, threadContext->runSeconds, NULL, NULL, NULL, 0, 1);
     if (errors) {
       exit(1);
     }

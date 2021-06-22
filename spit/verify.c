@@ -40,20 +40,23 @@ int main(int argc, char *argv[])
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
+  size_t threads = 256;
+  size_t batches = 5000;
+
   if (argc <= 1) {
-    fprintf(stdout,"*usage* ./spitchecker [ -D ] [ -t 256 ] [ -b 5000 ] [ -n (don't sort)] positions*\n");
+    fprintf(stdout,"*usage* ./spitchecker [ -D ] [ -t %zd ] [ -b %zd ] [ -n (don't sort)] positions* (or -)\n", threads, batches);
     exit(1);
   }
 
-  size_t threads = 256;
 
   int opt = 0;
   size_t o_direct = O_DIRECT;
   size_t sort = 1;
   size_t displayJSON = 0;
-  size_t batches = 5000;
+  int quiet = 0;
+  int process = 1; // by default collapse and sort
 
-  while ((opt = getopt(argc, argv, "Dt:njb:")) != -1) {
+  while ((opt = getopt(argc, argv, "Dt:njb:q")) != -1) {
     switch (opt) {
     case 'b':
       batches = atoi(optarg);
@@ -70,6 +73,9 @@ int main(int argc, char *argv[])
     case 't':
       threads = atoi(optarg);
       break;
+    case 'q':
+      quiet++;
+      break;
     case 'n':
       sort = 0;
       break;
@@ -79,9 +85,9 @@ int main(int argc, char *argv[])
   }
 
   size_t numFiles = argc -optind;
-  fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd, batch size %zd\n", numFiles, threads, sort, batches);
+  if (!quiet) fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd, batch size %zd\n", numFiles, threads, sort, batches);
 
-  positionContainer *origpc;
+  positionContainer *origpc = NULL;
   CALLOC(origpc, numFiles, sizeof(positionContainer));
 
   jobType job;
@@ -89,10 +95,11 @@ int main(int argc, char *argv[])
   for (int i= optind; i < argc; i++) {
     FILE *fp = NULL;
     if (strcmp(argv[i], "-") == 0) { 
-      fprintf(stderr,"*info* position file: (stdin)\n");
+      if (!quiet) fprintf(stderr,"*info* position file: (stdin)\n");
+      process = 0; // turn off processing
       fp = stdin;
     } else {
-      fprintf(stderr,"*info* position file: %s\n", argv[i]);
+      if (!quiet) fprintf(stderr,"*info* position file: %s\n", argv[i]);
       fp = fopen(argv[i], "rt");
       if (!fp) {perror(argv[i]); exit(1);}
     }
@@ -101,18 +108,21 @@ int main(int argc, char *argv[])
 	size_t correct = 0, incorrect = 0, ioerrors = 0, errors = 0, jc = 0;
 	size_t tot_cor = 0;
 	do {
-	  job = positionContainerLoadLines(&origpc[i - optind], fp, batches);
+	  job = positionContainerLoadLines(&origpc[0], fp, batches);
 	  if (job.count) {
-	    positionContainer pc = positionContainerMerge(origpc, numFiles);
-	    //positionContainerCheckOverlap(&pc);
-	    errors += verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors);
+	    errors += verifyPositions(&origpc[0], threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process);
 	    tot_cor += correct;
-	    positionContainerFree(&pc);
-	    fprintf(stderr,"Correct %zd, errors %zd\n", tot_cor, errors);
+	    fprintf(stderr,"*info* spitchecker totals: correct %zd, errors %zd\n", tot_cor, errors);
 	  }
+	  positionContainerFree(&origpc[0]);
 	  jc = job.count;
 	  jobFree(&job);
 	} while (jc != 0);
+	for (size_t i = 0; i < numFiles; i++) {
+	  positionContainerFree(&origpc[i]);
+	}
+	free(origpc);
+	origpc=NULL;
 	if (errors) {
 	  exit(1);
 	}
@@ -138,19 +148,19 @@ int main(int argc, char *argv[])
 
   // verify must be sorted
   size_t correct, incorrect, ioerrors;
-  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors);
+  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process);
+  jobFree(&job);
 
   if (!keepRunning) {
     fprintf(stderr,"*warning* early verification termination\n");
   }
 
+  positionContainerFree(&pc);
   for (size_t i = 0; i < numFiles; i++) {
     positionContainerFree(&origpc[i]);
   }
   free(origpc);
   origpc=NULL;
-
-  positionContainerFree(&pc);
 
   if (displayJSON) {
     fprintf(stdout,"{\n\t\"correct\": \"%zd\",\n\t\"incorrect\": \"%zd\",\n\t\"ioerrors\": \"%zd\"\n}\n", correct, incorrect, ioerrors);

@@ -46,6 +46,7 @@ typedef struct {
   size_t o_direct;
   size_t sorted;
   double finishTime;
+  int quiet;
 } threadInfoType;
 
 // sorting function, used by qsort
@@ -65,12 +66,13 @@ static int seedcompare(const void *p1, const void *p2)
 
 
 
-int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff, const int seed)
+int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff, const int seed, int quiet)
 {
   const size_t pos = p->pos;
   const size_t len = p->len;
 
   assert(p->action == 'W');
+  assert(quiet || 1);
   ssize_t ret = pread(fd, buf, len, pos); // use pread as it's thread safe as you pass in the fd, size and offset
 
   if (ret == -1) {
@@ -152,10 +154,10 @@ static void *runThread(void *arg)
 
   if (threadContext->id == 0) {
     if (threadContext->sorted) {
-      fprintf(stderr,"*info* already sorted positions based on submitTime\n");
+      //if (!threadContext->quiet) fprintf(stderr,"*info* already sorted positions based on submitTime\n");
       //      qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), seedcompare);
     } else {
-      fprintf(stderr,"*info* positions are shuffled\n");
+      if (!threadContext->quiet) fprintf(stderr,"*info* positions are shuffled\n");
       unsigned int seed = threadContext->id;
       for (size_t i = threadContext->startInc; i < threadContext->endExc; i++) {
         size_t j = i;
@@ -212,8 +214,10 @@ static void *runThread(void *arg)
       // print progress
       size_t gap = threadContext->endExc - threadContext->startInc - 1;
       if (isatty(fileno(stderr))) {
-        fprintf(stderr,"*progress* %.1lf %%\r", (gap == 0) ? 100 : (curPositions * 100.0) / maxPositions);
-        fflush(stderr);
+        if (!threadContext->quiet) {
+	  fprintf(stderr,"*progress* %.1lf %%\r", (gap == 0) ? 100 : (curPositions * 100.0) / maxPositions);
+	  fflush(stderr);
+	}
       }
     }
     if (!keepRunning) {
@@ -229,7 +233,7 @@ static void *runThread(void *arg)
       //      double start = timedouble();
       size_t pos = threadContext->pc->positions[i].pos;
       memcpy(randombuf, &pos, sizeof(size_t));
-      int ret = verifyPosition(fd, &threadContext->pc->positions[i], randombuf, buf, &diff, lastseed);
+      int ret = verifyPosition(fd, &threadContext->pc->positions[i], randombuf, buf, &diff, lastseed, threadContext->quiet);
 
       //      threadContext->elapsed = timedouble() - start;
       switch (ret) {
@@ -275,16 +279,14 @@ static void *runThread(void *arg)
  * Input is sorted
  *
  */
-int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime, size_t *r_correct, size_t *r_incorrect, size_t *r_ioerrors)
+int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime, size_t *r_correct, size_t *r_incorrect, size_t *r_ioerrors, int quiet, int process)
 {
 
   const double finishTime = (runTime <= 0) ? (timedouble() + 9e99) : (timedouble() + runTime);
 
   if (runTime > 0) {
-    fprintf(stderr,"*info* verification will stop after %.1lf seconds\n", runTime);
+    if (!quiet) fprintf(stderr,"*info* verification will stop after %.1lf seconds\n", runTime);
   }
-
-  positionContainerInfo(pc);
 
   //  for (size_t i = 0; i < pc->sz; i++) {
   //    fprintf(stderr,"[%zd] pos %zd, action '%c'\n", i, pc->positions[i].pos, pc->positions[i].action);
@@ -298,8 +300,10 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
 
   size_t num = pc->sz;
 
-  positionContainerCollapse(pc); // this will sort before collapsing using pos sort.
-  qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare); // post collapse, sort by time
+  if (process) {
+    positionContainerCollapse(pc); // this will sort before collapsing using pos sort.
+    qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare); // post collapse, sort by time
+  }
 
   pthread_t *pt = NULL;
   CALLOC(pt, threads, sizeof(pthread_t));
@@ -325,6 +329,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
     threadContext[i].elapsed = 0;
     threadContext[i].o_direct = o_direct;
     threadContext[i].sorted = 1 || sorted;
+    threadContext[i].quiet = quiet;
 
     //        fprintf(stderr,"*info* starting thread[%zd] in range [%zd, %zd)\n", i, threadContext[i].startInc, threadContext[i].endExc);
 
@@ -355,7 +360,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
   size_t ops = correct + incorrect + ioerrors + lenerrors;
   assert (ops == iocount);
 
-  fprintf(stderr,"*info* verify: correct %zd, incorrect %zd, ioerrors %zd, %zd ops (%.0lf IOPS), %.1lf GB (%.1lf GiB), %.1lf s (threads=%zd), %.1lf MB/s\n", correct, incorrect, ioerrors, ops, ops/elapsed, TOGB(tr), TOGiB(tr), elapsed, threads, TOMB(tr)/elapsed);
+  if (!quiet) fprintf(stderr,"*info* verify: correct %zd, incorrect %zd, ioerrors %zd, %zd ops (%.0lf IOPS), %.1lf GB (%.1lf GiB), %.1lf s (threads=%zd), %.1lf MB/s\n", correct, incorrect, ioerrors, ops, ops/elapsed, TOGB(tr), TOGiB(tr), elapsed, threads, TOMB(tr)/elapsed);
 
   free(pt);
   free(threadContext);

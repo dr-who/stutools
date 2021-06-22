@@ -1253,6 +1253,7 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
   pc->minbs = minbs;
   pc->maxbs = maxbs;
 
+  free(path);
   return job;
 }
 
