@@ -203,7 +203,6 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'P':
       if (strcmp(optarg, "-")==0) {
 	savePositions = stdout;
-	setlinebuf(savePositions);
 	struct stat bf;
 	fstat(fileno(savePositions),  &bf);
 	if (S_ISFIFO(bf.st_mode)) {
@@ -212,6 +211,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	  fprintf(stderr,"*info* positions streamed to FIFO/pipe (buffer %d)\n", ld);
 	} else {
 	  fprintf(stderr,"*info* positions streamed to (stdout)\n");
+	  setlinebuf(savePositions);
 	}
       } else {
 	savePositions = fopen(optarg, "wt");

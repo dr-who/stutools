@@ -101,7 +101,6 @@ int main(int argc, char *argv[])
     if (strcmp(argv[i], "-") == 0) { 
       process = 0; // turn off processing
       fp = stdin;
-      setlinebuf(fp);
 
       struct stat bf;
       fstat(fileno(fp),  &bf);
@@ -111,6 +110,7 @@ int main(int argc, char *argv[])
 	if (!quiet) fprintf(stderr,"*info* positions streamed from FIFO/pipe (buffer %d)\n", ld);
       } else {
 	if (!quiet) fprintf(stderr,"*info* position file: (stdin)\n");
+	setlinebuf(fp);
       }
 
     } else {
@@ -138,6 +138,7 @@ int main(int argc, char *argv[])
 	}
 	free(origpc);
 	origpc=NULL;
+	fclose(fp);
 	if (errors) {
 	  exit(1);
 	}

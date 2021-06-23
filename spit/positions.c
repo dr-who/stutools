@@ -7,6 +7,7 @@
 #include <math.h>
 #include <ctype.h>
 #include <limits.h>
+#include <sys/ioctl.h>
 
 #include "devices.h"
 #include "utils.h"
@@ -422,6 +423,10 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
 
 
 void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeBytes, const size_t doflush, const char *name) {
+  //  int nbytes;
+  //  ioctl(fileno(fp), FIONREAD, &nbytes);
+  //  fprintf(stderr,"%d\n", nbytes);
+  
   if (0 || (p->finishTime > 0 && !p->inFlight)) {
     const char action = p->action;
     fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", name, p->pos, TOGiB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime);
@@ -1178,8 +1183,8 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
   jobType job;
   jobInit(&job);
 
-  char *line = malloc(200000);
-  size_t maxline = 200000, maxSize = 0, minbs = (size_t)-1, maxbs = 0;
+  char *line = malloc(1000);
+  size_t maxline = 1000, maxSize = 0, minbs = (size_t)-1, maxbs = 0;
   ssize_t read;
   char *path;
   CALLOC(path, 1000, 1);
