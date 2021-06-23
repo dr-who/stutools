@@ -539,13 +539,14 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     // if we can't get good coverage
     if ((sf == 0) && (firstPPositions == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) {
       if (verbose >= 2) fprintf(stderr,"*info* using randomSubSample (with replacement) mode\n");
-      randomSubSample = 1;
+      //randomSubSample = 1;
+      //xxx bad idea with overlapping block ranges
     }
   }
 
-  if (firstPPositions) {
-    randomSubSample = 1;
-  }
+  //  if (firstPPositions) {
+  //    randomSubSample = 1;
+  //  }
 
   if (pc->sz == 0) {
     fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");
@@ -656,6 +657,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         //	if (j + thislen > positionsEnd[i]) {abort();fprintf(stderr,"hit the end"); continue;positionsCurrent[i] += thislen; break;}
 
         if (randomSubSample) {
+	  abort();
           poss[count].pos = randomBlockSize(minbdSize, maxbdSize - thislen, alignbits, erand48(xsubi) * (maxbdSize - thislen - minbdSize));
           assert(poss[count].pos >= minbdSize);
           assert(poss[count].pos + thislen <= maxbdSize);
@@ -793,6 +795,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     insertFourkEveryMiB(pc, minbdSize, maxbdSize, seed, fourkEveryMiB, jumpKiB);
   }
 
+  positionContainerCheck(pc, minbdSize, maxbdSize, 1);
+  
   return anywrites;
 }
 

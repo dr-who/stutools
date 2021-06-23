@@ -84,13 +84,13 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
   int dataok = strncmp(buf+16, randomBuffer+16, p->len-16-2) == 0;
 
   if (ret != (int)len) {
-    fprintf(stderr,"*error* position %zd, wrong len %zd instead of %zd (data ok: %d)\n", pos, ret, len, dataok);
+    fprintf(stderr,"\n*error* position %zd, wrong len %zd instead of %zd (data ok: %d)\n", pos, ret, len, dataok);
     return -2;
   } else {
     size_t *p1 = (size_t*)buf;
     size_t *p2 = (size_t*)randomBuffer;
     if (*p1 != *p2) {
-      fprintf(stderr,"*error* encoded positions are wrong %zd (from disk) and %zd (at position %zd). Data ok: %d\n", *p1, *p2, pos, dataok);
+      fprintf(stderr,"\n*error* encoded positions are wrong %zd (from disk) and %zd (at position %zd). Data ok: %d\n", *p1, *p2, pos, dataok);
       return -3;
     }
 
@@ -101,7 +101,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
       for (size_t i = 16; i < len; i++) {
         if (buf[i] != randomBuffer[i]) {
           if (lines < 10)
-            fprintf(stderr,"*error* difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, i, buf[i], randomBuffer[i], seed);
+            fprintf(stderr,"\n*error* difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, i, buf[i], randomBuffer[i], seed);
           if (lines == 0) starterror = i;
           lines++;
         }

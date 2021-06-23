@@ -248,7 +248,11 @@ static void *runThread(void *arg)
     positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, threadContext->metaData ? 0 : 1 /*don't exit if meta*/);
   }
 
-  if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos, threadContext->seed);
+  if (threadContext->seqFiles == 0 || threadContext->firstPPositions) positionContainerRandomize(&threadContext->pos, threadContext->seed);
+
+  if (threadContext->firstPPositions) {
+    threadContext->pos.sz = threadContext->firstPPositions;
+  }
 
   if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun, threadContext->seed);
 
@@ -1299,12 +1303,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       if (pChar && *(pChar+1)) {
         size_t newmp = atoi(pChar + 1);
         threadContext[i].firstPPositions = newmp;
-        if (newmp < mp) {
-          mp = newmp;
-        }
-        if (mp < 1) mp = 1;
-        if (mp <= qDepth) {
-          qDepth = mp;
+	//        if (newmp < mp) {
+	//          mp = newmp;
+	//        }
+	//        if (mp < 1) mp = 1;
+        if (newmp <= qDepth) {
+          qDepth = newmp;
         }
       }
     }
