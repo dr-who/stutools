@@ -8,14 +8,14 @@
 #define BUFSIZE (1024*1024)
 int main() {
   unsigned char *buffer = NULL;
-  unsigned int counts[256];
+  size_t counts[256];
   
   buffer = malloc(BUFSIZE);
   assert(buffer);
 
   size_t size = 0; 
   for (size_t i = 0; i < 256; i++) {
-    counts[i] = 1;
+    counts[i] = 0;
   }
 
   size_t sz = 0;
@@ -30,13 +30,13 @@ int main() {
 
   if (sz) {
     double entropy = 0;
-    //    fprintf(stderr,"size: %ld\n", sz);
+    //            fprintf(stderr,"size: %ld\n", sz);
     for (size_t i =0; i < 256; i++) {
-      double e = (log((counts[i]) * 1.0 / sz) / log(2.0));
-      //      fprintf(stderr,"%d %.4lf %.4lf\n", counts[i], e, entropy);
+      double e = counts[i] * (log((counts[i]+1) * 1.0 / (sz+1))) / log(2.0);
+      //      fprintf(stderr,"%zd %zd %.4lf %.4lf\n", counts[i], sz, e, entropy);
       entropy = entropy - e;
     }
-    double bpc = entropy / 256;
+    double bpc = entropy / sz;
     fprintf(stderr,"%.7lf bpc: %s\n", bpc, bpc > 7.9 ? "RANDOM > 7.9" : "");
   }
 
