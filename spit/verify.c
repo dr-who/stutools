@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 	do {
 	  job = positionContainerLoadLines(&origpc[0], fp, batches);
 	  if (job.count) {
-	    errors += verifyPositions(&origpc[0], threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process);
+	    errors += verifyPositions(&origpc[0], origpc[0].sz < threads ? origpc[0].sz : threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process);
 	    tot_cor += correct;
 	    fprintf(stderr,"*info* spitchecker totals: correct %zd, errors %zd\n", tot_cor, errors);
 	  }
