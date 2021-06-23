@@ -86,7 +86,10 @@ int main(int argc, char *argv[])
   }
 
   size_t numFiles = argc -optind;
-  if (!quiet) fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd, batch size %zd\n", numFiles, threads, sort, batches);
+  if (!quiet) {
+    fprintf(stderr,"*info* spitchecker\n");
+    fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd, batch size %zd\n", numFiles, threads, sort, batches);
+  }
 
   positionContainer *origpc = NULL;
   CALLOC(origpc, numFiles, sizeof(positionContainer));
@@ -96,10 +99,20 @@ int main(int argc, char *argv[])
   for (int i= optind; i < argc; i++) {
     FILE *fp = NULL;
     if (strcmp(argv[i], "-") == 0) { 
-      if (!quiet) fprintf(stderr,"*info* position file: (stdin)\n");
       process = 0; // turn off processing
       fp = stdin;
       setlinebuf(fp);
+
+      struct stat bf;
+      fstat(fileno(fp),  &bf);
+      if (S_ISFIFO(bf.st_mode)) {
+	fcntl(fileno(fp), F_SETPIPE_SZ, 0);
+	int ld = fcntl(fileno(fp), F_GETPIPE_SZ);
+	if (!quiet) fprintf(stderr,"*info* positions streamed from FIFO/pipe (buffer %d)\n", ld);
+      } else {
+	if (!quiet) fprintf(stderr,"*info* position file: (stdin)\n");
+      }
+
     } else {
       if (!quiet) fprintf(stderr,"*info* position file: %s\n", argv[i]);
       fp = fopen(argv[i], "rt");

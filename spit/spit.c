@@ -207,17 +207,12 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	struct stat bf;
 	fstat(fileno(savePositions),  &bf);
 	if (S_ISFIFO(bf.st_mode)) {
-	  fprintf(stderr,"*info* savePositions set to FIFO/pipe\n");
 	  fcntl(fileno(savePositions), F_SETPIPE_SZ, 0);
 	  int ld = fcntl(fileno(savePositions), F_GETPIPE_SZ);
-	  if (ld != 4096) {
-	    fprintf(stderr,"*warning* FIFO pipesize is %d\n", ld);
-	  }
+	  fprintf(stderr,"*info* positions streamed to FIFO/pipe (buffer %d)\n", ld);
 	} else {
-	  fprintf(stderr,"*info* savePositions set to (stdout)\n");
+	  fprintf(stderr,"*info* positions streamed to (stdout)\n");
 	}
-
-	  
       } else {
 	savePositions = fopen(optarg, "wt");
 	if (!savePositions) {perror(optarg); exit(-1);}
