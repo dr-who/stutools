@@ -965,7 +965,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     const double d = timedouble() * 100.0; // use the fractions so up/return is different
     const unsigned long d2 = (unsigned long)d;
     seed = d2 & 0xffff;
-    if (verbose) fprintf(stderr,"*info* setting seed based on the time to %d\n", seed);
+    fprintf(stderr,"*info* setting seed based on the time to '-R %d'\n", seed);
   }
 
   positionContainer **allThreadsPC;
