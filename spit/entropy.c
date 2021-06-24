@@ -53,7 +53,7 @@ void analyseAsBits(int bytes) {
       
     //    fprintf(stderr,"number %u\n", *v);
     for (size_t j = 0; j < bits; j++) {
-      if (thev & (1<<j)) {
+      if (thev & (1L<<j)) {
 	counts1[j]++;
       } else {
 	counts[j]++;
