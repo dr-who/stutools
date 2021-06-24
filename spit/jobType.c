@@ -350,7 +350,9 @@ static void *runThread(void *arg)
     }
   }
   const int numRequests = getNumRequests(suffix);
-  fprintf(stderr,"*info* queue/nr_requests for %s = %d\n", threadContext->jobdevice, numRequests);
+  if (threadContext->id==0) {
+    fprintf(stderr,"*info* queue/nr_requests for '%s' = %d %s\n", threadContext->jobdevice, numRequests, numRequests<128 ? "WARNING":"");
+  }
   if (getWriteCache(suffix) > 0) {
     fprintf(stderr,"*****************\n");
     fprintf(stderr,"* w a r n i n g * device %s is configured with volatile cache\n", threadContext->jobdevice);
@@ -1644,7 +1646,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
     if (metaData) {
       if ((long)qDepth > metaData) {
-	fprintf(stderr,"*warning* QD must be <= %zd if reading/writing. Setting QD=%zd\n", metaData, metaData);
+	if (i == 0) {
+	  fprintf(stderr,"*warning* QD must be <= %zd if reading/writing. Setting QD=%zd\n", metaData, metaData);
+	}
 	qDepth = metaData;
       }
     }
