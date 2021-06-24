@@ -5,6 +5,13 @@
 #include <assert.h>
 #include <math.h>
 
+/*
+ * Software licensed by Stuart Inglis, Ph.D.
+ *
+ * Commercial use and derivations require a license (or discussion beforehand)
+ * 
+ */
+
 // if -1 then byte
 // if -4 then 4 byte numbers
 // if -8 then 8 byte numbers
