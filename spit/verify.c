@@ -45,7 +45,13 @@ int main(int argc, char *argv[])
   size_t batches = 5000;
 
   if (argc <= 1) {
-    fprintf(stdout,"*usage* ./spitchecker [ -D ] [ -t %zd ] [ -b %zd ] [ -n (don't sort)] positions* (or -)\n", threads, batches);
+    fprintf(stdout,"Usage:\n   ./spitchecker [ options] filename* or -\n");
+    fprintf(stdout,"\nOptions:\n");
+    fprintf(stdout,"   -4    Limit block verifications to first 4 KiB\n");
+    fprintf(stdout,"   -D    turn off O_DIRECT\n");
+    fprintf(stderr,"   -t n  Specify the number of verification threads to run in parallel (%zd)\n", threads);
+    fprintf(stderr,"   -b n  Batch size for streaming IOs (%zd)\n", batches);
+    fprintf(stderr,"   -n    Don't sort positions\n");
     exit(1);
   }
 
@@ -56,9 +62,13 @@ int main(int argc, char *argv[])
   size_t displayJSON = 0;
   int quiet = 0;
   int process = 1; // by default collapse and sort
+  size_t overridesize = 0;
 
-  while ((opt = getopt(argc, argv, "Dt:njb:q")) != -1) {
+  while ((opt = getopt(argc, argv, "Dt:njb:q4")) != -1) {
     switch (opt) {
+    case '4':
+      overridesize = 4096;
+      break;
     case 'b':
       batches = atoi(optarg);
       if (batches < 1) {
@@ -125,7 +135,7 @@ int main(int argc, char *argv[])
 	do {
 	  job = positionContainerLoadLines(&origpc[0], fp, batches);
 	  if (job.count) {
-	    errors += verifyPositions(&origpc[0], origpc[0].sz < threads ? origpc[0].sz : threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process);
+	    errors += verifyPositions(&origpc[0], origpc[0].sz < threads ? origpc[0].sz : threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize);
 	    tot_cor += correct;
 	    fprintf(stderr,"*info* spitchecker totals: correct %zd, errors %zd\n", tot_cor, errors);
 	  }
@@ -164,7 +174,7 @@ int main(int argc, char *argv[])
 
   // verify must be sorted
   size_t correct, incorrect, ioerrors;
-  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process);
+  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize);
   jobFree(&job);
 
   if (!keepRunning) {

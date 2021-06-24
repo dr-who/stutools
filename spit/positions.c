@@ -68,7 +68,7 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
 {
   const size_t num = pc->sz;
   const positionType *positions = pc->positions;
-  fprintf(stderr,"*info*... checking position array with %zd values...\n", num);
+  if (verbose) fprintf(stderr,"*info*... checking position array with %zd values...\n", num);
   fflush(stderr);
 
   size_t rcount = 0, wcount = 0;

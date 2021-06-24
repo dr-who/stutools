@@ -47,6 +47,7 @@ typedef struct {
   size_t sorted;
   double finishTime;
   int quiet;
+  int overridesize;
 } threadInfoType;
 
 // sorting function, used by qsort
@@ -66,10 +67,10 @@ static int seedcompare(const void *p1, const void *p2)
 
 
 
-int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff, const int seed, int quiet)
+int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff, const int seed, int quiet, size_t overridesize)
 {
   const size_t pos = p->pos;
-  const size_t len = p->len;
+  const size_t len = overridesize ? overridesize : p->len;
 
   assert(p->action == 'W');
   assert(quiet || 1);
@@ -81,7 +82,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
     return -1;
   }
 
-  int dataok = strncmp(buf+16, randomBuffer+16, p->len-16-2) == 0;
+  int dataok = strncmp(buf+16, randomBuffer+16, len-16-2) == 0;
 
   if (ret != (int)len) {
     fprintf(stderr,"\n*error* position %zd, wrong len %zd instead of %zd (data ok: %d)\n", pos, ret, len, dataok);
@@ -106,7 +107,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
           lines++;
         }
       }
-      fprintf(stderr,"*error* total characters incorrect %zd from %d\n", lines, p->len);
+      fprintf(stderr,"*error* total characters incorrect %zd from %zd\n", lines, len);
 
       //awk '{if((($2>=3415666688) && $2+$7<=(3415666688+122880)) || ($2+$7>=3415666688 && $2<3415666688)) print}' positions.txt
 
@@ -116,7 +117,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
       poscheck = (size_t*)(buf + starterror);
       uucheck = (size_t*)(buf + starterror) + 1;
       fprintf(stderr,"*error* poscheck at the error start %zd, uuid %zd\n", *poscheck, *uucheck);
-      fprintf(stderr,"*error* see actions e.g.: $ awk -v p=%zd -v l=%d '{if (($2>=p && $2<=p+l) || ($2+$7>p && $2<p)) print}' positions.txt | sort -k 12n\n", pos, p->len);
+      fprintf(stderr,"*error* see actions e.g.: $ awk -v p=%zd -v l=%zd '{if (($2>=p && $2<=p+l) || ($2+$7>p && $2<p)) print}' positions.txt | sort -k 12n\n", pos, len);
       /*char s1[1000],s2[1000];
       memcpy(s1, buf+16, 80); s1[80]=0;
       memcpy(s2, randomBuffer+16, 80); s2[80]=0;
@@ -233,7 +234,7 @@ static void *runThread(void *arg)
       //      double start = timedouble();
       size_t pos = threadContext->pc->positions[i].pos;
       memcpy(randombuf, &pos, sizeof(size_t));
-      int ret = verifyPosition(fd, &threadContext->pc->positions[i], randombuf, buf, &diff, lastseed, threadContext->quiet);
+      int ret = verifyPosition(fd, &threadContext->pc->positions[i], randombuf, buf, &diff, lastseed, threadContext->quiet, threadContext->overridesize);
 
       //      threadContext->elapsed = timedouble() - start;
       switch (ret) {
@@ -279,7 +280,7 @@ static void *runThread(void *arg)
  * Input is sorted
  *
  */
-int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime, size_t *r_correct, size_t *r_incorrect, size_t *r_ioerrors, int quiet, int process)
+int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime, size_t *r_correct, size_t *r_incorrect, size_t *r_ioerrors, int quiet, int process, size_t overridesize)
 {
 
   const double finishTime = (runTime <= 0) ? (timedouble() + 9e99) : (timedouble() + runTime);
@@ -315,6 +316,7 @@ int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, c
   for (size_t i =0 ; i < threads; i++) {
     threadContext[i].job = job;
     threadContext[i].id = i;
+    threadContext[i].overridesize = overridesize;
     threadContext[i].numThreads = threads;
     threadContext[i].startInc = (size_t) (i*(num * 1.0 / threads));
     threadContext[i].endExc =   (size_t) ((i+1)*(num * 1.0 / threads));
