@@ -36,7 +36,9 @@ void analyseAsBits(int bytes) {
 
   size_t sz = 0;
   while ((size = read(fileno(stdin), buffer, bytes)) > 0) {
-    assert((int)size == bytes);
+    if (size != (size_t) bytes)
+      continue;
+    //    assert((int)size == bytes);
     unsigned long thev;
     if (bytes == 4) {
       unsigned int *v = (unsigned int*) buffer;
