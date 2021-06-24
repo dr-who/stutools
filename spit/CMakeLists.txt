@@ -92,7 +92,7 @@ add_test(testspitwm_1 spit -f wow -G 1 -c wm-1s1 -v -t 5)
 
 add_test(testspitmprefixj2rangewmUj1 spit -f wow -G 1 -c wUs0k4-256 -v -t 5 )
 add_test(testspitmprefixj2rangewmP1000 spit -f wow -G 1 -c ws0k8-16P1000 -v -t 5 )
-add_test(testspitmprefixj2rangewmP1000j17uspit -f wow -G 1 -c ws0k8-16P1000G_j17u -v -t 5 )
+add_test(testspitmprefixj2rangewmP1000j17 spit -f wow -G 1 -c ws0k8-16P1000G_j17u -v -t 5 )
 add_test(testspitmprefixj2rangewm spit -f wow -G 1 -c ws0k4-256j16G_ -v -t 5)
 add_test(testspitmprefixj2rangem spit -f wow -G 1 -c G_ms0k4-256j128 -v -t 5 )
 add_test(testspitmprefixj2rangewm spit -f wow -G1 -c G_wms0k4-256j128 -v -t 5)
