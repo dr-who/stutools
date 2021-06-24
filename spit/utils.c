@@ -477,6 +477,7 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
 size_t generateRandomBuffer(char *buffer, const size_t size, const unsigned short seed)
 {
   //  if (seed == 0) printf("ooon\n");
+  //  fprintf(stderr,"len %zd\n", size);
   return generateRandomBufferCyclic(buffer, size, seed, 4096);
 }
 

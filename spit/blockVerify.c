@@ -227,7 +227,7 @@ static void *runThread(void *arg)
     if (positions[i].action == 'W' && positions[i].finishTime>0) {
       threadContext->bytesRead += positions[i].len;
       if (positions[i].seed != lastseed) {
-        generateRandomBuffer(randombuf, threadContext->pc->maxbs, positions[i].seed);
+        generateRandomBuffer(randombuf, threadContext->overridesize ? (size_t)threadContext->overridesize : threadContext->pc->maxbs, positions[i].seed);
         lastseed = positions[i].seed;
       }
 
