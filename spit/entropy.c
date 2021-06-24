@@ -79,7 +79,7 @@ void analyseAsBits(int bytes) {
     double bpc = bits * entropy / sz;
     const double threshold = bits * 0.99;
     //    fprintf(stderr,"entropy %.4lf, %zd\n", entropy, bits);
-    fprintf(stderr,"%.7lf bpi: %s\n", bpc, bpc >= threshold ? "RANDOM" : "");
+    fprintf(stderr,"%.7lf bpw: %s\n", bpc, bpc >= threshold ? "RANDOM" : "");
   }
   free(buffer);
 }
