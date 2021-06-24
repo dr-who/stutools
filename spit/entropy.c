@@ -20,8 +20,9 @@ int verbose = 0;
 
 #define BUFSIZE (1024*1024)
 
-void analyseAsBits(int bytes) {
+int analyseAsBits(int bytes) {
   unsigned char *buffer = NULL;
+  int ret = 0;
 
   const size_t bits = 8 * bytes;
   size_t counts0[bits], counts1[bits], tot[bits];
@@ -91,18 +92,21 @@ void analyseAsBits(int bytes) {
 	entropy = entropy - e;
       }
     }
-    double bpc = bits * entropy / sz;
+    double bps = bits * entropy / sz;
     const double threshold = bits * 0.99;
     //    fprintf(stderr,"entropy %.4lf, %zd\n", entropy, bits);
-    fprintf(stdout, "%.7lf bps (compression %.1lfx) %s\n", bpc, bits/bpc, bpc >= threshold ? "RANDOM" : "");
+    if (bps >= threshold) ret = 1;
+    fprintf(stdout, "%.7lf bps (compression %.1lfx) %s\n", bps, bits/bps, bps >= threshold ? "RANDOM" : "");
   }
   free(buffer);
+
+  return ret;
 }
 
 
-void analyse1B() {
+int analyse1B() {
   unsigned char *buffer = NULL;
-
+  int ret = 0;
   size_t counts[256];
   
   buffer = malloc(BUFSIZE);
@@ -133,22 +137,44 @@ void analyse1B() {
 	entropy = entropy - e;
       }
     }
-    double bpc = entropy / sz;
-    fprintf(stdout, "%.7lf bps (compression %.1lfx) %s\n", bpc, 8/bpc, bpc > 8*0.99 ? "RANDOM" : "");
+    double bps = entropy / sz;
+    const double threshold = 8 * 0.99;
+    if (bps >= threshold) ret = 1;
+    fprintf(stdout, "%.7lf bps (compression %.1lfx) %s\n", bps, 8/bps, bps >= threshold ? "RANDOM" : "");
   }
   free(buffer);
+  return ret;
 }  
 
+
+void usage() {
+  fprintf(stderr,"Usage:\n   entropy [options] < stdin\n");
+  fprintf(stderr,"\nDescription:\n   Calculates the number of bits per symbol (bps) of entropy\n");
+  fprintf(stderr,"   with a 0th order model.\n");
+  fprintf(stderr,"\nOptions:\n");
+  fprintf(stderr,"        No options, defaults to 256 bit character\n");
+  fprintf(stderr,"   -1   Input is a 8-bit number\n");
+  fprintf(stderr,"   -2   Input is a 16-bit number\n");
+  fprintf(stderr,"   -4   Input is a 32-bit number\n");
+  fprintf(stderr,"   -8   Input is a 64-bit number\n");
+  fprintf(stderr,"   -r   Performs a 99%% test, exitcode = 0 is random\n");
+  fprintf(stderr,"   -v   verbose\n");
+}
 
 
 int main(int argc, char *argv[]) {
   int opt;
   int bytes = 0;
+  int randomTest = 0;
 
-  const char *getoptstring = "1248v";
+  const char *getoptstring = "1248vrh";
 
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
+    case 'h':
+      usage();
+      exit(0);
+      break;
     case '1': 
       bytes = 1;
       break;
@@ -161,6 +187,9 @@ int main(int argc, char *argv[]) {
     case '8':
       bytes = 8;
       break;
+    case 'r':
+      randomTest = 1;
+      break;
     case 'v':
       verbose++;
       break;
@@ -169,11 +198,21 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  int isRandom = 0;
   if (bytes == 0) {
-    analyse1B();
+    isRandom = analyse1B();
   } else {
-    analyseAsBits(bytes);
+    isRandom = analyseAsBits(bytes);
   }
-  
-  return 0;
+
+  // the -r check
+  if (randomTest) {
+    if (isRandom) {
+      return 0; // if a -r test is required, 0 means a successful test
+    } else {
+      return 1; // not random
+    }
+  }
+
+  return 0; // if not a test exit 0 is 0
 }
