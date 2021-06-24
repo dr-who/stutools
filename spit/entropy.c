@@ -81,13 +81,13 @@ void analyseAsBits(int bytes) {
     for (size_t i =0; i < bits; i++) {
       if (counts0[i]) {
 	double e = counts0[i] * (log((counts0[i]) * 1.0 / tot[i])) / log(2.0);
-	if (verbose) fprintf(stderr,"[b%02zd=0] %3zd %3zd %.4lf %.4lf\n", i, counts0[i], tot[i], e, -entropy/counts0[i]);
+	if (verbose) fprintf(stderr,"[b%02zd=0] %3zd %3zd %.4lf\n", i, counts0[i], tot[i], e);
 	entropy = entropy - e;
       }
       
       if (counts1[i]) {
 	double e = counts1[i] * (log((counts1[i]) * 1.0 / tot[i])) / log(2.0);
-	if (verbose) fprintf(stderr,"[b%02zd=1] %3zd %3zd %.4lf %.4lf\n", i, counts1[i], tot[i], e, -entropy/counts1[i]);
+	if (verbose) fprintf(stderr,"[b%02zd=1] %3zd %3zd %.4lf\n", i, counts1[i], tot[i], e);
 	entropy = entropy - e;
       }
     }
