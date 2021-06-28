@@ -939,7 +939,7 @@ static void *runThreadTimer(void *arg)
 
 
   if (verbose) fprintf(stderr,"*info* finished thread timer\n");
-  keepRunning = 0;
+  //  keepRunning = 0;
 
   threadContext->result_writeIOPS = total_printed_w_iops /tm;
   threadContext->result_readIOPS =  total_printed_r_iops /tm;
@@ -1906,10 +1906,19 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
     size_t gSize = alignedNumber(maxSizeBytes, 4096);
     size_t coverage = 2;
     size_t jumble = 0;
+    size_t fragmentLBA = 0;
 
     for (int i = 0; i < (int) count; i++) {
       fprintf(stderr,"*info* precondition %d: device '%s', command '%s'\n", i+1, preconditions->devices[i], preconditions->strings[i]);
       fprintf(stderr,"*info* size of the block device %zd (%.3lf GiB)\n", maxSizeBytes, TOGiB(maxSizeBytes));
+
+      
+      { //'f' for fragment LBA. f10 is 10% overhead
+        char *charG = strchr(preconditions->strings[i], 'f');
+        if (charG && (*(charG+1)>='0' && *(charG+1)<='9')) {
+	  fragmentLBA = (int)(100.0 / atof(charG+1) + 0.5);
+	}
+      }
 
       {
         char *charG = strchr(preconditions->strings[i], 'G');
@@ -1966,10 +1975,33 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
     }
-    jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0);
-    fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");
-    sleep(10);
-    fflush(stderr);
+    if (fragmentLBA)  {
+      const size_t stepgb = 1;
+      fprintf(stderr,"*info* precondition: fragment LBA=%zd, LBA=[%.2lf, %.2lf) GB, step %zd GB\n", fragmentLBA, TOGB(minSizeBytes), TOGB(maxSizeBytes), stepgb);
+      for (size_t p = TOGiB(minSizeBytes); p < TOGiB(maxSizeBytes); p+= stepgb) if (keepRunning) {
+	free(preconditions->strings[0]); // free 'f'
+	char s[100];
+	sprintf(s,"wx1zs1k4G%zd-%zd", p, p+stepgb);
+	fprintf(stderr,"*info* precondition: running string %s\n", s);
+	preconditions->strings[0] = strdup(s);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, (p+stepgb) * 1024L * 1024L * 1024, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0);
+
+	free(preconditions->strings[0]); // free 'f'
+	sprintf(s,"wx1zs1k4G%zd-%zdK%zd", p, p+stepgb, fragmentLBA);
+	fprintf(stderr,"*info* precondition: running string %s\n", s);
+	preconditions->strings[0] = strdup(s);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, (p+stepgb) * 1024L * 1024L * 1024, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0);
+
+	
+	}
+    } else {
+      jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0);
+    }
+    if (keepRunning) {
+      fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");
+      sleep(10);
+      fflush(stderr);
+    }
   }
   return 0;
 }

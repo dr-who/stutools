@@ -86,6 +86,7 @@ add_test(testspitwk512b  spit -f wow -G 0.5 -c ws1k0.5 -v -V -t 1)
 add_test(testspita10 spit -f wow -G 1 -c ws1a10zM1 -v -t 5 )
 add_test(testspita10x3n spit -f wow -G 1 -c ws1zM1x3n -v -t 5 )
 
+add_test(testspitpf10 spit -p f10 -f wow -G 1 -c r -v -t 5)
 add_test(testspitwm1 spit -f wow -G 1 -c wm1s1 -v -t 5)
 add_test(testspitwm2 spit -f wow -G 1 -c wm2s1 -v -t 5)
 add_test(testspitwm4 spit -f wow -G 1 -c wm4s1 -v -t 5)

@@ -506,8 +506,9 @@ void usage()
   fprintf(stdout,"  spit -c wx3 -G4 -T            # perform pre-DISCARD/TRIM operations before each round\n");
   fprintf(stdout,"  spit -c ts0                   # Use a sync DISCARD/TRIM I/O type\n");
   fprintf(stdout,"  spit -c rrwts0                # 50%% read, 25%% writes and 25%% trim I/O random operations\n");
-  fprintf(stdout,"  spit -c wx1G0-64k4zs1          # Write from 0-1 GiB, in 4KiB steps, sequentially \n");
-  fprintf(stdout,"  spit -c wx1G0-64k4zs1K20       # Write from 0-1 GiB, in 4KiB steps, writing 1 in 20. \n");
+  fprintf(stdout,"  spit -c wx1G0-64k4zs1         # Write from 0-1 GiB, in 4KiB steps, sequentially \n");
+  fprintf(stdout,"  spit -c wx1G0-64k4zs1K20      # Write from 0-1 GiB, in 4KiB steps, writing 1 in 20. \n");
+  fprintf(stdout,"  spit -p f10 -f device -c ...  # Precondition with the 'f' fragmentation pattern, with 10%% GC overhead\n");
   exit(0);
 }
 
@@ -516,7 +517,7 @@ void intHandler(int d)
 {
   if (d) {}
   fprintf(stderr,"got signal\n");
-  keepRunning = 0;
+  keepRunning--;
 }
 
 
