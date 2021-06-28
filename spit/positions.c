@@ -145,12 +145,12 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
     }
 
     if (copy[i].pos < copy[i-1].pos) {
-      if (verbose) fprintf(stderr,"not sorted %zd %zd, unique %zd\n",i, copy[i].pos, unique);
+      fprintf(stderr,"*warning* positions are not sorted %zd %zd, unique %zd\n",i, copy[i].pos, unique);
       if (exitonerror) abort();
     }
     if (copy[i-1].pos != copy[i].pos) {
       if (copy[i-1].pos + copy[i-1].len > copy[i].pos) {
-        if (verbose) fprintf(stderr,"eerk overlapping %zd %zd %d \n",i, copy[i].pos, copy[i].len);
+        fprintf(stderr,"*warning* positions are overlapping %zd %zd %d \n",i, copy[i].pos, copy[i].len);
         if (exitonerror) abort();
       }
     }
@@ -498,6 +498,98 @@ void positionContainerHTML(positionContainer *p, const char *name)
   }
 }
 
+size_t positionContainerCreatePositionsGC(positionContainer *pc,
+					const lengthsType *len,
+					const size_t minbdSize,
+					  const size_t maxbdSize,
+					  const size_t gcoverhead) 
+{
+  positionType *positions = pc->positions;
+  pc->minbs = lengthsMin(len);
+  pc->maxbs = lengthsMax(len);
+  pc->maxbdSize = maxbdSize;
+  unsigned int seed = 0;
+
+  size_t maxpositions = (maxbdSize - minbdSize) / pc->minbs;
+  size_t gcpercent = gcoverhead;
+  size_t gcgaps = (size_t)(100 / gcpercent + 0.5);
+  size_t gccachemb = 10 * 1024L;
+  size_t gccachegbpositions = gccachemb * (1024L * 1024) / pc->minbs;
+  size_t maxiterations = maxpositions / gccachegbpositions;
+  fprintf(stderr,"*info* GC positions, overhead %zd, max %zd, gcgaps %zd, gcachemb %zd, gcachepositions %zd (%zd), iterations %zd\n", gcoverhead, maxpositions, gcgaps, gccachemb, gccachegbpositions, pc->minbs, maxiterations);
+
+  size_t pos = minbdSize, fin = 0, posstart = 0, posend = 0;
+  size_t iii = 0;
+  
+  for (size_t iterations = 0; iterations < maxiterations; iterations++) {
+
+    posstart = pos;
+
+    if (iii < pc->sz) for (size_t i = 0; i < maxpositions / maxiterations; i++) {
+      
+      size_t thislen = pc->minbs;
+      if (pc->minbs != pc->maxbs) {
+	thislen = lengthsGet(len, &seed);
+      }
+      if (pos + thislen <= pc->maxbdSize) {
+	assert(iii < pc->sz);
+	
+	memset(&positions[iii], 0, sizeof(positionType));
+	positions[iii].pos = pos;
+
+	//	fprintf(stderr,"[%zd] %zd...\n", i, positions[i].pos);
+	
+	positions[iii].len = thislen;
+	positions[iii].action = 'W';
+	pos += thislen;
+      } else {
+	fin = 1;
+	break;
+      }
+      
+      iii++;
+      if (iii >= pc->sz) break;
+    }
+
+
+    //    fprintf(stderr,"[%zd] pos.... pos %zd\n", iii, pos);
+    
+
+    posend = pos;
+    pos = posstart;
+    fin = 0;
+    if (iii < pc->sz) for (size_t i = 0; i < maxpositions / maxiterations; i+=gcgaps) {
+      size_t thislen = pc->minbs;
+      
+      if (pc->minbs != pc->maxbs) {
+	thislen = lengthsGet(len, &seed);
+      }
+      if (pos + thislen <= pc->maxbdSize) {
+	assert(iii < pc->sz);
+	
+	memset(&positions[iii], 0, sizeof(positionType));
+	positions[iii].pos = pos;
+	//	fprintf(stderr,"-------> [%zd] %zd, %zd...\n", i, iii, positions[i].pos);
+	positions[iii].len = thislen;
+	positions[iii].action = 'W';
+	pos += thislen;
+      } else {
+	fin = 1;
+	break;
+      }
+      iii++;
+      if (iii >= pc->sz) break;
+    }
+
+    pos = posend;
+    if (fin) break;
+  }
+  
+  
+  return 0;
+}
+					
+					
 
 // create the position array
 size_t positionContainerCreatePositions(positionContainer *pc,
@@ -535,10 +627,11 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
   size_t anywrites = 0, randomSubSample = 0;
 
-  if (((pc->sz) * ((pc->minbs + pc->maxbs)/2)) < (maxbdSize - minbdSize) * 0.95) {
+  const double cov = ((pc->sz) * 1.0 * ((pc->minbs + pc->maxbs)/2)) / (maxbdSize - minbdSize);
+  if (cov < 0.95) {
     // if we can't get good coverage
     if ((sf == 0) && (firstPPositions == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) {
-      if (verbose >= 2) fprintf(stderr,"*info* using randomSubSample (with replacement) mode\n");
+      fprintf(stderr,"*info* warning, not a full coverage of the device, coverage = %.1lf%%\n", cov*100.0);
       //randomSubSample = 1;
       //xxx bad idea with overlapping block ranges
     }
@@ -795,7 +888,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     insertFourkEveryMiB(pc, minbdSize, maxbdSize, seed, fourkEveryMiB, jumpKiB);
   }
 
-  positionContainerCheck(pc, minbdSize, maxbdSize, 1);
+  positionContainerCheck(pc, minbdSize, maxbdSize, 0);
   
   return anywrites;
 }

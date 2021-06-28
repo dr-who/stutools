@@ -83,10 +83,16 @@ set_tests_properties(testspitfail3 PROPERTIES WILL_FAIL TRUE )
 
 add_test(testspitwk512b  spit -f wow -G 0.5 -c ws1k0.5 -v -V -t 1)
 
+add_test(testspita10 spit -f wow -G 1 -c ws1a10zM1 -v -t 5 )
+add_test(testspita10x3n spit -f wow -G 1 -c ws1zM1x3n -v -t 5 )
+
 add_test(testspitwm1 spit -f wow -G 1 -c wm1s1 -v -t 5)
 add_test(testspitwm2 spit -f wow -G 1 -c wm2s1 -v -t 5)
 add_test(testspitwm4 spit -f wow -G 1 -c wm4s1 -v -t 5)
 add_test(testspitwm4q2 spit -f wow -G 1 -c wm4s1q2 -v -t 5)
+add_test(testspitwm4K0 spit -f wow -G 1 -c ws1zk4K0x1 -v -t 5)
+add_test(testspitwm4K1 spit -f wow -G 1 -c ws1zk4K1x1 -v -t 5)
+add_test(testspitwm4K10 spit -f wow -G 1 -c ws1zk4K10x1 -v -t 5)
 add_test(testspitwm4q6 spit -f wow -G 1 -c wm4s1q6 -v -t 5)
 add_test(testspitwm_1 spit -f wow -G 1 -c wm-1s1 -v -t 5)
 

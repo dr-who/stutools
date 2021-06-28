@@ -52,6 +52,11 @@ void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeByte
 //positionType *loadPositions(FILE *fd, size_t *num, deviceDetails **devs, size_t *numDevs, size_t *maxsize);
 
 //void infoPositions(const deviceDetails *devList, const size_t devCount);
+size_t positionContainerCreatePositionsGC(positionContainer *pc,
+					const lengthsType *len,
+					const size_t minbdSize,
+					  const size_t maxbdSize,
+					  const size_t gcoverhead) ;
 
 size_t positionContainerCreatePositions(positionContainer *pc,
                                         const unsigned short deviceid,

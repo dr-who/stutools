@@ -221,6 +221,7 @@ typedef struct {
   size_t firstPPositions;
   int performPreDiscard;
   int notexclusive;
+  size_t posIncrement;
 
   // results
   double result_writeIOPS;
@@ -447,6 +448,15 @@ static void *runThread(void *arg)
     posLimit = threadContext->pos.sz * threadContext->positionLimit;
   }
 
+  if (threadContext->posIncrement) {
+    if (posLimit) {
+      posLimit = posLimit / threadContext->posIncrement;
+    } else {
+      posLimit = threadContext->pos.sz / threadContext->posIncrement;
+    }
+    fprintf(stderr,"*info* posLimit = %zd\n", posLimit);
+  }
+
   //  if (threadContext->performPreDiscard) {
   //    iteratorMax = threadContext->LBAtimes;
   //  }
@@ -485,7 +495,7 @@ static void *runThread(void *arg)
 
     if (verbose) fprintf(stderr,"*iteration* %zd\n", iteratorCount);
 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepth, -1 /* verbose */, 0, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, threadContext->QDbarrier, discard_max_bytes, threadContext->fp, threadContext->jobdevice);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepth, -1 /* verbose */, 0, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, threadContext->QDbarrier, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement);
     totalP += posLimit;
 
     if (!doRounds) break;
@@ -1204,6 +1214,22 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
+    /*    threadContext[i].gcoverhead = 0;
+    {
+      char *str = strchr(job->strings[i], 'o');
+      if (str && *(str+1)) {
+	threadContext[i].gcoverhead = atoi(str+1);
+      }
+      }*/
+
+    threadContext[i].posIncrement = 0;
+    {
+      char *str = strchr(job->strings[i], 'K');
+      if (str && *(str+1)) {
+	threadContext[i].posIncrement = atoi(str+1);
+	fprintf(stderr,"*info* skipping %zd actions\n", threadContext[i].posIncrement);
+      }
+    }
 
     // 'O' is really 'X1'
     threadContext[i].runonce = 0;

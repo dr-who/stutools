@@ -38,14 +38,18 @@ size_t aioMultiplePositions( positionContainer *p,
                              size_t QDbarrier,
                              const size_t discard_max_bytes,
 			     FILE *fp,
-			     char *jobdevice
+			     char *jobdevice,
+			     size_t posIncrement
                            )
 {
   if (sz == 0) {
     fprintf(stderr,"*warning* sz == 0!\n");
     return 0;
   }
+  //  fprintf(stderr,"*info* positions %zd\n", sz);
   int ret, checkTime = finishTime > 0;
+  if (posIncrement < 1) posIncrement = 1;
+  
 
   //  fprintf(stderr,"*this time %lf set %lf\n", timedouble(), finishTime);
   //  if (posLimit) {
@@ -368,7 +372,7 @@ size_t aioMultiplePositions( positionContainer *p,
       nextpos:
 
 	// onto the next one
-	pos++;
+	pos += posIncrement;
 	if (pos >= sz) {
 	  pos = 0;
 	  roundstart = timedouble(); // start of the round
@@ -635,7 +639,7 @@ endoffunction:
   *totalWB = totalWriteSubmit;
   *totalRB = totalReadSubmit;
 
-  for (size_t i = 0; i < pos; i++) {
+  for (size_t i = 0; i < pos; i += posIncrement) {
     if (positions[i].action == 'R' || positions[i].action == 'W') {
       assert(positions[i].submitTime > 0);
     }
