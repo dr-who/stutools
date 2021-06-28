@@ -27,6 +27,15 @@ typedef struct {
 } arrayLifeType;
   
 
+float *setupProbsFlat(int maxdays, float prob) {
+
+  float *f = calloc(sizeof(float), maxdays);
+  for (size_t i = 0; i < maxdays; i++) {
+    f[i] = prob;
+  }
+  return f;
+}
+
 float *setupProbs(char *fn, int maxdays, int verbose) {
 
   float *f = calloc(sizeof(float), maxdays);
@@ -261,7 +270,8 @@ void usage(int years, int rebuild, int samples) {
   fprintf(stderr,"   -r rebuilddays(%d)\n", rebuild);
   fprintf(stderr,"   -s samples(%d)\n", samples);
   fprintf(stderr,"   -i hdd-surviverates.dat        # input day/survival file\n");
-  fprintf(stderr,"   -p outprobs.txt\n");
+  fprintf(stderr,"   -o outprobs.txt\n");
+  fprintf(stderr,"   -p probability                 # flat survivial prob over life\n");
   fprintf(stderr,"   -v (verbose)\n");
   fprintf(stderr,"   -a print array - use with small values of s only!\n");
   fprintf(stderr,"\ngraphics:\n");
@@ -277,8 +287,9 @@ int main(int argc, char *argv[]) {
   char *dumpprobs = NULL;
   double years = 5;
   char *inname = NULL;
+  float flatrate = 0;
   
-  while ((opt = getopt(argc, argv, "k:m:y:r:vs:p:n:i:h:a")) != -1) {
+  while ((opt = getopt(argc, argv, "k:m:y:r:vs:o:p:f:n:i:h:a")) != -1) {
     switch(opt) {
     case 'k':
       k = atoi(optarg);
@@ -299,6 +310,9 @@ int main(int argc, char *argv[]) {
       rebuilddays = atoi(optarg);
       break;
     case 'p':
+      flatrate = atof(optarg);
+      break;
+    case 'o':
       dumpprobs = strdup(optarg);
       break;
     case 'a':
@@ -335,15 +349,22 @@ int main(int argc, char *argv[]) {
   const int drives = k + m;
 
   fprintf(stderr,"*info* stutools: Monte-Carlo k+m/RAID failure simulator (%d samples)\n", samples);
-  fprintf(stderr,"*info* input survival probs: %s\n", inname);
   fprintf(stderr,"*info* total devices %d, k %d, m %d, years %.1lf, rebuild days %d\n", drives, k, m, years, rebuilddays);
   
   srand48(time(NULL));
 
-  float *f = setupProbs(inname, maxdays, verbose);
+  float *f = NULL;
+  if (flatrate) {
+    fprintf(stderr,"*info* flatrate = %.3lf\n", flatrate);
+    f = setupProbsFlat(maxdays, 0.99);
+  } else {
+    fprintf(stderr,"*info* loading probabilities from '%s'\n", inname);
+    f = setupProbs(inname, maxdays, verbose);
+  }
+  
   if (dumpprobs) {
     if (strcmp(inname, dumpprobs)==0) {
-      fprintf(stderr,"*error* don't use -p to clobber the input file\n");
+      fprintf(stderr,"*error* don't use -o to clobber the input file\n");
       exit(1);
     }
     fprintf(stderr,"*info* output per day probss: %s\n", dumpprobs);
