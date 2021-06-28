@@ -1976,8 +1976,8 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       preconditions->strings[i] = strdup(s);
     }
     if (fragmentLBA)  {
-      const size_t stepgb = 1;
-      fprintf(stderr,"*info* precondition: fragment LBA=%zd, LBA=[%.2lf, %.2lf) GB, step %zd GB\n", fragmentLBA, TOGB(minSizeBytes), TOGB(maxSizeBytes), stepgb);
+      const size_t stepgb = 64; 
+      fprintf(stderr,"*info* precondition: step through LBA=%zd positions, LBA=[%.2lf, %.2lf) GB, batch %zd GB\n", fragmentLBA, TOGB(minSizeBytes), TOGB(maxSizeBytes), stepgb);
       for (size_t p = TOGiB(minSizeBytes); p < TOGiB(maxSizeBytes); p+= stepgb) if (keepRunning) {
 	free(preconditions->strings[0]); // free 'f'
 	char s[100];
