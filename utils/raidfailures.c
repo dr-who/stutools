@@ -183,14 +183,18 @@ int simulateArray(arrayLifeType *a, float *f, const int days, const int n, const
       fprintf(stdout, "%d|", j);
     }
     for (int i = 0; i < n; i++) {
-      float ran = drand48();    // return random number between 0 and 1
+      double ran = drand48();    // return random number between 0 and 1
+      assert(ran != 1.0);
       int prev = 0;
       if (printarray) {
 	fprintf(stdout, "%d:", a->day[j].daylastreplaced[i]);
       }
       
       if (j>0) prev = a->day[j-1].drive[i];
-      if ((prev>0) || (ran < ((1-f[j - a->day[j].daylastreplaced[i]])/365.0))) {
+      
+      const double thres = (1.0 - f[j - a->day[j].daylastreplaced[i]]) / 365.0;
+      //      fprintf(stderr,"%lf %lf  %f\n", ran, thres, f[j - a->day[j].daylastreplaced[i]]);
+      if ((prev>0) || (ran < thres)) {
 
 	a->day[j].drive[i] = prev+1;
 	a->failedOnDay[j]++;
@@ -266,6 +270,7 @@ void usage(int years, int rebuild, int samples) {
   fprintf(stderr,"   Monte-Carlo simulation of array failure given drive survival/failure\n");
   fprintf(stderr,"   probabilities\n");
   fprintf(stderr,"\noptions:\n");
+  fprintf(stderr,"   -t drives\n");
   fprintf(stderr,"   -y years(%d)\n", years);
   fprintf(stderr,"   -r rebuilddays(%d)\n", rebuild);
   fprintf(stderr,"   -s samples(%d)\n", samples);
@@ -283,13 +288,13 @@ void usage(int years, int rebuild, int samples) {
 int main(int argc, char *argv[]) {
 
   optind = 0;
-  int k = 0, m = 0, rebuilddays = 7, opt = 0, verbose = 0, samples = 10000, specifieddisks = 0, printarray = 0;
+  int k = 0, m = 0, t = 0, rebuilddays = 7, opt = 0, verbose = 0, samples = 10000, printarray = 0;
   char *dumpprobs = NULL;
   double years = 5;
   char *inname = NULL;
   float flatrate = 0;
   
-  while ((opt = getopt(argc, argv, "k:m:y:r:vs:o:p:f:n:i:h:a")) != -1) {
+  while ((opt = getopt(argc, argv, "k:m:y:r:vs:o:p:f:t:i:h:a")) != -1) {
     switch(opt) {
     case 'k':
       k = atoi(optarg);
@@ -303,8 +308,8 @@ int main(int argc, char *argv[]) {
     case 'y':
       years = atof(optarg);
       break;
-    case 'n':
-      specifieddisks = atoi(optarg);
+    case 't':
+      t = atoi(optarg);
       break;
     case 'r':
       rebuilddays = atoi(optarg);
@@ -336,9 +341,16 @@ int main(int argc, char *argv[]) {
   }
   
   int maxdays = years * 365;
+  if (rebuilddays == 0) rebuilddays = maxdays;
 
-  if (specifieddisks) {
-    k = specifieddisks - m;
+  if (t > 0) {
+    if (k == 0 && m > 0) {
+      k = t - m;
+    } else if (m == 0 && k > 0) {
+      m = t - k;
+    }
+  } else {
+    t = k+m;
   }
 
   if ((k<1) || (m<0) || (maxdays < k+m)) {
@@ -346,17 +358,17 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  const int drives = k + m;
+
 
   fprintf(stderr,"*info* stutools: Monte-Carlo k+m/RAID failure simulator (%d samples)\n", samples);
-  fprintf(stderr,"*info* total devices %d, k %d, m %d, years %.1lf, rebuild days %d\n", drives, k, m, years, rebuilddays);
+  fprintf(stderr,"*info* total devices %d, k %d, m %d, years %.1lf, rebuild days %d\n", t, k, m, years, rebuilddays);
   
   srand48(time(NULL));
 
   float *f = NULL;
   if (flatrate) {
     fprintf(stderr,"*info* flatrate = %.3lf\n", flatrate);
-    f = setupProbsFlat(maxdays, 0.99);
+    f = setupProbsFlat(maxdays, flatrate);
   } else {
     fprintf(stderr,"*info* loading probabilities from '%s'\n", inname);
     f = setupProbs(inname, maxdays, verbose);
@@ -374,13 +386,13 @@ int main(int argc, char *argv[]) {
 
   int ok = 0, bad = 0;
   
-  arrayLifeType a = setupArray(maxdays, drives);
+  arrayLifeType a = setupArray(maxdays, t);
 
   int daysrebuilding = 0, daysrebuildingtotal = 0, globalmaxfailed = 0, globalageofdeath = 0, globaldrivesneeded = 0;
   for (size_t s = 0; s < samples; s++) {
     int maxfailed = 0, ageofdeath = 0, drivesneeded = 0;
-    clearArray(&a, maxdays, drives);
-    int death = simulateArray(&a, f, maxdays, drives, rebuilddays, m, verbose, &daysrebuilding, &maxfailed, &ageofdeath, &drivesneeded, printarray);
+    clearArray(&a, maxdays, t);
+    int death = simulateArray(&a, f, maxdays, t, rebuilddays, m, verbose, &daysrebuilding, &maxfailed, &ageofdeath, &drivesneeded, printarray);
     
     if (death == 0) {
       ok++;
@@ -402,20 +414,20 @@ int main(int argc, char *argv[]) {
     }
 
     if (s==0) {
-      dumpArrayPPM(&a, maxdays, drives, m);
+      dumpArrayPPM(&a, maxdays, t, m);
     }
       
     if (verbose > 1) {
-      //      dumpArray(&a, maxdays, drives, m);
+      //      dumpArray(&a, maxdays, t, m);
     }
-    //        saveArray(&a, maxdays, drives, m, s);
+    //        saveArray(&a, maxdays, t, m, s);
     
     if (verbose) fprintf(stderr, "Arrays that failed at least once in %.1lf years and rebuilt under %d maxdays. Total %d, Failed array, %d, Failed %% %.1lf %% (sample %zd)\n", years, rebuilddays, ok, bad, bad*100.0/(ok+bad), s+1);
   }
-  freeArray(&a, maxdays, drives);
+  freeArray(&a, maxdays, t);
 
 
-  fprintf(stdout, "%d\t%.3lf %%\t%.3lf %%\t%d maxfail\t%.3lf avgage\t%d drivesneeded\n", bad, bad * 100.0 / (ok+bad), 100.0*daysrebuildingtotal / (samples * maxdays), globalmaxfailed, bad==0?0:globalageofdeath * 1.0 / bad, globaldrivesneeded / samples);
+  fprintf(stdout, "%d\t%.3lf %%\t%.3lf %%\t%d maxfail\t%.3lf avgage\t%d drivesneeded\t%d\t%d\n", bad, bad * 100.0 / (ok+bad), 100.0*daysrebuildingtotal / (samples * maxdays), globalmaxfailed, bad==0?0:globalageofdeath * 1.0 / bad, globaldrivesneeded / samples, k, m);
   if (f) free(f);
   if (inname) free(inname);
   if (dumpprobs) free(dumpprobs);
