@@ -1115,7 +1115,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
 
   int calls;
   if (max_bytes) {
-    calls = ceil(high * 1.0 / max_bytes);
+    calls = ceil((high * 1.0 - low) / max_bytes);
   } else {
     calls = 1;
     max_bytes = high - low;
