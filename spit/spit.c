@@ -506,8 +506,8 @@ void usage()
   fprintf(stdout,"  spit -c wx3 -G4 -T            # perform pre-DISCARD/TRIM operations before each round\n");
   fprintf(stdout,"  spit -c ts0                   # Use a sync DISCARD/TRIM I/O type\n");
   fprintf(stdout,"  spit -c rrwts0                # 50%% read, 25%% writes and 25%% trim I/O random operations\n");
-  fprintf(stdout,"  spit -c wx1G0-64k4zs1         # Write from 0-1 GiB, in 4KiB steps, sequentially \n");
-  fprintf(stdout,"  spit -c wx1G0-64k4zs1K20      # Write from 0-1 GiB, in 4KiB steps, writing 1 in 20. \n");
+  fprintf(stdout,"  spit -c wx1G0-64k4zs1         # Write from [0,64) GiB, in 4KiB steps, sequentially \n");
+  fprintf(stdout,"  spit -c wx1G0-64k4zs1K20      # Write from [0,64) GiB, in 4KiB steps, writing 1 in 20. \n");
   fprintf(stdout,"  spit -p f5 -f device -c ...   # Precondition/max-fragmentation with 5%% GC overhead, becomes K20.\n");
   fprintf(stdout,"                                # the -p f5 commands iterates across the LBA in 64G chunks as previous two commands.\n");
   exit(0);
