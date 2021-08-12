@@ -618,8 +618,14 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   pc->minbs = lengthsMin(len);
   pc->maxbs = lengthsMax(len);
   assert(pc->minbs > 0);
-  
+  pc->minbdSize = minbdSize;
   pc->maxbdSize = maxbdSize;
+
+  if ((maxbdSize - minbdSize) / pc->minbs < 1) {
+    fprintf(stdout, "*error* device size [%zd, %zd) is smaller than the block size (%zd)\n", minbdSize, maxbdSize, pc->minbs);
+    exit(1);
+  }
+  
   if (fourkEveryMiB) {
     fprintf(stderr,"*info* inserting a 4KiB operation every %.1lf MiB\n", fourkEveryMiB);
   }
