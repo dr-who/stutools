@@ -84,6 +84,24 @@ set_tests_properties(testspitfail3 PROPERTIES WILL_FAIL TRUE )
 add_test(testspitwk512b  spit -f wow -G 0.5 -c ws1k0.5 -v -V -t 1)
 
 add_test(testspita10 spit -f wow -G 1 -c ws1a10zM1 -v -t 5 )
+
+add_test(testspitrange1 spit -f wow -G 1 -c rM1024q1j1x1 -v  )
+add_test(testspitrange2 spit -f wow -G 1 -c rM1024q1j2x1oG_ -v  )
+set_tests_properties(testspitrange2 PROPERTIES WILL_FAIL TRUE)
+
+add_test(testspitrange3 spit -f wow -G 1 -c rM1025q1x1 -v  )
+set_tests_properties(testspitrange3 PROPERTIES WILL_FAIL TRUE)
+
+add_test(testspitrange4 spit -f wow -G 0.5-1 -c rM513q1x1 -v  )
+set_tests_properties(testspitrange4 PROPERTIES WILL_FAIL TRUE)
+
+add_test(testspitrange5 spit -f wow -G 0.5-1 -c rM512q1x1 -v  )
+add_test(testspitrange6 spit -f wow -G 0.5-1 -c rM256q1x1j2G_ -v  )
+
+add_test(testspitrange7 spit -f wow -G 0.5-1 -c rM257q1x1j2G_ -v  )
+set_tests_properties(testspitrange7 PROPERTIES WILL_FAIL TRUE)
+
+
 add_test(testspita10x3n spit -f wow -G 1 -c ws1zM1x3n -v -t 5 )
 
 add_test(testspitPlotsa spit -f wow -G 1 -c ws0P10000M64j16G_ -v -t 5 )
