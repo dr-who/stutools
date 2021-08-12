@@ -1843,11 +1843,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     origpc[i] = threadContext[i].pos;
   }
   
-  latencyType lat;
-  latencySetup(&lat, origpc);
-  latencyStats(&lat);
-  latencyWriteGnuplot(&lat);
-  latencyReadGnuplot(&lat);
+  {
+    latencyType lat;
+    latencySetup(&lat, origpc);
+    latencyStats(&lat);
+    latencyWriteGnuplot(&lat);
+    latencyReadGnuplot(&lat);
+    latencyFree(&lat);
+  }
   
   positionContainer mergedpc = positionContainerMerge(origpc, num);
 
