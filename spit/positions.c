@@ -617,6 +617,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   positionType *positions = pc->positions;
   pc->minbs = lengthsMin(len);
   pc->maxbs = lengthsMax(len);
+  assert(pc->minbs > 0);
+  
   pc->maxbdSize = maxbdSize;
   if (fourkEveryMiB) {
     fprintf(stderr,"*info* inserting a 4KiB operation every %.1lf MiB\n", fourkEveryMiB);
@@ -726,11 +728,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
       if (pc->minbs != pc->maxbs) {
         thislen = lengthsGet(len, &seed);
       }
-      //      assert(thislen >= 0);
+      assert(thislen > 0);
 
       if ((j + thislen <= positionsEnd[i])) {
-
-
 
         // grow destination array
         if (count >= possAlloc) {
@@ -777,7 +777,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         poss[count].submitTime = 0;
         poss[count].finishTime = 0;
         poss[count].len = thislen;
-        //	assert(poss[count].len >= 0);
+	assert(poss[count].len == thislen); // check the datastructure has enough bits to store the value
         poss[count].seed = seedin;
         poss[count].verify = 0;
         poss[count].q = 0;
@@ -1081,7 +1081,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
     else if (positions[i].action == 'T') tcount++;
 
     if (i < countToShow) {
-      fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7d\tdevice %d\tverify %d\tseed %6d\tusoffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
+      fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\tusoffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
     }
   }
   fprintf(stderr,"\tSummary[%d]: reads %zd, writes %zd, trims %zd, hash %lx\n", positions[0].seed, rcount, wcount, tcount, hash);
@@ -1096,6 +1096,7 @@ void positionContainerInit(positionContainer *pc, size_t UUID)
 
 void positionContainerSetup(positionContainer *pc, size_t sz)
 {
+  assert(sz > 0);
   pc->sz = sz;
   pc->positions = createPositions(sz);
   //  assert (sz < 1000);
