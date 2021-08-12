@@ -101,6 +101,8 @@ add_test(testspitrange6 spit -f wow -G 0.5-1 -c rM256q1x1j2G_ -v  )
 add_test(testspitrange7 spit -f wow -G 0.5-1 -c rM257q1x1j2G_ -v  )
 set_tests_properties(testspitrange7 PROPERTIES WILL_FAIL TRUE)
 
+add_test(testspitrange8 spit -f wow -G 1 -c rM4096 -v  )
+set_tests_properties(testspitrange8 PROPERTIES WILL_FAIL TRUE)
 
 add_test(testspita10x3n spit -f wow -G 1 -c ws1zM1x3n -v -t 5 )
 

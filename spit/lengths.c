@@ -30,6 +30,10 @@ void lengthsFree(lengthsType *l)
 
 void lengthsAdd(lengthsType *l, const size_t len, size_t freq)
 {
+  if (len > (1L << 32) -1) {
+    fprintf(stderr,"*error* block length is too large (%zd)\n", len);
+    exit(1);
+  }
   if (freq < 1) freq = 1;
   l->size++;
   l->len = realloc(l->len, (l->size) * sizeof(lengthsType));
