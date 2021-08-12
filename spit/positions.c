@@ -42,15 +42,16 @@ int poscompare(const void *p1, const void *p2)
   }
 }
 
-void calcLBA(positionContainer *pc)
+/* void calcLBA(positionContainer *pc)
 {
   size_t t = 0;
   for (size_t i = 0; i < pc->sz; i++) {
+    assert(pc->positions[i].len > 0);
     t += pc->positions[i].len;
   }
   pc->LBAcovered = 100.0 * t / pc->maxbdSize;
 }
-
+*/
 
 positionType *createPositions(size_t num)
 {
@@ -1097,6 +1098,7 @@ void positionContainerSetup(positionContainer *pc, size_t sz)
 {
   pc->sz = sz;
   pc->positions = createPositions(sz);
+  //  assert (sz < 1000);
 }
 
 
@@ -1199,7 +1201,8 @@ void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed, co
   size_t origsz = pc->sz;
 
   // originals
-  positionType *origs = malloc(origsz * sizeof(positionType));
+  positionType *origs;
+  CALLOC(origs, origsz, sizeof(positionType));
   if (!origs) {
     fprintf(stderr,"*error* can't alloc array for uniqueSeeds\n");
     exit(-1);

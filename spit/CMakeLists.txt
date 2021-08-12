@@ -11,7 +11,7 @@ include (CTest)
 
 #enable_testing()
 
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wall -pedantic --std=gnu11 -O2" )
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wall -pedantic --std=gnu11 -O2 " )
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
 add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c)
@@ -85,6 +85,11 @@ add_test(testspitwk512b  spit -f wow -G 0.5 -c ws1k0.5 -v -V -t 1)
 
 add_test(testspita10 spit -f wow -G 1 -c ws1a10zM1 -v -t 5 )
 add_test(testspita10x3n spit -f wow -G 1 -c ws1zM1x3n -v -t 5 )
+
+add_test(testspitPlotsa spit -f wow -G 1 -c ws0P10000M64j16G_ -v -t 5 )
+add_test(testspitPlotsb spit -f wow -G 1 -c ws0M64j16G_P100000 -v -t 5 )
+add_test(testspitPlotsc spit -f wow -G 1 -c ws0k8j16G_P10000 -v -t 5 )
+add_test(testspitPlotsb spit -f wow -G 1 -c ws0j16G_P10000k8 -v -t 5 )
 
 add_test(testspitpf10 spit -p f10 -f wow -G 1 -c w -v -t 5)
 add_test(testspitwm1 spit -f wow -G 1 -c wm1s1 -v -t 5)

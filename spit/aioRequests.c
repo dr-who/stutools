@@ -107,6 +107,7 @@ size_t aioMultiplePositions( positionContainer *p,
     }
   }
   assert(maxSize > 0);
+  assert(maxSize <= 1L*1024*1024*1024); // shouldn't be more than 1GB!?
 
   /* setup I/O control block, randomised just for this run. So we can check verification afterwards */
   char **data = NULL;

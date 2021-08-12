@@ -280,9 +280,9 @@ static void *runThread(void *arg)
  * Input is sorted
  *
  */
-int verifyPositions(positionContainer *pc, const size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime, size_t *r_correct, size_t *r_incorrect, size_t *r_ioerrors, int quiet, int process, size_t overridesize)
+int verifyPositions(positionContainer *pc, size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime, size_t *r_correct, size_t *r_incorrect, size_t *r_ioerrors, int quiet, int process, size_t overridesize)
 {
-
+  if (threads < 1) threads = 1;
   const double finishTime = (runTime <= 0) ? (timedouble() + 9e99) : (timedouble() + runTime);
 
   if (runTime > 0) {

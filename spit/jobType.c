@@ -245,21 +245,22 @@ static void *runThread(void *arg)
   //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
   positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions);
 
+  for (size_t e = 0; e < threadContext->pos.sz; e++) {
+    assert(threadContext->pos.positions[e].len > 0);
+  }
+  
+
   if (verbose >= 2) {
     positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, threadContext->metaData ? 0 : 1 /*don't exit if meta*/);
   }
 
   if (threadContext->seqFiles == 0 || threadContext->firstPPositions) positionContainerRandomize(&threadContext->pos, threadContext->seed);
 
-  if (threadContext->firstPPositions) {
-    threadContext->pos.sz = threadContext->firstPPositions;
-  }
-
   if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun, threadContext->seed);
 
   //      positionPrintMinMax(threadContext->pos.positions, threadContext->pos.sz, threadContext->minbdSize, threadContext->maxbdSize, threadContext->minSizeInBytes, threadContext->maxSizeInBytes);
   threadContext->anywrites = (threadContext->rw.wprob > 0) || (threadContext->rw.tprob > 0);
-  calcLBA(&threadContext->pos); // calc LBA coverage
+  //  calcLBA(&threadContext->pos); // calc LBA coverage
 
 
   if (threadContext->uniqueSeeds) {
@@ -1322,22 +1323,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     if (qDepth < 1) qDepth = 1;
     if (qDepth > 65535) qDepth = 65535;
 
-    size_t mp = (size_t) ((threadContext[i].maxbdSize - threadContext[i].minbdSize) / bs);
-
+    size_t mp = ceil((threadContext[i].maxbdSize - threadContext[i].minbdSize) * 1.0 / bs);
 
     threadContext[i].firstPPositions = 0;
     char *pChar = strchr(job->strings[i], 'P');
     {
       if (pChar && *(pChar+1)) {
-        size_t newmp = atoi(pChar + 1);
-        threadContext[i].firstPPositions = newmp;
-	//        if (newmp < mp) {
-	//          mp = newmp;
-	//        }
-	//        if (mp < 1) mp = 1;
-        if (newmp <= qDepth) {
-          qDepth = newmp;
-        }
+        threadContext[i].firstPPositions = atoi(pChar + 1);
       }
     }
 
@@ -1431,26 +1423,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         fprintf(stderr,"*info* to limit sum of lengths to %.1lf GiB, with avg size of %zd, requires %zd positions\n", TOGiB(limit), bs, sizeLimitCount);
       }
     }
-
-
     if (verbose) {
-      fprintf(stderr,"*info* sizeLimit %zu, countin time %zd, mp %zd, fitinram %zd\n", sizeLimitCount, countintime, mp, fitinram);
+      fprintf(stderr,"*info* mp %zd, sizeLimit %zu, countin time %zd, mp %zd, fitinram %zd\n", mp, limit != (size_t)-1 ? sizeLimitCount : 0, countintime, mp, fitinram);
     }
-
-    size_t mp2 = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));
-    assert(mp2 > 0);
-    if (mp2 != mp) {
-      mp = mp2;
-      if (verbose) {
-        if (i == 0) {
-          fprintf(stderr,"*info* device '%s', positions limited to %zd\n", job->devices[i], mp);
-        }
-      }
-    }
-
-    if (verbose) {
-      fprintf(stderr,"*info* positions limited to %zd\n", mp);
-    }
+    
 
     threadContext[i].jobstring = job->strings[i];
     threadContext[i].jobdevice = job->devices[i];
@@ -1678,9 +1654,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	qDepth = metaData;
       }
     }
+
+    // now we have got the G_ and P in any order
+    if (threadContext[i].firstPPositions) mp = MIN(mp, threadContext[i].firstPPositions); // min of calculated and specified
+
+    mp = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));
+    
+    if (mp <= qDepth) { // check qd isn't too high
+      qDepth = mp;
+    }
+
     threadContext[i].queueDepth = qDepth;
 
-      
     positionContainerSetup(&threadContext[i].pos, mp);
     threadContext[i].seqFiles = seqFiles;
     threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
