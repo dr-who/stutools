@@ -166,6 +166,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'j':
       break;
     case 'F':
+      if (isBlockDevice(optarg)) {
+	fprintf(stderr,"*error* '%s' can't be a block device, it's a mount point and prefix\n", optarg);
+	exit(1);
+      }
       *filePrefix = strdup(optarg);
       addDeviceDetails(optarg, &deviceList, &deviceCount);
       break;
