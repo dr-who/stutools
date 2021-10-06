@@ -16,9 +16,12 @@
 #include "positions.h"
 
 
-void latencySetup(latencyType *lat, positionContainer *pc) {
+void latencyClear(latencyType *lat) {
   histSetup(&lat->histRead, 0, 10000, 2e-2);
   histSetup(&lat->histWrite, 0, 10000, 2e-2);
+}  
+
+void latencySetup(latencyType *lat, positionContainer *pc) {
   
   for (int i = 0; i < (int) pc->sz; i++) if (pc->positions[i].finishTime>0) {
     if (pc->positions[i].action == 'R')
@@ -27,7 +30,63 @@ void latencySetup(latencyType *lat, positionContainer *pc) {
       histAdd(&lat->histWrite, 1000 * (pc->positions[i].finishTime - pc->positions[i].submitTime));
   }
 }
+void latencySetupSizeonly(latencyType *lat, positionContainer *pc, size_t size) {
+  
+  for (int i = 0; i < (int) pc->sz; i++)
+    if (pc->positions[i].finishTime>0)
+      if (pc->positions[i].len == size) {
+	if (pc->positions[i].action == 'R')
+	  histAdd(&lat->histRead, 1000 * (pc->positions[i].finishTime - pc->positions[i].submitTime));
+	else if (pc->positions[i].action == 'W')
+	  histAdd(&lat->histWrite, 1000 * (pc->positions[i].finishTime - pc->positions[i].submitTime));
+      }
+}
 
+
+void latencyLenVsLatency(positionContainer *origpc, int num) {
+  FILE *fp_r = fopen("size_vs_latency_r.txt", "wt");
+  FILE *fp_w = fopen("size_vs_latency_w.txt", "wt");
+  assert(fp_r);
+  assert(fp_w);
+  srand48(0);
+  size_t count = 0 ;
+  for (int n = 0; n < num; n++) {
+    for (int i = 0; i < (int) origpc[n].sz; i++) if (origpc[n].positions[i].finishTime > 0) {
+	if (origpc[n].positions[i].action == 'R') {
+	  count++;
+	  double v = 1 - (drand48()*0.1);
+	  fprintf(fp_r, "%.6lf\t%.6lf\n", origpc[n].positions[i].len * v, origpc[n].positions[i].finishTime - origpc[n].positions[i].submitTime);
+	} else if (origpc[n].positions[i].action == 'W') {
+	  count++;
+	  double v = 1 + (drand48()*0.1);
+	  fprintf(fp_w, "%.6lf\t%.6lf\n", origpc[n].positions[i].len * v, origpc[n].positions[i].finishTime - origpc[n].positions[i].submitTime);
+	} 
+      }
+  }
+  fclose(fp_r);
+  fclose(fp_w);
+
+  FILE *fp = fopen("size_vs_latency.gnu", "wt");
+  if (fp) {
+    fprintf(fp, "set key above\n");
+    fprintf(fp, "set title 'Block size vs Latency (10%% horiz jitter, n=%zd)\n", count);
+    fprintf(fp, "set log x\n");
+    fprintf(fp, "set log y\n");
+    fprintf(fp, "set xtics auto\n");
+    fprintf(fp, "set logscale x 2\n");
+    fprintf(fp, "set format x '2^{%%L}'\n");
+    fprintf(fp, "set grid\n");
+    fprintf(fp, "set xlabel 'Block size (bytes)'\n");
+    fprintf(fp, "set ylabel 'Latency (ms)'\n");
+    fprintf(fp, "plot 'size_vs_latency_r.txt' with points title 'Block reads', 'size_vs_latency_w.txt' with points title 'Block writes'\n");
+  } else {
+    perror("filename");
+  }
+  fclose(fp);
+}
+  
+      
+  
 
 void latencyStats(latencyType *lat) {
   double median, three9, four9, five9;
@@ -58,12 +117,13 @@ void latencyReadGnuplot(latencyType *lat) {
   FILE *fp = fopen("spit-latency-histogram-read.gnu", "wt");
   if (fp) {
     fprintf(fp, "set key above\n");
-    fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
+    fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)\n", lat->histRead.dataCount);
+    fprintf(fp, "set log x\n");
     fprintf(fp, "set log y\n");
     fprintf(fp, "set xtics auto\n");
     fprintf(fp, "set y2tics 10\n");
     fprintf(fp, "set grid\n");
-    fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
+    fprintf(fp, "set xrange [:%lf]\n", five9 * 1.1);
     fprintf(fp, "set y2range [0:100]\n");
     fprintf(fp, "set xlabel 'Time (ms)'\n");
     fprintf(fp, "set ylabel 'Count'\n");
@@ -87,12 +147,13 @@ void latencyWriteGnuplot(latencyType *lat) {
   FILE *fp = fopen("spit-latency-histogram-write.gnu", "wt");
   if (fp) {
     fprintf(fp, "set key above\n");
-    fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot\n");
+    fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)\n", lat->histWrite.dataCount);
+    fprintf(fp, "set log x\n");
     fprintf(fp, "set log y\n");
     fprintf(fp, "set xtics auto\n");
     fprintf(fp, "set y2tics 10\n");
     fprintf(fp, "set grid\n");
-    fprintf(fp, "set xrange [0:%lf]\n", five9 * 1.1);
+    fprintf(fp, "set xrange [:%lf]\n", five9 * 1.1);
     fprintf(fp, "set y2range [0:100]\n");
     fprintf(fp, "set xlabel 'Time (ms)'\n");
     fprintf(fp, "set ylabel 'Count'\n");
