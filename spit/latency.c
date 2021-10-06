@@ -77,7 +77,7 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
     fprintf(fp, "set format x '2^{%%L}'\n");
     fprintf(fp, "set grid\n");
     fprintf(fp, "set xlabel 'Block size (bytes)'\n");
-    fprintf(fp, "set ylabel 'Latency (ms)'\n");
+    fprintf(fp, "set ylabel 'Latency (s)'\n");
     fprintf(fp, "plot 'size_vs_latency_r.txt' with points title 'Block reads', 'size_vs_latency_w.txt' with points title 'Block writes'\n");
   } else {
     perror("filename");
