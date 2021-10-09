@@ -160,6 +160,9 @@ void nlDump(numListType *n) {
 
 void usage(int averagedefault) {
   fprintf(stderr,"Usage:\n  dist [-a window] (in/out from stdin/stdout)\n");
+  fprintf(stderr,"\nDescription:\n");
+  fprintf(stderr,"  Takes one column as input. Averages over n samples and\n");
+  fprintf(stderr,"  outputs a cummulative distribution.\n");
   fprintf(stderr,"\nExamples:\n");
   fprintf(stderr,"  dist        # defaults\n");
   fprintf(stderr,"  dist -c n   # use column n. Default to column 1\n");
