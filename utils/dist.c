@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'c':
       usecolumn = atoi(optarg); // starts from 0
-      fprintf(stderr,"*info* using column %zd\n", usecolumn);
+      if (usecolumn < 1) usecolumn = 1;
       break;
     case 'n':
       header = 1;
