@@ -623,6 +623,44 @@ static void *runThreadTimer(void *arg)
   FILE *fp = NULL, *fpmysql = NULL;
   char s[1000];
   if (threadContext->benchmarkName) {
+    // first write out .gnufile
+    sprintf(s, "%s_r.gnu", threadContext->benchmarkName);
+    fp = fopen(s, "wt");
+    if (fp) {
+      fprintf(fp, "set title 'Speed over time: read (confidence intervals)'\n");
+      fprintf(fp, "set key autotitle columnhead\n");
+      fprintf(fp, "set xlabel 'seconds'\n");
+      fprintf(fp, "set ylabel 'MB/s'\n");
+      fprintf(fp, "set key outside top center horiz\n");
+      fprintf(fp, "ymin=100000; ymax = 0;\n");
+      fprintf(fp, "do for [i=1:9] {\n");
+      fprintf(fp, "stats '<../utils/dist -c 3 <out' u i nooutput\n");
+      fprintf(fp, "if (STATS_min < ymin) {ymin=STATS_min}\n");
+      fprintf(fp, "if (STATS_max > ymax) {ymax=STATS_max}\n");
+      fprintf(fp, "}\n");
+      fprintf(fp, "set yrange [ymin:ymax]\n");
+      fprintf(fp, "plot for [i=10:2:-1] '<../utils/dist -p 1 -c 3 <out' using 1:i with filledcurves x1 linestyle i title columnheader(i)\n");
+    }
+
+    sprintf(s, "%s_w.gnu", threadContext->benchmarkName);
+    fp = fopen(s, "wt");
+    if (fp) {
+      fprintf(fp, "set title 'Speed over time: write (confidence intervals)'\n");
+      fprintf(fp, "set key autotitle columnhead\n");
+      fprintf(fp, "set xlabel 'seconds'\n");
+      fprintf(fp, "set ylabel 'MB/s'\n");
+      fprintf(fp, "set key outside top center horiz\n");
+      fprintf(fp, "ymin=100000; ymax = 0;\n");
+      fprintf(fp, "do for [i=1:9] {\n");
+      fprintf(fp, "stats '<../utils/dist -c 5 <out' u i nooutput\n");
+      fprintf(fp, "if (STATS_min < ymin) {ymin=STATS_min}\n");
+      fprintf(fp, "if (STATS_max > ymax) {ymax=STATS_max}\n");
+      fprintf(fp, "}\n");
+      fprintf(fp, "set yrange [ymin:ymax]\n");
+      fprintf(fp, "plot for [i=10:2:-1] '<../utils/dist -p 1 -c 5 <out' using 1:i with filledcurves x1 linestyle i title columnheader(i)\n");
+    }
+
+    // then mysql
     sprintf(s, "%s.my", threadContext->benchmarkName);
     fp = fopen(threadContext->benchmarkName, "wt");
     if (threadContext->mysqloptions) {
@@ -636,7 +674,7 @@ static void *runThreadTimer(void *arg)
     }
 
     if (fp) {
-      fprintf(stderr,"*info* benchmark file '%s' (MySQL '%s')\n", threadContext->benchmarkName, s);
+      fprintf(stderr,"*info* benchmark file '%s' (MySQL '%s.my', gnuplot '%s.gnu')\n", threadContext->benchmarkName, threadContext->benchmarkName, threadContext->benchmarkName);
     } else {
       fprintf(stderr,"*error* couldn't create benchmark file '%s' (MySQL '%s')\n", threadContext->benchmarkName, s);
       perror(threadContext->benchmarkName);

@@ -77,7 +77,7 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
   positionType *p = (positionType *)positions;
   positionType *copy = NULL;
 
-  for (size_t j = 0; j < num; j++) {
+  for (size_t j = 0; j < num && keepRunning; j++) {
     if (p->len == 0) {
       fprintf(stderr,"len is 0!\n");
       abort();
@@ -126,6 +126,10 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
       p++;
     }
   }
+  if (num == 0) {
+    return 0;
+  }
+		
   // duplicate, sort the array. Count unique positions
   CALLOC(copy, num, sizeof(positionType));
   memcpy(copy, positions, num * sizeof(positionType));
@@ -172,7 +176,7 @@ void positionContainerCheckOverlap(const positionContainer *merged)
   if (verbose) {
     size_t readcount = 0, writecount = 0, notcompletedcount = 0, conflict = 0, trimcount = 0;
     positionType *pp = merged->positions;
-    for (size_t i = 0; i < merged->sz; i++,pp++) {
+    for (size_t i = 0; i < merged->sz && keepRunning; i++,pp++) {
       if (pp->finishTime == 0 || pp->submitTime == 0) {
         notcompletedcount++;
       } else {
@@ -187,14 +191,14 @@ void positionContainerCheckOverlap(const positionContainer *merged)
 
   // check they are sorted based on position, otherwise we can't prune
   if (merged->sz > 1) {
-    for (size_t i = 0; i < merged->sz - 1; i++) {
+    for (size_t i = 0; i < (merged->sz - 1) && keepRunning; i++) {
       if (merged->positions[i].deviceid == merged->positions[i+1].deviceid) {
         assert(merged->positions[i].pos <= merged->positions[i+1].pos);
       }
     }
 
     size_t printed = 0;
-    for (size_t i = 0; i < merged->sz - 1; i++) {
+    for (size_t i = 0; i < (merged->sz - 1) && keepRunning; i++) {
       if ((merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') && (merged->positions[i].deviceid == merged->positions[i+1].deviceid)) {
         int pe = 0;
         if (merged->positions[i].pos > merged->positions[i+1].pos) pe = 1;
@@ -228,7 +232,7 @@ void positionContainerCollapse(positionContainer *merged)
 {
   fprintf(stderr,"*info* remove action conflicts (%zd raw positions)\n", merged->sz);
   size_t  newstart = 0;
-  for (size_t i =0 ; i < merged->sz; i++) {
+  for (size_t i =0 ; i < merged->sz && keepRunning; i++) {
     if (merged->positions[i].finishTime != 0) {
       if (newstart != i) {
         merged->positions[newstart] = merged->positions[i];
@@ -693,7 +697,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   //  fprintf(stderr,"ratio %lf\n", ratio);
 
   double totalratio = minbdSize;
-  for (int i = 0; i < toalloc; i++) {
+  for (int i = 0; i < toalloc && keepRunning; i++) {
     positionsStart[i] = alignedNumber((size_t)totalratio, alignment);
     totalratio += ratio;
   }
@@ -705,7 +709,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
   if (verbose >= 2) {
     size_t sumgap = 0;
-    for (int i = 0; i < toalloc; i++) {
+    for (int i = 0; i < toalloc && keepRunning; i++) {
       if (positionsEnd[i] - positionsStart[i])
         fprintf(stderr,"*info* range[%d]  [%12zd, %12zd]... size = %zd\n", i+1, positionsStart[i], positionsEnd[i], positionsEnd[i] - positionsStart[i]);
       sumgap += (positionsEnd[i] - positionsStart[i]);
@@ -716,16 +720,16 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
 
   // setup the -P positions
-  for (int i = 0; i < toalloc; i++) {
+  for (int i = 0; i < toalloc && keepRunning; i++) {
     positionsCurrent[i] = positionsStart[i];
   }
 
   unsigned short xsubi[3] = {seed,seed,seed};
   // do it nice
   count = 0;
-  while (count < pc->sz) {
+  while (count < pc->sz && keepRunning) {
     int nochange = 1;
-    for (int i = 0; i < toalloc; i++) {
+    for (int i = 0; i < toalloc && keepRunning; i++) {
       size_t j = positionsCurrent[i]; // while in the range
 
       assert(j >= positionsStart[i]);
@@ -973,7 +977,7 @@ void positionContainerRandomize(positionContainer *pc, unsigned int seed)
 
   if (verbose)  fprintf(stderr,"*info* shuffling/randomizing the array of %zd values, seed %u\n", count, seed);
   for (size_t shuffle = 0; shuffle < 1; shuffle++) {
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < count && keepRunning; i++) {
       size_t j = i;
       if (count > 1) {
         while ((j = rand_r(&seed) % count) == i) {

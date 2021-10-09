@@ -161,14 +161,15 @@ void nlDump(numListType *n) {
 void usage(int averagedefault) {
   fprintf(stderr,"Usage:\n  dist [-a window] (in/out from stdin/stdout)\n");
   fprintf(stderr,"\nExamples:\n");
-  fprintf(stderr,"  dist        # defaults to %d samples\n", averagedefault);
+  fprintf(stderr,"  dist        # defaults\n");
   fprintf(stderr,"  dist -c n   # use column n. Default to column 1\n");
   fprintf(stderr,"  dist -n     # no header\n");
   fprintf(stderr,"  dist -m     # add a mean value\n");
   fprintf(stderr,"  dist -s     # add a triangular smoothed value\n");
-  fprintf(stderr,"  dist -a 2   # window set to 2 samples\n");
+  fprintf(stderr,"  dist -a 2   # window set to 2 samples. Default %d\n", averagedefault);
   fprintf(stderr,"  dist -i n   # ignore first n samples\n");
   fprintf(stderr,"  dist -l     # add line/sample value\n");
+  fprintf(stderr,"  dist -p n   # prefix line output with column n\n");
   fprintf(stderr,"  dist -t     # add total/sum value\n");
 }
 
@@ -176,7 +177,7 @@ void usage(int averagedefault) {
 int main(int argc, char *argv[]) {
 
   int opt;
-  const int averagedefault = 60;
+  const int averagedefault = 30;
   int average = averagedefault, mean = 0;
   size_t header = 0;
   size_t smoothed = 0;
@@ -185,8 +186,9 @@ int main(int argc, char *argv[]) {
   size_t showtotal = 0;
   double scaletotal = 1;
   size_t usecolumn = 1;
+  size_t prefixcolumn = 0;
   
-  while ((opt = getopt(argc, argv, "a:hmnsi:ltT:c:")) != -1) {
+  while ((opt = getopt(argc, argv, "a:hmnsi:ltT:c:p:")) != -1) {
     switch(opt) {
     case 'a':
       average = atoi(optarg);
@@ -210,6 +212,12 @@ int main(int argc, char *argv[]) {
       break;
     case 'l':
       showline = 1;
+      break;
+    case 'p':
+      prefixcolumn = atoi(optarg);
+      if (prefixcolumn < 1) {
+	prefixcolumn = 1;
+      }
       break;
     case 's':
       smoothed = 1;
@@ -248,9 +256,13 @@ int main(int argc, char *argv[]) {
   const char tt[2] = " \t";
   while ((read = getline(&line, &len, stdin)) != -1) {
     char *token = strtok(line, tt);
+    char *prefix = NULL;
     size_t col = 0;
     while( token != NULL ) {
       col++;
+      if (col == prefixcolumn) {
+	prefix = token;
+      }
       if (col == usecolumn) {
 	//	fprintf(stdout," - %s -", token);
 	break;
@@ -267,9 +279,13 @@ int main(int argc, char *argv[]) {
       if (n.num > 0) {
 	if (!header) {
 	  header=1;
+	  if (prefixcolumn) {
+	    fprintf(stdout,"col%zd\t", prefixcolumn);
+	  }
 	  fprintf(stdout,"%s'0%%'\t'0.15%%'\t'2.5%%'\t'16%%'\t'50%%'\t'84%%'\t'97.5%%'\t'99.85%%'\t'100%%'%s%s%s\n", (showline==0)?"":"line\t", (mean==0)?"":"\tmean", (smoothed==0)?"":"\tsmoothed", (showtotal==0)?"":"\ttotal");
 	}
 	if (showline) fprintf(stdout,"%zd\t", sample);
+	if (prefix) fprintf(stdout,"%s\t", prefix);
 	fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1));
 	if (smoothed) fprintf(stdout, "\t%g", nlSortedSmoothed(&n));
 	if (mean) fprintf(stdout,"\t%g", nlMean(&n));
