@@ -7,6 +7,7 @@
 #include <malloc.h>
 #include <limits.h>
 #include <assert.h>
+#include <string.h>
 
 typedef struct {
   double value;
@@ -161,6 +162,7 @@ void usage(int averagedefault) {
   fprintf(stderr,"Usage:\n  dist [-a window] (in/out from stdin/stdout)\n");
   fprintf(stderr,"\nExamples:\n");
   fprintf(stderr,"  dist        # defaults to %d samples\n", averagedefault);
+  fprintf(stderr,"  dist -c n   # use column n. Default to column 1\n");
   fprintf(stderr,"  dist -n     # no header\n");
   fprintf(stderr,"  dist -m     # add a mean value\n");
   fprintf(stderr,"  dist -s     # add a triangular smoothed value\n");
@@ -182,13 +184,18 @@ int main(int argc, char *argv[]) {
   size_t showline = 0;
   size_t showtotal = 0;
   double scaletotal = 1;
+  size_t usecolumn = 1;
   
-  while ((opt = getopt(argc, argv, "a:hmnsi:ltT:")) != -1) {
+  while ((opt = getopt(argc, argv, "a:hmnsi:ltT:c:")) != -1) {
     switch(opt) {
     case 'a':
       average = atoi(optarg);
       if (average < 1) average = 1;
       fprintf(stderr,"*info* average window size set to %d\n", average);
+      break;
+    case 'c':
+      usecolumn = atoi(optarg); // starts from 0
+      fprintf(stderr,"*info* using column %zd\n", usecolumn);
       break;
     case 'n':
       header = 1;
@@ -233,23 +240,42 @@ int main(int argc, char *argv[]) {
 
   double v = 0;
   size_t sample = 0;
-  
-  while (scanf("%lf", &v) == 1) {
-    sample++;
-    if (sample <= ignore) continue;
-    //    fprintf(stdout,"*info* in %g\n", v);
-    nlAdd(&n, v);
-    if (n.num > 0) {
-      if (!header) {
-	header=1;
-	fprintf(stdout,"%s'0%%'\t'0.15%%'\t'2.5%%'\t'16%%'\t'50%%'\t'84%%'\t'97.5%%'\t'99.85%%'\t'100%%'%s%s%s\n", (showline==0)?"":"line\t", (mean==0)?"":"\tmean", (smoothed==0)?"":"\tsmoothed", (showtotal==0)?"":"\ttotal");
+
+
+  ssize_t read;
+  char * line = NULL;
+  size_t len = 0;
+  const char tt[2] = " \t";
+  while ((read = getline(&line, &len, stdin)) != -1) {
+    char *token = strtok(line, tt);
+    size_t col = 0;
+    while( token != NULL ) {
+      col++;
+      if (col == usecolumn) {
+	//	fprintf(stdout," - %s -", token);
+	break;
       }
-      if (showline) fprintf(stdout,"%zd\t", sample);
-      fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1));
-      if (smoothed) fprintf(stdout, "\t%g", nlSortedSmoothed(&n));
-      if (mean) fprintf(stdout,"\t%g", nlMean(&n));
-      if (showtotal) fprintf(stdout,"\t%lf", nlSum(&n) / scaletotal);
-      fprintf(stdout, "\n");
+      token = strtok(NULL, tt);
+    }
+    
+    if (token) {
+      v = atof(token);
+      sample++;
+      if (sample <= ignore) continue;
+      //    fprintf(stdout,"*info* in %g\n", v);
+      nlAdd(&n, v);
+      if (n.num > 0) {
+	if (!header) {
+	  header=1;
+	  fprintf(stdout,"%s'0%%'\t'0.15%%'\t'2.5%%'\t'16%%'\t'50%%'\t'84%%'\t'97.5%%'\t'99.85%%'\t'100%%'%s%s%s\n", (showline==0)?"":"line\t", (mean==0)?"":"\tmean", (smoothed==0)?"":"\tsmoothed", (showtotal==0)?"":"\ttotal");
+	}
+	if (showline) fprintf(stdout,"%zd\t", sample);
+	fprintf(stdout,"%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g", nlSortedPos(&n, 0), nlSortedPos(&n, 0.015), nlSortedPos(&n, 0.025), nlSortedPos(&n, 0.16), nlMedian(&n), nlSortedPos(&n, 0.84), nlSortedPos(&n, 0.975), nlSortedPos(&n, 0.9985), nlSortedPos(&n, 1));
+	if (smoothed) fprintf(stdout, "\t%g", nlSortedSmoothed(&n));
+	if (mean) fprintf(stdout,"\t%g", nlMean(&n));
+	if (showtotal) fprintf(stdout,"\t%lf", nlSum(&n) / scaletotal);
+	fprintf(stdout, "\n");
+      }
     }
   }
   
