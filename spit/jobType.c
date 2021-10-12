@@ -634,12 +634,12 @@ static void *runThreadTimer(void *arg)
       fprintf(fp, "set key outside top center horiz\n");
       fprintf(fp, "ymin=100000; ymax = 0;\n");
       fprintf(fp, "do for [i=1:9] {\n");
-      fprintf(fp, "stats '<../utils/dist -c 3 <out' u i nooutput\n");
+      fprintf(fp, "stats '<~/stutools/utils/dist -c 3 <out' u i nooutput\n");
       fprintf(fp, "if (STATS_min < ymin) {ymin=STATS_min}\n");
       fprintf(fp, "if (STATS_max > ymax) {ymax=STATS_max}\n");
       fprintf(fp, "}\n");
       fprintf(fp, "set yrange [ymin:ymax]\n");
-      fprintf(fp, "plot for [i=10:2:-1] '<../utils/dist -p 1 -c 3 <out' using 1:i with filledcurves x1 linestyle i title columnheader(i)\n");
+      fprintf(fp, "plot for [i=10:2:-1] '<~/stutools/utils/dist -p 1 -c 3 <out' using 1:i with filledcurves x1 linestyle i title columnheader(i)\n");
     }
 
     sprintf(s, "%s_w.gnu", threadContext->benchmarkName);
@@ -652,12 +652,12 @@ static void *runThreadTimer(void *arg)
       fprintf(fp, "set key outside top center horiz\n");
       fprintf(fp, "ymin=100000; ymax = 0;\n");
       fprintf(fp, "do for [i=1:9] {\n");
-      fprintf(fp, "stats '<../utils/dist -c 5 <out' u i nooutput\n");
+      fprintf(fp, "stats '<~/stutools/utils/dist -c 5 <out' u i nooutput\n");
       fprintf(fp, "if (STATS_min < ymin) {ymin=STATS_min}\n");
       fprintf(fp, "if (STATS_max > ymax) {ymax=STATS_max}\n");
       fprintf(fp, "}\n");
       fprintf(fp, "set yrange [ymin:ymax]\n");
-      fprintf(fp, "plot for [i=10:2:-1] '<../utils/dist -p 1 -c 5 <out' using 1:i with filledcurves x1 linestyle i title columnheader(i)\n");
+      fprintf(fp, "plot for [i=10:2:-1] '<~/stutools/utils/dist -p 1 -c 5 <out' using 1:i with filledcurves x1 linestyle i title columnheader(i)\n");
     }
 
     // then mysql
