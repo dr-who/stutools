@@ -68,6 +68,8 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
 
   FILE *fp = fopen("size_vs_latency.gnu", "wt");
   if (fp) {
+    const char *type = count < 100000 ? "points" : "dots";
+    
     fprintf(fp, "set key above\n");
     fprintf(fp, "set title 'Block size vs Latency (10%% horiz jitter, n=%zd)\n", count);
     fprintf(fp, "set log x\n");
@@ -78,7 +80,7 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
     fprintf(fp, "set grid\n");
     fprintf(fp, "set xlabel 'Block size (bytes)'\n");
     fprintf(fp, "set ylabel 'Latency (s)'\n");
-    fprintf(fp, "plot 'size_vs_latency_r.txt' with points title 'Block reads', 'size_vs_latency_w.txt' with points title 'Block writes'\n");
+    fprintf(fp, "plot 'size_vs_latency_r.txt' with %s title 'Block reads', 'size_vs_latency_w.txt' with %s title 'Block writes'\n", type, type);
   } else {
     perror("filename");
   }
