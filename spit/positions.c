@@ -77,7 +77,7 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
   positionType *p = (positionType *)positions;
   positionType *copy = NULL;
 
-  for (size_t j = 0; j < num && keepRunning; j++) {
+  for (size_t j = 0; j < num && keepRunning; j++) { // stop checking on control-C
     if (p->len == 0) {
       fprintf(stderr,"len is 0!\n");
       abort();
@@ -176,7 +176,7 @@ void positionContainerCheckOverlap(const positionContainer *merged)
   if (verbose) {
     size_t readcount = 0, writecount = 0, notcompletedcount = 0, conflict = 0, trimcount = 0;
     positionType *pp = merged->positions;
-    for (size_t i = 0; i < merged->sz && keepRunning; i++,pp++) {
+    for (size_t i = 0; i < merged->sz; i++,pp++) {
       if (pp->finishTime == 0 || pp->submitTime == 0) {
         notcompletedcount++;
       } else {
@@ -191,14 +191,14 @@ void positionContainerCheckOverlap(const positionContainer *merged)
 
   // check they are sorted based on position, otherwise we can't prune
   if (merged->sz > 1) {
-    for (size_t i = 0; i < (merged->sz - 1) && keepRunning; i++) {
+    for (size_t i = 0; i < (merged->sz - 1); i++) {
       if (merged->positions[i].deviceid == merged->positions[i+1].deviceid) {
         assert(merged->positions[i].pos <= merged->positions[i+1].pos);
       }
     }
 
     size_t printed = 0;
-    for (size_t i = 0; i < (merged->sz - 1) && keepRunning; i++) {
+    for (size_t i = 0; i < (merged->sz - 1); i++) {
       if ((merged->positions[i].action == 'W' && merged->positions[i+1].action == 'W') && (merged->positions[i].deviceid == merged->positions[i+1].deviceid)) {
         int pe = 0;
         if (merged->positions[i].pos > merged->positions[i+1].pos) pe = 1;
@@ -232,7 +232,7 @@ void positionContainerCollapse(positionContainer *merged)
 {
   fprintf(stderr,"*info* remove action conflicts (%zd raw positions)\n", merged->sz);
   size_t  newstart = 0;
-  for (size_t i =0 ; i < merged->sz && keepRunning; i++) {
+  for (size_t i =0 ; i < merged->sz; i++) {
     if (merged->positions[i].finishTime != 0) {
       if (newstart != i) {
         merged->positions[newstart] = merged->positions[i];
