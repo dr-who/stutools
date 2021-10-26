@@ -133,6 +133,7 @@ int main(int argc, char *argv[])
       exit(1);
     }
     char timestring[80];
+    const double statictime = timedouble();
     for (size_t pos = startAt; pos < finishAt; pos += blocksize) {
       int min = 0, max = 0, range = 0;
       int r = pread(fd, buf, blocksize, pos);
@@ -148,7 +149,7 @@ int main(int argc, char *argv[])
 	timestring[0] = 0;
 	if (pos == *codedpos) {
 	  spit = 1;
-	  sprintf(timestring, "%.1lf secs ago", timedouble() - (*codedtime)/10.0);
+	  sprintf(timestring, "%.1lf secs ago", statictime - (*codedtime)/10.0);
 	}
         memcpy(pbuf, buf, width);
         pbuf[width] = 0;
