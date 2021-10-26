@@ -132,6 +132,7 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*error* OOM\n");
       exit(1);
     }
+    char timestring[80];
     for (size_t pos = startAt; pos < finishAt; pos += blocksize) {
       int min = 0, max = 0, range = 0;
       int r = pread(fd, buf, blocksize, pos);
@@ -142,9 +143,12 @@ int main(int argc, char *argv[])
       analyse(buf, 0, blocksize, &min, &max, &range);
       if (max > 1) {
 	size_t *codedpos = (size_t*)buf;
+	size_t *codedtime = (size_t*)(buf + sizeof(size_t));
 	size_t spit = 0;
+	timestring[0] = 0;
 	if (pos == *codedpos) {
 	  spit = 1;
+	  sprintf(timestring, "%.1lf secs ago", timedouble() - (*codedtime)/10.0);
 	}
         memcpy(pbuf, buf, width);
         pbuf[width] = 0;
@@ -152,7 +156,7 @@ int main(int argc, char *argv[])
           if (pbuf[j] < 32) pbuf[j] = '_';
           if (pbuf[j] >= 127) pbuf[j] = ' ';
         }
-        fprintf(stdout,"0x%07zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, pbuf, (spit==1)?"*spit*":"");
+        fprintf(stdout,"0x%07zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%s %s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, pbuf, (spit==1)?"*spit*":"", timestring);
         firstgap = 1;
       } else {
         if (firstgap) {
