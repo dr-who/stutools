@@ -122,6 +122,14 @@ add_test(testspitwm4K10 spit -f wow -G 1 -c ws1zk4K10x1 -v -t 5)
 add_test(testspitwm4q6 spit -f wow -G 1 -c wm4s1q6 -v -t 5)
 add_test(testspitwm_1 spit -f wow -G 1 -c wm-1s1 -v -t 5)
 
+add_test(testspitF1noj spit -F wowf -G 1 -c ws1 -v -t 5)
+add_test(testspitF2j1 spit -F wowf -G 1 -c ws1j1 -v -t 5)
+add_test(testspitF3j2 spit -F wowf -G 0.5 -c ws1j2 -v -t 5)
+add_test(testspitF4j4 spit -F wowf -G 0.25 -c ws1j2 -v -t 5)
+
+add_test(testspitFS100 spit -f wow -G 1 -c ws1j2S100 -v -t 5)
+add_test(testspitFS100_10 spit -f wow -G 1 -c ws1j2S100-10 -v -t 5)
+
 add_test(testspitmprefixj2rangewmUj1 spit -f wow -G 1 -c wUs0k4-256 -v -t 5 )
 add_test(testspitmprefixj2rangewmP1000 spit -f wow -G 1 -c ws0k8-16P1000 -v -t 5 )
 add_test(testspitmprefixj2rangewmP1000j17 spit -f wow -G 1 -c ws0k8-16P1000G_j17u -v -t 5 )

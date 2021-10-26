@@ -188,7 +188,8 @@ typedef struct {
   size_t positionLimit;
   size_t LBAtimes;
   unsigned short seed;
-  unsigned short iopstarget;
+  size_t iopstarget;
+  size_t iopsdecrease;
   char *randomBuffer;
   size_t numThreads;
   size_t waitForThreads;
@@ -270,7 +271,7 @@ static void *runThread(void *arg)
   }
 
   if (threadContext->iopstarget) {
-    positionContainerAddDelay(&threadContext->pos, threadContext->iopstarget, threadContext->id);
+    positionContainerAddDelay(&threadContext->pos, threadContext->iopstarget, threadContext->id, threadContext->iopsdecrease);
   }
 
   if (threadContext->dumpPos /* && !iRandom*/) {
@@ -309,14 +310,21 @@ static void *runThread(void *arg)
   if (threadContext->anywrites) {
     if (threadContext->filePrefix) {
       // always create new file on prefix and writes, delete existing
-      fd = open(threadContext->jobdevice, O_RDWR | O_CREAT | O_TRUNC | direct, S_IRUSR | S_IWUSR);
+      int tr = 0;
+      if (threadContext->seqFiles != 0) {
+	tr = O_TRUNC; // if seq then create the file first
+      } else {
+	// if random create file
+	createFile(threadContext->jobdevice, threadContext->maxSizeInBytes);
+      }
+      fd = open(threadContext->jobdevice, O_RDWR | O_CREAT | tr | direct, S_IRUSR | S_IWUSR);
       if (verbose) fprintf(stderr,"*info* open with O_RDWR, direct=%d, no excl specified\n", direct);
     } else {
       // else just open
       int excl = (threadContext->id == 0) ? O_EXCL : 0;
       if (threadContext->notexclusive) excl = 0;
       if ((excl == 0) && (threadContext->id == 0)) {
-        fprintf(stderr,"*info* open device without O_EXCL\n");
+        fprintf(stderr,"*warning* open device FOR WRITES without O_EXCL! (WARNING verification can't guarantee exclusive)\n");
       }
       fd = open(threadContext->jobdevice, O_RDWR | direct | excl);
       if (verbose) fprintf(stderr,"*info* open with O_RDWR, direct=%d, excl=%d\n", direct, excl);
@@ -1638,10 +1646,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
     size_t speedMB = 0;
+    threadContext[i].iopsdecrease = 0;
     {
       char *RChar = strchr(job->strings[i], 'S');
       if (RChar && *(RChar+1)) {
-        speedMB = atoi(RChar + 1); // if specified
+	char retch = ':';
+	double s1 = 0, s2 = 0;
+	splitRangeChar(RChar + 1, &s1, &s2, &retch);
+	fprintf(stderr,"*info* IOPS target begin at %lf, decrease every %lf sec\n", s1, s2);
+        speedMB = s1;
+	if (s2 != s1) {
+	  threadContext[i].iopsdecrease = s2;
+	}
       }
     }
     threadContext[i].iopstarget = speedMB;

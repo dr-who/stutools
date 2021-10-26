@@ -1091,7 +1091,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
     else if (positions[i].action == 'T') tcount++;
 
     if (i < countToShow) {
-      fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\tusoffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
+      fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\toffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
     }
   }
   fprintf(stderr,"\tSummary[%d]: reads %zd, writes %zd, trims %zd, hash %lx\n", positions[0].seed, rcount, wcount, tcount, hash);
@@ -1195,14 +1195,31 @@ void positionContainerAddMetadataChecks(positionContainer *pc, const size_t meta
 
 
 
-void positionContainerAddDelay(positionContainer *pc, unsigned long iops, size_t threadid)
+void positionContainerAddDelay(positionContainer *pc, double iops, size_t threadid, const double redsec)
 {
+  double reducetime = redsec;
   size_t origsz = pc->sz;
-  if (threadid == 0) fprintf(stderr,"*info* [t%zd] target %zd IOPS per thread\n", threadid, iops);
+  double globaloff = 0;
+  if (threadid == 0) fprintf(stderr,"*info* [t%zd] target %.1lf IOPS per thread (n=%zd)\n", threadid, iops, pc->sz);
 
   for (size_t i = 0; i < origsz; i++) {
-    pc->positions[i].usoffset = (i * 1.0 / iops);
-  }
+    double offset = (1.0 / iops);
+    globaloff += offset;
+    pc->positions[i].usoffset = globaloff;
+    if (redsec) {
+      if (globaloff > reducetime) {
+	if (iops > 10) {
+	  iops = iops / 1.41;
+	  fprintf(stderr,"*info* reducing to S%.1lf after %lf seconds\n", iops, reducetime);
+	  if (iops < 10) {
+	    iops = 10; // min of 10
+	  }
+	}
+	reducetime += redsec;
+      }
+    }
+  } // redsec
+    
 }
 
 

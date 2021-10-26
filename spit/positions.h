@@ -94,7 +94,7 @@ void positionContainerInfo(const positionContainer *pc);
 void positionLatencyStats(positionContainer *pc, const int threadid);
 void positionContainerRandomize(positionContainer *pc, unsigned int seed);
 void positionContainerAddMetadataChecks(positionContainer *pc, const size_t metadata);
-void positionContainerAddDelay(positionContainer *pc, unsigned long usdelay, size_t threadid);
+void positionContainerAddDelay(positionContainer *pc, double iops, size_t threadid, const double redsec);
 
 void positionContainerInfo(const positionContainer *pc);
 

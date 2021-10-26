@@ -718,9 +718,9 @@ int canOpenExclusively(const char *fn)
 }
 
 
-size_t canCreateFile(const char *filename, const size_t sz)
+/*size_t canCreateFile(const char *filename, const size_t sz)
 {
-  fprintf(stderr,"*info* creating '%s', size %zd bytes (%.3g GiB)\n", filename, sz, TOGiB(sz));
+  fprintf(stderr,"*info* can create '%s', size %zd bytes (%.3g GiB)\n", filename, sz, TOGiB(sz));
   int fd = open(filename, O_RDWR | O_CREAT | O_DIRECT | O_TRUNC, S_IRUSR | S_IWUSR);
   if (fd < 0)
     return 0;
@@ -734,7 +734,7 @@ size_t canCreateFile(const char *filename, const size_t sz)
   close(fd);
   remove(filename);
   return create_size;
-}
+  }*/
 
 
 int createFile(const char *filename, const size_t sz)
@@ -744,6 +744,13 @@ int createFile(const char *filename, const size_t sz)
     exit(1);
   }
   assert(sz);
+
+  if (fileSizeFromName(filename) == sz) { // already there and right size
+    fprintf(stderr,"*info* file %s already exists with size %zd\n", filename, sz);
+    return 0;
+  }
+  fprintf(stderr,"*info* create file '%s' size %zd\n", filename, sz);
+
 
   if (startsWith("/dev/", filename)) {
     fprintf(stderr,"*error* path error, will not create a file '%s' in the directory /dev/\n", filename);
@@ -766,7 +773,8 @@ int createFile(const char *filename, const size_t sz)
     fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd < 0) {
       perror(filename);
-      return 1;
+      exit(1);
+      //      return 1;
     }
   }
 
@@ -780,24 +788,32 @@ int createFile(const char *filename, const size_t sz)
   fprintf(stderr,"*info* slow writing '%s' %zd (%.3lf GiB)\n", filename, sz, TOGiB(sz));
   size_t towriteMiB = sz, totalw = 0;
 
-  while (towriteMiB > 0 && keepRunning) {
+  while ((towriteMiB > 0) && keepRunning) {
     int towrite = MIN(towriteMiB, CREATECHUNK);
     int wrote = write(fd, buf, towrite);
-    totalw += wrote;
-    //    fprintf(stderr,"wrote %zd, %.3lf MB/s\n", totalw, TOMB(wrote / (timedouble() - timestart)));
-    if (wrote < 0) {
-      perror("createFile");
-      free(buf);
-      return 1;
+    if (wrote > 0) {
+      totalw += wrote;
+      towriteMiB -= wrote;
+    } else {
+      if (wrote < 0) {
+	perror("createFile");
+	free(buf);
+	exit(1);
+	return 1;
+      }
     }
-    towriteMiB -= wrote;
   }
-  //  fprintf(stderr,"*info* wrote down to %zd\n", towriteMiB);
-  fsync(fd);
+  fprintf(stderr,"*info* wrote down to %zd / %zd\n", towriteMiB, sz);
+  //  fsync(fd);
   close(fd);
   free(buf);
+  buf = NULL;
   double timeelapsed = timedouble() - timestart;
   fprintf(stderr,"*info* file '%s' created in %.1lf seconds, %.0lf MB/s\n", filename, timeelapsed, TOMB(sz / timeelapsed));
+
+  if (fileSizeFromName(filename) != sz) {
+    fprintf(stderr,"*error* file size incorrect\n");
+  }
   if (!keepRunning) {
     fprintf(stderr,"*warning* early size creation termination\n");
     exit(-1);

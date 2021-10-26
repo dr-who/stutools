@@ -166,12 +166,27 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'j':
       break;
     case 'F':
-      if (isBlockDevice(optarg)) {
-	fprintf(stderr,"*error* '%s' can't be a block device, it's a mount point and prefix\n", optarg);
+      {
+      /*      if (isBlockDevice(optarg)) {
+	fprintf(stderr,"*error* '%s' can't be an existing block device, it's a mount point and prefix\n", optarg);
 	exit(1);
+	}e*/
+      struct stat sb;
+      int ret;
+      
+      if ((ret = stat(optarg, &sb)) != -1) {
+	//    fprintf(stderr,"*warning* isBlockDevice '%s' returned %d\n", name, ret);
+	switch (sb.st_mode & S_IFMT) { // check the filetype bits
+	case S_IFDIR:
+	  fprintf(stderr,"*error* must specify a path including the prefix\n");
+	  exit(1);
+	  break;
+	}
       }
+      
       *filePrefix = strdup(optarg);
       addDeviceDetails(optarg, &deviceList, &deviceCount);
+      }
       break;
     case 'G':
     {}
@@ -351,26 +366,22 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   }
 
   // check the file, create or resize
-  size_t fsize = 0;
   for (size_t i = 0; i < jobCount(j); i++) {
-    if (!device) {
-      device = strdup(j->devices[i]); // make a copy
-    }
-    
+    //    fprintf(stderr,"checking %s ...\n", j->devices[i]);
     size_t isAFile = 0;
 
-    if (!fileExists(device)) { // nothing is there, create a file
+    if (!fileExists(j->devices[i])) { // nothing is there, create a file
       //fprintf(stderr,"*warning* will need to create '%s'\n", device);
       isAFile = 1;
     } else {
       // it's there
-      if (isBlockDevice(device) == 2) {
+      if (isBlockDevice(j->devices[i]) == 2) {
         // it's a file
         isAFile = 1;
       }
 
       if ((*tripleX) < 3) {
-        if (!canOpenExclusively(device)) {
+        if (!canOpenExclusively(j->devices[i])) {
 	  perror(device);
           fprintf(stderr,"*error* can't open '%s' exclusively\n", device);
           exit(-1);
@@ -378,20 +389,29 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       }
     }
 
-    if (*filePrefix == NULL) {
-      fsize = fileSizeFromName(device);
-      if (isAFile) {
-        if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
-          *maxSizeInBytes = totalRAM() * 2;
-        }
-        if (fsize != *maxSizeInBytes) { // check the on disk size
-          int ret = createFile(device, *maxSizeInBytes);
-          if (ret) {
-            exit(1);
-          }
-        }
-      } else {
-        // if you specify -G too big or it's 0 then set it to the existing file size
+    size_t fsize = 0;
+    if (isAFile) {
+      
+      if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
+	fprintf(stderr,"*warning* -Gn not specified so defaulting filesize to 2x RAM\n");
+	*maxSizeInBytes = totalRAM() * 2;
+      }
+
+      if (*maxSizeInBytes == fileSizeFromName(j->devices[i])) {
+	if (*filePrefix) {
+	  fprintf(stderr,"*warning* file '%s' already exists. Leaving in place. For benchmarking writes remove first\n", j->devices[i]);
+	}
+      }
+
+      if (*filePrefix == NULL) {
+	int ret = createFile(j->devices[i], *maxSizeInBytes); // create file, but if already there then don't recreate
+	if (ret) {
+	  exit(1);
+	}
+      }
+    } else {
+      fsize = fileSizeFromName(j->devices[i]);
+      // if you specify -G too big or it's 0 then set it to the existing file size
         if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
           if (*maxSizeInBytes > fsize) {
             fprintf(stderr,"*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
@@ -401,17 +421,21 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
             fprintf(stderr,"*warning* limiting size to %d, ignoring -G\n", 0);
             *minSizeInBytes = 0;
           }
-        }
-      } // i
-    } // fileprefix == 0
+	}
+    } 
   }
+
+  //  for (size_t i = 0; i < jobCount(j); i++) {
+  //    fprintf(stderr,"*info* check '%s' size %zd\n", j->devices[i], fileSizeFromName(j->devices[i]));
+  //  }
+  //  exit(1);
 
 
   if (verbose) jobDump(j);
 
-  for(size_t i = 0; i < deviceCount; i++ ) {
-    free( deviceList[ i ].devicename );
-  }
+  //  for(size_t i = 0; i < deviceCount; i++ ) {
+  //    free( deviceList[ i ].devicename );
+  //  }
 
   return 0;
 }

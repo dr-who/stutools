@@ -210,7 +210,6 @@ size_t aioMultiplePositions( positionContainer *p,
     if (inFlight > QD) {
       fprintf(stderr,"*error* inFlight %zd %zd\n", inFlight, QD);
     }
-    thistime = timedouble();
     size_t cursubmitted = submitted;
     //    fprintf(stderr,"pos %zd, %lf    %lf\n", pos, thistime, start + positions[pos].usoffset/1000000.0);
 
@@ -331,7 +330,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		abort();
 	      }
 
-	      positions[pos].submitTime = thistime;
+	      positions[pos].submitTime = timedouble();
 	      positions[pos].finishTime = 0;
 
 
@@ -437,7 +436,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
     //    }
     if (ret > 0) {
-      //      lastreceive = timedouble();
+      double lastreceive = timedouble();
 
       // verify it's all ok
       size_t rio = 0, rlen = 0, wio = 0, wlen = 0;
@@ -504,7 +503,7 @@ size_t aioMultiplePositions( positionContainer *p,
               abort();
             }
           }
-          pp->finishTime = timedouble();
+          pp->finishTime = lastreceive;
         } // good IO
         pp->success = 1; // the action has completed
         pp->inFlight = 0;
