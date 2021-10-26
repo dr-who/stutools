@@ -49,7 +49,7 @@ void latencyOverTime(positionContainer *origpc) {
     FILE *fp = fopen("time_vs_latency.gnu", "wt");
     if (!fp) {perror("time_vs_latency.gnu");exit(1);}
     //plot '<sort -k 12n bob' using ($13-$12) with lines
-    fprintf(fp, "set title 'Time vs. Latency (%zd)\n", origpc->sz);
+    fprintf(fp, "set title 'Time vs. Latency (n=%zd)\n", origpc->sz);
     fprintf(fp, "set xlabel 'Time (seconds)'\n");
     fprintf(fp, "set ylabel 'Latency (seconds)'\n");
     fprintf(fp, "set key top center\n");
