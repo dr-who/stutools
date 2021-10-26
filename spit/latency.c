@@ -43,6 +43,40 @@ void latencySetupSizeonly(latencyType *lat, positionContainer *pc, size_t size) 
 }
 
 
+
+void latencyOverTime(positionContainer *origpc) {
+  if (origpc) {
+    FILE *fp = fopen("time_vs_latency.gnu", "wt");
+    if (!fp) {perror("time_vs_latency.gnu");exit(1);}
+    //plot '<sort -k 12n bob' using ($13-$12) with lines
+    fprintf(fp, "set title 'Time vs. Latency (%zd)\n", origpc->sz);
+    fprintf(fp, "set xlabel 'Time (seconds)'\n");
+    fprintf(fp, "set ylabel 'Latency (seconds)'\n");
+    fprintf(fp, "set key top center\n");
+    fprintf(fp, "set grid\n");
+    fprintf(fp, "plot '<sort -k 1n t_vs_lat.txt | grep -w W' using 1:2 with lines title 'Latency over time (writes)', '<sort -k 1n t_vs_lat.txt | grep -w R' using 1:2 with lines title 'Latency over time (reads)'\n");
+    fclose(fp);
+    fp = fopen("t_vs_lat.txt", "wt");
+    if (!fp) {perror("t_vs_lat.txt"); exit(1);}
+    double lowesttime = 9e9;
+    for (size_t i = 0; i <origpc->sz; i++) {
+      positionType *p = &origpc->positions[i];
+      if (p->finishTime > 0) {
+	if (p->submitTime < lowesttime) lowesttime = p->submitTime;
+      }
+    }
+    
+    for (size_t i = 0; i <origpc->sz; i++) {
+      positionType *p = &origpc->positions[i];
+      if (p->finishTime > 0) {
+	fprintf(fp, "%lf %lf %c %d\n", p->submitTime - lowesttime, p->finishTime - p->submitTime, p->action, p->len);
+      }
+    }
+    fclose(fp);
+  }
+}
+
+
 void latencyLenVsLatency(positionContainer *origpc, int num) {
   FILE *fp_r = fopen("size_vs_latency_r.txt", "wt");
   FILE *fp_w = fopen("size_vs_latency_w.txt", "wt");

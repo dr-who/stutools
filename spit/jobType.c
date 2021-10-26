@@ -1885,6 +1885,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
   if (savePositions && (savePositions != stdout)) {
     positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
+    latencyOverTime(&mergedpc);
     fclose(savePositions);
   }
   

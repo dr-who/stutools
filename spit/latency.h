@@ -25,5 +25,7 @@ void latencyReadGnuplot(latencyType *lat);
 
 void latencyLenVsLatency(positionContainer *origpc, int num);
 
+void latencyOverTime(positionContainer *origpc);
+
 
 #endif
