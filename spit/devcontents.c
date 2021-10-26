@@ -141,13 +141,18 @@ int main(int argc, char *argv[])
       }
       analyse(buf, 0, blocksize, &min, &max, &range);
       if (max > 1) {
+	size_t *codedpos = (size_t*)buf;
+	size_t spit = 0;
+	if (pos == *codedpos) {
+	  spit = 1;
+	}
         memcpy(pbuf, buf, width);
         pbuf[width] = 0;
         for (size_t j = 0; j < width; j++) {
           if (pbuf[j] < 32) pbuf[j] = '_';
           if (pbuf[j] >= 127) pbuf[j] = ' ';
         }
-        fprintf(stdout,"0x%07zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, pbuf);
+        fprintf(stdout,"0x%07zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, pbuf, (spit==1)?"*spit*":"");
         firstgap = 1;
       } else {
         if (firstgap) {
