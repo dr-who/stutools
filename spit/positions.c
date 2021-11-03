@@ -1081,7 +1081,13 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
 
 void positionContainerDump(positionContainer *pc, const size_t countToShow)
 {
-  fprintf(stderr,"*info*: total number of positions %zd\n", pc->sz);
+
+  char *buf = malloc(100 * countToShow + 1000);
+  assert(buf);
+  char *startbuf = buf;
+  
+  
+  buf += sprintf(buf, "*info*: total number of positions %zd\n", pc->sz);
   const positionType *positions = pc->positions;
   size_t rcount = 0, wcount = 0, tcount = 0, hash = 0;
   for (size_t i = 0; i < pc->sz; i++) {
@@ -1091,10 +1097,13 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
     else if (positions[i].action == 'T') tcount++;
 
     if (i < countToShow) {
-      fprintf(stderr,"\t[%02zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\toffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
+      buf += sprintf(buf,"\t[%02zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\toffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
     }
   }
-  fprintf(stderr,"\tSummary[%d]: reads %zd, writes %zd, trims %zd, hash %lx\n", positions[0].seed, rcount, wcount, tcount, hash);
+  buf += sprintf(buf,"\tSummary[%d]: reads %zd, writes %zd, trims %zd, hash %lx\n", positions[0].seed, rcount, wcount, tcount, hash);
+  buf[0] = 0;
+  fprintf(stderr, "%s", startbuf);
+  free(buf);
 }
 
 
@@ -1398,5 +1407,17 @@ void positionContainerInfo(const positionContainer *pc)
 }
 
 
-
+void positionContainerModOnly(positionContainer *pc, const size_t jmod, const size_t threadid) {
+  if (jmod <= 1) {
+    fprintf(stderr,"*error* jmod is %zd\n", jmod);
+    return;
+  }
+  assert(jmod >= 2);
+  for (size_t i = 0; i < pc->sz; i++) {
+    if ((i % jmod) == threadid) {
+      pc->positions[i].action = 'S';
+    }
+  }
+}
+    
 

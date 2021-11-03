@@ -112,10 +112,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     commandstring[commandstringpos] = 0;
 
     char *charJ = strchr(optarg, 'j');
+    if (charJ == NULL) {
+      charJ = strchr(optarg, 'J');
+    }
 
     int addthej = jglobalcount;
     if (charJ) {
-      //	fprintf(stderr,"has a j\n");
+      fprintf(stderr,"has a %c\n", *charJ);
       addthej = 0;
     }
 
@@ -134,7 +137,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     for (size_t i = 0; i < jcount; i++) {
       char temp[1000];
       if (addthej) {
-        sprintf(temp,"%sj%zd#%zd", optarg, jcount, i);
+        sprintf(temp,"%s%c%zd#%zd", optarg, *charJ, jcount, i);
       } else {
         sprintf(temp,"%s#%zd", optarg, i);
       }
@@ -493,7 +496,7 @@ void usage()
   fprintf(stdout,"  spit -f ... -c wM1            # set block size 1M\n");
   fprintf(stdout,"  spit -f ... -c O              # One-shot, not time based\n");
   fprintf(stdout,"  spit -f ... -c t2             # specify the time per thread\n");
-  fprintf(stdout,"  spit -f ... -c ws1J4          # jumble/reverse groups of 4 positions\n");
+  fprintf(stdout,"  spit -f ... -c ws1F4          # jumble/reverse groups of 4 positions\n");
   fprintf(stdout,"  spit -f ... -c wx20           # sequentially (s1) write 20x LBA, no time limit\n");
   fprintf(stdout,"  spit -f ... -c ws0            # random defaults to 3x LBA\n");
   fprintf(stdout,"  spit -f ... -c ws1W2:1 -t60   # Alternate run for 2 seconds, wait for 1 second\n");
@@ -537,6 +540,7 @@ void usage()
   fprintf(stdout,"  spit -c wx1G0-64k4zs1         # Write from [0,64) GiB, in 4KiB steps, sequentially \n");
   fprintf(stdout,"  spit -c wx1G0-64k4zs1K20      # Write from [0,64) GiB, in 4KiB steps, writing 1 in 20. \n");
   fprintf(stdout,"  spit -p f5 -f device -c ...   # Precondition/max-fragmentation with 5%% GC overhead, becomes K20.\n");
+  fprintf(stdout,"  spit -f .. -c ws0J8           # Use 8 threads, but only do every 8th IO in each thread. For NUMA/S testing\n");
   fprintf(stdout,"                                # the -p f5 commands iterates across the LBA in 64G chunks as previous two commands.\n");
   exit(0);
 }

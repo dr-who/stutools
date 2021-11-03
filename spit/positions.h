@@ -116,6 +116,8 @@ void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed, co
 void insertFourkEveryMiB(positionContainer *pc, const size_t minbdSize, const size_t maxbdSize, unsigned int seed, const double fourkEveryMiB, const size_t jumpKiB);
 
 void positionContainerHTML(positionContainer *p, const char *name);
+void positionContainerModOnly(positionContainer *pc, const size_t jmod, const size_t threadid);
+
 
 
 #endif

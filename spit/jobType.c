@@ -223,6 +223,7 @@ typedef struct {
   int performPreDiscard;
   int notexclusive;
   size_t posIncrement;
+  int jmodonly;
 
   // results
   double result_writeIOPS;
@@ -258,6 +259,8 @@ static void *runThread(void *arg)
   if (threadContext->seqFiles == 0 || threadContext->firstPPositions) positionContainerRandomize(&threadContext->pos, threadContext->seed);
 
   if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun, threadContext->seed);
+
+  if (threadContext->jmodonly) positionContainerModOnly(&threadContext->pos, threadContext->jmodonly, threadContext->id);
 
   //      positionPrintMinMax(threadContext->pos.positions, threadContext->pos.sz, threadContext->minbdSize, threadContext->maxbdSize, threadContext->minSizeInBytes, threadContext->maxSizeInBytes);
   threadContext->anywrites = (threadContext->rw.wprob > 0) || (threadContext->rw.tprob > 0);
@@ -1048,6 +1051,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   for (int i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
 
     threadContext[i].go = go;
+    threadContext[i].jmodonly = 0;
     threadContext[i].fp = savePositions;
     threadContext[i].notexclusive = notexclusive;
     threadContext[i].go_finished = go_f;
@@ -1115,10 +1119,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     int jcount = 1;
     {
       // specify the block device size in GiB
-      char *charG = strchr(job->strings[i], 'j');
+      char *charG = strchr(job->strings[i], 'j'); // j or J
+      if (charG == NULL) {
+	charG = strchr(job->strings[i], 'J');
+      }
+      
       if (charG && *(charG+1)) {
         jcount = atoi(charG+1);
         if (jcount < 1) jcount=1;
+	if (*charG == 'J') {
+	  //	  fprintf(stderr,"*info* jmodonly = %d\n", jcount);
+	  threadContext[i].jmodonly = jcount;
+	}
       }
     }
     int jindex = 0;
@@ -1222,7 +1234,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
     {
-      char *charI = strchr(job->strings[i], 'J');
+      char *charI = strchr(job->strings[i], 'F'); // shuFfle
 
       if (charI && *(charI + 1)) {
         int v = atoi(charI + 1);
@@ -1653,9 +1665,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	char retch = ':';
 	double s1 = 0, s2 = 0;
 	splitRangeChar(RChar + 1, &s1, &s2, &retch);
-	fprintf(stderr,"*info* IOPS target begin at %lf, decrease every %lf sec\n", s1, s2);
         speedMB = s1;
 	if (s2 != s1) {
+	  fprintf(stderr,"*info* IOPS target begin at %lf, decrease every %lf sec\n", s1, s2);
 	  threadContext[i].iopsdecrease = s2;
 	}
       }
