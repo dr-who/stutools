@@ -118,7 +118,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
     int addthej = jglobalcount;
     if (charJ) {
-      fprintf(stderr,"has a %c\n", *charJ);
+      //      fprintf(stderr,"has a %c\n", *charJ);
       addthej = 0;
     }
 
