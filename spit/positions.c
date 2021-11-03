@@ -1103,7 +1103,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
   buf += sprintf(buf,"\tSummary[%d]: reads %zd, writes %zd, trims %zd, hash %lx\n", positions[0].seed, rcount, wcount, tcount, hash);
   buf[0] = 0;
   fprintf(stderr, "%s", startbuf);
-  free(buf);
+  free(startbuf);
 }
 
 
