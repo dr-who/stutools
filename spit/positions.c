@@ -1082,7 +1082,7 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
 void positionContainerDump(positionContainer *pc, const size_t countToShow)
 {
 
-  char *buf = malloc(100 * countToShow + 1000);
+  char *buf = malloc(200 * countToShow + 1000);
   assert(buf);
   char *startbuf = buf;
   
