@@ -137,7 +137,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     for (size_t i = 0; i < jcount; i++) {
       char temp[1000];
       if (addthej) {
-        sprintf(temp,"%s%c%zd#%zd", optarg, *charJ, jcount, i);
+        sprintf(temp,"%s%c%zd#%zd", optarg, charJ ? *charJ : 'j', jcount, i);
       } else {
         sprintf(temp,"%s#%zd", optarg, i);
       }

@@ -198,6 +198,8 @@ add_test(testspit_k4_1024  spit -f wow -G 1 -c rwk4-1024 -v -t 5 -B /tmp/spit-tm
 add_test(testspit_k4_nN  spit -f wow -G 1 -c rs0nNP100 -v -t 5 -B /tmp/spit-tmp.tmp)
 add_test(testspit_k4W  spit -f wow -G 1 -c wW0.1:0.1 -v -t 5 -B /tmp/spit-tmp.tmp)
 add_test(testspit_k4W2  spit -f wow -G 1 -c wW1:1 -v -t 5 -B /tmp/spit-tmp.tmp)
+add_test(testspit_J4  spit -f wow -G 1 -c ws0J4 -v -t 5 )
+add_test(testspit_J4S100  spit -f wow -G 1 -c ws0J4S100 -v -t 5 )
 
 #set (CTEST_TEST_TIMEOUT 1)
 #add_test(testspit_fuzz spit fuzz wow)
