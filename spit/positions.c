@@ -1414,7 +1414,7 @@ void positionContainerModOnly(positionContainer *pc, const size_t jmod, const si
   }
   assert(jmod >= 2);
   for (size_t i = 0; i < pc->sz; i++) {
-    if ((i % jmod) == threadid) {
+    if ((i % jmod) != threadid) {
       pc->positions[i].action = 'S';
     }
   }
