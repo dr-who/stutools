@@ -43,7 +43,7 @@ target_link_libraries(spitchecker spitlib m aio pthread numa)
 add_executable(raidcorrupt raidcorrupt.c)
 target_link_libraries(raidcorrupt spitlib m aio pthread numa)
 
-add_executable(devcontents devcontents.c)
+add_executable(devcontents devcontents.c sha-256.c)
 target_link_libraries(devcontents spitlib m aio pthread numa)
 
 add_executable(bdinfo bdinfo.c)
