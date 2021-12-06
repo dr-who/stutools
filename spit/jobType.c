@@ -295,9 +295,10 @@ static void *runThread(void *arg)
   threadContext->o_direct = direct;
 
   char *suffix = getSuffix(threadContext->jobdevice);
+  size_t logbs = 4096;
   // check block sizes
   {
-    size_t phybs, logbs, max_io_bytes;
+    size_t phybs, max_io_bytes;
     getPhyLogSizes(suffix, &phybs, &max_io_bytes, &logbs);
 
     for (int i = 0; i < (int)threadContext->pos.sz; i++) {
@@ -507,7 +508,7 @@ static void *runThread(void *arg)
 
     if (verbose) fprintf(stderr,"*iteration* %zd\n", iteratorCount);
 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepth, -1 /* verbose */, 0, MIN(4096,threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, threadContext->QDbarrier, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepth, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, threadContext->QDbarrier, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement);
     totalP += posLimit;
 
     if (!doRounds) break;
