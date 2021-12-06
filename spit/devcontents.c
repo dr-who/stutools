@@ -2,6 +2,7 @@
 
 
 #include "jobType.h"
+#include "sha-256.h"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -49,12 +50,13 @@ int main(int argc, char *argv[])
   char *device = NULL;
   size_t blocksize = 4*1024, width = 70;
   size_t startAt = 0*1024*1024, finishAt = 1024L*1024L*1024L*1;
+  int showsha256 = 0;
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "G:g:w:b:f:")) != -1) {
+  while ((opt = getopt(argc, argv, "G:g:w:b:f:s")) != -1) {
     switch (opt) {
     case 'b':
-      blocksize = alignedNumber(atoi(optarg), 4096);
+      blocksize = alignedNumber(atoi(optarg), 512);
       break;
     case 'f':
       device = optarg;
@@ -76,6 +78,9 @@ int main(int argc, char *argv[])
         startAt = (size_t)(1024.0 * 1024.0 * 1024.0 * atof(optarg));
       }
       //      fprintf(stderr,"*info* start at %zd (%.4lf GiB, %.3lf MiB)\n", startAt, TOGiB(startAt), TOMiB(startAt));
+      break;
+    case 's':
+      showsha256 = 1;
       break;
     case 'w':
       width = atoi(optarg);
@@ -104,6 +109,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -G n      finishing at n GiB (defaults to 1 GiB)\n");
     fprintf(stderr,"   -G 32M    finishing at 32 MiB\n");
     fprintf(stderr,"   -b n      the block size to step through the devices (defaults to %zd bytes)\n", blocksize);
+    fprintf(stderr,"   -s        show SHA-256 of each block\n");
     fprintf(stderr,"   -w n      first n bytes per block to display (defaults to %zd)\n", width);
     exit(1);
   }
@@ -134,6 +140,7 @@ int main(int argc, char *argv[])
     }
     char timestring[80];
     const double statictime = timedouble();
+    uint8_t hashresult[SIZE_OF_SHA_256_HASH];
     for (size_t pos = startAt; pos < finishAt; pos += blocksize) {
       int min = 0, max = 0, range = 0;
       int r = pread(fd, buf, blocksize, pos);
@@ -142,7 +149,12 @@ int main(int argc, char *argv[])
         exit(1);
       }
       analyse(buf, 0, blocksize, &min, &max, &range);
-      if (max > 1) {
+
+      if (showsha256) {
+	calc_sha_256(hashresult, (void*)buf, blocksize);
+      }
+      
+      if (showsha256 || (max > 1)) {
 	size_t *codedpos = (size_t*)buf;
 	size_t *codedtime = (size_t*)(buf + sizeof(size_t));
 	size_t spit = 0;
@@ -157,7 +169,13 @@ int main(int argc, char *argv[])
           if (pbuf[j] < 32) pbuf[j] = '_';
           if (pbuf[j] >= 127) pbuf[j] = ' ';
         }
-        fprintf(stdout,"0x%07zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%s %s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, pbuf, (spit==1)?"*spit*":"", timestring);
+	if (showsha256) {
+	  for (size_t j = 0; j < SIZE_OF_SHA_256_HASH;j++) {
+	    fprintf(stdout,"%02x", hashresult[j]);
+	  }
+	  fprintf(stdout,"\t");
+	}
+        fprintf(stdout,"%07zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%s %s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, pbuf, (spit==1)?"*spit*":"", timestring);
         firstgap = 1;
       } else {
         if (firstgap) {
