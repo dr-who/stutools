@@ -1053,6 +1053,20 @@ int pinThread( pthread_t* thread, int* hw_tids, size_t n_hw_tid )
   return rc;
 }
 
+void getBaseBlockDevice(const char *block_device, char* base_block_device)
+{
+    char cmd[128];
+    FILE* fp;
+    int ret = -1;
+    sprintf(cmd, "lsblk -ndo pkname /dev/%s", block_device);
+    fp = popen(cmd, "r");
+    if(fp){
+        ret = fscanf(fp, "%s", base_block_device);
+        pclose(fp);
+    }
+    if( ret == -1 )
+        base_block_device = (char*)block_device;
+}
 
 int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard_max_bytes, size_t *discard_granularity, size_t *discard_zeroes_data)
 {
@@ -1061,8 +1075,11 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
   *discard_zeroes_data = 0;
   *alignment_offset = 0;
 
+  char base_block_device[128];
+  getBaseBlockDevice(suffix, base_block_device);
+
   char s[1000];
-  sprintf(s, "/sys/block/%s/alignment_offset", suffix);
+  sprintf(s, "/sys/block/%s/alignment_offset", base_block_device);
   FILE *fp = fopen(s, "rt");
   long ret = 0, d = 0;
   if (fp) {
@@ -1077,7 +1094,7 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
   }
 
 
-  sprintf(s, "/sys/block/%s/queue/discard_max_bytes", suffix);
+  sprintf(s, "/sys/block/%s/queue/discard_max_bytes", base_block_device);
   fp = fopen(s, "rt");
   ret = 0;
   d = 0;
@@ -1092,7 +1109,7 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
 
   ret = 0;
   d = 0;
-  sprintf(s, "/sys/block/%s/queue/discard_granularity", suffix);
+  sprintf(s, "/sys/block/%s/queue/discard_granularity", base_block_device);
   fp = fopen(s, "rt");
   if (fp) {
     ret = fscanf(fp, "%ld", &d);
@@ -1107,7 +1124,7 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
   ret = 0;
   d = 0;
 
-  sprintf(s, "/sys/block/%s/queue/discard_zeroes_data", suffix);
+  sprintf(s, "/sys/block/%s/queue/discard_zeroes_data", base_block_device);
   fp = fopen(s, "rt");
   if (fp) {
     ret = fscanf(fp, "%ld", &d);
