@@ -542,6 +542,7 @@ void usage()
   fprintf(stdout,"  spit -p f5 -f device -c ...   # Precondition/max-fragmentation with 5%% GC overhead, becomes K20.\n");
   fprintf(stdout,"  spit -f .. -c ws0J8           # Use 8 threads, but only do every 8th IO in each thread. For NUMA/S testing\n");
   fprintf(stdout,"                                # the -p f5 commands iterates across the LBA in 64G chunks as previous two commands.\n");
+  fprintf(stdout,"  spit ... -c rs0E1000          # Limit the number of positions to process to 1,000 then end the run\n");
   exit(0);
 }
 

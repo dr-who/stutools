@@ -431,8 +431,13 @@ static void *runThread(void *arg)
   // the other limit is threadContext->runSeconds
   float timeLimit = threadContext->runSeconds;
   size_t doRounds = 0; // don't do rounds
-  
-  if (threadContext->rerandomize || threadContext->addBlockSize || threadContext->runonce) {
+
+  if (threadContext->positionLimit) {
+    iteratorMax = 1;
+    timeLimit = INF_SECONDS;
+    doRounds = 0;
+    posLimit = threadContext->positionLimit;
+  } else if (threadContext->rerandomize || threadContext->addBlockSize || threadContext->runonce) {
     // n or N option
     // one of the three limits: time, positions or bytes
     // if we have a timelimit let's use that
@@ -1300,6 +1305,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
+    char *posLimit = strchr(job->strings[i], 'E');
+    if (posLimit && *(posLimit+1)) {
+      threadContext[i].positionLimit = atoi(posLimit+1);
+      fprintf(stderr,"*info* positions limited to %zd\n", threadContext[i].positionLimit);
+    }
+    
+
+    
     char *multLimit = strchr(job->strings[i], 'x');
     if (multLimit && *(multLimit+1)) {
       threadContext[i].LBAtimes = MAX(1, atoi(multLimit+1));
