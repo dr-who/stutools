@@ -1305,16 +1305,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
-    char *posLimit = strchr(job->strings[i], 'E');
-    if (posLimit && *(posLimit+1)) {
-      threadContext[i].positionLimit = atoi(posLimit+1);
-      if (threadContext[i].positionLimit) {
-	fprintf(stderr,"*info* positions limited to %zd\n", threadContext[i].positionLimit);
-      } else {
-	fprintf(stderr,"*info* E0 specified, so positions constraint not applied\n");
-      }
-    }
-    
+
 
     
     char *multLimit = strchr(job->strings[i], 'x');
@@ -1713,6 +1704,18 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       threadContext[i].runSeconds = runfor;
       threadContext[i].waitfor = waitfor;
     }
+
+
+    char *posLimit = strchr(job->strings[i], 'E');
+    if (posLimit && *(posLimit+1)) {
+      threadContext[i].positionLimit = atoi(posLimit+1);
+      if (threadContext[i].positionLimit) {
+	fprintf(stderr,"*info* positions limited to %zd\n", threadContext[i].positionLimit);
+      } else {
+	fprintf(stderr,"*info* E0 specified, so positions constraint not applied\n");
+      }
+    }
+    
 
     Wchar = strchr(job->strings[i], 'B');
     if (Wchar && *(Wchar+1)) {
