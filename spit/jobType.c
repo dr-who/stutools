@@ -434,7 +434,6 @@ static void *runThread(void *arg)
 
   if (threadContext->positionLimit) {
     iteratorMax = 1;
-    timeLimit = INF_SECONDS;
     doRounds = 0;
     posLimit = threadContext->positionLimit;
   } else if (threadContext->rerandomize || threadContext->addBlockSize || threadContext->runonce) {
