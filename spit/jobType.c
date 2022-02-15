@@ -1308,7 +1308,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     char *posLimit = strchr(job->strings[i], 'E');
     if (posLimit && *(posLimit+1)) {
       threadContext[i].positionLimit = atoi(posLimit+1);
-      fprintf(stderr,"*info* positions limited to %zd\n", threadContext[i].positionLimit);
+      if (threadContext[i].positionLimit) {
+	fprintf(stderr,"*info* positions limited to %zd\n", threadContext[i].positionLimit);
+      } else {
+	fprintf(stderr,"*info* E0 specified, so positions constraint not applied\n");
+      }
     }
     
 
