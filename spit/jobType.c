@@ -1705,14 +1705,15 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       threadContext[i].waitfor = waitfor;
     }
 
+    // don't use 'E' or 'e' anywhere as the number parser thinks it's scientific notation
 
-    char *posLimit = strchr(job->strings[i], 'E');
+    char *posLimit = strchr(job->strings[i], 'Y');
     if (posLimit && *(posLimit+1)) {
       threadContext[i].positionLimit = atoi(posLimit+1);
       if (threadContext[i].positionLimit) {
 	fprintf(stderr,"*info* positions limited to %zd\n", threadContext[i].positionLimit);
       } else {
-	fprintf(stderr,"*info* E0 specified, so positions constraint not applied\n");
+	fprintf(stderr,"*info* Y0 specified, so positions constraint not applied\n");
       }
     }
     
