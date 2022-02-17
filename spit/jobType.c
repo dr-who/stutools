@@ -1388,7 +1388,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	  exit(1);
 	}
       }
-      if (i == 0) fprintf(stderr,"*info* qd/inflight specified: min %zd, max %zd\n", qDepthMin, qDepthMax);
+      if (i == 0) fprintf(stderr,"*info* qd/inflight specified: min/step %zd, max %zd\n", qDepthMin, qDepthMax);
     }
 
     assert(qDepthMin >= 1);
