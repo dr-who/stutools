@@ -174,9 +174,9 @@ typedef struct {
   size_t dumpPos;
   size_t blockSize;
   size_t highBlockSize;
-  size_t queueDepth;
+  size_t queueDepthMin;
+  size_t queueDepthMax;
   long metaData;
-  size_t QDbarrier;
   size_t flushEvery;
   probType rw;
   size_t startingBlock;
@@ -391,7 +391,7 @@ static void *runThread(void *arg)
     fprintf(stderr,"*warning* the range covered (%zd positions covering %.3lf GiB) is < 99%% of available range (%.3lf GiB)\n", threadContext->pos.sz, TOGiB(sumrange), TOGiB(outerrange));
   }
   if (verbose >= 1)
-    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, q%zd (Q%zd) r/w/t=%.1g/%.1g/%.1g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%.1lf T%.1lf t%.1lf x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepth, threadContext->QDbarrier, threadContext->rw.rprob, threadContext->rw.wprob, threadContext->rw.tprob, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runSeconds, threadContext->finishSeconds, threadContext->LBAtimes, threadContext->positionLimit);
+    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=[%zd,%zd] r/w/t=%.1g/%.1g/%.1g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%.1lf T%.1lf t%.1lf x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepthMin, threadContext->queueDepthMax, threadContext->rw.rprob, threadContext->rw.wprob, threadContext->rw.tprob, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runSeconds, threadContext->finishSeconds, threadContext->LBAtimes, threadContext->positionLimit);
 
 
   // do the mahi
@@ -512,7 +512,7 @@ static void *runThread(void *arg)
 
     if (verbose) fprintf(stderr,"*iteration* %zd\n", iteratorCount);
 
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepth, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, threadContext->QDbarrier, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement);
     totalP += posLimit;
 
     if (!doRounds) break;
@@ -1369,25 +1369,31 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].highBlockSize = highbs;
 
 
-    size_t qDepth = origqd, QDbarrier = 0;
+    size_t qDepthMin = 1, qDepthMax = origqd;
 
     {
       char *qdd = strchr(job->strings[i], 'q');
       if (qdd && *(qdd+1)) {
-        qDepth = atoi(qdd+1);
+	double low, high;
+	int ret = splitRange(qdd+1, &low, &high);
+	if ((ret == 2) && (low > 0)) {
+	  qDepthMin = low;
+	  qDepthMax = high;
+	} else if (ret == 1) {
+	  qDepthMin = 1;
+	  qDepthMax = high;
+	}
+	if (qDepthMin > qDepthMax) {
+	  fprintf(stderr,"*error* q range must be low-high format\n");
+	  exit(1);
+	}
       }
-    }
-    {
-      char *qdd = strchr(job->strings[i], 'Q');
-      if (qdd && *(qdd+1)) {
-        QDbarrier = 1;
-        qDepth = atoi(qdd+1);
-      }
+      if (i == 0) fprintf(stderr,"*info* qd/inflight specified: min %zd, max %zd\n", qDepthMin, qDepthMax);
     }
 
-    threadContext[i].QDbarrier = QDbarrier;
-    if (qDepth < 1) qDepth = 1;
-    if (qDepth > 65535) qDepth = 65535;
+    assert(qDepthMin >= 1);
+    assert(qDepthMin <= qDepthMax);
+    assert(qDepthMax <= 65535);
 
     size_t mp = ceil((threadContext[i].maxbdSize - threadContext[i].minbdSize) * 1.0 / bs);
 
@@ -1421,13 +1427,17 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         metaData = 1;
         threadContext[i].flushEvery = 1;
         uniqueSeeds = 1;
-        qDepth = 1;
+        qDepthMin = 1;
+        qDepthMax = 1;
         verifyUnique = 1;
       }
     }
 
 
-    threadContext[i].queueDepth = qDepth;
+    threadContext[i].queueDepthMax = qDepthMax;
+    if (qDepthMax < threadContext[i].queueDepthMin) {
+      threadContext[i].queueDepthMin = qDepthMax;
+    }
 
 
 
@@ -1442,7 +1452,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       useRAM = ramBytesForPositions / num;
     }
 
-    size_t aioSize = 2 * threadContext[i].queueDepth * (threadContext[i].highBlockSize); // 2* as read and write
+    size_t aioSize = 2 * threadContext[i].queueDepthMax * (threadContext[i].highBlockSize); // 2* as read and write
 
     //    fprintf(stderr,"*info* RAM to use: %zd bytes (%.3lf GiB), qd = %zd, maxK %zd\n", useRAM, TOGiB(useRAM), threadContext[i].queueDepth, threadContext[i].highBlockSize);
     if (aioSize > useRAM / 2) {
@@ -1734,11 +1744,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       metaData = mp;
     }
     if (metaData) {
-      if ((long)qDepth > metaData) {
+      if ((long)qDepthMax > metaData) {
 	if (i == 0) {
 	  fprintf(stderr,"*warning* QD must be <= %zd if reading/writing. Setting QD=%zd\n", metaData, metaData);
 	}
-	qDepth = metaData;
+	qDepthMax = metaData;
       }
     }
 
@@ -1747,11 +1757,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     mp = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));
     
-    if (mp <= qDepth) { // check qd isn't too high
-      qDepth = mp;
+    if (mp <= qDepthMax) { // check qd isn't too high
+      qDepthMax = mp;
     }
 
-    threadContext[i].queueDepth = qDepth;
+    threadContext[i].queueDepthMin = qDepthMin;
+    threadContext[i].queueDepthMax = qDepthMax;
 
     positionContainerSetup(&threadContext[i].pos, mp);
     threadContext[i].seqFiles = seqFiles;

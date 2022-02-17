@@ -502,9 +502,9 @@ void usage()
   fprintf(stdout,"  spit -f ... -c ws1W2:1 -t60   # Alternate run for 2 seconds, wait for 1 second\n");
   fprintf(stdout,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
   fprintf(stdout,"  spit -f .... -R seed          # set the initial seed, j will increment per job\n");
-  fprintf(stdout,"  spit -f .... -Q qd            # set the per job default queue depth\n");
-  fprintf(stdout,"  spit -f .... -c q128          # per job queue\n");
-  fprintf(stdout,"  spit -f .... -c Q17           # per job queue depth, square wave/burst, 17 submits then 17 returns.\n");
+  fprintf(stdout,"  spit -f .... -c q128          # per job max queue depth (max inflight is 128, submit one at a time)\n");
+  fprintf(stdout,"  spit -f .... -c q32-128       # set the min queue depth to 32, submit at most 32 IOs at a time, max 128\n");
+  fprintf(stdout,"  spit -f .... -c q128-128      # set queue depth to fixed at 128 IOs in flight at all time. Uses less CPU.\n");
   fprintf(stdout,"  spit -f .... -c wns0X10       # writing the number of positions 10 times, not time based\n");
   fprintf(stdout,"  spit -c x5                    # writing the block device size 5 times, not time based\n");
   fprintf(stdout,"  spit -c P10x1                 # write 10 positions until the entire device size is written\n");
@@ -525,7 +525,7 @@ void usage()
   fprintf(stdout,"  spit -B bench -M ... -N ...   # See the man page for benchmarking tips\n");
   fprintf(stdout,"  spit -F fileprefix -c ..j128  # creates files from .0001 to .0128\n");
   fprintf(stdout,"  spit ... -c ws0u -v           # Uses a unique seed (u) per operation (mod 65536)\n");
-  fprintf(stdout,"  spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with QD=1\n");
+  fprintf(stdout,"  spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with qd=1\n");
   fprintf(stdout,"  spit ... -c ws0UG_j32 -v      # Generates r/w pairs with unique seeds, as above, unique thread ranges\n");
   fprintf(stdout,"  spit ... -c ws1S100           # Targets slower IOPS, S100 targets 100 IOPS per thread, with default qd\n");
   fprintf(stdout,"  spit ... -c ws1S1000q1        # Target 1000 IOPS, with QD=1\n");

@@ -23,7 +23,8 @@ size_t aioMultiplePositions( positionContainer *p,
                              const size_t sz,
                              const double finishTime,
                              const size_t finishBytes,
-                             size_t origQD,
+                             size_t QDmin,
+                             size_t QDmax,
                              const int verbose,
                              const int tableMode,
                              size_t alignment,
@@ -35,7 +36,6 @@ size_t aioMultiplePositions( positionContainer *p,
                              const int fd,
                              int flushEvery,
                              size_t *ioerrors,
-                             size_t QDbarrier,
                              const size_t discard_max_bytes,
 			     FILE *fp,
 			     char *jobdevice,
@@ -63,13 +63,14 @@ size_t aioMultiplePositions( positionContainer *p,
 
   struct iocb **cbs;
   struct io_event *events;
-  if (origQD >= sz)  {
-    origQD = sz;
-    //    fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", origQD, verbose);
+  if (QDmax >= sz)  {
+    QDmax = sz;
+    //    fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", QD, verbose);
     //    exit(1);
   }
-  assert(origQD <= sz);
-  const size_t QD = origQD;
+  if (QDmin > QDmax) QDmin = QDmax;
+  assert(QDmax <= sz);
+  const size_t QD = QDmax;
   assert(sz>0);
   positionType *positions = p->positions;
 
@@ -210,14 +211,16 @@ size_t aioMultiplePositions( positionContainer *p,
     if (inFlight > QD) {
       fprintf(stderr,"*error* inFlight %zd %zd\n", inFlight, QD);
     }
-    size_t cursubmitted = submitted;
     //    fprintf(stderr,"pos %zd, %lf    %lf\n", pos, thistime, start + positions[pos].usoffset/1000000.0);
 
     
     
     if (thistime >= roundstart + positions[pos].usoffset) {
-      while (sz && inFlight < MIN(cursubmitted * 2 + 1, QD) && keepRunning) {
+      size_t submitthisround = 0;
+      while (sz && (inFlight < QDmax) && keepRunning) {
 	if (!positions[pos].inFlight) {
+	  submitthisround++;
+	  if (submitthisround > QDmin) break; // only submit QDmin at a time
 
 	  // submit requests, one at a time
 	  assert(pos < sz);
@@ -337,7 +340,12 @@ size_t aioMultiplePositions( positionContainer *p,
 	      // for the speed limiting
 	      timesinceMB += len;
 
+	      const double sub_start = positions[pos].submitTime;
 	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
+	      const double sub_taken = timedouble() - sub_start;
+	      if (sub_taken >= 1) {
+		fprintf(stderr,"*info* io_submit took %lf seconds (async submit, queue full?)\n", sub_taken);
+	      }
 
 	      if (ret > 0) {
 		// if success
@@ -423,18 +431,16 @@ size_t aioMultiplePositions( positionContainer *p,
     }
 
 
-    // return, 1..inFlight wait for a bit
-    if (QDbarrier) {
-      if (inFlight >= QD) {
-        ret = io_getevents(ioc, QD, inFlight, events, &timeout);
-      } else {
-        ret = 0;
-      }
-    } else {
+    if (inFlight == QD) {
+      // if max inflight pause until at least one
       ret = io_getevents(ioc, 1, inFlight, events, &timeout);
+    } else {
+      // fast poll
+      ret = io_getevents(ioc, 0, inFlight, events, NULL);
     }
+    //fprintf(stderr,"%zd\n", inFlight);
 
-    //    }
+    
     if (ret > 0) {
       double lastreceive = timedouble();
 
