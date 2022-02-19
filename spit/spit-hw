@@ -1,16 +1,22 @@
 #!/bin/bash
 
-lshw -c network -businfo >/tmp/businfo 2>/dev/null
+lshw -c network -businfo >/tmp/nicinfo 2>/dev/null
+lshw -c video -businfo >/tmp/gpuinfo 2>/dev/null
 
 IPs=$(ip addr list | grep "state UP" | awk '{print $2}' | tr -d ':')
 
 for f in $IPs
 do
 
-echo === $f ===
+echo === $f NUMA $(cat /sys/class/net/$f/device/numa_node) ===
 
 (ethtool $f | grep Speed) 2>/dev/null
-grep $f /tmp/businfo
+grep $f /tmp/nicinfo
 
 done
+
+echo ==== Video ===
+
+
+cat /tmp/gpuinfo
 
