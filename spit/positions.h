@@ -38,6 +38,7 @@ typedef struct {
   size_t readIOs;
   size_t UUID;
   double elapsedTime;
+  size_t inFlight;
   diskStatType *diskStats;
 } positionContainer;
 

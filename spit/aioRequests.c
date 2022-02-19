@@ -73,6 +73,7 @@ size_t aioMultiplePositions( positionContainer *p,
   const size_t QD = QDmax;
   assert(sz>0);
   positionType *positions = p->positions;
+  p->inFlight = 0;
 
 
 
@@ -355,6 +356,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		if (headOfQueue == QD) headOfQueue = 0;
 
 		inFlight++;
+		p->inFlight = inFlight;
 		//	      lastsubmit = thistime; // last good submit
 		submitted++;
 		if (verbose >= 2 || (newpos & (alignment - 1))) {

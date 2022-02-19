@@ -38,7 +38,7 @@ FILE *savePositions = NULL;
 char *device = NULL;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
-                size_t *minSizeInBytes, size_t *maxSizeInBytes, double *runseconds, size_t *dumpPositions, size_t *defaultqd,
+                size_t *minSizeInBytes, size_t *maxSizeInBytes, double *runseconds, size_t *dumpPositions,
                 unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
                 char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, char** numaBinding, int *performPreDiscard, int *reportMode,
                 size_t *cacheSizeBytes, size_t *forever, size_t *ramBytesForPositions, size_t *tripleX)
@@ -66,7 +66,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   optind = 0;
   size_t jglobalcount = 1;
 
-  const char *getoptstring = "j:b:c:f:F:G:t:d:VB:I:q:XR:p:O:s:i:vP:M:N:e:uU:TrC:1L:";
+  const char *getoptstring = "j:b:c:f:F:G:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:TrC:1L:";
 
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
@@ -239,14 +239,6 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	savePositions = fopen(optarg, "wt");
 	if (!savePositions) {perror(optarg); exit(-1);}
 	fprintf(stderr,"*info* savePositions set to '%s'\n", optarg);
-      }
-      break;
-    case 'q':
-      *defaultqd = atoi(optarg);
-      if (*defaultqd < 1) {
-        *defaultqd = 1;
-      } else if (*defaultqd > 65535) {
-        *defaultqd = 65535;
       }
       break;
     case 'R':
@@ -933,7 +925,7 @@ int main(int argc, char *argv[])
 
     char commandstring[1000];
 
-    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &defaultQD, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &numaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes, &forever, &ramBytesForPositions, &tripleX);
+    handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions, &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, &filePrefix, &numaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes, &forever, &ramBytesForPositions, &tripleX);
 
     if (runseconds <= 1 && runseconds > 0 && timeperline == 1) {
       timeperline = runseconds / 10;
@@ -946,7 +938,7 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*error* missing -c command options\n");
       exitcode = 2;
     } else { // run some jobs
-      if (defaultQD == 0) defaultQD = 16;
+      if (defaultQD == 0) defaultQD = 64;
 
       printPowerMode();
 

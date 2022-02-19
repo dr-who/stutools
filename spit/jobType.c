@@ -367,7 +367,7 @@ static void *runThread(void *arg)
   if (threadContext->id==0) {
     fprintf(stderr,"*info* queue/nr_requests for '%s' = %d %s\n", threadContext->jobdevice, numRequests, numRequests<128 ? "WARNING":"");
   }
-  if (getWriteCache(suffix) > 0) {
+  if ((getWriteCache(suffix) > 0) && (threadContext->id == 0)) {
     fprintf(stderr,"*****************\n");
     fprintf(stderr,"* w a r n i n g * device %s is configured with volatile cache\n", threadContext->jobdevice);
     fprintf(stderr,"* The following results are not ENTERPRISE certified. \n");
@@ -749,6 +749,7 @@ static void *runThreadTimer(void *arg)
       const size_t cur_disk_inflight_str_len = 1024;
       char cur_disk_inflight_str[ cur_disk_inflight_str_len ];
 
+      size_t totalInFlight = 0;
       for (size_t j = 0; j < threadContext->numThreads; j++) {
         assert(threadContext->allPC);
         if (threadContext->allPC && threadContext->allPC[j]) {
@@ -757,6 +758,7 @@ static void *runThreadTimer(void *arg)
 
           twi += threadContext->allPC[j]->writtenIOs;
           twb += threadContext->allPC[j]->writtenBytes;
+	  totalInFlight += threadContext->allPC[j]->inFlight;
         }
       }
 
@@ -802,7 +804,7 @@ static void *runThreadTimer(void *arg)
         const double elapsed = thistime - starttime;
 
         pthread_mutex_lock(threadContext->gomutex);
-        fprintf(stderr,"[%2.2lf / %zd] read ", elapsed, *threadContext->go - *threadContext->go_finished);
+        fprintf(stderr,"[%2.2lf / %zd / %zd] read ", elapsed, *threadContext->go - *threadContext->go_finished, totalInFlight);
         pthread_mutex_unlock(threadContext->gomutex);
 
         //fprintf(stderr,"%5.0lf", TOMB(readB));
