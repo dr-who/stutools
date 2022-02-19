@@ -14,8 +14,8 @@ do
 
 echo === $f ===
 
-grep $f /tmp/nicinfo
-pci=$(grep $f /tmp/nicinfo | awk '{print $1;}')
+grep -w $f /tmp/nicinfo
+pci=$(grep -w $f /tmp/nicinfo | awk '{print $1;}')
 
 lspci -s $pci -vv | egrep -i '(numa|GT/s)'
 devlink dev info pci/0000:$pci 2>/dev/null
