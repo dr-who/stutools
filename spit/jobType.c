@@ -1942,30 +1942,32 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     latencyLenVsLatency(origpc, num);
 
   }
-  
-  positionContainer mergedpc = positionContainerMerge(origpc, num);
 
-  if (savePositions && (savePositions != stdout)) {
-    positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
-    latencyOverTime(&mergedpc);
-    fclose(savePositions);
-  }
-  
-  if (verify) {
-    positionContainerCheckOverlap(&mergedpc);
-    size_t direct = O_DIRECT;
-    for (int i = 0; i < num; i++) { // check all threads, if any aren't direct
-      if (threadContext[i].o_direct == 0) {
-	direct = 0;
+  if ( (savePositions && (savePositions != stdout)) || verify) {
+    positionContainer mergedpc = positionContainerMerge(origpc, num);
+    
+    if (savePositions && (savePositions != stdout)) {
+      positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
+      latencyOverTime(&mergedpc);
+      fclose(savePositions);
+    }
+    
+    if (verify) {
+      positionContainerCheckOverlap(&mergedpc);
+      size_t direct = O_DIRECT;
+      for (int i = 0; i < num; i++) { // check all threads, if any aren't direct
+	if (threadContext[i].o_direct == 0) {
+	  direct = 0;
+	}
+      }
+      int errors = verifyPositions(&mergedpc, MIN(256, mergedpc.sz), job, direct, 1 /* sorted */, threadContext->runSeconds, NULL, NULL, NULL, 0, 1, 0);
+      if (errors) {
+	exit(1);
       }
     }
-    int errors = verifyPositions(&mergedpc, MIN(256, mergedpc.sz), job, direct, 1 /* sorted */, threadContext->runSeconds, NULL, NULL, NULL, 0, 1, 0);
-    if (errors) {
-      exit(1);
-    }
-  }
+    positionContainerFree(&mergedpc);
+  } // if save or verify
   
-  positionContainerFree(&mergedpc);
   free(origpc);
 
   // free
