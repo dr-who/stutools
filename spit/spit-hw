@@ -25,5 +25,5 @@ do
 
     echo ==== $f ====
 
-    lspci -vv | grep -w $f -A20 | egrep -i '(numa|speed|lnk)'
+    lspci -s $f -vv | egrep -i '(control|numa|GT/s)'
 done
