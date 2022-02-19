@@ -1,5 +1,9 @@
 #!/bin/bash
 
+echo == CPU power
+
+cat /sys/devices/system/cpu/cpufreq/*/scaling_governor | sort | uniq -c
+
 lshw -c network -businfo | sed 's/pci\@0000://g' >/tmp/nicinfo 2>/dev/null
 lshw -c video -businfo | sed 's/pci\@0000://g' >/tmp/gpuinfo 2>/dev/null
 
