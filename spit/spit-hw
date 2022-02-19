@@ -1,0 +1,16 @@
+#!/bin/bash
+
+lshw -c network -businfo >/tmp/businfo 2>/dev/null
+
+IPs=$(ip addr list | grep "state UP" | awk '{print $2}' | tr -d ':')
+
+for f in $IPs
+do
+
+echo === $f ===
+
+(ethtool $f | grep Speed) 2>/dev/null
+grep $f /tmp/businfo
+
+done
+
