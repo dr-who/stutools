@@ -1,7 +1,7 @@
 #!/bin/bash
 
 lshw -c network -businfo >/tmp/nicinfo 2>/dev/null
-lshw -c video -businfo >/tmp/gpuinfo 2>/dev/null
+lshw -c video -businfo | sed 's/pci\@0000://g' >/tmp/gpuinfo 2>/dev/null
 
 IPs=$(ip addr list | grep "state UP" | awk '{print $2}' | tr -d ':')
 
@@ -20,3 +20,10 @@ echo ==== Video ===
 
 cat /tmp/gpuinfo
 
+for f in $(grep display /tmp/gpuinfo | awk '{print $1}')
+do
+
+    echo ==== $f ====
+
+    lspci -vv | grep -w $f -A20 | egrep -i '(numa|speed|lnk)'
+done
