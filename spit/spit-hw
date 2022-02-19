@@ -2,6 +2,7 @@
 
 echo == CPU power
 
+cat /proc/cpuinfo | grep "name" | sort | uniq -c
 cat /sys/devices/system/cpu/cpufreq/*/scaling_governor | sort | uniq -c
 
 lshw -c network -businfo | sed 's/pci\@0000://g' >/tmp/nicinfo 2>/dev/null
