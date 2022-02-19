@@ -17,7 +17,8 @@ echo === $f ===
 grep $f /tmp/nicinfo
 pci=$(grep $f /tmp/nicinfo | awk '{print $1;}')
 
-    lspci -s $pci -vv | egrep -i '(numa|GT/s)'
+lspci -s $pci -vv | egrep -i '(numa|GT/s)'
+devlink dev info pci/0000:$pci 2>/dev/null
 (ethtool $f | grep Speed) 2>/dev/null
 
 done
