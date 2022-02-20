@@ -322,6 +322,14 @@ static void *runThread(void *arg)
 	createFile(threadContext->jobdevice, threadContext->maxSizeInBytes);
       }
       fd = open(threadContext->jobdevice, O_RDWR | O_CREAT | tr | direct, S_IRUSR | S_IWUSR);
+
+      int fdret = fallocate(fd, 0, 0, threadContext->maxSizeInBytes);
+      if (fdret == 0) {
+	fprintf(stderr,"*info* fallocate '%s' succeeded with length = %zd\n", threadContext->jobdevice, threadContext->maxSizeInBytes);
+      } else {
+	perror("*info* fallocate potentially not supported: ");
+      }
+
       if (verbose) fprintf(stderr,"*info* open with O_RDWR, direct=%d, no excl specified\n", direct);
     } else {
       // else just open
