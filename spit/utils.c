@@ -777,6 +777,13 @@ int createFile(const char *filename, const size_t sz)
       //      return 1;
     }
   }
+  int fdret = fallocate(fd, 0, 0, sz);
+  if (fdret == 0) {
+    fprintf(stderr,"*info* fallocate '%s' succeeded with length = %zd\n", filename, sz);
+  } else {
+    perror("*info* fallocate potentially not supported: ");
+  }
+    
 
   keepRunning = 1;
   char *buf = NULL;
