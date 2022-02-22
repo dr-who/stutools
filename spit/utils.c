@@ -1084,8 +1084,19 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
   *discard_zeroes_data = 0;
   *alignment_offset = 0;
 
-  char base_block_device[128];
-  getBaseBlockDevice(suffix, base_block_device);
+  // if empty then make sure we clear results
+  if (suffix == NULL) {
+    return 0;
+  }
+
+  char base_block_device[156];
+  if (strchr(base_block_device, '/')) {
+    // if we have a / find the base
+    getBaseBlockDevice(suffix, base_block_device);
+  } else {
+    // otherwise use it as is
+    strcpy(base_block_device, suffix);
+  }
 
   char s[1000];
   sprintf(s, "/sys/block/%s/alignment_offset", base_block_device);

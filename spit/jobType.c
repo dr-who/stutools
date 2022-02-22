@@ -498,7 +498,7 @@ static void *runThread(void *arg)
   size_t discard_max_bytes, discard_granularity, discard_zeroes_data, alignment_offset;
   getDiscardInfo(suffix, &alignment_offset, &discard_max_bytes, &discard_granularity, &discard_zeroes_data);
   if (verbose) {
-    fprintf(stderr,"*info* discardInfo: alignment_offset %zd / max %zd / granularity %zd / zeroes_data %zd\n", alignment_offset, discard_max_bytes, discard_granularity, discard_zeroes_data);
+    fprintf(stderr,"*info* discardInfo '%s': alignment_offset %zd / max %zd / granularity %zd / zeroes_data %zd\n", suffix, alignment_offset, discard_max_bytes, discard_granularity, discard_zeroes_data);
   }
 
   if (threadContext->rw.tprob > 0 || threadContext->performPreDiscard) {
