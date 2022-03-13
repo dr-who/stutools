@@ -224,6 +224,7 @@ typedef struct {
   int notexclusive;
   size_t posIncrement;
   int jmodonly;
+  size_t showdate;
 
   // results
   double result_writeIOPS;
@@ -812,7 +813,21 @@ static void *runThreadTimer(void *arg)
         const double elapsed = thistime - starttime;
 
         pthread_mutex_lock(threadContext->gomutex);
-        fprintf(stderr,"[%2.2lf / %zd / %zd] read ", elapsed, *threadContext->go - *threadContext->go_finished, totalInFlight);
+	if (threadContext->showdate) {
+	  time_t timer;
+	  char buffer[26];
+	  struct tm* tm_info;
+	  
+	  timer = time(NULL);
+	  tm_info = localtime(&timer);
+	  
+	  strftime(buffer, 26, "%b %d %H:%M:%S", tm_info);
+	  fprintf(stderr,"[%s", buffer);
+	} else {
+	  fprintf(stderr,"[%2.2lf", elapsed);
+	}
+	
+	fprintf(stderr," / %zd / %zd] read ", *threadContext->go - *threadContext->go_finished, totalInFlight);
         pthread_mutex_unlock(threadContext->gomutex);
 
         //fprintf(stderr,"%5.0lf", TOMB(readB));
@@ -1024,7 +1039,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const double runseconds, const size_t dumpPos, char *benchmarkName, const size_t origqd,
                    unsigned short seed, FILE *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, char* numaBinding, const int performPreDiscard,
-                   resultType *result, size_t ramBytesForPositions, size_t notexclusive)
+                   resultType *result, size_t ramBytesForPositions, size_t notexclusive, const size_t showdate)
 {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -1067,6 +1082,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     threadContext[i].go = go;
     threadContext[i].jmodonly = 0;
+    threadContext[i].showdate = showdate;
     threadContext[i].fp = savePositions;
     threadContext[i].notexclusive = notexclusive;
     threadContext[i].go_finished = go_f;
@@ -2089,18 +2105,18 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	sprintf(s,"wx1zs1k4G%zd-%.1lf", p, MIN(TOGiB(maxSizeBytes), p+stepgb));
 	fprintf(stderr,"*info* precondition: running string %s\n", s);
 	preconditions->strings[0] = strdup(s);
-	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0);
 
 	free(preconditions->strings[0]); // free 'f'
 	sprintf(s,"wx1zs1k4G%zd-%.1lfK%zd", p, MIN(TOGiB(maxSizeBytes), p+stepgb), fragmentLBA);
 	fprintf(stderr,"*info* precondition: running string %s\n", s);
 	preconditions->strings[0] = strdup(s);
-	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0);
 
 	
 	}
     } else {
-      jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0);
+      jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0);
     }
     if (keepRunning) {
       fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");
