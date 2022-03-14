@@ -432,7 +432,7 @@ void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeByte
   //  ioctl(fileno(fp), FIONREAD, &nbytes);
   //  fprintf(stderr,"%d\n", nbytes);
   
-  if (0 || (p->finishTime > 0 && !p->inFlight)) {
+  if (p->success) {
     const char action = p->action;
     fprintf(fp, "%s\t%10zd\t%.2lf GiB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GiB\t%u\t%.8lf\t%.8lf\n", name, p->pos, TOGiB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes, TOGiB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime);
     if (doflush) {
