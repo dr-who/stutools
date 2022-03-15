@@ -536,10 +536,11 @@ void usage()
   fprintf(stdout,"  spit -c wx1G0-64k4zs1         # Write from [0,64) GiB, in 4KiB steps, sequentially \n");
   fprintf(stdout,"  spit -c wx1G0-64k4zs1K20      # Write from [0,64) GiB, in 4KiB steps, writing 1 in 20. \n");
   fprintf(stdout,"  spit -p f5 -f device -c ...   # Precondition/max-fragmentation with 5%% GC overhead, becomes K20.\n");
-  fprintf(stdout,"  spit -f .. -c ws0J8           # Use 8 threads, but only do every 8th IO in each thread. For NUMA/S testing\n");
   fprintf(stdout,"                                # the -p f5 commands iterates across the LBA in 64G chunks as previous two commands.\n");
   fprintf(stdout,"  spit ... -c rs0Y1000          # Limit the number of positions to process to 1,000 then end the run\n");
   fprintf(stdout,"  spit -c ... -D                # Display the 'D'ate/time per line\n");
+  fprintf(stdout,"  spit -f .. -c ws0J8           # Use 8 threads, but only do every 8th IO in each thread. For NUMA/S testing\n");
+  fprintf(stdout,"  spit -c ws1zk10001J2S1000     # Alternate writing sequentially from two threads at 1 MB x 1000/s = 1 GB/s\n");
   exit(0);
 }
 
