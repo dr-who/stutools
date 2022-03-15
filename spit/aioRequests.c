@@ -277,7 +277,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 		cbs[qdIndex]->data = &positions[pos];
 
-		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len >= finishBytes)) {
 		  goto endoffunction;
 		}
 		totalReadSubmit += len;
@@ -315,7 +315,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
 		cbs[qdIndex]->data = &positions[pos];
 
-		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len >= finishBytes)) {
 		  goto endoffunction;
 		}
 		totalWriteSubmit += len;
@@ -646,6 +646,14 @@ endoffunction:
 
   *totalWB = totalWriteSubmit;
   *totalRB = totalReadSubmit;
+
+  for (size_t i = 0; i < sz; i++) {
+    if (positions[i].submitTime > 0) {
+      if (positions[i].inFlight) {
+	fprintf(stderr,"*warning* position %zd inflight!\n", positions[i].pos);
+      }
+    }
+  }
 
   for (size_t i = 0; i < pos; i += posIncrement) {
     if (positions[i].action == 'R' || positions[i].action == 'W') {

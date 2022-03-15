@@ -1096,7 +1096,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
     else if (positions[i].action == 'W') wcount++;
     else if (positions[i].action == 'T') tcount++;
 
-    if (i < countToShow) {
+    if ((i < countToShow) || (i == pc->sz-1)) {
       buf += sprintf(buf,"\t[%02zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\toffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
     }
   }
