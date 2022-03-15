@@ -187,6 +187,7 @@ typedef struct {
   int addBlockSize;
   size_t positionLimit;
   size_t LBAtimes;
+  size_t POStimes;
   unsigned short seed;
   size_t iopstarget;
   size_t iopsdecrease;
@@ -441,7 +442,7 @@ static void *runThread(void *arg)
   float timeLimit = threadContext->runSeconds;
   size_t doRounds = 0; // don't do rounds
 
-  if (threadContext->positionLimit) {
+  if (threadContext->positionLimit) { // if Y or P override with positions
     iteratorMax = 1;
     doRounds = 0;
     posLimit = threadContext->positionLimit;
@@ -470,8 +471,8 @@ static void *runThread(void *arg)
     // specifing an x option
     // if we specify xn
     roundByteLimit = outerrange * threadContext->LBAtimes;
-  } else if (threadContext->positionLimit) {
-    posLimit = threadContext->pos.sz * threadContext->positionLimit;
+  } else if (threadContext->POStimes) {
+    posLimit = threadContext->pos.sz * threadContext->POStimes;
   }
 
   if (threadContext->posIncrement) {
@@ -1095,6 +1096,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].performPreDiscard = performPreDiscard;
     threadContext[i].runSeconds = runseconds;
     threadContext[i].LBAtimes = 0;
+    threadContext[i].POStimes = 0;
     threadContext[i].positionLimit = 0;
     threadContext[i].finishSeconds = runseconds;
     threadContext[i].exitIOPS = 0;
@@ -1336,7 +1338,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     char *multLimit = strchr(job->strings[i], 'x');
     if (multLimit && *(multLimit+1)) {
       threadContext[i].LBAtimes = MAX(1, atoi(multLimit+1));
-      threadContext[i].positionLimit = 0;
+      threadContext[i].POStimes = 0;
       threadContext[i].runSeconds = INF_SECONDS;
       threadContext[i].finishSeconds = INF_SECONDS;
       threadContext[num].finishSeconds = INF_SECONDS;
@@ -1350,7 +1352,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	  fprintf(stderr,"*error* mixing x and X options\n");
 	  exit(1);
 	}
-        threadContext[i].positionLimit = MAX(1, atoi(charX + 1));
+        threadContext[i].POStimes = MAX(1, atoi(charX+1));
 	threadContext[i].LBAtimes = 0;
         threadContext[i].runSeconds = INF_SECONDS;
         threadContext[i].finishSeconds = INF_SECONDS;
@@ -1663,11 +1665,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     char *iTO = strchr(job->strings[i], 'T');
     if (iTO) {
-      if ((threadContext[i].LBAtimes != 0) || (threadContext[i].positionLimit != 0)) {
+      if ((threadContext[i].LBAtimes != 0) || (threadContext[i].POStimes != 0)) {
 	fprintf(stderr,"*error* mixing T and (x or X) options\n");
 	exit(1);
       }
       threadContext[i].LBAtimes = 0;
+      threadContext[i].POStimes = 0;
       threadContext[i].positionLimit = 0;
       threadContext[i].runSeconds = atof(iTO+1);
       threadContext[i].finishSeconds = atof(iTO+1);
@@ -1742,15 +1745,15 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     // don't use 'E' or 'e' anywhere as the number parser thinks it's scientific notation
 
-    char *posLimit = strchr(job->strings[i], 'Y');
-    if (posLimit && *(posLimit+1)) {
-      threadContext[i].positionLimit = atoi(posLimit+1);
+    { char *posRestr = strchr(job->strings[i], 'Y');
+    if (posRestr && *(posRestr+1)) {
+      threadContext[i].positionLimit = atoi(posRestr+1);
       if (threadContext[i].positionLimit) {
 	fprintf(stderr,"*info* positions limited to %zd\n", threadContext[i].positionLimit);
       } else {
 	fprintf(stderr,"*info* Y0 specified, so positions constraint not applied\n");
       }
-    }
+    }}
     
 
     Wchar = strchr(job->strings[i], 'B');

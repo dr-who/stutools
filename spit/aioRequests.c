@@ -46,7 +46,9 @@ size_t aioMultiplePositions( positionContainer *p,
     fprintf(stderr,"*warning* sz == 0!\n");
     return 0;
   }
-  //  fprintf(stderr,"*info* positions %zd\n", sz);
+  if (finishBytes) fprintf(stderr,"*info* maxbytes %zd\n", finishBytes);
+  if (posLimit) fprintf(stderr,"*info* maxpositions %zd\n", posLimit);
+  
   int ret, checkTime = finishTime > 0;
   if (posIncrement < 1) posIncrement = 1;
   
@@ -191,6 +193,8 @@ size_t aioMultiplePositions( positionContainer *p,
 
   for (size_t i = 0; i < sz; i++) {
     positions[i].inFlight = 0;
+    positions[i].submitTime = 0;
+    positions[i].finishTime = 0;
     positions[i].success = 0;
   }
 
@@ -250,7 +254,6 @@ size_t aioMultiplePositions( positionContainer *p,
 	    // setup the request
 	    if (fd >= 0) {
 	      positions[pos].q = qdIndex;
-	      positions[pos].inFlight = 1;
 
 	      // watermark the block with the position on the device
 
@@ -277,7 +280,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 		cbs[qdIndex]->data = &positions[pos];
 
-		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len >= finishBytes)) {
+		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
 		  goto endoffunction;
 		}
 		totalReadSubmit += len;
@@ -315,7 +318,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
 		cbs[qdIndex]->data = &positions[pos];
 
-		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len >= finishBytes)) {
+		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
 		  goto endoffunction;
 		}
 		totalWriteSubmit += len;
@@ -342,6 +345,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	      timesinceMB += len;
 
 	      const double sub_start = positions[pos].submitTime;
+	      positions[pos].inFlight = 1;
 	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
 	      const double sub_taken = timedouble() - sub_start;
 	      if (sub_taken >= 1) {
@@ -650,7 +654,7 @@ endoffunction:
   for (size_t i = 0; i < sz; i++) {
     if (positions[i].submitTime > 0) {
       if (positions[i].inFlight) {
-	fprintf(stderr,"*warning* position %zd inflight!\n", positions[i].pos);
+	fprintf(stderr,"*warning* position %zd inflight! submit %lf, success %d\n", positions[i].pos, positions[i].submitTime, positions[i].success);
       }
     }
   }
