@@ -305,7 +305,7 @@ static void *runThread(void *arg)
 
     for (int i = 0; i < (int)threadContext->pos.sz; i++) {
       if (threadContext->highBlockSize > max_io_bytes) {
-	if (i==0) 
+	if (threadContext->id == 0) 
 	  fprintf(stderr,"*warning* device '%s' will split I/O size of %.0lf KiB [max_sectors_kb %.0lf KiB]\n", threadContext->jobdevice, TOKiB(threadContext->highBlockSize), TOKiB(max_io_bytes));
         break;
       }
@@ -441,6 +441,13 @@ static void *runThread(void *arg)
   // the other limit is threadContext->runSeconds
   float timeLimit = threadContext->runSeconds;
   size_t doRounds = 0; // don't do rounds
+  
+  size_t sumOfLens = 0;
+  for (size_t qq = 0; qq < threadContext->pos.sz; qq++) {
+    sumOfLens += threadContext->pos.positions[qq].len;
+  }
+  //  fprintf(stderr,"roundByteLimit %zd, sum of thread positions %zd\n", roundByteLimit, sum);
+      
 
   if (threadContext->positionLimit) { // if Y or P override with positions
     iteratorMax = 1;
@@ -452,7 +459,9 @@ static void *runThread(void *arg)
     // if we have a timelimit let's use that
     if (threadContext->LBAtimes) {
       iteratorMax = threadContext->LBAtimes;
-      roundByteLimit = outerrange ; // if x2 n  
+      // if LBAtimes then don't use the range, use the sum of the lens
+      roundByteLimit = sumOfLens;
+
       totalByteLimit = roundByteLimit * iteratorMax;
       timeLimit = INF_SECONDS;
       doRounds = 1; // but do if nN with x
@@ -470,7 +479,7 @@ static void *runThread(void *arg)
   } else if (threadContext->LBAtimes) {
     // specifing an x option
     // if we specify xn
-    roundByteLimit = outerrange * threadContext->LBAtimes;
+    roundByteLimit = sumOfLens * threadContext->LBAtimes;
   } else if (threadContext->POStimes) {
     posLimit = threadContext->pos.sz * threadContext->POStimes;
   }

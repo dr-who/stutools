@@ -1089,18 +1089,18 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
   
   buf += sprintf(buf, "*info*: total number of positions %zd\n", pc->sz);
   const positionType *positions = pc->positions;
-  size_t rcount = 0, wcount = 0, tcount = 0, hash = 0;
+  size_t rcount = 0, wcount = 0, tcount = 0, hash = 0, rsum = 0, wsum = 0, tsum = 0;
   for (size_t i = 0; i < pc->sz; i++) {
     hash = (hash + i) + positions[i].action + positions[i].pos + positions[i].len;
-    if (positions[i].action == 'R') rcount++;
-    else if (positions[i].action == 'W') wcount++;
-    else if (positions[i].action == 'T') tcount++;
+    if (positions[i].action == 'R') {rcount++; rsum += positions[i].len;}
+    else if (positions[i].action == 'W') {wcount++; wsum += positions[i].len;}
+    else if (positions[i].action == 'T') {tcount++; tsum += positions[i].len;}
 
     if ((i < countToShow) || (i == pc->sz-1)) {
-      buf += sprintf(buf,"\t[%02zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\toffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
+      buf += sprintf(buf,"\t[%5zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\toffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
     }
   }
-  buf += sprintf(buf,"\tSummary[%d]: reads %zd, writes %zd, trims %zd, hash %lx\n", positions[0].seed, rcount, wcount, tcount, hash);
+  buf += sprintf(buf,"\tSummary[%d]: reads %zd (sum %zd), writes %zd (sum %zd), trims %zd (sum %zd), hash %lx\n", positions[0].seed, rcount, rsum, wcount, wsum, tcount, tsum, hash);
   buf[0] = 0;
   fprintf(stderr, "%s", startbuf);
   free(startbuf);
@@ -1416,6 +1416,7 @@ void positionContainerModOnly(positionContainer *pc, const size_t jmod, const si
   for (size_t i = 0; i < pc->sz; i++) {
     if ((i % jmod) != threadid) {
       pc->positions[i].action = 'S';
+      pc->positions[i].len = 0;
     }
   }
 }

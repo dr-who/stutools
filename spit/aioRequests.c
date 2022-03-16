@@ -46,8 +46,9 @@ size_t aioMultiplePositions( positionContainer *p,
     fprintf(stderr,"*warning* sz == 0!\n");
     return 0;
   }
-  if (finishBytes) fprintf(stderr,"*info* maxbytes %zd\n", finishBytes);
-  if (posLimit) fprintf(stderr,"*info* maxpositions %zd\n", posLimit);
+  
+  //  if (finishBytes) fprintf(stderr,"*info* maxbytes %zd\n", finishBytes);
+  //  if (posLimit) fprintf(stderr,"*info* maxpositions %zd\n", posLimit);
   
   int ret, checkTime = finishTime > 0;
   if (posIncrement < 1) posIncrement = 1;
