@@ -24,8 +24,10 @@ typedef struct {
 typedef struct {
   double readIOPS;
   double writeIOPS;
-  double readMBps;
-  double writeMBps;
+  double readBps;
+  double writeBps;
+  size_t readTotalIO;
+  size_t writeTotalIO;
 } resultType;
 
 void jobInit(jobType *j);
@@ -49,6 +51,8 @@ void jobAddDeviceToAll(jobType *j, const char *device);
 void jobAddBoth(jobType *job, char *device, char *jobstring, int suggestNUMA);
 void jobFileSequence(jobType *job);
 size_t jobRunPreconditions(jobType *preconditions, const size_t count, const size_t minSizeBytes, const size_t maxSizeBytes);
+
+void resultDump(const resultType *r, const char *kcheckresult, const int display);
 
 #endif
 

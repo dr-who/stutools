@@ -85,6 +85,48 @@ add_test(testspitwk512b  spit -f wow -G 0.5 -c ws1k0.5 -v -V -t 1)
 
 add_test(testspita10 spit -f wow -G 1 -c ws1a10zM1 -v -t 5 )
 
+
+# the -K option enables us to assert the readIO and writeIO
+
+add_test(testspitk1a spit -f wow -G 1 -c rM2s0x1 -K 512,0 )
+add_test(testspitk1b spit -f wow -G 1 -c rM1s0x1 -K 1024,0 )
+add_test(testspitk1c spit -f wow -G 1 -c rk4s0x1 -K 262144,0 )
+add_test(testspitk1d spit -f wow -G 1 -c wM2s0x1 -K 0,512 )
+add_test(testspitk1e spit -f wow -G 1 -c wM1s0x1 -K 0,1024 )
+add_test(testspitk1f spit -f wow -G 1 -c wk4s0x1 -K 0,262144 )
+add_test(testspitk1g spit -f wow -G 1 -c rwM2s0x1 -K 252,260 -R1 )
+
+add_test(testspitk1h spit -f wow -G 1 -c rM2s0x2 -K 1024,0 )
+add_test(testspitk1i spit -f wow -G 1 -c rM2s0X1 -K 223,0 -L0.00001 )
+add_test(testspitk1j spit -f wow -G 1 -c rM2s0X2 -K 446,0 -L0.00001 )
+add_test(testspitk1k spit -f wow -G 1 -c rM1s0x1 -K 1024,0 -L0.00001 )
+
+add_test(testspitk1l spit -f wow -G 1 -c rM1s0x1J2 -K 1024,0)
+add_test(testspitk1m spit -f wow -G 1 -c rM1s0x1J11 -K 1024,0)
+add_test(testspitk1n spit -f wow -G 1 -c rM1s0x2J11 -K 2048,0)
+add_test(testspitk1o spit -f wow -G 1 -c rM1s0X1 -K 1024,0)
+add_test(testspitk1p spit -f wow -G 1 -c rM1s0X1G_J4 -K 1024,0)
+add_test(testspitk1q spit -f wow -G 1 -c rM1s0X1G_J8 -K 1024,0)
+add_test(testspitk1r spit -f wow -G 1 -c rM1s0X2G_J8 -K 2048,0)
+
+add_test(testspitkPa0 spit -f wow -G 1 -c rM1s0P0X1 -K 1,0)
+add_test(testspitkPa1 spit -f wow -G 1 -c rM1s0P1X1 -K 1,0)
+add_test(testspitkPa10ve spit -f wow -G 1 -c rM1s0P-10X1 -K 10,0)
+add_test(testspitkPa100ve spit -f wow -G 1 -c rM1s0P-100X1 -K 100,0)
+add_test(testspitkPa spit -f wow -G 1 -c rM1s0P100X1 -K 100,0)
+add_test(testspitkPb spit -f wow -G 1 -c rM1s0P100X2 -K 200,0)
+add_test(testspitkPc spit -f wow -G 1 -c rM1s0P100x1 -K 1024,0)
+add_test(testspitkPd spit -f wow -G 1 -c rM1s0P-100x1 -K 1024,0)
+add_test(testspitkPdw spit -f wow -G 1 -c wM1s0P-100x1 -K 0,1024 -R1 -v)
+add_test(testspitkPdwj8 spit -f wow -G 1 -c wM1s0P-100x1G_j8 -K 0,1024 -R1 -v)
+
+add_test(testspitkY1 spit -f wow -G 1 -c rM1s0P-100x1Y1 -K 1,0)
+add_test(testspitkY2 spit -f wow -G 1 -c rM1s0P100x1Y2 -K 2,0)
+add_test(testspitkY3 spit -f wow -G 1 -c rM1s0x1Y3 -K 3,0)
+add_test(testspitkY4 spit -f wow -G 1 -c rM1s0x3Y4 -K 4,0)
+add_test(testspitkY5 spit -f wow -G 1 -c rM1s0x2Y5 -K 5,0)
+
+
 add_test(testspitrange1 spit -f wow -G 1 -c rM1024q1j1x1 -v  )
 add_test(testspitrange2 spit -f wow -G 1 -c rM1024q1j2x1oG_ -v  )
 set_tests_properties(testspitrange2 PROPERTIES WILL_FAIL TRUE)

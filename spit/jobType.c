@@ -231,8 +231,10 @@ typedef struct {
   // results
   double result_writeIOPS;
   double result_readIOPS;
-  double result_writeMBps;
-  double result_readMBps;
+  double result_writeBps;
+  double result_readBps;
+  double result_writeTotalIO;
+  double result_readTotalIO;
   double result_tm;
 } threadInfoType;
 
@@ -496,7 +498,11 @@ static void *runThread(void *arg)
   } else if (threadContext->LBAtimes) { // if not P constrained
     // specifing an x option
     // if we specify xn
-    roundByteLimit = sumOfLens * threadContext->LBAtimes;
+    if (threadContext->jmodonly) { // if alternating the LBA is sum of lengths
+      roundByteLimit = sumOfLens * threadContext->LBAtimes;
+    } else {
+      roundByteLimit = outerrange * threadContext->LBAtimes;
+    }
   } else if (threadContext->POStimes) { // if not P constrained
     posLimit = threadContext->pos.sz * threadContext->POStimes;
   }
@@ -1050,8 +1056,12 @@ static void *runThreadTimer(void *arg)
 
   threadContext->result_writeIOPS = total_printed_w_iops /tm;
   threadContext->result_readIOPS =  total_printed_r_iops /tm;
-  threadContext->result_writeMBps = TOGiB(total_printed_w_bytes) / tm;
-  threadContext->result_readMBps = TOGiB(total_printed_r_bytes) /tm;
+  threadContext->result_writeBps = total_printed_w_bytes / tm;
+  threadContext->result_readBps = total_printed_r_bytes /tm;
+  for (size_t i = 0; i < threadContext->numThreads; i++) {
+    threadContext->result_writeTotalIO += threadContext->allPC[i]->writtenIOs;
+    threadContext->result_readTotalIO += threadContext->allPC[i]->readIOs;
+  }
   threadContext->result_tm = tm;
 
 
@@ -1461,6 +1471,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	  threadContext[i].randomSubSample = abs(atoi(pChar + 1));
 	} else { // if positive
 	  threadContext[i].firstPPositions = abs(atoi(pChar + 1));
+	  if (threadContext[i].firstPPositions <= 0) {
+	    threadContext[i].firstPPositions = 1;
+	  }
 	}
 
       }
@@ -1983,8 +1996,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   if (result) {
     result->writeIOPS = threadContext[num].result_writeIOPS;
     result->readIOPS = threadContext[num].result_readIOPS;
-    result->writeMBps = threadContext[num].result_writeMBps;
-    result->readMBps = threadContext[num].result_readMBps;
+    result->writeBps = threadContext[num].result_writeBps;
+    result->readBps = threadContext[num].result_readBps;
+    result->writeTotalIO = threadContext[num].result_writeTotalIO;
+    result->readTotalIO = threadContext[num].result_readTotalIO;
   }
 
 
@@ -2171,6 +2186,22 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 
 
 
+void resultDump(const resultType *r, const char *kcheckresults, const int display) {
+  long readCheckIO = 0, writeCheckIO = 0;
+  
+  if (display) {
+    fprintf(stderr, "*info* results '%s' -> %zd %zd\n", kcheckresults, readCheckIO, writeCheckIO);
+    fprintf(stderr, "*info*   read IO %zd, write IO %zd\n", r->readTotalIO, r->writeTotalIO);
+    fprintf(stderr, "*info*   read IOPS %.0lf, write IOPS %.0lf\n", r->readIOPS, r->writeIOPS);
+    fprintf(stderr, "*info*   read MB/s %.0lf, write MB/s %.0lf\n", TOMiB(r->readBps), TOMiB(r->writeBps));
+  }
+
+  if (kcheckresults) {
+    sscanf(kcheckresults, "%ld,%ld", &readCheckIO, &writeCheckIO);
+    assert((size_t)readCheckIO == r->readTotalIO);
+    assert((size_t)writeCheckIO == r->writeTotalIO);
+  }
+}
 
 
 
