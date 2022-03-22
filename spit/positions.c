@@ -1097,7 +1097,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
     else if (positions[i].action == 'T') {tcount++; tsum += positions[i].len;}
 
     if ((i < countToShow) || (i == pc->sz-1)) {
-      buf += sprintf(buf,"\t[%5zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\toffset %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
+      buf += sprintf(buf,"\t[%5zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\ttime(s) %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
     }
   }
   buf += sprintf(buf,"\tSummary[%d]: reads %zd (sum %zd), writes %zd (sum %zd), trims %zd (sum %zd), hash %lx\n", positions[0].seed, rcount, rsum, wcount, wsum, tcount, tsum, hash);

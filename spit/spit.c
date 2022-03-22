@@ -541,6 +541,7 @@ void usage()
   fprintf(stdout,"  spit -c ... -D                # Display the 'D'ate/time per line\n");
   fprintf(stdout,"  spit -f .. -c ws0J8           # Use 8 threads, but only do every 8th IO in each thread. For NUMA/S testing\n");
   fprintf(stdout,"  spit -c ws1zk10001J2S1000     # Writing monotonically, but from alternating between two threads at 1 MB x 1000/s = 1 GB/s\n");
+  fprintf(stdout,"  spit -f .. -c ws0S1           # Write a 4KiB block, randomly, 1 IO per second. The *slow* Loris\n");
   exit(0);
 }
 
