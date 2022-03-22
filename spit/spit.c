@@ -446,7 +446,8 @@ void usage()
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
   fprintf(stdout,"  spit -f device -c r           # seq read (defaults to s1 and k4)\n");
   fprintf(stdout,"  spit -f device -c w           # seq write (s1)\n");
-  fprintf(stdout,"  spit -f device -c w -L1       # Limit RAM use to 1 GiB\n");
+  fprintf(stdout,"  spit -f device -c w -L1       # Limit RAM use to 1 GiB. 48 bytes is used per position\n");
+  fprintf(stdout,"  spit -f device -c w           # Default RAM allocated to positions is MIN(15GB, free RAM/2)\n");
   fprintf(stdout,"  spit -f device -c rs0         # random, (s)equential is 1\n");
   fprintf(stdout,"  spit -f device -c rs1         # sequential\n");
   fprintf(stdout,"  spit -f device -c rzs1        # sequential starting from position 0\n");
