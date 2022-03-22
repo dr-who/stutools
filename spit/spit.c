@@ -451,8 +451,16 @@ void usage()
   fprintf(stdout,"\nUsage:\n  spit [-f device] [-c string] [-c string] ... [-c string]\n");
   fprintf(stdout,"\nCreate positions:\n");
   fprintf(stdout,"  spit -f dev -c rs0            # defaults to use RAM and generate unique positions. MIN(15GB,freeRAM/2)\n");
-  fprintf(stdout,"  spit -f dev -c rs0P100        # the first 100 positions in a device\n");
-  fprintf(stdout,"  spit -f dev -c rs0P-100       # subsample with replacement, 100 positions over the array\n");
+  fprintf(stdout,"  spit -f dev -c rs1P100z       # the first 100 positions in a device, starting from zero\n");
+  fprintf(stdout,"  spit -f dev -c rs1P100        # the first 100 positions in a device, offset by a random amount\n");
+  fprintf(stdout,"  spit -f dev -c rs0P100        # the first 100 positions in a device, randomised\n");
+  fprintf(stdout,"  spit -f dev -c rs1P+100z      # 100 positions equally spaced across the array, starting from zero\n");
+  fprintf(stdout,"  spit -f dev -c rs1P+100       # 100 positions equally spaced across the array, offset by a random amount\n");
+  fprintf(stdout,"  spit -f dev -c rs0P+100       # 100 positions equally spaced, randomised\n");
+  fprintf(stdout,"  spit -f dev -c rs1P-100       # subsample with replacement, 100 positions randomly distributed over the array\n");
+  fprintf(stdout,"  spit -f dev -c rs0P-100       # effectively the same as above with s1. But re-randomised.\n");
+  fprintf(stdout,"  spit -f dev -c rs1P.100z      # 100 equally spaced, alternating start,end,start+1,end-1... towards centre, from 0\n");
+  fprintf(stdout,"  spit -f dev -c rs1P.100       # effectively the same as above with s1 but with random offset\n");
   fprintf(stdout,"  spit -f dev -c rs0 -L20       # Use 20GiB of RAM to generate more unique positions\n");
   fprintf(stdout,"  spit -f dev -c rs0j2G_        # Make two threads, but first split the LBA range into two.\n");
   
@@ -464,7 +472,18 @@ void usage()
   fprintf(stdout,"  spit -f dev -c rs0P100x3      # perform 3xLBA worth of those first 100 positions\n");
   fprintf(stdout,"  spit -f dev -c rs0P2000X1     # execute the 2,000 IO operations\n");
   fprintf(stdout,"  spit -f dev -c rs0P2000X2     # execute the 2,000 IO operations, twice\n");
-  
+
+  fprintf(stdout,"\nSequential/random/striping:\n");
+  fprintf(stdout,"  spit -f dev -c s1z            # sequential, one linear region, starting from zero\n");
+  fprintf(stdout,"  spit -f dev -c s1             # sequential, one linear region, randomly offset\n");
+  fprintf(stdout,"  spit -f dev -c s0             # Not sequential, i.e. random\n");
+  fprintf(stdout,"  spit -f dev -c s2             # Two sequential regions. Divided the thread/region into two\n");
+  fprintf(stdout,"  spit -f dev -c s9             # Nine sequential regions. Divided the thread/region into nine...\n");
+  fprintf(stdout,"  spit -f dev -c s-1z           # Reverse sequential starting from the end of the array\n");
+  fprintf(stdout,"  spit -f dev -c s-1            # Reverse sequential, randomly offset\n");
+  fprintf(stdout,"  spit -f dev -c s-2            # Two sequential regions, reversed, randomly offset\n");
+
+
   fprintf(stdout,"\nExamples:\n");
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
   fprintf(stdout,"  spit -f device -c r           # seq read (defaults to s1 and k4)\n");

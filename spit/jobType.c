@@ -222,6 +222,8 @@ typedef struct {
   lengthsType len;
   size_t firstPPositions;
   size_t randomSubSample;
+  size_t linearSubSample;
+  size_t linearAlternate;
   int performPreDiscard;
   int notexclusive;
   size_t posIncrement;
@@ -250,7 +252,7 @@ static void *runThread(void *arg)
   // create the positions and the r/w status
   //    threadContext->seqFiles = seqFiles;
   //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample);
+  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample, threadContext->linearSubSample, threadContext->linearAlternate);
 
   for (size_t e = 0; e < threadContext->pos.sz; e++) {
     assert(threadContext->pos.positions[e].len > 0);
@@ -261,7 +263,7 @@ static void *runThread(void *arg)
     positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, threadContext->metaData ? 0 : 1 /*don't exit if meta*/);
   }
 
-  if (threadContext->seqFiles == 0 || threadContext->firstPPositions) positionContainerRandomize(&threadContext->pos, threadContext->seed);
+  if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos, threadContext->seed);
 
   if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun, threadContext->seed);
 
@@ -1463,21 +1465,38 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     threadContext[i].firstPPositions = 0;
     threadContext[i].randomSubSample = 0;
+    threadContext[i].linearSubSample = 0;
+    threadContext[i].linearAlternate = 0;
     char *pChar = strchr(job->strings[i], 'P');
     {
-      if (pChar && *(pChar+1)) {
-	if (atoi(pChar + 1) < 0) { // if negative
+      if (pChar && *(pChar+1) && (*(pChar+1) != '0')) {
+	float theval = atof(pChar + 1);
+	if (theval < 0) { // if negative
 	  fprintf(stderr,"*warning* -ve P value turns on randomSubSample mode\n");
 	  threadContext[i].randomSubSample = abs(atoi(pChar + 1));
-	} else { // if positive
-	  threadContext[i].firstPPositions = abs(atoi(pChar + 1));
-	  if (threadContext[i].firstPPositions <= 0) {
-	    threadContext[i].firstPPositions = 1;
+	} else if (theval > 0) { // if positive
+	  if (*(pChar+1) == '+') { // positive with a +
+	    fprintf(stderr,"*info* linear sub sample\n");
+	    threadContext[i].linearSubSample = abs(atoi(pChar + 1));
+	  } else if (theval >= 1) { // positive without a +
+	    threadContext[i].firstPPositions = abs(atoi(pChar + 1));
+	    if (threadContext[i].firstPPositions <= 0) {
+	      threadContext[i].firstPPositions = 1;
+	    }
+	  } else { // P.x
+	    if ((*(pChar+1) == '.') && (pChar+2)) {
+	      threadContext[i].linearSubSample = abs(atoi(pChar + 2));
+	      threadContext[i].linearAlternate = 1;
+	      fprintf(stderr,"*warning* P.x linearAlternate: %zd, %zd\n", threadContext[i].linearSubSample, threadContext[i].linearAlternate);
+	    }
 	  }
+	  
+	} else {
+	  fprintf(stderr,"*warning* not sure how we got here\n");
 	}
-
       }
     }
+    
 
     size_t uniqueSeeds = 0, verifyUnique = 0;
     long metaData = 0;
@@ -1668,16 +1687,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
-        double low = 0, high = 0;
-        int ret = splitRange(sf + 1, &low, &high);
+	int ret = atoi(sf+1);
 
-        if (ret == 0) {
-        } else if (ret == 1) {
-          seqFilesMaxSizeBytes = 0;
-        } else {
-          seqFilesMaxSizeBytes = ceil(high) * 1024;
-        }
-        seqFiles = ceil(low);
+	seqFilesMaxSizeBytes = 0;
+        seqFiles = ret;
       }
     }
 
@@ -1834,6 +1847,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     if (threadContext[i].randomSubSample) {
       mp = MIN(mp, threadContext[i].randomSubSample); // min of calculated and specified
+    }
+
+    if (threadContext[i].linearSubSample) {
+      mp = MIN(mp, threadContext[i].linearSubSample); // min of calculated and specified
     }
 
     mp = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));

@@ -112,8 +112,8 @@ add_test(testspitk1p spit -f wow -G 1 -c rM1s0X1G_J4 -K 1024,0)
 add_test(testspitk1q spit -f wow -G 1 -c rM1s0X1G_J8 -K 1024,0)
 add_test(testspitk1r spit -f wow -G 1 -c rM1s0X2G_J8 -K 2048,0)
 
-add_test(testspitkPa0 spit -f wow -G 1 -c rM1s0P0X1 -K 1,0)
-add_test(testspitkPa1 spit -f wow -G 1 -c rM1s0P1X1 -K 1,0)
+add_test(testspitkPa0 spit -f wow -G 1 -c rM1s0P1X1 -K 1,0)
+add_test(testspitkPa1 spit -f wow -G 1 -c rM1s0P1X10 -K 10,0)
 add_test(testspitkPa10ve spit -f wow -G 1 -c rM1s0P-10X1 -K 10,0)
 add_test(testspitkPa100ve spit -f wow -G 1 -c rM1s0P-100X1 -K 100,0)
 add_test(testspitkPa spit -f wow -G 1 -c rM1s0P100X1 -K 100,0)
@@ -128,6 +128,12 @@ add_test(testspitkY2 spit -f wow -G 1 -c rM1s0P100x1Y2 -K 2,0)
 add_test(testspitkY3 spit -f wow -G 1 -c rM1s0x1Y3 -K 3,0)
 add_test(testspitkY4 spit -f wow -G 1 -c rM1s0x3Y4 -K 4,0)
 add_test(testspitkY5 spit -f wow -G 1 -c rM1s0x2Y5 -K 5,0)
+
+add_test(testspitkPplus spit -f wow -G 1 -c rM1s1P100X1 -K 100,0)
+add_test(testspitkPplus2 spit -f wow -G 1 -c rM1s1P+100X1 -K 100,0)
+
+add_test(testspitkPdot spit -f wow -G 1 -c rM1s1P.100X1 -K 100,0)
+add_test(testspitkPdot2 spit -f wow -G 1 -c rM1s1P.200X1z -K 200,0)
 
 
 add_test(testspitrange1 spit -f wow -G 1 -c rM1024q1j1x1 -v  )

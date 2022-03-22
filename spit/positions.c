@@ -594,7 +594,7 @@ size_t positionContainerCreatePositionsGC(positionContainer *pc,
   return 0;
 }
 					
-					
+
 
 // create the position array
 size_t positionContainerCreatePositions(positionContainer *pc,
@@ -615,7 +615,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                         const double fourkEveryMiB,
                                         const size_t jumpKiB,
                                         const size_t firstPPositions,
-					const size_t randomSubSample
+					const size_t randomSubSample,
+					const size_t linearSubSample,
+					const size_t linearAlternate
                                        )
 {
 
@@ -644,7 +646,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   const double cov = ((pc->sz) * 1.0 * ((pc->minbs + pc->maxbs)/2)) / (maxbdSize - minbdSize);
   if (cov < 0.95) {
     // if we can't get good coverage
-    if (((sf == 0) && (firstPPositions == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) || (randomSubSample)) {
+    if (((sf == 0) && (firstPPositions == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) || (randomSubSample) || (linearSubSample)) {
       fprintf(stderr,"*info* warning, not a full coverage of the device, coverage = %.6lf%%\n", cov*100.0);
       //xxx bad idea with overlapping block ranges
     }
@@ -683,29 +685,29 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
   size_t *positionsStart, *positionsEnd, *positionsCurrent;
-  const int toalloc = (sf == 0) ? 1 : abs(sf);
-  assert(toalloc);
-  CALLOC(positionsStart, toalloc, sizeof(size_t));
-  CALLOC(positionsCurrent, toalloc, sizeof(size_t));
-  CALLOC(positionsEnd, toalloc, sizeof(size_t));
+  const int regions = (sf == 0) ? 1 : abs(sf);
+  assert(regions);
+  CALLOC(positionsStart, regions, sizeof(size_t));
+  CALLOC(positionsCurrent, regions, sizeof(size_t));
+  CALLOC(positionsEnd, regions, sizeof(size_t));
 
-  double ratio = 1.0 * (maxbdSize - minbdSize) / toalloc;
+  double ratio = 1.0 * (maxbdSize - minbdSize) / regions;
   //  fprintf(stderr,"ratio %lf\n", ratio);
 
   double totalratio = minbdSize;
-  for (int i = 0; i < toalloc && keepRunning; i++) {
+  for (int i = 0; i < regions && keepRunning; i++) {
     positionsStart[i] = alignedNumber((size_t)totalratio, alignment);
     totalratio += ratio;
   }
-  for (int i = 1; i < toalloc; i++) {
+  for (int i = 1; i < regions; i++) {
     positionsEnd[i-1] = positionsStart[i];
   }
-  positionsEnd[toalloc-1] = maxbdSize;
+  positionsEnd[regions-1] = maxbdSize;
 
 
   if (verbose >= 2) {
     size_t sumgap = 0;
-    for (int i = 0; i < toalloc && keepRunning; i++) {
+    for (int i = 0; i < regions && keepRunning; i++) {
       if (positionsEnd[i] - positionsStart[i])
         fprintf(stderr,"*info* range[%d]  [%12zd, %12zd]... size = %zd\n", i+1, positionsStart[i], positionsEnd[i], positionsEnd[i] - positionsStart[i]);
       sumgap += (positionsEnd[i] - positionsStart[i]);
@@ -714,10 +716,64 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     assert(sumgap == (maxbdSize - minbdSize));
   }
 
+  //
+
+    size_t *alterPos = NULL, *alterSize = NULL;
+    if (linearSubSample) {
+      unsigned int jumpseed = seed;
+      CALLOC(alterPos, linearSubSample, sizeof(size_t));
+      CALLOC(alterSize, linearSubSample, sizeof(size_t));
+      alterPos[0] = minbdSize; alterSize[0] = lengthsGet(len, &jumpseed);
+      
+      const size_t lastlen = lengthsGet(len, &jumpseed);
+      alterPos[linearSubSample - 1] = maxbdSize - lastlen;
+      alterSize[linearSubSample- 1] = lastlen;
+      
+      const size_t stepinbytes = (size_t) ((((double)maxbdSize - len->min) - (double)minbdSize) / (linearSubSample - 1 ));
+      
+      size_t start = minbdSize;
+      for (size_t qqq = 1; qqq < linearSubSample - 1; qqq++) {
+	start += stepinbytes; // step in nasty alignments
+	size_t pos = start >> alignbits; // then make aligned nicely
+	pos = pos << alignbits;
+	const size_t thislen = lengthsGet(len, &jumpseed);
+	alterPos[qqq] = pos;
+	alterSize[qqq] = thislen;
+      }
+    }
+
+    size_t *alternatePos = NULL, *alternateSize = NULL;
+    if (linearAlternate) {
+      CALLOC(alternatePos, linearSubSample, sizeof(size_t));
+      CALLOC(alternateSize, linearSubSample, sizeof(size_t));
+      size_t indx = 0;
+      for (size_t qqq = 0; qqq < pc->sz/2; qqq++) {
+	alternatePos[indx] = alterPos[qqq];   alternateSize[indx] = alterSize[qqq];
+	indx++;
+	alternatePos[indx] = alterPos[pc->sz-1 - qqq]; alternateSize[indx] = alterSize[pc->sz-1 - qqq];
+	indx++;
+      }
+      memcpy(alterPos, alternatePos, pc->sz * sizeof(size_t));
+      memcpy(alterSize, alternateSize, pc->sz * sizeof(size_t));
+      free(alternatePos); alternatePos = NULL;
+      free(alternateSize); alternateSize = NULL;
+      // quick truncate
+      for (size_t qqq = 0; qqq < pc->sz; qqq++) {
+	//	fprintf(stderr,"[%zd] %zd , %zd\n", qqq, alterPos[qqq], alterSize[qqq]);
+	if (alterPos[qqq] + alterSize[qqq] >= maxbdSize) {
+	  alterPos[qqq] = maxbdSize - alterSize[qqq];
+	}
+      }
+      
+    }
+	
+      
+
 
   // setup the -P positions
-  for (int i = 0; i < toalloc && keepRunning; i++) {
+  for (int i = 0; i < regions && keepRunning; i++) {
     positionsCurrent[i] = positionsStart[i];
+    //    fprintf(stderr,"[%d] %zd  %zd\n", i, positionsCurrent[i], positionsEnd[i]);
   }
 
   unsigned short xsubi[3] = {seed,seed,seed};
@@ -725,8 +781,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   count = 0;
   while (count < pc->sz && keepRunning) {
     int nochange = 1;
-    for (int i = 0; i < toalloc && keepRunning; i++) {
+    for (int i = 0; i < regions && keepRunning; i++) {
       size_t j = positionsCurrent[i]; // while in the range
+      //      fprintf(stderr,"[[%d]]  %zd\n", i, j);
 
       assert(j >= positionsStart[i]);
 
@@ -756,7 +813,12 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         // if we have gone over the end of the range
         //	if (j + thislen > positionsEnd[i]) {abort();fprintf(stderr,"hit the end"); continue;positionsCurrent[i] += thislen; break;}
 
-        if (randomSubSample) {
+        if (linearSubSample) {
+	  poss[count].pos = alterPos[count];
+	  thislen = alterSize[count];
+          assert(poss[count].pos >= minbdSize);
+          assert(poss[count].pos + thislen <= maxbdSize);
+	} else if (randomSubSample) {
 	  //	  abort();
           poss[count].pos = randomBlockSize(minbdSize, maxbdSize - thislen, alignbits, erand48(xsubi) * (maxbdSize - thislen - minbdSize));
           assert(poss[count].pos >= minbdSize);
@@ -811,7 +873,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
   //  fprintf(stderr,"starting Block %ld, count %zd\n", startingBlock, count);
   int offset = 0;
-  if (count) {
+  if (count || startingBlock > 0) { // only do this if not a linear pattern
     if (startingBlock == -99999) {
       offset = rand_r(&seed) % count;
     } else {
@@ -884,6 +946,26 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     fprintf(stderr,"*info* sum of %zd lengths is %.1lf GiB\n", pc->sz, TOGiB(sum));
   }
 
+  // check monotonically increasing if not random
+
+  if ((sf == 1) && (linearAlternate == 0) && (randomSubSample == 0)) {
+    fprintf(stderr,"*info* checking monotonic ordering of positions\n");
+    size_t maxpos = positions[0].pos;
+    for (size_t i = 0; i < pc->sz; i++) {
+      if (positions[i].pos > maxpos) maxpos = positions[i].pos;
+    }
+    
+    for (size_t i = 1; i < pc->sz; i++) {
+      if (positions[i].pos < positions[i-1].pos) {
+	if (positions[i-1].pos != maxpos) {
+	  fprintf(stderr,"eek\n");
+	  //	  abort();
+	}
+      }
+    }
+  }
+    
+
   pc->minbdSize = minbdSize;
   pc->maxbdSize = maxbdSize;
 
@@ -891,6 +973,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   free(positionsStart);
   free(positionsEnd);
   free(positionsCurrent);
+
+  if (alterSize) free(alterSize);
+  if (alterPos) free(alterPos);
 
   if (fourkEveryMiB > 0) {
     insertFourkEveryMiB(pc, minbdSize, maxbdSize, seed, fourkEveryMiB, jumpKiB);
