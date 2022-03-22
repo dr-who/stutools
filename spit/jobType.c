@@ -454,7 +454,7 @@ static void *runThread(void *arg)
     iteratorMax = 1;
     doRounds = 0;
     posLimit = threadContext->positionLimit;
-  } else if (threadContext->randomSubSample) { // if P-ve
+  } else if (threadContext->randomSubSample || threadContext->firstPPositions) { // if P-ve
     iteratorMax = 1;
     doRounds = 0;
     // P-ve
@@ -464,6 +464,7 @@ static void *runThread(void *arg)
       posLimit = threadContext->pos.sz * threadContext->POStimes;
     }
   } else if (threadContext->rerandomize || threadContext->addBlockSize || threadContext->runonce) {
+    fprintf(stderr,"*info* rerand or addb or runo\n");
     // n or N option
     // one of the three limits: time, positions or bytes
     // if we have a timelimit let's use that
@@ -474,7 +475,13 @@ static void *runThread(void *arg)
 
       totalByteLimit = roundByteLimit * iteratorMax;
       timeLimit = INF_SECONDS;
-      doRounds = 1; // but do if nN with x
+      doRounds = 1; 
+    } else if (threadContext->POStimes) { // with X
+      iteratorMax = threadContext->POStimes;
+      posLimit = threadContext->pos.sz;
+      totalPosLimit = posLimit * iteratorMax;
+      timeLimit = INF_SECONDS;
+      doRounds = 1;
     } else if (threadContext->positionLimit || threadContext->runonce) {
       posLimit = threadContext->pos.sz;
       totalPosLimit = posLimit * iteratorMax;
@@ -485,12 +492,12 @@ static void *runThread(void *arg)
 	iteratorMax = threadContext->positionLimit;
 	doRounds = 1; // but do if nN with X
       }
-    }
-  } else if (threadContext->LBAtimes) {
+    } // else default to existing time
+  } else if (threadContext->LBAtimes) { // if not P constrained
     // specifing an x option
     // if we specify xn
     roundByteLimit = sumOfLens * threadContext->LBAtimes;
-  } else if (threadContext->POStimes) {
+  } else if (threadContext->POStimes) { // if not P constrained
     posLimit = threadContext->pos.sz * threadContext->POStimes;
   }
 
