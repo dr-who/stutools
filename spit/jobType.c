@@ -2061,7 +2061,6 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
   if (count) {
     size_t gSize = alignedNumber(maxSizeBytes, 4096);
     size_t coverage = 2;
-    size_t jumble = 0;
     size_t fragmentLBA = 0;
 
     for (int i = 0; i < (int) count; i++) {
@@ -2110,9 +2109,9 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
           seqFiles = atoi(charG + 1);
         }
       }
-      if (seqFiles != 0) {
-        jumble = 1;
-      }
+      //      if (seqFiles != 0) {
+      //        jumble = 1;
+      //      }
 
       size_t exitIOPS = MAX(200 * 1024 / blockSize, 10); // 200MB/s lowerbound means far too slow, the speed of one drive
       {
@@ -2126,7 +2125,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       fprintf(stderr,"*info* coverage %zd, with an IOPS limit of %zd (%.0lf MiB/sec) after %.3lf GiB is written\n", coverage, exitIOPS, exitIOPS * blockSize / 1024, TOGiB(gSize));
 
       char s[100];
-      sprintf(s, "w k%g z s%zd J%zd b%zd X%zd nN I%zd q64", blockSize, seqFiles, jumble, gSize, coverage, exitIOPS); // X1 not x1 means run once then rerandomise
+      sprintf(s, "w k%g z s%zd j%d b%zd x%zd nN I%zd q64", blockSize, seqFiles, 1, gSize, coverage, exitIOPS); // X1 not x1 means run once then rerandomise
       fprintf(stderr,"*info* '%s'\n", s);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);
