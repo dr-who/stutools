@@ -449,6 +449,22 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 void usage()
 {
   fprintf(stdout,"\nUsage:\n  spit [-f device] [-c string] [-c string] ... [-c string]\n");
+  fprintf(stdout,"\nCreate positions:\n");
+  fprintf(stdout,"  spit -f dev -c rs0            # defaults to use RAM and generate unique positions. MIN(15GB,freeRAM/2)\n");
+  fprintf(stdout,"  spit -f dev -c rs0P100        # the first 100 positions in a device\n");
+  fprintf(stdout,"  spit -f dev -c rs0P-100       # subsample with replacement, 100 positions over the array\n");
+  fprintf(stdout,"  spit -f dev -c rs0 -L20       # Use 20GiB of RAM to generate more unique positions\n");
+  fprintf(stdout,"  spit -f dev -c rs0j2G_        # Make two threads, but first split the LBA range into two.\n");
+  
+  fprintf(stdout,"\nVarying executions:\n");
+  fprintf(stdout,"  spit -f dev -c rs0            # run for 10 seconds by default\n");
+  fprintf(stdout,"  spit -f dev -c rs0x1          # cover the entire LBA one time\n");
+  fprintf(stdout,"  spit -f dev -c rs0x2          # cover the entire LBA two times\n");
+  fprintf(stdout,"  spit -f dev -c rs0P100x1      # perform a LBA worth of those first 100 positions\n");
+  fprintf(stdout,"  spit -f dev -c rs0P100x3      # perform 3xLBA worth of those first 100 positions\n");
+  fprintf(stdout,"  spit -f dev -c rs0P2000X1     # execute the 2,000 IO operations\n");
+  fprintf(stdout,"  spit -f dev -c rs0P2000X2     # execute the 2,000 IO operations, twice\n");
+  
   fprintf(stdout,"\nExamples:\n");
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
   fprintf(stdout,"  spit -f device -c r           # seq read (defaults to s1 and k4)\n");
