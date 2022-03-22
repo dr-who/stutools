@@ -221,6 +221,7 @@ typedef struct {
   size_t jumpK;
   lengthsType len;
   size_t firstPPositions;
+  size_t randomSubSample;
   int performPreDiscard;
   int notexclusive;
   size_t posIncrement;
@@ -247,7 +248,7 @@ static void *runThread(void *arg)
   // create the positions and the r/w status
   //    threadContext->seqFiles = seqFiles;
   //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions);
+  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample);
 
   for (size_t e = 0; e < threadContext->pos.sz; e++) {
     assert(threadContext->pos.positions[e].len > 0);
@@ -1435,10 +1436,15 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     size_t mp = ceil((threadContext[i].maxbdSize - threadContext[i].minbdSize) * 1.0 / bs);
 
     threadContext[i].firstPPositions = 0;
+    threadContext[i].randomSubSample = 0;
     char *pChar = strchr(job->strings[i], 'P');
     {
       if (pChar && *(pChar+1)) {
-        threadContext[i].firstPPositions = atoi(pChar + 1);
+        threadContext[i].firstPPositions = abs(atoi(pChar + 1));
+	if (atoi(pChar + 1) < 0) {
+	  fprintf(stderr,"*warning* -ve P value turns on randomSubSample mode\n");
+	  threadContext[i].randomSubSample = 1;
+	}
       }
     }
 

@@ -614,7 +614,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                         const size_t remain,
                                         const double fourkEveryMiB,
                                         const size_t jumpKiB,
-                                        const size_t firstPPositions
+                                        const size_t firstPPositions,
+					const size_t randomSubSample
                                        )
 {
 
@@ -638,21 +639,16 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   unsigned int seed = seedin; // set the seed, thats why it was passed
   srand48(seed);
 
-  size_t anywrites = 0, randomSubSample = 0;
+  size_t anywrites = 0;
 
   const double cov = ((pc->sz) * 1.0 * ((pc->minbs + pc->maxbs)/2)) / (maxbdSize - minbdSize);
   if (cov < 0.95) {
     // if we can't get good coverage
-    if ((sf == 0) && (firstPPositions == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) {
-      fprintf(stderr,"*info* warning, not a full coverage of the device, coverage = %.1lf%%\n", cov*100.0);
-      //randomSubSample = 1;
+    if (((sf == 0) && (firstPPositions == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) || (randomSubSample)) {
+      fprintf(stderr,"*info* warning, not a full coverage of the device, coverage = %.6lf%%\n", cov*100.0);
       //xxx bad idea with overlapping block ranges
     }
   }
-
-  //  if (firstPPositions) {
-  //    randomSubSample = 1;
-  //  }
 
   if (pc->sz == 0) {
     fprintf(stderr,"*error* setupPositions number of positions can't be 0\n");
@@ -761,10 +757,11 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         //	if (j + thislen > positionsEnd[i]) {abort();fprintf(stderr,"hit the end"); continue;positionsCurrent[i] += thislen; break;}
 
         if (randomSubSample) {
-	  abort();
+	  //	  abort();
           poss[count].pos = randomBlockSize(minbdSize, maxbdSize - thislen, alignbits, erand48(xsubi) * (maxbdSize - thislen - minbdSize));
           assert(poss[count].pos >= minbdSize);
           assert(poss[count].pos + thislen <= maxbdSize);
+	  // end of randomSubSample
         } else {
           poss[count].pos = j;
           int overend = 0;
@@ -1074,7 +1071,7 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
     totalBytes += devList[i].bdSize;
   }
 
-  fprintf(stderr,"*info* %zd positions, %.2lf GiB positions from a total of %.2lf GiB, coverage (%.0lf%%)\n", maxpositions, TOGiB(len), TOGiB(totalBytes), 100.0*TOGiB(len)/TOGiB(totalBytes));
+  fprintf(stderr,"*info* %zd positions, %.2lf GiB positions from a total of %.2lf GiB, coverage (%.5lf%%)\n", maxpositions, TOGiB(len), TOGiB(totalBytes), 100.0*TOGiB(len)/TOGiB(totalBytes));
 }
 
 

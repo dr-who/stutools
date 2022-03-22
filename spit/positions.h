@@ -76,7 +76,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                         const size_t remain,
                                         const double fourkEveryMiB,
                                         const size_t jumpKiB,
-                                        const size_t firstPPositions
+                                        const size_t firstPPositions,
+					const size_t randomSubSample
                                        );
 
 //void freePositions(positionType *p);

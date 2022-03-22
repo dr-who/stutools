@@ -509,6 +509,7 @@ void usage()
   fprintf(stdout,"  spit -c P10X1                 # write 10 positions\n");
   fprintf(stdout,"  spit -c P10000X100            # write the same 10,000 positions 100 times\n");
   fprintf(stdout,"  spit -c P10000                # write the same 10,000 positions based on the time\n");
+  fprintf(stdout,"  spit -c P-10000               # A -ve P number, is determine 10,000 positions with replacement. Don't verify\n");
   fprintf(stdout,"  spit -p G -p Gs1              # precondition job, writing random, 100%% LBA, then seq job\n");
   fprintf(stdout,"  spit -c wZ1                   # Z is the starting offset. -z is -Z0\n");
   fprintf(stdout,"  spit -p G100                  # precondition job, writing random overwrite LBA size\n");
