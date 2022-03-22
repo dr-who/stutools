@@ -229,7 +229,7 @@ void nlUnbiasedSD(numListType *n1, numListType *n2, const double r, double *unsd
     }
     fprintf(stderr,"mean of diff = %.4lf\n  SD of diff = %.4lf\n SEM of diff = %.4lf\n", nlMean(&diff)+r*0, nlSD(&diff), nlSEM(&diff));
 
-    double t = nlMean(&diff ) / nlSEM(&diff);
+    double t = fabs(nlMean(&diff ) / nlSEM(&diff));
     fprintf(stderr,"t = %.4lf\n", t);
     size_t df = nlN(&diff) - 1;
     
