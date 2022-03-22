@@ -252,7 +252,7 @@ void nlUnbiasedSD(numListType *n1, numListType *n2, const double r, double *unsd
     
   
 double loadTTable(size_t df, size_t tail, double a) {
-  double ret = 0;
+  double ret = NAN;
   
   a = 0.05; // hard coded
   fprintf(stderr,"*info* load table %zd, %zd, %.4lf\n", df, tail, a);
@@ -273,9 +273,11 @@ double loadTTable(size_t df, size_t tail, double a) {
 	  ret = atof(third);
 	}
       }
-    }
+    } 
+    fclose(fp);
+  } else {
+    fprintf(stderr,"*error* the critical t table couldn't be loaded\n");
   }
-  fclose(fp);
   return ret;
 }
     
