@@ -254,7 +254,7 @@ void nlUnbiasedSD(numListType *n1, numListType *n2, const double r, double *unsd
 double loadTTable(size_t df, size_t tail, double a) {
   double ret = 0;
   
-  a = 0.05;
+  a = 0.05; // hard coded
   fprintf(stderr,"*info* load table %zd, %zd, %.4lf\n", df, tail, a);
   FILE *fp = fopen("crit-t.dat", "rt");
   char s[1000];
@@ -264,10 +264,14 @@ double loadTTable(size_t df, size_t tail, double a) {
     while (fgets(s, 1000, fp) != NULL) {
       char *first = strtok_r(s, "\t \n", &last);
       if (first && (atoi(first) == (int)df)) {
-	strtok_r(last, "\t \n", &last);
+	char *second = strtok_r(last, "\t \n", &last);
 	char *third = strtok_r(last, "\t \n", &last);
-	//	fprintf(stderr, "%s %s %s\n", first, second, third);
-	ret = atof(third);
+
+	if (tail == 1) {
+	  ret = atof(second);
+	} else { // tail == 2
+	  ret = atof(third);
+	}
       }
     }
   }
