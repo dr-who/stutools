@@ -450,10 +450,19 @@ static void *runThread(void *arg)
   //  fprintf(stderr,"roundByteLimit %zd, sum of thread positions %zd\n", roundByteLimit, sum);
       
 
-  if (threadContext->positionLimit) { // if Y or P override with positions
+  if (threadContext->positionLimit) { // if Y 
     iteratorMax = 1;
     doRounds = 0;
     posLimit = threadContext->positionLimit;
+  } else if (threadContext->randomSubSample) { // if P-ve
+    iteratorMax = 1;
+    doRounds = 0;
+    // P-ve
+    if (threadContext->LBAtimes) {
+      roundByteLimit = outerrange * threadContext->LBAtimes;
+    } else if (threadContext->POStimes) {
+      posLimit = threadContext->pos.sz * threadContext->POStimes;
+    }
   } else if (threadContext->rerandomize || threadContext->addBlockSize || threadContext->runonce) {
     // n or N option
     // one of the three limits: time, positions or bytes
@@ -1440,11 +1449,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     char *pChar = strchr(job->strings[i], 'P');
     {
       if (pChar && *(pChar+1)) {
-        threadContext[i].firstPPositions = abs(atoi(pChar + 1));
-	if (atoi(pChar + 1) < 0) {
+	if (atoi(pChar + 1) < 0) { // if negative
 	  fprintf(stderr,"*warning* -ve P value turns on randomSubSample mode\n");
-	  threadContext[i].randomSubSample = 1;
+	  threadContext[i].randomSubSample = abs(atoi(pChar + 1));
+	} else { // if positive
+	  threadContext[i].firstPPositions = abs(atoi(pChar + 1));
 	}
+
       }
     }
 
@@ -1797,7 +1808,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
     // now we have got the G_ and P in any order
-    if (threadContext[i].firstPPositions) mp = MIN(mp, threadContext[i].firstPPositions); // min of calculated and specified
+    if (threadContext[i].firstPPositions) {
+      mp = MIN(mp, threadContext[i].firstPPositions); // min of calculated and specified
+    }
+
+    if (threadContext[i].randomSubSample) {
+      mp = MIN(mp, threadContext[i].randomSubSample); // min of calculated and specified
+    }
 
     mp = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));
     
