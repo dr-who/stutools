@@ -15,11 +15,13 @@ typedef struct {
   unsigned int verify;                // pointer to the value to verify
   unsigned short deviceid;           // 2
   unsigned short seed;           // 2
+  float sumLatency;
+  float usoffset;
+  unsigned short samples;
   unsigned short q;              // 2
   char  action;                  // 1: 'R' or 'W'
-  unsigned int  success:2;               // 0.5
-  unsigned int inFlight:2;
-  double usoffset;
+  unsigned short  success:2;               // 0.5
+  unsigned short inFlight:2;
 } positionType;
 
 typedef struct {

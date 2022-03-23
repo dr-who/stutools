@@ -54,7 +54,7 @@ size_t aioMultiplePositions( positionContainer *p,
   if (posIncrement < 1) posIncrement = 1;
   
 
-  //  fprintf(stderr,"*this time %lf set %lf\n", timedouble(), finishTime);
+  //  fprintf(stderr,"*this time %lf set %lf, checkTime %d\n", timedouble(), finishTime, checkTime);
   //  if (posLimit) {
   //    if (verbose) fprintf(stderr,"*info* limit positions to %zd\n", posLimit);
     //  }
@@ -198,6 +198,7 @@ size_t aioMultiplePositions( positionContainer *p,
     positions[i].finishTime = 0;
     positions[i].success = 0;
   }
+  
 
   size_t timesinceMB = 0;
 
@@ -207,23 +208,22 @@ size_t aioMultiplePositions( positionContainer *p,
 	
   while (keepRunning && thiskeeprunning) {
     thistime = timedouble();
-    if (checkTime && (thistime > finishTime)) {
-      thiskeeprunning = 0;
-      goto endoffunction;
-      //      break;
-    }
-    assert (pos < sz);
-    if (0) fprintf(stderr,"pos %zd, inflight %zd (%zd %zd)\n", positions[pos].pos, inFlight, tailOfQueue, headOfQueue);
+
     if (inFlight > QD) {
       fprintf(stderr,"*error* inFlight %zd %zd\n", inFlight, QD);
     }
-    //    fprintf(stderr,"pos %zd, %lf    %lf\n", pos, thistime, start + positions[pos].usoffset/1000000.0);
 
-    
-    
+    assert (pos < sz);
     if (thistime >= roundstart + positions[pos].usoffset) {
       size_t submitthisround = 0;
       while (sz && (inFlight < QDmax) && keepRunning) {
+
+	if (checkTime && (thistime > finishTime)) {
+	  thiskeeprunning = 0;
+	  goto endoffunction;
+	  //      break;
+	}
+
 	if (!positions[pos].inFlight) {
 	  submitthisround++;
 	  if (submitthisround > QDmin) break; // only submit QDmin at a time
@@ -241,6 +241,8 @@ size_t aioMultiplePositions( positionContainer *p,
 		performDiscard(fd, NULL, newpos, newpos+len, maxSize, alignment, NULL, 0, 0);
 		p->writtenIOs++;
 		positions[pos].finishTime = timedouble();
+		positions[pos].sumLatency += (positions[pos].finishTime - positions[pos].submitTime);
+		positions[pos].samples++;
 	      }
 
 	      goto nextpos;
@@ -339,7 +341,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	      }
 
 	      positions[pos].submitTime = timedouble();
-	      positions[pos].finishTime = 0;
+	      positions[pos].finishTime = 0; 
 
 
 	      // for the speed limiting
@@ -349,7 +351,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	      positions[pos].inFlight = 1;
 	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
 	      const double sub_taken = timedouble() - sub_start;
-	      if (sub_taken >= 1) {
+	      if (sub_taken > 1) {
 		fprintf(stderr,"*info* io_submit took %lf seconds (async submit, queue full?)\n", sub_taken);
 	      }
 
@@ -390,21 +392,15 @@ size_t aioMultiplePositions( positionContainer *p,
 	pos += posIncrement;
 	if (pos >= sz) {
 	  pos = 0;
-	  roundstart = timedouble(); // start of the round
-	  // 
+	  roundstart = thistime;
 	}
+
 	if (posLimit && (submitted >= posLimit)) {
 	  // if Px is passed in
-	  //fprintf(stderr,"end of function one shot\n");
+	  //	  fprintf(stderr,"end of function one shot\n");
 	  goto endoffunction; // only go through once
 	}
       } // while not enough inflight
-    } else {
-      // if the IO hasn't started yet, sleep a bit
-      if (pos > 0) {
-	// convert to seconds, then 1/2 of it
-	//	usleep((positions[pos].usoffset - positions[pos-1].usoffset)*1000000 / 10);
-      }
     }
 
     double timeelapsed = timedouble() - last;
@@ -445,7 +441,6 @@ size_t aioMultiplePositions( positionContainer *p,
       // fast poll
       ret = io_getevents(ioc, 0, inFlight, events, NULL);
     }
-    //fprintf(stderr,"%zd\n", inFlight);
 
     
     if (ret > 0) {
@@ -516,7 +511,9 @@ size_t aioMultiplePositions( positionContainer *p,
               abort();
             }
           }
-          pp->finishTime = lastreceive;
+	  pp->finishTime = lastreceive;
+	  pp->sumLatency += (pp->finishTime - pp->submitTime);
+	  pp->samples++;
         } // good IO
         pp->success = 1; // the action has completed
         pp->inFlight = 0;
@@ -527,7 +524,7 @@ size_t aioMultiplePositions( positionContainer *p,
         if (pp->finishTime - pp->submitTime > 30) {
           slow++;
           char s[300];
-          sprintf(s, "slow I/O (%c,pos=%zd,size=%d) %.1lf s, submission loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
+          sprintf(s, "slow I/O (%c,pos=%zd,size=%d) %.1lf s, submission loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime, slow, submitted, slow * 100.0 / (slow + submitted));
           syslogString("spit", s);
           fprintf(stderr,"*warning* %s", s);
         }
@@ -581,9 +578,10 @@ endoffunction:
     
             fprintf(stderr,"*error* AIO failure codes[fd=%d]: res=%d and res2=%d, %zd, inFlight %zd, returned %d results\n", fd, rescode, rescode2, pp->pos, inFlight, ret);
 
-          } else {        
-            pp->finishTime = timedouble();
           }
+	  pp->finishTime = timedouble();
+	  pp->sumLatency += (pp->finishTime - pp->submitTime);
+	  pp->samples++;
           freeQueue[tailOfQueue++] = pp->q;
           if (tailOfQueue == QD) tailOfQueue = 0;
 
@@ -591,7 +589,7 @@ endoffunction:
           if (pp->finishTime - pp->submitTime > 30) {
             slow++;
             char s[300];
-            sprintf(s, "slow I/O (%c,pos=%zd, size=%d) %.1lf s, no submission/post loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime - pp->submitTime, slow, submitted, slow * 100.0 / (slow + submitted));
+            sprintf(s, "slow I/O (%c,pos=%zd, size=%d) %.1lf s, no submission/post loop, %zd slow from %zd submitted (%.1lf%%)\n", pp->action, pp->pos, pp->len, pp->finishTime, slow, submitted, slow * 100.0 / (slow + submitted));
             syslogString("spit", s);
             fprintf(stderr,"*warning* %s", s);
           }
