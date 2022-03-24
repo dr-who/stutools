@@ -1019,13 +1019,16 @@ int getNumHardwareThreads()
 
 int cpuCountPerNuma( int numa )
 {
-  assert( getNumaCount() > 0 );
-  assert( numa >= 0 && numa < getNumaCount() );
+  /*  assert( getNumaCount() > 0 );
+      assert( numa >= 0 && numa < getNumaCount() );*/
 
   struct bitmask* bm = numa_allocate_cpumask();
   numa_node_to_cpus( numa, bm );
+  
   unsigned int cpu_count = numa_bitmask_weight( bm );
-  numa_bitmask_free( bm );
+  numa_bitmask_free(bm);
+  //  numa_free_cpumask(bm);
+
   return cpu_count;
 }
 
@@ -1035,13 +1038,15 @@ void getThreadIDs( int numa, int* numa_cpu_list )
   assert( numa >= 0 && numa < getNumaCount() );
   assert( numa_cpu_list != NULL );
 
+  const size_t ccpn = cpuCountPerNuma(numa);
+  
   struct bitmask* bm = numa_allocate_cpumask();
   numa_node_to_cpus( numa, bm );
 
   size_t cur_list_idx = 0;
   for( int tid = 0; tid < getNumHardwareThreads(); ++tid ) {
     if( numa_bitmask_isbitset( bm, tid ) ) {
-      assert( cur_list_idx < (size_t)cpuCountPerNuma( numa ) );
+      assert( cur_list_idx < ccpn );
       numa_cpu_list[ cur_list_idx++ ] = tid;
     }
   }
@@ -1090,6 +1095,7 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
   }
 
   char base_block_device[156];
+  base_block_device[0] = 0;
   if (strchr(base_block_device, '/')) {
     // if we have a / find the base
     getBaseBlockDevice(suffix, base_block_device);

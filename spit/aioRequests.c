@@ -31,6 +31,7 @@ size_t aioMultiplePositions( positionContainer *p,
                              size_t *ios,
                              size_t *totalRB,
                              size_t *totalWB,
+                             const size_t rounds,
                              const size_t posLimit,
                              const int dontExitOnErrors,
                              const int fd,
@@ -39,12 +40,26 @@ size_t aioMultiplePositions( positionContainer *p,
                              const size_t discard_max_bytes,
 			     FILE *fp,
 			     char *jobdevice,
-			     size_t posIncrement
+			     size_t posIncrement,
+			     int recordSamples
                            )
 {
   if (sz == 0) {
     fprintf(stderr,"*warning* sz == 0!\n");
     return 0;
+  }
+
+  //  fprintf(stderr,"*info* positions %zd, rounds %zd, posIncrement %zd\n", posLimit, rounds, posIncrement);
+
+  if (recordSamples) {
+    fprintf(stderr,"*info* allocating latencies for %d samples at %zd positions\n", recordSamples, sz);
+    for (size_t i = 0; i < sz; i++) {
+      if (p->positions[i].latencies == NULL) {
+	p->positions[i].latencies = malloc(recordSamples * sizeof(float));
+	memset(&p->positions[i].latencies[0], 0, recordSamples * sizeof(float));
+	assert(p->positions[i].latencies);
+      }
+    }
   }
   
   //  if (finishBytes) fprintf(stderr,"*info* maxbytes %zd\n", finishBytes);
@@ -66,18 +81,18 @@ size_t aioMultiplePositions( positionContainer *p,
 
   struct iocb **cbs;
   struct io_event *events;
-  if (QDmax >= sz)  {
-    QDmax = sz;
-    //    fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", QD, verbose);
+
+  /*  if (QDmax >= posLimit * rounds)  {
+    QDmax = posLimit ;
+    fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", QDmax, verbose);
     //    exit(1);
-  }
+    }*/
   if (QDmin > QDmax) QDmin = QDmax;
   assert(QDmax <= sz);
   const size_t QD = QDmax;
   assert(sz>0);
   positionType *positions = p->positions;
   p->inFlight = 0;
-
 
 
   //  const double alignbits = log(alignment)/log(2);
@@ -242,7 +257,12 @@ size_t aioMultiplePositions( positionContainer *p,
 		p->writtenIOs++;
 		positions[pos].finishTime = timedouble();
 		positions[pos].sumLatency += (positions[pos].finishTime - positions[pos].submitTime);
-		positions[pos].samples++;
+		if (recordSamples && positions[pos].samples < recordSamples) {
+		  int pppp = positions[pos].samples++;
+		  //		  positions[pos].latencies = realloc(positions[pos].latencies, (pppp+1) * sizeof(float));
+		  //		  assert(positions[pos].latencies);
+		  positions[pos].latencies[pppp] = positions[pos].finishTime - positions[pos].submitTime;
+		}
 	      }
 
 	      goto nextpos;
@@ -395,7 +415,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	  roundstart = thistime;
 	}
 
-	if (posLimit && (submitted >= posLimit)) {
+	if (posLimit && (submitted >= posLimit * rounds)) {
 	  // if Px is passed in
 	  //	  fprintf(stderr,"end of function one shot\n");
 	  goto endoffunction; // only go through once
@@ -513,7 +533,12 @@ size_t aioMultiplePositions( positionContainer *p,
           }
 	  pp->finishTime = lastreceive;
 	  pp->sumLatency += (pp->finishTime - pp->submitTime);
-	  pp->samples++;
+	  if (recordSamples && pp->samples < recordSamples) {
+	    int pppp = pp->samples++;
+	    //	    pp->latencies = realloc(pp->latencies, (pppp+1) * sizeof(float));
+	    //	    assert(pp->latencies);
+	    pp->latencies[pppp] = pp->finishTime - pp->submitTime;
+	  }
         } // good IO
         pp->success = 1; // the action has completed
         pp->inFlight = 0;
@@ -581,7 +606,13 @@ endoffunction:
           }
 	  pp->finishTime = timedouble();
 	  pp->sumLatency += (pp->finishTime - pp->submitTime);
-	  pp->samples++;
+	  if (recordSamples && pp->samples < recordSamples) {
+	    int pppp = pp->samples++;
+	    //	    pp->latencies = realloc(pp->latencies, (pppp+1) * sizeof(float));
+	    //	    assert(pp->latencies);
+	    pp->latencies[pppp] = pp->finishTime - pp->submitTime;
+	  }
+	  
           freeQueue[tailOfQueue++] = pp->q;
           if (tailOfQueue == QD) tailOfQueue = 0;
 

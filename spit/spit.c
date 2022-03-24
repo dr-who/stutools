@@ -174,7 +174,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     if (added) fprintf(stderr,"*info* added %zd devices from file '%s'\n", added, optarg);
     break;
     case 'f':
-      addDeviceDetails(strdup(optarg), &deviceList, &deviceCount);
+      addDeviceDetails(optarg, &deviceList, &deviceCount);
       //      device = strdup(optarg);
       break;
     case 'j':
@@ -436,8 +436,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   //  }
   //  exit(1);
 
-
+  freeDeviceDetails(deviceList, deviceCount);
   if (verbose) jobDump(j);
+
+  jobFree(&jtemp);
 
   //  for(size_t i = 0; i < deviceCount; i++ ) {
   //    free( deviceList[ i ].devicename );
@@ -459,7 +461,7 @@ void usage()
   fprintf(stdout,"  spit -f dev -c rs0P+100       # 100 positions equally spaced, randomised\n");
   fprintf(stdout,"  spit -f dev -c rs1P-100       # subsample with replacement, 100 positions randomly distributed over the array\n");
   fprintf(stdout,"  spit -f dev -c rs0P-100       # effectively the same as above with s1. But re-randomised.\n");
-  fprintf(stdout,"  spit -f dev -c rs1P.100z      # 100 equally spaced, alternating start,end,start+1,end-1... towards centre, from 0\n");
+  fprintf(stdout,"  spit -f dev -c rs1P.100z      # 100 equally spaced, alternating start,end,s+1,e-1... centre\n");
   fprintf(stdout,"  spit -f dev -c rs1P.100       # effectively the same as above with s1 but with random offset\n");
   fprintf(stdout,"  spit -f dev -c rs0 -L20       # Use 20GiB of RAM to generate more unique positions\n");
   fprintf(stdout,"  spit -f dev -c rs0j2G_        # Make two threads, but first split the LBA range into two.\n");
@@ -483,6 +485,13 @@ void usage()
   fprintf(stdout,"  spit -f dev -c s-1            # Reverse sequential, randomly offset\n");
   fprintf(stdout,"  spit -f dev -c s-2            # Two sequential regions, reversed, randomly offset\n");
 
+  fprintf(stdout,"\nPositions/latencies:\n");
+  fprintf(stdout,"  spit -P filename              # dump positions to filename\n");
+  fprintf(stdout,"                                # file contains device, position, size, timing, latency per sample, median latency\n");
+  fprintf(stdout,"  spit -P -                     # dump positions to (stdout) and stream raw IOs without collapsing\n");
+  fprintf(stdout,"                                # column 2 (byte offset), 6 (operation), 7 (size)\n");
+  fprintf(stdout,"                                # column 12/13 (start/fin time), column 14 (mean latency)\n");
+  fprintf(stdout,"                                # column 15 (#samples), 16 (median latency)\n");
 
   fprintf(stdout,"\nExamples:\n");
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
@@ -559,8 +568,6 @@ void usage()
   fprintf(stdout,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n");
   fprintf(stdout,"  spit -s 0.1 -i 5              # and ignore first 5 GiB of performance\n");
   fprintf(stdout,"  spit -v                       # verify the writes after a run\n");
-  fprintf(stdout,"  spit -P filename              # dump positions to filename\n");
-  fprintf(stdout,"  spit -P -                     # dump positions to (stdout) and stream raw IOs without collapsing\n");
   fprintf(stdout,"  spit -c wG_j4                 # The _ represents to divide the G value evenly between threads\n");
   fprintf(stdout,"  spit -B bench -M ... -N ...   # See the man page for benchmarking tips\n");
   fprintf(stdout,"  spit -F fileprefix -c ..j128  # creates files from .0001 to .0128\n");
@@ -1056,7 +1063,7 @@ int main(int argc, char *argv[])
   } while (fuzz);
 
   if (benchmarkName) free(benchmarkName);
-  //  if (device) free(device);
+  if (device) free(device);
 
   fprintf(stderr,"*info* exiting.\n");
   fflush(stderr);

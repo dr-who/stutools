@@ -18,7 +18,8 @@ size_t aioMultiplePositions( positionContainer *p,
                              size_t *ios,
                              size_t *totalRB,
                              size_t *totalWB,
-                             const size_t oneShot,
+			     const size_t rounds,
+                             const size_t posLimit,
                              const int dontExitOnErrors,
                              const int fd,
                              int flushEvery,
@@ -26,7 +27,8 @@ size_t aioMultiplePositions( positionContainer *p,
                              const size_t discard_max_bytes,
 			     FILE *fp,
 			     char *jobdevice,
-			     size_t posIncrement
+			     size_t posIncrement,
+			     int recordSamples
                            );
 
 int aioVerifyWrites(positionType *positions,

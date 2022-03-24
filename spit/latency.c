@@ -176,7 +176,7 @@ void latencyReadGnuplot(latencyType *lat) {
 
 
 void latencyWriteGnuplot(latencyType *lat) {
-  double median, three9, four9, five9;
+  double median = 0, three9 = 0, four9 = 0, five9 = 0;
   if (histCount(&lat->histWrite)) {
     histSumPercentages(&lat->histWrite, &median, &three9, &four9, &five9, 1);
   }

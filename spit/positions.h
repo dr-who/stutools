@@ -15,6 +15,7 @@ typedef struct {
   unsigned int verify;                // pointer to the value to verify
   unsigned short deviceid;           // 2
   unsigned short seed;           // 2
+  float *latencies;
   float sumLatency;
   float usoffset;
   unsigned short samples;

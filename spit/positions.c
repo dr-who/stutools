@@ -421,7 +421,11 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
   merged.maxbs = maxbs;
   merged.minbs = minbs;
 
+  for (size_t i = 0; i < p->sz; i++) {
+    p->positions[i].latencies = NULL; // as we have copied them
+  }
   positionContainerCollapse(&merged);
+  
 
   return merged;
 }
@@ -434,8 +438,35 @@ void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeByte
   
   if (p->success) {
     const char action = p->action;
-    const double avgiotime = p->samples ? (p->sumLatency / p->samples) : 0;
-    fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GB\t%u\t%.8lf\t%.8lf\t%.8lf\t%u\n", name, p->pos, TOGB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes, TOGB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime, avgiotime, p->samples);
+    double avgiotime;
+    if (p->samples) {
+      avgiotime = p->sumLatency / p->samples;
+    } else {
+      avgiotime = p->finishTime - p->submitTime;
+    }
+    
+    float median = avgiotime;
+    if (p->samples > 1) {
+      // sort
+      for (int q1 = 0; q1 < p->samples - 1; q1++) {
+	for (int q2 = q1+1; q2 < p->samples; q2++) {
+	  if (p->latencies[q1] > p->latencies[q2]) {
+	    // swap
+	    float t = p->latencies[q1];
+	    p->latencies[q1] = p->latencies[q2];
+	    p->latencies[q2] = t;
+	  }
+	}
+      }
+      for (int i = 0; i < p->samples; i++) {
+	if (p->latencies[i] == 0) {
+	  fprintf(stderr,"*warning* unlikely latency is 0\n");
+	}
+      }
+      median = p->latencies[p->samples/2];
+      //      fprintf(stderr," ---> median %lf,  mean %lf \n", median, avgiotime);
+    }
+    fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GB\t%u\t%.8lf\t%.8lf\t%.8lf\t%u\t%.8lf\n", name, p->pos, TOGB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes, TOGB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime, avgiotime, p->samples, median);
     if (doflush) {
       fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GB\t%u\t%d\n", name, (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, p->seed, 0);
     }
@@ -724,24 +755,55 @@ size_t positionContainerCreatePositions(positionContainer *pc,
       unsigned int jumpseed = seed;
       CALLOC(alterPos, linearSubSample, sizeof(size_t));
       CALLOC(alterSize, linearSubSample, sizeof(size_t));
-      alterPos[0] = minbdSize; alterSize[0] = lengthsGet(len, &jumpseed);
-      
-      const size_t lastlen = lengthsGet(len, &jumpseed);
-      alterPos[linearSubSample - 1] = maxbdSize - lastlen;
-      alterSize[linearSubSample- 1] = lastlen;
-      
-      const size_t stepinbytes = (size_t) ((((double)maxbdSize - len->min) - (double)minbdSize) / (linearSubSample - 1 ));
-      
-      size_t start = minbdSize;
-      for (size_t qqq = 1; qqq < linearSubSample - 1; qqq++) {
-	start += stepinbytes; // step in nasty alignments
-	size_t pos = start >> alignbits; // then make aligned nicely
-	pos = pos << alignbits;
-	const size_t thislen = lengthsGet(len, &jumpseed);
-	alterPos[qqq] = pos;
-	alterSize[qqq] = thislen;
+
+      if (1) {
+	
+	alterPos[0] = minbdSize; alterSize[0] = lengthsGet(len, &jumpseed);
+	
+	const size_t lastlen = lengthsGet(len, &jumpseed);
+	alterPos[linearSubSample - 1] = maxbdSize - lastlen;
+	alterSize[linearSubSample- 1] = lastlen;
+	
+	const size_t stepinbytes = (size_t) ((((double)maxbdSize - len->min) - (double)minbdSize) / (linearSubSample - 1 ));
+	
+	size_t start = minbdSize;
+	for (size_t qqq = 1; qqq < linearSubSample - 1; qqq++) {
+	  start += stepinbytes; // step in nasty alignments
+	  size_t pos = start >> alignbits; // then make aligned nicely
+	  pos = pos << alignbits;
+	  const size_t thislen = lengthsGet(len, &jumpseed);
+	  alterPos[qqq] = pos;
+	  alterSize[qqq] = thislen;
+	}
+      } else {
+	/*
+	alterPos[0] = (maxbdSize / 2) >> alignbits;
+	alterPos[0] = alterPos[0] << alignbits;
+	size_t len = 1024*1024;
+	alterSize[0] = len;
+	size_t up = alterPos[0] + len;
+	size_t down = alterPos[0] - len;
+	
+	for (size_t qqq = 1; qqq < linearSubSample; qqq+=4) {
+	  alterPos[qqq] = up;
+	  alterSize[qqq] = len;
+
+	  alterPos[qqq+1] = alterPos[qqq-1];
+	  alterSize[qqq+1] = len;
+
+	  alterPos[qqq+2] = down;
+	  alterSize[qqq+2] = len;
+	  
+	  alterPos[qqq+3] = alterPos[qqq-1];
+	  alterSize[qqq+3] = len;
+	  up += len;
+	  down -= len;
       }
-    }
+	*/
+      }
+    } // if linear
+      
+      
 
     size_t *alternatePos = NULL, *alternateSize = NULL;
     if (linearAlternate) {
@@ -814,6 +876,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         // if we have gone over the end of the range
         //	if (j + thislen > positionsEnd[i]) {abort();fprintf(stderr,"hit the end"); continue;positionsCurrent[i] += thislen; break;}
 
+	memset(&poss[count], 0, sizeof(positionType));
         if (linearSubSample) {
 	  poss[count].pos = alterPos[count];
 	  thislen = alterSize[count];
@@ -851,6 +914,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         poss[count].seed = seedin;
         poss[count].verify = 0;
         poss[count].q = 0;
+        poss[count].latencies = NULL;
 
         // only store depending on the module start
         if ((positionsCurrent[i] / pc->minbs) % mod == remain) count++;
@@ -977,6 +1041,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
   if (alterSize) free(alterSize);
   if (alterPos) free(alterPos);
+  if (alternateSize) free(alternateSize);
+  if (alternatePos) free(alternatePos);
 
   if (fourkEveryMiB > 0) {
     insertFourkEveryMiB(pc, minbdSize, maxbdSize, seed, fourkEveryMiB, jumpKiB);
@@ -1263,6 +1329,8 @@ void positionContainerAddMetadataChecks(positionContainer *pc, const size_t meta
   free(pc->positions);
   //  fprintf(stderr,"reallo from %zd to %zd\n", maxalloc, newpos);
   p = realloc(p, newpos * sizeof(positionType)); // truncate
+  memset(&p[newpos-1], 0, sizeof(positionType));
+  
   pc->positions = p;
   pc->sz = newpos;
   // check a read has the same position as the original write
@@ -1360,7 +1428,17 @@ void positionContainerUniqueSeeds(positionContainer *pc, unsigned short seed, co
 
 void positionContainerFree(positionContainer *pc)
 {
-  if (pc->positions) free(pc->positions);
+  if (pc->positions) {
+    for (size_t i = 0; i < pc->sz; i++) {
+      if (pc->positions[i].latencies) {
+	free(pc->positions[i].latencies);
+	pc->positions[i].latencies = NULL;
+      }
+    }
+    free(pc->positions);
+  } else {
+    fprintf(stderr,"*warning* calling free and already free\n");
+  }
   pc->positions = NULL;
 }
 
@@ -1439,6 +1517,7 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
       pNum++;
       p = realloc(p, sizeof(positionType) * (pNum));
       assert(p);
+      memset(&p[pNum-1], 0, sizeof(positionType));
       //      fprintf(stderr,"loaded %s deviceid %d\n", path, seenpathbefore);
       p[pNum-1].deviceid = seenpathbefore;
       assert(starttime);
