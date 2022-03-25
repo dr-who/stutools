@@ -30,8 +30,9 @@ void lengthsFree(lengthsType *l)
 
 void lengthsAdd(lengthsType *l, const size_t len, size_t freq)
 {
-  if (len > (1L << 32) -1) {
-    fprintf(stderr,"*error* block length is too large (%zd)\n", len);
+  const size_t maxlen  = (1L << (sizeof(unsigned int)*8))-1;
+  if (len > maxlen) {
+    fprintf(stderr,"*error* block length is too large (%zd), max is %zd\n", len, maxlen);
     exit(1);
   }
   if (freq < 1) freq = 1;
