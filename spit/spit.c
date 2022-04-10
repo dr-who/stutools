@@ -493,6 +493,14 @@ void usage()
   fprintf(stdout,"  spit -f dev -c s-1            # Reverse sequential, randomly offset\n");
   fprintf(stdout,"  spit -f dev -c s-2            # Two sequential regions, reversed, randomly offset\n");
 
+  fprintf(stdout,"\nBetween linear and random:\n");
+  fprintf(stdout,"  spit ... s-1                  # monotonically decreasing\n");
+  fprintf(stdout,"  spit ... s0                   # random\n");
+  fprintf(stdout,"  spit ... s0.05                # Almost entirely random with a few monotonically increasing positions\n");
+  fprintf(stdout,"  spit ... s0.95-20             # With a probability of 0.05 swap with a position +/- 20 positions\n");
+  fprintf(stdout,"  spit ... s0.98                # With a probability of 0.02 swap with any other position\n");
+  fprintf(stdout,"  spit ... s1                   # monotonically increasing\n");
+  
   fprintf(stdout,"\nPositions/latencies:\n");
   fprintf(stdout,"  spit -P filename              # dump positions to filename\n");
   fprintf(stdout,"                                # file contains device, position, size, timing, latency per sample, median latency\n");
