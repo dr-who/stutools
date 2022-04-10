@@ -1616,6 +1616,7 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
       }
     } else {
       fprintf(stderr,"*error* invalid line %zd: %s", lineno, line);
+      exit(1);
     }
 
     
