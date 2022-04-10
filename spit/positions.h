@@ -64,7 +64,7 @@ size_t positionContainerCreatePositionsGC(positionContainer *pc,
 
 size_t positionContainerCreatePositions(positionContainer *pc,
                                         const unsigned short deviceid,
-                                        const int sf,
+                                        const float sforig,
                                         const size_t sf_maxsizebytes,
                                         const probType readorwrite,
                                         const lengthsType *len,
@@ -125,6 +125,8 @@ void insertFourkEveryMiB(positionContainer *pc, const size_t minbdSize, const si
 void positionContainerHTML(positionContainer *p, const char *name);
 void positionContainerModOnly(positionContainer *pc, const size_t jmod, const size_t threadid);
 
+void positionContainerRandomizeProbandRange(positionContainer *pc, unsigned int seed, const double inprob, const size_t inrange);
+void monotonicCheck(positionContainer *pc);
 
 
 #endif

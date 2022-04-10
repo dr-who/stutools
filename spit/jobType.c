@@ -202,7 +202,8 @@ typedef struct {
   char *benchmarkName;
   size_t anywrites;
   size_t UUID;
-  size_t seqFiles;
+  float seqFiles;
+  size_t seqFilesRange;
   size_t seqFilesMaxSizeBytes;
   FILE *fp;
   size_t jumbleRun;
@@ -264,6 +265,10 @@ static void *runThread(void *arg)
   }
 
   if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos, threadContext->seed);
+  else if (threadContext->seqFiles > 0 && threadContext->seqFiles < 1 && threadContext->seqFilesRange > 0) {
+    fprintf(stderr,"*info* partial randomisation, prob of %lf, switched within range of %zd\n", threadContext->seqFiles, threadContext->seqFilesRange);
+    positionContainerRandomizeProbandRange(&threadContext->pos, threadContext->seed, threadContext->seqFiles, threadContext->seqFilesRange);
+  }
 
   if (threadContext->jumbleRun) positionContainerJumble(&threadContext->pos, threadContext->jumbleRun, threadContext->seed);
 
@@ -283,6 +288,8 @@ static void *runThread(void *arg)
   if (threadContext->iopstarget) {
     positionContainerAddDelay(&threadContext->pos, threadContext->iopstarget, threadContext->id, threadContext->iopsdecrease);
   }
+
+  monotonicCheck(&threadContext->pos);
 
   if (threadContext->dumpPos /* && !iRandom*/) {
     positionContainerDump(&threadContext->pos, threadContext->dumpPos);
@@ -409,7 +416,7 @@ static void *runThread(void *arg)
     fprintf(stderr,"*warning* the range covered (%zd positions covering %.3lf GiB) is < 99%% of available range (%.3lf GiB)\n", threadContext->pos.sz, TOGiB(sumrange), TOGiB(outerrange));
   }
   if (verbose >= 1)
-    fprintf(stderr,"*info* [t%zd] '%s %s' s%zd (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=[%zd,%zd] r/w/t=%.1g/%.1g/%.1g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%.1lf T%.1lf t%.1lf x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepthMin, threadContext->queueDepthMax, threadContext->rw.rprob, threadContext->rw.wprob, threadContext->rw.tprob, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runSeconds, threadContext->finishSeconds, threadContext->LBAtimes, threadContext->positionLimit);
+    fprintf(stderr,"*info* [t%zd] '%s %s' s%.1lf (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=[%zd,%zd] r/w/t=%.1g/%.1g/%.1g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%.1lf T%.1lf t%.1lf x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepthMin, threadContext->queueDepthMax, threadContext->rw.rprob, threadContext->rw.wprob, threadContext->rw.tprob, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runSeconds, threadContext->finishSeconds, threadContext->LBAtimes, threadContext->positionLimit);
 
 
   // do the mahi
@@ -1169,7 +1176,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].minSizeInBytes = minSizeInBytes;
     threadContext[i].maxSizeInBytes = maxSizeInBytes;
 
-    int seqFiles = 1;
+    float seqFiles = 1;
     size_t seqFilesMaxSizeBytes = 0;
     size_t bs = 4096, highbs = 4096;
 
@@ -1697,10 +1704,22 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     {
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
-	int ret = atoi(sf+1);
-
+	double ret = 0, prob = 0, range = 0;
+	int sr = splitRange(sf+1, &prob, &range);
+	if (sr == 2) {
+	  ret = prob;
+	  fprintf(stderr,"*info* sequentialness prob %.3lf, range %.0lf\n", prob, ceil(range));
+	} else {
+	  ret = prob;
+	  if (ret > 0 && ret < 1) {
+	    range = RAND_MAX;
+	  }
+	}
+	
 	seqFilesMaxSizeBytes = 0;
         seqFiles = ret;
+	//	fprintf(stderr,"*info -s %.03lf\n", ret);
+	threadContext[i].seqFilesRange = ceil(range);
       }
     }
 
@@ -1873,6 +1892,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].queueDepthMax = qDepthMax;
 
     positionContainerSetup(&threadContext[i].pos, mp);
+    //    threadContext[i].seqFiles = ceil(seqFiles);
     threadContext[i].seqFiles = seqFiles;
     threadContext[i].seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
     threadContext[i].rw.rprob = rprob;
@@ -2157,12 +2177,12 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
         }
       }
 
-      size_t seqFiles = 1;
+      float seqFiles = 1;
       {
         // seq or random
         char *charG = strchr(preconditions->strings[i], 's');
         if (charG && *(charG+1)) {
-          seqFiles = atoi(charG + 1);
+          seqFiles = atof(charG + 1);
         }
       }
       //      if (seqFiles != 0) {
@@ -2181,7 +2201,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       fprintf(stderr,"*info* coverage %zd, with an IOPS limit of %zd (%.0lf MiB/sec) after %.3lf GiB is written\n", coverage, exitIOPS, exitIOPS * blockSize / 1024, TOGiB(gSize));
 
       char s[100];
-      sprintf(s, "w k%g z s%zd j%d b%zd x%zd nN I%zd q64", blockSize, seqFiles, 1, gSize, coverage, exitIOPS); // X1 not x1 means run once then rerandomise
+      sprintf(s, "w k%g z s%.2lf j%d b%zd x%zd nN I%zd q64", blockSize, seqFiles, 1, gSize, coverage, exitIOPS); // X1 not x1 means run once then rerandomise
       fprintf(stderr,"*info* '%s'\n", s);
       free(preconditions->strings[i]);
       preconditions->strings[i] = strdup(s);

@@ -126,6 +126,10 @@ size_t aioMultiplePositions( positionContainer *p,
       maxSize = positions[i].len;
     }
   }
+  if (maxSize == 0) {
+    fprintf(stderr,"*error* max position len == 0, not executing\n");
+    return 0;
+  }
   assert(maxSize > 0);
   //  assert(maxSize <= 1L*1024*1024*1024); // shouldn't be more than 1GB!?
 

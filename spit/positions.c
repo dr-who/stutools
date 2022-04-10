@@ -466,7 +466,10 @@ void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeByte
       median = p->latencies[p->samples/2];
       //      fprintf(stderr," ---> median %lf,  mean %lf \n", median, avgiotime);
     }
-    fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GB\t%u\t%.8lf\t%.8lf\t%.8lf\t%u\t%.8lf\n", name, p->pos, TOGB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes, TOGB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime, avgiotime, p->samples, median);
+    double max = median;
+    if (p->samples) max = p->latencies[p->samples-1];
+    
+    fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GB\t%u\t%.8lf\t%.8lf\t%.8lf\t%u\t%.8lf\t%.8lf\n", name, p->pos, TOGB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes, TOGB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime, avgiotime, p->samples, median, max);
     if (doflush) {
       fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GB\t%u\t%d\n", name, (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, p->seed, 0);
     }
@@ -631,7 +634,7 @@ size_t positionContainerCreatePositionsGC(positionContainer *pc,
 // create the position array
 size_t positionContainerCreatePositions(positionContainer *pc,
                                         const unsigned short deviceid,
-                                        const int sf,
+                                        const float sforig,
                                         const size_t sf_maxsizebytes,
                                         const probType readorwrite,
                                         const lengthsType *len,
@@ -653,6 +656,11 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                        )
 {
 
+  int sf = ceil(sforig);
+  if (sf != ceil(sforig)) {
+    fprintf(stderr,"*info* sf = %d, sforig = %f\n", sf, sforig);
+  }
+  
   positionType *positions = pc->positions;
   pc->minbs = lengthsMin(len);
   pc->maxbs = lengthsMax(len);
@@ -1011,26 +1019,6 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     fprintf(stderr,"*info* sum of %zd lengths is %.1lf GiB\n", pc->sz, TOGiB(sum));
   }
 
-  // check monotonically increasing if not random
-
-  if ((sf == 1) && (linearAlternate == 0) && (randomSubSample == 0)) {
-    fprintf(stderr,"*info* checking monotonic ordering of positions\n");
-    size_t maxpos = positions[0].pos;
-    for (size_t i = 0; i < pc->sz; i++) {
-      if (positions[i].pos > maxpos) maxpos = positions[i].pos;
-    }
-    
-    for (size_t i = 1; i < pc->sz; i++) {
-      if (positions[i].pos < positions[i-1].pos) {
-	if (positions[i-1].pos != maxpos) {
-	  fprintf(stderr,"eek\n");
-	  //	  abort();
-	}
-      }
-    }
-  }
-    
-
   pc->minbdSize = minbdSize;
   pc->maxbdSize = maxbdSize;
 
@@ -1052,6 +1040,43 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   
   return anywrites;
 }
+
+
+void monotonicCheck(positionContainer *pc) {
+  fprintf(stderr,"*info* checking monotonic ordering of positions\n");
+  size_t monoup = 0, monodown = 0, close = 0, far = 0, total = 0;
+  float dist = 0;
+  
+  for (size_t i = 0; i < pc->sz; i++) {
+    size_t prev = i-1;
+
+    if (i == 0) {
+      if (abs(pc->positions[0].pos - pc->positions[pc->sz-1].pos) < 1024*1024*10) {
+	prev = pc->sz-1;
+      } else {
+	continue;
+      }
+    }
+
+    dist = abs(pc->positions[i].pos - pc->positions[prev].pos);
+    if (pc->positions[i].pos) {
+      dist = (dist / pc->positions[i].pos);
+      
+      if (pc->positions[prev].pos + pc->positions[prev].len == pc->positions[i].pos) {
+	monoup++;
+      } else if (pc->positions[i].pos + pc->positions[i].len == pc->positions[prev].pos) {
+	monodown++;
+      } else if (dist < 0.01) {
+	close++;
+      } else {
+	far++;
+      }
+      total++;
+    }
+  }
+  fprintf(stderr,"*info* monotonic check: mono-up %zd (%.3lf %%), mono-down %zd (%.3lf %%), close %zd, far %zd)\n", monoup, monoup*100.0/total, monodown, monodown*100.0/total, close, far);
+}
+  
 
 void insertFourkEveryMiB(positionContainer *pc, const size_t minbdSize, const size_t maxbdSize, unsigned int seed, const double fourkEveryMiB, const size_t jumpKiB)
 {
@@ -1133,6 +1158,55 @@ void positionContainerRandomize(positionContainer *pc, unsigned int seed)
           ;
         }
       }
+      // swap i and j
+      positionType p = positions[i];
+      positions[i] = positions[j];
+      positions[j] = p;
+    }
+  }
+}
+
+void positionContainerRandomizeProbandRange(positionContainer *pc, unsigned int seed, const double inprob, const size_t inrange)
+{
+  if (inrange == 0) {
+    return; // swap with itself?
+  }
+  
+  const size_t count = pc->sz;
+  positionType *positions = pc->positions;
+
+  assert(inprob >= 0);
+  assert(inprob <= 1);
+  
+  unsigned int prob = ceil((1-inprob) * RAND_MAX);
+  assert(prob > 0);
+  assert(prob <=RAND_MAX);
+  
+  size_t range = inrange;
+  if (range < 1) range = 1;
+  if (range >= pc->sz) range = pc->sz;
+
+  for (size_t i = 0; i < count && keepRunning; i++) {
+    if ((unsigned int)(rand_r(&seed) ) < (prob)) { // each one is actually four changes
+
+      // calculate low and high
+
+      long low = i - range; if (low < 0) low = 0;
+      long high = i + range; if (high >= (long)pc->sz - 1) high = (long)pc->sz - 1;
+
+      long j = i, newj = j;
+
+      const long gaprange = high + 1 - low;
+
+      if (gaprange >= 2) {
+	while (j == newj) {
+	  newj = low + (rand_r(&seed) % gaprange);
+	}
+	j = newj;
+      }
+
+      //      fprintf(stderr,"[%zd] %ld, range %zd,  low/high %ld %ld\n", i, j, range, low, high);
+      
       // swap i and j
       positionType p = positions[i];
       positions[i] = positions[j];
@@ -1488,10 +1562,11 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
   CALLOC(path, 1000, 1);
   //  char *origline = line; // store the original pointer, as getline changes it creating an unfreeable area
   positionType *p = NULL;
-  size_t pNum = 0;
+  size_t pNum = 0, lineno = 0;
   double starttime, fintime;
 
   while (keepRunning && (read = getline(&line, &maxline, fd) != -1)) {
+    lineno++;
     size_t pos, len, seed, tmpsize;
     //    fprintf(stderr,"in: %s %zd\n", line, strlen(line));
     char op;
@@ -1499,9 +1574,13 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
     fintime = 0;
 
     int s = sscanf(line, "%s %zu %*s %*s %*s %c %zu %zu %*s %*s %zu %lf %lf", path, &pos, &op, &len, &tmpsize, &seed, &starttime, &fintime);
-    if (s >= 5) {
+    if ((s >= 5) && (starttime > 0) && (fintime > 0)) {
       //      fprintf(stderr,"%s %zd %c %zd %zd %lf %lf\n", path, pos, op, len, seed, starttime, fintime);
       //      deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
+
+      if (starttime == 0) {
+	fprintf(stderr,"*warning* no starttime (line %zd): %s", lineno, line);
+      }
 
       int seenpathbefore = -1;
       for (int k = 0; k < job.count; k++) {
@@ -1520,7 +1599,7 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
       memset(&p[pNum-1], 0, sizeof(positionType));
       //      fprintf(stderr,"loaded %s deviceid %d\n", path, seenpathbefore);
       p[pNum-1].deviceid = seenpathbefore;
-      assert(starttime);
+      //      assert(starttime);
       p[pNum-1].submitTime = starttime;
       p[pNum-1].finishTime = fintime;
       //      fprintf(stderr,"%zd\n", pNum);
@@ -1535,7 +1614,11 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
       if (tmpsize > maxSize) {
         maxSize = tmpsize;
       }
+    } else {
+      fprintf(stderr,"*error* invalid line %zd: %s", lineno, line);
     }
+
+    
     if (maxLines) {
       if (pNum >= maxLines) {
 	break;

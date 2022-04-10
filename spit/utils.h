@@ -31,6 +31,10 @@
 
 #define TOKiB(x) ((x)/1024.0)
 
+#define GBtoGiB(x)  (((x) * 1000.0) / 1024.0)
+
+
+
 /*#define CALLOC(x, y, z) {x = calloc(y, z); if (!(x)) {fprintf(stderr,"ooom!!\n");abort();}}*/
 #define CALLOC(x, y, z) {/*fprintf(stderr,"CALLOC %s %d, size %zd\n", __FILE__, __LINE__, ((((size_t)((y) * (z)))/4096 + 1) * 4096));*/ assert((y)>0); assert((z)>0); x = memalign(4096, (((size_t)((y) * (z)))/4096 + 1) * 4096); if(x) memset(x, 0, (((size_t)((y) * (z)))/4096 + 1) * 4096);  if (!(x)) {fprintf(stderr,"*error* out of memory! ooom!! %zd\n", (((size_t)((y) * (z)))/4096 + 1) * 4096);abort();}}
 
@@ -122,6 +126,7 @@ void getBaseBlockDevice(const char *block_device, char* base_block_device);
 int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard_max_bytes, size_t *discard_granularity, size_t *discard_zeroes_data);
 int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, double *maxdelay_secs, const int verbose, int zeroall);
 void syslogString(const char *prog, const char *message);
+size_t stringToBytesDefaultGiB(const char *str);
 
 #endif
 

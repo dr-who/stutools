@@ -204,15 +204,23 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       break;
     case 'G':
     {}
-    double lowg = 0, highg = 0;
-    splitRange(optarg, &lowg, &highg);
-    *minSizeInBytes = alignedNumber(1024L * lowg * 1024 * 1024, 4096);
-    *maxSizeInBytes = alignedNumber(1024L * highg * 1024 * 1024, 4096);
+    if (strchr(optarg, '-') == NULL) {
+      // no range
+      size_t num = alignedNumber(stringToBytesDefaultGiB(optarg), 4096);
+      fprintf(stderr,"*info* -G %zd (%.5lf GiB)\n", num, TOGiB(num));  
+      *minSizeInBytes = num;
+      *maxSizeInBytes = num;
+    } else { 
+      double lowg = 0, highg = 0;
+      splitRange(optarg, &lowg, &highg);
+      *minSizeInBytes = alignedNumber(1024L * lowg * 1024 * 1024, 4096);
+      *maxSizeInBytes = alignedNumber(1024L * highg * 1024 * 1024, 4096);
+    }
     if (*minSizeInBytes == *maxSizeInBytes) {
       *minSizeInBytes = 0;
     }
     if (*minSizeInBytes > *maxSizeInBytes) {
-      fprintf(stderr,"*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
+      fprintf(stderr,"*error* low range needs to be lower [%zd, %zd]\n", *minSizeInBytes, *maxSizeInBytes);
       exit(1);
     }
     break;
@@ -514,8 +522,10 @@ void usage()
   fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread, run 4, wait 4 repeat\n");
   fprintf(stdout,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stdout,"  spit -f device -c r -G 1      # 1 GiB device size\n");
-  fprintf(stdout,"  spit -f device -b 10240000    # specify the max device size in bytes\n");
+  fprintf(stdout,"  spit -f device -c r -G 384MiB # -G without a range supports a suffix type. {M,G,T}[i*]B\n");
+  fprintf(stdout,"  spit -f device -c r -G 100GB  # -G without a range supports a suffix type. {M,G,T}[i*]B\n");
   fprintf(stdout,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
+  fprintf(stdout,"  spit -f device -b 10240000    # specify the max device size in bytes\n");
   fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GiB region, rand r in the 2-3 GiB region\n");
   fprintf(stdout,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
   fprintf(stdout,"  spit -f -c ..j32              # duplicate all the commands 32 times. Pin threads to each NUMA node.\n");

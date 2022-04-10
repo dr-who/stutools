@@ -1277,3 +1277,53 @@ void syslogString(const char *prog, const char *message)
   syslog(LOG_NOTICE, message, "");
   //  closelog();
 }
+
+
+int endsWith(const char *str, const char *suffix)
+{
+  if (!str || !suffix) {
+        return 0;
+  }
+    size_t lenstr = strlen(str);
+    size_t lensuffix = strlen(suffix);
+    if (lensuffix >  lenstr) {
+        return 0;
+    }
+    return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
+}
+
+
+size_t stringToBytesDefaultGiB(const char *str) {
+  size_t ret = 0;
+  if (str && (strlen(str) >= 1)) {
+    if (endsWith(str, "T")) {
+      fprintf(stderr,"*warning* '%s' assuming TiB. Must be {M,G,T}[i*]B\n", str);
+      ret = 1024L * atof(str) * 1024 * 1024 * 1024;
+    } else if (endsWith(str, "G")) {
+      fprintf(stderr,"*warning* '%s' assuming GiB. Must be {M,G,T}[i*]B\n", str);
+      ret = 1024L * atof(str) * 1024 * 1024;
+    } else if (endsWith(str, "M")) {
+      fprintf(stderr,"*warning* '%s' assuming MiB. Must be {M,G,T}[i*]B\n", str);
+      ret = 1024L * atof(str) * 1024;
+    } else if (endsWith(str, "TiB")) {
+      ret = 1024L * atof(str) * 1024 * 1024 * 1024;
+    } else if (endsWith(str, "GiB")) {
+      ret = 1024L * atof(str) * 1024 * 1024; 
+    } else if (endsWith(str, "MiB")) {
+      ret = 1024L * atof(str) * 1024; 
+    } else if (endsWith(str, "TB")) {
+      ret = 1000L * atof(str) * 1000 * 1000 * 1000;
+    } else if (endsWith(str, "GB")) {
+      ret = 1000L * atof(str) * 1000 * 1000; 
+    } else if (endsWith(str, "MB")) {
+      ret = 1000L * atof(str) * 1000; 
+    } else if (endsWith(str, "B")) {
+      ret = atof(str);
+    } else {
+      // no known or ambiguous suffix, so GiB
+      ret = 1024L * atof(str) * 1024 * 1024;
+    }
+  }
+  
+  return ret;
+}
