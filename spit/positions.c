@@ -384,10 +384,10 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
     }
     total += p[i].sz;
     if (i > 0) {
-      long diff = (long)p[i].maxbdSize - (long)p[i].minbdSize;
+      long diff = DIFF(p[i].maxbdSize, p[i].minbdSize);
       diff = diff - lastbd;
 
-      if (ABS(diff) > 4096) {
+      if (diff > 4096) {
         if (verbose) {
           fprintf(stderr,"*warning* not all the devices have the same size (%zd != %zd)\n", p[i].maxbdSize - p[i].minbdSize, lastbd);
         }
@@ -1051,14 +1051,14 @@ void monotonicCheck(positionContainer *pc) {
     size_t prev = i-1;
 
     if (i == 0) {
-      if (abs(pc->positions[0].pos - pc->positions[pc->sz-1].pos) < 1024*1024*10) {
+      if (DIFF(pc->positions[0].pos, pc->positions[pc->sz-1].pos) < 1024*1024*10) {
 	prev = pc->sz-1;
       } else {
 	continue;
       }
     }
 
-    dist = abs(pc->positions[i].pos - pc->positions[prev].pos);
+    dist = DIFF(pc->positions[i].pos, pc->positions[prev].pos);
     if (pc->positions[i].pos) {
       dist = (dist / pc->positions[i].pos);
       
