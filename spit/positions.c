@@ -1402,6 +1402,10 @@ void positionContainerAddMetadataChecks(positionContainer *pc, const size_t meta
   }
   free(pc->positions);
   //  fprintf(stderr,"reallo from %zd to %zd\n", maxalloc, newpos);
+  if (newpos == 0) {
+    fprintf(stderr,"*warning* weird, shouldn't happen\n");
+    newpos = 1;
+  }
   p = realloc(p, newpos * sizeof(positionType)); // truncate
   memset(&p[newpos-1], 0, sizeof(positionType));
   
