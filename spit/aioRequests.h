@@ -28,7 +28,8 @@ size_t aioMultiplePositions( positionContainer *p,
 			     FILE *fp,
 			     char *jobdevice,
 			     size_t posIncrement,
-			     int recordSamples
+			     int recordSamples,
+			     size_t alternateEvery
                            );
 
 int aioVerifyWrites(positionType *positions,

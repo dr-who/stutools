@@ -41,7 +41,8 @@ size_t aioMultiplePositions( positionContainer *p,
 			     FILE *fp,
 			     char *jobdevice,
 			     size_t posIncrement,
-			     int recordSamples
+			     int recordSamples,
+			     size_t alternateEvery
                            )
 {
   if (sz == 0) {
@@ -87,7 +88,10 @@ size_t aioMultiplePositions( positionContainer *p,
     fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", QDmax, verbose);
     //    exit(1);
     }*/
-  if (QDmin > QDmax) QDmin = QDmax;
+  if (QDmax > sz) {
+    QDmax = MIN(QDmax, sz);
+    fprintf(stderr,"*warning* decreasing QDmax=%zd because sz=%zd\n", QDmax, sz);
+  }
   assert(QDmax <= sz);
   const size_t QD = QDmax;
   assert(sz>0);
@@ -283,6 +287,18 @@ size_t aioMultiplePositions( positionContainer *p,
 	      positions[pos].q = qdIndex;
 
 	      // watermark the block with the position on the device
+
+	      if (alternateEvery) {
+		const int thepass = (int)(submitted / alternateEvery);
+		if (thepass > 0) { // after the first pass start
+		  // swap R and W
+		  if (positions[pos].action == 'R') {
+		    positions[pos].action = 'W';
+		  } else if (positions[pos].action == 'W') {
+		    positions[pos].action = 'R';
+		  }
+		}
+	      }
 
 	      if (positions[pos].action=='D') {
 		abort();

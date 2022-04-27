@@ -482,6 +482,7 @@ void usage()
   fprintf(stdout,"  spit -f dev -c rs0P100x3      # perform 3xLBA worth of those first 100 positions\n");
   fprintf(stdout,"  spit -f dev -c rs0P2000X1     # execute the 2,000 IO operations\n");
   fprintf(stdout,"  spit -f dev -c rs0P2000X2     # execute the 2,000 IO operations, twice\n");
+  fprintf(stdout,"  spit ..-t 60 -c ws1zM2P1000=  # start at 0x0 write 2GiB, swap all reads/writes, continue for 60s\n");
 
   fprintf(stdout,"\nSequential/random/striping:\n");
   fprintf(stdout,"  spit -f dev -c s1z            # sequential, one linear region, starting from zero\n");

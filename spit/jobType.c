@@ -228,6 +228,7 @@ typedef struct {
   int performPreDiscard;
   int notexclusive;
   size_t posIncrement;
+  size_t alternateEvery;
   int jmodonly;
   size_t showdate;
 
@@ -275,7 +276,7 @@ static void *runThread(void *arg)
   if (threadContext->jmodonly) positionContainerModOnly(&threadContext->pos, threadContext->jmodonly, threadContext->id);
 
   //      positionPrintMinMax(threadContext->pos.positions, threadContext->pos.sz, threadContext->minbdSize, threadContext->maxbdSize, threadContext->minSizeInBytes, threadContext->maxSizeInBytes);
-  threadContext->anywrites = (threadContext->rw.wprob > 0) || (threadContext->rw.tprob > 0);
+  threadContext->anywrites = (threadContext->rw.wprob > 0) || (threadContext->rw.tprob > 0) || (threadContext->alternateEvery);
   //  calcLBA(&threadContext->pos); // calc LBA coverage
 
 
@@ -461,7 +462,13 @@ static void *runThread(void *arg)
     sumOfLens += threadContext->pos.positions[qq].len;
   }
   //  fprintf(stderr,"byteLimit %zd, sum of thread positions %zd\n", byteLimit, sum);
-      
+
+
+  if (threadContext->alternateEvery) {
+    threadContext->alternateEvery = threadContext->pos.sz;
+    fprintf(stderr,"*info* alternate every %zd\n", threadContext->alternateEvery);
+  }
+  
 
   if (threadContext->positionLimit) { // if Y 
     posLimit = threadContext->positionLimit;
@@ -581,8 +588,8 @@ static void *runThread(void *arg)
 	numSamples = ceil(outerrange * 1.0 / sumOfLens) * threadContext->LBAtimes;
       }
     }
-    
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, byteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, numSamples/* true if writing positions */);
+
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, byteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, numSamples/* true if writing positions */, threadContext->alternateEvery);
     totalP += posLimit;
 
     if (!externalLoops) break;
@@ -1369,6 +1376,17 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
       }*/
 
+
+    threadContext[i].alternateEvery = 0;
+    {
+      char *str = strchr(job->strings[i], '=');
+      if (str) {
+	threadContext[i].alternateEvery = 1;
+	fprintf(stderr,"*info* using alternateEvery pass\n");
+      }
+    }
+      
+    
     threadContext[i].posIncrement = 0;
     {
       char *str = strchr(job->strings[i], 'K');
