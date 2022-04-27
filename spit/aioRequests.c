@@ -289,8 +289,8 @@ size_t aioMultiplePositions( positionContainer *p,
 	      // watermark the block with the position on the device
 
 	      if (alternateEvery) {
-		const int thepass = (int)(submitted / alternateEvery);
-		if (thepass > 0) { // after the first pass start
+		const int thepass = (int)((submitted-1) / alternateEvery);
+		if (thepass >= 1) { // after the first pass start
 		  // swap R and W
 		  if (positions[pos].action == 'R') {
 		    positions[pos].action = 'W';
