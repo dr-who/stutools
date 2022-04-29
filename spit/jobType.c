@@ -2125,9 +2125,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   // free
   for (int i = 0; i < num; i++) {
     positionContainerFree(&threadContext[i].pos);
-    free(threadContext[i].randomBuffer);
   }
-
+  if (threadContext->randomBuffer) {
+    free(threadContext->randomBuffer);
+    threadContext->randomBuffer = NULL;
+  }
 
 
   free(go);
