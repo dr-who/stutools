@@ -1293,7 +1293,7 @@ int endsWith(const char *str, const char *suffix)
 }
 
 
-size_t stringToBytesDefaultGiB(const char *str) {
+size_t stringToBytesDefaultGiB(const char *str, const int assumePow2) {
   size_t ret = 0;
   if (str && (strlen(str) >= 1)) {
     if (endsWith(str, "T")) {
@@ -1320,8 +1320,12 @@ size_t stringToBytesDefaultGiB(const char *str) {
     } else if (endsWith(str, "B")) {
       ret = atof(str);
     } else {
-      // no known or ambiguous suffix, so GiB
-      ret = 1024L * atof(str) * 1024 * 1024;
+      if (assumePow2) {
+	// no known or ambiguous suffix, so GiB
+	ret = 1024L * atof(str) * 1024 * 1024;
+      } else {
+	ret = 1000L * atof(str) * 1000 * 1000;
+      }
     }
   }
   

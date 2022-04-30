@@ -4,6 +4,7 @@
 
 #include "jobType.h"
 #include <signal.h>
+#include <math.h>
 
 #ifndef VERSION
 #define VERSION __TIMESTAMP__
@@ -36,6 +37,8 @@ int keepRunning = 1;
 char *benchmarkName = NULL;
 FILE *savePositions = NULL;
 char *device = NULL;
+char *logfile = NULL;
+double lowg = 0, highg = 0;
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 size_t *minSizeInBytes, size_t *maxSizeInBytes, double *runseconds, size_t *dumpPositions,
@@ -66,7 +69,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   optind = 0;
   size_t jglobalcount = 1;
 
-  const char *getoptstring = "j:b:c:f:F:G:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:TrC:1L:DK:";
+  const char *getoptstring = "Ej:b:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:TrC:1L:DK:l:";
 
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
@@ -91,6 +94,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     }
   }
   optind = 0;
+  int GBpow2 = 1;
+  int GBpercent = 0;
 
   while ((opt = getopt(argc, argv, getoptstring)) != -1) {
     switch (opt) {
@@ -202,19 +207,42 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       addDeviceDetails(optarg, &deviceList, &deviceCount);
       }
       break;
+    case 'E':
+      fprintf(stderr,"*warning* -G/g values are percents...0..100%%\n");
+      GBpercent = 1;
+      break;
+    case 'g':
+      GBpow2 = 0;
+      // fall through
     case 'G':
-    {}
-    if (strchr(optarg, '-') == NULL) {
+      {}
+     const size_t smallbdsize = smallestBDSize(deviceList, deviceCount);
+     if (strchr(optarg, '-') == NULL) {
       // no range
-      size_t num = alignedNumber(stringToBytesDefaultGiB(optarg), 4096);
-      fprintf(stderr,"*info* -G %zd (%.5lf GiB)\n", num, TOGiB(num));  
-      *minSizeInBytes = num;
-      *maxSizeInBytes = num;
+       size_t num = 0;
+       if (GBpercent) {
+	 num = alignedNumber(atof(optarg) * smallbdsize / 100.0, 4096);
+	 *minSizeInBytes = num;
+	 *maxSizeInBytes = num;
+       } else {
+	 num = alignedNumber(stringToBytesDefaultGiB(optarg, GBpow2), 4096);
+	 *minSizeInBytes = num;
+	 *maxSizeInBytes = num;
+       }
+       lowg = atof(optarg); highg = atof(optarg);
+       fprintf(stderr,"*info* -G option %zd bytes, power2=%d, (%.5lf GiB, %.5lf GB)\n", num, GBpow2, TOGiB(num), TOGB(num));
     } else { 
-      double lowg = 0, highg = 0;
       splitRange(optarg, &lowg, &highg);
-      *minSizeInBytes = alignedNumber(1024L * lowg * 1024 * 1024, 4096);
-      *maxSizeInBytes = alignedNumber(1024L * highg * 1024 * 1024, 4096);
+      if (GBpercent) {
+	*minSizeInBytes = alignedNumber(lowg * smallbdsize / 100, 4096);
+	*maxSizeInBytes = alignedNumber(highg * smallbdsize / 100, 4096);
+      } else {
+	*minSizeInBytes = alignedNumber(pow(GBpow2 ? 1024 : 1000, 3.0) * lowg, 4096);
+	*maxSizeInBytes = alignedNumber(pow(GBpow2 ? 1024 : 1000, 3.0) * highg, 4096);
+      }
+      if ((highg == 0) && (lowg > 0)) {
+	*maxSizeInBytes = smallbdsize;
+      }
     }
     if (*minSizeInBytes == *maxSizeInBytes) {
       *minSizeInBytes = 0;
@@ -224,6 +252,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
       exit(1);
     }
     break;
+    case 'l':
+      logfile = strdup(optarg);
+      fprintf(stderr,"*info* summary stats logged to file '%s'\n", logfile);
+      break;
     case 'L':
       *ramBytesForPositions = 1024L * 1024L * 1024L * atof(optarg);
       fprintf(stderr,"*info* limit RAM use to %.2lf GiB\n", TOGiB(*ramBytesForPositions));
@@ -510,6 +542,9 @@ void usage()
   fprintf(stdout,"                                # column 12/13 (start/fin time), column 14 (mean latency)\n");
   fprintf(stdout,"                                # column 15 (#samples), 16 (median latency)\n");
 
+  fprintf(stdout,"\nLogging for experiments:\n");
+  fprintf(stdout,"  spit -f ... -l logfile        # will append the run results to 'logfile'. Works well with ./combo expansion\n");
+  
   fprintf(stdout,"\nExamples:\n");
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
   fprintf(stdout,"  spit -f device -c r           # seq read (defaults to s1 and k4)\n");
@@ -530,7 +565,9 @@ void usage()
   fprintf(stdout,"  spit -f device -c W0.1:4      # do 0.1 seconds worth of IO then wait for 4 seconds\n");
   fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread, run 4, wait 4 repeat\n");
   fprintf(stdout,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
-  fprintf(stdout,"  spit -f device -c r -G 1      # 1 GiB device size\n");
+  fprintf(stdout,"  spit -f device -c r -E -G 2-5 # if the -E argument is before -G, G values are percentages. e.g. 2%%-5%%\n");
+  fprintf(stdout,"  spit -f device -c r -G 1      # 0..1 GiB device size\n");
+  fprintf(stdout,"  spit -f device -c r -g 1      # 0..1 GB device size\n");
   fprintf(stdout,"  spit -f device -c r -G 384MiB # -G without a range supports a suffix type. {M,G,T}[i*]B\n");
   fprintf(stdout,"  spit -f device -c r -G 100GB  # -G without a range supports a suffix type. {M,G,T}[i*]B\n");
   fprintf(stdout,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
@@ -1023,7 +1060,7 @@ int main(int argc, char *argv[])
       printPowerMode();
 
       size_t actualSize = maxSizeInBytes - minSizeInBytes;
-      fprintf(stderr,"*info* block range [%.2lf-%.2lf] GiB, size %.2lf GiB (%zd bytes). Range [%.3lf-%.3lf] TiB\n", TOGiB(minSizeInBytes), TOGiB(maxSizeInBytes), TOGiB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
+      fprintf(stderr,"*info* block range [%.2lf-%.2lf] GiB, [%.2lf-%.2lf] GB, size %.2lf GiB (%zd bytes). Range [%.3lf-%.3lf] TB\n", TOGiB(minSizeInBytes), TOGiB(maxSizeInBytes), TOGB(minSizeInBytes), TOGB(maxSizeInBytes), TOGiB(actualSize), actualSize, TOTB(minSizeInBytes), TOTB(maxSizeInBytes));
       if (actualSize < 4096) {
         fprintf(stderr,"*error* block device too small.\n");
         exit(1);
@@ -1049,6 +1086,8 @@ int main(int argc, char *argv[])
       jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, runseconds, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, numaBinding, performPreDiscard, &r, ramBytesForPositions, tripleX==3, showdate);
 
       resultDump(&r, kcheckresults, verbose);
+
+      if (logfile) resultLog(logfile, &r, lowg, highg, j);
 
       diskStatFree(&d);
 

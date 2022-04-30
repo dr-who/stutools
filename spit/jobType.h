@@ -53,6 +53,8 @@ void jobFileSequence(jobType *job);
 size_t jobRunPreconditions(jobType *preconditions, const size_t count, const size_t minSizeBytes, const size_t maxSizeBytes);
 
 void resultDump(const resultType *r, const char *kcheckresult, const int display);
+void resultLog(const char *logfile, const resultType *r, const double lowg, const double highg, const jobType *j);
+
 
 #endif
 

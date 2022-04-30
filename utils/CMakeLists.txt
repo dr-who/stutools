@@ -9,6 +9,8 @@ add_executable(median median.c)
 
 add_executable(dist dist.c)
 
+add_executable(combo combo.c)
+
 add_executable(ramtester ramtester.c)
 
 add_executable(raidfailures raidfailures.c)

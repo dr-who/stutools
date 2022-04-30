@@ -359,15 +359,15 @@ deviceDetails *prune(deviceDetails *devList, size_t *devCount, const size_t bloc
 
 size_t smallestBDSize(deviceDetails *devList, size_t devCount)
 {
-  size_t min = 0;
+  size_t min = 0, sz = 0;
 
   for (size_t f = 0; f < devCount; f++) {
-    if ((f == 0) || (devList[f].bdSize < min)) {
-      //      fprintf(stderr,"%zd: -> %zd\n", f, devList[f].bdSize);
-      min = devList[f].bdSize;
+    sz = fileSizeFromName(devList[f].devicename);
+    if ((f == 0) || (sz < min)) {
+      min = sz;
     }
   }
-  //  fprintf(stderr,"*info* min size is %zd (%.3lf GiB)\n", min, TOGiB(min));
+    fprintf(stderr,"*info* min size is %zd (%.3lf GiB)\n", min, TOGiB(min));
   return min;
 }
 

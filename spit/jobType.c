@@ -2278,5 +2278,28 @@ void resultDump(const resultType *r, const char *kcheckresults, const int displa
 }
 
 
+void resultLog(const char *logfile, const resultType *r, const double lowg, const double highg, const jobType *j) {
+  if (logfile) {
+    FILE *fp = fopen(logfile, "at");
+    if (!fp) {
+      perror(logfile);
+      return;
+    }
+
+    double bdsize = fileSizeFromName(j->devices[0]);
+    char *suffix = getSuffix(j->devices[0]);
+    char *model = getModel(suffix);
+    fprintf(fp, "%s\t%s\t%s\t%.1lf\t%.0lf-%.0lf\t%.0lf\t%.0lf\t%.1lf\t%.1lf\n", j->strings[0], j->devices[0], model, TOTB(bdsize), lowg, highg, 
+	    r->readIOPS, r->writeIOPS,
+	    TOMB(r->readBps), TOMB(r->writeBps));
+    free(model);
+    free(suffix);
+    fclose(fp);
+  }
+}
+
+
+
+
 
 
