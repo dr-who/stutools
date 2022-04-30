@@ -399,9 +399,11 @@ static void *runThread(void *arg)
     //    threadContext->ignoreResults = 1;
     fprintf(stderr,"*****************\n");
   }
-  char *sched = getScheduler(suffix);
-  fprintf(stderr,"*info* drive scheduler is '%s'\n", sched);
-  free(sched);
+  if (threadContext->id == 0) {
+    char *sched = getScheduler(suffix);
+    fprintf(stderr,"*info* drive scheduler is '%s'\n", sched);
+    free(sched);
+  }
 
   if (!threadContext->exec && (threadContext->finishSeconds < threadContext->runSeconds)) {
     fprintf(stderr,"*warning* timing %.1lf > %.1lf doesn't make sense\n", threadContext->runSeconds, threadContext->finishSeconds);

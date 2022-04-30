@@ -1043,7 +1043,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
 
 void monotonicCheck(positionContainer *pc) {
-  fprintf(stderr,"*info* checking monotonic ordering of positions\n");
+  //  fprintf(stderr,"*info* checking monotonic ordering of positions\n");
   size_t monoup = 0, monodown = 0, close = 0, far = 0, total = 0;
   float dist = 0;
   
