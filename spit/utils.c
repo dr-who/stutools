@@ -548,6 +548,9 @@ char *getModel(const char *suffix)
       int ret = getline(&s, &len, fp);
       fclose(fp);
 
+      for (size_t i = 0; i < strlen(s); i++) {
+	if (s[i]==' ') s[i]='_';
+      }
       if (ret > 1) {
         s[ret - 1] = 0;
         return s;

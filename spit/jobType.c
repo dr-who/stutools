@@ -2280,10 +2280,18 @@ void resultDump(const resultType *r, const char *kcheckresults, const int displa
 
 void resultLog(const char *logfile, const resultType *r, const double lowg, const double highg, const jobType *j) {
   if (logfile) {
+    int printheader = 0;
+    if (fileExists(logfile) == 0) {
+      printheader = 1;
+    }
     FILE *fp = fopen(logfile, "at");
     if (!fp) {
       perror(logfile);
       return;
+    }
+
+    if (printheader) {
+      fprintf(fp,"Command\tDevice\tModel\tSizeTB\tRange\tReadIOPS\tWriteIOPS\tReadMB/s\tWriteMB/s\n");
     }
 
     double bdsize = fileSizeFromName(j->devices[0]);
