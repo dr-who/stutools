@@ -312,7 +312,7 @@ void diskStatLoadProc(diskStatType *d)
     d->deviceStats[d->deviceCount - 1].secRead = read1;
     d->deviceStats[d->deviceCount - 1].secWrite = write1;
     d->deviceStats[d->deviceCount - 1].IORead = readcompl1;
-    d->deviceStats[d->deviceCount - 1].IOWrite = writecompl1 + discardcount1;
+    d->deviceStats[d->deviceCount - 1].IOWrite = writecompl1;
     d->deviceStats[d->deviceCount - 1].secTimeIO = timespentIO;
     d->deviceStats[d->deviceCount - 1].inflight = inflight;
   }

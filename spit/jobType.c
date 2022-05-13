@@ -470,12 +470,12 @@ static void *runThread(void *arg)
     threadContext->alternateEvery = threadContext->pos.sz;
     fprintf(stderr,"*info* alternate every %zd\n", threadContext->alternateEvery);
   }
-  
 
   if (threadContext->positionLimit) { // if Y 
     posLimit = threadContext->positionLimit;
   } else if (threadContext->randomSubSample || threadContext->firstPPositions) { // if P-ve
     externalLoops = threadContext->rerandomize || threadContext->addBlockSize; // if n or N specified then doRounds
+    //    fprintf(stderr,"ext loop %zd, LBA %zd, postimes %zd, finsec %.1lf\n", externalLoops, threadContext->LBAtimes, threadContext->POStimes,threadContext->finishSeconds);
     // P-ve
     if (threadContext->LBAtimes) {
       if (externalLoops) {
@@ -493,6 +493,11 @@ static void *runThread(void *arg)
       } else {
 	// if internal limit by posLimit
 	posLimit = threadContext->pos.sz * threadContext->POStimes;
+      }
+    } else {
+      // time limit
+      if (threadContext->runSeconds) {
+	externalLoops = threadContext->finishSeconds / threadContext->runSeconds;
       }
     }
   } else if (threadContext->rerandomize || threadContext->addBlockSize || threadContext->runonce) {
@@ -531,6 +536,11 @@ static void *runThread(void *arg)
   } else if (threadContext->POStimes) { // if not P constrained
     posLimit = threadContext->pos.sz;
     numberOfRounds = threadContext->POStimes;
+  } else {
+    // time limit
+    if (threadContext->runSeconds) {
+      externalLoops = threadContext->finishSeconds / threadContext->runSeconds;
+    }
   }
 
   if (threadContext->posIncrement) {
@@ -542,6 +552,8 @@ static void *runThread(void *arg)
     fprintf(stderr,"*info* posLimit = %zd\n", posLimit);
   }
 
+
+
   //  if (threadContext->performPreDiscard) {
   //    numberOfRounds = threadContext->LBAtimes;
   //  }
@@ -550,7 +562,7 @@ static void *runThread(void *arg)
 
   if (threadContext->id == 0) {
     //    if (verbose) {
-    fprintf(stderr,"*info* numberOfRounds %zd (internal), loops %zd, timeLimit %.1lf, posLimit %zd, byteLimitPerIteration %zd (%.03lf GiB)\n", numberOfRounds, externalLoops, timeLimit, posLimit, byteLimit, TOGiB(byteLimit));
+    fprintf(stderr,"*info* numberOfRounds (internal) %zd, loops (external) %zd, roundTime %.1lf, totalTime %.1lf, posLimit %zd, byteLimitPerIteration %zd (%.03lf GiB)\n", numberOfRounds, externalLoops, threadContext->runSeconds, threadContext->finishSeconds, posLimit, byteLimit, TOGiB(byteLimit));
     fflush(stderr);
       //    }
   }
@@ -840,9 +852,9 @@ static void *runThreadTimer(void *arg)
 
       if (threadContext->pos.diskStats) {
         diskStatFinish(threadContext->pos.diskStats);
-        devicerb += diskStatTBRead(threadContext->pos.diskStats);
+        devicerb = diskStatTBRead(threadContext->pos.diskStats);
         devicereadio = diskStatTBReadIOs(threadContext->pos.diskStats); // io
-        devicewb += diskStatTBWrite(threadContext->pos.diskStats);
+        devicewb = diskStatTBWrite(threadContext->pos.diskStats);
         devicewriteio = diskStatTBWriteIOs(threadContext->pos.diskStats); // io
         devicetimeio = diskStatTBTimeSpentIO(threadContext->pos.diskStats);
 
@@ -910,9 +922,9 @@ static void *runThreadTimer(void *arg)
         }
         if (threadContext->pos.diskStats) {
           fprintf(stderr,
-                  " (R %.0lf MB/s, W %.0lf MB/s, %% %.0lf, IO/s %.0lf, %s)",
-                  TOMB(devicerb / gaptime), TOMB(devicewb / gaptime), 100.0 * devicetimeio / (gaptime*1000),
-                  (devicereadio + devicewriteio)/gaptime, cur_disk_inflight_str);
+                  " (R %.0lf MB/s (%.0lf IO/s), W %.0lf MB/s (%.0lf IO/s), %% %.0lf (%.1lf ms), %s)",
+                  TOMB(devicerb / gaptime), devicereadio / gaptime, TOMB(devicewb / gaptime), devicewriteio / gaptime, 100.0 * devicetimeio / (gaptime*1000), devicetimeio,
+                  cur_disk_inflight_str);
         }
         fprintf(stderr,"\n");
 
@@ -1842,7 +1854,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         if (waitfor < 0) waitfor = 0;
       }
 
-      if (verbose) fprintf(stderr,"*info* alternating time parameter W%.1lf:%.1lf\n", runfor, waitfor);
+      fprintf(stderr,"*info* alternating time parameter W, on for %.1lf seconds, off for %.1lf seconds\n", runfor, waitfor);
       if (timeperline > runfor / 2) {
         fprintf(stderr,"*warning* recommendation that -s %.2g is used to get the granularity required\n", runfor / 2);
       }
