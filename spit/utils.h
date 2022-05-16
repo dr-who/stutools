@@ -128,5 +128,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
 void syslogString(const char *prog, const char *message);
 size_t stringToBytesDefaultGiB(const char *str, const int assumePow2);
 
+double analyseAsBits(unsigned char *buffer, size_t size, int bytes);
+
 #endif
 

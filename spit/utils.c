@@ -1334,3 +1334,85 @@ size_t stringToBytesDefaultGiB(const char *str, const int assumePow2) {
   
   return ret;
 }
+
+
+
+
+
+
+// if -4 then 4 byte numbers
+// if -8 then 8 byte numbers
+
+double analyseAsBits(unsigned char *buffer, size_t size, int bytes) {
+  const size_t bits = 8 * bytes;
+  size_t counts0[bits], counts1[bits], tot[bits];
+
+  for (size_t i = 0; i < bits; i++) {
+    counts0[i] = 0;
+    counts1[i] = 0;
+    tot[i] = 0;
+  }
+
+  size_t sz = 0;
+  for (size_t i = 0; i < size; i++) {
+    unsigned long thev;
+    if (bytes == 1) {
+      unsigned char *v = &buffer[i];
+      thev = (int) (*v);
+    } else if (bytes == 4) {
+      unsigned int *v = (unsigned int*)&buffer[i];
+      thev = (unsigned int) (*v);
+    } else if (bytes == 8) {
+      unsigned long *v = (unsigned long*)&buffer[i];
+      thev = (unsigned long) (*v);
+    } else if (bytes == 2) {
+      unsigned short *v = (unsigned short*)&buffer[i];
+      thev = (unsigned short) (*v);
+    } else {
+      abort();
+    }
+      
+    //    fprintf(stderr, "%lx\n", thev);
+    for (size_t j = 0; j < bits; j++) {
+      if (thev & (1L<<j)) {
+	counts1[j]++;
+      } else {
+	counts0[j]++;
+      }
+      tot[j]++;
+    }
+  }
+
+  sz = 0;
+  for (size_t i = 0;i < bits; i++) {
+    sz += tot[i];
+  }
+
+
+  double bps = 0;
+  
+  if (sz) {
+    double entropy = 0;
+    //    fprintf(stderr,"size: %ld\n", sz);                                                                                                                                                      
+    for (size_t i =0; i < bits; i++) {
+      if (counts0[i]) {
+	double e = counts0[i] * (log((counts0[i]) * 1.0 / tot[i])) / log(2.0);
+	//	if (verbose) fprintf(stderr,"[b%02zd=0] %3zd %3zd %.4lf\n", i, counts0[i], tot[i], e);
+	entropy = entropy - e;
+      }
+      
+      if (counts1[i]) {
+	double e = counts1[i] * (log((counts1[i]) * 1.0 / tot[i])) / log(2.0);
+	//	if (verbose) fprintf(stderr,"[b%02zd=1] %3zd %3zd %.4lf\n", i, counts1[i], tot[i], e);
+	entropy = entropy - e;
+      }
+    }
+    bps = bits * entropy / sz;
+    //    const double threshold = bits * 0.99;
+    //    fprintf(stderr,"entropy %.4lf, %zd\n", entropy, bits);
+    //    fprintf(stdout, "%.7lf bps (compression %.1lfx) %s\n", bps, bits/bps, bps >= threshold ? "RANDOM" : "");
+  }
+
+  return bps;
+}
+

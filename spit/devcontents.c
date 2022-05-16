@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 
     int firstgap = 0;
 
-    fprintf(stdout,"%9s\t%6s\t%8s\t%6s\t%6s\t%6s\t%6s\t%s\n", "pos", "p(MiB)", "pos", "p%256K", "min", "max", "range", "contents...");
+    fprintf(stdout,"%9s\t%6s\t%8s\t%6s\t%6s\t%6s\t%6s\t%s\t%s\n", "pos", "p(MiB)", "pos", "p%256K", "min", "max", "range", "bps", "contents...");
 
     unsigned char *pbuf = NULL;
     pbuf = malloc(width + 1);
@@ -175,7 +175,11 @@ int main(int argc, char *argv[])
 	  }
 	  fprintf(stdout,"\t");
 	}
-        fprintf(stdout,"%07zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%s %s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, pbuf, (spit==1)?"*spit*":"", timestring);
+	double bps = 0;
+	if (1) {
+	  bps = analyseAsBits(buf, blocksize, 1);
+	}
+        fprintf(stdout,"%09zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%.4lf\t%s %s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, bps, pbuf, (spit==1)?"*spit*":"", timestring);
         firstgap = 1;
       } else {
         if (firstgap) {
