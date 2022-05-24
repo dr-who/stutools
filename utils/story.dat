@@ -1,0 +1,5 @@
+# ./combo <story.dat | bash
+
+spit -c " ^z r,w k4,k64,k2048 s0,s0.98,s1,P.10000,P-10000,P+10000 j1,j8,j64 q1,q8,q64 G_ ^" -t 5 -l log -f /dev/sdi,/dev/sdj,/dev/sdk -E -g 0-100,0-10,90-100
+
+
