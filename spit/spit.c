@@ -217,6 +217,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     case 'G':
       {}
      const size_t smallbdsize = smallestBDSize(deviceList, deviceCount);
+     GBpow2 = 0;
      if (strchr(optarg, '-') == NULL) {
       // no range
        size_t num = 0;
@@ -225,7 +226,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	 *minSizeInBytes = num;
 	 *maxSizeInBytes = num;
        } else {
-	 num = alignedNumber(stringToBytesDefaultGiB(optarg, GBpow2), 4096);
+	 num = alignedNumber(stringToBytesDefault(optarg, GBpow2), 4096);
 	 *minSizeInBytes = num;
 	 *maxSizeInBytes = num;
        }
@@ -514,7 +515,7 @@ void usage()
   fprintf(stdout,"  spit -f dev -c rs0P100x3      # perform 3xLBA worth of those first 100 positions\n");
   fprintf(stdout,"  spit -f dev -c rs0P2000X1     # execute the 2,000 IO operations\n");
   fprintf(stdout,"  spit -f dev -c rs0P2000X2     # execute the 2,000 IO operations, twice\n");
-  fprintf(stdout,"  spit ..-t 60 -c ws1zM2P1000=  # start at 0x0 write 2GiB, swap all reads/writes, continue for 60s\n");
+  fprintf(stdout,"  spit ..-t 60 -c ws1zM2P1000=  # = alternates r/w per pass. Write 1000, then read 1000, continue for 60s\n");
 
   fprintf(stdout,"\nSequential/random/striping:\n");
   fprintf(stdout,"  spit -f dev -c s1z            # sequential, one linear region, starting from zero\n");
@@ -566,13 +567,12 @@ void usage()
   fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread, run 4, wait 4 repeat\n");
   fprintf(stdout,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stdout,"  spit -f device -c r -E -G 2-5 # if the -E argument is before -G, G values are percentages. e.g. 2%%-5%%\n");
-  fprintf(stdout,"  spit -f device -c r -G 1      # 0..1 GiB device size\n");
-  fprintf(stdout,"  spit -f device -c r -g 1      # 0..1 GB device size\n");
+  fprintf(stdout,"  spit -f device -c r -G 1      # 0..1 GB device size\n");
   fprintf(stdout,"  spit -f device -c r -G 384MiB # -G without a range supports a suffix type. {M,G,T}[i*]B\n");
   fprintf(stdout,"  spit -f device -c r -G 100GB  # -G without a range supports a suffix type. {M,G,T}[i*]B\n");
-  fprintf(stdout,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GiB range\n");
+  fprintf(stdout,"  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GB range\n");
   fprintf(stdout,"  spit -f device -b 10240000    # specify the max device size in bytes\n");
-  fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GiB region, rand r in the 2-3 GiB region\n");
+  fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GB region, rand r in the 2-3 GB region\n");
   fprintf(stdout,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
   fprintf(stdout,"  spit -f -c ..j32              # duplicate all the commands 32 times. Pin threads to each NUMA node.\n");
   fprintf(stdout,"  spit -f -c ..j32 -u           # j32, but do not pin the threads to specific NUMA nodes\n");

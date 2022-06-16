@@ -1296,18 +1296,18 @@ int endsWith(const char *str, const char *suffix)
 }
 
 
-size_t stringToBytesDefaultGiB(const char *str, const int assumePow2) {
+size_t stringToBytesDefault(const char *str, const int assumePow2) {
   size_t ret = 0;
   if (str && (strlen(str) >= 1)) {
     if (endsWith(str, "T")) {
-      fprintf(stderr,"*warning* '%s' assuming TiB. Must be {M,G,T}[i*]B\n", str);
-      ret = 1024L * atof(str) * 1024 * 1024 * 1024;
+      fprintf(stderr,"*warning* '%s' assuming TB. Must be {M,G,T}[i*]B\n", str);
+      ret = 1000L * atof(str) * 1000 * 1000 * 1000;
     } else if (endsWith(str, "G")) {
-      fprintf(stderr,"*warning* '%s' assuming GiB. Must be {M,G,T}[i*]B\n", str);
-      ret = 1024L * atof(str) * 1024 * 1024;
+      fprintf(stderr,"*warning* '%s' assuming GB. Must be {M,G,T}[i*]B\n", str);
+      ret = 1000L * atof(str) * 1000 * 1000;
     } else if (endsWith(str, "M")) {
-      fprintf(stderr,"*warning* '%s' assuming MiB. Must be {M,G,T}[i*]B\n", str);
-      ret = 1024L * atof(str) * 1024;
+      fprintf(stderr,"*warning* '%s' assuming MB. Must be {M,G,T}[i*]B\n", str);
+      ret = 1000L * atof(str) * 1000;
     } else if (endsWith(str, "TiB")) {
       ret = 1024L * atof(str) * 1024 * 1024 * 1024;
     } else if (endsWith(str, "GiB")) {
