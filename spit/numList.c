@@ -168,7 +168,7 @@ double nlMedian(numListType *n) {
   if (n->num > 0) {
     return nlSortedPos(n, 0.5);
   } else {
-    return 0.0/0.0;
+    return NAN;
   }
 }
 
@@ -306,3 +306,16 @@ double loadTTable(size_t df, size_t tail, double a) {
 }
     
   
+/*
+int main() {
+  numListType n;
+  nlInit(&n, 1000000);
+  double j;
+  for (size_t i = 0 ; i < 100000000; i++) {
+    nlAdd(&n, i);
+  }
+  j = nlMedian(&n);
+  fprintf(stderr,"median %lf\n", j);
+  return 0;
+}
+*/
