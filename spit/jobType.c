@@ -501,18 +501,21 @@ static void *runThread(void *arg)
       }
     }
   } else if (threadContext->rerandomize || threadContext->addBlockSize || threadContext->runonce) {
-    fprintf(stderr,"*info* rerand or addb or runo\n");
+    fprintf(stderr,"*info* rerand or addb or runo (external loops)\n");
     // n or N option
     // one of the three limits: time, positions or bytes
     // if we have a timelimit let's use that
     if (threadContext->LBAtimes) {
-      numberOfRounds = threadContext->LBAtimes;
+      externalLoops = threadContext->LBAtimes;
+      numberOfRounds = 1;
+
       // if LBAtimes then don't use the range, use the sum of the lens
       posLimit = 0;
       byteLimit = sumOfLens;
       timeLimit = INF_SECONDS;
     } else if (threadContext->POStimes) { // with X
-      numberOfRounds = threadContext->POStimes;
+      externalLoops = threadContext->POStimes;
+      numberOfRounds = 1;
 
       posLimit = threadContext->pos.sz;
       byteLimit = 0;
@@ -623,11 +626,11 @@ static void *runThread(void *arg)
     }
     if (keepRunning && externalLoops && (iteratorCount < externalLoops)) {
       if (threadContext->rerandomize) {
-        fprintf(stderr,"*info* shuffling positions, 1st = %zd\n", threadContext->pos.positions[0].pos);
+        fprintf(stderr,"*info* randomizing position array\n");
         positionContainerRandomize(&threadContext->pos, threadContext->seed + iteratorCount);
       }
       if (threadContext->addBlockSize) {
-        fprintf(stderr,"*info* adding %zd to all positions, 1st = %zd\n", threadContext->highBlockSize, threadContext->pos.positions[0].pos);
+        fprintf(stderr,"*info* adding %zd to all position in array\n", threadContext->highBlockSize);
         positionAddBlockSize(threadContext->pos.positions, threadContext->pos.sz, threadContext->highBlockSize, threadContext->minbdSize, threadContext->maxbdSize);
       }
     }

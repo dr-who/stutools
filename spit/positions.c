@@ -1147,22 +1147,24 @@ void insertFourkEveryMiB(positionContainer *pc, const size_t minbdSize, const si
 void positionContainerRandomize(positionContainer *pc, unsigned int seed)
 {
   const size_t count = pc->sz;
-  positionType *positions = pc->positions;
-
-  if (verbose)  fprintf(stderr,"*info* shuffling/randomizing the array of %zd values, seed %u\n", count, seed);
-  for (size_t shuffle = 0; shuffle < 1; shuffle++) {
-    for (size_t i = 0; i < count && keepRunning; i++) {
-      size_t j = i;
-      if (count > 1) {
-        while ((j = rand_r(&seed) % count) == i) {
-          ;
-        }
+  if (count > 1) {
+    positionType *positions = pc->positions;
+    
+    if (verbose)  fprintf(stderr,"*info* randomizing the array of %zd values, seed %u\n", count, seed);
+    fprintf(stderr,"*info before* first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
+    for (size_t shuffle = 0; shuffle < 1; shuffle++) {
+      for (size_t i = 0; i < count-2 && keepRunning; i++) {
+	assert (i < count -2);
+	assert (count - i >= 1);
+	const size_t j = i + rand_r(&seed) % (count - i);
+	assert (j < count);
+	// swap i and j
+	positionType p = positions[i];
+	positions[i] = positions[j];
+	positions[j] = p;
       }
-      // swap i and j
-      positionType p = positions[i];
-      positions[i] = positions[j];
-      positions[j] = p;
     }
+    fprintf(stderr,"*info after* first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
   }
 }
 

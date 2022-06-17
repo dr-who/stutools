@@ -376,8 +376,9 @@ size_t aioMultiplePositions( positionContainer *p,
 		  goto nextpos;
 		}
 	      } else {
-		fprintf(stderr,"unknown action %c\n", positions[pos].action);
-		abort();
+		fprintf(stderr,"unknown action '%c' (%d)\n", positions[pos].action, positions[pos].action);
+		//		abort();
+		goto nextpos;
 	      }
 
 	      positions[pos].submitTime = timedouble();
