@@ -16,9 +16,12 @@
 void nlInit(numListType *n, int window) {
   if (window < 0) window = 1;
   n->num = 0;
-  n->values = NULL;
-  n->sorted = 0;
+  n->values = calloc(window, sizeof(pointType));
+  assert(n->values);
+  n->sortedValue = 0;
+  n->sortedAge = 1;
   n->ever = 0;
+  n->addat = 0;
   n->window = window;
   n->label = NULL;
 }
@@ -26,7 +29,7 @@ void nlInit(numListType *n, int window) {
 void nlFree(numListType *n) {
   if (n->values) free(n->values);
   if (n->label) free(n->label);
-  nlInit(n, n->window);
+  memset(n, 0, sizeof(numListType));
 }
 
 
@@ -47,34 +50,7 @@ char *nlLabel(numListType *n) {
   return n->label;
 }
 
-size_t nlAdd(numListType *n, double value) {
-
-  size_t addat = n->num;
-
-  if (n->num < n->window ) {
-    n->values = realloc(n->values, (++n->num) * sizeof(pointType));
-  } else {
-    size_t lowest = n->ever;
-    for (size_t i = 0; i < n->num; i++) {
-      //      fprintf(stdout,"*checking* %zd, value %g age %zd\n", i, n->values[i].value, n->values[i].age);
-      if (n->values[i].age < lowest) {
-	lowest = n->values[i].age;
-	addat = i;
-      }
-    }
-    //        fprintf(stdout,"replacing oldest at position %zd\n", addat);
-  }
-  assert(addat < n->num);
-
-  n->values[addat].value = value;
-  n->values[addat].age = ++(n->ever);
-  n->sorted = 0;
-
-  return n->num;
-}
-
-
-static int nl_sortfunction(const void *origp1, const void *origp2)
+static int nl_sortfunctionvalue(const void *origp1, const void *origp2)
 {
   pointType *p1 = (pointType*)origp1;
   pointType *p2 = (pointType*)origp2;
@@ -84,14 +60,57 @@ static int nl_sortfunction(const void *origp1, const void *origp2)
   else return 0;
 }
 
+
+static int nl_sortfunctionage(const void *origp1, const void *origp2)
+{
+  pointType *p1 = (pointType*)origp1;
+  pointType *p2 = (pointType*)origp2;
+  
+  if (p1->age < p2->age) return -1;
+  else if (p1->age > p2->age) return 1;
+  else return 0;
+}
+
+
+
+size_t nlAdd(numListType *n, double value) {
+
+  if (n->sortedAge == 0) {
+    //    fprintf(stderr,"sort by age\n");
+    if (n->num >= 2) {
+      qsort(n->values, n->num, sizeof(pointType), nl_sortfunctionage);
+    }
+    n->sortedAge = 1;
+    n->sortedValue = 0;
+    n->addat = n->num; // add at the end
+  }
+
+  if (n->addat >= n->window) {
+    n->addat = n->addat - n->window;
+  }
+
+  n->values[n->addat].value = value;
+  n->values[n->addat].age = ++(n->ever);
+  n->num++; if (n->num > n->window) n->num = n->window;
+  n->addat++;
+
+  //  nlDump(n);
+
+  return n->num;
+}
+
+
 /*double nlSum(numListType *n) {
   return n->sum;
   }*/
 
 void nlSort(numListType *n) {
-  if (!n->sorted) {
-    qsort(n->values, n->num, sizeof(pointType), nl_sortfunction);
-    n->sorted = 1;
+  if (!n->sortedValue) {
+    //    fprintf(stderr,"sort by value\n");
+    qsort(n->values, n->num, sizeof(pointType), nl_sortfunctionvalue);
+    //    nlDump(n);
+    n->sortedValue = 1;
+    n->sortedAge = 0;
   }
 }
 

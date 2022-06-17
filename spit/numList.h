@@ -8,7 +8,8 @@ typedef struct {
 
 typedef struct {
   size_t num;
-  size_t sorted;
+  int sortedValue, sortedAge;
+  size_t addat;
   pointType *values;
   size_t ever, window;
   //  double sum;

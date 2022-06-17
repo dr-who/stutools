@@ -21,6 +21,7 @@
 #include "latency.h"
 #include "aioRequests.h"
 #include "blockVerify.h"
+#include "numList.h"
 
 extern volatile int keepRunning;
 extern int verbose;
@@ -803,6 +804,11 @@ static void *runThreadTimer(void *arg)
   double last_devicerb = 0, last_devicewb = 0;
 
   // loop until the time runs out
+
+  const size_t nlWindowSize = 10;
+  numListType readBList, writeBList, readIOPList, writeIOPList;
+  nlInit(&readBList, nlWindowSize); nlInit(&writeBList, nlWindowSize); nlInit(&readIOPList, nlWindowSize); nlInit(&writeIOPList, nlWindowSize);
+  
   int printlinecount = 0;
   while (keepRunning && ((thistime = timedouble()) < starttime + threadContext->finishSeconds + TIMEPERLINE)) {
 
@@ -876,10 +882,10 @@ static void *runThreadTimer(void *arg)
 
         const double gaptime = thistime - lastprintedtime;
 
-        double readB     = (trb - last_trb) / gaptime;
+        double readB     = (trb - last_trb) / gaptime;   nlAdd(&readBList, TOMB(readB));
         double readIOPS  = (tri - last_tri) / gaptime;
 
-        double writeB    = (twb - last_twb) / gaptime;
+        double writeB    = (twb - last_twb) / gaptime;   nlAdd(&writeBList, TOMB(writeB));
         double writeIOPS = (twi - last_twi) / gaptime;
 
         if ((tri - last_tri) || (twi - last_twi) || (devicerb - last_devicerb) || (devicewb - last_devicewb)) { // if any IOs in the period to display note the time
@@ -972,8 +978,16 @@ static void *runThreadTimer(void *arg)
   if (thistime - lastprintedtime >= 2) {
     tm = thistime - starttime; // if more than two seconds since a non zero line
   }
-  fprintf(stderr,"*info* summary: read %.0lf MB/s (%.0lf IOPS), ", TOMB(total_printed_r_bytes)/tm, total_printed_r_iops/tm);
-  fprintf(stderr,"write %.0lf MB/s (%.0lf IOPS)\n", TOMB(total_printed_w_bytes)/tm, total_printed_w_iops/tm);
+  fprintf(stderr,"*info* summary: read mean %.0lf MB/s (%.0lf IOPS), ", TOMB(total_printed_r_bytes)/tm, total_printed_r_iops/tm);
+  fprintf(stderr,"write mean %.0lf MB/s (%.0lf IOPS)\n", TOMB(total_printed_w_bytes)/tm, total_printed_w_iops/tm);
+
+  fprintf(stderr,"*info* last %zd samples: read median %.0lf MB/s, read 95th%% %.0lf MB/s, ", MIN(nlN(&readBList), nlWindowSize), nlMedian(&readBList), nlSortedPos(&readBList, 0.95));
+  fprintf(stderr,"write median %.0lf MB/s, write 95th%% %.0lf MB/s\n", nlMedian(&writeBList), nlSortedPos(&writeBList, 0.95));
+
+  nlFree(&readBList);
+  nlFree(&readIOPList);
+  nlFree(&writeBList);
+  nlFree(&writeIOPList);
 
   if (fpmysql) {
     fprintf(fpmysql, "CREATE TABLE if not exists benchmarks (id int not null auto_increment, date datetime not null, blockdevice char(30) not null, read_mbs float not null, read_iops float not null, write_mbs float not null, write_iops float not null, command char(100) not null, version char(10) not null, machine char(20) not null, iotype char(10) not null, opsize char(10) not null, iopattern char(10) not null, qd int not null, devicestate char(15) not null, threads int not null, read_total_gb float not null, write_total_gb float not null, tool char(10) not null, runtime float not null, mysqloptions char(200) not null, os char(20) not null, degraded int not null, k int not null, m int not null, checksum char(15), encryption char(10), cache int not null, unixdate int not null, machineUptime int, totalRAM bigint, precondition char(50), primary key(id));\n");

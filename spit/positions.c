@@ -1151,7 +1151,7 @@ void positionContainerRandomize(positionContainer *pc, unsigned int seed)
     positionType *positions = pc->positions;
     
     if (verbose)  fprintf(stderr,"*info* randomizing the array of %zd values, seed %u\n", count, seed);
-    fprintf(stderr,"*info before* first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
+    fprintf(stderr,"*info* before rand: first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
     for (size_t shuffle = 0; shuffle < 1; shuffle++) {
       for (size_t i = 0; i < count-2 && keepRunning; i++) {
 	assert (i < count -2);
@@ -1164,7 +1164,7 @@ void positionContainerRandomize(positionContainer *pc, unsigned int seed)
 	positions[j] = p;
       }
     }
-    fprintf(stderr,"*info after* first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
+    fprintf(stderr,"*info* after rand:  first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
   }
 }
 
