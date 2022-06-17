@@ -431,7 +431,7 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
 }
 
 
-void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeBytes, const size_t doflush, const char *name) {
+void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeBytes, const size_t doflush, const char *name, const size_t index) {
   //  int nbytes;
   //  ioctl(fileno(fp), FIONREAD, &nbytes);
   //  fprintf(stderr,"%d\n", nbytes);
@@ -469,7 +469,7 @@ void positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeByte
     double max = median;
     if (p->samples) max = p->latencies[p->samples-1];
     
-    fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GB\t%u\t%.8lf\t%.8lf\t%.8lf\t%u\t%.8lf\t%.8lf\n", name, p->pos, TOGB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes, TOGB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime, avgiotime, p->samples, median, max);
+    fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GB\t%u\t%.8lf\t%.8lf\t%.8lf\t%zd\t%u\t%.8lf\t%.8lf\n", name, p->pos, TOGB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes, TOGB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime, avgiotime, index, p->samples, median, max);
     if (doflush) {
       fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GB\t%u\t%d\n", name, (size_t)0, 0.0, 0.0, 'F', (size_t)0, maxbdSizeBytes, 0.0, p->seed, 0);
     }
@@ -496,7 +496,7 @@ void positionContainerSave(const positionContainer *p, FILE *fp, const size_t ma
     const positionType *positions = p->positions;
 
     for (size_t i = 0; i < p->sz; i++) {
-      positionDumpOne(fp, &positions[i], maxbdSizeBytes, flushEvery && ((i+1) % (flushEvery) == 0), job ? job->devices[positions[i].deviceid] : "");
+      positionDumpOne(fp, &positions[i], maxbdSizeBytes, flushEvery && ((i+1) % (flushEvery) == 0), job ? job->devices[positions[i].deviceid] : "", i);
     }
     //    fclose(fp);
     //    fp = NULL;

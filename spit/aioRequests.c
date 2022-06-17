@@ -45,12 +45,16 @@ size_t aioMultiplePositions( positionContainer *p,
 			     size_t alternateEvery
                            )
 {
+  size_t printCount = 0;
+
   if (sz == 0) {
     fprintf(stderr,"*warning* sz == 0!\n");
     return 0;
   }
 
-  //  fprintf(stderr,"*info* positions %zd, rounds %zd, posIncrement %zd\n", posLimit, rounds, posIncrement);
+  if (posIncrement > 1) {
+    fprintf(stderr,"*info* positions %zd, rounds %zd, posIncrement %zd\n", posLimit, rounds, posIncrement);
+  }
 
   if (recordSamples) {
     fprintf(stderr,"*info* allocating latencies for %d samples at %zd positions\n", recordSamples, sz);
@@ -390,6 +394,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	      const double sub_start = positions[pos].submitTime;
 	      positions[pos].inFlight = 1;
+	      
 	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
 	      const double sub_taken = timedouble() - sub_start;
 	      if (sub_taken > 1) {
@@ -564,7 +569,8 @@ size_t aioMultiplePositions( positionContainer *p,
         pp->success = 1; // the action has completed
         pp->inFlight = 0;
 	if (fp == stdout) {
-	  positionDumpOne(fp, pp, p->maxbdSize, 0, jobdevice);
+	  positionDumpOne(fp, pp, p->maxbdSize, 0, jobdevice, printCount++);
+	  if (printCount >= sz) printCount = 0;
 	}
         // log if slow
         if (pp->finishTime - pp->submitTime > 30) {
@@ -650,7 +656,8 @@ endoffunction:
           pp->inFlight = 0;
           pp->success = 1; // the action has completed
 	  if (fp == stdout) {
-	    positionDumpOne(fp, pp, p->maxbdSize, 0, jobdevice);
+	    positionDumpOne(fp, pp, p->maxbdSize, 0, jobdevice, printCount++);
+	    if (printCount >= sz) printCount = 0;
 	  }
 
           if (pp->action == 'R') {
