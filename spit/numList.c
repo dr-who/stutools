@@ -20,7 +20,6 @@ void nlInit(numListType *n, int window) {
   n->sorted = 0;
   n->ever = 0;
   n->window = window;
-  n->sum = 0;
   n->label = NULL;
 }
 
@@ -50,14 +49,12 @@ char *nlLabel(numListType *n) {
 
 size_t nlAdd(numListType *n, double value) {
 
-  n->sum += value;
   size_t addat = n->num;
 
   if (n->num < n->window ) {
-    n->values = realloc(n->values, (n->num+1) * sizeof(pointType));
-    n->num++;
+    n->values = realloc(n->values, (++n->num) * sizeof(pointType));
   } else {
-    size_t lowest = n->ever + 1;
+    size_t lowest = n->ever;
     for (size_t i = 0; i < n->num; i++) {
       //      fprintf(stdout,"*checking* %zd, value %g age %zd\n", i, n->values[i].value, n->values[i].age);
       if (n->values[i].age < lowest) {
@@ -65,14 +62,14 @@ size_t nlAdd(numListType *n, double value) {
 	addat = i;
       }
     }
-    //    fprintf(stdout,"replacing oldest at position %zd\n", addat);
+    //        fprintf(stdout,"replacing oldest at position %zd\n", addat);
   }
+  assert(addat < n->num);
 
   n->values[addat].value = value;
-  n->values[addat].age = n->ever++;
+  n->values[addat].age = ++(n->ever);
   n->sorted = 0;
 
-    //
   return n->num;
 }
 
@@ -87,13 +84,13 @@ static int nl_sortfunction(const void *origp1, const void *origp2)
   else return 0;
 }
 
-double nlSum(numListType *n) {
+/*double nlSum(numListType *n) {
   return n->sum;
-}
+  }*/
 
 void nlSort(numListType *n) {
   if (!n->sorted) {
-    qsort(n->values, n->num, sizeof(double), nl_sortfunction);
+    qsort(n->values, n->num, sizeof(pointType), nl_sortfunction);
     n->sorted = 1;
   }
 }
@@ -102,7 +99,11 @@ double nlSortedPos(numListType *n, double pos) {
   nlSort(n);
   assert(pos>=0);
   assert(pos <= 1);
-  size_t i = (size_t) ((n->num-1) * pos + 0.5);
+
+  size_t i = ceil((n->num - 1) * pos);
+  //  fprintf(stderr,"** sorted pos %lf. Index pos 0..%zd, index = %zd\n", pos, n->num-1, i);
+  //  nlDump(n);
+
 
   //    fprintf(stdout,"*info* index %zd (%zd and %lf)\n", i, n->num, pos);
     /*  if ((i % 2) == 1) {
@@ -110,8 +111,11 @@ double nlSortedPos(numListType *n, double pos) {
   } else {
   // odd*/
 
-  return n->values[i].value;
-    //  }
+  if (i >= n->num) {
+    return NAN;
+  } else {
+    return n->values[i].value;
+  }
 }
 
 
@@ -151,6 +155,7 @@ double nlMedian(numListType *n) {
 
 double nlMean(numListType *n) {
   double sum = 0;
+  
   for (size_t i = 0; i < n->num; i++) {
     sum += n->values[i].value;
   }

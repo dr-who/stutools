@@ -11,7 +11,7 @@ typedef struct {
   size_t sorted;
   pointType *values;
   size_t ever, window;
-  double sum;
+  //  double sum;
   char *label;
 } numListType;
 
