@@ -165,13 +165,13 @@ set_tests_properties(testspitrange2 PROPERTIES WILL_FAIL TRUE)
 add_test(testspitrange3 spit -f wow -G 1GiB -c rM1025q1x1 -v  )
 set_tests_properties(testspitrange3 PROPERTIES WILL_FAIL TRUE)
 
-add_test(testspitrange4 spit -f wow -G 0.5-1 -c rM513q1x1 -v  )
+add_test(testspitrange4 spit -f wow -G 0.5GiB -c rM513q1x1 -v  )
 set_tests_properties(testspitrange4 PROPERTIES WILL_FAIL TRUE)
 
-add_test(testspitrange5 spit -f wow -G 0.5-1 -c rM512q1x1 -v  )
-add_test(testspitrange6 spit -f wow -G 0.5-1 -c rM256q1x1j2G_ -v  )
+add_test(testspitrange5 spit -f wow -G 0.5GiB -c rM512q1x1 -v  )
+add_test(testspitrange6 spit -f wow -G 0.5GiB -c rM256q1x1j2G_ -v  )
 
-add_test(testspitrange7 spit -f wow -G 0.5-1 -c rM257q1x1j2G_ -v  )
+add_test(testspitrange7 spit -f wow -G 0.5GiB -c rM257q1x1j2G_ -v  )
 set_tests_properties(testspitrange7 PROPERTIES WILL_FAIL TRUE)
 
 add_test(testspitrange8 spit -f wow -G 1GiB -c rM4096 -v  )
