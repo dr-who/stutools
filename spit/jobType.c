@@ -232,6 +232,7 @@ typedef struct {
   size_t alternateEvery;
   int jmodonly;
   size_t showdate;
+  FILE * loadpos; // position action size
 
   // results
   double result_writeIOPS;
@@ -251,11 +252,31 @@ static void *runThread(void *arg)
     fprintf(stderr,"*info* thread[%zd] job is '%s', size = %zd\n", threadContext->id, threadContext->jobstring, threadContext->pos.sz);
   }
 
-  // allocate the position array space
-  // create the positions and the r/w status
-  //    threadContext->seqFiles = seqFiles;
-  //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-  positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample, threadContext->linearSubSample, threadContext->linearAlternate);
+  if (threadContext->loadpos) {
+    fprintf(stderr,"*info.... read positions, fit into the range [%zd, %zd), sz = %zd\n", threadContext->minbdSize, threadContext->maxbdSize, threadContext->pos.sz);
+    size_t customSz = 0;
+    size_t minlen = INT_MAX, maxlen = 0;
+    positionType *custompos = readPos3Cols(threadContext->loadpos, &customSz, &minlen, &maxlen);
+    fclose(threadContext->loadpos);
+    for (size_t iiii = 0; iiii < customSz; iiii++) {
+      memset(&threadContext->pos.positions[iiii], 0, sizeof(positionType));
+      threadContext->pos.positions[iiii].pos = threadContext->minbdSize + (custompos[iiii].pos % (threadContext->maxbdSize - threadContext->minbdSize - custompos[iiii].len));
+      threadContext->pos.positions[iiii].action = custompos[iiii].action;
+      threadContext->pos.positions[iiii].len = custompos[iiii].len;
+    }
+    threadContext->pos.sz = customSz;
+    threadContext->pos.minbs = minlen;
+    threadContext->pos.maxbs = maxlen;
+    threadContext->pos.minbdSize = threadContext->minbdSize;
+    threadContext->pos.maxbdSize = threadContext->maxbdSize;
+  } else {
+    
+    // allocate the position array space
+    // create the positions and the r/w status
+    //    threadContext->seqFiles = seqFiles;
+    //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
+    positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample, threadContext->linearSubSample, threadContext->linearAlternate);
+  }
 
   for (size_t e = 0; e < threadContext->pos.sz; e++) {
     assert(threadContext->pos.positions[e].len > 0);
@@ -606,8 +627,8 @@ static void *runThread(void *arg)
 	numSamples = ceil(outerrange * 1.0 / sumOfLens) * threadContext->LBAtimes;
       }
     }
-
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, byteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, numSamples/* true if writing positions */, threadContext->alternateEvery);
+    // if fp == stdout then it's streaming so you don't need to accumulate
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, byteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, (threadContext->fp == stdout) ? 0: numSamples/* true if writing positions */, threadContext->alternateEvery);
     totalP += posLimit;
 
     if (!externalLoops) break;
@@ -882,10 +903,10 @@ static void *runThreadTimer(void *arg)
 
         const double gaptime = thistime - lastprintedtime;
 
-        double readB     = (trb - last_trb) / gaptime;   nlAdd(&readBList, TOMB(readB));
+        double readB     = (trb - last_trb) / gaptime;   if (readB > 0) nlAdd(&readBList, TOMB(readB));
         double readIOPS  = (tri - last_tri) / gaptime;
 
-        double writeB    = (twb - last_twb) / gaptime;   nlAdd(&writeBList, TOMB(writeB));
+        double writeB    = (twb - last_twb) / gaptime;   if (writeB > 0) nlAdd(&writeBList, TOMB(writeB));
         double writeIOPS = (twi - last_twi) / gaptime;
 
         if ((tri - last_tri) || (twi - last_twi) || (devicerb - last_devicerb) || (devicewb - last_devicewb)) { // if any IOs in the period to display note the time
@@ -981,8 +1002,8 @@ static void *runThreadTimer(void *arg)
   fprintf(stderr,"*info* summary: read mean %.0lf MB/s (%.0lf IOPS), ", TOMB(total_printed_r_bytes)/tm, total_printed_r_iops/tm);
   fprintf(stderr,"write mean %.0lf MB/s (%.0lf IOPS)\n", TOMB(total_printed_w_bytes)/tm, total_printed_w_iops/tm);
 
-  fprintf(stderr,"*info* last %zd samples: read median %.0lf MB/s, read 95th%% %.0lf MB/s, ", MIN(nlN(&readBList), nlWindowSize), nlMedian(&readBList), nlSortedPos(&readBList, 0.95));
-  fprintf(stderr,"write median %.0lf MB/s, write 95th%% %.0lf MB/s\n", nlMedian(&writeBList), nlSortedPos(&writeBList, 0.95));
+  fprintf(stderr,"*info* last %zd samples: read median %.0lf MB/s, read 95th%% %.0lf MB/s\n", MIN(nlN(&readBList), nlWindowSize), nlMedian(&readBList), nlSortedPos(&readBList, 0.95));
+  fprintf(stderr,"*info* last %zd samples: write median %.0lf MB/s, write 95th%% %.0lf MB/s\n", MIN(nlN(&writeBList), nlWindowSize), nlMedian(&writeBList), nlSortedPos(&writeBList, 0.95));
 
   nlFree(&readBList);
   nlFree(&readIOPList);
@@ -1133,7 +1154,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const double runseconds, const size_t dumpPos, char *benchmarkName, const size_t origqd,
                    unsigned short seed, FILE *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, char* numaBinding, const int performPreDiscard,
-                   resultType *result, size_t ramBytesForPositions, size_t notexclusive, const size_t showdate)
+                   resultType *result, size_t ramBytesForPositions, size_t notexclusive, const size_t showdate,
+		   FILE *loadpos)
 {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -1175,6 +1197,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   for (int i = 0; i < num + 1; i++) { // +1 as the timer is the last onr
 
     threadContext[i].go = go;
+    threadContext[i].loadpos = loadpos;
     threadContext[i].jmodonly = 0;
     threadContext[i].showdate = showdate;
     threadContext[i].fp = savePositions;
@@ -2266,18 +2289,18 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	sprintf(s,"wx1zs1k4G%zd-%.1lf", p, MIN(TOGiB(maxSizeBytes), p+stepgb));
 	fprintf(stderr,"*info* precondition: running string %s\n", s);
 	preconditions->strings[0] = strdup(s);
-	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL);
 
 	free(preconditions->strings[0]); // free 'f'
 	sprintf(s,"wx1zs1k4G%zd-%.1lfK%zd", p, MIN(TOGiB(maxSizeBytes), p+stepgb), fragmentLBA);
 	fprintf(stderr,"*info* precondition: running string %s\n", s);
 	preconditions->strings[0] = strdup(s);
-	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL);
 
 	
 	}
     } else {
-      jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0);
+      jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL);
     }
     if (keepRunning) {
       fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");

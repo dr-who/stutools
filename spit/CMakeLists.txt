@@ -37,6 +37,9 @@ target_link_libraries(randdd spitlib m aio pthread numa)
 add_executable(trim trim.c)
 target_link_libraries(trim spitlib m aio pthread numa)
 
+add_executable(median2d median2d.c)
+target_link_libraries(median2d spitlib m)
+
 add_executable(fsfiller fsfiller.c)
 target_link_libraries(fsfiller spitlib m aio pthread numa)
 

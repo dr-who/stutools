@@ -1674,3 +1674,41 @@ void positionContainerModOnly(positionContainer *pc, const size_t jmod, const si
 }
     
 
+positionType * readPos3Cols(FILE *fp, size_t *sz, size_t *minlen, size_t *maxlen) {
+  positionType *p = NULL;
+
+  int num = 0;
+  char *line = NULL;
+  ssize_t read = 0;
+  size_t len = 0;
+  *minlen = INT_MAX;
+  *maxlen = 0;
+
+  while ((read = getline(&line, &len, fp)) != -1) {
+    size_t pos;
+    char action;
+    size_t l;
+    int s = sscanf(line, "%zu %c %zu\n", &pos, &action, &l);
+    if (s == 3) {
+      num++;
+      p = realloc(p, sizeof(positionType) * num);
+      p[num-1].pos = pos;
+      p[num-1].action = action;
+      if (action != 'R' && action != 'W' && action != 'T' && action != 'S') {
+	fprintf(stderr,"*error* unknown action '%c'. Expecting R, W, T, S\n", action);
+	exit(1);
+      }
+      p[num-1].len = l;
+      if (l > *maxlen) {
+	*maxlen = l;
+      }
+      if (l < *minlen) {
+	*minlen = l;
+      }
+      *sz = num;
+    }
+  }
+  free(line);
+  return p;
+}
+  

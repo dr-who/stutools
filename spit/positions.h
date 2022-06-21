@@ -128,6 +128,8 @@ void positionContainerModOnly(positionContainer *pc, const size_t jmod, const si
 void positionContainerRandomizeProbandRange(positionContainer *pc, unsigned int seed, const double inprob, const size_t inrange);
 void monotonicCheck(positionContainer *pc);
 
+positionType * readPos3Cols(FILE *fp, size_t *sz, size_t *minlen, size_t *maxlen);
+
 
 #endif
 
