@@ -105,36 +105,43 @@ int main(int argc, char *argv[]) {
 
 
   for (size_t i = 0; i < numcount; i++) {
-    double themin = nlSortedPos(&numbers[i].list, 0);
     double themax = nlSortedPos(&numbers[i].list, 1);
     const size_t N = nlN(&numbers[i].list);
-    double median = 0;
+    double median = 0, mean = 0;
 
     numListType *p = NULL;
     
     fprintf(stdout,"%8.0lf\t", numbers[i].key);
 
-    if (modulo && (themax - themin > (modulo/2))) {
+    if (modulo) { // if min lower half it's too close to zero, add
+
+      themax = nlSortedPos(&numbers[i].list, 1);
+      
       numListType better;
       nlInit(&better, 1000);
       for (size_t j = 0; j < N; j++) {
-	if (numbers[i].list.values[j].value < (modulo/2)) {
-	  nlAdd(&better, modulo + numbers[i].list.values[j].value);
-	} else {
+	const double d1 = fabs(numbers[i].list.values[j].value - themax);
+	const double d2 = fabs(numbers[i].list.values[j].value + modulo - themax);
+
+	if (d1 < d2) {
 	  nlAdd(&better, numbers[i].list.values[j].value);
+	} else {
+	  //	  fprintf(stderr,"%lf %lf\n", d1,d2);
+	  nlAdd(&better, modulo + numbers[i].list.values[j].value);
 	}
       }
-      median = fmod(nlMedian(&better), modulo);
-      themin = nlSortedPos(&better, 0);
       themax = nlSortedPos(&better, 1);
+      median = fmod(nlMedian(&better), modulo);
+      mean = nlMean(&better);
       p = &better;
     } else {
       median = nlMedian(&numbers[i].list);
       if (modulo) median = fmod(median, modulo);
       p = &numbers[i].list;
+      mean = nlMean(&numbers[i].list);
     }
     
-    fprintf(stdout,"%lf\t% zd\t%lf\t|", median, N, nlSD(p));
+    fprintf(stdout,"median %lf\tmode %lf\tmean %lf\tN %zd\tSD %lf\t|\t", median, nlMode(p, 360, 1), mean, N, nlSD(p));
     for (size_t j = 0; j < N; j++) {
       size_t count = 1;
       for (size_t j2 = j+1; j2 < N ; j2++) {

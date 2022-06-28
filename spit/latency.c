@@ -82,17 +82,18 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
   FILE *fp_w = fopen("size_vs_latency_w.txt", "wt");
   assert(fp_r);
   assert(fp_w);
+  const double jitter = 10.0 / 100.0; // 10%
   srand48(0);
   size_t count = 0 ;
   for (int n = 0; n < num; n++) {
     for (int i = 0; i < (int) origpc[n].sz; i++) if (origpc[n].positions[i].finishTime > 0) {
 	if (origpc[n].positions[i].action == 'R') {
 	  count++;
-	  double v = 1 - (drand48()*0.1);
+	  double v = 1 + (drand48() * 2*jitter) - jitter;
 	  fprintf(fp_r, "%.6lf\t%.6lf\n", origpc[n].positions[i].len * v, origpc[n].positions[i].finishTime - origpc[n].positions[i].submitTime);
 	} else if (origpc[n].positions[i].action == 'W') {
 	  count++;
-	  double v = 1 + (drand48()*0.1);
+	  double v = 1 + (drand48() * 2*jitter) - jitter;
 	  fprintf(fp_w, "%.6lf\t%.6lf\n", origpc[n].positions[i].len * v, origpc[n].positions[i].finishTime - origpc[n].positions[i].submitTime);
 	} 
       }
@@ -105,7 +106,7 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
     const char *type = count < 100000 ? "points" : "dots";
     
     fprintf(fp, "set key above\n");
-    fprintf(fp, "set title 'Block size vs Latency (10%% horiz jitter, n=%zd)\n", count);
+    fprintf(fp, "set title 'Block size vs Latency (%.0lf%% horiz jitter, n=%zd)\n", jitter*100.0, count);
     fprintf(fp, "set log x\n");
     fprintf(fp, "set log y\n");
     fprintf(fp, "set xtics auto\n");
@@ -114,7 +115,7 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
     fprintf(fp, "set grid\n");
     fprintf(fp, "set xlabel 'Block size (bytes)'\n");
     fprintf(fp, "set ylabel 'Latency (s)'\n");
-    fprintf(fp, "plot 'size_vs_latency_r.txt' with %s title 'Block reads', 'size_vs_latency_w.txt' with %s title 'Block writes'\n", type, type);
+    fprintf(fp, "plot 'size_vs_latency_r.txt' using 1:2:2 with %s palette title 'Block reads', 'size_vs_latency_w.txt' using 1:2:2 with %s palette title 'Block writes'\n", type, type);
   } else {
     perror("filename");
   }

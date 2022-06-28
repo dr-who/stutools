@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "utils.h"
 #include "numList.h"
 
 
@@ -114,6 +115,15 @@ void nlSort(numListType *n) {
   }
 }
 
+size_t nlIndexPos(numListType *n, double pos) {
+  nlSort(n);
+  assert(pos>=0);
+  assert(pos <= 1);
+
+  size_t i = ceil((n->num - 1) * pos);
+  return i;
+}
+
 double nlSortedPos(numListType *n, double pos) {
   nlSort(n);
   assert(pos>=0);
@@ -164,9 +174,52 @@ double nlSortedSmoothed(numListType *n) {
 }
 
 
+  
+double nlMode(numListType *n, size_t buckets, size_t div) {
+  size_t bu[buckets];
+  for(size_t i =0 ; i < buckets; i++) {
+    bu[i] = 0;
+  }
+  
+  for (size_t i = 0; i < n->num; i++) {
+    size_t v = fmod(n->values[i].value, buckets);
+    v = v / div;
+    v = v * div;
+    if (v<buckets) {
+      bu[v]++;
+      //      fprintf(stdout,"adding %zd, count = %zd\n", v, bu[v]);
+    }
+  }
+
+  int max = -1, maxpos = -1;
+  for (size_t i = 0; i < buckets; i++) {
+    if ((int)bu[i] > max) {
+      max = bu[i];
+      maxpos = i;
+    }
+  }
+  //  fprintf(stdout,"mode value is %zd, count %zd\n", maxpos, bu[maxpos]);
+  if (max <= 1) {
+    return NAN;
+  } else { // if more than 3
+    return (double)maxpos;
+  }
+}
+
+  
 double nlMedian(numListType *n) {
   if (n->num > 0) {
-    return nlSortedPos(n, 0.5);
+    if ((n->num % 2) == 0) {
+      size_t p = nlIndexPos(n, 0.5);
+      if (p == 0) {
+	return n->values[p].value;
+      } else {
+	// we have two values
+	return (n->values[p].value + n->values[p-1].value)/2;
+      }
+    } else {
+      return nlSortedPos(n, 0.5);
+    }
   } else {
     return NAN;
   }

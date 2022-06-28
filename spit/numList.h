@@ -41,16 +41,10 @@ void nlCorrelation(numListType *n1, numListType *n2, double *r);
 void nlUnbiasedSD(numListType *n1, numListType *n2, const double r, double *unsd);
 
 void nlDump(numListType *n);
+double nlMode(numListType *n, size_t buckets, size_t div);
+
 
 double loadTTable(size_t df, size_t tail, double a);
 
 #endif
-
-
-
-
-
-
-
-
 
