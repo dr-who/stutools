@@ -314,6 +314,7 @@ void usage(size_t threads) {
   fprintf(stdout,"Usage:\n   ./spitchecker2 [ options] filename\n");
   fprintf(stdout,"\nOptions:\n");
   fprintf(stdout,"   -o    Turn off O_DIRECT\n");
+  fprintf(stdout,"   -4    A synonym for -f 1\n");
   fprintf(stdout,"   -f k  Only check the first k KiB\n");
   fprintf(stderr,"   -t n  Specify the number of verification threads to run in parallel (%zd)\n", threads);
   fprintf(stdout,"\nMerge:\n");
@@ -335,11 +336,15 @@ int handle_args(int argc, char *argv[], size_t *threads, size_t *merge, size_t *
   *o_direct = O_DIRECT;
   *randomize = 0; // sorted
   
-  const char *getoptstring = "smt:orpR:hVf:";
+  const char *getoptstring = "smt:orpR:hVf:4";
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
     case 's':
       *merge = 0; // stream;
+      break;
+    case '4':
+      *onlycheckfirst = 4096;
+      fprintf(stderr,"*warning* only checking the first %zd bytes\n", *onlycheckfirst);
       break;
     case 'f':
       *onlycheckfirst = 4096 * atoi(optarg);
