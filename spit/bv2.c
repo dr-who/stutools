@@ -211,12 +211,14 @@ static void *runVerifyThread(void *arg)
       }
       
       //usleep(1);
-      pthread_yield();
+      //      pthread_yield();
     } else {
       usleep(100);
     }
   }
   if (fd > 0) close(fd);
+  free(buf);
+  free(randombuf);
   //  fprintf(stderr,"*%zd* is finished %zd\n", threadContext->id, threadContext->pleaseStop);
   return NULL;
 }
