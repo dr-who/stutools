@@ -554,10 +554,14 @@ size_t aioMultiplePositions( positionContainer *p,
             poscheck = (size_t*)readdata[pp->q];
             uucheck = (size_t*)readdata[pp->q] + 1;
 
-	    int strcmpres = 0;
-	    if (stringcompare) strcmpres = strncmp(readdata[pp->q] + 16, data[pp->q] + 16, pp->len-16);
+	    int strcmpres = 0, firstcmp = 0;
+	    if (stringcompare) {
+	      strcmpres = strncmp(readdata[pp->q] + 16, data[pp->q] + 16, pp->len-16) || (pp->pos != *poscheck);
+	    } else {
+	      firstcmp = (p->UUID != *uucheck) || (pp->pos != *poscheck);
+	    }
 	    
-            if ((( 0/*p->UUID != *uucheck) || (pp->pos != *poscheck*/) || (strcmpres != 0)) && (positions[pp->verify].finishTime)) {
+            if (((firstcmp) || (strcmpres != 0)) && (positions[pp->verify].finishTime)) {
 	      
               fprintf(stderr,"*error* position[%zd] cmp=%d, '%c' R=%d (success %d) ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pos, strcmpres, pp->action, pp->seed, pp->success, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
               fprintf(stderr,"*error* Maybe: combinations of meta-data 'm', multiple threads 'j' and without G_ may fail\n");

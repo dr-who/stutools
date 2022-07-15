@@ -45,9 +45,9 @@ int main(int argc, char *argv[]) {
   int fd = open(fn, O_RDWR);
   if (fd < 0) {
     perror(fn);
+    exit(-1);
   }
-  assert(fd > 0);
-  aioMultiplePositions(&pc, pc.sz, timedouble() + 9e9, 0, 1, 256, 0, 0, 4096, &ios, &trb, &twb, 1, pc.sz, 0, fd, 0, &ior, 0, NULL, NULL, 1, 0, 0, 1);
+  aioMultiplePositions(&pc, pc.sz, timedouble() + 9e9, 0, 1, 256, 0, 0, 4096, &ios, &trb, &twb, 1, pc.sz, 1, fd, 0, &ior, 0, NULL, NULL, 1, 0, 0, 1);
 
 
   close(fd);
