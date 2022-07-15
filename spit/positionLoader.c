@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
   positionContainer pc;
   positionContainerInit(&pc, (size_t)(timedouble()*1000));
 
-  for (int i = 1; i < argc; i++) {
+  for (int i = 2; i < argc; i++) {
     size_t added = positionContainerAddLinesFilename(&pc, &j, argv[i]);
     fprintf(stderr,"loaded %zd lines from %s\n", added, argv[i]);
   }
@@ -40,11 +40,17 @@ int main(int argc, char *argv[]) {
   positionContainerInfo(&pc);
 
   size_t ios, trb, twb, ior;
-  int fd = open("/dev/sdi", O_RDWR);
+  char *fn = argv[1];
+  fprintf(stderr,"*info* validating positions against '%s'\n", fn);
+  int fd = open(fn, O_RDWR);
+  if (fd < 0) {
+    perror(fn);
+  }
   assert(fd > 0);
   aioMultiplePositions(&pc, pc.sz, timedouble() + 9e9, 0, 1, 256, 0, 0, 4096, &ios, &trb, &twb, 1, pc.sz, 0, fd, 0, &ior, 0, NULL, NULL, 1, 0, 0, 1);
 
-  
+
+  close(fd);
 
   if (pc.sz > 0) {
     positionContainerFree(&pc);
