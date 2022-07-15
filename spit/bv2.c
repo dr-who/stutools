@@ -194,7 +194,7 @@ static void *runVerifyThread(void *arg)
 	memcpy(randombuf, pp, sizeof(size_t));
 	int ret = verifyPosition(fd, pp, randombuf, buf, &diff, lastseed, 0, 0);
 	if (ret == 0) {
-	  //	  	  fprintf(stdout,"verify %lf [%zd] %d %zd, num %zd\n", timedouble(), threadContext->id, pp->deviceid, pp->pos, threadContext->b->numPositions);
+	  if (verbose) fprintf(stdout,"verify %lf [%zd] %d %zd, num %zd\n", timedouble(), threadContext->id, pp->deviceid, pp->pos, threadContext->b->numPositions);
 	  threadContext->correct++;
 	} else {
 	  fprintf(stdout,"error %lf [%zd] %d %zd, num %zd\n", timedouble(), threadContext->id, pp->deviceid, pp->pos, threadContext->b->numPositions);
