@@ -42,10 +42,14 @@ size_t aioMultiplePositions( positionContainer *p,
 			     char *jobdevice,
 			     size_t posIncrement,
 			     int recordSamples,
-			     size_t alternateEvery
+			     size_t alternateEvery,
+			     size_t stringcompare
                            )
 {
   size_t printCount = 0;
+  if (stringcompare) {
+    fprintf(stderr,"*info* strong byte comparison enabled.\n");
+  }
 
   if (sz == 0) {
     fprintf(stderr,"*warning* sz == 0!\n");
@@ -321,11 +325,13 @@ size_t aioMultiplePositions( positionContainer *p,
 		  fprintf(stderr,"[%zd] read qdIndex=%d\n", newpos, qdIndex);
 		}
 
-		/*
+		if (stringcompare) {
 		  if (positions[pos].seed != dataseed[qdIndex]) {
-		  generateRandomBuffer(readdata[qdIndex], positions[pos].len, positions[pos].seed);
-		  dataseed[qdIndex] = positions[pos].seed;
-		  }*/
+		    //		    fprintf(stderr,"seed changed\n");
+		    generateRandomBuffer(data[qdIndex], positions[pos].len, positions[pos].seed);
+		    dataseed[qdIndex] = positions[pos].seed;
+		  }
+		}
 
 		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 		cbs[qdIndex]->data = &positions[pos];
@@ -349,6 +355,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		}
 
 		if (positions[pos].seed != dataseed[qdIndex]) {
+		  //		  fprintf(stderr,"seed chnged\n");
 		  generateRandomBuffer(data[qdIndex], positions[pos].len, positions[pos].seed);
 		  dataseed[qdIndex] = positions[pos].seed;
 		}
@@ -423,7 +430,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		*ioerrors = (*ioerrors) + 1;
 		fprintf(stderr,"io_submit() failed, ret = %d\n", ret);
 		perror("io_submit()");
-		if(!dontExitOnErrors) abort();
+		if(!dontExitOnErrors) exit(-1);
 	      }
 	    }
 	  }
@@ -542,22 +549,22 @@ size_t aioMultiplePositions( positionContainer *p,
 
 
           if (pp->verify && (pp->action == 'R')) {
-            //	    if (pp->seed != dataseed[pp->q]) {
-            //	    //n	      generateRandomBuffer(readdata[pp->q], pp->len, pp->seed);
-            //	      dataseed[pp->q] = pp->seed;
-            //	    }
-
             // if we know we have written we can check, or if we have read a previous write
             size_t *uucheck = NULL, *poscheck = NULL;
             poscheck = (size_t*)readdata[pp->q];
             uucheck = (size_t*)readdata[pp->q] + 1;
 
-            if (((p->UUID != *uucheck) || (pp->pos != *poscheck)) && (positions[pp->verify].finishTime)) {
-              fprintf(stderr,"*error* position[%zd] '%c' R=%d (success %d) ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pos, pp->action, pp->seed, pp->success, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
+	    int strcmpres = 0;
+	    if (stringcompare) strcmpres = strncmp(readdata[pp->q] + 16, data[pp->q] + 16, pp->len-16);
+	    
+            if ((( 0/*p->UUID != *uucheck) || (pp->pos != *poscheck*/) || (strcmpres != 0)) && (positions[pp->verify].finishTime)) {
+	      
+              fprintf(stderr,"*error* position[%zd] cmp=%d, '%c' R=%d (success %d) ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n", pos, strcmpres, pp->action, pp->seed, pp->success, pp->verify, p->UUID, *uucheck, pp->pos, *poscheck);
               fprintf(stderr,"*error* Maybe: combinations of meta-data 'm', multiple threads 'j' and without G_ may fail\n");
               fprintf(stderr,"*error* as the different threads will clobber data from other threads in real time\n");
               fprintf(stderr,"*error* Potentially write to -P positions.txt and check after data is written\n");
-              abort();
+	      exit(-1);
+	      //              abort();
             }
           }
 	  pp->finishTime = lastreceive;
