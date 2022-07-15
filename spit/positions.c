@@ -245,6 +245,15 @@ void positionContainerCollapse(positionContainer *merged)
   fprintf(stderr,"*info* sorting %zd actions that have completed\n", merged->sz);
   qsort(merged->positions, merged->sz, sizeof(positionType), poscompare);
 
+  // skip identical
+  for (int i =0 ; i < (int)(merged->sz)-1; i++) {
+    // if identical with the next then skip the first one
+    if (memcmp(merged->positions + i, merged->positions + i + 1, sizeof(positionType)) == 0) {
+      merged->positions[i].action = 'S';
+    }
+  }
+
+  
   /*  fprintf(stderr,"*info* checking pre-conditions for collapse()\n");
   positionType *pi = merged->positions;
   for (size_t i =0 ; i < merged->sz-1; i++) {
@@ -1143,28 +1152,35 @@ void insertFourkEveryMiB(positionContainer *pc, const size_t minbdSize, const si
 }
 
 
+void positionsSortPositions(positionType *positions, const size_t count) {
+  qsort(positions, count, sizeof(positionType), poscompare);
+}
+  
+
+void positionsRandomize(positionType *positions, const size_t count, unsigned int seed)
+{
+  if (verbose)  fprintf(stderr,"*info* randomizing the array of %zd values, seed %u\n", count, seed);
+  fprintf(stderr,"*info* before rand: first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
+  for (size_t shuffle = 0; shuffle < 1; shuffle++) {
+    for (size_t i = 0; i < count-2 && keepRunning; i++) {
+      assert (i < count -2);
+      assert (count - i >= 1);
+      const size_t j = i + rand_r(&seed) % (count - i);
+      assert (j < count);
+      // swap i and j
+      positionType p = positions[i];
+      positions[i] = positions[j];
+      positions[j] = p;
+    }
+  }
+  fprintf(stderr,"*info* after rand:  first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
+}
 
 void positionContainerRandomize(positionContainer *pc, unsigned int seed)
 {
   const size_t count = pc->sz;
   if (count > 1) {
-    positionType *positions = pc->positions;
-    
-    if (verbose)  fprintf(stderr,"*info* randomizing the array of %zd values, seed %u\n", count, seed);
-    fprintf(stderr,"*info* before rand: first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
-    for (size_t shuffle = 0; shuffle < 1; shuffle++) {
-      for (size_t i = 0; i < count-2 && keepRunning; i++) {
-	assert (i < count -2);
-	assert (count - i >= 1);
-	const size_t j = i + rand_r(&seed) % (count - i);
-	assert (j < count);
-	// swap i and j
-	positionType p = positions[i];
-	positions[i] = positions[j];
-	positions[j] = p;
-      }
-    }
-    fprintf(stderr,"*info* after rand:  first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
+    positionsRandomize(pc->positions, count, seed);
   }
 }
 
@@ -1302,7 +1318,23 @@ void positionStats(const positionType *positions, const size_t maxpositions, con
   fprintf(stderr,"*info* %zd positions, %.2lf GiB positions from a total of %.2lf GiB, coverage (%.5lf%%)\n", maxpositions, TOGiB(len), TOGiB(totalBytes), 100.0*TOGiB(len)/TOGiB(totalBytes));
 }
 
-
+void positionContainerInfo(const positionContainer *pc) {
+  fprintf(stderr,"*info* position container: UUID %zd\n", pc->UUID);
+  fprintf(stderr,"  size: %zd\n", pc->sz);
+  fprintf(stderr,"  len:  %zd - %zd\n", pc->minbs, pc->maxbs);
+  fprintf(stderr,"  LBA:  %zd - %zd\n", pc->minbdSize, pc->maxbdSize);
+  size_t reads = 0, writes = 0, trims = 0, other = 0;
+  for (size_t i = 0; i < pc->sz; i++) {
+    if (pc->positions[i].action == 'R') {reads++;}
+    else if (pc->positions[i].action == 'W') {writes++;}
+    else if (pc->positions[i].action == 'T') {trims++;}
+    else other++;
+  }
+  fprintf(stderr,"  reads:  %zd\n", reads);
+  fprintf(stderr,"  writes: %zd\n", writes);
+  fprintf(stderr,"  trims:  %zd\n", trims);
+  fprintf(stderr,"  other:  %zd\n", other);
+}
 
 void positionContainerDump(positionContainer *pc, const size_t countToShow)
 {
@@ -1325,7 +1357,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
       buf += sprintf(buf,"\t[%5zd] action %c\tpos %12zd\tlen %7u\tdevice %d\tverify %d\tseed %6d\ttime(s) %lf\n", i, positions[i].action, positions[i].pos, positions[i].len, positions[i].deviceid,positions[i].verify, positions[i].seed, positions[i].usoffset);
     }
   }
-  buf += sprintf(buf,"\tSummary[%d]: reads %zd (sum %zd), writes %zd (sum %zd), trims %zd (sum %zd), hash %lx\n", positions[0].seed, rcount, rsum, wcount, wsum, tcount, tsum, hash);
+  buf += sprintf(buf,"\tSummary[%d]: reads %zd (sum %zd), writes %zd (sum %zd), trims %zd (sum %zd), hash %lx\n", positions ? positions[0].seed : 0, rcount, rsum, wcount, wsum, tcount, tsum, hash);
   buf[0] = 0;
   fprintf(stderr, "%s", startbuf);
   free(startbuf);
@@ -1335,6 +1367,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow)
 void positionContainerInit(positionContainer *pc, size_t UUID)
 {
   memset(pc, 0, sizeof(positionContainer));
+  pc->minbs = INT_MAX;
   pc->UUID = UUID;
 }
 
@@ -1368,68 +1401,30 @@ void positionContainerSetupFromPC(positionContainer *pc, const positionContainer
 void positionContainerAddMetadataChecks(positionContainer *pc, const size_t metadata)
 {
   const size_t origsz = pc->sz;
+  fprintf(stderr,"*orig size * %zd, %zd\n", origsz, metadata);
 
   positionType *p = NULL;
-  size_t maxalloc = (4 * origsz); // a single R becomes RPWP
+  size_t maxalloc = (2 * origsz); // a single R becomes RPWP
   CALLOC(p, maxalloc, sizeof(positionType));
   if (p == NULL) {
     fprintf(stderr,"*error* can't alloc array\n");
     exit(-1);
   }
 
-  size_t newpos = 0;
-  for (size_t i = 0; i < origsz; i += metadata) {
-    size_t gap = (origsz - i > metadata) ? metadata : origsz - i;
-    assert (newpos < maxalloc);
-    for (size_t j = 0; j < gap; j++) {
-      //      assert (newpos < 2*origsz);
-      p[newpos] = pc->positions[i + j];
-      p[newpos].action = pc->positions[i + j].action;
-      newpos++;
+  memcpy(p, pc->positions, origsz * sizeof(positionType));
+
+  for (size_t i = 0; i < origsz; i++) {
+    memcpy(p+origsz + i, pc->positions + i, sizeof(positionType));
+    
+    if ((p+origsz+i)->action == 'W') {
+      (p+origsz+i)->action = 'R';
+      (p+origsz+i)->verify = 1;
     }
-    p[newpos++].action = 'P'; // pause
-    assert (newpos < maxalloc);
-    for (size_t j = 0; j < gap; j++) {
-      //      assert (newpos < 2*origsz);
-      p[newpos] = pc->positions[i + j];
-      p[newpos].action = 'R';
-      if (p[newpos - gap - 1].action == 'W') {
-	p[newpos].verify = newpos - gap - 1; // min 1 for the 'P'
-      }
-      newpos++;
-    }
-    //    fprintf(stderr,"%zd %zd\n", newpos, maxalloc);
-    assert (newpos < maxalloc);
-    p[newpos++].action = 'P'; // pause after
   }
   free(pc->positions);
-  //  fprintf(stderr,"reallo from %zd to %zd\n", maxalloc, newpos);
-  if (newpos == 0) {
-    fprintf(stderr,"*warning* weird, shouldn't happen\n");
-    newpos = 1;
-  }
-  p = realloc(p, newpos * sizeof(positionType)); // truncate
-  memset(&p[newpos-1], 0, sizeof(positionType));
   
   pc->positions = p;
-  pc->sz = newpos;
-  // check a read has the same position as the original write
-  //  fprintf(stderr,"*info* checking...\n");
-  for (size_t i = 0; i < pc->sz; i++) {
-    if (pc->positions[i].action == 'P') {
-      assert(pc->positions[i-1].action != pc->positions[i].action); // check either side not p
-      assert(pc->positions[i+1].action != pc->positions[i].action); 
-      continue;
-    } else {
-      size_t vpos = pc->positions[i].verify;
-      if (vpos > 0) {  
-	assert(pc->positions[i].pos == pc->positions[vpos].pos);
-	assert(pc->positions[i].len == pc->positions[vpos].len);
-	//	assert(pc->positions[i].action != pc->positions[vpos].action);
-	assert(pc->positions[vpos].action != 'P');
-      }
-    }
-  }
+  pc->sz = 2*origsz;
 }
 
 
@@ -1553,28 +1548,52 @@ jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
   return positionContainerLoadLines(pc, fd, 0);
 }
 
-
-
-jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLines){
-
-  positionContainerInit(pc, 0);
+jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, const size_t maxLines){
   jobType job;
   jobInit(&job);
+  positionContainerInit(pc, 0);
+  positionContainerAddLines(pc, &job, fd, maxLines);
+  return job;
+}
 
-  char *line = malloc(1000);
-  size_t maxline = 1000, maxSize = 0, minbs = (size_t)-1, maxbs = 0;
+size_t positionContainerAddLinesFilename(positionContainer *pc, jobType *job,  const char *filename){
+  FILE *fp = NULL;
+
+  if (filename == NULL) {
+    return 0;
+  }
+  if (strcmp(filename,"-")==0) {
+    fp = stdin;
+  } else {
+    fp = fopen(filename, "rt");
+  }
+  if (!fp) {
+    perror(filename);
+    return 0;
+  }
+  size_t added = positionContainerAddLines(pc, job, fp, 0);
+  if (fp != stdin) fclose(fp);
+  return added;
+}
+
+
+size_t positionContainerAddLines(positionContainer *pc, jobType *job, FILE *fd, const size_t maxLines) {
+  
+  size_t maxline = 1000;
+  char *line = malloc(maxline);
   ssize_t read;
   char *path;
   CALLOC(path, 1000, 1);
   //  char *origline = line; // store the original pointer, as getline changes it creating an unfreeable area
-  positionType *p = NULL;
-  size_t pNum = 0, lineno = 0;
+  positionType *p = pc->positions;
+  size_t lineno = 0;
+  size_t added = 0;
   double starttime, fintime;
 
   while (keepRunning && (read = getline(&line, &maxline, fd) != -1)) {
     lineno++;
     size_t pos, len, seed, tmpsize;
-    //    fprintf(stderr,"in: %s %zd\n", line, strlen(line));
+    //        fprintf(stderr,"in: %s %zd\n", line, strlen(line));
     char op;
     starttime = 0;
     fintime = 0;
@@ -1589,45 +1608,43 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
       }
 
       int seenpathbefore = -1;
-      for (int k = 0; k < job.count; k++) {
-        if (strcmp(path, job.devices[k]) == 0) {
+      for (int k = 0; k < job->count; k++) {
+        if (strcmp(path, job->devices[k]) == 0) {
           seenpathbefore = k;
         }
       }
       if (seenpathbefore == -1) {
-        jobAddBoth(&job, path, "w", -1);
-        seenpathbefore = job.count - 1;
+        jobAddBoth(job, path, "w", -1);
+        seenpathbefore = job->count - 1;
       }
       //
-      pNum++;
-      p = realloc(p, sizeof(positionType) * (pNum));
+      added++;
+      p = realloc(p, sizeof(positionType) * (pc->sz + 1));
       assert(p);
-      memset(&p[pNum-1], 0, sizeof(positionType));
-      //      fprintf(stderr,"loaded %s deviceid %d\n", path, seenpathbefore);
-      p[pNum-1].deviceid = seenpathbefore;
-      //      assert(starttime);
-      p[pNum-1].submitTime = starttime;
-      p[pNum-1].finishTime = fintime;
-      //      fprintf(stderr,"%zd\n", pNum);
-      //      p[pNum-1].fd = 0;
-      p[pNum-1].pos = pos;
-      p[pNum-1].len = len;
-      if (len < minbs) minbs = len;
-      if (len > maxbs) maxbs = len;
-      p[pNum-1].action = op;
-      p[pNum-1].success = 1;
-      p[pNum-1].seed = seed;
-      if (tmpsize > maxSize) {
-        maxSize = tmpsize;
+      memset(&p[pc->sz], 0, sizeof(positionType));
+
+      p[pc->sz].deviceid = seenpathbefore;
+      p[pc->sz].submitTime = starttime;
+      p[pc->sz].finishTime = fintime;
+      p[pc->sz].pos = pos;
+      p[pc->sz].len = len;
+      if (len < pc->minbs) pc->minbs = len;
+      if (len > pc->maxbs) pc->maxbs = len;
+
+      p[pc->sz].action = op;
+      p[pc->sz].success = 1;
+      p[pc->sz].seed = seed;
+      if (tmpsize > pc->maxbdSize) {
+        pc->maxbdSize = tmpsize;
       }
+      pc->sz++;
     } else {
       fprintf(stderr,"*error* invalid line %zd: %s", lineno, line);
       exit(1);
     }
 
-    
     if (maxLines) {
-      if (pNum >= maxLines) {
+      if (added >= maxLines) {
 	break;
       }
     }
@@ -1638,25 +1655,19 @@ jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t maxLi
   line = NULL;
 
   pc->positions = p;
-  pc->sz = pNum;
-  for (size_t i = 0; i < pc->sz; i++) {
+  /*  for (size_t i = 0; i < pc->sz; i++) {
     assert(pc->positions[i].submitTime != 0);
     assert(pc->positions[i].finishTime != 0);
-  }
+    }*/
   //  pc->string = strdup("");
   //  pc->device = path;
-  pc->maxbdSize = maxSize;
-  pc->minbs = minbs;
-  pc->maxbs = maxbs;
+  assert (pc->minbs <= pc->maxbs);
+  //  assert (pc->maxbs < 10L*1024*1024*1024);
 
   free(path);
-  return job;
+  return added;
 }
 
-void positionContainerInfo(const positionContainer *pc)
-{
-  fprintf(stderr,"UUID '%zd', number of actions %zd (%zd/%zd), device size %zd (%.3lf GiB), k [%zd,%zd]\n", pc->UUID, pc->sz, pc->minbs, pc->maxbs, pc->maxbdSize, TOGiB(pc->maxbdSize), pc->minbs, pc->maxbs);
-}
 
 
 void positionContainerModOnly(positionContainer *pc, const size_t jmod, const size_t threadid) {

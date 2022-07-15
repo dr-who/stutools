@@ -52,6 +52,7 @@ size_t aioMultiplePositions( positionContainer *p,
     return 0;
   }
 
+  //  fprintf(stderr,"aio %zd\n", p->UUID);
   if (posIncrement > 1) {
     fprintf(stderr,"*info* positions %zd, rounds %zd, posIncrement %zd\n", posLimit, rounds, posIncrement);
   }
@@ -293,13 +294,15 @@ size_t aioMultiplePositions( positionContainer *p,
 	      // watermark the block with the position on the device
 
 	      if (alternateEvery) {
-		const int thepass = (int)((submitted-1) / alternateEvery);
+		const double thepass = (submitted * 1.0 / alternateEvery);
 		if (thepass >= 1) { // after the first pass start
 		  // swap R and W
 		  if (positions[pos].action == 'R') {
 		    positions[pos].action = 'W';
+		    positions[pos].verify = 0;
 		  } else if (positions[pos].action == 'W') {
 		    positions[pos].action = 'R';
+		    positions[pos].verify = 1; // if was W now R with a verify
 		  }
 		}
 	      }
@@ -380,7 +383,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		  goto nextpos;
 		}
 	      } else {
-		fprintf(stderr,"unknown action '%c' (%d)\n", positions[pos].action, positions[pos].action);
+		fprintf(stderr,"unknown action[%zd] '%c' (%d)\n", pos, positions[pos].action, positions[pos].action);
 		//		abort();
 		goto nextpos;
 	      }

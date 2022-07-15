@@ -95,7 +95,10 @@ void positionContainerFree(positionContainer *pc);
 
 jobType positionContainerLoad(positionContainer *pc, FILE *fd);
 
-jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, size_t linesMax);
+jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, const size_t linesMax);
+
+size_t positionContainerAddLinesFilename(positionContainer *pc, jobType *job, const char *filename);
+size_t positionContainerAddLines(positionContainer *pc, jobType *job, FILE *fd, const size_t maxLines);
 
 void positionContainerInfo(const positionContainer *pc);
 void positionLatencyStats(positionContainer *pc, const int threadid);
@@ -129,6 +132,11 @@ void positionContainerRandomizeProbandRange(positionContainer *pc, unsigned int 
 void monotonicCheck(positionContainer *pc);
 
 positionType * readPos3Cols(FILE *fp, size_t *sz, size_t *minlen, size_t *maxlen);
+
+void positionsRandomize(positionType *positions, const size_t count, unsigned int seed);
+
+void positionsSortPositions(positionType *positions, const size_t count);
+void positionContainerInfo(const positionContainer *pc);
 
 
 #endif

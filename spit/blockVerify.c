@@ -51,7 +51,7 @@ typedef struct {
 } threadInfoType;
 
 // sorting function, used by qsort
-static int seedcompare(const void *p1, const void *p2)
+static int timeCompare(const void *p1, const void *p2)
 {
   const positionType *pos1 = (positionType*)p1;
   const positionType *pos2 = (positionType*)p2;
@@ -64,6 +64,7 @@ static int seedcompare(const void *p1, const void *p2)
     else return 0;
   }
 }
+
 
 
 
@@ -156,7 +157,7 @@ static void *runThread(void *arg)
   if (threadContext->id == 0) {
     if (threadContext->sorted) {
       //if (!threadContext->quiet) fprintf(stderr,"*info* already sorted positions based on submitTime\n");
-      //      qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), seedcompare);
+      //      qsort(&threadContext->pc->positions[threadContext->startInc], gap, sizeof(positionType), timeCompare);
     } else {
       if (!threadContext->quiet) fprintf(stderr,"*info* positions are shuffled\n");
       unsigned int seed = threadContext->id;
@@ -276,6 +277,7 @@ static void *runThread(void *arg)
 
 
 
+
 /**
  * Input is sorted
  *
@@ -303,7 +305,7 @@ int verifyPositions(positionContainer *pc, size_t threads, jobType *job, const s
 
   if (process) {
     positionContainerCollapse(pc); // this will sort before collapsing using pos sort.
-    qsort(pc->positions, pc->sz, sizeof(positionType), seedcompare); // post collapse, sort by time
+    qsort(pc->positions, pc->sz, sizeof(positionType), timeCompare); // post collapse, sort by time
   }
 
   pthread_t *pt = NULL;
