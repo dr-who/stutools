@@ -83,7 +83,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
     return -1;
   }
 
-  int dataok = strncmp(buf+16, randomBuffer+16, len-16-2) == 0;
+  int dataok = strncmp(buf+16, randomBuffer+16, len-16) == 0;
 
   if (ret != (int)len) {
     fprintf(stderr,"\n*error* position %zd, wrong len %zd instead of %zd (data ok: %d)\n", pos, ret, len, dataok);
