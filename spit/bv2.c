@@ -46,6 +46,7 @@ typedef struct {
   jobType *j;
 
   double start, finish;
+  size_t onlycheckfirst;
 } blockVerifyType;
 
 
@@ -192,7 +193,7 @@ static void *runVerifyThread(void *arg)
 	
 	size_t diff = 0;
 	memcpy(randombuf, pp, sizeof(size_t));
-	int ret = verifyPosition(fd, pp, randombuf, buf, &diff, lastseed, 0, 0);
+	int ret = verifyPosition(fd, pp, randombuf, buf, &diff, lastseed, 0, threadContext->b->onlycheckfirst);
 	if (ret == 0) {
 	  if (verbose) fprintf(stdout,"verify %lf [%zd] %d %zd, num %zd\n", timedouble(), threadContext->id, pp->deviceid, pp->pos, threadContext->b->numPositions);
 	  threadContext->correct++;
@@ -262,8 +263,8 @@ void setupInputThread(blockVerifyType *b) {
 }
   
 
-blockVerifyType blockVerifySetup(size_t threads, size_t merge, size_t randomize, size_t o_direct, size_t seed) {
-  fprintf(stderr,"*info* setup %zd threads, merge %zd, randomize %zd, o_direct %zd, seed %zd\n", threads, merge, randomize, o_direct, seed);
+blockVerifyType blockVerifySetup(size_t threads, size_t merge, size_t randomize, size_t o_direct, size_t seed, size_t onlycheckfirst) {
+  fprintf(stderr,"*info* setup %zd threads, merge %zd, randomize %zd, o_direct %zd, seed %zd, onlycheckfirst %zd\n", threads, merge, randomize, o_direct, seed, onlycheckfirst);
 
   blockVerifyType b;
   memset(&b, 0, sizeof(blockVerifyType));
@@ -276,6 +277,7 @@ blockVerifyType blockVerifySetup(size_t threads, size_t merge, size_t randomize,
   b.inQueue = 0;
   b.p = NULL;
   b.minbs = 9e9;
+  b.onlycheckfirst = onlycheckfirst;
   b.start = timedouble();
 
   return b;
@@ -312,6 +314,7 @@ void usage(size_t threads) {
   fprintf(stdout,"Usage:\n   ./spitchecker2 [ options] filename\n");
   fprintf(stdout,"\nOptions:\n");
   fprintf(stdout,"   -o    Turn off O_DIRECT\n");
+  fprintf(stdout,"   -f k  Only check the first k KiB\n");
   fprintf(stderr,"   -t n  Specify the number of verification threads to run in parallel (%zd)\n", threads);
   fprintf(stdout,"\nMerge:\n");
   fprintf(stdout,"   -m    Read all positions then merge (default)\n");
@@ -321,7 +324,7 @@ void usage(size_t threads) {
   fprintf(stdout,"   -r    Randomize positions\n");
 }
 
-int handle_args(int argc, char *argv[], size_t *threads, size_t *merge, size_t *randomize, size_t *o_direct, size_t *seed) {
+int handle_args(int argc, char *argv[], size_t *threads, size_t *merge, size_t *randomize, size_t *o_direct, size_t *seed, size_t *onlycheckfirst) {
   int opt;
   optind = 0;
   // merge or omerge (stream)
@@ -332,11 +335,15 @@ int handle_args(int argc, char *argv[], size_t *threads, size_t *merge, size_t *
   *o_direct = O_DIRECT;
   *randomize = 0; // sorted
   
-  const char *getoptstring = "smt:orpR:hV";
+  const char *getoptstring = "smt:orpR:hVf:";
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
     case 's':
       *merge = 0; // stream;
+      break;
+    case 'f':
+      *onlycheckfirst = 4096 * atoi(optarg);
+      fprintf(stderr,"*warning* only checking the first %zd bytes\n", *onlycheckfirst);
       break;
     case 'm':
       *merge = 1; // merge
@@ -380,16 +387,16 @@ int handle_args(int argc, char *argv[], size_t *threads, size_t *merge, size_t *
 int main(int argc, char *argv[]) {
 
   keepRunning = 1; verbose = 0;
-  size_t threads=256, merge=1, randomize=0, o_direct=0, seed = 42;
+  size_t threads=256, merge=1, randomize=0, o_direct=0, seed = 42, onlycheckfirst = 0;
 
   if (argc < 2) {
     usage(threads);
     exit(1);
   }
   
-  int ind = handle_args(argc, argv, &threads, &merge, &randomize, &o_direct, &seed);
+  int ind = handle_args(argc, argv, &threads, &merge, &randomize, &o_direct, &seed, &onlycheckfirst);
   
-  blockVerifyType b = blockVerifySetup(threads, merge, randomize, o_direct, seed);
+  blockVerifyType b = blockVerifySetup(threads, merge, randomize, o_direct, seed, onlycheckfirst);
   setupVerificationThreads(&b); // start running, initially no data, so they sleep
 
   positionContainer pc; positionContainerInit(&pc, 0); // setup position container
