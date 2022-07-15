@@ -558,7 +558,7 @@ size_t aioMultiplePositions( positionContainer *p,
 	    if (stringcompare) {
 	      strcmpres = strncmp(readdata[pp->q] + 16, data[pp->q] + 16, pp->len-16) || (pp->pos != *poscheck);
 	    } else {
-	      firstcmp = (p->UUID != *uucheck) || (pp->pos != *poscheck);
+	      firstcmp = /*(p->UUID != *uucheck) ||*/ (pp->pos != *poscheck);
 	    }
 	    
             if (((firstcmp) || (strcmpres != 0)) && (positions[pp->verify].finishTime)) {

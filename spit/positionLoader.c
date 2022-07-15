@@ -1,3 +1,7 @@
+#define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -38,11 +42,12 @@ int main(int argc, char *argv[]) {
   }
 
   positionContainerInfo(&pc);
+  positionContainerDump(&pc, 10);
 
   size_t ios, trb, twb, ior;
   char *fn = argv[1];
   fprintf(stderr,"*info* validating positions against '%s'\n", fn);
-  int fd = open(fn, O_RDWR);
+  int fd = open(fn, O_RDONLY | O_DIRECT);
   if (fd < 0) {
     perror(fn);
     exit(-1);
