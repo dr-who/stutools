@@ -195,9 +195,18 @@ size_t aioMultiplePositions( positionContainer *p,
   unsigned short firstseed = positions[0].seed;
 
   // set the first values of all the write data
+  if (QD > 0) {
+    generateRandomBuffer(data[0], maxSize, firstseed);
+    generateRandomBuffer(readdata[0], maxSize, firstseed);
+  }
+    
   for (size_t i = 0; i < QD; i++) {
-    generateRandomBuffer(data[i], maxSize, firstseed);
-    generateRandomBuffer(readdata[i], maxSize, firstseed);
+    if (i > 0) {
+      memcpy(data[i], data[0], maxSize);
+      memcpy(readdata[i], readdata[0], maxSize);
+    }
+    //    generateRandomBuffer(data[i], maxSize, firstseed);
+    //    generateRandomBuffer(readdata[i], maxSize, firstseed);
     dataseed[i] = firstseed;
   }
 
