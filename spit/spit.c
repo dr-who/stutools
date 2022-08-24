@@ -795,6 +795,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
 
               qd = defaultqd / threadBlock[t];
               if (qd < 1) qd = 1;
+	      if (qd > 64) qd = 64;
 
               sprintf(s, "w s0 k%zd-%zd G_ j%zd#%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], t2, qd, thetime * 2);
               jobAdd(&j, s);
@@ -824,6 +825,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
             for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
               qd = defaultqd /  threadBlock[t];
               if (qd < 1) qd = 1;
+	      if (qd > 64) qd = 64;
 
               sprintf(s, "w s1 k%zd-%zd G_ j%zd#%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], t2, qd, thetime * 2);
               jobAdd(&j, s);
@@ -851,7 +853,8 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
           size_t qd = defaultqd;
           for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
             qd = defaultqd /  threadBlock[t];
-            if (qd < 1) qd = 1;
+              if (qd < 1) qd = 1;
+	      if (qd > 64) qd = 64;
             sprintf(s, "r s0 k%zd-%zd G_ j%zd#%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], t2, qd, thetime);
             jobAdd(&j, s);
           }
@@ -878,7 +881,8 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
           size_t qd = defaultqd;
           for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
             qd = defaultqd /  threadBlock[t];
-            if (qd < 1) qd = 1;
+              if (qd < 1) qd = 1;
+	      if (qd > 64) qd = 64;
             sprintf(s, "r s1 k%zd-%zd G_ j%zd#%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], t2, qd, thetime);
             jobAdd(&j, s);
           }
@@ -932,7 +936,8 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
           size_t qd = defaultqd;
           for (size_t jj = 0 ; jj < threadBlock[t]; jj++) {
             qd = defaultqd /  threadBlock[t];
-            if (qd < 1) qd = 1;
+              if (qd < 1) qd = 1;
+	      if (qd > 64) qd = 64;
             sprintf(s, "w s0 k%zd P100000 q1-%zd G_ j%zd#%zd T%.1lf", blockSize1[i], qd, threadBlock[t], jj, thetime);
             jobAdd(&j, s);
             sprintf(s, "r s0 k%zd P100000 q1-%zd G_ j%zd#%zd T%.1lf", blockSize2[i], qd, threadBlock[t], jj, thetime);
@@ -963,7 +968,8 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
           size_t qd = defaultqd;
           for (size_t t2 = 0; t2 < threadBlock[t]; t2++) {
             qd = defaultqd /  threadBlock[t];
-            if (qd < 1) qd = 1;
+	    if (qd < 1) qd = 1;
+	    if (qd > 64) qd = 64;
             sprintf(s, "p0.7 s0 k%zd-%zd q1-%zd G_ j%zd#%zd T%.1lf", blockSize1[i], blockSize2[i], qd, threadBlock[t], t2, thetime);
             jobAdd(&j, s);
           }
