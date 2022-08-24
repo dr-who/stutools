@@ -907,11 +907,11 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
         for (size_t i = 0 ; i < sizeof(dedupSizes) / sizeof(size_t); i++) {
           jobInit(&j);
           for (size_t jj = 0 ; jj < threadBlock[t]; jj++) {
-            sprintf(s, "w s0 P%zd G_ j%zd#%zd q16 G_ k4 x3", dedupSizes[i], threadBlock[t], jj);
+            sprintf(s, "w s0 P%zd G_ j%zd#%zd q16 G_ k4 T%.1lf", dedupSizes[i], threadBlock[t], jj, thetime);
             jobAdd(&j, s);
           }
           jobAddDeviceToAll(&j, device);
-          sprintf(s, "w s0 P%zd G_ j%zd q16 G_ k4 x3", dedupSizes[i], threadBlock[t]);
+          sprintf(s, "w s0 P%zd G_ j%zd q16 G_ k4 T%.1lf", dedupSizes[i], threadBlock[t], thetime);
           size_t low = 0, high = fsize;
           if (fsize * (i+1) <= bdsize) {
             low = fsize * i;
