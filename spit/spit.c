@@ -786,7 +786,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
       fprintf(stdout, "==== Random Write\n\n");
       fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
       fprintf(stdout, "|===\n");
-      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s \n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read MB/s | Write MB/s \n");
 
       if (1) for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
           for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
@@ -817,7 +817,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
       fprintf(stdout, "==== Sequential Write\n\n");
       fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
       fprintf(stdout, "|===\n");
-      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read MB/s | Write MB/s\n");
 
       if(1) for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
           for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
@@ -846,7 +846,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
       fprintf(stdout, "==== Random Read\n\n");
       fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
       fprintf(stdout, "|===\n");
-      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read MB/s | Write MB/s\n");
 
       for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
         for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
@@ -874,7 +874,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
       fprintf(stdout, "==== Sequential Read\n\n");
       fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
       fprintf(stdout, "|===\n");
-      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read MB/s | Write MB/s\n");
 
       for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
         for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
@@ -901,7 +901,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
       fprintf(stdout, "==== Write de-dup\n\n");
       fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
       fprintf(stdout, "|===\n");
-      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+      fprintf(stdout, "| Command | Threads |  Read IOPS | Write IOPS | Read MB/s | Write MB/s\n");
 
       for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
         for (size_t i = 0 ; i < sizeof(dedupSizes) / sizeof(size_t); i++) {
@@ -929,7 +929,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
       fprintf(stdout, "==== Random Write metadata + read\n\n");
       fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
       fprintf(stdout, "|===\n");
-      fprintf(stdout, "| Command |  Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+      fprintf(stdout, "| Command |  Threads | Read IOPS | Write IOPS | Read MB/s | Write MB/s\n");
 
       for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
         for (size_t i = 0 ; i < sizeof(blockSize1) / sizeof(size_t); i++) {
@@ -960,7 +960,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
       fprintf(stdout, "==== Random 70%% Read / 30%% Write\n\n");
       fprintf(stdout, "[cols=\"<4,^1,^1,^1,^1,^1\", options=\"header\"]\n");
       fprintf(stdout, "|===\n");
-      fprintf(stdout, "| Command | Threads | Read IOPS | Write IOPS | Read GB/s | Write GB/s\n");
+      fprintf(stdout, "| Command | Threads | Read IOPS | Write IOPS | Read MB/s | Write MB/s\n");
 
 
       for (size_t t = 0; t < sizeof(threadBlock) / sizeof(size_t); t++) {
