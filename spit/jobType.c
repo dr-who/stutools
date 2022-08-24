@@ -410,7 +410,7 @@ static void *runThread(void *arg)
   }
   const int numRequests = getNumRequests(suffix);
   if (threadContext->id==0) {
-    fprintf(stderr,"*info* queue/nr_requests for '%s' = %d %s\n", threadContext->jobdevice, numRequests, numRequests<128 ? "WARNING":"");
+    fprintf(stderr,"*info* /sys/block/%s/queue/nr_requests for '%s' = %d %s\n", suffix, threadContext->jobdevice, numRequests, numRequests<128 ? "WARNING":"");
   }
   if ((getWriteCache(suffix) > 0) && (threadContext->id == 0)) {
     fprintf(stderr,"*****************\n");
@@ -423,7 +423,7 @@ static void *runThread(void *arg)
   }
   if (threadContext->id == 0) {
     char *sched = getScheduler(suffix);
-    fprintf(stderr,"*info* drive scheduler is '%s'\n", sched);
+    fprintf(stderr,"*info* /sys/block/%s/queue/scheduler is '%s'\n", suffix, sched);
     free(sched);
   }
 
