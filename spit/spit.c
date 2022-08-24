@@ -699,6 +699,10 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
 
   fprintf(stdout, "== Report: `stutools: spit`\n");
 
+  char *host = hostname();
+  fprintf(stdout, " Machine: %s\n", host);
+  fprintf(stdout, " Report date: %s\n", text);
+
   unsigned int major, minor;
   majorAndMinorFromFilename(device, &major, &minor);
 
@@ -713,7 +717,6 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
   fprintf(stdout, " Device size: %.3lf GB\n", TOGB(bdsize));
   fprintf(stdout, " Cache size: %.3lf GB\n", TOGiB(cacheSizeBytes));
   fprintf(stdout, " Testing time: %.1lf seconds\n", runseconds);
-  char *host = hostname();
 
   size_t discard_max_bytes, discard_granularity, discard_zeroes_data, alignment_offset;
   getDiscardInfo(suffix, &alignment_offset, &discard_max_bytes, &discard_granularity, &discard_zeroes_data);
@@ -722,7 +725,6 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
   suffix = NULL;
 
 
-  fprintf(stdout, " Machine: %s\n", host);
   char *cpumodel = getCPUModel();
   fprintf(stdout, " CPU: %s\n", cpumodel);
   if (cpumodel) free(cpumodel);
@@ -735,7 +737,6 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
   fprintf(stdout, " OS: %s\n", os);
   if (os) free(os);
   fprintf(stdout, " RAM: %.0lf GiB (%.1lf GiB)\n", TOGiB(totalRAM()), TOGiB(ramBytesForPositions));
-  fprintf(stdout, " Report date: %s\n", text);
   fprintf(stdout, " stutools: %s\n", VERSION);
   fprintf(stdout, "\n\n");
 
