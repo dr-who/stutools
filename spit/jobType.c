@@ -1665,6 +1665,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
       int ESTIMATEIOPS=getIOPSestimate(job->devices[i], bs, (i == 0) && verbose);
+      if (ESTIMATEIOPS < 10) {
+	ESTIMATEIOPS = 100000;
+      }
 
       countintime = ceil(threadContext[i].runSeconds * ESTIMATEIOPS);
       //      assert (countintime >= 0);
