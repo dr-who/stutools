@@ -143,6 +143,10 @@ int main(int argc, char *argv[])
 	    errors += verifyPositions(&origpc[0], origpc[0].sz < threads ? origpc[0].sz : threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize, exitearlyn);
 	    tot_cor += correct;
 	    fprintf(stderr,"*info* spitchecker totals: correct %zd, errors %zd\n", tot_cor, errors);
+	    if (exitearlyn && (errors > exitearlyn)) {
+	      fprintf(stderr,"*error* too many errors\n");
+	      break;
+	    }
 	  }
 	  positionContainerFree(&origpc[0]);
 	  jc = job.count;
