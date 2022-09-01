@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
 
   size_t threads = 256;
   size_t batches = 5000;
+  size_t exitearlyn = 1;
 
   if (argc <= 1) {
     fprintf(stdout,"Usage:\n   ./spitchecker [ options] filename* or -\n");
@@ -52,6 +53,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -t n  Specify the number of verification threads to run in parallel (%zd)\n", threads);
     fprintf(stderr,"   -b n  Batch size for streaming IOs (%zd)\n", batches);
     fprintf(stderr,"   -n    Don't sort positions\n");
+    fprintf(stderr,"   -E n  Exit after n errors in a thread (%zd). -E0 don't exit early.\n", exitearlyn);
     exit(1);
   }
 
@@ -64,8 +66,11 @@ int main(int argc, char *argv[])
   int process = 1; // by default collapse and sort
   size_t overridesize = 0;
 
-  while ((opt = getopt(argc, argv, "Dt:njb:q4")) != -1) {
+  while ((opt = getopt(argc, argv, "Dt:njb:q4E:")) != -1) {
     switch (opt) {
+    case 'E':
+      exitearlyn = atoi(optarg);
+      break;
     case '4':
       overridesize = 4096;
       break;
@@ -98,7 +103,7 @@ int main(int argc, char *argv[])
   size_t numFiles = argc -optind;
   if (!quiet) {
     fprintf(stderr,"*info* spitchecker\n");
-    fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd, batch size %zd\n", numFiles, threads, sort, batches);
+    fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd, batch size %zd, exitearly %zd\n", numFiles, threads, sort, batches, exitearlyn);
   }
 
   positionContainer *origpc = NULL;
@@ -135,7 +140,7 @@ int main(int argc, char *argv[])
 	do {
 	  job = positionContainerLoadLines(&origpc[0], fp, batches);
 	  if (job.count) {
-	    errors += verifyPositions(&origpc[0], origpc[0].sz < threads ? origpc[0].sz : threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize);
+	    errors += verifyPositions(&origpc[0], origpc[0].sz < threads ? origpc[0].sz : threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize, exitearlyn);
 	    tot_cor += correct;
 	    fprintf(stderr,"*info* spitchecker totals: correct %zd, errors %zd\n", tot_cor, errors);
 	  }
@@ -174,7 +179,7 @@ int main(int argc, char *argv[])
 
   // verify must be sorted
   size_t correct, incorrect, ioerrors;
-  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize);
+  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize, exitearlyn);
   jobFree(&job);
 
   if (!keepRunning) {

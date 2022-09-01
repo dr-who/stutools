@@ -48,6 +48,7 @@ typedef struct {
   double finishTime;
   int quiet;
   int overridesize;
+  size_t exitearlyafternerrors;
 } threadInfoType;
 
 // sorting function, used by qsort
@@ -86,13 +87,13 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
   int dataok = strncmp(buf+16, randomBuffer+16, len-16) == 0;
 
   if (ret != (int)len) {
-    fprintf(stderr,"\n*error* position %zd, wrong len %zd instead of %zd (data ok: %d)\n", pos, ret, len, dataok);
+    fprintf(stderr,"*error* [%zd], wrong len %zd instead of %zd (data ok: %d)\n", pos, ret, len, dataok);
     return -2;
   } else {
     size_t *p1 = (size_t*)buf;
     size_t *p2 = (size_t*)randomBuffer;
     if (*p1 != *p2) {
-      fprintf(stderr,"\n*error* encoded positions are wrong %zd (from disk) and %zd (at position %zd). Data ok: %d\n", *p1, *p2, pos, dataok);
+      fprintf(stderr,"*error* [%zd] encoded positions are wrong %zd (from disk) and %zd (at position %zd). Data ok: %d\n", pos, *p1, *p2, pos, dataok);
       return -3;
     }
 
@@ -103,7 +104,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
       for (size_t i = 16; i < len; i++) {
         if (buf[i] != randomBuffer[i]) {
           if (lines < 10)
-            fprintf(stderr,"\n*error* difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, i, buf[i], randomBuffer[i], seed);
+            fprintf(stderr,"*error* [%zd] difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n", pos, pos, i, buf[i], randomBuffer[i], seed);
           if (lines == 0) starterror = i;
           lines++;
         }
@@ -257,6 +258,11 @@ static void *runThread(void *arg)
 
       threadContext->iocount++;
 
+      if (threadContext->exitearlyafternerrors) {
+	if (threadContext->incorrect + threadContext->ioerrors + threadContext->lenerrors > threadContext->exitearlyafternerrors) {
+	  break;
+	}
+      }
     }
   }
   if ((quitEarly) && (threadContext->id == 0)) {
@@ -282,7 +288,7 @@ static void *runThread(void *arg)
  * Input is sorted
  *
  */
-int verifyPositions(positionContainer *pc, size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime, size_t *r_correct, size_t *r_incorrect, size_t *r_ioerrors, int quiet, int process, size_t overridesize)
+int verifyPositions(positionContainer *pc, size_t threads, jobType *job, const size_t o_direct, const size_t sorted, const double runTime, size_t *r_correct, size_t *r_incorrect, size_t *r_ioerrors, int quiet, int process, size_t overridesize, size_t exitafternerrorsperthread)
 {
   if (threads < 1) threads = 1;
   const double finishTime = (runTime <= 0) ? (timedouble() + 9e99) : (timedouble() + runTime);
@@ -334,6 +340,7 @@ int verifyPositions(positionContainer *pc, size_t threads, jobType *job, const s
     threadContext[i].o_direct = o_direct;
     threadContext[i].sorted = 1 || sorted;
     threadContext[i].quiet = quiet;
+    threadContext[i].exitearlyafternerrors = exitafternerrorsperthread;
 
     //        fprintf(stderr,"*info* starting thread[%zd] in range [%zd, %zd)\n", i, threadContext[i].startInc, threadContext[i].endExc);
 

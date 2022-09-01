@@ -14,13 +14,16 @@ include (CTest)
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wall -pedantic --std=gnu11 -O2" )
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
-add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c )
+add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c procDiskStats.c)
 
 add_executable(spit spit.c)
 target_link_libraries(spit spitlib m aio pthread numa)
 
 add_executable(pair pair.c )
 target_link_libraries(pair spitlib m )
+
+add_executable(diskperf diskperf.c)
+target_link_libraries(diskperf spitlib m)
 
 add_executable(pmemwreck pmemwreck.c)
 target_link_libraries(pmemwreck spitlib m aio pthread numa)

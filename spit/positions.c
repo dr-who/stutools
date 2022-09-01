@@ -1512,7 +1512,7 @@ void positionContainerFree(positionContainer *pc)
     }
     free(pc->positions);
   } else {
-    fprintf(stderr,"*warning* calling free and already free\n");
+    //    fprintf(stderr,"*warning* calling free and already free\n");
   }
   pc->positions = NULL;
 }
@@ -1661,7 +1661,7 @@ size_t positionContainerAddLines(positionContainer *pc, jobType *job, FILE *fd, 
     }*/
   //  pc->string = strdup("");
   //  pc->device = path;
-  assert (pc->minbs <= pc->maxbs);
+  //  assert (pc->minbs <= pc->maxbs);
   //  assert (pc->maxbs < 10L*1024*1024*1024);
 
   free(path);
