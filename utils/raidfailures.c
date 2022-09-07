@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include "deviceProbs.h"
+
 /**
  * Array Monte-Carlo simulator.
  *
@@ -26,61 +28,6 @@ typedef struct {
   size_t *failedOnDay;
 } arrayLifeType;
   
-
-float *setupProbsFlat(int maxdays, float prob) {
-
-  float *f = calloc(sizeof(float), maxdays);
-  for (size_t i = 0; i < maxdays; i++) {
-    f[i] = prob;
-  }
-  return f;
-}
-
-float *setupProbs(char *fn, int maxdays, int verbose) {
-
-  float *f = calloc(sizeof(float), maxdays);
-
-  FILE *fp = fopen(fn, "rt");
-  float a,b,c;
-  if (fp) {
-    if (verbose) fprintf(stderr,"*info* opening survival rate file '%s'\n", fn);
-    while (fscanf(fp, "%f %f %f\n", &a, &b, &c) > 0) {
-      if (verbose) fprintf(stderr,"%f %f %f\n", a,b,c);
-      for (size_t i = a; i < b; i++) {
-	if (i < maxdays) 
-	  f[i] = c;
-      }
-    }
-    for (size_t i = b; i < maxdays; i++) {
-      if (i < maxdays) 
-	f[i] = c;
-    }
-    fclose(fp);
-  }
-
-  for (size_t i = 0; i < maxdays; i++) {
-    if (f[i] == 0) {
-      abort();
-    }
-  }
-
-  if (verbose) fprintf(stderr,"The last day has a (yearly) survival rate of %.2lf\n", f[maxdays-1]);
-  
-  return f;
-}
-
-void dumpProbs(const char *fn, const float *days, const int maxdays) {
-  FILE *fp = fopen(fn, "wt");
-  if (fp) {
-    for (size_t i = 0; i < maxdays; i++) {
-      fprintf(fp, "%zd\t%f\n", i, days[i]);
-    }
-    fclose(fp);
-  } else {
-    perror(fn);
-    exit(1);
-  }
-}
 
 
 arrayLifeType setupArray(const int days, const int n) {
@@ -436,5 +383,26 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
+
+
+
+/// virtualDevice vdev;  2x{8+2} is MIRROR, 8*{8+2}+2 (two global hot spares)
+/// vdev.type = AND; then two other RAIDset (8,2)
+/// vdev.type = AND or OR;
+/// array of arrayLifeType. Say 10 of 8+2. Tag each drive with a type. Tag the 10 so it's an AND
+/// say mirror 2 x 8+2, so it's an OR
+/// or OR simulate each day, if one fails that's fine, if both fails then that's data loss.
+
+/// globalHotSpares, count per
+/// time to rebuild
+
+/// construct a bunch of vdevs
+
+/// Init(vdev);
+/// OneSample(vdev, 1000 days); // 1,000 days
+///    this will iterate through the components of the vdev, each raid set, add a day
+///    check with OR and AND
+///    Keep track
+/// OneSample(vdev, 1000 days); 
 
 
