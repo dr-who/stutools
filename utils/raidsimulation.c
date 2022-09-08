@@ -331,7 +331,7 @@ int main(int argc, char *argv[]) {
   
   optind = 0;
   int spans = 1, k = 0, m = 0, rebuilddays = 7, opt = 0, iterations = 10000, globalspares = 0;
-  int spantype = 1;
+  int spantype = 1, totaldrives = 0;
   double years = 5;
   int quiet = 0, dumpArray = 0;
   float prob = -1;
@@ -385,6 +385,10 @@ int main(int argc, char *argv[]) {
       rebuilddays = atoi(optarg);
       if (rebuilddays < 1) rebuilddays = 1;
       break;
+    case 't':
+      totaldrives = atoi(optarg);
+      if (totaldrives < 1) totaldrives = 1;
+      break;
     case 'q':
       quiet = 1;
       break;
@@ -398,11 +402,24 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (totaldrives > 0) {
+    if (k + m > totaldrives) {
+      fprintf(stderr,"*warning* ignoring the -t value\n");
+    } else {
+      if (k > 0) {
+	m = totaldrives - k;
+      } else {
+	k = totaldrives - m;
+      }
+    }
+  }
+
   if (k<1) {
     usage(years, rebuilddays, iterations, globalspares);
     exit(1);
   }
-    
+
+  fprintf(stderr,"*info* raidsimulation: k %d, m %d\n", k, m);
 
   assert(spantype >= 0);
 
