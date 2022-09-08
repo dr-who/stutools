@@ -45,6 +45,17 @@ typedef struct {
 } vDevType;  
 
 
+
+unsigned int countSetBits(unsigned int n)
+{
+  unsigned int count = 0;
+  while (n) {
+    count += n & 1;
+    n >>= 1;
+  }
+  return count;
+}
+
 driveType* driveInit(char *fn) {
   driveType *a = calloc(1, sizeof(driveType)); assert(a);
 
@@ -232,20 +243,23 @@ void simulate(vDevType **v, int numVDevs, int maxdays, int iterations, int quiet
       for (size_t n = 0; n < numVDevs; n++) {
 	
 	for (size_t i = 0; i < v[n]->n; i++) {
-	  if (print) fprintf(stderr,"[sample %zd][day %zd] ", s, day);
+	  if (print) fprintf(stderr,"[sample %zd][day %zd][rs %zd] ", s, day, i);
 	  int died = raidSetSimulate(v[n]->sets[i], v[n]->timeToProvision, v[n]->timeToRebuild, print);
 	  if (died > v[n]->sets[i]->m) {
-	    raidsetdied[n]++;
+	    raidsetdied[n] |= (1<<i); // set a bit for raidsetdied
+	    //	    fprintf(stderr,"died %zd, %d\n", i, raidsetdied[n]);
 	  }
 	}
       }
     }
+
     
     for (size_t n = 0; n < numVDevs; n++) {
+      //      fprintf(stderr,"end span %d, rsdied %d\n", v[0]->span, countSetBits(raidsetdied[n]));
       if (raidsetdied[n]) {
 	if (v[n]->span == 0) { // mirror
-	  fprintf(stderr,"bad %d\n", raidsetdied[n]);
-	  if (raidsetdied[n] == v[n]->n) { // if all died then bad
+	  //	  fprintf(stderr,"rs: bitmask %d\n", countSetBits(raidsetdied[n]));
+	  if ( countSetBits(raidsetdied[n]) >= v[n]->n) { // if all died then bad
 	    bad[n]++;
 	  }
 	} else { // if span (not mirror) then any is bad
@@ -354,6 +368,7 @@ int main(int argc, char *argv[]) {
       break;
     case 's':
       spans = atoi(optarg);
+      if (spans < 1) spans = 1;
       break;
     case 'i':
       iterations = atoi(optarg);
