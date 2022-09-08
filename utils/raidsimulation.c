@@ -348,6 +348,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'r':
       rebuilddays = atoi(optarg);
+      if (rebuilddays < 1) rebuilddays = 1;
       break;
     case 'q':
       quiet = 1;
