@@ -126,6 +126,9 @@ void getBaseBlockDevice(const char *block_device, char* base_block_device);
 int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard_max_bytes, size_t *discard_granularity, size_t *discard_zeroes_data);
 int performDiscard(int fd, const char *path, unsigned long low, unsigned long high, size_t max_bytes, size_t discard_granularity, double *maxdelay_secs, const int verbose, int zeroall);
 void syslogString(const char *prog, const char *message);
+void sysLogArgs(const char *prog, int argc, char *argv[]);
+
+
 size_t stringToBytesDefault(const char *str, const int assumePow2);
 
 double analyseAsBits(unsigned char *buffer, size_t size, int bytes);

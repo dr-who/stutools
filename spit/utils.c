@@ -1271,6 +1271,30 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
 
 #include <syslog.h>
 
+
+void sysLogArgs(const char *prog, int argc, char *argv[]) {
+  if (argc < 2)
+    return;
+  
+  char *s = malloc(10000); assert(s);
+  char *orig = s;
+  s += sprintf(s, "%s: ", prog);
+  for (int i = 0; i < argc; i++) {
+    s += sprintf(s, "%s ", argv[i]);
+  }
+  //  fprintf(stderr,"log: %s\n", orig);
+  syslog(LOG_NOTICE, orig, "");
+
+  FILE *fp = fopen("/dev/kmsg", "at");
+  if (fp) {
+    fprintf(fp, "%s\n", orig);
+  }
+  fclose(fp);
+  
+  free(orig);
+}
+  
+
 void syslogString(const char *prog, const char *message)
 {
   if (prog) {}

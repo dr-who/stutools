@@ -998,6 +998,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
  */
 int main(int argc, char *argv[])
 {
+  sysLogArgs("spit", argc, argv);
 
   size_t fuzz = 0, runcount = 0;
   char *fuzzdevice = NULL;
