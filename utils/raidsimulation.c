@@ -49,7 +49,7 @@ driveType* driveInit(char *fn) {
   driveType *a = calloc(1, sizeof(driveType)); assert(a);
 
   a->fn = strdup(fn);
-  a->maxdays = 3000;
+  a->maxdays = 5000;
   a->probs = setupProbs(a->fn, a->maxdays, 0);
   fprintf(stderr,"*info* loaded '%s'\n", fn);
   fprintf(stderr,"*info* day 0 dailySurvivalRate = %.6lf ^ 365 = %.3lf\n", a->probs[0], pow(a->probs[0], 365.0));
@@ -62,7 +62,7 @@ driveType* driveInitFlat(char *name, float prob) {
   driveType *a = calloc(1, sizeof(driveType)); assert(a);
 
   a->fn = strdup(name);
-  a->maxdays = 3000;
+  a->maxdays = 5000;
   a->probs = setupProbsFlat(a->maxdays, prob);
   return a;
 }
@@ -146,7 +146,6 @@ int raidSetSimulate(raidSetType *r, int timeToProvision, int timeToRebuild, int 
 
   float *f = r->drive->probs;
 
-  const double thres = 1.0 - f[r->setAge];
   //  fprintf(stderr,"thres = %lf\n", thres);
 
   r->setAge++;
@@ -154,11 +153,18 @@ int raidSetSimulate(raidSetType *r, int timeToProvision, int timeToRebuild, int 
 
   int died = 0;
   for (size_t i = 0; i < (r->k + r->m); i++) {
-    if (drand48() <= thres) {
-      r->alive[i] = -(timeToProvision + timeToRebuild);
-    } else {
-      r->alive[i]++;
+
+    if (r->alive[i] >= 0) {
+      assert(r->alive[i] >= 0);
+      assert(r->alive[i] < 5000);
+      const double thres = 1.0 - f[r->alive[i]];
+      //      fprintf(stderr,"thres %f\n", thres);
+      if (drand48() <= thres) {
+	r->alive[i] = -(timeToProvision + timeToRebuild + 1);
+      }
     }
+
+    r->alive[i]++;
     
     if (r->alive[i] < 0) {
       died++;
@@ -269,7 +275,7 @@ void simulate(vDevType **v, int numVDevs, int maxdays, int iterations, int quiet
   }
 }
 
-void usage(int years, int rebuild, int samples, int globalspares) {
+void usage(float years, int rebuild, int samples, int globalspares) {
   fprintf(stderr,"usage: ./raidsimulation -s spans -k datadrives -m parity [options]\n");
   fprintf(stderr,"\ndescription:\n");
   fprintf(stderr,"   Monte-Carlo simulation of array failure given drive survival/failure\n");
@@ -282,8 +288,8 @@ void usage(int years, int rebuild, int samples, int globalspares) {
   fprintf(stderr,"   -i iterations (default %d)\n", samples);
   fprintf(stderr,"   -M mirrored array\n");
   fprintf(stderr,"   -r rebuild days (default %d)\n", rebuild);
-  fprintf(stderr,"   -g globalspares  %d)\n", globalspares);
-  fprintf(stderr,"   -y years (default %d)\n", years);
+  fprintf(stderr,"   -g globalspares (%d)\n", globalspares);
+  fprintf(stderr,"   -y years (default %.1lf)\n", years);
   fprintf(stderr,"   -b specifyMTBF (hours)\n");
   fprintf(stderr,"   -p annualSurvivalRate [0, 1], 1-AFR\n");
   fprintf(stderr,"   -D dailySurvivalRate [0, 1]\n");
@@ -300,6 +306,7 @@ void usage(int years, int rebuild, int samples, int globalspares) {
   fprintf(stderr,"   ./raidsimulation -k 194 -m 10 -b 100000 -q -r7  -> array failure 0.00%%\n");
   fprintf(stderr,"   ./raidsimulation -k 194 -m 10 -b 100000 -q -r30 -> array failure 0.02%%\n");
   fprintf(stderr,"   ./raidsimulation -k 194 -m 10 -b 100000 -q -r90 -> array failure 44.7%%\n");
+  fprintf(stderr,"   ./raidsimulation -k 184 -m 20 -b 100000 -q -r90 -> array failure 0.00%%\n");
 }
 
 
@@ -353,6 +360,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'y':
       years = atof(optarg);
+      fprintf(stderr,"*info* years = %.1lf (days = %.0lf)\n", years, years*365);
       break;
     case 'r':
       rebuilddays = atoi(optarg);
