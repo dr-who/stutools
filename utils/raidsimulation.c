@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
+#include <math.h>
 #include <string.h>
 
 #include "deviceProbs.h"
@@ -50,8 +51,19 @@ driveType* driveInit(char *fn) {
   a->fn = strdup(fn);
   a->maxdays = 3000;
   a->probs = setupProbs(a->fn, a->maxdays, 0);
+  fprintf(stderr,"*info* loaded '%s'\n", fn);
   return a;
 }
+
+driveType* driveInitFlat(char *name, float prob) {
+  driveType *a = calloc(1, sizeof(driveType)); assert(a);
+
+  a->fn = strdup(name);
+  a->maxdays = 3000;
+  a->probs = setupProbsFlat(a->maxdays, prob);
+  return a;
+}
+  
 
 void driveShowConfig(driveType *d) {
   fprintf(stderr,"(drive=%s, drivedays=%d)", d->fn, d->maxdays);
@@ -125,65 +137,59 @@ void raidSetReset(raidSetType *r) {
   r->setAge = 0;
 }
 
-int raidSetSimulate(raidSetType *r, int timeToProvision, int timeToRebuild) {
+int raidSetSimulate(raidSetType *r, int timeToProvision, int timeToRebuild, int print) {
   if (r->setAge >= r->drive->maxdays)
     return 0;
 
   float *f = r->drive->probs;
-  
+
   const double thres = (1.0 - f[r->setAge]) / 365.0;
-  //  fprintf(stderr,"age %3d (%d+%d) %g: ", r->setAge, r->k, r->m, thres);
 
   r->setAge++;
+  //  assert (r->setAge < 4000);
 
   int died = 0;
-  //  fprintf(stderr,"-->%d\n", r->k + r->m);
   for (size_t i = 0; i < (r->k + r->m); i++) {
-    if (drand48() < thres) {
-      //      fprintf(stderr,"died at age %d\n", r->alive[i]);
+    if (drand48() <= thres) {
       r->alive[i] = -(timeToProvision + timeToRebuild);
     } else {
       r->alive[i]++;
     }
+    
     if (r->alive[i] < 0) {
       died++;
     }
-    //    fprintf(stderr,"%d ", r->alive[i]);
   }
-  //  fprintf(stderr,"-> died %d\n", died);
+  if (print) {
+    for (size_t i = 0; i < (r->k + r->m); i++) {
+      fprintf(stderr,"%3d ", r->alive[i]);
+    }
+    fprintf(stderr,"-> died %d\n", died);
+    }
   return died;
 }
   
 
 
-vDevType* setupRAID60() {
-  driveType *HDD = driveInit("hdd-goodrates.dat");
+vDevType* setupRAID60(driveType *drive, int spans, int k, int m, int globalspares, int rebuildtime, int spantype) {
 
-  vDevType *v = vDevInit(4, HDD); // 4 global hots
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  vDevAdd(v, raidSetInit(18,2, HDD));
-  v->span = 1;
+  vDevType *v = vDevInit(globalspares, drive); // 4 global hots
+  for (size_t i = 0; i < spans; i++) {
+    vDevAdd(v, raidSetInit(k, m, drive));
+  }
+  v->span = spantype;
   v->timeToProvision = 0;
-  v->timeToRebuild = 7;
+  v->timeToRebuild = rebuildtime;
 
   return v;
 }
 
 
-vDevType* setupHiRAID(int spans, int k, int m, int rebuilddays, int span) {
-  driveType *HDD = driveInit("hdd-surviverates.dat");
+vDevType* setupHiRAID(driveType *drive, int spans, int k, int m, int rebuilddays, int span) {
 
-  vDevType *v = vDevInit(0, HDD); // 4 global hots
+  vDevType *v = vDevInit(0, drive); // 4 global hots
   for (size_t i = 0; i < spans;i++) {
-    vDevAdd(v, raidSetInit(k, m, HDD));
+    vDevAdd(v, raidSetInit(k, m, drive));
   }
   v->span = span;
   v->timeToProvision = 0;
@@ -192,55 +198,74 @@ vDevType* setupHiRAID(int spans, int k, int m, int rebuilddays, int span) {
   return v;
 }
 
-void simulate(vDevType *v, int years, int iterations, int quiet) {
+void simulate(vDevType **v, int numVDevs, int maxdays, int iterations, int quiet, int print) {
   srand48(time(NULL));
     
-  if (!quiet) vDevShowConfig(v);
+  int *ok = calloc(numVDevs, sizeof(int));
+  int *bad = calloc(numVDevs, sizeof(int));
+  int *raidsetdied = calloc(numVDevs, sizeof(int));
 
-  int ok = 0, bad = 0;
   for (size_t s = 0; s < iterations; s++) {
+    //    fprintf(stderr,"iteration %zd\n", 1+s);
 
-    for (size_t i = 0; i < v->n; i++) {
-      raidSetReset(v->sets[i]); // reset the simulation
+    for (size_t n = 0; n < numVDevs; n++) {
+      raidsetdied[n] = 0;
+      
+      for (size_t i = 0; i < v[n]->n; i++) {
+	raidSetReset(v[n]->sets[i]); // reset the simulation
+      }
     }
 
-    for (size_t n = 0; n < years * 365; n++) { 
-      int spansdied = 0;
-      for (size_t i = 0; i < v->n; i++) {
-	int died = raidSetSimulate(v->sets[i], v->timeToProvision, v->timeToRebuild);
-	if (died > v->sets[i]->m) {
-	  spansdied++;
+
+    for (size_t day = 0; day < maxdays; day++) {  // day iteration
+
+      for (size_t n = 0; n < numVDevs; n++) {
+	
+	for (size_t i = 0; i < v[n]->n; i++) {
+	  if (print) fprintf(stderr,"[sample %zd][day %zd] ", s, day);
+	  int died = raidSetSimulate(v[n]->sets[i], v[n]->timeToProvision, v[n]->timeToRebuild, print);
+	  if (died > v[n]->sets[i]->m) {
+	    raidsetdied[n]++;
+	  }
 	}
       }
-      if (spansdied) {
-	if (v->span == 0) { // mirror
-	  if (spansdied == v->n) { // if all died then bad
-	    bad++;
-	    goto label;
+    }
+    
+    for (size_t n = 0; n < numVDevs; n++) {
+      if (raidsetdied[n]) {
+	if (v[n]->span == 0) { // mirror
+	  fprintf(stderr,"bad %d\n", raidsetdied[n]);
+	  if (raidsetdied[n] == v[n]->n) { // if all died then bad
+	    bad[n]++;
 	  }
 	} else { // if span (not mirror) then any is bad
-	  bad++;
-	  goto label;
+	  bad[n]++;
 	}
+      } else {
+	ok[n]++;
+      }
+    } // vDev
+    
+    if (!quiet) {
+      for (size_t n = 0; n < numVDevs; n++) {
+	fprintf(stderr,"[%zd] ", n);
+	vDevShowBrief(v[n]);
+	fprintf(stderr," ok %d, bad %d, prob of array failure %.3lf%%\n", ok[n], bad[n], bad[n]*100.0 / (bad[n]+ok[n]));
       }
     }
-    ok++;
-  label:
-    {}
-
-    if (!quiet) {
-      vDevShowBrief(v);
-      fprintf(stderr," ok %d, bad %d, prob of array failure %.3lf%%\n", ok, bad, bad*100.0 / (bad+ok));
-    }
   }
-  
+
+  // duplicate of above
   if (quiet) {
-    vDevShowBrief(v);
-    fprintf(stderr," ok %d, bad %d, prob of array failure %.3lf%%\n", ok, bad, bad*100.0 / (bad+ok));
+    for (size_t n = 0; n < numVDevs; n++) {
+      fprintf(stderr,"[%zd] ", n);
+      vDevShowBrief(v[n]);
+      fprintf(stderr," ok %d, bad %d, prob of array failure %.3lf%%\n", ok[n], bad[n], bad[n]*100.0 / (bad[n]+ok[n]));
+    }
   }
 }
 
-void usage(int years, int rebuild, int samples) {
+void usage(int years, int rebuild, int samples, int globalspares) {
   fprintf(stderr,"usage: ./raidsimulation -s spans -k datadrives -m parity [options]\n");
   fprintf(stderr,"\ndescription:\n");
   fprintf(stderr,"   Monte-Carlo simulation of array failure given drive survival/failure\n");
@@ -249,29 +274,52 @@ void usage(int years, int rebuild, int samples) {
   fprintf(stderr,"   -s spans (default 1)\n");
   fprintf(stderr,"   -k data\n");
   fprintf(stderr,"   -m parity\n");
+  fprintf(stderr,"   -d dump array per day\n");
   fprintf(stderr,"   -i iterations (default %d)\n", samples);
   fprintf(stderr,"   -M mirrored array\n");
   fprintf(stderr,"   -r rebuild days (default %d)\n", rebuild);
+  fprintf(stderr,"   -g globalspares  %d)\n", globalspares);
   fprintf(stderr,"   -y years (default %d)\n", years);
+  fprintf(stderr,"   -b specifyMTBF (hours)\n");
+  fprintf(stderr,"   -p annualSurvivalRate [0, 1]\n");
   fprintf(stderr,"   -q quiet\n");
   fprintf(stderr,"\nexamples:\n");
-  fprintf(stderr,"   ./raidsimulation -k 182 -m 10 -y 5\n");
-  fprintf(stderr,"   ./raidsimulation -M -s 2 -k 8 -m 2 -y 5\n");
+  fprintf(stderr,"   ./raidsimulation -k 182 -m 10 -b 25000    # 25,000 hour MTBF, AFR=0.3, prob = 0.7\n");
+  fprintf(stderr,"   ./raidsimulation -k 182 -m 10 -y 5        # load hdd defaults\n");
+  fprintf(stderr,"   ./raidsimulation -M -s 2 -k 8 -m 2 -y 5   # Mirrored, two spans\n");
 }
 
 
 int main(int argc, char *argv[]) {
   
   optind = 0;
-  int spans = 1, k = 0, m = 0, rebuilddays = 14, opt = 0, iterations = 10000;
+  int spans = 1, k = 0, m = 0, rebuilddays = 7, opt = 0, iterations = 10000, globalspares = 0;
   int spantype = 1;
-  double years = 5;
-  int quiet = 0;
+  double years = 7;
+  int quiet = 0, dumpArray = 0;
+  float prob = -1;
   
-  while ((opt = getopt(argc, argv, "k:m:y:r:vs:o:p:f:t:i:h:aMq")) != -1) {
+  while ((opt = getopt(argc, argv, "k:m:y:r:vs:o:p:f:t:i:h:aMqb:d")) != -1) {
     switch(opt) {
+    case 'b':
+      {}
+      float mtbf = atof(optarg);
+      float afr =  1.0 - exp(-(365*24.0)/mtbf);
+      prob = 1 - afr;
+      if (prob < 0) prob = 0;
+      if (prob > 1) prob = 1;
+      fprintf(stderr,"*info* mtbf = %.0lf, 1-AFR = %.4lf\n", mtbf, prob);
+      break;
+    case 'd':
+      dumpArray = 1;
+      break;
     case 'k':
       k = atoi(optarg);
+      break;
+    case 'p':
+      prob = atof(optarg);
+      if (prob < 0) prob = 0;
+      if (prob > 1) prob = 1;
       break;
     case 'm':
       m = atoi(optarg);
@@ -294,24 +342,42 @@ int main(int argc, char *argv[]) {
     case 'q':
       quiet = 1;
       break;
+    case 'g':
+      globalspares = atoi(optarg);
+      break;
     case 'h':
     default:
-      usage(years, rebuilddays, iterations);
+      usage(years, rebuilddays, iterations, globalspares);
       exit(1);
     }
   }
 
-  if (k<1 || m<1) {
-    usage(years, rebuilddays, iterations);
+  if (k<1) {
+    usage(years, rebuilddays, iterations, globalspares);
     exit(1);
   }
     
 
-  
-  vDevType *v = setupHiRAID(spans, k, m, rebuilddays, spantype);
-  //  vDevType *v = setupRAID60();
+  assert(spantype >= 0);
 
-  simulate(v, years, iterations, quiet);
+  driveType *HDD = NULL;
+
+
+  if (prob >= 0) {
+    HDD = driveInitFlat("prob%", prob);
+  } else {
+    HDD = driveInit("hdd-surviverates.dat");
+  }
+
+
+  
+  vDevType **v = calloc(2, sizeof(vDevType*));
+  
+  //  v[0] = setupHiRAID(spans, k, m, rebuilddays, spantype);
+  v[0] = setupRAID60(HDD, spans, k, m, globalspares, rebuilddays, spantype);
+  //  v[1] = setupRAID60(spans, k, m, globalspares, rebuilddays);
+
+  simulate(v, 1, years * 365, iterations, quiet, dumpArray);
 
   return 0;
 
