@@ -5,6 +5,7 @@
 #include <time.h>
 #include <assert.h>
 #include <string.h>
+#include <math.h>
 
 float *setupProbsFlat(int maxdays, float prob) {
 
@@ -27,12 +28,12 @@ float *setupProbs(char *fn, int maxdays, int verbose) {
       if (verbose) fprintf(stderr,"%f %f %f\n", a,b,c);
       for (size_t i = a; i < b; i++) {
 	if (i < maxdays) 
-	  f[i] = c;
+	  f[i] = pow(c, 1/365.0);
       }
     }
     for (size_t i = b; i < maxdays; i++) {
       if (i < maxdays) 
-	f[i] = c;
+	f[i] = pow(c, 1/365.0);
     }
     fclose(fp);
   } else {

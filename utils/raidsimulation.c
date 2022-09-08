@@ -52,6 +52,9 @@ driveType* driveInit(char *fn) {
   a->maxdays = 3000;
   a->probs = setupProbs(a->fn, a->maxdays, 0);
   fprintf(stderr,"*info* loaded '%s'\n", fn);
+  fprintf(stderr,"*info* day 0 dailySurvivalRate = %.6lf ^ 365 = %.3lf\n", a->probs[0], pow(a->probs[0], 365.0));
+  fprintf(stderr,"*info* 1 year dailySurvivalRate = %.6lf ^ 365 = %.3lf\n", a->probs[365], pow(a->probs[365], 365.0));
+  fprintf(stderr,"*info* 5 year dailySurvivalRate = %.6lf ^ 365 = %.3lf\n", a->probs[365*5], pow(a->probs[365*5], 365.0));
   return a;
 }
 
@@ -143,7 +146,8 @@ int raidSetSimulate(raidSetType *r, int timeToProvision, int timeToRebuild, int 
 
   float *f = r->drive->probs;
 
-  const double thres = (1.0 - f[r->setAge]) / 365.0;
+  const double thres = 1.0 - f[r->setAge];
+  //  fprintf(stderr,"thres = %lf\n", thres);
 
   r->setAge++;
   //  assert (r->setAge < 4000);
@@ -281,7 +285,8 @@ void usage(int years, int rebuild, int samples, int globalspares) {
   fprintf(stderr,"   -g globalspares  %d)\n", globalspares);
   fprintf(stderr,"   -y years (default %d)\n", years);
   fprintf(stderr,"   -b specifyMTBF (hours)\n");
-  fprintf(stderr,"   -p annualSurvivalRate [0, 1]\n");
+  fprintf(stderr,"   -p annualSurvivalRate [0, 1], 1-AFR\n");
+  fprintf(stderr,"   -D dailySurvivalRate [0, 1]\n");
   fprintf(stderr,"   -q quiet\n");
   fprintf(stderr,"\nexamples:\n");
   fprintf(stderr,"   ./raidsimulation -k 182 -m 10 -b 25000    # 25,000 hour MTBF, AFR=0.3, prob = 0.7\n");
@@ -299,25 +304,30 @@ int main(int argc, char *argv[]) {
   int quiet = 0, dumpArray = 0;
   float prob = -1;
   
-  while ((opt = getopt(argc, argv, "k:m:y:r:vs:o:p:f:t:i:h:aMqb:d")) != -1) {
+  while ((opt = getopt(argc, argv, "k:m:y:r:vs:o:p:f:t:i:h:aMqb:dD:")) != -1) {
     switch(opt) {
     case 'b':
       {}
       float mtbf = atof(optarg);
       float afr =  1.0 - exp(-(365*24.0)/mtbf);
-      prob = 1 - afr;
+      prob = pow(1 - afr, 1/365.0);
       if (prob < 0) prob = 0;
       if (prob > 1) prob = 1;
-      fprintf(stderr,"*info* mtbf = %.0lf, 1-AFR = %.4lf\n", mtbf, prob);
+      fprintf(stderr,"*info* mtbf = %.0lf, dailySurvivalRate = %.6lf ^ 365 = %.3lf\n", mtbf, prob, pow(prob, 365));
       break;
     case 'd':
       dumpArray = 1;
+      break;
+    case 'D':
+      prob = atof(optarg);
+      fprintf(stderr,"*info* dailySurvivalRate = %.6lf ^ 365 = %.3lf\n", prob, pow(prob, 365));
       break;
     case 'k':
       k = atoi(optarg);
       break;
     case 'p':
-      prob = atof(optarg);
+      prob = pow(atof(optarg), 1.0/365.0);
+      fprintf(stderr,"*info* dailySurvivalRate = %.6lf ^ 365 = %.3lf\n", prob, pow(prob, 365));
       if (prob < 0) prob = 0;
       if (prob > 1) prob = 1;
       break;

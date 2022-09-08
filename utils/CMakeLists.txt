@@ -14,8 +14,11 @@ add_executable(combo combo.c)
 add_executable(ramtester ramtester.c)
 
 add_executable(raidfailures raidfailures.c deviceProbs.c)
+target_link_libraries(raidfailures m)
 
 add_executable(raidsimulation raidsimulation.c deviceProbs.c)
+target_link_libraries(raidsimulation m)
+
 
 
 
