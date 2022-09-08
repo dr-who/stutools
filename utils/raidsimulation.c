@@ -292,6 +292,14 @@ void usage(int years, int rebuild, int samples, int globalspares) {
   fprintf(stderr,"   ./raidsimulation -k 182 -m 10 -b 25000    # 25,000 hour MTBF, AFR=0.3, prob = 0.7\n");
   fprintf(stderr,"   ./raidsimulation -k 182 -m 10 -y 5        # load hdd defaults\n");
   fprintf(stderr,"   ./raidsimulation -M -s 2 -k 8 -m 2 -y 5   # Mirrored, two spans\n");
+  fprintf(stderr,"   ./raidsimulation -k 204 -m 0 -b 100000 -q -r7   -> array failure 100%%\n");
+  fprintf(stderr,"   ./raidsimulation -k 203 -m 1 -b 100000 -q -r7   -> array failure 100%%\n");
+  fprintf(stderr,"   ./raidsimulation -k 202 -m 2 -b 100000 -q -r7   -> array failure 98.52%%\n");
+  fprintf(stderr,"   ./raidsimulation -k 201 -m 3 -b 100000 -q -r7   -> array failure 34.8%%\n");
+  fprintf(stderr,"   ./raidsimulation -k 200 -m 4 -b 100000 -q -r7   -> array failure 3.64%%\n");
+  fprintf(stderr,"   ./raidsimulation -k 194 -m 10 -b 100000 -q -r7  -> array failure 0.00%%\n");
+  fprintf(stderr,"   ./raidsimulation -k 194 -m 10 -b 100000 -q -r30 -> array failure 0.02%%\n");
+  fprintf(stderr,"   ./raidsimulation -k 194 -m 10 -b 100000 -q -r90 -> array failure 44.7%%\n");
 }
 
 
