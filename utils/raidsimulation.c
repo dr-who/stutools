@@ -223,6 +223,7 @@ void simulate(vDevType **v, int numVDevs, int maxdays, int iterations, int quiet
   srand48(time(NULL));
     
   int *ok = calloc(numVDevs, sizeof(int));
+  int *oknotall = calloc(numVDevs, sizeof(int));
   int *bad = calloc(numVDevs, sizeof(int));
   int *raidsetdied = calloc(numVDevs, sizeof(int));
 
@@ -261,6 +262,8 @@ void simulate(vDevType **v, int numVDevs, int maxdays, int iterations, int quiet
 	  //	  fprintf(stderr,"rs: bitmask %d\n", countSetBits(raidsetdied[n]));
 	  if ( countSetBits(raidsetdied[n]) >= v[n]->n) { // if all died then bad
 	    bad[n]++;
+	  } else {
+	    oknotall[n]++;
 	  }
 	} else { // if span (not mirror) then any is bad
 	  bad[n]++;
@@ -284,7 +287,7 @@ void simulate(vDevType **v, int numVDevs, int maxdays, int iterations, int quiet
     for (size_t n = 0; n < numVDevs; n++) {
       fprintf(stderr,"[%zd] ", n);
       vDevShowBrief(v[n]);
-      fprintf(stderr," ok %d, bad %d, prob of array failure %.3lf%%\n", ok[n], bad[n], bad[n]*100.0 / (bad[n]+ok[n]));
+      fprintf(stderr," ok %d, okNotAll %d, bad %d, prob of array failure %.3lf%%\n", ok[n], oknotall[n], bad[n], bad[n]*100.0 / (bad[n]+ok[n]));
     }
   }
 }
