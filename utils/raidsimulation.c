@@ -287,7 +287,7 @@ void simulate(vDevType **v, int numVDevs, int maxdays, int iterations, int quiet
     for (size_t n = 0; n < numVDevs; n++) {
       fprintf(stderr,"[%zd] ", n);
       vDevShowBrief(v[n]);
-      fprintf(stderr," ok %d, okNotAll %d, bad %d, prob of array failure %.3lf%%\n", ok[n], oknotall[n], bad[n], bad[n]*100.0 / (bad[n]+ok[n]));
+      fprintf(stderr," ok %d, okNotAll %d, bad %d, prob of array failure %.3lf%%\n", ok[n], oknotall[n], bad[n], bad[n]*100.0 / (bad[n]+ok[n]+oknotall[n]));
     }
   }
 }
@@ -372,6 +372,7 @@ int main(int argc, char *argv[]) {
     case 's':
       spans = atoi(optarg);
       if (spans < 1) spans = 1;
+      if (spans > 31) {spans = 31; fprintf(stderr,"*warning* spans limited to 31\n");}
       break;
     case 'i':
       iterations = atoi(optarg);
