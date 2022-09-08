@@ -315,7 +315,7 @@ int main(int argc, char *argv[]) {
   optind = 0;
   int spans = 1, k = 0, m = 0, rebuilddays = 7, opt = 0, iterations = 10000, globalspares = 0;
   int spantype = 1;
-  double years = 7;
+  double years = 5;
   int quiet = 0, dumpArray = 0;
   float prob = -1;
   
