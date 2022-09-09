@@ -151,7 +151,7 @@ void raidSetReset(raidSetType *r) {
   r->setAge = 0;
 }
 
-int raidSetSimulate(raidSetType *r, int timeToProvision, int timeToRebuild, int print) {
+int raidSetSimulate(raidSetType *r, int timeToProvision, int timeToRebuild, int print, int maxdays) {
   if (r->setAge >= r->drive->maxdays)
     return 0;
 
@@ -172,6 +172,8 @@ int raidSetSimulate(raidSetType *r, int timeToProvision, int timeToRebuild, int 
       //      fprintf(stderr,"thres %f\n", thres);
       if (drand48() <= thres) {
 	r->alive[i] = -(timeToProvision + timeToRebuild + 1);
+      } else {
+	if (print == 2) r->alive[i] = r->setAge;
       }
     }
 
@@ -183,10 +185,15 @@ int raidSetSimulate(raidSetType *r, int timeToProvision, int timeToRebuild, int 
   }
   if (print) {
     for (size_t i = 0; i < (r->k + r->m); i++) {
-      fprintf(stderr,"%3d ", r->alive[i]);
+      int v = r->alive[i];
+      if ((print == 2) && (v < 0)) v = 0;
+      if ((print == 2)) v = maxdays + 1 - v;
+      if ((print == 2) && (died > r->m)) v=0;;
+      fprintf(stdout,"%3d ", v);
     }
-    fprintf(stderr,"-> died %d\n", died);
-    }
+    if (print == 1) fprintf(stdout,"-> died %d", died);
+    if (print) fprintf(stdout,"\n");
+  }
   return died;
 }
   
@@ -220,7 +227,6 @@ vDevType* setupHiRAID(driveType *drive, int spans, int k, int m, int rebuilddays
 }
 
 void simulate(vDevType **v, int numVDevs, int maxdays, int iterations, int quiet, int print) {
-  srand48(time(NULL));
     
   int *ok = calloc(numVDevs, sizeof(int));
   int *oknotall = calloc(numVDevs, sizeof(int));
@@ -244,8 +250,8 @@ void simulate(vDevType **v, int numVDevs, int maxdays, int iterations, int quiet
       for (size_t n = 0; n < numVDevs; n++) {
 	
 	for (size_t i = 0; i < v[n]->n; i++) {
-	  if (print) fprintf(stderr,"[sample %zd][day %zd][rs %zd] ", s, day, i);
-	  int died = raidSetSimulate(v[n]->sets[i], v[n]->timeToProvision, v[n]->timeToRebuild, print);
+	  if (print == 1) fprintf(stdout,"[sample %zd][day %zd][rs %zd] ", s, day, i);
+	  int died = raidSetSimulate(v[n]->sets[i], v[n]->timeToProvision, v[n]->timeToRebuild, print, maxdays);
 	  if (died > v[n]->sets[i]->m) {
 	    raidsetdied[n] |= (1<<i); // set a bit for raidsetdied
 	    //	    fprintf(stderr,"died %zd, %d\n", i, raidsetdied[n]);
@@ -335,8 +341,9 @@ int main(int argc, char *argv[]) {
   double years = 5;
   int quiet = 0, dumpArray = 0;
   float prob = -1;
+  int seed = time(NULL);
   
-  while ((opt = getopt(argc, argv, "k:m:y:r:vs:o:p:f:t:i:h:aMqb:dD:")) != -1) {
+  while ((opt = getopt(argc, argv, "k:m:y:r:vs:o:p:f:t:i:h:aMqb:dD:R:")) != -1) {
     switch(opt) {
     case 'b':
       {}
@@ -348,7 +355,7 @@ int main(int argc, char *argv[]) {
       fprintf(stderr,"*info* mtbf = %.0lf, dailySurvivalRate = %.6lf ^ 365 = %.3lf\n", mtbf, prob, pow(prob, 365));
       break;
     case 'd':
-      dumpArray = 1;
+      dumpArray++;
       break;
     case 'D':
       prob = atof(optarg);
@@ -395,12 +402,19 @@ int main(int argc, char *argv[]) {
     case 'g':
       globalspares = atoi(optarg);
       break;
+    case 'R':
+      seed = atoi(optarg);
+      fprintf(stderr,"*info* seed %d\n", seed);
+      break;
     case 'h':
     default:
       usage(years, rebuilddays, iterations, globalspares);
       exit(1);
     }
   }
+
+  srand48(seed);
+    
 
   if (totaldrives > 0) {
     if (k + m > totaldrives) {
@@ -433,6 +447,9 @@ int main(int argc, char *argv[]) {
   }
 
 
+  if (dumpArray == 2) {
+    fprintf(stdout,"P2\n%d %.0lf\n%.0lf\n", k+m, years*365, years*365);
+  }
   
   vDevType **v = calloc(2, sizeof(vDevType*));
   
