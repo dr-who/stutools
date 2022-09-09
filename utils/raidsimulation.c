@@ -307,7 +307,7 @@ void usage(float years, int rebuild, int samples, int globalspares) {
   fprintf(stderr,"   -s spans (default 1)\n");
   fprintf(stderr,"   -k data\n");
   fprintf(stderr,"   -m parity\n");
-  fprintf(stderr,"   -d dump array per day\n");
+  fprintf(stderr,"   -d dump array per day (-dd for PGM output)\n");
   fprintf(stderr,"   -i iterations (default %d)\n", samples);
   fprintf(stderr,"   -M mirrored array\n");
   fprintf(stderr,"   -r rebuild days (default %d)\n", rebuild);
@@ -317,6 +317,7 @@ void usage(float years, int rebuild, int samples, int globalspares) {
   fprintf(stderr,"   -p annualSurvivalRate [0, 1], 1-AFR\n");
   fprintf(stderr,"   -D dailySurvivalRate [0, 1]\n");
   fprintf(stderr,"   -q quiet\n");
+  fprintf(stderr,"   -R seed (otherwise time(NULL))\n");
   fprintf(stderr,"\nexamples:\n");
   fprintf(stderr,"   ./raidsimulation -k 182 -m 10 -b 25000    # 25,000 hour MTBF, AFR=0.3, prob = 0.7\n");
   fprintf(stderr,"   ./raidsimulation -k 182 -m 10 -y 5        # load hdd defaults\n");
