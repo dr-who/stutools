@@ -7,6 +7,7 @@
 #include <math.h>
 
 #include "procDiskStats.h"
+#include "utils.h"
 
 
 
@@ -41,6 +42,7 @@ void procDiskStatsInit(procDiskStatsType *d) {
 
 void procDiskStatsSample(procDiskStatsType *d) {
   assert(d->num == 0);
+  d->sampleTime = timedouble();
   FILE *fp = fopen("/proc/diskstats", "rt");
   if (!fp) {
     perror("/proc/diskstats");
@@ -99,10 +101,10 @@ void procDiskStatsFree(procDiskStatsType *d) {
 }
 
 void procDiskStatsDump(procDiskStatsType *d) {
-  procDiskStatsDumpThres(d, 0, 1);
+  procDiskStatsDumpThres(stdout, d, 0);
 }
 
-void procDiskStatsDumpThres(procDiskStatsType *d, float msthres, float timedelay) {
+void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres) {
   for (size_t i = 0; i < d->num; i++) {
     float r_ms = d->devices[i].timeSpentReading_ms * 1.0 / d->devices[i].readsCompleted;
     float w_ms = d->devices[i].timeSpentWriting_ms * 1.0 / d->devices[i].writesCompleted;
@@ -111,16 +113,18 @@ void procDiskStatsDumpThres(procDiskStatsType *d, float msthres, float timedelay
     if (!isnan(w_ms)) t_ms += w_ms;
     
     if (d->devices[i].readsCompleted || d->devices[i].writesCompleted)
-      if (r_ms > msthres || w_ms > msthres) {{
-	  fprintf(stderr,"%ld\t%zd:%zd\t%s\tR %.1lf ms\t W %.1lf ms\tT_IO %zd ms\t%.0lf %%\n", (long)time(NULL),
+      if (r_ms >= msthres || w_ms >= msthres) {{
+	  fprintf(fp ,"%.4lf\t%zd:%zd\t%s\tR %zd / %.1lf ms\t W %zd / %.1lf ms\tT_IO %zd ms\t%.0lf %%\n", timedouble(),
 		  d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
 		  /*		  d->devices[i].idModel,
 		  d->devices[i].serialShort,
 		  d->devices[i].idVendor,*/
+		  d->devices[i].readsCompleted,
 		  r_ms,
+		  d->devices[i].writesCompleted,
 		  w_ms,
 		  d->devices[i].timeSpentDoingIO_ms ,
-		  d->devices[i].timeSpentDoingIO_ms * 100.0 / timedelay
+		  d->devices[i].timeSpentDoingIO_ms * 100.0 / (d->sampleTime * 1000.0)
 		  );
 	}
     }
@@ -132,6 +136,7 @@ void procDiskStatsCopy(procDiskStatsType *new, procDiskStatsType *old) {
   procDiskStatsInit(new);
   new->num = old->num;
   new->devices = calloc(new->num, sizeof(procDiskLineType));
+  new->sampleTime = old->sampleTime;
 
   for (size_t i = 0; i < new->num; i++) {
     new->devices[i] = old->devices[i];
@@ -150,11 +155,13 @@ procDiskStatsType procDiskStatsDelta(procDiskStatsType *old, procDiskStatsType *
   ret.num = new->num;
   ret.devices = calloc(old->num, sizeof(procDiskLineType));
 
+  ret.sampleTime = new->sampleTime - old->sampleTime;
   for (size_t i = 0; i < new->num; i++) {
     if (i < old->num) {
       if (strcmp(old->devices[i].deviceName, new->devices[i].deviceName) == 0) {
 	ret.devices[i].majorNumber = new->devices[i].majorNumber;
 	ret.devices[i].minorNumber = new->devices[i].minorNumber;
+
 
 	// copy strings
 	ret.devices[i].deviceName = strdup(new->devices[i].deviceName);

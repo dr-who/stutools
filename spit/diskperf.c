@@ -3,11 +3,12 @@
 
 #include "procDiskStats.h"
 
+int keepRunning = 1;
 
 void usage(float timems, float latencyms) {
   fprintf(stderr,"Usage:\n  diskperf [-t seconds] [-l latencyms]\n");
   fprintf(stderr,"\nOptions:\n");
-  fprintf(stderr,"  -t n  \tsample the IO over a period of n seconds (default %.0lf)\n", timems/1000.0);
+  fprintf(stderr,"  -s n  \tsample time of n seconds (default %.0lf)\n", timems/1000.0);
   fprintf(stderr,"  -l n  \tonly print IO for drives that over n ms of latency (default %.0lf)\n", latencyms);
   fprintf(stderr,"  -d n  \tstop after n iterations of display\n");
 }
@@ -15,7 +16,7 @@ void usage(float timems, float latencyms) {
 int main(int argc, char *argv[]) {
 
   int opt;
-  const char *getoptstring = "l:t:hd:";
+  const char *getoptstring = "l:s:hd:";
 
   float timems = 1000;
   float latencyms = 0;
@@ -23,7 +24,7 @@ int main(int argc, char *argv[]) {
   
   while((opt = getopt(argc, argv, getoptstring)) != -1) {
     switch (opt) {
-    case 't':
+    case 's':
       timems = atof(optarg) * 1000.0;
       break;
     case 'l':
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  fprintf(stderr,"*info* time %.0lf ms, latency %.0lf ms\n", timems, latencyms);
+  fprintf(stderr,"*info* time %.0lf ms, print if latency >= %.0lf ms\n", timems, latencyms);
 
   procDiskStatsType old,new, delta;
 
@@ -55,7 +56,7 @@ int main(int argc, char *argv[]) {
     
     delta = procDiskStatsDelta(&old, &new);
     
-    procDiskStatsDumpThres(&delta, latencyms, timems);
+    procDiskStatsDumpThres(stdout, &delta, latencyms);
     procDiskStatsFree(&delta);
 
     procDiskStatsFree(&old);
