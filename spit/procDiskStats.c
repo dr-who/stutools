@@ -107,7 +107,7 @@ void procDiskStatsDumpThres(procDiskStatsType *d, float msthres) {
     
     if (d->devices[i].readsCompleted || d->devices[i].writesCompleted)
       if (r_ms > msthres || w_ms > msthres) {{
-	  fprintf(stderr,"%ld\t%zd:%zd\t%s\tR %.1lf ms\t W %.1lf ms\t%zd ms\n", (long)time(NULL),
+	  fprintf(stderr,"%ld\t%zd:%zd\t%s\tR %.1lf ms\t W %.1lf ms\tTotalIO %zd ms\n", (long)time(NULL),
 		  d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
 		  /*		  d->devices[i].idModel,
 		  d->devices[i].serialShort,

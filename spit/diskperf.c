@@ -3,10 +3,18 @@
 
 #include "procDiskStats.h"
 
+
+void usage(float timems, float latencyms) {
+  fprintf(stderr,"Usage:\n  diskperf [-t seconds] [-l latencyms]\n");
+  fprintf(stderr,"\nOptions:\n");
+  fprintf(stderr,"  -t n  \tsample the IO over a period of n seconds (default %.0lf)\n", timems/1000.0);
+  fprintf(stderr,"  -l n  \tonly print IO for drives that over n ms of latency (default %.0lf)\n", latencyms);
+}
+
 int main(int argc, char *argv[]) {
 
   int opt;
-  const char *getoptstring = "l:t:";
+  const char *getoptstring = "l:t:h";
 
   float timems = 1000;
   float latencyms = 0;
@@ -19,6 +27,9 @@ int main(int argc, char *argv[]) {
     case 'l':
       latencyms = atof(optarg);
       break;
+    case 'h':
+      usage(timems, latencyms);
+      exit(1);
     }
   }
 
