@@ -270,6 +270,8 @@ void majorAndMinorFromFilename(char *filename, unsigned int *major, unsigned int
   if (fd > 0) {
     majorAndMinor(fd, major, minor);
     close(fd);
+  } else {
+    perror(filename);
   }
 }
 

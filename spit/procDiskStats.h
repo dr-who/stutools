@@ -91,5 +91,8 @@ procDiskStatsType procDiskStatsDelta(procDiskStatsType *old, procDiskStatsType *
 
 void procDiskStatsCopy(procDiskStatsType *new, procDiskStatsType *old);
 
+
+char *getFieldFromUdev(size_t major, size_t minor, char *match);
+
 #endif
 
