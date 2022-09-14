@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     
     delta = procDiskStatsDelta(&old, &new);
     
-    procDiskStatsDumpThres(&delta, latencyms);
+    procDiskStatsDumpThres(&delta, latencyms, timems);
     procDiskStatsFree(&delta);
 
     procDiskStatsCopy(&old, &new);

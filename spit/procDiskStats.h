@@ -83,7 +83,7 @@ void procDiskStatsInit(procDiskStatsType *d);
 void procDiskStatsSample(procDiskStatsType *d);
 
 void procDiskStatsDump(procDiskStatsType *d);
-void procDiskStatsDumpThres(procDiskStatsType *d, float msthres);
+void procDiskStatsDumpThres(procDiskStatsType *d, float msthres, float timedelay);
 
 void procDiskStatsFree(procDiskStatsType *d);
 

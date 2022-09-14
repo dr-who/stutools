@@ -4,6 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#include <math.h>
 
 #include "procDiskStats.h"
 
@@ -97,24 +98,28 @@ void procDiskStatsFree(procDiskStatsType *d) {
 }
 
 void procDiskStatsDump(procDiskStatsType *d) {
-  procDiskStatsDumpThres(d, 0);
+  procDiskStatsDumpThres(d, 0, 1);
 }
 
-void procDiskStatsDumpThres(procDiskStatsType *d, float msthres) {
+void procDiskStatsDumpThres(procDiskStatsType *d, float msthres, float timedelay) {
   for (size_t i = 0; i < d->num; i++) {
     float r_ms = d->devices[i].timeSpentReading_ms * 1.0 / d->devices[i].readsCompleted;
     float w_ms = d->devices[i].timeSpentWriting_ms * 1.0 / d->devices[i].writesCompleted;
+    float t_ms = 0;
+    if (!isnan(r_ms)) t_ms += r_ms;
+    if (!isnan(w_ms)) t_ms += w_ms;
     
     if (d->devices[i].readsCompleted || d->devices[i].writesCompleted)
       if (r_ms > msthres || w_ms > msthres) {{
-	  fprintf(stderr,"%ld\t%zd:%zd\t%s\tR %.1lf ms\t W %.1lf ms\tTotalIO %zd ms\n", (long)time(NULL),
+	  fprintf(stderr,"%ld\t%zd:%zd\t%s\tR %.1lf ms\t W %.1lf ms\tT_IO %zd ms\t%.0lf %%\n", (long)time(NULL),
 		  d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
 		  /*		  d->devices[i].idModel,
 		  d->devices[i].serialShort,
 		  d->devices[i].idVendor,*/
 		  r_ms,
 		  w_ms,
-		  d->devices[i].timeSpentDoingIO_ms
+		  d->devices[i].timeSpentDoingIO_ms ,
+		  d->devices[i].timeSpentDoingIO_ms * 100.0 / timedelay
 		  );
 	}
     }
