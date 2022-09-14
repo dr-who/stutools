@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #include "procDiskStats.h"
 
@@ -55,10 +56,10 @@ void procDiskStatsSample(procDiskStatsType *d) {
     d->devices[d->num].majorNumber = col1;
     d->devices[d->num].minorNumber = col2;
     d->devices[d->num].deviceName = strdup(str);
-    d->devices[d->num].readsCompleted = col4;
+    d->devices[d->num].readsCompleted = col4; //field1
     d->devices[d->num].readsMerged = col5;
-    d->devices[d->num].sectorsRead = col6;
-    d->devices[d->num].timeSpentReading_ms = col7;
+    d->devices[d->num].sectorsRead = col6; 
+    d->devices[d->num].timeSpentReading_ms = col7; //field4
     d->devices[d->num].writesCompleted = col8;
     d->devices[d->num].writesMerged = col9;
     d->devices[d->num].sectorsWritten = col10;
@@ -95,17 +96,27 @@ void procDiskStatsFree(procDiskStatsType *d) {
   d->num = 0;
 }
 
-
 void procDiskStatsDump(procDiskStatsType *d) {
+  procDiskStatsDumpThres(d, 0);
+}
+
+void procDiskStatsDumpThres(procDiskStatsType *d, float msthres) {
   for (size_t i = 0; i < d->num; i++) {
-    if (d->devices[i].readsCompleted || d->devices[i].writesCompleted) {
-      fprintf(stderr,"%zd\t%zd\t%s\t%s\t%s\t%s\t%.3lf\t%.3lf\n", d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
-	      d->devices[i].idModel,
-	      d->devices[i].serialShort,
-	      d->devices[i].idVendor,
-	      (d->devices[i].readsCompleted > 0) ?  d->devices[i].sectorsRead * 1.0 / d->devices[i].timeSpentReading_ms : 0,
-	      (d->devices[i].writesCompleted > 0) ? d->devices[i].sectorsWritten * 1.0 / d->devices[i].timeSpentWriting_ms : 0
-	      );
+    float r_ms = d->devices[i].timeSpentReading_ms * 1.0 / d->devices[i].readsCompleted;
+    float w_ms = d->devices[i].timeSpentWriting_ms * 1.0 / d->devices[i].writesCompleted;
+    
+    if (d->devices[i].readsCompleted || d->devices[i].writesCompleted)
+      if (r_ms > msthres || w_ms > msthres) {{
+	  fprintf(stderr,"%ld\t%zd:%zd\t%s\tR %.1lf ms\t W %.1lf ms\t%zd ms\n", (long)time(NULL),
+		  d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
+		  /*		  d->devices[i].idModel,
+		  d->devices[i].serialShort,
+		  d->devices[i].idVendor,*/
+		  r_ms,
+		  w_ms,
+		  d->devices[i].timeSpentDoingIO_ms
+		  );
+	}
     }
   }
 }
@@ -153,6 +164,8 @@ procDiskStatsType procDiskStatsDelta(procDiskStatsType *old, procDiskStatsType *
 
 	ret.devices[i].sectorsWritten = new->devices[i].sectorsWritten - old->devices[i].sectorsWritten;
 	ret.devices[i].sectorsRead = new ->devices[i].sectorsRead - old->devices[i].sectorsRead;
+
+	ret.devices[i].timeSpentDoingIO_ms = new->devices[i].timeSpentDoingIO_ms - old->devices[i].timeSpentDoingIO_ms;
       }
     }
   }
