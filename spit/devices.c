@@ -36,7 +36,7 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
       //      return &(*devs)[i];
     }
     if ((strlen(fnserial) >= 5) && (strcmp(fnserial, fnserial2)==0)) {
-      fprintf(stderr,"*warning* ignoring %s, it shares the same serial number '%s' with %s\n", fn, fnserial2, dcmp->devicename);
+      fprintf(stderr,"*warning* ignoring %s, it shares a serial number '%s' with %s\n", fn, fnserial2, dcmp->devicename);
       return NULL;
       //      return &(*devs)[i];
     }
