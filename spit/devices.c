@@ -10,19 +10,39 @@
 
 #include "devices.h"
 #include "utils.h"
+#include "diskStats.h"
+#include "procDiskStats.h"
 
 extern int keepRunning;
 
 deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs)
 {
+
+  unsigned int major,minor;
+  majorAndMinorFromFilename(fn, &major, &minor);
+  char *fnserial = getFieldFromUdev(major, minor, "E:ID_SERIAL=");
+  
   for (size_t i = 0; i < *numDevs; i++) {
     deviceDetails *dcmp = &(*devs)[i];
     //    fprintf(stderr,"looking at %s %p\n", dcmp->devicename, dcmp);
-    if (strcmp(fn, dcmp->devicename)==0) {
-      //      fprintf(stderr,"duplicate %s %p\n", fn, dcmp);
-      return &(*devs)[i];
+
+    unsigned int major2,minor2;
+    majorAndMinorFromFilename(dcmp->devicename, &major2, &minor2);
+    char *fnserial2 = getFieldFromUdev(major2, minor2, "E:ID_SERIAL=");
+
+    if ((strlen(fnserial) >= 5) && (strcmp(fnserial, fnserial2)==0)) {
+      fprintf(stderr,"*warning* ignoring %s, it shares the same serial number '%s'\n", fn, fnserial2);
+      return NULL;
+      //      return &(*devs)[i];
     }
+    if (strcmp(fn, dcmp->devicename)==0) {
+      fprintf(stderr,"*warning* ignoring %s, it share the same name\n", fn);
+      return NULL;
+      //      return &(*devs)[i];
+    }
+    free(fnserial2);
   }
+  free(fnserial);
 
   // Get the realpath
   char *base_path = realpath( fn, NULL );
@@ -88,11 +108,13 @@ size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs)
     }
 
     deviceDetails *d = addDeviceDetails(line, devs, numDevs);
-    d->numa = numa;
-    //    fprintf(stderr,"--> %s %d\n", line, numa);
-    //    addDeviceToAnalyse(line);
-    add++;
-    //    printf("%s", line);
+    if (d) {
+      d->numa = numa;
+      //    fprintf(stderr,"--> %s %d\n", line, numa);
+      //    addDeviceToAnalyse(line);
+      add++;
+      //    printf("%s", line);
+    }
   }
 
   free(line);

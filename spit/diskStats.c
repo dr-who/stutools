@@ -262,7 +262,7 @@ void diskStatFree(diskStatType *d)
   d->allocDevices = 0;
 }
 
-void majorAndMinorFromFilename(char *filename, unsigned int *major, unsigned int *minor)
+void majorAndMinorFromFilename(const char *filename, unsigned int *major, unsigned int *minor)
 {
   int fd = open(filename, O_RDONLY);
   *major = 0;
@@ -270,8 +270,6 @@ void majorAndMinorFromFilename(char *filename, unsigned int *major, unsigned int
   if (fd > 0) {
     majorAndMinor(fd, major, minor);
     close(fd);
-  } else {
-    perror(filename);
   }
 }
 

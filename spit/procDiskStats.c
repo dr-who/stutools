@@ -15,8 +15,9 @@ char *getFieldFromUdev(size_t major, size_t minor, char *match) {
   sprintf(s, "/run/udev/data/b%zd:%zd", major, minor);
   FILE *fp = fopen(s, "rt");
   if (!fp) {
-    perror(s);
-    exit(1);
+    //    perror(s);
+    //    exit(1);
+    return NULL;
   }
 
   char *line = calloc(1000,1);
