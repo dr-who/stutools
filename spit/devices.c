@@ -30,13 +30,13 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
     majorAndMinorFromFilename(dcmp->devicename, &major2, &minor2);
     char *fnserial2 = getFieldFromUdev(major2, minor2, "E:ID_SERIAL=");
 
-    if ((strlen(fnserial) >= 5) && (strcmp(fnserial, fnserial2)==0)) {
-      fprintf(stderr,"*warning* ignoring %s, it shares the same serial number '%s'\n", fn, fnserial2);
+    if (strcmp(fn, dcmp->devicename)==0) {
+      fprintf(stderr,"*warning* ignoring %s, it duplicates a prior device\n", fn);
       return NULL;
       //      return &(*devs)[i];
     }
-    if (strcmp(fn, dcmp->devicename)==0) {
-      fprintf(stderr,"*warning* ignoring %s, it share the same name\n", fn);
+    if ((strlen(fnserial) >= 5) && (strcmp(fnserial, fnserial2)==0)) {
+      fprintf(stderr,"*warning* ignoring %s, it shares the same serial number '%s' with %s\n", fn, fnserial2, dcmp->devicename);
       return NULL;
       //      return &(*devs)[i];
     }
