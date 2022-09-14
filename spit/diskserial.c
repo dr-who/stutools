@@ -16,7 +16,7 @@ int main() {
   while (fgets(s, 1000, stdin) != NULL) {
     s[strlen(s)-1] = 0;
     majorAndMinorFromFilename(s, &major, &minor);
-    fprintf(stderr,"%s\t%s\n", s, getFieldFromUdev(major, minor, "E:ID_SERIAL="));
+    fprintf(stdout,"%s\t%s\n", s, getFieldFromUdev(major, minor, "E:ID_SERIAL="));
   }
   
   exit(0);
