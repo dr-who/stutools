@@ -9,15 +9,17 @@ void usage(float timems, float latencyms) {
   fprintf(stderr,"\nOptions:\n");
   fprintf(stderr,"  -t n  \tsample the IO over a period of n seconds (default %.0lf)\n", timems/1000.0);
   fprintf(stderr,"  -l n  \tonly print IO for drives that over n ms of latency (default %.0lf)\n", latencyms);
+  fprintf(stderr,"  -d n  \tstop after n iterations of display\n");
 }
 
 int main(int argc, char *argv[]) {
 
   int opt;
-  const char *getoptstring = "l:t:h";
+  const char *getoptstring = "l:t:hd:";
 
   float timems = 1000;
   float latencyms = 0;
+  size_t stopaftern = (size_t)-1;
   
   while((opt = getopt(argc, argv, getoptstring)) != -1) {
     switch (opt) {
@@ -26,6 +28,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'l':
       latencyms = atof(optarg);
+      break;
+    case 'd':
+      stopaftern = atoi(optarg);
       break;
     case 'h':
       usage(timems, latencyms);
@@ -39,7 +44,9 @@ int main(int argc, char *argv[]) {
 
   procDiskStatsInit(&old);
   procDiskStatsSample(&old);
-  while (1) {
+  size_t displaycount = 0;
+  
+  while (++displaycount <= stopaftern) {
 
     usleep(timems * 1000.0);
     
@@ -51,12 +58,13 @@ int main(int argc, char *argv[]) {
     procDiskStatsDumpThres(&delta, latencyms, timems);
     procDiskStatsFree(&delta);
 
+    procDiskStatsFree(&old);
     procDiskStatsCopy(&old, &new);
 
     procDiskStatsFree(&new);
   }
 
-  procDiskStatsFree(&new);
+  procDiskStatsFree(&old);
   
   exit(0);
 }

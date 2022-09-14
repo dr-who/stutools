@@ -69,9 +69,9 @@ void procDiskStatsSample(procDiskStatsType *d) {
     d->devices[d->num].timeSpentDoingIO_ms = col13;
     d->devices[d->num].weightedTimeSpentDoingIOs_ms = col14;
 
-    d->devices[d->num].serialShort = strdup(getFieldFromUdev(col1, col2, "E:ID_SERIAL="));
-    d->devices[d->num].idVendor = strdup(getFieldFromUdev(col1, col2, "E:ID_VENDOR="));
-    d->devices[d->num].idModel = strdup(getFieldFromUdev(col1, col2, "E:ID_MODEL="));
+    d->devices[d->num].serialShort = getFieldFromUdev(col1, col2, "E:ID_SERIAL=");
+    d->devices[d->num].idVendor = getFieldFromUdev(col1, col2, "E:ID_VENDOR=");
+    d->devices[d->num].idModel = getFieldFromUdev(col1, col2, "E:ID_MODEL=");
     
     d->num++;
   }
