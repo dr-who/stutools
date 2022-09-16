@@ -51,12 +51,16 @@ int main(int argc, char *argv[])
   size_t blocksize = 4*1024, width = 70;
   size_t startAt = 0*1024*1024, finishAt = 1024L*1024L*1024L*1;
   int showsha256 = 0;
+  float showentropy = 9e9;
 
   optind = 0;
-  while ((opt = getopt(argc, argv, "G:g:w:b:f:s")) != -1) {
+  while ((opt = getopt(argc, argv, "G:g:w:b:f:se:")) != -1) {
     switch (opt) {
     case 'b':
       blocksize = alignedNumber(atoi(optarg), 512);
+      break;
+    case 'e':
+      showentropy = atof(optarg);
       break;
     case 'f':
       device = optarg;
@@ -111,6 +115,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -b n      the block size to step through the devices (defaults to %zd bytes)\n", blocksize);
     fprintf(stderr,"   -s        show SHA-256 of each block\n");
     fprintf(stderr,"   -w n      first n bytes per block to display (defaults to %zd)\n", width);
+    fprintf(stderr,"   -e val    only print lines when entropy < val\n");
     exit(1);
   }
 
@@ -179,7 +184,7 @@ int main(int argc, char *argv[])
 	if (1) {
 	  bps = analyseAsBits(buf, blocksize, 1);
 	}
-        fprintf(stdout,"%09zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%.4lf\t%s %s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, bps, pbuf, (spit==1)?"*spit*":"", timestring);
+        if (bps < showentropy) fprintf(stdout,"%09zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%.4lf\t%s %s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, bps, pbuf, (spit==1)?"*spit*":"", timestring);
         firstgap = 1;
       } else {
         if (firstgap) {
