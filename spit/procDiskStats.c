@@ -8,6 +8,9 @@
 
 #include "procDiskStats.h"
 #include "utils.h"
+#include "mapVoid.h"
+#include "numList.h"
+
 
 
 
@@ -101,36 +104,92 @@ void procDiskStatsFree(procDiskStatsType *d) {
 }
 
 void procDiskStatsDump(procDiskStatsType *d) {
-  procDiskStatsDumpThres(stdout, d, 0);
+  procDiskStatsDumpThres(stdout, d, 0, NULL, NULL, 0);
 }
 
-void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres) {
+void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres, mapVoidType *map_r, mapVoidType *map_w, const double zscore) {
   for (size_t i = 0; i < d->num; i++) {
-    float r_ms = d->devices[i].timeSpentReading_ms * 1.0 / d->devices[i].readsCompleted;
-    float w_ms = d->devices[i].timeSpentWriting_ms * 1.0 / d->devices[i].writesCompleted;
-    float t_ms = 0;
-    if (!isnan(r_ms)) t_ms += r_ms;
-    if (!isnan(w_ms)) t_ms += w_ms;
+    // if latency then avg latency
+    float r_ms = 0, w_ms = 0;
+    if (map_r) { // if using z-scores then total IO
+      r_ms = d->devices[i].timeSpentReading_ms * 1.0 ;// d->devices[i].readsCompleted;
+      w_ms = d->devices[i].timeSpentWriting_ms * 1.0 ;// d->devices[i].writesCompleted;
+    } else { //average
+      r_ms = d->devices[i].timeSpentReading_ms * 1.0 / d->devices[i].readsCompleted;
+      w_ms = d->devices[i].timeSpentWriting_ms * 1.0 / d->devices[i].writesCompleted;
+    }
     
-    if (d->devices[i].readsCompleted || d->devices[i].writesCompleted)
-      if (r_ms >= msthres || w_ms >= msthres) {{
-	  char s[1000];
-	  sprintf(s ,"%.3lf %.3lf %zd:%zd %s R %zd / %.1lf ms, W %zd / %.1lf ms, T_IO %zd ms, %.0lf %% (>= %.0lf ms latency)\n", timedouble() - d->startTime, timedouble(),
-		  d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
-		  /*		  d->devices[i].idModel,
-		  d->devices[i].serialShort,
-		  d->devices[i].idVendor,*/
-		  d->devices[i].readsCompleted,
-		  r_ms,
-		  d->devices[i].writesCompleted,
-		  w_ms,
-		  d->devices[i].timeSpentDoingIO_ms ,
-		  d->devices[i].timeSpentDoingIO_ms * 100.0 / (d->sampleTime * 1000.0),
-		  msthres
-		  );
-	  fprintf(fp, "%s", s);
-	  syslogString("diskperf", s);
+    int out = 0;
+    if (d->devices[i].readsCompleted) {
+      if (map_r) {
+	// if map this sd
+	numListType *nl;
+	if ((nl = mapVoidFind(map_r, d->devices[i].idModel)) != NULL) {
+	  // found
+	} else {
+	  // insert
+	  nl = malloc(sizeof(numListType));
+	  nlInit(nl, 120 / d->sampleTime); // 120 second window
+	  nl = mapVoidAdd(map_r, d->devices[i].idModel, nl);
+	  
+	  fprintf(stderr,"*info* new drive model '%s'\n", d->devices[i].idModel); fflush(stderr);
 	}
+	nlAdd(nl, r_ms);
+	double z_r = (r_ms - nlMean(nl)) / nlSD(nl);
+	if (z_r >= zscore) {
+	  out = 1;
+	  fprintf(stderr,"*info* %s, N %zd, mean %.3lf, sd %.3lf, z %.1lf ( >= z-score %.1lf)\n", d->devices[i].idModel, nlN(nl), nlMean(nl), nlSD(nl), (r_ms - nlMean(nl)) / nlSD(nl), zscore);
+	}
+	
+      } else {
+	if (r_ms >= msthres) out = 1;
+      }
+    }
+    if (d->devices[i].writesCompleted) {
+      if (map_w) {
+	// if map this sd
+	numListType *nl;
+	if ((nl = mapVoidFind(map_w, d->devices[i].idModel)) != NULL) {
+	  // found
+	} else {
+	  // insert
+	  nl = malloc(sizeof(numListType));
+	  nlInit(nl, 120 / d->sampleTime); // 120 second window
+	  nl = mapVoidAdd(map_w, d->devices[i].idModel, nl);
+
+	  fprintf(stderr,"*info* new drive model '%s'\n", d->devices[i].idModel); fflush(stderr);
+	}
+	nlAdd(nl, w_ms);
+	double z_w = (w_ms - nlMean(nl)) / nlSD(nl);
+	if (z_w >= zscore) {
+	  out = 1;
+	  fprintf(stderr,"*info* %s, N %zd, mean %.3lf, sd %.3lf, z %.1lf ( >= z-score %.1lf)\n", d->devices[i].idModel, nlN(nl), nlMean(nl), nlSD(nl), (w_ms - nlMean(\
+																				       nl)) / nlSD(nl), zscore);
+	}
+
+      } else {
+	if (w_ms >= msthres) out = 1;
+      }
+    }
+
+
+    if (out) {
+      char s[1000];
+      sprintf(s ,"%.3lf %.3lf %zd:%zd %s R %zd / %.1lf ms, W %zd / %.1lf ms, T_IO %zd ms, %.0lf %% %s\n", timedouble() - d->startTime, timedouble(),
+	      d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
+	      /*		  d->devices[i].idModel,
+				  d->devices[i].serialShort,
+				  d->devices[i].idVendor,*/
+	      d->devices[i].readsCompleted,
+	      r_ms,
+	      d->devices[i].writesCompleted,
+	      w_ms,
+	      d->devices[i].timeSpentDoingIO_ms ,
+	      d->devices[i].timeSpentDoingIO_ms * 100.0 / (d->sampleTime * 1000.0),
+	      map_r ? "z-score" : "latency"
+	      );
+      fprintf(fp, "%s", s);
+      syslogString("diskperf", s);
     }
   }
 }

@@ -15,8 +15,10 @@
 
 
 void nlInit(numListType *n, int window) {
-  if (window < 0) window = 1;
+  memset(n, 0, sizeof(numListType));
+  if (window <= 0) window = 1;
   n->num = 0;
+  assert(window);
   n->values = calloc(window, sizeof(pointType));
   assert(n->values);
   n->sortedValue = 0;
@@ -89,6 +91,7 @@ size_t nlAdd(numListType *n, double value) {
   if (n->addat >= n->window) {
     n->addat = n->addat - n->window;
   }
+  assert(n->addat < n->window);
 
   n->values[n->addat].value = value;
   n->values[n->addat].age = ++(n->ever);

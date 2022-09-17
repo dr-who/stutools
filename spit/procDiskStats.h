@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <stdio.h>
 
+#include "mapVoid.h"
+
 /* What:		/proc/diskstats */
 /* Date:		February 2008 */
 /* Contact:	Jerome Marchand <jmarchan@redhat.com> */
@@ -85,7 +87,7 @@ void procDiskStatsInit(procDiskStatsType *d);
 void procDiskStatsSample(procDiskStatsType *d);
 
 void procDiskStatsDump(procDiskStatsType *d);
-void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres);
+void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres, mapVoidType *map_r, mapVoidType *map_w, const double zscore);
 
 void procDiskStatsFree(procDiskStatsType *d);
 
