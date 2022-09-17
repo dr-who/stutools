@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "procDiskStats.h"
+#include "utils.h"
 
 int keepRunning = 1;
 
@@ -39,6 +40,15 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  // check only one running
+  int canopen = openRunLock("/var/run/stutools-diskperf");
+  if (!canopen) {
+    fprintf(stderr,"*error* diskperf already running... exiting...\n");
+    exit(0);
+  }
+
+  // now run
+  
   fprintf(stderr,"*info* time %.0lf ms, print if latency >= %.0lf ms\n", timems, latencyms);
 
   procDiskStatsType old,new, delta;
@@ -46,7 +56,7 @@ int main(int argc, char *argv[]) {
   procDiskStatsInit(&old);
   procDiskStatsSample(&old);
   size_t displaycount = 0;
-  
+
   while (++displaycount <= stopaftern) {
 
     usleep(timems * 1000.0);
@@ -56,7 +66,7 @@ int main(int argc, char *argv[]) {
     
     delta = procDiskStatsDelta(&old, &new);
     
-    procDiskStatsDumpThres(stdout, &delta, latencyms);
+    procDiskStatsDumpThres(stdout, &delta, latencyms);fflush(stdout);
     procDiskStatsFree(&delta);
 
     procDiskStatsFree(&old);

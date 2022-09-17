@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
+#include <sys/file.h>
 #include <malloc.h>
 #include <string.h>
 #include <sys/types.h>
@@ -1454,3 +1455,17 @@ double analyseAsBits(unsigned char *buffer, size_t size, int bytes) {
   return bps;
 }
 
+
+int openRunLock(const char *fn) {
+  int fd = open(fn, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+  if (fd > 0) {
+    int fl = flock(fd, LOCK_EX | LOCK_NB) ;
+    if (fl < 0) {
+      exit(2); // another one is running
+    }
+    // open therefore we can run
+    return 1;
+  }
+  perror(fn);
+  return 0;
+}

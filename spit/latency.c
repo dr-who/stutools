@@ -157,6 +157,7 @@ void latencyReadGnuplot(latencyType *lat) {
     fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)\n", lat->histRead.dataCount);
     fprintf(fp, "set log x\n");
     fprintf(fp, "set log y\n");
+    fprintf(fp, "set yrange [0.9:]\n");
     fprintf(fp, "set xtics auto\n");
     fprintf(fp, "set y2tics 10\n");
     fprintf(fp, "set grid\n");
@@ -187,6 +188,7 @@ void latencyWriteGnuplot(latencyType *lat) {
     fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)\n", lat->histWrite.dataCount);
     fprintf(fp, "set log x\n");
     fprintf(fp, "set log y\n");
+    fprintf(fp, "set yrange [0.9:]\n");
     fprintf(fp, "set xtics auto\n");
     fprintf(fp, "set y2tics 10\n");
     fprintf(fp, "set grid\n");
