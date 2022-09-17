@@ -114,7 +114,8 @@ void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres) {
     
     if (d->devices[i].readsCompleted || d->devices[i].writesCompleted)
       if (r_ms >= msthres || w_ms >= msthres) {{
-	  fprintf(fp ,"%.3lf\t%.3lf\t%zd:%zd\t%s\tR %zd / %.1lf ms\t W %zd / %.1lf ms\tT_IO %zd ms\t%.0lf %%\n", timedouble() - d->startTime, timedouble(),
+	  char s[1000];
+	  sprintf(s ,"%.3lf %.3lf %zd:%zd %s R %zd / %.1lf ms, W %zd / %.1lf ms, T_IO %zd ms, %.0lf %% (>= %.0lf ms latency)\n", timedouble() - d->startTime, timedouble(),
 		  d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
 		  /*		  d->devices[i].idModel,
 		  d->devices[i].serialShort,
@@ -124,8 +125,11 @@ void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres) {
 		  d->devices[i].writesCompleted,
 		  w_ms,
 		  d->devices[i].timeSpentDoingIO_ms ,
-		  d->devices[i].timeSpentDoingIO_ms * 100.0 / (d->sampleTime * 1000.0)
+		  d->devices[i].timeSpentDoingIO_ms * 100.0 / (d->sampleTime * 1000.0),
+		  msthres
 		  );
+	  fprintf(fp, "%s", s);
+	  syslogString("diskperf", s);
 	}
     }
   }
