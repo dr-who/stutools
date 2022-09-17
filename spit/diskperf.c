@@ -48,6 +48,7 @@ int main(int argc, char *argv[]) {
   }
 
   // now run
+  double starttime = timedouble();
   
   fprintf(stderr,"*info* time %.0lf ms, print if latency >= %.0lf ms\n", timems, latencyms);
 
@@ -65,7 +66,8 @@ int main(int argc, char *argv[]) {
     procDiskStatsSample(&new);
     
     delta = procDiskStatsDelta(&old, &new);
-    
+    delta.startTime = starttime;
+
     procDiskStatsDumpThres(stdout, &delta, latencyms);fflush(stdout);
     procDiskStatsFree(&delta);
 

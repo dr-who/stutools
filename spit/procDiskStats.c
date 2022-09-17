@@ -114,7 +114,7 @@ void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres) {
     
     if (d->devices[i].readsCompleted || d->devices[i].writesCompleted)
       if (r_ms >= msthres || w_ms >= msthres) {{
-	  fprintf(fp ,"%.4lf\t%zd:%zd\t%s\tR %zd / %.1lf ms\t W %zd / %.1lf ms\tT_IO %zd ms\t%.0lf %%\n", timedouble(),
+	  fprintf(fp ,"%.3lf\t%.3lf\t%zd:%zd\t%s\tR %zd / %.1lf ms\t W %zd / %.1lf ms\tT_IO %zd ms\t%.0lf %%\n", timedouble() - d->startTime, timedouble(),
 		  d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
 		  /*		  d->devices[i].idModel,
 		  d->devices[i].serialShort,

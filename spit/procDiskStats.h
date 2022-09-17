@@ -77,6 +77,7 @@ typedef struct {
   size_t num;
   procDiskLineType *devices;
   double sampleTime;
+  double startTime;
 } procDiskStatsType; 
 
 void procDiskStatsInit(procDiskStatsType *d);
