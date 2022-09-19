@@ -1780,14 +1780,23 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
 	double ret = 0, prob = 0, range = 0;
-	int sr = splitRange(sf+1, &prob, &range);
-	if (sr == 2) {
-	  ret = prob;
-	  fprintf(stderr,"*info* sequentialness prob %.3lf, range %.0lf\n", prob, ceil(range));
+	int sr = 0;
+	if (*(sf+1) == '0') {
+	  if ((*(sf+1) == '0') && (*(sf+2) == '.')) {
+	    sr = splitRange(sf+1, &prob, &range);
+	  } else {
+	    sr = 0; // if s0anything_not_period then s=0
+	  }
 	} else {
-	  ret = prob;
-	  if (ret > 0 && ret < 1) {
-	    range = RAND_MAX;
+	  sr = splitRange(sf+1, &prob, &range);
+	  if (sr == 2) {
+	    ret = prob;
+	    fprintf(stderr,"*info* sequentialness prob %.3lf, range %.0lf\n", prob, ceil(range));
+	  } else {
+	    ret = prob;
+	    if (ret > 0 && ret < 1) {
+	      range = RAND_MAX;
+	    }
 	  }
 	}
 	
