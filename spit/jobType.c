@@ -190,7 +190,7 @@ typedef struct {
   size_t LBAtimes;
   size_t POStimes;
   unsigned short seed;
-  size_t iopstarget;
+  float iopstarget;
   size_t iopsdecrease;
   char *randomBuffer;
   size_t numThreads;
@@ -1876,7 +1876,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].seed = seed;
 
 
-    size_t speedMB = 0;
+    float targetIOPS = 0;
     threadContext[i].iopsdecrease = 0;
     {
       char *RChar = strchr(job->strings[i], 'S');
@@ -1884,14 +1884,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	char retch = ':';
 	double s1 = 0, s2 = 0;
 	splitRangeChar(RChar + 1, &s1, &s2, &retch);
-        speedMB = s1;
+        targetIOPS = s1;
 	if (s2 != s1) {
 	  fprintf(stderr,"*info* IOPS target begin at %lf, decrease every %lf sec\n", s1, s2);
 	  threadContext[i].iopsdecrease = s2;
 	}
       }
     }
-    threadContext[i].iopstarget = speedMB;
+    threadContext[i].iopstarget = targetIOPS;
 
 
     char *Wchar = strchr(job->strings[i], 'W');

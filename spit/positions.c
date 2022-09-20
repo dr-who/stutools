@@ -1435,6 +1435,11 @@ void positionContainerAddDelay(positionContainer *pc, double iops, size_t thread
   double reducetime = redsec;
   size_t origsz = pc->sz;
   double globaloff = 0;
+  if (iops < 0) {
+    fprintf(stderr,"*warning* a -ve IOPS target is ignored.\n");
+    return;
+  }
+  
   fprintf(stderr,"*info* [t%zd] target %.1lf IOPS (n=%zd)\n", threadid, iops, pc->sz);
 
   for (size_t i = 0; i < origsz; i++) {
