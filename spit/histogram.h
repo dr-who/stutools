@@ -22,5 +22,8 @@ void histSave(histogramType *h, const char *filename, const size_t scale);
 void histSum(histogramType *h);
 void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale);
 size_t histCount(histogramType *h);
+size_t histMaxCount(histogramType *h);
+double histLowestPresentValue(histogramType *h);
+double histHighestPresentValue(histogramType *h);
 
 #endif

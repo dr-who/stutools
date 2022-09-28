@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <math.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -17,8 +18,8 @@
 
 
 void latencyClear(latencyType *lat) {
-  histSetup(&lat->histRead, 0, 10000, 2e-2);
-  histSetup(&lat->histWrite, 0, 10000, 2e-2);
+  histSetup(&lat->histRead, 0, 10000, 1e-2);
+  histSetup(&lat->histWrite, 0, 10000, 1e-2);
 }  
 
 void latencySetup(latencyType *lat, positionContainer *pc) {
@@ -154,16 +155,17 @@ void latencyReadGnuplot(latencyType *lat) {
   FILE *fp = fopen("spit-latency-histogram-read.gnu", "wt");
   if (fp) {
     fprintf(fp, "set key above\n");
-    fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)\n", lat->histRead.dataCount);
+    fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)'\n", lat->histRead.dataCount);
+    fprintf(fp, "set nonlinear x via log10(x)/log10(2) inverse 2**x\n"); // xtics like 1, 2, 4, 8 ms
+    fprintf(fp, "set xtics 2 logscale out\n");
     fprintf(fp, "set log x\n");
     fprintf(fp, "set log y\n");
-    fprintf(fp, "set yrange [0.9:]\n");
-    fprintf(fp, "set xtics auto\n");
-    fprintf(fp, "set y2tics 10\n");
+    fprintf(fp, "set yrange [0.9:%lf]\n", histMaxCount(&lat->histRead)*1.1);
+    fprintf(fp, "set y2tics 10 out\n");
     fprintf(fp, "set grid\n");
-    fprintf(fp, "set xrange [:%lf]\n", five9 * 1.1);
+    fprintf(fp, "set xrange [%lf:%lf]\n", histLowestPresentValue(&lat->histRead)*0.95, histHighestPresentValue(&lat->histRead)*1.05);
     fprintf(fp, "set y2range [0:100]\n");
-    fprintf(fp, "set xlabel 'Time (ms)'\n");
+    fprintf(fp, "set xlabel 'Time (ms) - 0.01ms bins'\n");
     fprintf(fp, "set ylabel 'Count'\n");
     fprintf(fp, "set y2label 'Confidence level'\n");
     fprintf(fp, "plot 'spit-latency-histogram-read.txt' using 1:2 with imp title 'Read Latency', 'spit-latency-histogram-read.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.3lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
@@ -185,16 +187,17 @@ void latencyWriteGnuplot(latencyType *lat) {
   FILE *fp = fopen("spit-latency-histogram-write.gnu", "wt");
   if (fp) {
     fprintf(fp, "set key above\n");
-    fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)\n", lat->histWrite.dataCount);
+    fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)'\n", lat->histWrite.dataCount);
+    fprintf(fp, "set nonlinear x via log10(x)/log10(2) inverse 2**x\n"); // xtics like 1, 2, 4, 8 ms
+    fprintf(fp, "set xtics 2 logscale out\n");
     fprintf(fp, "set log x\n");
     fprintf(fp, "set log y\n");
-    fprintf(fp, "set yrange [0.9:]\n");
-    fprintf(fp, "set xtics auto\n");
-    fprintf(fp, "set y2tics 10\n");
+    fprintf(fp, "set yrange [0.9:%lf]\n", histMaxCount(&lat->histWrite)*1.1);
+    fprintf(fp, "set y2tics 10 out\n");
     fprintf(fp, "set grid\n");
-    fprintf(fp, "set xrange [:%lf]\n", five9 * 1.1);
+    fprintf(fp, "set xrange [%lf:%lf]\n", histLowestPresentValue(&lat->histRead)*0.95, histHighestPresentValue(&lat->histRead)*1.05);
     fprintf(fp, "set y2range [0:100]\n");
-    fprintf(fp, "set xlabel 'Time (ms)'\n");
+    fprintf(fp, "set xlabel 'Time (ms) - 0.01ms bins'\n");
     fprintf(fp, "set ylabel 'Count'\n");
     fprintf(fp, "set y2label 'Confidence level'\n");
     fprintf(fp, "plot 'spit-latency-histogram-write.txt' using 1:2 with imp title 'Write Latency', 'spit-latency-histogram-write.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.3lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);

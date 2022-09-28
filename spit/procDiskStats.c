@@ -138,7 +138,7 @@ void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres, mapVo
 	double z_r = (r_ms - nlMean(nl)) / nlSD(nl);
 	if (z_r >= zscore) {
 	  out = 1;
-	  fprintf(stderr,"*info* %s, N %zd, mean %.3lf, sd %.3lf, z %.1lf ( >= z-score %.1lf)\n", d->devices[i].idModel, nlN(nl), nlMean(nl), nlSD(nl), (r_ms - nlMean(nl)) / nlSD(nl), zscore);
+	  fprintf(stderr,"*info* %s, Total-N %zd, Window-N %zd, mean %.3lf, sd %.3lf, z %.1lf ( >= z-score %.1lf)\n", d->devices[i].idModel, nl->ever, nlN(nl), nlMean(nl), nlSD(nl), (r_ms - nlMean(nl)) / nlSD(nl), zscore);
 	}
 	
       } else {

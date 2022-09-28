@@ -43,6 +43,17 @@ size_t histCount(histogramType *h)
   return h->dataCount;
 }
 
+size_t histMaxCount(histogramType *h)
+{
+  size_t max = 0;
+  for (size_t i = 0; i <= h->arraySize; i++) {
+    if (h->bin[i] > max) {
+      max = h->bin[i];
+    }
+  }
+  return max;
+}
+
 // mean is 0 if no data
 double histMean(const histogramType *h)
 {
@@ -57,6 +68,28 @@ void histSum(histogramType *h)
     sum += h->bin[i];
     h->binSum[i] = sum;
   }
+}
+
+double histLowestPresentValue(histogramType *h)
+{
+  for (size_t i = 0; i <= h->arraySize; i++) {
+    if (h->bin[i] > 0) {
+      const double value = i * 1.0 / h->binScale;
+      return value;
+    }
+  }
+  return 0;
+}
+
+double histHighestPresentValue(histogramType *h)
+{
+  for (int i = h->arraySize; i >= 0; i--) {
+    if (h->bin[i] > 0) {
+      const double value = i * 1.0 / h->binScale;
+      return value;
+    }
+  }
+  return 0;
 }
 
 void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale)
