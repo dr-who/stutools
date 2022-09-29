@@ -22,6 +22,9 @@ target_link_libraries(spit spitlib m aio pthread numa)
 add_executable(pair pair.c )
 target_link_libraries(pair spitlib m )
 
+add_executable(stat stat.c )
+target_link_libraries(stat spitlib m )
+
 add_executable(diskperf diskperf.c)
 target_link_libraries(diskperf spitlib m aio pthread numa)
 
