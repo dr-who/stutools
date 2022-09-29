@@ -127,6 +127,30 @@ size_t nlIndexPos(numListType *n, double pos) {
   return i;
 }
 
+double nlMin(numListType *n) {
+  nlSort(n);
+
+  if (n->num == 0) {
+    return NAN;
+  } else {
+    return n->values[0].value;
+  }
+}
+
+
+double nlMax(numListType *n) {
+  nlSort(n);
+
+  if (n->num == 0) {
+    return NAN;
+  } else {
+    return n->values[n->num - 1].value;
+  }
+}
+
+
+
+  
 double nlSortedPos(numListType *n, double pos) {
   nlSort(n);
   assert(pos>=0);

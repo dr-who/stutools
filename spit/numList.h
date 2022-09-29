@@ -37,6 +37,8 @@ double nlMean(numListType *n);
 size_t nlN(numListType *n);
 double nlSD(numListType *l);
 double nlSEM(numListType *l);
+double nlMin(numListType *l);
+double nlMax(numListType *l);
 void nlCorrelation(numListType *n1, numListType *n2, double *r);
 void nlUnbiasedSD(numListType *n1, numListType *n2, const double r, double *unsd);
 

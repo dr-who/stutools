@@ -2,13 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "numList.h"
 
 
-int main() {
+int main(int argc, char *argv[]) {
 
-  fprintf(stderr,"*info* stat - reads one columns of numbers\n");
+  if (argv)
+    assert(argv);
   
   numListType first;
   nlInit(&first, 1000000);
@@ -35,10 +37,27 @@ int main() {
     }
   }
 
-  if (nlN(&first) >= 1) {
-    fprintf(stdout,"mean: %.4lf Q25%%: %.4lf Median: %.4lf Q75%%: %.4lf N:%zd SD: %.4lf SEM: %.4lf\n", nlMean(&first), nlSortedPos(&first, 0.25), nlMedian(&first), nlSortedPos(&first, 0.75),  nlN(&first), nlSD(&first), nlSEM(&first));
+
+  if (argc < 2) {
+    if (nlN(&first) >= 1) {
+      fprintf(stdout,"mean: %.4lf min: %.4lf Q25%%: %.4lf Median: %.4lf Q75%%: %.4lf max: %.4lf N:%zd SD: %.4lf SEM: %.4lf\n", nlMean(&first), nlMin(&first), nlSortedPos(&first, 0.25), nlMedian(&first), nlSortedPos(&first, 0.75), nlMax(&first),  nlN(&first), nlSD(&first), nlSEM(&first));
+    }
+    fprintf(stderr,"*info* stat - N: %zd Mean: %.4lf\n", nlN(&first), nlMean(&first));
+  } else {
+    if (strcmp(argv[1],"mean")==0) fprintf(stdout, "%lf\n", nlMean(&first));
+    else if (strcmp(argv[1],"median")==0) fprintf(stdout, "%lf\n", nlMedian(&first));
+    else if (strcmp(argv[1],"min")==0) fprintf(stdout, "%lf\n", nlMin(&first));
+    else if (strcmp(argv[1],"max")==0) fprintf(stdout, "%lf\n", nlMax(&first));
+    else if (strcmp(argv[1],"sd")==0) fprintf(stdout, "%lf\n", nlSD(&first));
+    else if (strcmp(argv[1],"sem")==0) fprintf(stdout, "%lf\n", nlSEM(&first));
+    else if (strcmp(argv[1],"q25")==0) fprintf(stdout, "%lf\n", nlSortedPos(&first, 0.25));
+    else if (strcmp(argv[1],"q75")==0) fprintf(stdout, "%lf\n", nlSortedPos(&first, 0.75));
+    else if (argv[1][0] == 'q') {float qq = atof(argv[1]+1)/100.0; if (qq<0) qq=0; if (qq>1) qq=1; fprintf(stdout, "%lf\n", nlSortedPos(&first, qq));}
+    else {
+      fprintf(stderr,"*error* unknown command '%s'\n", argv[1]);
+      exit(1);
+    }
   }
-  fprintf(stderr,"*info* stat - N: %zd Mean: %.4lf\n", nlN(&first), nlMean(&first));
 
   free(line);
   exit(EXIT_SUCCESS);
