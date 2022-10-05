@@ -12,6 +12,9 @@ then
     exit 1
 fi
 
+TEMPDATA=tmpdata
+mkdir -p ${TEMPDATA}
+
 export BLOCKSIZEK=1024
 export MODEL=$(smartctl -a /dev/${TESTDEVICE} | egrep "Model:|Product:" | head -n 1 | sed 's/.*: *//g')
 echo === ${MODEL}
@@ -41,7 +44,7 @@ echo === $START $STEPS ====
 while [ $START -le $MAXIOPS ]
 do
     echo === $START ====
-    ./spit -f /dev/${TESTDEVICE} -c rs0q${MAXNR}k${BLOCKSIZEK}S${START} -B out.${START} -P pos.${START}
+    ./spit -f /dev/${TESTDEVICE} -c rs0q${MAXNR}k${BLOCKSIZEK}S${START} -B ${TEMPDATA}/out.${START} -P ${TEMPDATA}/pos.${START}
 
     START=$(echo $START $STEPS | awk '{print $1+$2}')
 
@@ -52,8 +55,8 @@ START=$STEPS
 while [ $START -le $MAXIOPS ]
 do
     echo == generate $START ====
-    cat pos.${START} | tail -n +2 | awk '{print 1000.0*$14}' | ./stat | awk -v s=${START} '{print s,$8,$6,$10}' | tail -n 1 >> IOPSvsLatency.txt
-    cat out.${START} | awk -v s=${START} '{x+=$4} END {print s,1.0*x/NR}' >> IOPSvsLatency-qd.txt
+    cat ${TEMPDATA}/pos.${START} | tail -n +2 | awk '{print 1000.0*$14}' | ./stat | awk -v s=${START} '{print s,$8,$6,$10}' | tail -n 1 >> IOPSvsLatency.txt
+    cat ${TEMPDATA}/out.${START} | awk -v s=${START} '{x+=$4} END {print s,1.0*x/NR}' >> IOPSvsLatency-qd.txt
 
     START=$(echo $START $STEPS | awk '{print $1+$2}')
 
@@ -70,6 +73,7 @@ echo "set ytics out" >> IOPSvsLatency.gnu
 echo "set xtics out" >> IOPSvsLatency.gnu
 echo "set xrange [0:${MAXIOPS}]" >> IOPSvsLatency.gnu
 echo "set yrange [${MIN}:${MAX}]" >> IOPSvsLatency.gnu
+echo "set grid" >> IOPSvsLatency.gnu
 echo "set y2tics out" >> IOPSvsLatency.gnu
 echo "set y2range [0:${MAXIOPS}]" >> IOPSvsLatency.gnu
 echo "set key outside top center horiz" >> IOPSvsLatency.gnu
