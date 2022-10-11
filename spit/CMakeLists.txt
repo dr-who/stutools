@@ -28,6 +28,9 @@ target_link_libraries(stat spitlib m )
 add_executable(diskperf diskperf.c)
 target_link_libraries(diskperf spitlib m aio pthread numa)
 
+add_executable(diskpoll diskpoll.c)
+target_link_libraries(diskpoll spitlib m aio pthread numa)
+
 add_executable(diskserial diskserial.c)
 target_link_libraries(diskserial spitlib m aio pthread numa)
 
