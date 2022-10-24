@@ -1289,8 +1289,8 @@ void sysLogArgs(const char *prog, int argc, char *argv[]) {
   FILE *fp = fopen("/dev/kmsg", "at");
   if (fp) {
     fprintf(fp, "%s\n", orig);
+    fclose(fp);
   }
-  fclose(fp);
   
   free(orig);
 }
