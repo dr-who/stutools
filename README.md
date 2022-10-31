@@ -24,8 +24,8 @@ then
 
 ## As a docker container
 
-      docker build -it stutools
-      docker run -it stutools
+      docker build -t spit stutools/
+      docker run -it spit
       docker run -it --device /dev/sdk:/dev/sdk
       # spit -f /dev/sdk -rs0 
 
