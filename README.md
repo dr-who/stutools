@@ -24,6 +24,7 @@ then
 
 ## As a docker container
 
+      git clone https://github.com/dr-who/stutools.git
       docker build -t spit stutools/
       docker run -it spit
       docker run -it --device /dev/sdk:/dev/sdk spit
