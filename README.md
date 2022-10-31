@@ -22,6 +22,13 @@ then
 
       make -j
 
+## As a docker container
+
+      docker build -it stutools
+      docker run -it stutools
+      docker run -it --device /dev/sdk:/dev/sdk
+      # spit -f /dev/sdk -rs0 
+
 ## Man page
 
       man -l spit/man.1
