@@ -522,6 +522,7 @@ void usage()
   fprintf(stdout,"  spit -f dev -c c              # will copy from a region to a destination 1/2 the LBA away, 4 KiB blocks\n");
   fprintf(stdout,"  spit -f dev -c ck64           # will copy using 64 KiB blocks\n");
   fprintf(stdout,"  spit -f dev -c ck64j4G_       # Divides the space into 4 regions, runs 4 threads performing local copies per region\n");
+  fprintf(stdout,"  spit -f dev -c ckz64-2048      # Will perform 2 MiB worth of 64 KiB reads, then a single 2 MiB write, starting from 0\n");
 
   fprintf(stdout,"\nVarying executions:\n");
   fprintf(stdout,"  spit -f dev -c rs0            # run for 10 seconds by default\n");

@@ -852,20 +852,30 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     if (copyMode) {
       size_t posr = pc->minbdSize;
       size_t posw = alignedNumber(pc->minbdSize + (pc->maxbdSize - pc->minbdSize)/2, 4096);
-      fprintf(stderr,"*info* copyMode %zd positions, starting from %zd, copied to %zd\n", pc->sz, posr, posw);
+      const size_t maxBS = lengthsMax(len);
+      const size_t minBS = lengthsMin(len);
+      size_t readsN = ceil(maxBS * 1.0 / minBS);
+      if (readsN != 1) {
+	fprintf(stderr,"*info* copyMode %zd positions, starting from %zd, copied to %zd\n", pc->sz, posr, posw);
+	fprintf(stderr,"*info* --- variable size between %zd to %zd, breaking into %zd reads and 1 write of max\n", minBS, maxBS, readsN);
+      }
 
+      size_t readSum = 0, thislen = 0;
       count = 0;
       while (count < pc->sz) {
 	memset(&poss[count], 0, sizeof(positionType));
-	size_t thislen = lengthsGet(len, &seed);
-	if ((count % 2)==0) {
+	if (readSum < maxBS) {
+	  thislen = minBS;
 	  poss[count].action = 'R';
 	  poss[count].pos = posr;
 	  posr += thislen;
+	  readSum += thislen;
 	} else {
+	  thislen = maxBS;
 	  poss[count].action = 'W';
 	  poss[count].pos = posw;
 	  posw += thislen;
+	  readSum = 0;
 	}
 	poss[count].len = thislen;
 	count++;
