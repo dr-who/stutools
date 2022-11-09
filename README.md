@@ -28,7 +28,7 @@ then
       docker build -t spit stutools/
       docker run -it spit
       docker run -it --device /dev/sdk:/dev/sdk spit
-      # spit -f /dev/sdk -rs0 
+      # spit -f /dev/sdk -rs0  
 
 ## Man page
 
