@@ -518,6 +518,11 @@ void usage()
   fprintf(stdout,"  spit -f dev -c rs0 -L20       # Use 20GiB of RAM to generate more unique positions\n");
   fprintf(stdout,"  spit -f dev -c rs0j2G_        # Make two threads, but first split the LBA range into two.\n");
   
+  fprintf(stdout,"\nCopying regions:\n");
+  fprintf(stdout,"  spit -f dev -c c              # will copy from a region to a destination 1/2 the LBA away, 4 KiB blocks\n");
+  fprintf(stdout,"  spit -f dev -c ck64           # will copy using 64 KiB blocks\n");
+  fprintf(stdout,"  spit -f dev -c ck64j4G_       # Divides the space into 4 regions, runs 4 threads performing local copies per region\n");
+
   fprintf(stdout,"\nVarying executions:\n");
   fprintf(stdout,"  spit -f dev -c rs0            # run for 10 seconds by default\n");
   fprintf(stdout,"  spit -f dev -c rs0x1          # cover the entire LBA one time\n");
