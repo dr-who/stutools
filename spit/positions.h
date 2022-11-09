@@ -82,7 +82,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                         const size_t firstPPositions,
 					const size_t randomSubSample,
 					const size_t linearSubSample,
-					const size_t linearAlternate
+					const size_t linearAlternate,
+					const size_t copyMode
                                        );
 
 //void freePositions(positionType *p);

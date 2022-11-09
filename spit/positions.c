@@ -661,7 +661,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
                                         const size_t firstPPositions,
 					const size_t randomSubSample,
 					const size_t linearSubSample,
-					const size_t linearAlternate
+					const size_t linearAlternate,
+					const size_t copyMode
                                        )
 {
 
@@ -848,7 +849,31 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     }
 	
       
+    if (copyMode) {
+      size_t posr = pc->minbdSize;
+      size_t posw = alignedNumber(pc->minbdSize + (pc->maxbdSize - pc->minbdSize)/2, 4096);
+      fprintf(stderr,"*info* copyMode starting from %zd, copied to %zd\n", posr, posw);
 
+      count = 0;
+      while (count < pc->sz) {
+	memset(&poss[count], 0, sizeof(positionType));
+	size_t thislen = lengthsGet(len, &seed);
+	if ((count % 2)==0) {
+	  poss[count].action = 'R';
+	  poss[count].pos = posr;
+	  posr += thislen;
+	} else {
+	  poss[count].action = 'W';
+	  poss[count].pos = posw;
+	  posw += thislen;
+	}
+	poss[count].len = thislen;
+	count++;
+      }
+    }
+
+    goto postcreate;
+       
 
   // setup the -P positions
   for (int i = 0; i < regions && keepRunning; i++) {
@@ -949,6 +974,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
       fprintf(stderr,"*warning* there are %zd unique positions on the device\n", count);
     }
   }
+
+ postcreate:
+
   pc->sz = count;
 
   // make a complete copy and rotate by an offset

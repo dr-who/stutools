@@ -232,6 +232,7 @@ typedef struct {
   size_t alternateEvery;
   int jmodonly;
   size_t showdate;
+  int copyMode;
   FILE * loadpos; // position action size
 
   // results
@@ -275,7 +276,7 @@ static void *runThread(void *arg)
     // create the positions and the r/w status
     //    threadContext->seqFiles = seqFiles;
     //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-    positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample, threadContext->linearSubSample, threadContext->linearAlternate);
+    positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample, threadContext->linearSubSample, threadContext->linearAlternate, threadContext->copyMode);
   }
 
   for (size_t e = 0; e < threadContext->pos.sz; e++) {
@@ -1212,6 +1213,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].performPreDiscard = performPreDiscard;
     threadContext[i].runSeconds = runseconds;
     threadContext[i].LBAtimes = 0;
+    threadContext[i].copyMode = 0;
     threadContext[i].POStimes = 0;
     threadContext[i].positionLimit = 0;
     threadContext[i].finishSeconds = runseconds;
@@ -1292,6 +1294,17 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
+
+    {
+      char *charC = strchr(job->strings[i], 'c');
+      if (charC) {
+	threadContext[i].copyMode = 1;
+	fprintf(stderr,"*info* copy mode enabled in thread #%d\n", i);
+      }
+    }
+       
+	
+    
     size_t mod = 1;
     size_t remain = 0;
     {
@@ -1545,7 +1558,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
       if (i == 0) fprintf(stderr,"*info* qd/inflight specified: min/step %zd, max %zd\n", qDepthMin, qDepthMax);
     }
-
+    
+    if (threadContext[i].copyMode) {
+      fprintf(stderr,"*info* using qd = 1/1\n");
+      qDepthMin = 1;
+      qDepthMax = 1;
+    }
+    
     assert(qDepthMin >= 1);
     assert(qDepthMin <= qDepthMax);
     assert(qDepthMax <= 65535);
