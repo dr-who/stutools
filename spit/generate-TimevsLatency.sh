@@ -15,13 +15,13 @@ fi
 TEMPDATA=tmpdata
 mkdir -p ${TEMPDATA}
 
-export RWMODE=w
+export RWMODE=r
 
 export IOPS=100
-export BLOCKSIZEK=2048
+export BLOCKSIZEK=1024
 export SAMPLES=9
 export MODEL=$(smartctl -a /dev/${TESTDEVICE} | egrep "Model:|Product:" | head -n 1 | sed 's/.*: *//g')
-export SIZETB=$(lsblk -b /dev/${TESTDEVICE} | tail -n 1 | awk '{printf "%.0lf\n",$4/1000000000000.0}')
+export SIZETB=$(lsblk -b /dev/${TESTDEVICE} | tail -n 1 | gawk '{printf "%.0lf\n",$4/1000000000000.0}')
 
 echo === ${MODEL} ${BLOCKSIZEK} ${SIZETB}
 
@@ -30,9 +30,9 @@ export MAXNR=$(cat /sys/block/${TESTDEVICE}/queue/nr_requests)
 
 echo == nr_requests ${MAXNR} ==
 
-./spit -c z${RWMODE}s1q16k${BLOCKSIZEK}S${IOPS}X${SAMPLES} -f /dev/${TESTDEVICE} -P pos 10 -G 20
+./spit -c z${RWMODE}s1q16k${BLOCKSIZEK}S${IOPS}X${SAMPLES} -f /dev/${TESTDEVICE} -P pos 10 -G 100
 
-awk '{print $2,$14,$17,$18}' pos > TimevsLatency.txt
+gawk '{print $2,$14,$17,$18}' pos > TimevsLatency.txt
 
 echo "set xlabel 'Disk position (MiB)'" > TimevsLatency.gnu
 echo "set ylabel 'Latency (ms)'" >> TimevsLatency.gnu

@@ -852,7 +852,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     if (copyMode) {
       size_t posr = pc->minbdSize;
       size_t posw = alignedNumber(pc->minbdSize + (pc->maxbdSize - pc->minbdSize)/2, 4096);
-      fprintf(stderr,"*info* copyMode starting from %zd, copied to %zd\n", posr, posw);
+      fprintf(stderr,"*info* copyMode %zd positions, starting from %zd, copied to %zd\n", pc->sz, posr, posw);
 
       count = 0;
       while (count < pc->sz) {
@@ -870,9 +870,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 	poss[count].len = thislen;
 	count++;
       }
+      goto postcreate;
     }
 
-    goto postcreate;
        
 
   // setup the -P positions
@@ -996,7 +996,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   }
   //    fprintf(stderr,"starting offset %d\n", offset);
 
-  // rotate
+  // copy from poss array and rotate the start
   for (size_t i = 0; i < count; i++) {
     int index = i + offset;
     if (index >= (int)count) {
@@ -1021,7 +1021,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         anywrites = 1;
       }
     }
-    positions[i].action = newaction;
+    if (copyMode == 0) { // we already have the action
+      positions[i].action = newaction;
+    }
     //assert(positions[i].len >= 0);
   }
 

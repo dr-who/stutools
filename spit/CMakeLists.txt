@@ -112,7 +112,7 @@ add_test(testspita10 spit -f wow -G 1GiB -c ws1a10zM1 -v -t 5 )
 
 # the -K option enables us to assert the readIO and writeIO
 
-add_test(testspitcc spit -f wow -G 1GiB -c cM1 -K 512,512)
+add_test(testspitcc spit -f wow -G 1GiB -c cM1zx1 -K 512,512)
 
 add_test(testspitws1x1 spit -f wow -G 1GiB -c ws1M1x1 -K 0,1024)
 add_test(testspitws1x2 spit -f wow -G 1GiB -c ws1M1x2 -K 0,2048)
