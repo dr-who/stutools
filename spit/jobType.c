@@ -1556,14 +1556,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	  exit(1);
 	}
       }
-      if (i == 0) fprintf(stderr,"*info* qd/inflight specified: min/step %zd, max %zd\n", qDepthMin, qDepthMax);
     }
     
     if (threadContext[i].copyMode) {
-      fprintf(stderr,"*info* using qd = 1/1\n");
       qDepthMin = 1;
       qDepthMax = 1;
     }
+    if (i == 0) fprintf(stderr,"*info* qd/inflight specified: min/step %zd, max %zd\n", qDepthMin, qDepthMax);
     
     assert(qDepthMin >= 1);
     assert(qDepthMin <= qDepthMax);
