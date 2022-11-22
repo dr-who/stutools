@@ -235,11 +235,14 @@ size_t aioMultiplePositions( positionContainer *p,
   int printed = 0;
 
 
-  for (size_t i = 0; i < sz; i++) {
-    positions[i].inFlight = 0;
-    positions[i].submitTime = 0;
-    positions[i].finishTime = 0;
-    positions[i].success = 0;
+  if (posStart == 0) {
+    // if from the start then clear, else leave alone
+    for (size_t i = 0; i < sz; i++) {
+      positions[i].inFlight = 0;
+      positions[i].submitTime = 0;
+      positions[i].finishTime = 0;
+      positions[i].success = 0;
+    }
   }
   
 
