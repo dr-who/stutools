@@ -34,7 +34,7 @@ size_t aioMultiplePositions( positionContainer *p,
                              const size_t rounds,
 			     const size_t posStart,
                              const size_t posLimit,
-			     size_t *nextPos,
+			     size_t *posCompleted,
                              const int dontExitOnErrors,
                              const int fd,
                              int flushEvery,
@@ -213,6 +213,11 @@ size_t aioMultiplePositions( positionContainer *p,
   }
 
   size_t inFlight = 0, pos = posStart;
+  if (sz) {
+    pos = pos % sz;
+  }
+  assert (pos < sz);
+  *posCompleted = 0;
 
   const double start = timedouble();
   double last = start, roundstart = start;
@@ -460,6 +465,7 @@ size_t aioMultiplePositions( positionContainer *p,
 
 	// onto the next one
 	pos += posIncrement;
+	if (posCompleted) (*posCompleted)++;
 	if (pos >= sz) {
 	  pos = 0;
 	  roundstart = thistime;
@@ -751,7 +757,6 @@ endoffunction:
     }
   }
 
-  if (nextPos) *nextPos = pos;
   return (*totalWB) + (*totalRB);
 }
 
