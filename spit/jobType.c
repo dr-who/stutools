@@ -608,6 +608,7 @@ static void *runThread(void *arg)
 
 
   size_t totalB = 0, ioerrors = 0, totalP = 0;
+  size_t posStart = 0, posNext = 0;
   
   while (keepRunning) {
 
@@ -629,7 +630,13 @@ static void *runThread(void *arg)
       }
     }
     // if fp == stdout then it's streaming so you don't need to accumulate
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, byteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posLimit , 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, (threadContext->fp == stdout) ? 0: numSamples/* true if writing positions */, threadContext->alternateEvery, 0);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, byteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posStart, posLimit, &posNext, 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, (threadContext->fp == stdout) ? 0: numSamples/* true if writing positions */, threadContext->alternateEvery, 0);
+
+    if (threadContext->runSeconds>0 && threadContext->waitfor>0) {
+      fprintf(stderr,"*info* startingPos %zd, numberPos %zd, finishedPos %zd\n", posStart, threadContext->pos.sz, posNext);
+      posStart = posNext;
+    }
+    
     totalP += posLimit;
 
     if (!externalLoops) break;
