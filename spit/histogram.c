@@ -6,6 +6,7 @@
 
 #include "utils.h"
 #include "histogram.h"
+#include "numList.h"
 
 void histSetup(histogramType *h, const double min, const double max, const double binscale)
 {
@@ -18,12 +19,14 @@ void histSetup(histogramType *h, const double min, const double max, const doubl
   h->dataSum = 0;
   h->dataCount = 0;
   h->dataSummed = 0;
+  nlInit(&h->nl, 1000000); // keep 1 million positions
   //  fprintf(stderr,"*info* [%lf,%lf], binscale %zd, numBins %zd\n", h->min, h->max, h->binScale, h->arraySize);
 }
 
 void histAdd(histogramType *h, double value)
 {
   size_t bin = 0;
+  nlAdd(&h->nl, value);
 
   if (value < 0) value = 0;
 
@@ -165,5 +168,6 @@ void histFree(histogramType *h)
     free(h->binSum);
     h->binSum = NULL;
   }
+  nlFree(&h->nl);
 }
 

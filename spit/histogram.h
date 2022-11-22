@@ -1,6 +1,7 @@
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 
+#include "numList.h"
 
 typedef struct {
   double min;
@@ -12,6 +13,7 @@ typedef struct {
   double dataSum;
   size_t dataCount;
   int    dataSummed;
+  numListType nl;
 } histogramType;
 
 void histSetup(histogramType *h, const double min, const double max, const double binscale);
