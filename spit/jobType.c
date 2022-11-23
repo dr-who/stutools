@@ -977,8 +977,8 @@ static void *runThreadTimer(void *arg)
         }
         if (threadContext->pos.diskStats) {
           fprintf(stderr,
-                  " (R %.0lf MB/s (%.0lf IO/s), W %.0lf MB/s (%.0lf IO/s), %% %.0lf (%.1lf ms), %s)",
-                  TOMB(devicerb / gaptime), devicereadio / gaptime, TOMB(devicewb / gaptime), devicewriteio / gaptime, 100.0 * devicetimeio / (gaptime*1000), devicetimeio,
+                  " (Amplification %.0lf%%, R %.0lf MB/s (%.0lf IO/s), W %.0lf MB/s (%.0lf IO/s), %% %.0lf (%.1lf ms), %s)",
+                  ((devicerb/gaptime + devicewb/gaptime) * 1.0 / (readB + writeB)) * 100.0, TOMB(devicerb / gaptime), devicereadio / gaptime, TOMB(devicewb / gaptime), devicewriteio / gaptime, 100.0 * devicetimeio / (gaptime*1000), devicetimeio,
                   cur_disk_inflight_str);
         }
         fprintf(stderr,"\n");
