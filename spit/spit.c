@@ -561,6 +561,9 @@ void usage()
   fprintf(stdout,"                                # column 15 (#samples), 16 (median latency)\n");
   fprintf(stdout,"   ... -S positions             # read all the positions from 3 columns. position action and size\n");
 
+  fprintf(stdout,"\nComplete coverage:\n");
+  fprintf(stdout,"  spit -f ... -c ..C            # the 'C' command will check the complete LBA is covered, or exit(1)\n");
+
   fprintf(stdout,"\nLogging for experiments:\n");
   fprintf(stdout,"  spit -f ... -l logfile        # will append the run results to 'logfile'. Works well with ./combo expansion\n");
   
@@ -639,7 +642,8 @@ void usage()
   fprintf(stdout,"  spit -c wZ1                   # Z is the starting offset. -z is -Z0\n");
   fprintf(stdout,"  spit -p G100                  # precondition job, writing random overwrite LBA size\n");
   fprintf(stdout,"  spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks\n");
-  fprintf(stdout,"  spit -f meta -O devices.txt   # specify the raw devices for amplification statistics\n");
+  fprintf(stdout,"  spit -f dev -O devices.txt    # specify the raw devices for amplification statistics\n");
+  fprintf(stdout,"  spit -f dev -O <(echo dev)    # use BASH syntax for creation of a virtual inline fd\n");
   fprintf(stdout,"  spit -s 0.1 -i 5              # and ignore first 5 GiB of performance\n");
   fprintf(stdout,"  spit -v                       # verify the writes after a run\n");
   fprintf(stdout,"  spit -c wG_j4                 # The _ represents to divide the G value evenly between threads\n");

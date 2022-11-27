@@ -233,6 +233,7 @@ typedef struct {
   int jmodonly;
   size_t showdate;
   int copyMode;
+  size_t completeCoverage;
   FILE * loadpos; // position action size
 
   // results
@@ -435,14 +436,27 @@ static void *runThread(void *arg)
   // minSizeInBytes is the -G range. If there are multiple threads carving the LBA up, it'll be specified as the min/max bdsize
   size_t outerrange = threadContext->maxbdSize - threadContext->minbdSize;
   size_t sumrange = 0;
-  for (int i = 0; i < (int)threadContext->pos.sz; i++) {
-    sumrange += threadContext->pos.positions[i].len;
+  {
+    positionType *pp = &threadContext->pos.positions[0];
+    for (int i = 0; i < (int)threadContext->pos.sz; i++) {
+      sumrange += pp->len;
+      pp++;
+      //    sumrange += threadContext->pos.positions[i].len;
+    }
   }
   if ((threadContext->id == 0) && (sumrange < outerrange*0.99)) {
-    fprintf(stderr,"*warning* the range covered (%zd positions covering %.3lf GiB) is < 99%% of available range (%.3lf GiB)\n", threadContext->pos.sz, TOGiB(sumrange), TOGiB(outerrange));
+    fprintf(stderr,"*warning* the range covered (%zd positions covering %.3lf GiB) is < 99%% of available range (%.3lf GiB)\n", threadContext->pos.sz, TOGB(sumrange), TOGB(outerrange));
+
+    if (threadContext->completeCoverage) {
+      fprintf(stderr,"*error* not enough of LBA covered, need a block size of at least %.0lf KiB\n", (ceil(outerrange * 1.0 / threadContext->pos.sz/4096) * 4096) / 1024);
+      exit(1);
+    }
   }
+  
   if (verbose >= 1)
     fprintf(stderr,"*info* [t%zd] '%s %s' s%.1lf (%.0lf KiB), [%zd] (LBA %.0lf%%, [%.2lf,%.2lf]/%.2lf GiB), n=%d, qd=[%zd,%zd] r/w/t=%.1g/%.1g/%.1g, F=%zd, k=[%.0lf-%.0lf], R=%u, B%zd W%.1lf T%.1lf t%.1lf x%zd X%zd\n", threadContext->id, threadContext->jobstring, threadContext->jobdevice, threadContext->seqFiles, TOKiB(threadContext->seqFilesMaxSizeBytes), threadContext->pos.sz, sumrange * 100.0 / outerrange, TOGiB(threadContext->minbdSize), TOGiB(threadContext->maxbdSize), TOGiB(outerrange), threadContext->rerandomize, threadContext->queueDepthMin, threadContext->queueDepthMax, threadContext->rw.rprob, threadContext->rw.wprob, threadContext->rw.tprob, threadContext->flushEvery, TOKiB(threadContext->blockSize), TOKiB(threadContext->highBlockSize), threadContext->seed, threadContext->prewait, threadContext->waitfor, threadContext->runSeconds, threadContext->finishSeconds, threadContext->LBAtimes, threadContext->positionLimit);
+
+    
 
 
   // do the mahi
@@ -1238,6 +1252,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].runSeconds = runseconds;
     threadContext[i].LBAtimes = 0;
     threadContext[i].copyMode = 0;
+    threadContext[i].completeCoverage = 0;
     threadContext[i].POStimes = 0;
     threadContext[i].positionLimit = 0;
     threadContext[i].finishSeconds = runseconds;
@@ -1628,6 +1643,14 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
     
+    {
+      char *iR = strchr(job->strings[i], 'C');
+      if (iR) {
+	threadContext[i].completeCoverage = 1;
+	if (i==0) fprintf(stderr,"*info* LBA complete coverage enabled\n");
+      }
+    }
+
 
     size_t uniqueSeeds = 0, verifyUnique = 0;
     long metaData = 0;
