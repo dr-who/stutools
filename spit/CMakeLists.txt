@@ -109,6 +109,8 @@ add_test(testspitwk512b  spit -f wow -G 0.5GiB -c ws1k0.5 -v -V -t 1)
 
 add_test(testspita10 spit -f wow -G 1GiB -c ws1a10zM1 -v -t 5 )
 
+add_test(testspitkPa0fail spit -f wow -G 1GiB -c rM1s0P1X1C -K 1,0)
+set_tests_properties(testspitkPa0fail PROPERTIES WILL_FAIL TRUE)
 
 # the -K option enables us to assert the readIO and writeIO
 
@@ -149,7 +151,7 @@ add_test(testspitk1p spit -f wow -G 1GiB -c rM1s0X1G_J4 -K 1024,0 -R1)
 add_test(testspitk1q spit -f wow -G 1GiB -c rM1s0X1G_J8 -K 1024,0 -R1)
 add_test(testspitk1r spit -f wow -G 1GiB -c rM1s0X2G_J8 -K 2048,0 -R1)
 
-add_test(testspitkPa0 spit -f wow -G 1GiB -c rM1s0P1X1 -K 1,0)
+
 add_test(testspitkPa1 spit -f wow -G 1GiB -c rM1s0P1X10 -K 10,0)
 add_test(testspitkPa10ve spit -f wow -G 1GiB -c rM1s0P-10X1 -K 10,0)
 add_test(testspitkPa100ve spit -f wow -G 1GiB -c rM1s0P-100X1 -K 100,0)
