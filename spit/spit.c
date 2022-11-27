@@ -575,7 +575,7 @@ void usage()
   fprintf(stdout,"  spit -c P10000X100            # write the same 10,000 positions 100 times\n");
 
   
-  fprintf(stdout,"\nComplete coverage:\n");
+  fprintf(stdout,"\nComplete coverage: (positions required, size of `LBAbytes / (RAMbytes / 64)`)\n");
   fprintf(stdout,"  spit -f ... -c ..C            # the 'C' command will check the complete LBA is covered, or exit(1)\n");
 
   fprintf(stdout,"\nDisplays: (-s 1 default, once per second)\n");
