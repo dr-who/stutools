@@ -589,11 +589,26 @@ void usage()
   fprintf(stdout,"  spit -f -c ..j32 -U 0-2       # j32, split threads evenly between NUMA node 0, 1 and 2\n");
   fprintf(stdout,"  spit -f -c ..j32 -U 0,0,1     # j32, allocate threads using a 2:1 ratio between NUMA node 0 and 1\n");
 
+  fprintf(stdout,"\nSee/dump the actions/positions:\n");
+  fprintf(stdout,"  spit -f ... -c ... -d 10      # dump the first 10 positions/actions\n");
 
   
   fprintf(stdout,"\nLogging for experiments:\n");
   fprintf(stdout,"  spit -f ... -l logfile        # will append the run results to 'logfile'. Works well with ./combo expansion\n");
-  
+
+  fprintf(stdout,"\nBlock sizes:\n");
+  fprintf(stdout,"  spit -f device -c k8          # set block size to 8 KiB\n");
+  fprintf(stdout,"  spit -f device -c k4-128      # set block range to 4 to 128 KiB, every 4 KiB\n");
+  fprintf(stdout,"  spit -f device -c k4:1024     # set block range to 4 to 1024 KiB, in powers of 2\n");
+  fprintf(stdout,"  spit -f ... -c wM1            # set block size 1M\n");
+
+  fprintf(stdout,"\nPreconditioning:\n");
+  fprintf(stdout,"  spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks\n");
+  fprintf(stdout,"  spit -p G -p Gs1              # precondition job, writing random, 100%% LBA, then seq job\n");
+  fprintf(stdout,"  spit -p G100                  # precondition job, writing random overwrite LBA size\n");
+  fprintf(stdout,"  spit -p f5 -f device -c ...   # Precondition/max-fragmentation with 5%% GC overhead, becomes K20.\n");
+  fprintf(stdout,"                                # the -p f5 commands iterates across the LBA in 64G chunks as previous two commands.\n");
+
   fprintf(stdout,"\nExamples:\n");
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
   fprintf(stdout,"  spit -f device -c r           # seq read (defaults to s1 and k4)\n");
@@ -607,9 +622,6 @@ void usage()
   fprintf(stdout,"  spit -f device -c rs0-size    # random, (s)equential is 0, max contig is size KiB\n");
   fprintf(stdout,"  spit -f device -c ws2         # 2 contiguous regions on the device. Add -d 10 to dump positions\n");
   fprintf(stdout,"  spit -f device -c ws128       # 128 contiguous regions on the device\n");
-  fprintf(stdout,"  spit -f device -c k8          # set block size to 8 KiB\n");
-  fprintf(stdout,"  spit -f device -c k4-128      # set block range to 4 to 128 KiB, every 4 KiB\n");
-  fprintf(stdout,"  spit -f device -c k4:1024     # set block range to 4 to 1024 KiB, in powers of 2\n");
   fprintf(stdout,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stdout,"  spit -f device -c r -E -G 2-5 # if the -E argument is before -G, G values are percentages. e.g. 2%%-5%%\n");
   fprintf(stdout,"  spit -f device -c r -G 1      # 0..1 GB device size\n");
@@ -620,7 +632,6 @@ void usage()
   fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GB region, rand r in the 2-3 GB region\n");
   fprintf(stdout,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
   fprintf(stdout,"  spit -f -c ..j32              # duplicate all the commands 32 times. Pin threads to each NUMA node.\n");
-  fprintf(stdout,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
   fprintf(stdout,"  spit -f ... -c wR42           # set the per command seed with R\n");
   fprintf(stdout,"  spit -f ... -c wF             # (F)lush after every write of FF for 10, FFF for 100 ...\n");
@@ -636,7 +647,6 @@ void usage()
   fprintf(stdout,"  spit -f ... -c s1n            # do a sequential pass, then shuffles the positions\n");
   fprintf(stdout,"  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB\n");
   fprintf(stdout,"  spit -f ... -c P10G1-2        # The first 10 positions starting from 1GiB. It needs the lower range.\n");
-  fprintf(stdout,"  spit -f ... -c wM1            # set block size 1M\n");
   fprintf(stdout,"  spit -f ... -c O              # One-shot, not time based\n");
   fprintf(stdout,"  spit -f ... -c t2             # specify the time per thread\n");
   fprintf(stdout,"  spit -f ... -c ws1F4          # jumble/reverse groups of 4 positions\n");
@@ -649,10 +659,7 @@ void usage()
   fprintf(stdout,"  spit -f .... -c q128-128      # set queue depth to fixed at 128 IOs in flight at all time. Uses less CPU.\n");
   fprintf(stdout,"  spit -c P10000                # write the same 10,000 positions based on the time\n");
   fprintf(stdout,"  spit -c P-10000               # A -ve P number, is determine 10,000 positions with replacement. Don't verify\n");
-  fprintf(stdout,"  spit -p G -p Gs1              # precondition job, writing random, 100%% LBA, then seq job\n");
   fprintf(stdout,"  spit -c wZ1                   # Z is the starting offset. -z is -Z0\n");
-  fprintf(stdout,"  spit -p G100                  # precondition job, writing random overwrite LBA size\n");
-  fprintf(stdout,"  spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks\n");
   fprintf(stdout,"  spit -f dev -O devices.txt    # specify the raw devices for amplification statistics\n");
   fprintf(stdout,"  spit -f dev -O <(echo dev)    # use BASH syntax for creation of a virtual inline fd\n");
   fprintf(stdout,"  spit -s 0.1 -i 5              # and ignore first 5 GiB of performance\n");
@@ -675,8 +682,6 @@ void usage()
   fprintf(stdout,"  spit -c rrwts0                # 50%% read, 25%% writes and 25%% trim I/O random operations\n");
   fprintf(stdout,"  spit -c wx1G0-64k4zs1         # Write from [0,64) GiB, in 4KiB steps, sequentially \n");
   fprintf(stdout,"  spit -c wx1G0-64k4zs1K20      # Write from [0,64) GiB, in 4KiB steps, writing 1 in 20. \n");
-  fprintf(stdout,"  spit -p f5 -f device -c ...   # Precondition/max-fragmentation with 5%% GC overhead, becomes K20.\n");
-  fprintf(stdout,"                                # the -p f5 commands iterates across the LBA in 64G chunks as previous two commands.\n");
   fprintf(stdout,"  spit ... -c rs0Y1000          # Limit the number of positions to process to 1,000 then end the run\n");
   fprintf(stdout,"  spit -c ... -D                # Display the 'D'ate/time per line\n");
   fprintf(stdout,"  spit -f .. -c ws0J8           # Use 8 threads, but only do every 8th IO in each thread. For NUMA/S testing\n");
