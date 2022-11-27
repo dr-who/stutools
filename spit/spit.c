@@ -524,7 +524,7 @@ void usage()
   fprintf(stdout,"  spit -f dev -c ck64j4G_       # Divides the space into 4 regions, runs 4 threads performing local copies per region\n");
   fprintf(stdout,"  spit -f dev -c ckz64-2048      # Will perform 2 MiB worth of 64 KiB reads, then a single 2 MiB write, starting from 0\n");
 
-  fprintf(stdout,"\nVarying executions:\n");
+  fprintf(stdout,"\nVarying executions: (time, position and LBA controls)\n");
   fprintf(stdout,"  spit -f dev -c rs0            # run for 10 seconds by default\n");
   fprintf(stdout,"  spit -f dev -c rs0x1          # cover the entire LBA one time\n");
   fprintf(stdout,"  spit -f dev -c rs0x2          # cover the entire LBA two times\n");
@@ -561,9 +561,36 @@ void usage()
   fprintf(stdout,"                                # column 15 (#samples), 16 (median latency)\n");
   fprintf(stdout,"   ... -S positions             # read all the positions from 3 columns. position action and size\n");
 
+  fprintf(stdout,"\nLBA coverage: (using lowercase x)\n");
+  fprintf(stdout,"  spit -c P10x1                 # write 10 positions until the entire device size is written\n");
+  fprintf(stdout,"  spit -c P10x3                 # write 10 positions until the entire device size is written three times\n");
+  fprintf(stdout,"  spit -c x5                    # writing the block device size 5 times, not time based\n");
+
+  fprintf(stdout,"\nPosition coverage: (using capital X)\n");
+  fprintf(stdout,"  spit -f ... -c P10X100        # multiply the number of positions by X, here it's 100, so 1,000 positions\n");
+  fprintf(stdout,"  spit -f .... -c wns0X10       # writing the number of positions 10 times, not time based\n");
+  fprintf(stdout,"  spit -c P10X1                 # write 10 positions\n");
+  fprintf(stdout,"  spit -c P10000X100            # write the same 10,000 positions 100 times\n");
+
+  
   fprintf(stdout,"\nComplete coverage:\n");
   fprintf(stdout,"  spit -f ... -c ..C            # the 'C' command will check the complete LBA is covered, or exit(1)\n");
 
+  fprintf(stdout,"\nWriting/pausing:\n");
+  fprintf(stdout,"  spit -f device -c W5          # do 5 seconds worth of IO then wait for 5 seconds\n");
+  fprintf(stdout,"  spit -f device -c W0.1:4      # do 0.1 seconds worth of IO then wait for 4 seconds\n");
+  fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread, run 4, wait 4 repeat\n");
+  fprintf(stdout,"  spit -f ... -c ws1W2:1 -t60   # Alternate run for 2 seconds, wait for 1 second\n");
+
+  fprintf(stdout,"\nNUMA control:\n");
+  fprintf(stdout,"  spit -f -c ..j32 -u           # j32, but do not pin the threads to specific NUMA nodes\n");
+  fprintf(stdout,"  spit -f -c ..j32 -U 0         # j32, pin all threads to  NUMA node 0\n");
+  fprintf(stdout,"  spit -f -c ..j32 -U 0,1       # j32, split threads evenly between NUMA node 0 and 1\n");
+  fprintf(stdout,"  spit -f -c ..j32 -U 0-2       # j32, split threads evenly between NUMA node 0, 1 and 2\n");
+  fprintf(stdout,"  spit -f -c ..j32 -U 0,0,1     # j32, allocate threads using a 2:1 ratio between NUMA node 0 and 1\n");
+
+
+  
   fprintf(stdout,"\nLogging for experiments:\n");
   fprintf(stdout,"  spit -f ... -l logfile        # will append the run results to 'logfile'. Works well with ./combo expansion\n");
   
@@ -583,9 +610,6 @@ void usage()
   fprintf(stdout,"  spit -f device -c k8          # set block size to 8 KiB\n");
   fprintf(stdout,"  spit -f device -c k4-128      # set block range to 4 to 128 KiB, every 4 KiB\n");
   fprintf(stdout,"  spit -f device -c k4:1024     # set block range to 4 to 1024 KiB, in powers of 2\n");
-  fprintf(stdout,"  spit -f device -c W5          # do 5 seconds worth of IO then wait for 5 seconds\n");
-  fprintf(stdout,"  spit -f device -c W0.1:4      # do 0.1 seconds worth of IO then wait for 4 seconds\n");
-  fprintf(stdout,"  spit -f ... -c w -cW4rs0      # one thread seq write, one thread, run 4, wait 4 repeat\n");
   fprintf(stdout,"  spit -f device -c \"r s128 k4\" -c \'w s4 -k128\' -c rw\n");
   fprintf(stdout,"  spit -f device -c r -E -G 2-5 # if the -E argument is before -G, G values are percentages. e.g. 2%%-5%%\n");
   fprintf(stdout,"  spit -f device -c r -G 1      # 0..1 GB device size\n");
@@ -596,11 +620,6 @@ void usage()
   fprintf(stdout,"  spit -c ws1G1-2 -c rs0G2-3    # Seq w in the 1-2 GB region, rand r in the 2-3 GB region\n");
   fprintf(stdout,"  spit -f ... -t 50             # run for 50 seconds (-t -1 is forever)\n");
   fprintf(stdout,"  spit -f -c ..j32              # duplicate all the commands 32 times. Pin threads to each NUMA node.\n");
-  fprintf(stdout,"  spit -f -c ..j32 -u           # j32, but do not pin the threads to specific NUMA nodes\n");
-  fprintf(stdout,"  spit -f -c ..j32 -U 0         # j32, pin all threads to  NUMA node 0\n");
-  fprintf(stdout,"  spit -f -c ..j32 -U 0,1       # j32, split threads evenly between NUMA node 0 and 1\n");
-  fprintf(stdout,"  spit -f -c ..j32 -U 0-2       # j32, split threads evenly between NUMA node 0, 1 and 2\n");
-  fprintf(stdout,"  spit -f -c ..j32 -U 0,0,1     # j32, allocate threads using a 2:1 ratio between NUMA node 0 and 1\n");
   fprintf(stdout,"  spit -f ... -f ...-d 10       # dump the first 10 positions per command\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
   fprintf(stdout,"  spit -f ... -c wR42           # set the per command seed with R\n");
@@ -617,25 +636,17 @@ void usage()
   fprintf(stdout,"  spit -f ... -c s1n            # do a sequential pass, then shuffles the positions\n");
   fprintf(stdout,"  spit -f ... -c rL4            # (L)imit positions so the sum of the length is 4 GiB\n");
   fprintf(stdout,"  spit -f ... -c P10G1-2        # The first 10 positions starting from 1GiB. It needs the lower range.\n");
-  fprintf(stdout,"  spit -f ... -c P10X100        # multiply the number of positions by X, here it's 100, so 1,000 positions\n");
   fprintf(stdout,"  spit -f ... -c wM1            # set block size 1M\n");
   fprintf(stdout,"  spit -f ... -c O              # One-shot, not time based\n");
   fprintf(stdout,"  spit -f ... -c t2             # specify the time per thread\n");
   fprintf(stdout,"  spit -f ... -c ws1F4          # jumble/reverse groups of 4 positions\n");
   fprintf(stdout,"  spit -f ... -c wx20           # sequentially (s1) write 20x LBA, no time limit\n");
   fprintf(stdout,"  spit -f ... -c ws0            # random defaults to 3x LBA\n");
-  fprintf(stdout,"  spit -f ... -c ws1W2:1 -t60   # Alternate run for 2 seconds, wait for 1 second\n");
   fprintf(stdout,"  spit -I devices.txt -c r      # -I is read devices from a file\n");
   fprintf(stdout,"  spit -f .... -R seed          # set the initial seed, j will increment per job\n");
   fprintf(stdout,"  spit -f .... -c q128          # per job max queue depth (max inflight is 128, submit one at a time)\n");
   fprintf(stdout,"  spit -f .... -c q32-128       # set the min queue depth to 32, submit at most 32 IOs at a time, max 128\n");
   fprintf(stdout,"  spit -f .... -c q128-128      # set queue depth to fixed at 128 IOs in flight at all time. Uses less CPU.\n");
-  fprintf(stdout,"  spit -f .... -c wns0X10       # writing the number of positions 10 times, not time based\n");
-  fprintf(stdout,"  spit -c x5                    # writing the block device size 5 times, not time based\n");
-  fprintf(stdout,"  spit -c P10x1                 # write 10 positions until the entire device size is written\n");
-  fprintf(stdout,"  spit -c P10x3                 # write 10 positions until the entire device size is written three times\n");
-  fprintf(stdout,"  spit -c P10X1                 # write 10 positions\n");
-  fprintf(stdout,"  spit -c P10000X100            # write the same 10,000 positions 100 times\n");
   fprintf(stdout,"  spit -c P10000                # write the same 10,000 positions based on the time\n");
   fprintf(stdout,"  spit -c P-10000               # A -ve P number, is determine 10,000 positions with replacement. Don't verify\n");
   fprintf(stdout,"  spit -p G -p Gs1              # precondition job, writing random, 100%% LBA, then seq job\n");
