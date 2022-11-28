@@ -77,20 +77,7 @@ static void *receiver(void *arg)
     shutdown(sockfd, SHUT_RDWR);
     close(sockfd); 
 
-    printf("Start receive file: from %s\n", addr);//inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN));
-    //    writefile(connfd, fp);
-
-
-
-    /*
-    // where socketfd is the socket you want to make non-blocking
-    int status = fcntl(connfd, F_SETFL, fcntl(connfd, F_GETFL, 0) | O_NONBLOCK);
-
-    if (status == -1){
-      perror("calling fcntl");
-      // handle the error.  By the way, I've never seen fcntl fail in this way
-    }
-    */
+    printf("New connection from %s\n", addr);
     
     char buff[MAX_LINE] = {0};
     ssize_t n;
