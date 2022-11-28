@@ -18,6 +18,7 @@ typedef struct {
   int num;
   int serverport;
   double *gbps;
+  double *lasttime;
   numListType nl;
   char **ips;
 } threadInfoType;
@@ -101,6 +102,7 @@ static void *receiver(void *arg)
     while ((n = recv(connfd, buff, MAX_LINE, 0)) > 0) 
       {
 	double thistime = timedouble();
+	tc->lasttime[tc->id] = thistime;
 	if (thistime < lasttime + 5) {
 	  globaltime += (thistime - lasttime);
 	  globalbytes += n;
@@ -138,6 +140,9 @@ void *display(void *arg) {
   while(1) {
     double t = 0;
     for (int i = 0; i < tc->num;i++) {
+      if (timedouble() - tc->lasttime[i] > 2) {
+	tc->gbps[i] = 0;
+      }
       fprintf(stdout, "[%d - %s], %.1lf Gb/s\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", tc->gbps[i]);
       t += tc->gbps[i];
     }
@@ -149,10 +154,11 @@ void *display(void *arg) {
 void startServers(size_t num) {
   pthread_t *pt;
   threadInfoType *tc;
-  double *gbps;
+  double *gbps, *lasttime;
   char **ips;
   CALLOC(gbps, num, sizeof(double));
   CALLOC(ips, num, sizeof(char*));
+  CALLOC(lasttime, num, sizeof(double));
 
   CALLOC(pt, num+1, sizeof(pthread_t));
   CALLOC(tc, num+1, sizeof(threadInfoType));
@@ -163,6 +169,7 @@ void startServers(size_t num) {
     tc[i].serverport = SERVERPORT + i;
     tc[i].gbps = gbps;
     tc[i].ips = ips;
+    tc[i].lasttime = lasttime;
     nlInit(&tc[i].nl, 10);
     pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
   }
@@ -172,6 +179,7 @@ void startServers(size_t num) {
   tc[num].serverport = 0;
   tc[num].gbps = gbps;
   tc[num].ips = ips;
+  tc[num].lasttime = lasttime;
   pthread_create(&(pt[num]), NULL, display, &(tc[num]));
 
   for (size_t i = 0; i < num+1; i++) {
