@@ -234,7 +234,7 @@ void *display(void *arg) {
     for (int i = 0; i < tc->num;i++) {
       if (nlN(&tc->nl[i]) != 0) {
 	clients++;
-	fprintf(stdout, "[%d - %s], mean = %.1lf Gb/s, n = %zd / %zd, SD = %.4lf\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", nlMean(&tc->nl[i]), nlN(&tc->nl[i]), tc->nl[i].ever, nlSD(&tc->nl[i]));
+	fprintf(stdout, "[%d - %s], mean = %.1lf Gb/s (99%% = %.1lf Gb/s), n = %zd / %zd, SD = %.4lf\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", nlMean(&tc->nl[i]), nlSortedPos(&tc->nl[i], 0.99), nlN(&tc->nl[i]), tc->nl[i].ever, nlSD(&tc->nl[i]));
 	t += nlMean(&tc->nl[i]);
       }
 
@@ -254,7 +254,7 @@ void *display(void *arg) {
     }
 
     if (count > 0) {
-      fprintf(stdout, "--> time %.1lf -- total %.2lf Gb/s (%.1lf GByte/s) -- %d clients (%.2lf Gb/s/client) -- CPU %.1lf %% (100%% is one core)\n", timedouble(), t, t/8.0, clients, t/clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
+      fprintf(stdout, "--> time %.1lf -- total %.2lf Gb/s (%.1lf GByte/s) -- %d clients (%.2lf Gb/s/client) -- CPU %.1lf %%\n", timedouble(), t, t/8.0, clients, t/clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
       fflush(stdout);
     }
     count++;
