@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
 	nlAdd(&first, result);
       }
     } else {
-      fprintf(stderr,"skipping line '%s'\n", tok1);
+      fprintf(stderr,"skipping line\n");
     }
 
   }
