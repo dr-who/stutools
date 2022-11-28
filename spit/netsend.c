@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
     srand(timedouble()*100000 + c);
     int tries = 0;
     do {
-      port = 8877 + rand()%48;
+      port = 8877 + rand()%100;
       serveraddr.sin_family = AF_INET;
       serveraddr.sin_port = htons(port);
       if (inet_pton(AF_INET, argv[1], &serveraddr.sin_addr) < 0)
