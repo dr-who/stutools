@@ -136,7 +136,7 @@ void *display(void *arg) {
 
     int clients = 0;
     for (int i = 0; i < tc->num;i++) {
-      if (timedouble() - tc->lasttime[i] > 2) {
+      if (timedouble() - tc->lasttime[i] > 5) {
 	tc->gbps[i] = 0;
       }
       if (tc->gbps[i] != 0) {
