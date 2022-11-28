@@ -215,6 +215,7 @@ void *display(void *arg) {
 
   clock_t lastclock = clock();
   double lasttime = timedouble();
+  size_t count = 0;
   while(1) {
     double t = 0;
 
@@ -234,10 +235,14 @@ void *display(void *arg) {
       }
       t += tc->gbps[i];
     }
+
+    if (count > 0) {
+      fprintf(stdout, "--> total %.2lf Gb/s (%.1lf GByte/s) -- %d clients -- CPU %.1lf %% (100%% is one core)\n", t, t/8.0, clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
+    }
+    count++;
     lasttime = timedouble();
     lastclock = clock();
     sleep(1);
-    fprintf(stdout, "--> total %.2lf Gb/s (%.1lf GByte/s) -- %d clients -- CPU %.1lf %% (100%% is one core)\n", t, t/8.0, clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
   }
 }
 
