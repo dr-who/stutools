@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
     else if (strcmp(argv[1],"sem")==0) fprintf(stdout, "%lf\n", nlSEM(&first));
     else if (strcmp(argv[1],"q25")==0) fprintf(stdout, "%lf\n", nlSortedPos(&first, 0.25));
     else if (strcmp(argv[1],"q75")==0) fprintf(stdout, "%lf\n", nlSortedPos(&first, 0.75));
-    else if (argv[1][0] == 'q') {float qq = atof(argv[1]+1)/100.0; if (qq<0) qq=0; if (qq>1) qq=1; fprintf(stdout, "%lf\n", nlSortedPos(&first, qq));}
+    else if (argv[1][0] == 'q') {float qq = atof(argv[1]+1)/100; if (qq<0) qq=-1; if (qq>=1) qq=-1; fprintf(stdout, "%lf\n", nlSortedPos(&first, qq));}
     else {
       fprintf(stderr,"*error* unknown command '%s'\n", argv[1]);
       exit(1);
