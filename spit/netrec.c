@@ -20,7 +20,7 @@ typedef struct {
   int serverport;
   double *gbps;
   double *lasttime;
-  numListType nl;
+  numListType *nl;
   char **ips;
   double starttime;
 } threadInfoType;
@@ -164,7 +164,12 @@ static void *receiver(void *arg)
     close(sockfd); 
 
     printf("New connection from %s\n", addr);
-    
+    // reset stats
+    for (int i = 0; i < tc->num; i++) {
+      nlClear(&tc->nl[i]);
+    }
+    //    printf("Cleared\n");
+        
     char buff[MAX_LINE] = {0};
     ssize_t n;
 
@@ -191,7 +196,7 @@ static void *receiver(void *arg)
 
 	const double gbps = TOGB(globalbytes) * 8 / (globaltime);
 	tc->gbps[tc->id] = gbps;
-	nlAdd(&tc->nl, gbps);
+	nlAdd(&tc->nl[tc->id], gbps);
       
 	//	fprintf(stdout,"[%d] %zd, time %.4lf,  speed %.3lf Gb/s\n", tc->id, total, globaltime/tc->num, nlMean(&tc->nl));
 
@@ -216,6 +221,7 @@ void *display(void *arg) {
   clock_t lastclock = clock();
   double lasttime = timedouble();
   size_t count = 0;
+  
   while(1) {
     double t = 0;
 
@@ -227,11 +233,18 @@ void *display(void *arg) {
     int clients = 0;
     for (int i = 0; i < tc->num;i++) {
       if (timedouble() - tc->lasttime[i] > 5) {
-	tc->gbps[i] = 0;
+	if (tc->gbps[i] != 0) {
+	  for (int i = 0; i < tc->num; i++) {
+	    nlClear(&tc->nl[i]);
+	  }
+	  tc->gbps[i] = 0;
+	  //	  printf("Cleared\n");
+	  // reset stats
+	}
       }
       if (tc->gbps[i] != 0) {
 	clients++;
-	fprintf(stdout, "[%d - %s], %.1lf Gb/s\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", tc->gbps[i]);
+	fprintf(stdout, "[%d - %s], mean = %.1lf Gb/s, n = %zd / %zd, SD = %.4lf\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", tc->gbps[i], nlN(&tc->nl[i]), tc->nl[i].ever, nlSD(&tc->nl[i]));
       }
       t += tc->gbps[i];
     }
@@ -251,13 +264,20 @@ void startServers(size_t num) {
   threadInfoType *tc;
   double *gbps, *lasttime;
   char **ips;
+  numListType *nl;
+  
   CALLOC(gbps, num, sizeof(double));
   CALLOC(ips, num, sizeof(char*));
   CALLOC(lasttime, num, sizeof(double));
 
+  CALLOC(nl, num, sizeof(numListType));
   CALLOC(pt, num+1, sizeof(pthread_t));
   CALLOC(tc, num+1, sizeof(threadInfoType));
 
+  for (size_t i = 0; i < num; i++) {
+    nlInit(&nl[i], 1000);
+  }
+  
   for (size_t i = 0; i < num; i++) {
     tc[i].id = i;
     tc[i].num = num;
@@ -266,7 +286,7 @@ void startServers(size_t num) {
     tc[i].ips = ips;
     tc[i].lasttime = lasttime;
     tc[i].starttime = timedouble();
-    nlInit(&tc[i].nl, 3);
+    tc[i].nl = nl;
     pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
   }
 
@@ -277,6 +297,7 @@ void startServers(size_t num) {
   tc[num].ips = ips;
   tc[num].lasttime = lasttime;
   tc[num].starttime = timedouble();
+  tc[num].nl = nl;
   pthread_create(&(pt[num]), NULL, display, &(tc[num]));
 
   for (size_t i = 0; i < num+1; i++) {

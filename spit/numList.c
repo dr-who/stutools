@@ -13,21 +13,31 @@
 #include "utils.h"
 #include "numList.h"
 
+void nlClear(numListType *n) {
+  n->num = 0;
+  n->sortedValue = 0;
+  n->sortedAge = 1;
+  n->addat = 0;
+}
 
 void nlInit(numListType *n, int window) {
   memset(n, 0, sizeof(numListType));
   if (window <= 0) window = 1;
-  n->num = 0;
+  //  n->num = 0;
   assert(window);
   n->values = calloc(window, sizeof(pointType));
   assert(n->values);
-  n->sortedValue = 0;
-  n->sortedAge = 1;
+  //  n->sortedValue = 0;
+  //  n->sortedAge = 1;
   n->ever = 0;
-  n->addat = 0;
+  //  n->addat = 0;
   n->window = window;
   n->label = NULL;
+  nlClear(n);
 }
+
+
+
 
 void nlFree(numListType *n) {
   if (n->values) free(n->values);
@@ -55,8 +65,8 @@ char *nlLabel(numListType *n) {
 
 static int nl_sortfunctionvalue(const void *origp1, const void *origp2)
 {
-  pointType *p1 = (pointType*)origp1;
-  pointType *p2 = (pointType*)origp2;
+  const pointType *p1 = (pointType*)origp1;
+  const pointType *p2 = (pointType*)origp2;
   
   if (p1->value < p2->value) return -1;
   else if (p1->value > p2->value) return 1;
@@ -66,8 +76,8 @@ static int nl_sortfunctionvalue(const void *origp1, const void *origp2)
 
 static int nl_sortfunctionage(const void *origp1, const void *origp2)
 {
-  pointType *p1 = (pointType*)origp1;
-  pointType *p2 = (pointType*)origp2;
+  const pointType *p1 = (pointType*)origp1;
+  const pointType *p2 = (pointType*)origp2;
   
   if (p1->age < p2->age) return -1;
   else if (p1->age > p2->age) return 1;
@@ -76,16 +86,17 @@ static int nl_sortfunctionage(const void *origp1, const void *origp2)
 
 
 
-size_t nlAdd(numListType *n, double value) {
+size_t nlAdd(numListType *n, const double value) {
 
   if (n->sortedAge == 0) {
     //    fprintf(stderr,"sort by age\n");
-    if (n->num >= 2) {
-      qsort(n->values, n->num, sizeof(pointType), nl_sortfunctionage);
+    const size_t nnum = n->num;
+    if (nnum >= 2) {
+      qsort(n->values, nnum, sizeof(pointType), nl_sortfunctionage);
     }
     n->sortedAge = 1;
     n->sortedValue = 0;
-    n->addat = n->num; // add at the end
+    n->addat = nnum; // add at the end
   }
 
   if (n->addat >= n->window) {
@@ -118,7 +129,7 @@ void nlSort(numListType *n) {
   }
 }
 
-size_t nlIndexPos(numListType *n, double pos) {
+size_t nlIndexPos(numListType *n, const double pos) {
   nlSort(n);
   assert(pos>=0);
   assert(pos <= 1);
@@ -151,12 +162,14 @@ double nlMax(numListType *n) {
 
 
   
-double nlSortedPos(numListType *n, double pos) {
+double nlSortedPos(numListType *n, const double pos) {
+  const size_t nnum = n->num;
+  
   nlSort(n);
   assert(pos>=0);
   assert(pos <= 1);
 
-  size_t i = ceil((n->num - 1) * pos);
+  const size_t i = ceil((nnum - 1) * pos);
   //  fprintf(stderr,"** sorted pos %lf. Index pos 0..%zd, index = %zd\n", pos, n->num-1, i);
   //  nlDump(n);
 
@@ -167,7 +180,7 @@ double nlSortedPos(numListType *n, double pos) {
   } else {
   // odd*/
 
-  if (i >= n->num) {
+  if (i >= nnum) {
     return NAN;
   } else {
     return n->values[i].value;
@@ -254,27 +267,29 @@ double nlMedian(numListType *n) {
 
 double nlMean(numListType *n) {
   double sum = 0;
+  const size_t nnum = n->num;
   
-  for (size_t i = 0; i < n->num; i++) {
+  for (size_t i = 0; i < nnum; i++) {
     sum += n->values[i].value;
   }
-  if (n->num > 0) {
-    sum = sum / n->num;
+  if (nnum > 0) {
+    sum = sum / nnum;
   }
   return sum;
 }
 
 
 double nlSD(numListType *l) {
-  double mean = nlMean(l);
+  const double mean = nlMean(l);
   double sum = 0;
+  const size_t nnum = l->num;
 
-  if (l->num >= 2) {
-    for (size_t i = 0; i < l->num; i++) {
+  if (nnum >= 2) {
+    for (size_t i = 0; i < nnum; i++) {
       double val = l->values[i].value - mean;
       sum += (val * val);
     }
-    return sqrt(sum / (l->num-1));
+    return sqrt(sum / (nnum - 1));
   } else {
     return NAN;
   }
