@@ -225,20 +225,27 @@ void *display(void *arg) {
   while(1) {
     double t = 0;
 
-    if (timedouble() - tc->starttime > 3600) {
+    const double thistime = timedouble();
+    
+    if (thistime - tc->starttime > 3600) {
       fprintf(stderr,"*warning* server running for too long, exiting\n");
       exit(1);
     }
 
     int clients = 0;
     for (int i = 0; i < tc->num;i++) {
+      char *starslist[]={"","*","**","***","****","*****"};
+      int stars = 0;
+      if (thistime - tc->lasttime[i] > 1) {
+	stars = MIN(sizeof(starslist)/sizeof(char*), (size_t)(thistime - tc->lasttime[i]));;
+      }
       if (nlN(&tc->nl[i]) != 0) {
 	clients++;
-	fprintf(stdout, "[%d - %s], mean = %.1lf Gb/s (99%% = %.1lf Gb/s), n = %zd / %zd, SD = %.4lf\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", nlMean(&tc->nl[i]), nlSortedPos(&tc->nl[i], 0.99), nlN(&tc->nl[i]), tc->nl[i].ever, nlSD(&tc->nl[i]));
+	fprintf(stdout, "[%d - %s], mean = %.1lf Gb/s (99%% = %.1lf Gb/s), n = %zd / %zd, SD = %.4lf %s\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", nlMean(&tc->nl[i]), nlSortedPos(&tc->nl[i], 0.99), nlN(&tc->nl[i]), tc->nl[i].ever, nlSD(&tc->nl[i]), starslist[stars]);
 	t += nlMean(&tc->nl[i]);
       }
 
-      if (timedouble() - tc->lasttime[i] > 5) {
+      if (thistime - tc->lasttime[i] > 5) {
 	if (nlN(&tc->nl[i]) != 0) {
 	  for (int ii = 0; ii < tc->num; ii++) {
 	    nlShrink(&tc->nl[ii], 10);
