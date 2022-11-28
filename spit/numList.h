@@ -1,6 +1,9 @@
 #ifndef __NUMLIST_H
 #define __NUMLIST_H
 
+#include <math.h>
+#include "pthread.h"
+
 typedef struct {
   double value;
   size_t age;
@@ -8,12 +11,12 @@ typedef struct {
 
 typedef struct {
   size_t num;
-  int sortedValue, sortedAge;
   size_t addat;
   pointType *values;
   size_t ever, window;
   //  double sum;
   char *label;
+  pthread_mutex_t lock;
 } numListType;
 
 
@@ -28,7 +31,7 @@ void nlSort(numListType *n);
 void nlSetLabel(numListType *n, const char *label);
 char * nlLabel(numListType *n);
 
-double nlSortedPos(numListType *n, double pos);
+double nlSortedPos(numListType *n, const double pos);
 
 double nlSortedSmoothed(numListType *n);
 

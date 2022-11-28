@@ -25,6 +25,9 @@ target_link_libraries(netrec spitlib m aio pthread numa pci)
 add_executable(netsend netsend.c transfer.h)
 target_link_libraries(netsend spitlib m aio pthread numa)
 
+add_executable(numListTest numListTest.c)
+target_link_libraries(numListTest spitlib m aio pthread numa)
+
 add_executable(pair pair.c )
 target_link_libraries(pair spitlib m )
 
@@ -101,6 +104,7 @@ install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist DESTINAT
 #add_test(tds testDiskStats)
 
 
+add_test(testnumList numListTest)
 add_test(testspitHelp  spit)
 add_test(testspitfail1  spit -c r)
 set_tests_properties(testspitfail1 PROPERTIES WILL_FAIL TRUE )

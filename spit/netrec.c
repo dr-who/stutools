@@ -7,6 +7,8 @@
 #include <time.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <assert.h>
+
 #include "transfer.h"
 
 #include "utils.h"
@@ -18,7 +20,7 @@ typedef struct {
   int id;
   int num;
   int serverport;
-  double *gbps;
+  //  double *gbps;
   double *lasttime;
   numListType *nl;
   char **ips;
@@ -170,43 +172,28 @@ static void *receiver(void *arg)
     }
     //    printf("Cleared\n");
         
-    char buff[MAX_LINE] = {0};
+    char *buff = malloc(BUFFSIZE); assert(buff);
     ssize_t n;
 
     double lasttime = timedouble();
-    ssize_t total = 0;
     
-    double globaltime = 0;
-    size_t globalbytes = 0;
-    while ((n = recv(connfd, buff, MAX_LINE, 0)) > 0) 
+    while ((n = recv(connfd, buff, BUFFSIZE, 0)) > 0) 
       {
-	double thistime = timedouble();
-
+	const double thistime = timedouble();
 	tc->lasttime[tc->id] = thistime;
-	if (thistime < lasttime + 5) {
-	  globaltime += (thistime - lasttime);
-	  globalbytes += n;
-	} else {
-	  globalbytes = 0;
-	  globaltime = 0;
-	}
+	const double gaptime = thistime - lasttime;
+
 	lasttime = thistime;
       
-	total+=n;
-
-	const double gbps = TOGB(globalbytes) * 8 / (globaltime);
-	tc->gbps[tc->id] = gbps;
+	const double gbps = TOGB(n) * 8 / (gaptime);
+	//	tc->gbps[tc->id] = gbps;
 	nlAdd(&tc->nl[tc->id], gbps);
       
-	//	fprintf(stdout,"[%d] %zd, time %.4lf,  speed %.3lf Gb/s\n", tc->id, total, globaltime/tc->num, nlMean(&tc->nl));
-
 	if (n == -1)
 	  {
 	    perror("Receive File Error");
 	    exit(1);
 	  }
-      
-	//	printf("Receive Success, NumBytes = %ld\n", total);
       }
 
     close(connfd);
@@ -232,21 +219,22 @@ void *display(void *arg) {
 
     int clients = 0;
     for (int i = 0; i < tc->num;i++) {
+      if (nlN(&tc->nl[i]) != 0) {
+	clients++;
+	fprintf(stdout, "[%d - %s], mean = %.1lf Gb/s, n = %zd / %zd, SD = %.4lf\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", nlMean(&tc->nl[i]), nlN(&tc->nl[i]), tc->nl[i].ever, nlSD(&tc->nl[i]));
+	t += nlMean(&tc->nl[i]);
+      }
+
       if (timedouble() - tc->lasttime[i] > 5) {
-	if (tc->gbps[i] != 0) {
+	if (nlN(&tc->nl[i]) != 0) {
 	  for (int i = 0; i < tc->num; i++) {
 	    nlClear(&tc->nl[i]);
 	  }
-	  tc->gbps[i] = 0;
+	  //	  tc->gbps[i] = 0;
 	  //	  printf("Cleared\n");
 	  // reset stats
 	}
       }
-      if (tc->gbps[i] != 0) {
-	clients++;
-	fprintf(stdout, "[%d - %s], mean = %.1lf Gb/s, n = %zd / %zd, SD = %.4lf\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", tc->gbps[i], nlN(&tc->nl[i]), tc->nl[i].ever, nlSD(&tc->nl[i]));
-      }
-      t += tc->gbps[i];
     }
 
     if (count > 0) {
@@ -263,11 +251,11 @@ void *display(void *arg) {
 void startServers(size_t num) {
   pthread_t *pt;
   threadInfoType *tc;
-  double *gbps, *lasttime;
+  double *lasttime;
   char **ips;
   numListType *nl;
   
-  CALLOC(gbps, num, sizeof(double));
+  //  CALLOC(gbps, num, sizeof(double));
   CALLOC(ips, num, sizeof(char*));
   CALLOC(lasttime, num, sizeof(double));
 
@@ -276,14 +264,14 @@ void startServers(size_t num) {
   CALLOC(tc, num+1, sizeof(threadInfoType));
 
   for (size_t i = 0; i < num; i++) {
-    nlInit(&nl[i], 10000);
+    nlInit(&nl[i], 1000);
   }
   
   for (size_t i = 0; i < num; i++) {
     tc[i].id = i;
     tc[i].num = num;
     tc[i].serverport = SERVERPORT + i;
-    tc[i].gbps = gbps;
+    //    tc[i].gbps = gbps;
     tc[i].ips = ips;
     tc[i].lasttime = lasttime;
     tc[i].starttime = timedouble();
@@ -294,7 +282,7 @@ void startServers(size_t num) {
   tc[num].id=num;
   tc[num].num=num;
   tc[num].serverport = 0;
-  tc[num].gbps = gbps;
+  //  tc[num].gbps = gbps;
   tc[num].ips = ips;
   tc[num].lasttime = lasttime;
   tc[num].starttime = timedouble();

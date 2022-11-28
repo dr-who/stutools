@@ -14,10 +14,11 @@
 #include "numList.h"
 
 void nlClear(numListType *n) {
+  pthread_mutex_lock(&n->lock);
   n->num = 0;
-  n->sortedValue = 0;
-  n->sortedAge = 1;
   n->addat = 0;
+  pthread_mutex_unlock(&n->lock);
+
 }
 
 void nlInit(numListType *n, int window) {
@@ -27,13 +28,15 @@ void nlInit(numListType *n, int window) {
   assert(window);
   n->values = calloc(window, sizeof(pointType));
   assert(n->values);
-  //  n->sortedValue = 0;
-  //  n->sortedAge = 1;
   n->ever = 0;
   //  n->addat = 0;
   n->window = window;
   n->label = NULL;
   nlClear(n);
+  if (pthread_mutex_init(&n->lock, NULL) != 0) {
+    fprintf(stderr,"*error* mutex lock has failed\n");
+    exit(1);
+  }
 }
 
 
@@ -42,6 +45,7 @@ void nlInit(numListType *n, int window) {
 void nlFree(numListType *n) {
   if (n->values) free(n->values);
   if (n->label) free(n->label);
+  pthread_mutex_destroy(&n->lock);
   memset(n, 0, sizeof(numListType));
 }
 
@@ -63,42 +67,18 @@ char *nlLabel(numListType *n) {
   return n->label;
 }
 
-static int nl_sortfunctionvalue(const void *origp1, const void *origp2)
+static int sortdouble(const void *origp1, const void *origp2)
 {
-  const pointType *p1 = (pointType*)origp1;
-  const pointType *p2 = (pointType*)origp2;
-  
-  if (p1->value < p2->value) return -1;
-  else if (p1->value > p2->value) return 1;
+  const double *d1 = (double*)origp1;
+  const double *d2 = (double*)origp2;
+  if (*d1 < *d2) return -1;
+  else if (*d1 > *d2) return 1;
   else return 0;
 }
-
-
-static int nl_sortfunctionage(const void *origp1, const void *origp2)
-{
-  const pointType *p1 = (pointType*)origp1;
-  const pointType *p2 = (pointType*)origp2;
-  
-  if (p1->age < p2->age) return -1;
-  else if (p1->age > p2->age) return 1;
-  else return 0;
-}
-
 
 
 size_t nlAdd(numListType *n, const double value) {
-
-  if (n->sortedAge == 0) {
-    //    fprintf(stderr,"sort by age\n");
-    const size_t nnum = n->num;
-    if (nnum >= 2) {
-      qsort(n->values, nnum, sizeof(pointType), nl_sortfunctionage);
-    }
-    n->sortedAge = 1;
-    n->sortedValue = 0;
-    n->addat = nnum; // add at the end
-  }
-
+  pthread_mutex_lock(&n->lock);
   if (n->addat >= n->window) {
     n->addat = n->addat - n->window;
   }
@@ -109,86 +89,74 @@ size_t nlAdd(numListType *n, const double value) {
   n->num++; if (n->num > n->window) n->num = n->window;
   n->addat++;
 
-  //  nlDump(n);
-
+  pthread_mutex_unlock(&n->lock);
   return n->num;
 }
 
 
-/*double nlSum(numListType *n) {
-  return n->sum;
-  }*/
+// 0 first (min)
+// 0.5 is median
+// -1 is last (max)
+// >1 is position
+double nlSortedPos(numListType *n, const double pos) { 
+  double ret = NAN;
 
-void nlSort(numListType *n) {
-  if (!n->sortedValue) {
-    //    fprintf(stderr,"sort by value\n");
-    qsort(n->values, n->num, sizeof(pointType), nl_sortfunctionvalue);
-    //    nlDump(n);
-    n->sortedValue = 1;
-    n->sortedAge = 0;
+  pthread_mutex_lock(&n->lock);
+  size_t nnum = n->num;
+  double *d = calloc((nnum+1), sizeof(double)); // add one so 0 values have a mean of 0
+  assert(d);
+
+  for (size_t i = 0 ; i < nnum; i++) {
+    d[i] = n->values[i].value;
   }
-}
+  qsort(d, nnum, sizeof(double), sortdouble);
+  /*  for (size_t i = 0; i < nnum; i++) {
+      printf("%lf ", d[i]);
+    }
+    printf("\n");*/
+      
+  pthread_mutex_unlock(&n->lock);
 
-size_t nlIndexPos(numListType *n, const double pos) {
-  nlSort(n);
-  assert(pos>=0);
-  assert(pos <= 1);
 
-  size_t i = ceil((n->num - 1) * pos);
-  return i;
+  if (nnum == 0) {
+    ret = 0;
+  } else if (pos == 0) {
+    ret = d[0];
+  } else if (pos == -1) {
+    ret = d[nnum-1];
+  } else if ((nnum > 0) && (pos < 1)) {
+    size_t mid = (size_t)((nnum-1) * pos);
+    if ((nnum % 2) == 0) {
+      // even
+      ret = (d[mid] + d[mid+1])/2.0;
+    } else {
+      ret = d[mid];
+    }
+  } else if (pos < nnum) {
+    ret = d[(size_t)pos];
+  } else {
+    fprintf(stderr,"*error* pos get out of range [0..%zd) ask %lf\n", nnum, pos);
+  }
+  free(d);
+
+  return ret;
 }
 
 double nlMin(numListType *n) {
-  nlSort(n);
-
-  if (n->num == 0) {
-    return NAN;
-  } else {
-    return n->values[0].value;
-  }
+  return nlSortedPos(n, 0);
 }
 
 
 double nlMax(numListType *n) {
-  nlSort(n);
+  return nlSortedPos(n, -1);
+}
 
-  if (n->num == 0) {
-    return NAN;
-  } else {
-    return n->values[n->num - 1].value;
-  }
+double nlMedian(numListType *n) {
+  return nlSortedPos(n, 0.5);
 }
 
 
-
-  
-double nlSortedPos(numListType *n, const double pos) {
-  const size_t nnum = n->num;
-  
-  nlSort(n);
-  assert(pos>=0);
-  assert(pos <= 1);
-
-  const size_t i = ceil((nnum - 1) * pos);
-  //  fprintf(stderr,"** sorted pos %lf. Index pos 0..%zd, index = %zd\n", pos, n->num-1, i);
-  //  nlDump(n);
-
-
-  //    fprintf(stdout,"*info* index %zd (%zd and %lf)\n", i, n->num, pos);
-    /*  if ((i % 2) == 1) {
-    return (n->values[i].value + n->values[i+1].value) / 2.0;
-  } else {
-  // odd*/
-
-  if (i >= nnum) {
-    return NAN;
-  } else {
-    return n->values[i].value;
-  }
-}
-
-
-double nlSortedSmoothed(numListType *n) {
+/*double nlSortedSmoothed(numListType *n) {
   nlSort(n);
   double v = 0;
   double weight = 0;
@@ -213,6 +181,7 @@ double nlSortedSmoothed(numListType *n) {
   return tot;
 }
 
+*/
 
   
 double nlMode(numListType *n, size_t buckets, size_t div) {
@@ -247,25 +216,9 @@ double nlMode(numListType *n, size_t buckets, size_t div) {
 }
 
   
-double nlMedian(numListType *n) {
-  if (n->num > 0) {
-    if ((n->num % 2) == 0) {
-      size_t p = nlIndexPos(n, 0.5);
-      if (p == 0) {
-	return n->values[p].value;
-      } else {
-	// we have two values
-	return (n->values[p].value + n->values[p-1].value)/2;
-      }
-    } else {
-      return nlSortedPos(n, 0.5);
-    }
-  } else {
-    return NAN;
-  }
-}
 
 double nlMean(numListType *n) {
+  pthread_mutex_lock(&n->lock);
   double sum = 0;
   const size_t nnum = n->num;
   
@@ -275,13 +228,16 @@ double nlMean(numListType *n) {
   if (nnum > 0) {
     sum = sum / nnum;
   }
+  pthread_mutex_unlock(&n->lock);
   return sum;
 }
 
 
 double nlSD(numListType *l) {
   const double mean = nlMean(l);
-  double sum = 0;
+
+  pthread_mutex_lock(&l->lock);
+  double sum = 0, ret = 0;
   const size_t nnum = l->num;
 
   if (nnum >= 2) {
@@ -289,10 +245,12 @@ double nlSD(numListType *l) {
       double val = l->values[i].value - mean;
       sum += (val * val);
     }
-    return sqrt(sum / (nnum - 1));
+    ret = sqrt(sum / (nnum - 1));
   } else {
-    return NAN;
+    ret = NAN;
   }
+  pthread_mutex_unlock(&l->lock);
+  return ret;
 }
 
 double nlSEM(numListType *l) {
