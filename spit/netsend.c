@@ -16,7 +16,7 @@ void sendfile(FILE *fp, int sockfd);
 ssize_t total=0;
 int main(int argc, char* argv[])
 {
-    if (argc != 2) 
+  if (argc < 2)
     {
         perror("usage:netsend  <IPaddress>");
         exit(1);
@@ -72,7 +72,16 @@ int main(int argc, char* argv[])
     assert(buff);
 
     ssize_t n;
+    clock_t lastclock = clock();
+    double lasttime = timedouble();
     while ((n = send(sockfd, buff, BUFFSIZE, 0)) > 0) {
+      if (argc > 2) {
+	if (timedouble() - lasttime> 1) {
+	  fprintf(stdout,"*info* CPU %.1lf %% (100%% is one core)\n", (clock() - lastclock) * 100.0 / (timedouble() - lasttime) / CLOCKS_PER_SEC);
+	  lasttime = timedouble();
+	  lastclock = clock();
+	}
+      }
       //      fprintf(stderr,"sent %zd\n", n);
     }
     
