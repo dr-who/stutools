@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 	{
 	  //	  perror("Listening port not available");
 	  tries++;
-	  if (tries > 10000) {
+	  if (tries > 1000) {
 	    fprintf(stderr,"*error* couldn't find any ports. exiting\n");
 	    exit(1);
 	  }
