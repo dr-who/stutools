@@ -156,7 +156,7 @@ void *display(void *arg) {
       }
       t += tc->gbps[i];
     }
-    fprintf(stdout, "--> total %.2lf Gb/s\n", t);
+    fprintf(stdout, "--> total %.2lf Gb/s (%.1lf GByte/s)\n", t, t/8.0);
     sleep(1);
   }
 }
