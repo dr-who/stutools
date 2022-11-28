@@ -1534,7 +1534,14 @@ void dumpEthernet() {
       }
 
 
-      printf("speed = %.1lf Gb/s (speed = %g GT/s, width = %g lanes)", maxlink * maxwidth * 8.0/10, maxlink, maxwidth);
+      double speed = 0;
+      if (maxlink <= 5) {
+	speed = maxlink * maxwidth * 8.0/10; // PCIe-2
+      } else {
+	speed = maxlink * maxwidth * 128/130; // PCIe-3 encoding
+      }
+      
+      printf("speed = %.1lf Gb/s (speed = %g GT/s, width = %g lanes)", speed, maxlink, maxwidth);
       /* Look up and print the full name of the device */
       char namebuf[1000];
       char *name = pci_lookup_name(pacc, namebuf, sizeof(namebuf), PCI_LOOKUP_DEVICE, dev->vendor_id, dev->device_id);
