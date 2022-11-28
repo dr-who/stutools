@@ -6,8 +6,8 @@
 void test1(numListType *nl) {
   nlInit(nl, 1);
   assert(nlN(nl) == 0);
-  assert(nlMean(nl) == 0);
-  assert(nlMedian(nl) == 0);
+  assert(isnan(nlMean(nl)));
+  assert(isnan(nlMedian(nl)));
   
   nlAdd(nl, 1);
   assert(nlN(nl) == 1);
@@ -23,8 +23,8 @@ void test1(numListType *nl) {
 
   nlInit(nl, 10);
   assert(nlN(nl) == 0);
-  assert(nlMean(nl) == 0);
-  assert(nlMedian(nl) == 0);
+  assert(isnan(nlMean(nl)));
+  assert(isnan(nlMedian(nl)));
 
   nlAdd(nl, 1);
   nlAdd(nl, 2);
@@ -35,8 +35,8 @@ void test1(numListType *nl) {
 
   nlClear(nl);
   assert(nlN(nl) == 0);
-  assert(nlMean(nl) == 0);
-  assert(nlMedian(nl) == 0);
+  assert(isnan(nlMean(nl)));
+  assert(isnan(nlMedian(nl)));
 
     nlAdd(nl, 1);
   nlAdd(nl, 2);
@@ -47,8 +47,8 @@ void test1(numListType *nl) {
   nlFree(nl);
 
   assert(nlN(nl) == 0);
-  assert(nlMean(nl) == 0);
-  assert(nlMedian(nl) == 0);
+  assert(isnan(nlMean(nl)));
+  assert(isnan(nlMedian(nl)));
 
 }
 
@@ -109,8 +109,10 @@ void test3(numListType *nl) {
 
 void test4even(numListType *nl) {
   nlInit(nl, 10);
-  assert(nlMin(nl) == 0);
-  assert(nlMedian(nl) == 0);
+  assert(isnan(nlMax(nl)));
+  assert(isnan(nlMin(nl)));
+  assert(isnan(nlSortedPos(nl,0.5)));
+  assert(isnan(nlMedian(nl)));
 
   nlAdd(nl, -1);
   assert(nlMedian(nl) == -1);

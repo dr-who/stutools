@@ -122,7 +122,7 @@ double nlSortedPos(numListType *n, const double pos) {
 
 
   if (nnum == 0) {
-    ret = 0;
+    ret = NAN;
   } else if (pos == 0) {
     ret = d[0];
   } else if (pos == -1) {
@@ -230,6 +230,8 @@ double nlMean(numListType *n) {
   }
   if (nnum > 0) {
     sum = sum / nnum;
+  } else {
+    sum = NAN;
   }
   pthread_mutex_unlock(&n->lock);
   return sum;
