@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
       usleep(1);
     } while(1);
       
-    fprintf(stdout,"*info* connected on port %d\n", port);
+    //    fprintf(stdout,"*info* connected on port %d\n", port);
     
     char *buff = malloc(BUFFSIZE);
     assert(buff);
