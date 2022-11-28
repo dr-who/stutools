@@ -236,9 +236,12 @@ void *display(void *arg) {
     for (int i = 0; i < tc->num;i++) {
       char *starslist[]={"","*","**","***","****","*****"};
       int stars = 0;
+      assert(sizeof(starslist)/sizeof(char*) == 6); 
+      
       if (thistime - tc->lasttime[i] > 1) {
-	stars = MIN(sizeof(starslist)/sizeof(char*), (size_t)(thistime - tc->lasttime[i]));;
+	stars = MIN(sizeof(starslist)/sizeof(char*) - 1, (size_t)(thistime - tc->lasttime[i]));;
       }
+      
       if (nlN(&tc->nl[i]) != 0) {
 	clients++;
 	fprintf(stdout, "[%d - %s], mean = %.1lf Gb/s (99%% = %.1lf Gb/s), n = %zd / %zd, SD = %.4lf %s\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", nlMean(&tc->nl[i]), nlSortedPos(&tc->nl[i], 0.99), nlN(&tc->nl[i]), tc->nl[i].ever, nlSD(&tc->nl[i]), starslist[stars]);
