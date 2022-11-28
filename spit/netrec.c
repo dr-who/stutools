@@ -250,7 +250,8 @@ void *display(void *arg) {
     }
 
     if (count > 0) {
-      fprintf(stdout, "--> total %.2lf Gb/s (%.1lf GByte/s) -- %d clients -- CPU %.1lf %% (100%% is one core)\n", t, t/8.0, clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
+      fprintf(stdout, "--> time %.1lf -- total %.2lf Gb/s (%.1lf GByte/s) -- %d clients (%.2lf Gb/s/client) -- CPU %.1lf %% (100%% is one core)\n", timedouble(), t, t/8.0, clients, t/clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
+      fflush(stdout);
     }
     count++;
     lasttime = timedouble();
@@ -275,7 +276,7 @@ void startServers(size_t num) {
   CALLOC(tc, num+1, sizeof(threadInfoType));
 
   for (size_t i = 0; i < num; i++) {
-    nlInit(&nl[i], 1000);
+    nlInit(&nl[i], 10000);
   }
   
   for (size_t i = 0; i < num; i++) {
