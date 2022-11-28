@@ -146,17 +146,19 @@ void *display(void *arg) {
       fprintf(stderr,"*warning* server running for too long, exiting\n");
       exit(1);
     }
-    
+
+    int clients = 0;
     for (int i = 0; i < tc->num;i++) {
       if (timedouble() - tc->lasttime[i] > 2) {
 	tc->gbps[i] = 0;
       }
       if (tc->gbps[i] != 0) {
+	clients++;
 	fprintf(stdout, "[%d - %s], %.1lf Gb/s\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", tc->gbps[i]);
       }
       t += tc->gbps[i];
     }
-    fprintf(stdout, "--> total %.2lf Gb/s (%.1lf GByte/s)\n", t, t/8.0);
+    fprintf(stdout, "--> total %.2lf Gb/s (%.1lf GByte/s) -- %d clients\n", t, t/8.0, clients);
     sleep(1);
   }
 }
