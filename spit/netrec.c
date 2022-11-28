@@ -179,18 +179,28 @@ static void *receiver(void *arg)
     ssize_t n;
 
     double lasttime = timedouble();
+
+    double sumTime = 0;
+    size_t sumBytes = 0;
     
     while ((n = recv(connfd, buff, BUFFSIZE, 0)) > 0) 
       {
 	const double thistime = timedouble();
 	tc->lasttime[tc->id] = thistime;
 	const double gaptime = thistime - lasttime;
-
 	lasttime = thistime;
-      
-	const double gbps = TOGB(n) * 8 / (gaptime);
-	//	tc->gbps[tc->id] = gbps;
-	nlAdd(&tc->nl[tc->id], gbps);
+
+	sumTime += gaptime;
+	sumBytes += n;
+
+	if (sumTime > 0.01) { // every 1/100 sec then add a data point
+	  const double gbps = TOGB(sumBytes) * 8 / (sumTime);
+	  //	tc->gbps[tc->id] = gbps;
+	  nlAdd(&tc->nl[tc->id], gbps);
+
+	  sumTime = 0;
+	  sumBytes = 0;
+	}
       
 	if (n == -1)
 	  {
