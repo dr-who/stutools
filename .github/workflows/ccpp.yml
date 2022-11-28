@@ -9,6 +9,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
+    - name: aptupdate
+      run: sudo apt-get update
     - name: apt 
       run: sudo apt-get install libaio-dev libnuma-dev libpci-dev
     - name: cmake 
