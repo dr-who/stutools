@@ -202,6 +202,8 @@ int main() {
     }*/
   int threads = 100;
   fprintf(stderr,"*info* starting netspeed receiver -- %d ports\n", threads);
+  dumpEthernet();
+
   if (threads < 1) threads = 1;
   // start servers
   startServers(threads);

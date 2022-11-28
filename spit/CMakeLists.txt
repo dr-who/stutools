@@ -17,13 +17,13 @@ set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wall -pedantic --std=gn
 add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c procDiskStats.c mapVoid.c)
 
 add_executable(spit spit.c)
-target_link_libraries(spit spitlib m aio pthread numa)
+target_link_libraries(spit spitlib m aio pthread numa pci)
 
 add_executable(netrec netrec.c transfer.h)
-target_link_libraries(netrec spitlib m aio pthread numa)
+target_link_libraries(netrec spitlib m aio pthread numa pci)
 
 add_executable(netsend netsend.c transfer.h)
-target_link_libraries(netsend spitlib m aio pthread numa)
+target_link_libraries(netsend spitlib m aio pthread numa pci)
 
 add_executable(pair pair.c )
 target_link_libraries(pair spitlib m )
@@ -32,68 +32,68 @@ add_executable(stat stat.c )
 target_link_libraries(stat spitlib m )
 
 add_executable(diskperf diskperf.c)
-target_link_libraries(diskperf spitlib m aio pthread numa)
+target_link_libraries(diskperf spitlib m aio pthread numa pci)
 
 add_executable(diskpoll diskpoll.c)
-target_link_libraries(diskpoll spitlib m aio pthread numa)
+target_link_libraries(diskpoll spitlib m aio pthread numa pci)
 
 add_executable(diskserial diskserial.c)
-target_link_libraries(diskserial spitlib m aio pthread numa)
+target_link_libraries(diskserial spitlib m aio pthread numa pci)
 
 add_executable(pmemwreck pmemwreck.c)
-target_link_libraries(pmemwreck spitlib m aio pthread numa)
+target_link_libraries(pmemwreck spitlib m aio pthread numa pci)
 
 add_executable(xorrupt xorrupt.c)
-target_link_libraries(xorrupt spitlib m aio pthread numa)
+target_link_libraries(xorrupt spitlib m aio pthread numa pci)
 
 add_executable(entropy entropy.c)
 target_link_libraries(entropy m)
 
 add_executable(randdd randdd.c)
-target_link_libraries(randdd spitlib m aio pthread numa)
+target_link_libraries(randdd spitlib m aio pthread numa pci)
 
 add_executable(trim trim.c)
-target_link_libraries(trim spitlib m aio pthread numa)
+target_link_libraries(trim spitlib m aio pthread numa pci)
 
 add_executable(median2d median2d.c)
 target_link_libraries(median2d spitlib m)
 
 add_executable(fsfiller fsfiller.c)
-target_link_libraries(fsfiller spitlib m aio pthread numa)
+target_link_libraries(fsfiller spitlib m aio pthread numa pci)
 
 add_executable(spitchecker verify.c)
-target_link_libraries(spitchecker spitlib m aio pthread numa)
+target_link_libraries(spitchecker spitlib m aio pthread numa pci)
 
 add_executable(spitchecker2 bv2.c)
-target_link_libraries(spitchecker2 spitlib m aio pthread numa )
+target_link_libraries(spitchecker2 spitlib m aio pthread numa pci )
 
 add_executable(positionLoader positionLoader.c)
-target_link_libraries(positionLoader spitlib m aio pthread numa)
+target_link_libraries(positionLoader spitlib m aio pthread numa pci)
 
 add_executable(raidcorrupt raidcorrupt.c)
-target_link_libraries(raidcorrupt spitlib m aio pthread numa)
+target_link_libraries(raidcorrupt spitlib m aio pthread numa pci)
 
 add_executable(devcontents devcontents.c sha-256.c)
-target_link_libraries(devcontents spitlib m aio pthread numa)
+target_link_libraries(devcontents spitlib m aio pthread numa pci)
 
 add_executable(bdinfo bdinfo.c)
-target_link_libraries(bdinfo spitlib m aio pthread numa)
+target_link_libraries(bdinfo spitlib m aio pthread numa pci)
 
 add_executable(dtest directories.c)
-target_link_libraries(dtest spitlib m aio pthread numa)
+target_link_libraries(dtest spitlib m aio pthread numa pci)
 
 add_executable(hist hist.c)
-target_link_libraries(hist spitlib m numa)
+target_link_libraries(hist spitlib m numa pci)
 
 add_executable(genpositions genpositions.c)
-target_link_libraries(genpositions spitlib m aio pthread numa)
+target_link_libraries(genpositions spitlib m aio pthread numa pci)
 
 
 #add_executable(testpositions testpositions.c)
 #target_link_libraries(testpositions spitlib m pthread aio)
 
 add_executable(testDiskStats testDiskStats.c)
-target_link_libraries(testDiskStats spitlib m numa pthread)
+target_link_libraries(testDiskStats spitlib m numa pci pthread)
 
 install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist DESTINATION bin)
 
