@@ -21,6 +21,7 @@ typedef struct {
   double *lasttime;
   numListType nl;
   char **ips;
+  double starttime;
 } threadInfoType;
 
 static void *receiver(void *arg) 
@@ -102,6 +103,7 @@ static void *receiver(void *arg)
     while ((n = recv(connfd, buff, MAX_LINE, 0)) > 0) 
       {
 	double thistime = timedouble();
+
 	tc->lasttime[tc->id] = thistime;
 	if (thistime < lasttime + 5) {
 	  globaltime += (thistime - lasttime);
@@ -139,6 +141,12 @@ void *display(void *arg) {
   threadInfoType *tc = (threadInfoType*)arg;
   while(1) {
     double t = 0;
+
+    if (timedouble() - tc->starttime > 3600) {
+      fprintf(stderr,"*warning* server running for too long, exiting\n");
+      exit(1);
+    }
+    
     for (int i = 0; i < tc->num;i++) {
       if (timedouble() - tc->lasttime[i] > 2) {
 	tc->gbps[i] = 0;
@@ -170,6 +178,7 @@ void startServers(size_t num) {
     tc[i].gbps = gbps;
     tc[i].ips = ips;
     tc[i].lasttime = lasttime;
+    tc[i].starttime = timedouble();
     nlInit(&tc[i].nl, 10);
     pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
   }
@@ -180,6 +189,7 @@ void startServers(size_t num) {
   tc[num].gbps = gbps;
   tc[num].ips = ips;
   tc[num].lasttime = lasttime;
+  tc[num].starttime = timedouble();
   pthread_create(&(pt[num]), NULL, display, &(tc[num]));
 
   for (size_t i = 0; i < num+1; i++) {
