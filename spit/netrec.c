@@ -151,7 +151,9 @@ void *display(void *arg) {
       if (timedouble() - tc->lasttime[i] > 2) {
 	tc->gbps[i] = 0;
       }
-      fprintf(stdout, "[%d - %s], %.1lf Gb/s\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", tc->gbps[i]);
+      if (tc->gbps[i] != 0) {
+	fprintf(stdout, "[%d - %s], %.1lf Gb/s\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", tc->gbps[i]);
+      }
       t += tc->gbps[i];
     }
     fprintf(stdout, "--> total %.2lf Gb/s\n", t);
@@ -179,7 +181,7 @@ void startServers(size_t num) {
     tc[i].ips = ips;
     tc[i].lasttime = lasttime;
     tc[i].starttime = timedouble();
-    nlInit(&tc[i].nl, 10);
+    nlInit(&tc[i].nl, 3);
     pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
   }
 
@@ -201,15 +203,16 @@ void startServers(size_t num) {
 
 
 
-int main(int argc, char *argv[]) {
+int main() {
 
   // args
 
-  if (argc != 2) {
-    fprintf(stderr,"*info* usage ./netrec threads\n");
+  /*  if (argc != 2) {
+    fprintf(stderr,"*info* usage ./netrec\n");
     exit(1);
-  }
-  int threads = atoi(argv[1]);
+    }*/
+  int threads = 100;
+  fprintf(stderr,"*info* starting netspeed receiver -- %d ports\n", threads);
   if (threads < 1) threads = 1;
   // start servers
   startServers(threads);
