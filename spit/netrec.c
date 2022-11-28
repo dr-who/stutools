@@ -209,8 +209,10 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* usage ./netrec threads\n");
     exit(1);
   }
+  int threads = atoi(argv[1]);
+  if (threads < 1) threads = 1;
   // start servers
-  startServers(atoi(argv[1]));
+  startServers(threads);
   
 
   return 0;
