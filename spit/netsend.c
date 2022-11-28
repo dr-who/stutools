@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 
     if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0)
     {
-        perror("Connect Error");
+        perror("Listening port not available");
         exit(1);
     }
     
