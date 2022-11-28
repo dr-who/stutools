@@ -19,10 +19,10 @@ add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c 
 add_executable(spit spit.c)
 target_link_libraries(spit spitlib m aio pthread numa)
 
-add_executable(netrec netrec.c)
+add_executable(netrec netrec.c transfer.h)
 target_link_libraries(netrec spitlib m aio pthread numa)
 
-add_executable(netsend netsend.c)
+add_executable(netsend netsend.c transfer.h)
 target_link_libraries(netsend spitlib m aio pthread numa)
 
 add_executable(pair pair.c )
