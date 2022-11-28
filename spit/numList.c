@@ -13,12 +13,15 @@
 #include "utils.h"
 #include "numList.h"
 
-void nlClear(numListType *n) {
+void nlShrink(numListType *n, size_t nn) {
   pthread_mutex_lock(&n->lock);
-  n->num = 0;
-  n->addat = 0;
+  n->num = MIN(nn, n->num);
+  n->addat = n->num;
   pthread_mutex_unlock(&n->lock);
+}
 
+void nlClear(numListType *n) {
+  nlShrink(n, 0);
 }
 
 void nlInit(numListType *n, int window) {

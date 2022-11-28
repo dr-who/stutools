@@ -22,6 +22,7 @@ typedef struct {
 
 void nlInit(numListType *n, int window);
 void nlClear(numListType *n);
+void nlShrink(numListType *n, size_t nn);
 void nlFree(numListType *n);
 
 size_t nlAdd(numListType *n, double value);

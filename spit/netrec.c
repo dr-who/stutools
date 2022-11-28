@@ -168,7 +168,10 @@ static void *receiver(void *arg)
     printf("New connection from %s\n", addr);
     // reset stats
     for (int i = 0; i < tc->num; i++) {
-      nlClear(&tc->nl[i]);
+      nlShrink(&tc->nl[i], 10);
+      if (i == tc->id) {
+	nlClear(&tc->nl[i]); // this one is zero
+      }
     }
     //    printf("Cleared\n");
         
@@ -227,8 +230,11 @@ void *display(void *arg) {
 
       if (timedouble() - tc->lasttime[i] > 5) {
 	if (nlN(&tc->nl[i]) != 0) {
-	  for (int i = 0; i < tc->num; i++) {
-	    nlClear(&tc->nl[i]);
+	  for (int ii = 0; ii < tc->num; ii++) {
+	    nlShrink(&tc->nl[ii], 10);
+	    if (ii == i) {
+	      nlClear(&tc->nl[i]);
+	    }
 	  }
 	  //	  tc->gbps[i] = 0;
 	  //	  printf("Cleared\n");
