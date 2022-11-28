@@ -25,7 +25,7 @@ typedef struct {
 static void *receiver(void *arg) 
 {
   threadInfoType *tc = (threadInfoType*)arg;
-  fprintf(stderr,"%d\n", tc->serverport);
+  //  fprintf(stderr,"%d\n", tc->serverport);
   while (keepRunning) {
 
     int serverport = tc->serverport;
@@ -136,9 +136,12 @@ static void *receiver(void *arg)
 void *display(void *arg) {
   threadInfoType *tc = (threadInfoType*)arg;
   while(1) {
+    double t = 0;
     for (int i = 0; i < tc->num;i++) {
       fprintf(stderr,"[%d - %s], %.1lf Gb/s\n", SERVERPORT+i, tc->ips[i] ? tc->ips[i] : "", tc->gbps[i]);
+      t += tc->gbps[i];
     }
+    fprintf(stderr,"--> total %.2lf Gb/s\n", t);
     sleep(1);
   }
 }
