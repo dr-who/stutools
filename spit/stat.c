@@ -31,10 +31,17 @@ int main(int argc, char *argv[]) {
     char *tok1 = strtok_r(line, "\t\r\n", &saveptr);
 
     if (tok1) {
-      nlAdd(&first, atof(tok1));
+      char *endptr = NULL;
+      double result = strtod(tok1, &endptr);
+      if (endptr != tok1 + strlen(tok1)) {
+	fprintf(stderr,"skipping line '%s'\n", tok1);
+      } else {      
+	nlAdd(&first, result);
+      }
     } else {
-      fprintf(stderr,"skipping line without a good value\n");
+      fprintf(stderr,"skipping line '%s'\n", tok1);
     }
+
   }
 
 
@@ -48,6 +55,7 @@ int main(int argc, char *argv[]) {
     else if (strcmp(argv[1],"median")==0) fprintf(stdout, "%lf\n", nlMedian(&first));
     else if (strcmp(argv[1],"min")==0) fprintf(stdout, "%lf\n", nlMin(&first));
     else if (strcmp(argv[1],"max")==0) fprintf(stdout, "%lf\n", nlMax(&first));
+    else if (strcmp(argv[1],"n")==0) fprintf(stdout, "%zd\n", nlN(&first));
     else if (strcmp(argv[1],"sd")==0) fprintf(stdout, "%lf\n", nlSD(&first));
     else if (strcmp(argv[1],"sem")==0) fprintf(stdout, "%lf\n", nlSEM(&first));
     else if (strcmp(argv[1],"q25")==0) fprintf(stdout, "%lf\n", nlSortedPos(&first, 0.25));
