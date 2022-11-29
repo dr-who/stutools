@@ -14,6 +14,8 @@
 #include "utils.h"
 #include "numList.h"
 
+#include <glob.h>
+
 int keepRunning = 1;
 
 typedef struct {
@@ -26,6 +28,90 @@ typedef struct {
   char **ips;
   double starttime;
 } threadInfoType;
+
+typedef struct {
+  char *path;
+  int speed;
+  long lastrx, lasttx;
+  double lasttime;
+  long thisrx, thistx;
+  double thistime;
+} stringType;
+
+stringType * listDevices(size_t *retcount) {
+
+  stringType *ret = NULL;
+  *retcount = 0;
+  
+  glob_t globbuf;
+
+  globbuf.gl_offs = 1;
+  glob("/sys/class/net/*/speed", GLOB_DOOFFS, NULL, &globbuf);
+
+  for (size_t i = 1;i <globbuf.gl_pathc; i++) {
+    FILE *fp = fopen(globbuf.gl_pathv[i], "rt");
+    int speed = 0;
+    char *tok1 = NULL;
+    if (fp) {
+      int v = fscanf(fp, "%d", &speed);
+      if (v == 1) {
+	//	fprintf(stderr,"%s\n", globbuf.gl_pathv[i]+15);
+
+	tok1 = strtok(globbuf.gl_pathv[i]+15, "/");
+      }
+      fclose(fp);
+    }
+    if (tok1) {
+      *retcount = (*retcount)+1;
+      ret = realloc(ret, (*retcount) * sizeof(stringType));
+      ret[(*retcount)-1].path = strdup(tok1);
+      ret[(*retcount)-1].speed = speed;
+      ret[(*retcount)-1].thistx = 0;
+      ret[(*retcount)-1].thisrx=  0;
+      ret[(*retcount)-1].thistime = 0;
+      
+      //      fprintf(stderr,"speed %s %d\n", tok1, speed);
+    }
+  }
+  globfree(&globbuf);
+  return ret;
+}
+
+void getEthStats(stringType *devs, size_t num) {
+  fprintf(stdout,"--> ");
+  for (size_t i = 0; i <num; i++) {
+    char s[1000];
+    devs[i].lasttime = devs[i].thistime;
+    devs[i].lastrx = devs[i].thisrx;
+    devs[i].lasttx = devs[i].thistx;
+    
+    devs[i].thistime = timedouble();
+    sprintf(s, "/sys/class/net/%s/statistics/tx_bytes", devs[i].path);
+    FILE *fp = fopen(s, "rt");
+    if (fp) {
+      if (fscanf(fp, "%ld", &devs[i].thistx) != 1) {
+	perror("tx");
+      }
+    }
+    fclose(fp);
+    sprintf(s, "/sys/class/net/%s/statistics/rx_bytes", devs[i].path);
+    fp = fopen(s, "rt");
+    if (fp) {
+      if (fscanf(fp, "%ld", &devs[i].thisrx) != 1) {
+	perror("rx");
+      }
+    }
+    fclose(fp);
+    if (devs[i].lasttime != 0) {
+      double gaptime = devs[i].thistime - devs[i].lasttime;
+      double txspeed = (devs[i].thistx - devs[i].lasttx)*8.0/1000.0;
+      double rxspeed = (devs[i].thisrx - devs[i].lastrx)*8.0/1000.0;
+      fprintf(stdout, "%s (TX %.2lf Gb/s, RX %.2lf Gb/s)   ", devs[i].path, TOMB(txspeed)/gaptime, TOMB(rxspeed)/gaptime);
+    }
+  } // for i
+  fprintf(stdout,"\n");
+}
+  
 
 
 
@@ -61,8 +147,8 @@ void dumpEthernet() {
 	sprintf(str, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/max_link_speed", dev->domain, dev->bus, dev->dev, dev->func);
 	sprintf(strw, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/max_link_width", dev->domain, dev->bus, dev->dev, dev->func);
 	
-      printf("%04x:%02x:%02x.%d ",
-	     dev->domain, dev->bus, dev->dev, dev->func /*dev->vendor_id, dev->device_id,  dev->device_class, dev->irq, c, (long) dev->base_addr[0], dev->numa_node */);
+      printf("PCI %04x:%02x:%02x.%d NUMA=%d ",
+	     dev->domain, dev->bus, dev->dev, dev->func /*dev->vendor_id, dev->device_id,  dev->device_class, dev->irq, c, (long) dev->base_addr[0]*/, dev->numa_node );
 
 
       ///sys/bus/pci/devices/0000\:21\:00.0/max_link_speed
@@ -221,6 +307,10 @@ void *display(void *arg) {
   clock_t lastclock = clock();
   double lasttime = timedouble();
   size_t count = 0;
+
+  size_t devcount = 0;
+  stringType *dev = listDevices(&devcount);
+
   
   while(1) {
     double t = 0;
@@ -266,6 +356,7 @@ void *display(void *arg) {
     if (t==0) t=NAN;
 
     if (count > 0) {
+      if (!isnan(t)) getEthStats(dev, devcount);
       fprintf(stdout, "--> time %.0lf -- total %.2lf Gb/s (%.1lf GByte/s) -- %d clients (%.2lf Gb/s/client) -- CPU %.1lf %%\n", timedouble(), t, t/8.0, clients, t/clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
       fflush(stdout);
     }
