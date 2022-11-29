@@ -124,9 +124,9 @@ void getEthStats(stringType *devs, size_t num) {
 
     //    if (devs[i].lasttime != 0) {
       double gaptime = devs[i].thistime - devs[i].lasttime;
-      double txspeed = (devs[i].thistx - devs[i].lasttx)*8.0/1000.0;
-      double rxspeed = (devs[i].thisrx - devs[i].lastrx)*8.0/1000.0;
-      if (devs[i].speed > 0) fprintf(stdout, "--> [%d] %s/MTU %d/speed %d Mb/s (TX %.2lf Gb/s, RX %.2lf Gb/s)\n", devs[i].numa, devs[i].path, devs[i].mtu, devs[i].speed, TOMB(txspeed)/gaptime, TOMB(rxspeed)/gaptime);
+      double txspeed = (devs[i].thistx - devs[i].lasttx)*8.0;
+      double rxspeed = (devs[i].thisrx - devs[i].lastrx)*8.0;
+      if (devs[i].speed > 0) fprintf(stdout, "--> [%d] %s/MTU %d/speed %d Mb/s (RX %.1lf Gb/s, TX %.1lf Gb/s)\n", devs[i].numa, devs[i].path, devs[i].mtu, devs[i].speed, TOGB(rxspeed)/gaptime, TOGB(txspeed)/gaptime);
       //    }
   } // for i
 }
@@ -376,7 +376,7 @@ void *display(void *arg) {
 
     if (count > 0) {
       if (!isnan(t)) getEthStats(dev, devcount);
-      fprintf(stdout, "--> time %.0lf -- total %.2lf Gb/s (%.1lf GByte/s) -- %d clients (%.2lf Gb/s/client) -- CPU %.1lf %%\n", timedouble(), t, t/8.0, clients, t/clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
+      fprintf(stdout, "--> time %.0lf -- total %.2lf Gb/s (%.2lf GByte/s) -- %d clients (%.2lf Gb/s/client) -- CPU %.1lf %%\n", timedouble(), t, t/8.0, clients, t/clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
       fflush(stdout);
     }
     count++;
