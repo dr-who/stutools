@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 
 #include <stdlib.h>
-#include <malloc.h>
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -9,6 +8,8 @@
 #include <assert.h>
 #include <math.h>
 #include <time.h>
+
+#include "linux-headers.h"
 
 #include "utils.h"
 #include "logSpeed.h"

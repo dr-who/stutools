@@ -4,13 +4,12 @@
 #include "utils.h"
 
 #include <stdlib.h>
-#include <malloc.h>
 #include <unistd.h>
 #include <assert.h>
-
 #include <pthread.h>
-
 #include <string.h>
+
+#include "linux-headers.h"
 
 
 void workQueueInit(workQueueType *queue, const size_t size)

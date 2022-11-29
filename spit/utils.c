@@ -9,7 +9,9 @@
 #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
-#include <malloc.h>
+
+#include "linux-headers.h"
+
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -20,9 +22,6 @@
 #include <sys/wait.h>
 #include <pwd.h>
 #include <assert.h>
-#include <linux/hdreg.h>
-#include <numa.h>
-#include <numaif.h>
 
 #include "utils.h"
 

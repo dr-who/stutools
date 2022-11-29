@@ -6,8 +6,9 @@
 #include "jobType.h"
 #include <signal.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <assert.h>
+
+#include "linux-headers.h"
 
 /**
  * spit.c

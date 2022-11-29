@@ -6,8 +6,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <malloc.h>
 #include <assert.h>
+
+#include "linux-headers.h"
 
 /**
  * devcontents

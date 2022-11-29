@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <assert.h>
 #include "utils.h"
 

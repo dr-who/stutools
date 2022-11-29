@@ -4,11 +4,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <malloc.h>
 #include <math.h>
 #include <limits.h>
 #include <assert.h>
 #include <string.h>
+
+#include "linux-headers.h"
 
 #include "utils.h"
 #include "numList.h"

@@ -8,7 +8,9 @@
 #include <stdlib.h>
 
 #include <stdlib.h>
-#include <malloc.h>
+
+#include "linux-headers.h"
+
 #include <unistd.h>
 
 #include <sys/types.h>

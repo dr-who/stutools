@@ -3,7 +3,8 @@
 #include "positions.h"
 
 #include <stdlib.h>
-#include <malloc.h>
+
+#include "linux-headers.h"
 
 int verbose = 0;
 int keepRunning = 0;

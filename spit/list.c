@@ -1,6 +1,7 @@
 #include "list.h"
 
-#include <malloc.h>
+#include "linux-headers.h"
+
 #include <string.h>
 #include <stdlib.h>
 

@@ -4,9 +4,10 @@
 
 #include "utils.h"
 
-
 #include <stdlib.h>
-#include <malloc.h>
+
+#include "linux-headers.h"
+
 #include <assert.h>
 #include <unistd.h>
 
