@@ -23,7 +23,7 @@ add_executable(netrec netrec.c transfer.h)
 target_link_libraries(netrec spitlib m aio pthread numa pci)
 
 add_executable(netsend netsend.c transfer.h)
-target_link_libraries(netsend spitlib m aio pthread numa)
+target_link_libraries(netsend )
 
 add_executable(numListTest numListTest.c)
 target_link_libraries(numListTest spitlib m aio pthread numa)
