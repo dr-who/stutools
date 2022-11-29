@@ -7,7 +7,7 @@
 #include <time.h>
 #include "transfer.h"
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
