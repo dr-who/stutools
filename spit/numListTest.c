@@ -124,6 +124,18 @@ void test4even(numListType *nl) {
   assert(nlMax(nl) == 4);
 }
 
+void testSD(numListType *nl) {
+  nlInit(nl, 1000);
+  double values[] = {9,2,5,4,12,7};
+  for (size_t i = 0; i < sizeof(values)/sizeof(double); i++) {
+    //    fprintf(stdout,"%lf\n", values[i]);
+    nlAdd(nl, values[i]);
+  }
+  assert(nlMean(nl) == 6.5);
+  assert(nlSD(nl) == sqrt(13.1));
+}
+
+
 int main() {
   numListType nl;
 
@@ -131,7 +143,8 @@ int main() {
   test2(&nl);
   test3(&nl);
   test4even(&nl);
-
+  testSD(&nl);
+  
   return 0;
 }
 
