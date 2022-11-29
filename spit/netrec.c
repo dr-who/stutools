@@ -201,8 +201,8 @@ void dumpEthernet() {
 	  continue;
 
 	char str[100], strw[100];
-	sprintf(str, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/max_link_speed", dev->domain, dev->bus, dev->dev, dev->func);
-	sprintf(strw, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/max_link_width", dev->domain, dev->bus, dev->dev, dev->func);
+	sprintf(str, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/current_link_speed", dev->domain, dev->bus, dev->dev, dev->func);
+	sprintf(strw, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/current_link_width", dev->domain, dev->bus, dev->dev, dev->func);
 	
       printf("PCI %04x:%02x:%02x.%d NUMA=%d ",
 	     dev->domain, dev->bus, dev->dev, dev->func /*dev->vendor_id, dev->device_id,  dev->device_class, dev->irq, c, (long) dev->base_addr[0]*/, dev->numa_node );
