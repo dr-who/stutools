@@ -3,7 +3,6 @@
 
 #define _GNU_SOURCE_H
 
-#include <libaio.h>
 
 typedef struct {
   int fd;
@@ -17,9 +16,6 @@ typedef struct {
 } deviceDetails;
 
 // a set of functions to keep io contexts together
-io_context_t *createContexts(const size_t count, const size_t qd);
-void setupContexts(io_context_t *p, const size_t count, const size_t qd);
-void freeContexts(io_context_t *p, const size_t count);
 
 deviceDetails * addDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs);
 deviceDetails *prune(deviceDetails *devList, size_t *devCount, const size_t blockSize);
