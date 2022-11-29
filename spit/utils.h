@@ -1,7 +1,7 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
-#include <malloc.h>
+#include "linux-headers.h"
 #include <string.h>
 #include <stdio.h> // FILE
 #include <pthread.h>
