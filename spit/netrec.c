@@ -126,7 +126,7 @@ void getEthStats(stringType *devs, size_t num) {
       double gaptime = devs[i].thistime - devs[i].lasttime;
       double txspeed = (devs[i].thistx - devs[i].lasttx)*8.0/1000.0;
       double rxspeed = (devs[i].thisrx - devs[i].lastrx)*8.0/1000.0;
-      fprintf(stdout, "--> [%d] %s/MTU %d/speed %d Mb/s (TX %.2lf Gb/s, RX %.2lf Gb/s)\n", devs[i].numa, devs[i].path, devs[i].mtu, devs[i].speed, TOMB(txspeed)/gaptime, TOMB(rxspeed)/gaptime);
+      if (devs[i].speed > 0) fprintf(stdout, "--> [%d] %s/MTU %d/speed %d Mb/s (TX %.2lf Gb/s, RX %.2lf Gb/s)\n", devs[i].numa, devs[i].path, devs[i].mtu, devs[i].speed, TOMB(txspeed)/gaptime, TOMB(rxspeed)/gaptime);
       //    }
   } // for i
 }
