@@ -92,72 +92,88 @@ stringType * listDevices(size_t *retcount) {
 
 void getEthStats(stringType *devs, size_t num) {
   for (size_t i = 0; i <num; i++) {
-    char s[1000];
     devs[i].lasttime = devs[i].thistime;
-    devs[i].lastrx = devs[i].thisrx;
-    devs[i].lasttx = devs[i].thistx;
-    devs[i].thistx = -1; devs[i].thistxerrors = -1;
-    devs[i].thisrx = -1; devs[i].thisrxerrors = -1;
-    devs[i].speed = -1; devs[i].mtu = -1; devs[i].carrier_changes = -1;
-    devs[i].numa = -1;
-    
-    devs[i].thistime = timedouble();
-    sprintf(s, "/sys/class/net/%s/statistics/tx_bytes", devs[i].path);
-    FILE *fp = fopen(s, "rt");
-    if (fp) {
-      if (fscanf(fp, "%ld", &devs[i].thistx) != 1) {perror("tx");}
-      fclose(fp);
-    }
-    sprintf(s, "/sys/class/net/%s/statistics/tx_errors", devs[i].path);
-    fp = fopen(s, "rt");
-    if (fp) {
-      if (fscanf(fp, "%ld", &devs[i].thistxerrors) != 1) {perror("tx");}
-      fclose(fp);
-    }
+    if ((devs[i].path[0] == 'i') && (devs[i].path[1] == 'b')) {
+      // glob // /sys/class/net/ibp216s0f1/device/infiniband/mlx5_3/
 
-    sprintf(s, "/sys/class/net/%s/speed", devs[i].path);
-    fp = fopen(s, "rt");
-    if (fp) {
-      if (fscanf(fp, "%d", &devs[i].speed) != 1) {perror("speed");}
-      fclose(fp);
-    }
-    
-    sprintf(s, "/sys/class/net/%s/statistics/rx_bytes", devs[i].path);
-    fp = fopen(s, "rt");
-    if (fp) {
-      if (fscanf(fp, "%ld", &devs[i].thisrx) != 1) {perror("rx");}
-      fclose(fp);
-    }
-    sprintf(s, "/sys/class/net/%s/statistics/rx_errors", devs[i].path);
-    fp = fopen(s, "rt");
-    if (fp) {
-      if (fscanf(fp, "%ld", &devs[i].thisrxerrors) != 1) {perror("rx");}
-      fclose(fp);
-    }
-
-    sprintf(s, "/sys/class/net/%s/carrier_changes", devs[i].path);
-    fp = fopen(s, "rt");
-    if (fp) {
-      if (fscanf(fp, "%ld", &devs[i].carrier_changes) != 1) {perror("rx");}
-      fclose(fp);
-    }
-
-    sprintf(s, "/sys/class/net/%s/mtu", devs[i].path);
-    fp = fopen(s, "rt");
-    if (fp) {
-      if (fscanf(fp, "%d", &devs[i].mtu) != 1) {
-	perror("mtu");
+      glob_t globbuf;
+      globbuf.gl_offs = 1;
+      char s[1000];
+      sprintf(s,"/sys/class/net/%s/device/infiniband/*/", devs[i].path);
+      glob(s, GLOB_DOOFFS, NULL, &globbuf);
+      for (size_t i = 1;i <globbuf.gl_pathc; i++) {
+	fprintf(stdout,"%s\n", globbuf.gl_pathv[i]);
       }
-      fclose(fp);
-    }
+      globfree(&globbuf);
 
-    sprintf(s, "/sys/class/net/%s/device/numa_node", devs[i].path);
-    fp = fopen(s, "rt");
-    if (fp) {
-      if (fscanf(fp, "%d", &devs[i].numa) != 1) {
-	perror("numa");
+      // infiniband
+    } else {
+      char s[1000];
+      devs[i].lastrx = devs[i].thisrx;
+      devs[i].lasttx = devs[i].thistx;
+      devs[i].thistx = -1; devs[i].thistxerrors = -1;
+      devs[i].thisrx = -1; devs[i].thisrxerrors = -1;
+      devs[i].speed = -1; devs[i].mtu = -1; devs[i].carrier_changes = -1;
+      devs[i].numa = -1;
+    
+      devs[i].thistime = timedouble();
+      sprintf(s, "/sys/class/net/%s/statistics/tx_bytes", devs[i].path);
+      FILE *fp = fopen(s, "rt");
+      if (fp) {
+	if (fscanf(fp, "%ld", &devs[i].thistx) != 1) {perror("tx");}
+	fclose(fp);
       }
-      fclose(fp);
+      sprintf(s, "/sys/class/net/%s/statistics/tx_errors", devs[i].path);
+      fp = fopen(s, "rt");
+      if (fp) {
+	if (fscanf(fp, "%ld", &devs[i].thistxerrors) != 1) {perror("tx");}
+	fclose(fp);
+      }
+
+      sprintf(s, "/sys/class/net/%s/speed", devs[i].path);
+      fp = fopen(s, "rt");
+      if (fp) {
+	if (fscanf(fp, "%d", &devs[i].speed) != 1) {perror("speed");}
+	fclose(fp);
+      }
+    
+      sprintf(s, "/sys/class/net/%s/statistics/rx_bytes", devs[i].path);
+      fp = fopen(s, "rt");
+      if (fp) {
+	if (fscanf(fp, "%ld", &devs[i].thisrx) != 1) {perror("rx");}
+	fclose(fp);
+      }
+      sprintf(s, "/sys/class/net/%s/statistics/rx_errors", devs[i].path);
+      fp = fopen(s, "rt");
+      if (fp) {
+	if (fscanf(fp, "%ld", &devs[i].thisrxerrors) != 1) {perror("rx");}
+	fclose(fp);
+      }
+
+      sprintf(s, "/sys/class/net/%s/carrier_changes", devs[i].path);
+      fp = fopen(s, "rt");
+      if (fp) {
+	if (fscanf(fp, "%ld", &devs[i].carrier_changes) != 1) {perror("rx");}
+	fclose(fp);
+      }
+
+      sprintf(s, "/sys/class/net/%s/mtu", devs[i].path);
+      fp = fopen(s, "rt");
+      if (fp) {
+	if (fscanf(fp, "%d", &devs[i].mtu) != 1) {
+	  perror("mtu");
+	}
+	fclose(fp);
+      }
+
+      sprintf(s, "/sys/class/net/%s/device/numa_node", devs[i].path);
+      fp = fopen(s, "rt");
+      if (fp) {
+	if (fscanf(fp, "%d", &devs[i].numa) != 1) {
+	  perror("numa");
+	}
+	fclose(fp);
+      }
     }
 
     //    if (devs[i].lasttime != 0) {
