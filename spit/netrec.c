@@ -98,7 +98,7 @@ void getEthStats(stringType *devs, size_t num) {
       glob_t globbuf;
       globbuf.gl_offs = 1;
       char s[1000];
-      sprintf(s,"/sys/class/net/%s/device/infiniband/*/", devs[i].path);
+      sprintf(s,"/sys/class/net/%s/device/infiniband/*", devs[i].path);
       fprintf(stdout,"--> %s --> %s\n", devs[i].path, s);
       glob(s, GLOB_DOOFFS, NULL, &globbuf);
       for (size_t i = 1;i <globbuf.gl_pathc; i++) {
