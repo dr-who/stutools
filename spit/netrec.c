@@ -402,7 +402,7 @@ void *display(void *arg) {
     if (t==0) t=NAN;
 
     if (count > 0) {
-      if (!isnan(t)) getEthStats(dev, devcount);
+      /*if (!isnan(t))*/ getEthStats(dev, devcount);
       fprintf(stdout, "--> time %.0lf -- total %.2lf Gb/s (%.2lf GByte/s) -- %d clients (%.2lf Gb/s/client) -- CPU %.1lf %%\n", timedouble(), t, t/8.0, clients, t/clients, (clock() - lastclock) *100.0 / (timedouble() - lasttime) /  CLOCKS_PER_SEC);
       fflush(stdout);
     }
