@@ -85,6 +85,10 @@ void getEthStats(stringType *devs, size_t num) {
     devs[i].lasttime = devs[i].thistime;
     devs[i].lastrx = devs[i].thisrx;
     devs[i].lasttx = devs[i].thistx;
+    devs[i].thistx = -1; devs[i].thistxerrors = -1;
+    devs[i].thisrx = -1; devs[i].thisrxerrors = -1;
+    devs[i].speed = -1; devs[i].mtu = -1; devs[i].carrier_changes = -1;
+    devs[i].numa = -1;
     
     devs[i].thistime = timedouble();
     sprintf(s, "/sys/class/net/%s/statistics/tx_bytes", devs[i].path);
