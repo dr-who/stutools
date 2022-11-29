@@ -63,14 +63,25 @@ stringType * listDevices(size_t *retcount) {
       }
       fclose(fp);
     }
+
     if (tok1) {
-      *retcount = (*retcount)+1;
-      ret = realloc(ret, (*retcount) * sizeof(stringType));
-      ret[(*retcount)-1].path = strdup(tok1);
-      ret[(*retcount)-1].speed = speed;
-      ret[(*retcount)-1].thistx = 0;
-      ret[(*retcount)-1].thisrx=  0;
-      ret[(*retcount)-1].thistime = 0;
+      // check there is no 'owner' file
+      char s2[1000];
+      sprintf(s2, "/sys/class/net/%s/owner", tok1);
+      FILE *fp2 = fopen(s2, "rt");
+      if (fp2) { // it exists
+	fclose(fp2);
+      } else {
+	// it doesn't exist, add it
+	
+	*retcount = (*retcount)+1;
+	ret = realloc(ret, (*retcount) * sizeof(stringType));
+	ret[(*retcount)-1].path = strdup(tok1);
+	ret[(*retcount)-1].speed = speed;
+	ret[(*retcount)-1].thistx = 0;
+	ret[(*retcount)-1].thisrx=  0;
+	ret[(*retcount)-1].thistime = 0;
+      }
       
       //      fprintf(stderr,"speed %s %d\n", tok1, speed);
     }
