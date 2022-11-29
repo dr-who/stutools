@@ -95,11 +95,11 @@ void getEthStats(stringType *devs, size_t num) {
     devs[i].lasttime = devs[i].thistime;
     if ((devs[i].path[0] == 'i') && (devs[i].path[1] == 'b')) {
       // glob // /sys/class/net/ibp216s0f1/device/infiniband/mlx5_3/
-      fprintf(stdout,"--> %s\n", devs[i].path);
       glob_t globbuf;
       globbuf.gl_offs = 1;
       char s[1000];
       sprintf(s,"/sys/class/net/%s/device/infiniband/*/", devs[i].path);
+      fprintf(stdout,"--> %s --> %s\n", devs[i].path, s);
       glob(s, GLOB_DOOFFS, NULL, &globbuf);
       for (size_t i = 1;i <globbuf.gl_pathc; i++) {
 	fprintf(stdout,"%s\n", globbuf.gl_pathv[i]);
