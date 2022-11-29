@@ -93,7 +93,7 @@ stringType * listDevices(size_t *retcount) {
 void getEthStats(stringType *devs, size_t num) {
   for (size_t i = 0; i <num; i++) {
     devs[i].lasttime = devs[i].thistime;
-    if ((devs[i].path[0] == 'i') && (devs[i].path[1] == 'b')) {
+    if (0) {//(devs[i].path[0] == 'i') && (devs[i].path[1] == 'b')) {
       // glob // /sys/class/net/ibp216s0f1/device/infiniband/mlx5_3/
       glob_t globbuf;
       globbuf.gl_offs = 1;
