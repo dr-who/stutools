@@ -36,6 +36,7 @@ typedef struct {
   double lasttime;
   long thisrx, thistx;
   double thistime;
+  int mtu, numa;
 } stringType;
 
 stringType * listDevices(size_t *retcount) {
@@ -78,7 +79,6 @@ stringType * listDevices(size_t *retcount) {
 }
 
 void getEthStats(stringType *devs, size_t num) {
-  fprintf(stdout,"--> ");
   for (size_t i = 0; i <num; i++) {
     char s[1000];
     devs[i].lasttime = devs[i].thistime;
@@ -92,24 +92,43 @@ void getEthStats(stringType *devs, size_t num) {
       if (fscanf(fp, "%ld", &devs[i].thistx) != 1) {
 	perror("tx");
       }
+      fclose(fp);
     }
-    fclose(fp);
+
     sprintf(s, "/sys/class/net/%s/statistics/rx_bytes", devs[i].path);
     fp = fopen(s, "rt");
     if (fp) {
       if (fscanf(fp, "%ld", &devs[i].thisrx) != 1) {
 	perror("rx");
       }
+      fclose(fp);
     }
-    fclose(fp);
-    if (devs[i].lasttime != 0) {
+
+    sprintf(s, "/sys/class/net/%s/mtu", devs[i].path);
+    fp = fopen(s, "rt");
+    if (fp) {
+      if (fscanf(fp, "%d", &devs[i].mtu) != 1) {
+	perror("mtu");
+      }
+      fclose(fp);
+    }
+
+    sprintf(s, "/sys/class/net/%s/device/numa_node", devs[i].path);
+    fp = fopen(s, "rt");
+    if (fp) {
+      if (fscanf(fp, "%d", &devs[i].numa) != 1) {
+	perror("numa");
+      }
+      fclose(fp);
+    }
+
+    //    if (devs[i].lasttime != 0) {
       double gaptime = devs[i].thistime - devs[i].lasttime;
       double txspeed = (devs[i].thistx - devs[i].lasttx)*8.0/1000.0;
       double rxspeed = (devs[i].thisrx - devs[i].lastrx)*8.0/1000.0;
-      fprintf(stdout, "%s (TX %.2lf Gb/s, RX %.2lf Gb/s)   ", devs[i].path, TOMB(txspeed)/gaptime, TOMB(rxspeed)/gaptime);
-    }
+      fprintf(stdout, "--> [%d] %s/MTU %d/speed %d Mb/s (TX %.2lf Gb/s, RX %.2lf Gb/s)\n", devs[i].numa, devs[i].path, devs[i].mtu, devs[i].speed, TOMB(txspeed)/gaptime, TOMB(rxspeed)/gaptime);
+      //    }
   } // for i
-  fprintf(stdout,"\n");
 }
   
 
