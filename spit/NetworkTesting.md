@@ -3,7 +3,9 @@ Networking testing.
 
 Linux server:
 
-# stutools/spit/netrec
+# cd stutools/spit
+# make netrec
+# ./netrec
 
 
 On Linux clients
