@@ -37,6 +37,7 @@ typedef struct {
   long thisrx, thistx;
   double thistime;
   int mtu, numa;
+  long thisrxerrors, thistxerrors, carrier_changes;
 } stringType;
 
 stringType * listDevices(size_t *retcount) {
@@ -89,18 +90,40 @@ void getEthStats(stringType *devs, size_t num) {
     sprintf(s, "/sys/class/net/%s/statistics/tx_bytes", devs[i].path);
     FILE *fp = fopen(s, "rt");
     if (fp) {
-      if (fscanf(fp, "%ld", &devs[i].thistx) != 1) {
-	perror("tx");
-      }
+      if (fscanf(fp, "%ld", &devs[i].thistx) != 1) {perror("tx");}
+      fclose(fp);
+    }
+    sprintf(s, "/sys/class/net/%s/statistics/tx_errors", devs[i].path);
+    fp = fopen(s, "rt");
+    if (fp) {
+      if (fscanf(fp, "%ld", &devs[i].thistxerrors) != 1) {perror("tx");}
       fclose(fp);
     }
 
+    sprintf(s, "/sys/class/net/%s/speed", devs[i].path);
+    fp = fopen(s, "rt");
+    if (fp) {
+      if (fscanf(fp, "%d", &devs[i].speed) != 1) {perror("speed");}
+      fclose(fp);
+    }
+    
     sprintf(s, "/sys/class/net/%s/statistics/rx_bytes", devs[i].path);
     fp = fopen(s, "rt");
     if (fp) {
-      if (fscanf(fp, "%ld", &devs[i].thisrx) != 1) {
-	perror("rx");
-      }
+      if (fscanf(fp, "%ld", &devs[i].thisrx) != 1) {perror("rx");}
+      fclose(fp);
+    }
+    sprintf(s, "/sys/class/net/%s/statistics/rx_errors", devs[i].path);
+    fp = fopen(s, "rt");
+    if (fp) {
+      if (fscanf(fp, "%ld", &devs[i].thisrxerrors) != 1) {perror("rx");}
+      fclose(fp);
+    }
+
+    sprintf(s, "/sys/class/net/%s/carrier_changes", devs[i].path);
+    fp = fopen(s, "rt");
+    if (fp) {
+      if (fscanf(fp, "%ld", &devs[i].carrier_changes) != 1) {perror("rx");}
       fclose(fp);
     }
 
@@ -126,7 +149,7 @@ void getEthStats(stringType *devs, size_t num) {
       double gaptime = devs[i].thistime - devs[i].lasttime;
       double txspeed = (devs[i].thistx - devs[i].lasttx)*8.0;
       double rxspeed = (devs[i].thisrx - devs[i].lastrx)*8.0;
-      if (devs[i].speed > 0) fprintf(stdout, "--> [%d] %s/MTU %d/speed %d Mb/s (RX %.1lf Gb/s, TX %.1lf Gb/s)\n", devs[i].numa, devs[i].path, devs[i].mtu, devs[i].speed, TOGB(rxspeed)/gaptime, TOGB(txspeed)/gaptime);
+      if (devs[i].speed > 0) fprintf(stdout, "--> [%d] %s/MTU %d/speed %d Mb/s (RX %.1lf Gb/s, TX %.1lf Gb/s, errors %zd/%zd, carrier_changes %zd)\n", devs[i].numa, devs[i].path, devs[i].mtu, devs[i].speed, TOGB(rxspeed)/gaptime, TOGB(txspeed)/gaptime, devs[i].thisrxerrors, devs[i].thistxerrors, devs[i].carrier_changes);
       //    }
   } // for i
 }
