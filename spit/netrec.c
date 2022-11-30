@@ -64,7 +64,7 @@ stringType * listDevices(size_t *retcount) {
       fclose(fp);
     }
 
-    if (tok1) {
+    if (tok1 && (speed > 0)) {
       // check there is no 'owner' file
       char s2[1000];
       sprintf(s2, "/sys/class/net/%s/owner", tok1);
