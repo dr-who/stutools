@@ -499,7 +499,7 @@ int main() {
     exit(1);
     }*/
   int threads = 100;
-  fprintf(stderr,"*info* starting netspeed receiver -- %d ports\n", threads);
+  fprintf(stderr,"*info* starting receiver -- using %d ports/threads\n", threads);
   dumpEthernet();
 
   if (threads < 1) threads = 1;

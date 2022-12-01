@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
 {
   if (argc < 2)
     {
-        perror("usage:netsend  <IPaddress>");
+        perror("usage: snacksend <IPaddress>");
         exit(1);
     }
     int port = 8877;
