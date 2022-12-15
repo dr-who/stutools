@@ -27,5 +27,7 @@ size_t histCount(histogramType *h);
 size_t histMaxCount(histogramType *h);
 double histLowestPresentValue(histogramType *h);
 double histHighestPresentValue(histogramType *h);
+double histConsistency(histogramType *h);
+void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnufile, const char *outpngfile, const char *xlabel, const char *ylabel);
 
 #endif

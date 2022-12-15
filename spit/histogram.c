@@ -10,6 +10,9 @@
 
 void histSetup(histogramType *h, const double min, const double max, const double binscale)
 {
+  if (binscale > 1) {
+    fprintf(stderr,"*warning* ignoring binScale > 1\n");
+  }
   h->min = min; // 0 s
   h->max = max; // 10 s
   h->binScale = ceil(1 / binscale); // 0.01ms for 1 seconds is 100,000 bins
@@ -95,6 +98,26 @@ double histHighestPresentValue(histogramType *h)
   return 0;
 }
 
+double histConsistency(histogramType *h) {
+  if (h->arraySize < 1) {
+    return 0;
+  }
+  
+  size_t valueCount = h->bin[0];
+  size_t maxPos = 0;
+  
+  for (size_t i = 0; i < h->arraySize; i++) {
+    if (h->bin[i] > valueCount) {
+      valueCount = h->bin[i];
+      maxPos = i;
+    }
+  }
+  const double value = maxPos * 1.0 / h->binScale;
+  const double consistency = 100.0 * (valueCount * 1.0 / h->dataCount);
+  fprintf(stderr,"*info* most consistent %g (n=%zd), representing %.1lf%% (n=%zd)\n", value, valueCount, consistency, h->dataCount);
+  return consistency;
+}
+
 void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale)
 {
   histSum(h);
@@ -171,3 +194,35 @@ void histFree(histogramType *h)
   nlFree(&h->nl);
 }
 
+void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnufile, const char *outpngfile, const char *xlabel, const char *ylabel) {
+  double median = 0, three9 = 0, four9 = 0, five9 = 0;
+  if (histCount(hist)) {
+    histSumPercentages(hist, &median, &three9, &four9, &five9, 1);
+  }
+  FILE *fp = fopen(gnufile, "wt");
+  if (fp) {
+    fprintf(fp, "set term png size '1000,800' font 'arial,10'\n");
+    fprintf(fp, "set output '%s'\n", outpngfile);
+    fprintf(fp, "set key above\n");
+    fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)'\n", hist->dataCount);
+    fprintf(fp, "set nonlinear x via log10(x)/log10(2) inverse 2**x\n"); // xtics like 1, 2, 4, 8 ms
+    fprintf(fp, "set xtics 2 logscale out\n");
+    fprintf(fp, "set log x\n");
+    fprintf(fp, "set log y\n");
+    fprintf(fp, "set yrange [0.9:%lf]\n", histMaxCount(hist)*1.1);
+    fprintf(fp, "set y2tics 10 out\n");
+    fprintf(fp, "set grid\n");
+    fprintf(fp, "set xrange [%lf:%lf]\n", histLowestPresentValue(hist)*0.66, histHighestPresentValue(hist)*1);
+    fprintf(fp, "set y2range [0:100]\n");
+    fprintf(fp, "set xlabel '%s'\n", xlabel);
+    fprintf(fp, "set ylabel '%s'\n", ylabel);
+    fprintf(fp, "set y2label 'Confidence level'\n");
+    fprintf(fp, "plot '%s' using 1:2 with imp title 'Latency', '%s' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.3lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", datafile, datafile, median, median, three9, three9, four9, four9, five9, five9);
+  } else {
+    perror("filename");
+  }
+  if (fp) {
+    fclose(fp);
+    fp = NULL;
+  }
+}
