@@ -8,7 +8,7 @@ int main()
 {
   histogramType h;
 
-  histSetup(&h, 0, 100, 0.1);
+  histSetup(&h, 0, 1000, 0.01);
   srand48(0);
 
   //  for (size_t i = 0; i < 100000; i++) {

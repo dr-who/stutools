@@ -47,7 +47,10 @@ int main(int argc, char *argv[]) {
 
   if (argc < 2) {
     if (nlN(&first) >= 1) {
-      fprintf(stdout,"mean: %.4lf min: %.4lf Q25%%: %.4lf Median: %.4lf Q75%%: %.4lf max: %.4lf N:%zd SD: %.4lf SEM: %.4lf\n", nlMean(&first), nlMin(&first), nlSortedPos(&first, 0.25), nlMedian(&first), nlSortedPos(&first, 0.75), nlMax(&first),  nlN(&first), nlSD(&first), nlSEM(&first));
+      fprintf(stdout,"mean: \t%.3g\nmin: \t%.3g\nQ25%%: \t%.3g\nMed: \t%.3g\nQ75%%: \t%.3g\nmax: \t%.3g\nN:   \t%zd\nSD: \t%.3g\nSEM: \t%.3g\n", nlMean(&first), nlMin(&first), nlSortedPos(&first, 0.25), nlMedian(&first), nlSortedPos(&first, 0.75), nlMax(&first),  nlN(&first), nlSD(&first), nlSEM(&first));
+      fprintf(stdout,"99.9%%:  \t%.3g\n", nlSortedPos(&first, 0.999));
+      fprintf(stdout,"99.99%%: \t%.3g\n", nlSortedPos(&first, 0.9999));
+      fprintf(stdout,"99.999%%:\t%.3g\n", nlSortedPos(&first, 0.99999));
     }
     fprintf(stderr,"*info* stat - N: %zd Mean: %.4lf\n", nlN(&first), nlMean(&first));
   } else {

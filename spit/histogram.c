@@ -150,7 +150,7 @@ void histSave(histogramType *h, const char *filename, const size_t scale)
   }
 
   for (size_t i = 0; i <= h->arraySize; i++) {
-    fprintf(fp, "%.3lf\t%zd\t%.1lf\n", i * scale * 1.0 / h->binScale, h->bin[i], 100.0 * h->binSum[i] / maxvalue);
+    fprintf(fp, "%.3lf\t%zd\t%.2lf\n", i * scale * 1.0 / h->binScale, h->bin[i], 100.0 * h->binSum[i] / maxvalue);
     if (h->binSum[i] == maxvalue) {
       break; // stop when we hit the max
     }

@@ -300,7 +300,7 @@ void nlCorrelation(numListType *n1, numListType *n2, double *r) {
 void nlUnbiasedSD(numListType *n1, numListType *n2, const double r, double *unsd) {
 
   numListType diff;
-  nlInit(&diff, 10000);
+  nlInit(&diff, 1000000);
   
   *unsd  = 0;
   if (nlN(n1) == nlN(n2)) {
@@ -310,20 +310,20 @@ void nlUnbiasedSD(numListType *n1, numListType *n2, const double r, double *unsd
       double y = n2->values[i].value;
       nlAdd(&diff, x - y);
     }
-    fprintf(stderr,"mean of diff = %.4lf\n  SD of diff = %.4lf\n SEM of diff = %.4lf\n", nlMean(&diff)+r*0, nlSD(&diff), nlSEM(&diff));
+    fprintf(stdout,"mean of diff = %.4lf\n  SD of diff = %.4lf\n SEM of diff = %.4lf\n", nlMean(&diff)+r*0, nlSD(&diff), nlSEM(&diff));
 
     double t = fabs(nlMean(&diff ) / nlSEM(&diff));
-    fprintf(stderr,"t = %.4lf\n", t);
+    fprintf(stdout,"t = %.4lf\n", t);
     size_t df = nlN(&diff) - 1;
     
-    fprintf(stderr,"df = %zd\n", df);
+    fprintf(stdout,"df = %zd\n", df);
 
     double p = loadTTable(df, 2, 0.05);
-    fprintf(stderr,"critical value p = %.4lf\n",p);
+    fprintf(stdout,"critical value p = %.4lf\n",p);
     if (t > p) {
-      fprintf(stderr,"*info* as %.4lf > %.4lf confident of difference at 0.05 level\n", t, p);
+      fprintf(stdout,"*info* as %.4lf > %.4lf confident of difference at 0.05 level\n", t, p);
     } else {
-      fprintf(stderr,"*info* as %.4lf not > %.4lf, then not confident of difference at 0.05 level\n", t, p);
+      fprintf(stdout,"*info* as %.4lf not > %.4lf, then not confident of difference at 0.05 level\n", t, p);
     }
     
     nlFree(&diff);

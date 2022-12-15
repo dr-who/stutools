@@ -12,8 +12,8 @@ int main() {
   fprintf(stderr,"*info* pair - reads two tab separated columns of numbers. With a header line\n");
   
   numListType first, second;
-  nlInit(&first, 1999);
-  nlInit(&second, 1999);
+  nlInit(&first,  1000000);
+  nlInit(&second, 1000000);
   
   // first line is header use tabs
   
