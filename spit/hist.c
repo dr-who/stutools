@@ -89,9 +89,9 @@ int main(int argc, char *argv[])
 
   fprintf(stderr,"*info* raw: mean %g\n", nlMean(&l));
   fprintf(stderr,"*info* raw: median %g, 99.9%% %lf, 99.99%% %lf, 99.999%% %lf\n",  nlMedian(&l), nlSortedPos(&l, 0.999), nlSortedPos(&l, 0.9999), nlSortedPos(&l, 0.99999));
-  fprintf(stderr,"*info* median %lf, 99.9%% %lf, 99.99%% %lf, 99.999%% %lf\n", median, three9, four9, five9);
+  fprintf(stderr,"*info* bin: median %lf, 99.9%% %lf, 99.99%% %lf, 99.999%% %lf\n", median, three9, four9, five9);
   const double consistency = histConsistency(&h);
-  fprintf(stderr,"*info* consistency %.1lf%% using binSize of %g\n", consistency, binSize);
+  fprintf(stderr,"*info* consistency score %.1lf%% using binSize of %g\n", consistency, binSize);
 
   nlFree(&l);
 	  

@@ -114,7 +114,7 @@ double histConsistency(histogramType *h) {
   }
   const double value = maxPos * 1.0 / h->binScale;
   const double consistency = 100.0 * (valueCount * 1.0 / h->dataCount);
-  fprintf(stderr,"*info* most consistent %g (n=%zd), representing %.1lf%% (n=%zd)\n", value, valueCount, consistency, h->dataCount);
+  fprintf(stderr,"*info* most consistent range [%g-%g) (n=%zd), representing %.1lf%% (n=%zd)\n", value, value + 1.0/h->binScale, valueCount, consistency, h->dataCount);
   return consistency;
 }
 
