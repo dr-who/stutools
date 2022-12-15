@@ -217,7 +217,7 @@ void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnu
     fprintf(fp, "set xlabel '%s'\n", xlabel);
     fprintf(fp, "set ylabel '%s'\n", ylabel);
     fprintf(fp, "set y2label 'Confidence level'\n");
-    fprintf(fp, "plot '%s' using 1:2 with boxes title 'Latency', '%s' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.3lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", datafile, datafile, median, median, three9, three9, four9, four9, five9, five9);
+    fprintf(fp, "plot '%s' using ($1+%lf):2 with boxes title 'Latency', '%s' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.3lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", datafile, (1.0 / hist->binScale)/2.0, datafile, median, median, three9, three9, four9, four9, five9, five9);
   } else {
     perror("filename");
   }
