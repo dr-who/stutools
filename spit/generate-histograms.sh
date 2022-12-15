@@ -5,7 +5,7 @@ do
     
 for f in sdi sdl sdk
 do
-    cat TimevsLatency-${f}-${MODE}-100*.txt | awk '{print 1000*$2}' | ./hist -b 0.5 -o hist-${f}-${MODE} >consistency-${f}-${MODE}.txt  2>&1
+    cat TimevsLatency-${f}-${MODE}-100*.txt | awk '{print 1000*$2}' | ./hist -b 1 -o hist-${f}-${MODE} >consistency-${f}-${MODE}.txt  2>&1
     gnuplot <hist-${f}-${MODE}.gnu
     cat TimevsLatency-${f}-${MODE}-100*.txt | awk '{print $2}' | ./stat > stats-${f}-${MODE}2
     cat TimevsLatency-${f}-${MODE}-100*.txt | awk '{print $3}' | ./stat > stats-${f}-${MODE}3
