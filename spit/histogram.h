@@ -30,4 +30,9 @@ double histHighestPresentValue(histogramType *h);
 double histConsistency(histogramType *h);
 void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnufile, const char *outpngfile, const char *xlabel, const char *ylabel);
 
+void histLoad(histogramType *h, const char *fn);
+double histSample(histogramType *h);
+
+long getDevRandom();
+
 #endif

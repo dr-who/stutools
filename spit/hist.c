@@ -8,18 +8,23 @@
 
 int main(int argc, char *argv[])
 {
+  
   double minValue = 0;
   double maxValue = 1000;
   double binSize = 0.01;
   char *prefix = "histogram";
   double incomingScale = 1;
   size_t dumpData = 0;
-  
-  
+  char *inputFilename = NULL;
+
+
   int opt;
-  const char *getoptstring = "m:M:b:o:s:d";
+  const char *getoptstring = "m:M:b:o:s:di:";
   while ((opt = getopt(argc, argv, getoptstring)) != -1) {
     switch (opt) {
+    case 'i':
+      inputFilename = strdup(optarg);
+      break;
     case 'm':
       minValue = atof(optarg);
       break;
@@ -49,7 +54,7 @@ int main(int argc, char *argv[])
   sprintf(datafile, "%s-bins.txt", prefix);
   sprintf(gnufile, "%s.gnu", prefix);
   sprintf(pngfile, "%s.png", prefix);
-  fprintf(stderr,"*info* hist: [%g, %g] binSize %g, incomingScale %g, prefix '%s'\n", minValue, maxValue, binSize, incomingScale, prefix);
+  fprintf(stderr,"*info* hist: [%g, %g] binSize %g, file '%s', scale %g, prefix '%s'\n", minValue, maxValue, binSize, inputFilename ? inputFilename : "<stdin>", incomingScale, prefix);
 
   
   histogramType h;
@@ -67,9 +72,18 @@ int main(int argc, char *argv[])
 
   numListType l;
   nlInit(&l, 10000000);
-  
+
+
+  FILE *fin = stdin;
+  if (inputFilename) {
+    fin = fopen(inputFilename, "rt");
+    if (!fin) {
+      perror(inputFilename);
+      exit(1);
+    }
+  }
   double v = 0;
-  while (scanf("%lf", &v) == 1) {
+  while (fscanf(fin, "%lf", &v) == 1) {
     v = v * incomingScale;
     histAdd(&h, v);
     nlAdd(&l, v);
@@ -77,6 +91,9 @@ int main(int argc, char *argv[])
     if (dumpData) {
       fprintf(stdout,"%lf\n", v);
     }
+  }
+  if (inputFilename) {
+    fclose(fin);
   }
 
 

@@ -13,9 +13,10 @@ void histSetup(histogramType *h, const double min, const double max, const doubl
   if (binscale > 1) {
     fprintf(stderr,"*warning* ignoring binScale > 1\n");
   }
+  assert(binscale > 0);
   h->min = min; // 0 s
   h->max = max; // 10 s
-  h->binScale = ceil(1 / binscale); // 0.01ms for 1 seconds is 100,000 bins
+  h->binScale = (int)(1 / binscale); // 0.01ms for 1 seconds is 100,000 bins
   h->arraySize = h->max * h->binScale;
   CALLOC(h->bin, h->arraySize + 1, sizeof(size_t));
   CALLOC(h->binSum, h->arraySize + 1, sizeof(size_t));
@@ -24,6 +25,77 @@ void histSetup(histogramType *h, const double min, const double max, const doubl
   h->dataSummed = 0;
   nlInit(&h->nl, 1000000); // keep 1 million positions
   //  fprintf(stderr,"*info* [%lf,%lf], binscale %zd, numBins %zd\n", h->min, h->max, h->binScale, h->arraySize);
+}
+
+
+
+double * histScanInternal(const char *fn, double *min, double *max, double *binsize, size_t *n) {
+  FILE *stream;
+  char *line = NULL;
+  size_t len = 0;
+  ssize_t nread;
+  double *values = NULL;
+  
+  stream = fopen(fn, "rt");
+  if (!stream) {
+    perror("fopen");
+    exit(EXIT_FAILURE);
+  }
+
+  double last = -9e9, gapmax = 9e9, gap = 0;
+  size_t count = 0;
+  
+  while ((nread = getline(&line, &len, stream)) != -1) {
+    double val = 0;
+    long freq;
+    int p = sscanf(line, "%lf %ld", &val, &freq);
+    if ((p==2) && (freq > 0)) {
+      for (long q = 0; q < freq; q++) {
+	count++;
+	values = (double*)realloc(values, count * sizeof(double));
+	values[count-1] = val;
+      }
+      if (val < *min) {
+	*min = val;
+      }
+      if (val > *max) {
+	*max = val;
+      }
+      
+      if (last != -9e9) {
+	gap = val - last;
+	if (gap > 0 && gap < gapmax) {
+	  gapmax = gap;
+	  *binsize = gapmax;
+	}
+      }
+      last = val;
+    }
+  }
+  
+  
+  free(line);
+  fclose(stream);
+  *n = count;
+  return values;
+}
+
+	   
+
+
+void histLoad(histogramType *h, const char *fn) {
+  double min, max, bin;
+  size_t n;
+
+  double *values = histScanInternal(fn, &min, &max, &bin, &n);
+  fprintf(stderr,"*info* '%s': N %zd, min %lf, max %lf, binsize %lf\n", fn, n, min, max, bin);
+
+  histSetup(h, min, max, bin);
+  for (size_t i = 0; i < n; i++) {
+    histAdd(h, values[i]+0.000001); // add in the error
+  }
+  free(values);
+  // read to find min, max and binSize
 }
 
 void histAdd(histogramType *h, double value)
@@ -225,4 +297,29 @@ void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnu
     fclose(fp);
     fp = NULL;
   }
+}
+
+double histSample(histogramType *h) {
+  double value = 0;
+  size_t n = lrand48() % (h->binSum[h->arraySize] + 1);
+  histSum(h);
+  for (size_t i = 1; i <= h->arraySize; i++) {
+    if (n <= h->binSum[i]) {
+      value = i * 1.0 / h->binScale;
+      break;
+    }
+  }
+  return value;
+}
+
+long getDevRandom() {
+  FILE *fp = fopen("/dev/random", "rb");
+  long c = 0;
+  if (fread(&c, sizeof(long), 1, fp) == 0) {
+    //      perror("random");
+    c = time(NULL);
+    fprintf(stderr,"*info* random seed from clock\n");
+  }
+  fclose(fp);
+  return c;
 }
