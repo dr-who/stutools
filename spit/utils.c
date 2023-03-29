@@ -769,6 +769,7 @@ int createFile(const char *filename, const size_t sz)
     }*/
 
   double timestart = timedouble();
+  // open with O_DIRECT to avoid filling page cache then only to flush it
   int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_DIRECT, S_IRUSR | S_IWUSR);
   if (fd < 0) {
     fprintf(stderr,"*warning* creating file with O_DIRECT failed (no filesystem support?)\n");
@@ -791,16 +792,23 @@ int createFile(const char *filename, const size_t sz)
   keepRunning = 1;
   char *buf = NULL;
 
-#define CREATECHUNK (1024*1024)
+#define CREATECHUNK (1024*1024*100L)
 
   CALLOC(buf, 1, CREATECHUNK);
   generateRandomBuffer(buf, CREATECHUNK, 42);
-  fprintf(stderr,"*info* slow writing '%s' %zd (%.3lf GiB)\n", filename, sz, TOGiB(sz));
+  fprintf(stderr,"*info* slow write(fd, %ld, buf) with '%s' %zd (%.3lf GiB)\n", CREATECHUNK, filename, sz, TOGiB(sz));
   size_t towriteMiB = sz, totalw = 0;
 
+  float percent = 1.0;
   while ((towriteMiB > 0) && keepRunning) {
     int towrite = MIN(towriteMiB, CREATECHUNK);
     int wrote = write(fd, buf, towrite);
+    if (towrite < sz * percent) {
+      //fprintf(stderr,"%.0f%% ", 100-(percent*100)); fflush(stderr);
+    }
+
+    percent = percent - 0.05; if (percent < 0) percent = 0;
+    
     if (wrote > 0) {
       totalw += wrote;
       towriteMiB -= wrote;
@@ -813,11 +821,14 @@ int createFile(const char *filename, const size_t sz)
       }
     }
   }
-  fprintf(stderr,"*info* wrote down to %zd / %zd\n", towriteMiB, sz);
-  //  fsync(fd);
+  fprintf(stderr,"\n");
+  fflush(stderr);
+  fsync(fd);
+  fdatasync(fd);
   close(fd);
   free(buf);
   buf = NULL;
+  fprintf(stderr,"*info* wrote down to %zd / %zd\n", towriteMiB, sz);
   double timeelapsed = timedouble() - timestart;
   fprintf(stderr,"*info* file '%s' created in %.1lf seconds, %.0lf MB/s\n", filename, timeelapsed, TOMB(sz / timeelapsed));
 
