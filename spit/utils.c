@@ -821,7 +821,6 @@ int createFile(const char *filename, const size_t sz)
       }
     }
   }
-  fprintf(stderr,"\n");
   fflush(stderr);
   fsync(fd);
   fdatasync(fd);
