@@ -322,7 +322,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
         //	*runseconds = (size_t)-1; // run for ever
       }
       if (*runseconds < 0) {
-        *runseconds = 100L * 365 * 3600 * 24; // 100 years
+        *runseconds = INF_SECONDS; 
       }
       break;
     case 'T':

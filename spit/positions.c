@@ -662,7 +662,8 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					const size_t randomSubSample,
 					const size_t linearSubSample,
 					const size_t linearAlternate,
-					const size_t copyMode
+					const size_t copyMode,
+					const size_t coverageWarning
                                        )
 {
 
@@ -693,12 +694,22 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
   size_t anywrites = 0;
 
-  const double cov = ((pc->sz) * 1.0 * ((pc->minbs + pc->maxbs)/2)) / (maxbdSize - minbdSize);
-  if (cov < 0.95) {
-    // if we can't get good coverage
-    if (((sf == 0) && (firstPPositions == 0) && (pc->minbs == pc->maxbs) && (pc->minbs == alignment)) || (randomSubSample) || (linearSubSample)) {
-      fprintf(stderr,"*info* warning, not a full coverage of the device, coverage = %.6lf%%\n", cov*100.0);
+  if (coverageWarning) {
+    const double cov = ((pc->sz) * 1.0 * ((pc->minbs + pc->maxbs)/2)) / (maxbdSize - minbdSize);
+    if (cov < 0.99) {
+      if(firstPPositions) {}
+      fprintf(stderr,"*warning*\n");
+      fprintf(stderr,"*warning* not a full coverage of the device, coverage = %.2lf%% of %.3lf TB\n", cov*100.0, TOTB(maxbdSize - minbdSize));
+      size_t usebs = (maxbdSize - minbdSize) * 1.0 / (pc->sz) / 1024;
+      fprintf(stderr,"*warning* ");
+      commaPrint0dp(stderr, (maxbdSize - minbdSize) / pc->maxbs);
+      fprintf(stderr," positions are required with the current max block size (%zd KiB)\n", pc->maxbs/1024);
+      fprintf(stderr,"*warning* the block size would need to be >= %zd KiB ('k%zd' in the command string or increase RAM/-L)\n", usebs, usebs);
+      fprintf(stderr,"*warning*\n");
+      fflush(stderr);
+      
       //xxx bad idea with overlapping block ranges
+      //    }
     }
   }
 

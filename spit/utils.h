@@ -34,6 +34,8 @@
 #define GBtoGiB(x)  (((x) * 1000.0) / 1024.0)
 
 
+#define INF_SECONDS 100000000L
+
 
 /*#define CALLOC(x, y, z) {x = calloc(y, z); if (!(x)) {fprintf(stderr,"ooom!!\n");abort();}}*/
 #define CALLOC(x, y, z) {/*fprintf(stderr,"CALLOC %s %d, size %zd\n", __FILE__, __LINE__, ((((size_t)((y) * (z)))/4096 + 1) * 4096));*/ assert((y)>0); assert((z)>0); x = memalign(4096, (((size_t)((y) * (z)))/4096 + 1) * 4096); if(x) memset(x, 0, (((size_t)((y) * (z)))/4096 + 1) * 4096);  if (!(x)) {fprintf(stderr,"*error* out of memory! ooom!! %zd\n", (((size_t)((y) * (z)))/4096 + 1) * 4096);abort();}}

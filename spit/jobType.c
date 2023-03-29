@@ -26,8 +26,6 @@
 extern volatile int keepRunning;
 extern int verbose;
 
-#define INF_SECONDS 100000000
-
 void jobInit(jobType *job)
 {
   job->count = 0;
@@ -277,7 +275,7 @@ static void *runThread(void *arg)
     // create the positions and the r/w status
     //    threadContext->seqFiles = seqFiles;
     //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-    positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample, threadContext->linearSubSample, threadContext->linearAlternate, threadContext->copyMode);
+    positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample, threadContext->linearSubSample, threadContext->linearAlternate, threadContext->copyMode, threadContext->runSeconds >= INF_SECONDS ? 1 : 0);
   }
 
   for (size_t e = 0; e < threadContext->pos.sz; e++) {
@@ -1566,9 +1564,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         }
       }
       if (*endp == '-')
-        lengthsSetupLowHighAlignSeq(&threadContext[i].len, bs, highbs, 4096);
+        lengthsSetupLowHighAlignSeq(&threadContext[i].len, bs, highbs, MIN(bs, 4096));
       else
-        lengthsSetupLowHighAlignPower(&threadContext[i].len, bs, highbs, 4096);
+        lengthsSetupLowHighAlignPower(&threadContext[i].len, bs, highbs, MIN(bs, 4096));
     } else {
       lengthsAdd(&threadContext[i].len, bs, 1);
     }
