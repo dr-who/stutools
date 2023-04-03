@@ -1575,9 +1575,9 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	if (abs < 4096) abs = 4096;
 	size_t ahighbs = abs;
 	if (*endp == '-' || *endp == ':') {
-	  int nextv = atoi(endp+1);
+	  size_t nextv = 1024L*1024*atof(endp+1);
 	  if (nextv > 0) {
-	    ahighbs = alignedNumber(1024L*1024 * nextv, 4096);
+	    ahighbs = alignedNumber(nextv, 4096);
 	    if (ahighbs < 4096) ahighbs = 4096;
 	  }
 	}
