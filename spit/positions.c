@@ -988,7 +988,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
         positionsCurrent[i] += thislen;
 	positionsSizeSum[i] += thislen;
-	if (resetSizes.size > 0) { // more than 1 size
+	if ((resetSizes.size > 0) && (sf > 0)) { // more than 1 size
 	  const size_t resetThres = lengthsGet(&resetSizes, &seed);
 	  if (positionsSizeSum[i] >= resetThres) {
 	    positionsCurrent[i] = randomBlockSize(minbdSize, maxbdSize - thislen, alignbits, erand48(xsubi) * (maxbdSize - thislen - minbdSize));
