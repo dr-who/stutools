@@ -99,11 +99,22 @@ void lengthsSetupLowHighAlignPower(lengthsType *l, size_t min, size_t max, size_
   }
 }
 
-void lengthsDump(const lengthsType *l)
+void lengthsDump(const lengthsType *l, const char *prefix)
 {
-  fprintf(stderr,"*info* lengths dump (min %zd, max %zd)\n", l->min, l->max);
+  fprintf(stderr,"*info* '%s' lengths dump (min %zd, max %zd)\n", prefix, l->min, l->max);
+  int prnt = 1;
   for (size_t i = 0; i < l->size; i++) {
-    fprintf(stderr,"*info*   [%zd] %zd, %zd\n", i, l->len[i], l->freq[i]);
+    if (i > 10) {
+      prnt = 0;
+    }
+    if (i>l->size-10) prnt = 1;
+    if (prnt) {
+      fprintf(stderr,"*info*   [%zd] %zd, %zd\n", i, l->len[i], l->freq[i]);
+    } else {
+      if (i==11) {
+	fprintf(stderr,"  ...\n");
+      }
+    }
   }
 }
 

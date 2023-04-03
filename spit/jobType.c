@@ -220,6 +220,7 @@ typedef struct {
   double fourkEveryMiB;
   size_t jumpK;
   lengthsType len;
+  lengthsType resetSizes;
   size_t firstPPositions;
   size_t randomSubSample;
   size_t linearSubSample;
@@ -275,7 +276,7 @@ static void *runThread(void *arg)
     // create the positions and the r/w status
     //    threadContext->seqFiles = seqFiles;
     //    threadContext->seqFilesMaxSizeBytes = seqFilesMaxSizeBytes;
-    positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample, threadContext->linearSubSample, threadContext->linearAlternate, threadContext->copyMode, threadContext->runSeconds >= INF_SECONDS ? 1 : 0);
+    positionContainerCreatePositions(&threadContext->pos, threadContext->jobdeviceid, threadContext->seqFiles, threadContext->seqFilesMaxSizeBytes, threadContext->rw, &threadContext->len, MIN(4096,threadContext->blockSize), threadContext->startingBlock, threadContext->minbdSize, threadContext->maxbdSize, threadContext->seed, threadContext->mod, threadContext->remain, threadContext->fourkEveryMiB, threadContext->jumpK, threadContext->firstPPositions, threadContext->randomSubSample, threadContext->linearSubSample, threadContext->linearAlternate, threadContext->copyMode, threadContext->runSeconds >= INF_SECONDS ? 1 : 0, threadContext->resetSizes);
   }
 
   for (size_t e = 0; e < threadContext->pos.sz; e++) {
@@ -1281,10 +1282,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     size_t bs = 4096, highbs = 4096;
 
     lengthsInit(&threadContext[i].len);
+    lengthsInit(&threadContext[i].resetSizes);
 
     if (verbose >= 2) {
       fprintf(stderr,"*info* setting up thread %d\n", i);
     }
+    {
     char * charBS = strchr(job->strings[i], 'M');
     if (charBS && *(charBS+1)) {
 
@@ -1298,6 +1301,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
           highbs = 1024L * 1024 * nextv;
         }
       }
+    }
     }
     if (highbs < bs) {
       highbs = bs;
@@ -1456,22 +1460,6 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
 
-    {
-      size_t jumpK = 0; // jumpK of 0 means random else means add KiB
-      char *charI = strchr(job->strings[i], 'A');
-
-      if (charI && *(charI + 1)) {
-        jumpK = atoi(charI + 1);
-        if (threadContext[i].fourkEveryMiB == 0) { // if A specified then apply it always
-          threadContext[i].fourkEveryMiB = 0.0001;
-        }
-      }
-      threadContext[i].jumpK = jumpK;
-      if (jumpK) {
-        fprintf(stderr,"*info* jumpKiB set to %zd\n", threadContext[i].jumpK);
-      }
-    }
-
     /*    threadContext[i].gcoverhead = 0;
     {
       char *str = strchr(job->strings[i], 'o');
@@ -1550,7 +1538,10 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       }
     }
 
-    charBS = strchr(job->strings[i], 'k');
+    
+
+    {
+    char *charBS = strchr(job->strings[i], 'k');
     if (charBS && *(charBS+1)) {
 
       char *endp = NULL;
@@ -1572,7 +1563,33 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
     threadContext[i].blockSize = bs;
     threadContext[i].highBlockSize = highbs;
+    }
 
+
+    {
+      // A0.5-5 means to reset the position every 0.5 to 5 MiB
+      char *charI = strchr(job->strings[i], 'A');
+      if (charI && *(charI + 1)) {
+	char *endp = NULL;
+	bs = alignedNumber(1024L*1024 * strtod(charI+1, &endp), 4096);
+	if (bs < 4096) bs = 4096;
+	highbs = bs;
+	if (*endp == '-' || *endp == ':') {
+	  int nextv = atoi(endp+1);
+	  if (nextv > 0) {
+	    highbs = alignedNumber(1024L*1024 * nextv, 4096);
+	    if (highbs < 4096) highbs = 4096;
+	  }
+	}
+	if (*endp == '-') {
+	  lengthsSetupLowHighAlignSeq(&threadContext[i].resetSizes, bs, highbs, MIN(bs, 4096));
+	} else {
+	  lengthsSetupLowHighAlignPower(&threadContext[i].resetSizes, bs, highbs, MIN(bs, 4096));
+	}
+      }
+    }
+
+    
 
     size_t qDepthMin = 1, qDepthMax = origqd;
 
@@ -2187,6 +2204,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   for (int i = 0; i < num; i++) {
     pthread_join(pt[i], NULL);
     lengthsFree(&threadContext[i].len);
+    lengthsFree(&threadContext[i].resetSizes);
   }
 
   keepRunning = 0; // the

@@ -635,6 +635,11 @@ void usage()
   fprintf(stdout,"  spit -f device -c k4:1024     # set block range to 4 to 1024 KiB, in powers of 2\n");
   fprintf(stdout,"  spit -f ... -c wM1            # set block size 1M\n");
 
+  fprintf(stdout,"\nRange resets:\n");
+  fprintf(stdout,"  spit -f device -c s1k8A1        # set block size to 8 KiB, randomize next pos after 1 MiB of data\n");
+  fprintf(stdout,"  spit -f device -c s1k4-16A0.5-8 # set block size to 4-16 KiB, randomize after 0.5 to 8 MiB\n");
+  fprintf(stdout,"  spit -f device -c s1k4:16A0.5:8 # As above but power of 2 ranges\n");
+
   fprintf(stdout,"\nI/O amplification: (-O underlying_devices.txt)\n");
   fprintf(stdout,"  spit -f dev -O devices.txt    # specify the raw devices for amplification statistics\n");
   fprintf(stdout,"  spit -f dev -O <(echo dev)    # use BASH syntax for creation of a virtual inline fd\n");
@@ -698,7 +703,6 @@ void usage()
   fprintf(stdout,"  spit -F fileprefix -c ..j128  # creates files from .0001 to .0128\n");
   fprintf(stdout,"  spit -e \"5,echo five\"         # exec a bash -c CMD string after 5 seconds, quotes are required\n");
   fprintf(stdout,"  spit -c wk1024za7             # every 'a' MiB of operations perform a jump back to the start of device. Dump with -d to see\n");
-  fprintf(stdout,"  spit -c wk1024za3A8           # 'A' means to add 8 KiB after every position after 3 MiB\n");
   fprintf(stdout,"  spit -c ts0                   # Use a sync DISCARD/TRIM I/O type\n");
   fprintf(stdout,"  spit -c rrwts0                # 50%% read, 25%% writes and 25%% trim I/O random operations\n");
   fprintf(stdout,"  spit ... -c rs0Y1000          # Limit the number of positions to process to 1,000 then end the run\n");

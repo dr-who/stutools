@@ -26,6 +26,6 @@ size_t lengthsParse(lengthsType *l, const char *str);
 void lengthsSetupLowHighAlignSeq(lengthsType *l, size_t min, size_t max, size_t align);
 void lengthsSetupLowHighAlignPower(lengthsType *l, size_t min, size_t max, size_t align);
 
-void lengthsDump(const lengthsType *l);
+void lengthsDump(const lengthsType *l, const char *prefix);
 
 #endif

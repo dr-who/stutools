@@ -663,9 +663,16 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 					const size_t linearSubSample,
 					const size_t linearAlternate,
 					const size_t copyMode,
-					const size_t coverageWarning
+					const size_t coverageWarning,
+					const lengthsType resetSizes
                                        )
 {
+  lengthsDump(len, "block Size");
+  
+  if(resetSizes.size) {
+    lengthsDump(&resetSizes, "reset Sizes");
+  }
+
 
   int sf = ceil(sforig);
   if (sf != ceil(sforig)) {
@@ -721,13 +728,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     fprintf(stderr,"*info* modulo %zd, remain %zd\n", mod, remain);
   }
 
-  if (startingBlock < 0) {
+  if (startingBlock < 0) { // 'Z' option
     if (startingBlock != -99999)
       fprintf(stderr,"*info* starting position offset is %ld\n", startingBlock);
-  }
-
-  if (verbose >= 2) {
-    lengthsDump(len);
   }
 
   //  fprintf(stderr,"alloc %zd = %zd\n", *num, *num * sizeof(positionType));
@@ -745,12 +748,13 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
   // setup the start positions for the parallel files
   // with a random starting position, -z sets to 0
-  size_t *positionsStart, *positionsEnd, *positionsCurrent;
+  size_t *positionsStart, *positionsEnd, *positionsCurrent, *positionsSizeSum;
   const int regions = (sf == 0) ? 1 : abs(sf);
   assert(regions);
   CALLOC(positionsStart, regions, sizeof(size_t));
   CALLOC(positionsCurrent, regions, sizeof(size_t));
   CALLOC(positionsEnd, regions, sizeof(size_t));
+  CALLOC(positionsSizeSum, regions, sizeof(size_t));
 
   double ratio = 1.0 * (maxbdSize - minbdSize) / regions;
   //  fprintf(stderr,"ratio %lf\n", ratio);
@@ -983,6 +987,14 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         if ((positionsCurrent[i] / pc->minbs) % mod == remain) count++;
 
         positionsCurrent[i] += thislen;
+	positionsSizeSum[i] += thislen;
+	if (resetSizes.size > 0) { // more than 1 size
+	  const size_t resetThres = lengthsGet(&resetSizes, &seed);
+	  if (positionsSizeSum[i] >= resetThres) {
+	    positionsCurrent[i] = randomBlockSize(minbdSize, maxbdSize - thislen, alignbits, erand48(xsubi) * (maxbdSize - thislen - minbdSize));
+	    positionsSizeSum[i] = 0;
+	  }
+	}
 
         nochange = 0;
         if (count >= pc->sz) break; // if too many break
@@ -1086,6 +1098,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   free(positionsStart);
   free(positionsEnd);
   free(positionsCurrent);
+  free(positionsSizeSum);
 
   if (alterSize) free(alterSize);
   if (alterPos) free(alterPos);
@@ -1096,7 +1109,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     insertFourkEveryMiB(pc, minbdSize, maxbdSize, seed, fourkEveryMiB, jumpKiB);
   }
 
-  positionContainerCheck(pc, minbdSize, maxbdSize, 0);
+  if (resetSizes.size == 0) {
+    positionContainerCheck(pc, minbdSize, maxbdSize, 0);
+  }
   
   return anywrites;
 }
