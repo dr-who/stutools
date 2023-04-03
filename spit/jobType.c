@@ -1571,20 +1571,20 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       char *charI = strchr(job->strings[i], 'A');
       if (charI && *(charI + 1)) {
 	char *endp = NULL;
-	bs = alignedNumber(1024L*1024 * strtod(charI+1, &endp), 4096);
-	if (bs < 4096) bs = 4096;
-	highbs = bs;
+	size_t abs = alignedNumber(1024L*1024 * strtod(charI+1, &endp), 4096);
+	if (abs < 4096) abs = 4096;
+	size_t ahighbs = abs;
 	if (*endp == '-' || *endp == ':') {
 	  int nextv = atoi(endp+1);
 	  if (nextv > 0) {
-	    highbs = alignedNumber(1024L*1024 * nextv, 4096);
-	    if (highbs < 4096) highbs = 4096;
+	    ahighbs = alignedNumber(1024L*1024 * nextv, 4096);
+	    if (ahighbs < 4096) ahighbs = 4096;
 	  }
 	}
 	if (*endp == '-') {
-	  lengthsSetupLowHighAlignSeq(&threadContext[i].resetSizes, bs, highbs, MIN(bs, 4096));
+	  lengthsSetupLowHighAlignSeq(&threadContext[i].resetSizes, abs, ahighbs, MIN(abs, 4096));
 	} else {
-	  lengthsSetupLowHighAlignPower(&threadContext[i].resetSizes, bs, highbs, MIN(bs, 4096));
+	  lengthsSetupLowHighAlignPower(&threadContext[i].resetSizes, abs, ahighbs, MIN(abs, 4096));
 	}
       }
     }
