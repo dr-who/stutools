@@ -650,12 +650,12 @@ void usage()
 
 
   fprintf(stdout,"\nRead-ahead (testing seq reads with qd=1)\n");
-  fprintf(stdout,"  spit .. -c s1k4q1 -O ..       # sequential 4 KiB reads, check amplification\n");
-  fprintf(stdout,"  spit .. -c s1k4-128q1 -O ..   # sequential 4-128 KiB reads, check amplification\n");
-  fprintf(stdout,"  spit .. -c s1k64A4q1 -O ..    # 64 KiB reads, reset position every 4 MiB\n");
-  fprintf(stdout,"  spit .. -c s1k64K4q1 -O ..    # 64 KiB reads, only doing every 4th action\n");
-  fprintf(stdout,"  spit .. -c s1M2q1 -O ..       # seq 2 MiB reads\n");
-  fprintf(stdout,"  spit .. -c s-1M2q1 -O ..      # reverse seq/backwards 2 MiB reads\n");
+  fprintf(stdout,"  spit .. -c rs1k4q1 -O ..       # sequential 4 KiB reads, check amplification\n");
+  fprintf(stdout,"  spit .. -c rs1k4-128q1 -O ..   # sequential 4-128 KiB reads, check amplification\n");
+  fprintf(stdout,"  spit .. -c rs1k64A4q1 -O ..    # 64 KiB reads, reset position every 4 MiB ('A')\n");
+  fprintf(stdout,"  spit .. -c rs1k64K4q1 -O ..    # 64 KiB reads, only doing every 4th action ('K')\n");
+  fprintf(stdout,"  spit .. -c rs1M2q1 -O ..       # seq 2 MiB reads\n");
+  fprintf(stdout,"  spit .. -c rs-1M2q1 -O ..      # reverse seq/backwards 2 MiB reads (!)\n");
 
 
   fprintf(stdout,"\nI/O write verification: (-v to verify)\n");
