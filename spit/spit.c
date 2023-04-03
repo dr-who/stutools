@@ -643,6 +643,20 @@ void usage()
   fprintf(stdout,"\nI/O amplification: (-O underlying_devices.txt)\n");
   fprintf(stdout,"  spit -f dev -O devices.txt    # specify the raw devices for amplification statistics\n");
   fprintf(stdout,"  spit -f dev -O <(echo dev)    # use BASH syntax for creation of a virtual inline fd\n");
+  fprintf(stdout,"  spit .. -c rs1k4q1 -O ..      # random 4 KiB, times each block read when contiguous\n");
+  fprintf(stdout,"  spit .. -c zrs1k4q1j128 -O .. # read the same ranges from 128 threads, are they cached\n");
+  fprintf(stdout,"  spit .. -c rs0k4q1 -O ..      # random 4 KiB, how much extra is read\n");
+  fprintf(stdout,"  spit .. -c rs1M2q1 -O ..      # sequential random 2 MiB, check amp\n");
+
+
+  fprintf(stdout,"\nRead-ahead (testing seq reads with qd=1)\n");
+  fprintf(stdout,"  spit .. -c s1k4q1 -O ..       # sequential 4 KiB reads, check amplification\n");
+  fprintf(stdout,"  spit .. -c s1k4-128q1 -O ..   # sequential 4-128 KiB reads, check amplification\n");
+  fprintf(stdout,"  spit .. -c s1k64A4q1 -O ..    # 64 KiB reads, reset position every 4 MiB\n");
+  fprintf(stdout,"  spit .. -c s1k64K4q1 -O ..    # 64 KiB reads, only doing every 4th action\n");
+  fprintf(stdout,"  spit .. -c s1M2q1 -O ..       # seq 2 MiB reads\n");
+  fprintf(stdout,"  spit .. -c s-1M2q1 -O ..      # reverse seq/backwards 2 MiB reads\n");
+
 
   fprintf(stdout,"\nI/O write verification: (-v to verify)\n");
   fprintf(stdout,"  spit -v                       # verify the writes after a run\n");
