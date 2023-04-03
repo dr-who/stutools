@@ -109,7 +109,7 @@ void lengthsDump(const lengthsType *l, const char *prefix)
     }
     if (i>l->size-10) prnt = 1;
     if (prnt) {
-      fprintf(stderr,"*info*   [%zd] %zd, %zd\n", i, l->len[i], l->freq[i]);
+      fprintf(stderr,"*info*   [%2zd]\t %zd (%.03lf MiB)\t %zd\n", i, l->len[i], TOMiB(l->len[i]), l->freq[i]);
     } else {
       if (i==11) {
 	fprintf(stderr,"  ...\n");

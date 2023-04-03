@@ -284,9 +284,9 @@ static void *runThread(void *arg)
   }
   
 
-  if (verbose >= 2) {
-    positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, threadContext->metaData ? 0 : 1 /*don't exit if meta*/);
-  }
+  //  if (verbose >= 2) {
+    //    positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, threadContext->metaData ? 0 : 1 /*don't exit if meta*/);
+  //  }
 
   if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos, threadContext->seed);
   else if (threadContext->seqFiles > 0 && threadContext->seqFiles < 1 && threadContext->seqFilesRange > 0) {
