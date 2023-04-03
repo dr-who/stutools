@@ -325,7 +325,7 @@ then
       O_DIRECT vs pagecache: (default O_DIRECT)
        spit -f ... -c rD0            # 'D' turns off O_DIRECT
 
-      Examples:
+      Misc examples:
        spit -f device -c ... -c ... -c ... # defaults to 10 seconds
        spit -f device -c r           # seq read (defaults to s1 and k4)
        spit -f device -c w           # seq write (s1)

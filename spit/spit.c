@@ -674,7 +674,7 @@ void usage()
   fprintf(stdout,"\nO_DIRECT vs pagecache: (default O_DIRECT)\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
 
-  fprintf(stdout,"\nExamples:\n");
+  fprintf(stdout,"\nMisc examples:\n");
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
   fprintf(stdout,"  spit -f device -c r           # seq read (defaults to s1 and k4)\n");
   fprintf(stdout,"  spit -f device -c w           # seq write (s1)\n");
