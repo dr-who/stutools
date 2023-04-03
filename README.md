@@ -156,10 +156,10 @@ then
 
 ## Usage
 
-Usage:
+ Usage:
   spit [-f device] [-c string] [-c string] ... [-c string]
 
-Create positions:
+ Create positions:
   spit -f dev -c rs0            # defaults to use RAM and generate unique positions. MIN(15GB,freeRAM/2)
   spit -f dev -c rs1P100z       # the first 100 positions in a device, starting from zero
   spit -f dev -c rs1P100        # the first 100 positions in a device, offset by a random amount
@@ -174,13 +174,13 @@ Create positions:
   spit -f dev -c rs0 -L20       # Use 20GiB of RAM to generate more unique positions
   spit -f dev -c rs0j2G_        # Make two threads, but first split the LBA range into two.
 
-Copying regions:
+ Copying regions:
   spit -f dev -c c              # will copy from a region to a destination 1/2 the LBA away, 4 KiB blocks
   spit -f dev -c ck64           # will copy using 64 KiB blocks
   spit -f dev -c ck64j4G_       # Divides the space into 4 regions, runs 4 threads performing local copies per region
   spit -f dev -c ckz64-2048      # Will perform 2 MiB worth of 64 KiB reads, then a single 2 MiB write, starting from 0
 
-Varying executions: (time, position and LBA controls)
+ Varying executions: (time, position and LBA controls)
   spit -f dev -c rs0            # run for 10 seconds by default
   spit -f dev -c rs0 -t10       # run for 10 seconds
   spit -f dev -c rs0 -t-1       # run for ever
@@ -192,7 +192,7 @@ Varying executions: (time, position and LBA controls)
   spit -f dev -c rs0P2000X2     # execute the 2,000 IO operations, twice
   spit ..-t 60 -c ws1zM2P1000=  # = alternates r/w per pass. Write 1000, then read 1000, continue for 60s
 
-Sequential/random/striping:
+ Sequential/random/striping:
   spit -f dev -c s1z            # sequential, one linear region, starting from zero
   spit -f dev -c s1             # sequential, one linear region, randomly offset
   spit -f dev -c s0             # Not sequential, i.e. random
@@ -202,7 +202,7 @@ Sequential/random/striping:
   spit -f dev -c s-1            # Reverse sequential, randomly offset
   spit -f dev -c s-2            # Two sequential regions, reversed, randomly offset
 
-Between linear and random:
+ Between linear and random:
   spit ... s-1                  # monotonically decreasing
   spit ... s0                   # random
   spit ... s0.05                # Almost entirely random with a few monotonically increasing positions
@@ -210,7 +210,7 @@ Between linear and random:
   spit ... s0.98                # With a probability of 0.02 swap with any other position
   spit ... s1                   # monotonically increasing
 
-Positions/latencies:
+ Positions/latencies:
   spit -P filename              # dump positions to filename
                                 # file contains device, position, size, timing, latency per sample, median latency
   spit -P -                     # dump positions to (stdout) and stream raw IOs without collapsing
@@ -219,52 +219,52 @@ Positions/latencies:
                                 # column 15 (#samples), 16 (median latency)
    ... -S positions             # read all the positions from 3 columns. position action and size
 
-LBA coverage: (using lowercase x)
+ LBA coverage: (using lowercase x)
   spit -c P10x1                 # write 10 positions until the entire device size is written
   spit -c P10x3                 # write 10 positions until the entire device size is written three times
   spit -c x5                    # writing the block device size 5 times, not time based
 
-Position coverage: (using capital X)
+ Position coverage: (using capital X)
   spit -f ... -c P10X100        # multiply the number of positions by X, here it's 100, so 1,000 positions
   spit -f .... -c wns0X10       # writing the number of positions 10 times, not time based
   spit -c P10X1                 # write 10 positions
   spit -c P10000X100            # write the same 10,000 positions 100 times
 
-Complete coverage: (positions required, size of `LBAbytes / (RAMbytes / 64)`)
+ Complete coverage: (positions required, size of `LBAbytes / (RAMbytes / 64)`)
   spit -f ... -c ..C            # the 'C' command will check the complete LBA is covered, or exit(1)
 
-Displays: (-s 1 default, once per second)
+ Displays: (-s 1 default, once per second)
   spit -s 0.1 -i 5              # display every 0.1 seconds, ignore first 5 GB
 
-Queue depth: (IO in flight)
+ Queue depth: (IO in flight)
   spit -f .... -c q128          # per job max queue depth (max inflight is 128, submit one at a time)
   spit -f .... -c q32-128       # set the min queue depth to 32, submit at most 32 IOs at a time, max 128
   spit -f .... -c q128-128      # set queue depth to fixed at 128 IOs in flight at all time. Uses less CPU.
 
-Speed targets: (IOPS target)
+ Speed targets: (IOPS target)
   spit ... -c ws1S1000q1        # Target 1000 IOPS, with QD=1
   spit -c ws1zk10001J2S1000     # Writing monotonically, but from alternating between two threads at 1 MB x 1000/s = 1 GB/s
   spit -F. -c ws1zx1j64S100q1 -G1 # creates files from .0001 to .0128, with IOPS targets
   spit ... -c ws1S100           # Targets slower IOPS, S100 targets 100 IOPS per thread, with default qd
 
-Writing/pausing:
+ Writing/pausing:
   spit -f device -c W5          # do 5 seconds worth of IO then wait for 5 seconds
   spit -f device -c W0.1:4      # do 0.1 seconds worth of IO then wait for 4 seconds
   spit -f ... -c w -cW4rs0      # one thread seq write, one thread, run 4, wait 4 repeat
   spit -f ... -c ws1W2:1 -t60   # Alternate run for 2 seconds, wait for 1 second
   spit -f .. -c ws0S1           # Write a 4KiB block, randomly, 1 IO per second. The *slow* Loris
 
-NUMA control:
+ NUMA control:
   spit -f -c ..j32 -u           # j32, but do not pin the threads to specific NUMA nodes
   spit -f -c ..j32 -U 0         # j32, pin all threads to  NUMA node 0
   spit -f -c ..j32 -U 0,1       # j32, split threads evenly between NUMA node 0 and 1
   spit -f -c ..j32 -U 0-2       # j32, split threads evenly between NUMA node 0, 1 and 2
   spit -f -c ..j32 -U 0,0,1     # j32, allocate threads using a 2:1 ratio between NUMA node 0 and 1
 
-See/dump the actions/positions:
+ See/dump the actions/positions:
   spit -f ... -c ... -d 10      # dump the first 10 positions/actions
 
-LBA ranges/partitioning:
+ LBA ranges/partitioning:
   spit -f device -c r -G 1      # 0..1 GB device size
   spit -f device -c r -G 384MiB # -G without a range is GB. {M,G,T}[i*]B
   spit -f device -c r -G 100GB  # Support GB/GiB etc  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GB range
@@ -278,22 +278,22 @@ LBA ranges/partitioning:
   spit -f ... -c P10G1-2        # The first 10 positions starting from 1GiB. It needs the lower range.
   spit -c ws1G5_10j16           # specify a low and high GiB range, to be evenly split by 16 threads (_)
 
-Logging for experiments:
+ Logging for experiments:
   spit -f ... -l logfile        # will append the run results to 'logfile'. Works well with ./combo expansion
   spit -B bench -M ... -N ...   # See the man page for benchmarking tips
 
-Block sizes:
+ Block sizes:
   spit -f device -c k8          # set block size to 8 KiB
   spit -f device -c k4-128      # set block range to 4 to 128 KiB, every 4 KiB
   spit -f device -c k4:1024     # set block range to 4 to 1024 KiB, in powers of 2
   spit -f ... -c wM1            # set block size 1M
 
-Range resets:
+ Range resets:
   spit -f device -c s1k8A1        # set block size to 8 KiB, randomize next pos after 1 MiB of data
   spit -f device -c s1k4-16A0.5-8 # set block size to 4-16 KiB, randomize after 0.5 to 8 MiB
   spit -f device -c s1k4:16A0.5:8 # As above but power of 2 ranges
 
-I/O amplification: (-O underlying_devices.txt)
+ I/O amplification: (-O underlying_devices.txt)
   spit -f dev -O devices.txt    # specify the raw devices for amplification statistics
   spit -f dev -O <(echo dev)    # use BASH syntax for creation of a virtual inline fd
   spit .. -c rs1k4q1 -O ..      # random 4 KiB, times each block read when contiguous
@@ -301,7 +301,7 @@ I/O amplification: (-O underlying_devices.txt)
   spit .. -c rs0k4q1 -O ..      # random 4 KiB, how much extra is read
   spit .. -c rs1M2q1 -O ..      # sequential random 2 MiB, check amp
 
-Read-ahead (testing seq reads with qd=1)
+ Read-ahead (testing seq reads with qd=1)
   spit .. -c s1k4q1 -O ..       # sequential 4 KiB reads, check amplification
   spit .. -c s1k4-128q1 -O ..   # sequential 4-128 KiB reads, check amplification
   spit .. -c s1k64A4q1 -O ..    # 64 KiB reads, reset position every 4 MiB
@@ -309,23 +309,23 @@ Read-ahead (testing seq reads with qd=1)
   spit .. -c s1M2q1 -O ..       # seq 2 MiB reads
   spit .. -c s-1M2q1 -O ..      # reverse seq/backwards 2 MiB reads
 
-I/O write verification: (-v to verify)
+ I/O write verification: (-v to verify)
   spit -v                       # verify the writes after a run
   spit ... -c ws0u -v           # Uses a unique seed (u) per operation (mod 65536)
   spit ... -c ws0U -v           # Generates a read immediately after a write (U), tests with qd=1
   spit ... -c ws0UG_j32 -v      # Generates r/w pairs with unique seeds, as above, unique thread ranges
 
-Preconditioning:
+ Preconditioning:
   spit -p G100s1k64             # precondition job, sequential, 64 KiB blocks
   spit -p G -p Gs1              # precondition job, writing random, 100% LBA, then seq job
   spit -p G100                  # precondition job, writing random overwrite LBA size
   spit -p f5 -f device -c ...   # Precondition/max-fragmentation with 5% GC overhead, becomes K20.
                                 # the -p f5 commands iterates across the LBA in 64G chunks as previous two commands.
 
-O_DIRECT vs pagecache: (default O_DIRECT)
+ O_DIRECT vs pagecache: (default O_DIRECT)
   spit -f ... -c rD0            # 'D' turns off O_DIRECT
 
-Examples:
+ Examples:
   spit -f device -c ... -c ... -c ... # defaults to 10 seconds
   spit -f device -c r           # seq read (defaults to s1 and k4)
   spit -f device -c w           # seq write (s1)
