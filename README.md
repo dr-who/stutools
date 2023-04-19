@@ -301,13 +301,17 @@ then
        spit .. -c rs0k4q1 -O ..      # random 4 KiB, how much extra is read
        spit .. -c rs1M2q1 -O ..      # sequential random 2 MiB, check amp
 
-      Read-ahead (testing seq reads with qd=1)
-       spit .. -c s1k4q1 -O ..       # sequential 4 KiB reads, check amplification
-       spit .. -c s1k4-128q1 -O ..   # sequential 4-128 KiB reads, check amplification
-       spit .. -c s1k64A4q1 -O ..    # 64 KiB reads, reset position every 4 MiB
-       spit .. -c s1k64K4q1 -O ..    # 64 KiB reads, only doing every 4th action
-       spit .. -c s1M2q1 -O ..       # seq 2 MiB reads
-       spit .. -c s-1M2q1 -O ..      # reverse seq/backwards 2 MiB reads
+      Read-ahead (testing seq reads with queue depth of 1/q1)
+       spit .. -c rs1k4q1 -O ..      # sequential 4 KiB reads, check amplification
+       spit .. -c rs1k4-128q1 -O ..  # sequential 4-128 KiB reads, check amplification
+       spit .. -c rs1k64A4q1 -O ..   # 64 KiB reads, reset position every 4 MiB
+       spit .. -c rs1k64K4q1 -O ..   # 64 KiB reads, only doing every 4th action
+       spit .. -c rzs1k1024A8q1      # start at zero, seq, 1M blocks, 8M of contig then new pos
+       spit .. -c rs1M2q1 -O ..      # seq 2 MiB reads
+       spit .. -c rs-1M2q1 -O ..     # reverse seq/backwards 2 MiB reads
+
+      Complex Read-ahead 
+       spit .. -c s1k4-64A8 -c rs0j8 # Testing one thread with RA, multiple random other threads
 
       I/O write verification: (-v to verify)
        spit -v                       # verify the writes after a run
