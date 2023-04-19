@@ -311,7 +311,9 @@ then
        spit .. -c rs-1M2q1 -O ..     # reverse seq/backwards 2 MiB reads
 
       Complex Read-ahead 
-       spit .. -c s1k4-64A8 -c rs0j8 # Testing one thread with RA, multiple random other threads
+       spit .. -c rs1k4-64A8 -c rs0j8 # Testing one thread with RA, multiple random other threads
+       spit .. -c rs1k4A0.25-4       # the A value will be a random value between 256 KiB and 4 MiB 
+       spit .. -c rs1k4A1:8          # A will be a power-of-two random value in 1-8 MiB. 1,2,4 or 8 MiB
 
       I/O write verification: (-v to verify)
        spit -v                       # verify the writes after a run
