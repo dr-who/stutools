@@ -23,10 +23,19 @@ void replayBlock(int fd, unsigned char *buf, size_t len, size_t offset, unsigned
 }
 
 
+void usage() {
+  fprintf(stderr,"*usage* blockdevreplay /dev/older < delta.0001\n");
+  fprintf(stderr,"*usage* cat delta.00?? | blockdevreplay /dev/older    # replay in glob order\n");
+}
 
 
 int main(int argc, char *argv[]) {
 
+  if (argc < 2) {
+    usage();
+    exit(1);
+  }
+  
   int fd1 = open(argv[1], O_RDWR);
   if (fd1 < 0) {
     perror(argv[1]);

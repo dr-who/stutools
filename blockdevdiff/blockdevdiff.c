@@ -33,7 +33,7 @@ void diffTwoBDs(int fd1, int fd2) {
     ssize_t read2 = read(fd2, buf2, BLOCKSIZE);
 
     if (read1 != read2) {
-      perror("file sizes are different");
+      fprintf(stderr,"*error* file sizes are different. Delta is invalid");
       exit(1);
     }
 
@@ -65,7 +65,17 @@ void diffTwoBDs(int fd1, int fd2) {
   fprintf(stderr,"*info* %zd blocks in the delta, size of %zd x (4096 + %zd) = %zd\n", blocks, blocks, sizeof(size_t), blocks * (4096 + sizeof(size_t)));
 }
 
+
+void usage() {
+  fprintf(stderr,"*usage* blockdevdiff /dev/older /dev/newer >delta\n");
+}
+
 int main(int argc, char *argv[]) {
+
+  if (argc < 3) {
+    usage();
+    exit(1);
+  }
 
   int fd1 = open(argv[1], O_RDONLY);
   if (fd1 < 0) {
