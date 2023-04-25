@@ -405,6 +405,7 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
     majorAndMinor(fd, &major, &minor);
     close(fd);
 
+
     if (major == 252) {
       // nsulate/HPSc
       iop =  50L*1024*1024*1024 / blocksize; // if 50GB/s / blocksize
@@ -424,20 +425,23 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
       if (suf) {
         free(suf);
       }
-      if (rr) {
-        //	fprintf(stderr,"rot\n");
-        iop = 500L*1024*1024 / blocksize;  // 500MB/s rotational
+      if (rr) { // rot
+        iop = 300L*1024*1024 / blocksize;  // 300MB/s rotational
         if (iop < 500) iop = 500; // but at least 500 IOPS
+      } else {// not rot
+	iop = 3L*1024L*1024*1024 / 2L / blocksize; // 12Gb/sec for one device
+	if (iop < 10) iop = 10;
       }
-
-      // not rot
-      iop = 3L*1024L*1024*1024 / 2L / blocksize; // 12Gb/sec for one device
-      if (iop < 10) iop = 10;
     }
+    fprintf(stderr,"*info* '%s' has major:minor %u:%u, estimate %zd sequential %.1lf KiB IOPS, %.0lf MiB/s\n", fn, major,minor, iop, blocksize/1024.0, iop * blocksize/1024.0/1024);
+    
   } else {
     //    perror(fn);
     iop = 1;
+    fprintf(stderr,"*warning* '%s' no idea, 1 IOPS!\n", fn);
   }
+
+
   if (verbose) {
     fprintf(stderr,"*info* I/O estimate '%s' is %zd IOPS x %zd = %.1lf GiB/s (%.1lf GiB/s)\n", fn, iop, blocksize, TOGiB(iop * blocksize), TOGiB(iop * blocksize * 8));
   }
