@@ -401,6 +401,7 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
   // default speed is 20GB/s
   size_t iop =  20L*1024*1024*1024 / blocksize; // 20GB/s / blocksize
   if (fd > 0) {
+    int rr = 0;
     unsigned int major, minor;
     majorAndMinor(fd, &major, &minor);
     close(fd);
@@ -421,19 +422,19 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
       if (iop < 10) iop = 10;
     } else {
       char *suf = getSuffix(fn);
-      int rr = getRotational(suf);
+      rr = getRotational(suf);
       if (suf) {
         free(suf);
       }
       if (rr) { // rot
         iop = 300L*1024*1024 / blocksize;  // 300MB/s rotational
-        if (iop < 500) iop = 500; // but at least 500 IOPS
+        if (iop < 10) iop = 10; // but at least 10 IOPS
       } else {// not rot
-	iop = 3L*1024L*1024*1024 / 2L / blocksize; // 12Gb/sec for one device
+	iop = 12L*1024L*1024*1024 / 8L / blocksize; // 12Gb/sec for one device
 	if (iop < 10) iop = 10;
       }
     }
-    fprintf(stderr,"*info* '%s' has major:minor %u:%u, estimate %zd sequential %.1lf KiB IOPS, %.0lf MiB/s\n", fn, major,minor, iop, blocksize/1024.0, iop * blocksize/1024.0/1024);
+    fprintf(stderr,"*info* '%s' has major:minor %u:%u (rotate=%d), estimate %zd sequential %.1lf KiB IOPS, %.0lf MiB/s\n", fn, major, minor, rr, iop, blocksize/1024.0, iop * blocksize/1024.0/1024);
     
   } else {
     //    perror(fn);
