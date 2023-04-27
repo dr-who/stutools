@@ -674,6 +674,12 @@ void usage()
   fprintf(stdout,"\nO_DIRECT vs pagecache: (default O_DIRECT)\n");
   fprintf(stdout,"  spit -f ... -c rD0            # 'D' turns off O_DIRECT\n");
 
+  fprintf(stdout,"\nHard/assert IO and speed checks\n");
+  fprintf(stdout,"  # the -K option specifies a number of Read,Write IOs. Or with M prefix MB/s\n");
+  fprintf(stdout,"  spit -f ... -c rs1M1 -K M200  # assert that the read IO is more than 200 MB/s\n");
+  fprintf(stdout,"  spit -f ... -c rws1M1 -K M100,100       # assert that both r/w IO is more than 200 MB/s\n");
+  fprintf(stdout,"  spit -f ... -c rM1x1 -G 1GiB -K 1024,0  # assert that there are exactly 1024 read IOs\n");
+
   fprintf(stdout,"\nMisc examples:\n");
   fprintf(stdout,"  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
   fprintf(stdout,"  spit -f device -c r           # seq read (defaults to s1 and k4)\n");

@@ -2408,19 +2408,29 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 
 
 void resultDump(const resultType *r, const char *kcheckresults, const int display) {
-  long readCheckIO = 0, writeCheckIO = 0;
-  
   if (display) {
-    fprintf(stderr, "*info* results '%s' -> %zd %zd\n", kcheckresults, readCheckIO, writeCheckIO);
+
+    fprintf(stderr, "*info* *HARD/assert* result check against '%s'\n", kcheckresults);
     fprintf(stderr, "*info*   read IO %zd, write IO %zd\n", r->readTotalIO, r->writeTotalIO);
     fprintf(stderr, "*info*   read IOPS %.0lf, write IOPS %.0lf\n", r->readIOPS, r->writeIOPS);
-    fprintf(stderr, "*info*   read MB/s %.0lf, write MB/s %.0lf\n", TOMiB(r->readBps), TOMiB(r->writeBps));
+    fprintf(stderr, "*info*   read MB/s %.0lf, write MB/s %.0lf\n", TOMB(r->readBps), TOMB(r->writeBps));
   }
 
   if (kcheckresults) {
-    sscanf(kcheckresults, "%ld,%ld", &readCheckIO, &writeCheckIO);
-    assert((size_t)readCheckIO == r->readTotalIO);
-    assert((size_t)writeCheckIO == r->writeTotalIO);
+    if (kcheckresults[0] != 'M') {
+      long readCheckIO = 0, writeCheckIO = 0;
+  
+      sscanf(kcheckresults, "%ld,%ld", &readCheckIO, &writeCheckIO);
+      assert((size_t)readCheckIO == r->readTotalIO);
+      assert((size_t)writeCheckIO == r->writeTotalIO);
+    } else {
+      long readCheckIOMB = 0, writeCheckIOMB = 0;
+
+      // add 1 char to skip M
+      sscanf(kcheckresults+1, "%ld,%ld", &readCheckIOMB, &writeCheckIOMB);
+      assert((size_t)readCheckIOMB <= TOMB(r->readBps));
+      assert((size_t)writeCheckIOMB <= TOMB(r->writeBps));
+    }      
   }
 }
 
