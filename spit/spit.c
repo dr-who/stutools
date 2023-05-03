@@ -242,7 +242,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	 *maxSizeInBytes = num;
        }
        lowg = atof(optarg); highg = atof(optarg);
-       fprintf(stderr,"*info* -G option %zd bytes, power2=%d, (%.5lf GiB, %.5lf GB)\n", num, GBpow2, TOGiB(num), TOGB(num));
+       fprintf(stderr,"*info* -G option %zd bytes, power2=%d, (%.3lf TiB, %.3lf GiB, %.3lf GB)\n", num, GBpow2, TOTiB(num), TOGiB(num), TOGB(num));
     } else { 
       splitRange(optarg, &lowg, &highg);
       if (GBpercent) {

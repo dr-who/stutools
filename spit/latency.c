@@ -130,12 +130,20 @@ void latencyStats(latencyType *lat) {
   double median, three9, four9, five9;
   if (histCount(&lat->histRead)) {
     histSumPercentages(&lat->histRead, &median, &three9, &four9, &five9, 1);
-    fprintf(stderr,"*info* read latency: n = %zd, mean = %.3lf ms (sd = %.2lf ms), median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", histCount(&lat->histRead), histMean(&lat->histRead), nlSD(&lat->histRead.nl), median, three9, four9, five9);
+    const size_t n = histCount(&lat->histRead);
+    if (n<10000) three9 = NAN; // to report 1 in 1,000 values. Try and get 10 of them.
+    if (n<100000) four9 = NAN;
+    if (n<1000000) five9 = NAN;
+    fprintf(stderr,"*info* read latency: n = %zd, mean = %.3lf ms (sd = %.2lf ms), median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", n, histMean(&lat->histRead), nlSD(&lat->histRead.nl), median, three9, four9, five9);
     histSave(&lat->histRead, "spit-latency-histogram-read.txt", 1);
   }
   if (histCount(&lat->histWrite)) {
     histSumPercentages(&lat->histWrite, &median, &three9, &four9, &five9, 1);
-    fprintf(stderr,"*info* write latency: n = %zd, mean = %.3lf ms (sd = %.2lf ms), median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", histCount(&lat->histWrite), histMean(&lat->histWrite), nlSD(&lat->histWrite.nl), median, three9, four9, five9);
+    const size_t n = histCount(&lat->histWrite);
+    if (n<10000) three9 = NAN;
+    if (n<100000) four9 = NAN;
+    if (n<1000000) five9 = NAN;
+    fprintf(stderr,"*info* write latency: n = %zd, mean = %.3lf ms (sd = %.2lf ms), median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", n, histMean(&lat->histWrite), nlSD(&lat->histWrite.nl), median, three9, four9, five9);
     histSave(&lat->histWrite, "spit-latency-histogram-write.txt", 1);
   }
 }
