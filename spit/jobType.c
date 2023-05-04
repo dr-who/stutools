@@ -1860,30 +1860,23 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
       char *sf = strchr(job->strings[i], 's');
       if (sf && *(sf+1)) {
 	double ret = 0, prob = 0, range = 0;
-	int sr = 0;
 	if (*(sf+1) == '0') {
-	  if ((*(sf+1) == '0') && (*(sf+2) == '.')) {
-	    sr = splitRange(sf+1, &prob, &range);
-	  } else {
-	    sr = 0; // if s0anything_not_period then s=0
-	  }
+	  // if it starts with 0
+	  if ((*(sf+1) == '0') && (*(sf+2) == '.')) { // and then ., not 0x like a hex number
+	    splitRange(sf+1, &prob, &range);
+	    ret = prob;
+	  } // else prob is 0 for random
 	} else {
-	  sr = splitRange(sf+1, &prob, &range);
-	  if (sr == 2) {
-	    ret = prob;
-	    fprintf(stderr,"*info* sequentialness prob %.3lf, range %.0lf\n", prob, ceil(range));
-	  } else {
-	    ret = prob;
-	    if (ret > 0 && ret < 1) {
-	      range = RAND_MAX;
-	    }
-	  }
+	  // if s is not 0
+	  splitRange(sf+1, &prob, &range);
+	  ret = prob;
+	  range = 0;
 	}
 	
 	seqFilesMaxSizeBytes = 0;
         seqFiles = ret;
-	//	fprintf(stderr,"*info -s %.03lf\n", ret);
 	threadContext[i].seqFilesRange = ceil(range);
+        fprintf(stderr,"*info* sequentialness prob %.3lf, swap range +/- %.0lf\n", MIN(1, seqFiles), ceil(threadContext[i].seqFilesRange));
       }
     }
 

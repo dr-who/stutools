@@ -1119,8 +1119,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
 void monotonicCheck(positionContainer *pc) {
   //  fprintf(stderr,"*info* checking monotonic ordering of positions\n");
-  size_t monoup = 0, monodown = 0, close = 0, far = 0, total = 0;
-  float dist = 0;
+  size_t up = 0, monoup = 0, monodown = 0, down = 0, close = 0, far = 0, total = 0;
   
   for (size_t i = 0; i < pc->sz; i++) {
     size_t prev = i-1;
@@ -1133,23 +1132,36 @@ void monotonicCheck(positionContainer *pc) {
       }
     }
 
-    dist = DIFF(pc->positions[i].pos, pc->positions[prev].pos);
+    const size_t dist = DIFF(pc->positions[i].pos, pc->positions[prev].pos);
     if (pc->positions[i].pos) {
-      dist = (dist / pc->positions[i].pos);
-      
+
       if (pc->positions[prev].pos + pc->positions[prev].len == pc->positions[i].pos) {
 	monoup++;
-      } else if (pc->positions[i].pos + pc->positions[i].len == pc->positions[prev].pos) {
+      }
+
+      if (pc->positions[i].pos > pc->positions[prev].pos) {
+	up++;
+      }
+
+      if (pc->positions[i].pos + pc->positions[i].len == pc->positions[prev].pos) {
 	monodown++;
-      } else if (dist < 0.01) {
+      }
+
+      if (pc->positions[i].pos < pc->positions[prev].pos) {
+	down++;
+      }
+
+      // close is within 5 x len away
+      if (dist <= 5 * pc->positions[i].len) {
 	close++;
       } else {
+	//	fprintf(stderr,"* %zd  %zd\n", pc->positions[i].pos, pc->positions[prev].pos);
 	far++;
       }
       total++;
     }
   }
-  fprintf(stderr,"*info* monotonic check: mono-up %zd (%.3lf %%), mono-down %zd (%.3lf %%), close %zd, far %zd)\n", monoup, monoup*100.0/total, monodown, monodown*100.0/total, close, far);
+  fprintf(stderr,"*info* monotonic check (%zd): up %zd (%.1lf %%), mono-up %zd (%.1lf %%), mono-down %zd (%.1lf %%), down %zd (%.1lf %%), close %zd, far %zd)\n", total, up, up*100.0/total, monoup, monoup*100.0/total, monodown, monodown*100.0/total, down, down*100.0/total, close, far);
 }
   
 
@@ -1262,40 +1274,55 @@ void positionContainerRandomizeProbandRange(positionContainer *pc, unsigned int 
   assert(inprob >= 0);
   assert(inprob <= 1);
   
-  unsigned int prob = ceil((1-inprob) * RAND_MAX);
+  size_t prob = ceil((1-inprob) * RAND_MAX);
   assert(prob > 0);
   assert(prob <=RAND_MAX);
   
-  size_t range = inrange;
+  long range = inrange;
   if (range < 1) range = 1;
-  if (range >= pc->sz) range = pc->sz;
+  if (range >= (long)pc->sz) range = pc->sz;
 
+  size_t swaps = 0;
   for (size_t i = 0; i < count && keepRunning; i++) {
     if ((unsigned int)(rand_r(&seed) ) < (prob)) { // each one is actually four changes
 
       // calculate low and high
 
-      long low = i - range; if (low < 0) low = 0;
-      long high = i + range; if (high >= (long)pc->sz - 1) high = (long)pc->sz - 1;
+      // if range 1, pick 2 values [0..2)
+      // if range 4, pick 8 values
+      const long gaprange = 2 * range;
 
-      long j = i, newj = j;
-
-      const long gaprange = high + 1 - low;
-
+      long newj = 0;
       if (gaprange >= 2) {
-	while (j == newj) {
-	  newj = low + (rand_r(&seed) % gaprange);
+	long rrr = rand_r(&seed) % gaprange;
+	if (rrr < range) {
+	  newj = i - 1 - (rrr / 2);
+	} else {
+	  newj = i + 1 + (rrr / 2);
 	}
-	j = newj;
+
+	long gap = (long)i - newj; if (gap < 0) gap = -gap;
+	assert(gap > 0);
+	assert(gap <= range);
+	
+	if (newj < 0) newj = 0;
+	if (newj >= (long)pc->sz) newj = pc->sz-1;
       }
 
-      //      fprintf(stderr,"[%zd] %ld, range %zd,  low/high %ld %ld\n", i, j, range, low, high);
+
+      //      assert((long)i != newj);
+      //      fprintf(stderr,"[%zd] swap %zd and %ld\n", i, i, newj);
+      
       
       // swap i and j
       positionType p = positions[i];
-      positions[i] = positions[j];
-      positions[j] = p;
+      positions[i] = positions[newj];
+      positions[newj] = p;
+      swaps++;
     }
+  }
+  if (swaps) {
+    fprintf(stderr,"*info* for %zd positions, swapped %zd values (%.lf%%)\n", count, swaps, swaps * 100.0/count);
   }
 }
 
