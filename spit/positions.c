@@ -1274,9 +1274,9 @@ void positionContainerRandomizeProbandRange(positionContainer *pc, unsigned int 
   assert(inprob >= 0);
   assert(inprob <= 1);
   
-  size_t prob = ceil((1-inprob) * RAND_MAX);
-  assert(prob > 0);
-  assert(prob <=RAND_MAX);
+  int probthres = ceil((1-inprob) * RAND_MAX);
+  assert(probthres > 0);
+  assert(probthres <=RAND_MAX);
   
   long range = inrange;
   if (range < 1) range = 1;
@@ -1284,7 +1284,7 @@ void positionContainerRandomizeProbandRange(positionContainer *pc, unsigned int 
 
   size_t swaps = 0;
   for (size_t i = 0; i < count && keepRunning; i++) {
-    if ((unsigned int)(rand_r(&seed) ) < (prob)) { // each one is actually four changes
+    if (rand_r(&seed) < probthres) {
 
       // calculate low and high
 

@@ -1863,8 +1863,13 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	if (*(sf+1) == '0') {
 	  // if it starts with 0
 	  if ((*(sf+1) == '0') && (*(sf+2) == '.')) { // and then ., not 0x like a hex number
-	    splitRange(sf+1, &prob, &range);
-	    ret = prob;
+	    int sr = splitRange(sf+1, &prob, &range);
+	    if (sr == 1) {
+	      ret = prob;
+	      range = INT_MAX;
+	    } else {
+	      ret = prob;
+	    }
 	  } // else prob is 0 for random
 	} else {
 	  // if s is not 0
