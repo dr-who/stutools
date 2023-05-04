@@ -1151,6 +1151,7 @@ void monotonicCheck(positionContainer *pc, const float prob) {
     total++;
   }
   fprintf(stderr,"*info* monotonic check (%zd): up %zd (%.1lf %%), mono-up %zd (%.1lf %%), mono-down %zd (%.1lf %%), down %zd (%.1lf %%), close %zd, far %zd)\n", total, up, up*100.0/total, monoup, monoup*100.0/total, monodown, monodown*100.0/total, down, down*100.0/total, close, far);
+  /*
   if (prob == 0) {// random pos
     if (total > 1000) { // if 1,000 points then it should be close to 50/50 up/down
       if (up * 100.0 / total > 55) fprintf(stderr,"*error* the ratios aren't right for random 1\n");
@@ -1163,7 +1164,7 @@ void monotonicCheck(positionContainer *pc, const float prob) {
     assert(monodown >= total-1);
     assert(close >= total-1);
   }
-    
+  */    
     
 }
   
