@@ -132,7 +132,7 @@ void positionContainerHTML(positionContainer *p, const char *name);
 void positionContainerModOnly(positionContainer *pc, const size_t jmod, const size_t threadid);
 
 void positionContainerRandomizeProbandRange(positionContainer *pc, unsigned int seed, const double inprob, const size_t inrange);
-void monotonicCheck(positionContainer *pc);
+void monotonicCheck(positionContainer *pc, const float prob);
 
 positionType * readPos3Cols(FILE *fp, size_t *sz, size_t *minlen, size_t *maxlen);
 

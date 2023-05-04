@@ -1117,51 +1117,54 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 }
 
 
-void monotonicCheck(positionContainer *pc) {
-  //  fprintf(stderr,"*info* checking monotonic ordering of positions\n");
+void monotonicCheck(positionContainer *pc, const float prob) {
+  fprintf(stderr,"*info* checking monotonic ordering of positions, prob = %.3lf\n", prob);
   size_t up = 0, monoup = 0, monodown = 0, down = 0, close = 0, far = 0, total = 0;
   
-  for (size_t i = 0; i < pc->sz; i++) {
+  for (size_t i = 1; i < pc->sz; i++) {
     size_t prev = i-1;
 
-    if (i == 0) {
-      if (DIFF(pc->positions[0].pos, pc->positions[pc->sz-1].pos) < 1024*1024*10) {
-	prev = pc->sz-1;
-      } else {
-	continue;
-      }
+    if (pc->positions[prev].pos + pc->positions[prev].len == pc->positions[i].pos) {
+      monoup++;
     }
-
+    
+    if (pc->positions[i].pos > pc->positions[prev].pos) {
+      up++;
+    }
+    
+    if (pc->positions[i].pos + pc->positions[i].len == pc->positions[prev].pos) {
+      monodown++;
+    }
+    
+    if (pc->positions[i].pos < pc->positions[prev].pos) {
+      down++;
+    }
+    
+    // close is within 5 x len away
     const size_t dist = DIFF(pc->positions[i].pos, pc->positions[prev].pos);
-    if (pc->positions[i].pos) {
-
-      if (pc->positions[prev].pos + pc->positions[prev].len == pc->positions[i].pos) {
-	monoup++;
-      }
-
-      if (pc->positions[i].pos > pc->positions[prev].pos) {
-	up++;
-      }
-
-      if (pc->positions[i].pos + pc->positions[i].len == pc->positions[prev].pos) {
-	monodown++;
-      }
-
-      if (pc->positions[i].pos < pc->positions[prev].pos) {
-	down++;
-      }
-
-      // close is within 5 x len away
-      if (dist <= 5 * pc->positions[i].len) {
-	close++;
-      } else {
-	//	fprintf(stderr,"* %zd  %zd\n", pc->positions[i].pos, pc->positions[prev].pos);
-	far++;
-      }
-      total++;
+    if (dist <= 5 * pc->positions[i].len) {
+      close++;
+    } else {
+      //	fprintf(stderr,"* %zd  %zd\n", pc->positions[i].pos, pc->positions[prev].pos);
+      far++;
     }
+    total++;
   }
   fprintf(stderr,"*info* monotonic check (%zd): up %zd (%.1lf %%), mono-up %zd (%.1lf %%), mono-down %zd (%.1lf %%), down %zd (%.1lf %%), close %zd, far %zd)\n", total, up, up*100.0/total, monoup, monoup*100.0/total, monodown, monodown*100.0/total, down, down*100.0/total, close, far);
+  if (prob == 0) {// random pos
+    if (total > 1000) { // if 1,000 points then it should be close to 50/50 up/down
+      if (up * 100.0 / total > 55) fprintf(stderr,"*error* the ratios aren't right for random 1\n");
+      if (up * 100.0 / total < 45) fprintf(stderr,"*error* the ratios aren't right for random 2\n");
+    }
+  } else if (prob == 1) { // seq only allow one rotation with seq
+    assert(monoup >= total-1);
+    assert(close >= total-1);
+  } else if (prob == -1) { // seq same
+    assert(monodown >= total-1);
+    assert(close >= total-1);
+  }
+    
+    
 }
   
 

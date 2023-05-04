@@ -313,7 +313,7 @@ static void *runThread(void *arg)
     positionContainerAddDelay(&threadContext->pos, threadContext->iopstarget, threadContext->id, threadContext->iopsdecrease);
   }
 
-  monotonicCheck(&threadContext->pos);
+  monotonicCheck(&threadContext->pos, threadContext->seqFiles);
 
   if (threadContext->dumpPos /* && !iRandom*/) {
     positionContainerDump(&threadContext->pos, threadContext->dumpPos);
