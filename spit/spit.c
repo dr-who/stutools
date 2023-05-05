@@ -123,6 +123,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     }
     break;
     case 'B':
+      backupExistingFile(optarg, 3);
+      
       benchmarkName = strdup(optarg);
       break;
     case 'C':
@@ -265,6 +267,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     }
     break;
     case 'l':
+      backupExistingFile(optarg, 3);
+      
       logfile = strdup(optarg);
       fprintf(stderr,"*info* summary stats logged to file '%s'\n", logfile);
       break;
