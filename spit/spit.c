@@ -68,11 +68,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
   optind = 0;
   size_t jglobalcount = 1;
+  size_t keepversions = 0;
 
-  const char *getoptstring = "Ej:b:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:TrC:1L:DK:l:S:";
+  const char *getoptstring = "Ej:b:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:TrC:1L:DK:l:S:3";
 
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
+    case '3': keepversions = 3; break;
     case 'K':
       // check
       if (kcheckresults) {
@@ -123,7 +125,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     }
     break;
     case 'B':
-      backupExistingFile(optarg, 3);
+      backupExistingFile(optarg, keepversions);
       
       benchmarkName = strdup(optarg);
       break;
@@ -267,7 +269,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     }
     break;
     case 'l':
-      backupExistingFile(optarg, 3);
+      backupExistingFile(optarg, keepversions);
       
       logfile = strdup(optarg);
       fprintf(stderr,"*info* summary stats logged to file '%s'\n", logfile);
@@ -304,7 +306,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	}
       } else {
 	// backup first
-	backupExistingFile(optarg, 3);
+	backupExistingFile(optarg, keepversions);
 	
 	savePositions = fopen(optarg, "wt");
 	if (!savePositions) {perror(optarg); exit(-1);}
