@@ -299,6 +299,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 	  setlinebuf(savePositions);
 	}
       } else {
+	// backup first
+	backupExistingFile(optarg, 3);
+	
 	savePositions = fopen(optarg, "wt");
 	if (!savePositions) {perror(optarg); exit(-1);}
 	fprintf(stderr,"*info* savePositions set to '%s'\n", optarg);

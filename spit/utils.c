@@ -1478,3 +1478,30 @@ int openRunLock(const char *fn) {
   perror(fn);
   return 0;
 }
+
+
+// if file is called x,
+// mv x.2 to x.3, mv x.1 to x.2, mv x to x.1;
+int backupExistingFile(const char *file, int versions) {
+  char old[1024], new[1024];
+
+  for (size_t v = versions; v >= 1; v--) {
+
+    if (v == 1) {
+      sprintf(old, "%s", file);
+    } else {
+      sprintf(old, "%s-%zd", file, v-1);
+    }
+      
+    sprintf(new, "%s-%zd", file, v);
+    
+    if (rename(old, new)==0) {
+      fprintf(stderr,"*info* backing up %s, renamed -> %s\n", old, new);
+    } else {
+      //      perror(new);
+    }
+  }
+
+  return 0;
+}
+  //

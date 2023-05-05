@@ -137,6 +137,7 @@ size_t stringToBytesDefault(const char *str, const int assumePow2);
 double analyseAsBits(unsigned char *buffer, size_t size, int bytes);
 int openRunLock(const char *fn);
 
+int backupExistingFile(const char *file, int versions);
 
 #endif
 
