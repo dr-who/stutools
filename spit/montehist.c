@@ -63,12 +63,11 @@ int main(int argc, char *argv[])
   }
 
   histFree(&h);
-  if (calcMean) {
-    fprintf(stderr,"*info* mean value %lf\n", theSum / samples);
-  }
-    
   if (calcMin) {
     fprintf(stderr,"*info* min value %lf\n", theMin);
+  }
+  if (calcMean) {
+    fprintf(stderr,"*info* mean value %lf\n", theSum / samples);
   }
   if (calcMax) {
     fprintf(stderr,"*info* max value %lf\n", theMax);
