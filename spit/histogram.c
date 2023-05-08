@@ -303,7 +303,7 @@ double histSample(histogramType *h) {
   double value = 0;
   size_t n = lrand48() % (h->binSum[h->arraySize] + 1);
   histSum(h);
-  for (size_t i = 1; i <= h->arraySize; i++) {
+  for (size_t i = 0; i <= h->arraySize; i++) {
     if (n <= h->binSum[i]) {
       value = i * 1.0 / h->binScale;
       break;
