@@ -40,13 +40,12 @@ int main(int argc, char *argv[])
 
   histogramType h;
   histLoad(&h, histfile);
-  histSum(&h);
 
   const double consistency = histConsistency(&h);
   fprintf(stderr,"*info* consistency score %.1lf%% using binSize of %zd\n", consistency, h.binScale);
 
   srand48(getDevRandom());
-  lrand48();
+
   double theMin = NAN, theMax = NAN, theSum = NAN;
   for (size_t i = 0; i < samples; i++) {
     const double sample = histSample(&h);

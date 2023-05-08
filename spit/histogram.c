@@ -99,6 +99,7 @@ void histLoad(histogramType *h, const char *fn) {
   double min, max, bin;
   size_t n;
 
+  // read to find min, max and binSize
   double *values = histScanInternal(fn, &min, &max, &bin, &n);
   fprintf(stderr,"*info* '%s': N %zd, min %lf, max %lf, binsize %lf\n", fn, n, min, max, bin);
 
@@ -107,7 +108,8 @@ void histLoad(histogramType *h, const char *fn) {
     histAdd(h, values[i]); // add in the error
   }
   free(values);
-  // read to find min, max and binSize
+  
+  histSum(h); // calc ranges
 }
 
 void histAdd(histogramType *h, double value)
