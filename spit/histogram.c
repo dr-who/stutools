@@ -16,7 +16,7 @@ void histSetup(histogramType *h, const double min, const double max, const doubl
   assert(binscale > 0);
   h->min = min; // 0 s
   h->max = max; // 10 s
-  h->binScale = (int)(1 / binscale); // 0.01ms for 1 seconds is 100,000 bins
+  h->binScale = pow(10, (ceil(log10( 1.0 / binscale)))); // 0.01ms for 1 seconds is 100,000 bins
   h->arraySize = h->max * h->binScale;
   CALLOC(h->bin, h->arraySize + 1, sizeof(size_t));
   CALLOC(h->binSum, h->arraySize + 1, sizeof(size_t));

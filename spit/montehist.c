@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
   histSum(&h);
 
   const double consistency = histConsistency(&h);
-  fprintf(stderr,"*info* consistency score %.1lf%% using binSize of %g\n", consistency, 1.0 / h.binScale);
+  fprintf(stderr,"*info* consistency score %.1lf%% using binSize of %zd\n", consistency, h.binScale);
 
   srand48(getDevRandom());
   lrand48();
