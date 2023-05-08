@@ -13,10 +13,13 @@ void histSetup(histogramType *h, const double min, const double max, const doubl
   if (binscale > 1) {
     fprintf(stderr,"*warning* ignoring binScale > 1\n");
   }
-  assert(binscale > 0);
   h->min = min; // 0 s
   h->max = max; // 10 s
-  h->binScale = pow(10, (ceil(log10( 1.0 / binscale)))); // 0.01ms for 1 seconds is 100,000 bins
+  if (binscale == 0) {
+    h->binScale = 10;
+  } else {
+    h->binScale = pow(10, (ceil(log10( 1.0 / binscale)))); // 0.01ms for 1 seconds is 100,000 bins
+  }
   h->arraySize = h->max * h->binScale;
   CALLOC(h->bin, h->arraySize + 1, sizeof(size_t));
   CALLOC(h->binSum, h->arraySize + 1, sizeof(size_t));
@@ -50,6 +53,11 @@ double * histScanInternal(const char *fn, double *min, double *max, double *bins
     double val = 0;
     long freq;
     int p = sscanf(line, "%lf %ld", &val, &freq);
+    if (p == 1) {
+      freq = 1;
+      p = 2;
+    }
+    
     if ((p==2) && (freq > 0)) {
       for (long q = 0; q < freq; q++) {
 	count++;
@@ -305,8 +313,6 @@ void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnu
 
 double histSample(histogramType *h) {
   double value = 0;
-
-  histSum(h);
 
   const size_t n1 = lrand48();
   size_t n = n1 % (h->binSum[h->arraySize] + 1);
