@@ -44,6 +44,7 @@ double * histScanInternal(const char *fn, double *min, double *max, double *bins
 
   double last = -9e9, gapmax = 9e9, gap = 0;
   size_t count = 0;
+  int first = 1;
   
   while ((nread = getline(&line, &len, stream)) != -1) {
     double val = 0;
@@ -55,11 +56,14 @@ double * histScanInternal(const char *fn, double *min, double *max, double *bins
 	values = (double*)realloc(values, count * sizeof(double));
 	values[count-1] = val;
       }
-      if (val < *min) {
+
+      if (first || (val < *min)) {
 	*min = val;
+	first = 0;
       }
-      if (val > *max) {
+      if (first || (val > *max)) {
 	*max = val;
+	first = 0;
       }
       
       if (last != -9e9) {
@@ -92,7 +96,7 @@ void histLoad(histogramType *h, const char *fn) {
 
   histSetup(h, min, max, bin);
   for (size_t i = 0; i < n; i++) {
-    histAdd(h, values[i]+0.000001); // add in the error
+    histAdd(h, values[i]); // add in the error
   }
   free(values);
   // read to find min, max and binSize
@@ -301,14 +305,21 @@ void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnu
 
 double histSample(histogramType *h) {
   double value = 0;
-  size_t n = lrand48() % (h->binSum[h->arraySize] + 1);
+
   histSum(h);
+
+  const size_t n1 = lrand48();
+  size_t n = n1 % (h->binSum[h->arraySize] + 1);
+   
   for (size_t i = 0; i <= h->arraySize; i++) {
     if (n <= h->binSum[i]) {
       value = i * 1.0 / h->binScale;
       break;
     }
   }
+  if (value < h->min) value = h->min;
+  if (value > h->max) value = h->max;
+  
   return value;
 }
 
