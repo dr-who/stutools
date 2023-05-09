@@ -243,6 +243,8 @@ typedef struct {
   double result_writeTotalIO;
   double result_readTotalIO;
   double result_tm;
+
+  double exitTimeout;
 } threadInfoType;
 
 
@@ -651,7 +653,7 @@ static void *runThread(void *arg)
     }
     // if fp == stdout then it's streaming so you don't need to accumulate
     //    fprintf(stderr,"**** %zd    , limit %zd, \n", posStart, (posLimit - posStart));
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, byteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posStart, (posLimit - (posStart % threadContext->pos.sz)), &posCompleted, 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, (threadContext->fp == stdout) ? 0: numSamples/* true if writing positions */, threadContext->alternateEvery, 0);
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, byteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posStart, (posLimit - (posStart % threadContext->pos.sz)), &posCompleted, 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, (threadContext->fp == stdout) ? 0: numSamples/* true if writing positions */, threadContext->alternateEvery, 0, threadContext->exitTimeout);
 
     totalP += posLimit;
 
@@ -1193,7 +1195,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    unsigned short seed, FILE *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, char* numaBinding, const int performPreDiscard,
                    resultType *result, size_t ramBytesForPositions, size_t notexclusive, const size_t showdate,
-		   FILE *loadpos)
+		   FILE *loadpos, const double exitTimeout)
 {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -1276,6 +1278,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     threadContext[i].jumbleRun = 0;
     threadContext[i].minSizeInBytes = minSizeInBytes;
     threadContext[i].maxSizeInBytes = maxSizeInBytes;
+    threadContext[i].exitTimeout = exitTimeout;
 
     float seqFiles = 1;
     size_t seqFilesMaxSizeBytes = 0;
@@ -2380,18 +2383,18 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	sprintf(s,"wx1zs1k4G%zd-%.1lf", p, MIN(TOGiB(maxSizeBytes), p+stepgb));
 	fprintf(stderr,"*info* precondition: running string %s\n", s);
 	preconditions->strings[0] = strdup(s);
-	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0);
 
 	free(preconditions->strings[0]); // free 'f'
 	sprintf(s,"wx1zs1k4G%zd-%.1lfK%zd", p, MIN(TOGiB(maxSizeBytes), p+stepgb), fragmentLBA);
 	fprintf(stderr,"*info* precondition: running string %s\n", s);
 	preconditions->strings[0] = strdup(s);
-	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0);
 
 	
 	}
     } else {
-      jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL);
+      jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0);
     }
     if (keepRunning) {
       fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");

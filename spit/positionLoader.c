@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     perror(fn);
     exit(-1);
   }
-  aioMultiplePositions(&pc, pc.sz, timedouble() + 9e9, 0, 32, 4096, 0, 0, 4096, &ios, &trb, &twb, 1, 0, pc.sz, NULL, 1, fd, 0, &ior, 0, NULL, NULL, 1, 0, 0, 1);
+  aioMultiplePositions(&pc, pc.sz, timedouble() + 9e9, 0, 32, 4096, 0, 0, 4096, &ios, &trb, &twb, 1, 0, pc.sz, NULL, 1, fd, 0, &ior, 0, NULL, NULL, 1, 0, 0, 1, 0);
 
 
   close(fd);

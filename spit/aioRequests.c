@@ -51,12 +51,17 @@ size_t aioMultiplePositions( positionContainer *p,
 			     size_t posIncrement,
 			     int recordSamples,
 			     size_t alternateEvery,
-			     size_t stringcompare
+			     size_t stringcompare,
+			     double exitTimeout
                            )
 {
   size_t printCount = 0;
   if (stringcompare) {
     fprintf(stderr,"*info* strong byte comparison enabled.\n");
+  }
+
+  if (exitTimeout) {
+    fprintf(stderr,"*info* exitTimeout set to %lf seconds, after 5 seconds of IO (%g ms)\n", exitTimeout, exitTimeout*1000.0);
   }
 
   if (sz == 0) {
@@ -226,6 +231,7 @@ size_t aioMultiplePositions( positionContainer *p,
   *posCompleted = 0;
 
   const double start = timedouble();
+  double lastsubmit = start;
   double last = start, roundstart = start;
   //  double lastreceive = start;
 
@@ -431,7 +437,11 @@ size_t aioMultiplePositions( positionContainer *p,
 	      positions[pos].inFlight = 1;
 	      
 	      ret = io_submit(ioc, 1, &cbs[qdIndex]);
-	      const double sub_taken = timedouble() - sub_start;
+
+	      thistime = timedouble();
+	      lastsubmit = thistime; // last good submit
+
+	      const double sub_taken = thistime - sub_start;
 	      if (sub_taken > 1) {
 		fprintf(stderr,"*info* io_submit took %lf seconds (async submit, queue full?)\n", sub_taken);
 	      }
@@ -445,7 +455,6 @@ size_t aioMultiplePositions( positionContainer *p,
 
 		inFlight++;
 		p->inFlight = inFlight;
-		//	      lastsubmit = thistime; // last good submit
 		submitted++;
 		if (verbose >= 2 || (newpos & (alignment - 1))) {
 		  fprintf(stderr,"fd %d, pos %zd (%% %zd = %zd ... %s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", fd, newpos, alignment, newpos % alignment, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
@@ -515,6 +524,13 @@ size_t aioMultiplePositions( positionContainer *p,
       //      }
     }
 
+    const double difft  = thistime - lastsubmit;
+    if (difft > exitTimeout) {
+      if (timedouble() - start > 5) {
+	fprintf(stderr,"*error* IO took too long, %lf seconds\n", difft);
+	exit(-1);
+      }
+    }
 
     if (inFlight == QD) {
       // if max inflight pause until at least one
@@ -527,6 +543,7 @@ size_t aioMultiplePositions( positionContainer *p,
     
     if (ret > 0) {
       double lastreceive = timedouble();
+      lastsubmit = lastreceive; // a receive is fine too
 
       // verify it's all ok
       size_t rio = 0, rlen = 0, wio = 0, wlen = 0;
