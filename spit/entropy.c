@@ -81,13 +81,13 @@ int analyseAsBits(int bytes) {
     //                fprintf(stderr,"size: %ld\n", sz);                                                                                                                                                      
     for (size_t i =0; i < bits; i++) {
       if (counts0[i]) {
-	double e = counts0[i] * (log((counts0[i]) * 1.0 / tot[i])) / log(2.0);
+	double e = counts0[i] * log(counts0[i] * 1.0 / (tot[i]+0)) / log(2.0);
 	if (verbose) fprintf(stderr,"[b%02zd=0] %3zd %3zd %.4lf\n", i, counts0[i], tot[i], e);
 	entropy = entropy - e;
       }
       
       if (counts1[i]) {
-	double e = counts1[i] * (log((counts1[i]) * 1.0 / tot[i])) / log(2.0);
+	double e = counts1[i] * log(counts1[i] * 1.0 / (tot[i]+0)) / log(2.0);
 	if (verbose) fprintf(stderr,"[b%02zd=1] %3zd %3zd %.4lf\n", i, counts1[i], tot[i], e);
 	entropy = entropy - e;
       }
@@ -129,12 +129,12 @@ int analyse1B() {
 
   if (sz) {
     double entropy = 0;
-    //            fprintf(stderr,"size: %ld\n", sz);
+    //                fprintf(stderr,"size: %ld\n", sz);
     for (size_t i =0; i < 256; i++) {
       if (counts[i]) {
-	double e = counts[i] * (log((counts[i]) * 1.0 / (sz))) / log(2.0);
-	if (verbose) fprintf(stderr,"[0x%2x] %zd %zd %.4lf\n", (unsigned int)i, counts[i], sz, e);
-	entropy = entropy - e;
+	double e = log(counts[i] * 1.0 / sz) / log(2.0);
+	if (verbose) fprintf(stderr,"[0x%2x] %zd/%zd %.4lf, %zd x %.4lf = %.4lf\n", (unsigned int)i, counts[i], sz, e,  counts[i],e,counts[i] * e);
+	entropy = entropy - (counts[i] * e);
       }
     }
     double bps = entropy / sz;
