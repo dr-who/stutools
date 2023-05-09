@@ -1515,5 +1515,8 @@ long getDevRandom() {
     fprintf(stderr,"*info* random seed from clock\n");
   }
   fclose(fp);
+  if (c==0) {
+    fprintf(stderr,"*warning* the random number was 0. That doesn't happen often.\n");
+  }
   return c;
 }

@@ -16,13 +16,11 @@ void usage() {
 
 int main()
 {
-
   const char *buf="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
 
   const int buflen = strlen(buf);
   
-  for (size_t i = 0; i < 32; i++) {
+  for (size_t i = 0; i < 48; i++) {
     unsigned long l = getDevRandom();
     l = l % buflen;
     fprintf(stdout,"%c", buf[l]);
