@@ -6,6 +6,19 @@
 #include "histogram.h"
 #include "numList.h"
 
+void usage() {
+  fprintf(stdout,"Usage:\n");
+  fprintf(stdout,"  hist [options] < data    # writes 'histogram.gnu':\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"  -s 1000      # scale the data by 1,000 as it's read\n");
+  fprintf(stdout,"  -b 0.01      # specify the bin size\n");
+  fprintf(stdout,"  -i infile    # input file\n");
+  fprintf(stdout,"  -o prefix    # the output prefix\n");
+  fprintf(stdout,"  -m           # the min range\n");
+  fprintf(stdout,"  -M           # the max range\n");
+}
+
+
 int main(int argc, char *argv[])
 {
   
@@ -19,9 +32,13 @@ int main(int argc, char *argv[])
 
 
   int opt;
-  const char *getoptstring = "m:M:b:o:s:di:";
+  const char *getoptstring = "hm:M:b:o:s:di:";
   while ((opt = getopt(argc, argv, getoptstring)) != -1) {
     switch (opt) {
+    case 'h':
+      usage();
+      exit(1);
+      break;
     case 'i':
       inputFilename = strdup(optarg);
       break;

@@ -206,38 +206,10 @@ double histConsistency(histogramType *h) {
 
 void histSumPercentages(histogramType *h, double *median, double *three9, double *four9, double *five9, const size_t scale)
 {
-  histSum(h);
-  //  assert(h->dataSum);
-
-  size_t maxsum = h->binSum[h->arraySize];
-  *median = 0;
-  *three9 = 0;
-  *four9 = 0;
-  *five9 = 0;
-
-  int okmedian = 0, okthree9 = 0, okfour9 = 0, okfive9 = 0;
-
-  for (size_t i = 0; i <= h->arraySize; i++) {
-    double value = i * 1.0 / h->binScale;
-    if (h->binSum[i] >= maxsum * 0.5 && !okmedian) {
-      okmedian = 1;
-      *median = value * scale;
-    }
-    if (h->binSum[i] >= floor(maxsum * 0.999) && !okthree9) {
-      okthree9 = 1;
-      *three9 = value * scale;
-    }
-
-    if (h->binSum[i] >= floor(maxsum * 0.9999) && !okfour9) {
-      okfour9 = 1;
-      *four9 = value * scale;
-    }
-
-    if (h->binSum[i] >= floor(maxsum * 0.99999) && !okfive9) {
-      okfive9 = 1;
-      *five9 = value * scale;
-    }
-  }
+  *median = nlSortedPos(&h->nl, 0.5) * scale;
+  *three9 = nlSortedPos(&h->nl, 0.999) * scale;
+  *four9 = nlSortedPos(&h->nl, 0.9999) * scale;
+  *five9 = nlSortedPos(&h->nl, 0.99999) * scale;
 }
 
 
@@ -284,6 +256,9 @@ void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnu
   double median = 0, three9 = 0, four9 = 0, five9 = 0;
   if (histCount(hist)) {
     histSumPercentages(hist, &median, &three9, &four9, &five9, 1);
+    if (isnan(three9)) three9 = 0;
+    if (isnan(four9)) four9 = 0;
+    if (isnan(five9)) five9 = 0;
   }
   FILE *fp = fopen(gnufile, "wt");
   if (fp) {
