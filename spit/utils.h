@@ -139,5 +139,7 @@ int openRunLock(const char *fn);
 
 int backupExistingFile(const char *file, int versions);
 
+long getDevRandom();
+
 #endif
 

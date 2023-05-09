@@ -96,7 +96,7 @@ int analyseAsBits(int bytes) {
     const double threshold = bits * 0.99;
     //    fprintf(stderr,"entropy %.4lf, %zd\n", entropy, bits);
     if (bps >= threshold) ret = 1;
-    fprintf(stdout, "%.7lf bps (compression %.1lfx) %s\n", bps, bits/bps, bps >= threshold ? "RANDOM" : "");
+    fprintf(stdout, "%.7lf bps (compression %.1lfx, total %.1lf) %s\n", bps, bits/bps, entropy, bps >= threshold ? "RANDOM" : "");
   }
   free(buffer);
 
@@ -140,7 +140,7 @@ int analyse1B() {
     double bps = entropy / sz;
     const double threshold = 8 * 0.99;
     if (bps >= threshold) ret = 1;
-    fprintf(stdout, "%.7lf bps (compression %.1lfx) %s\n", bps, 8/bps, bps >= threshold ? "RANDOM" : "");
+    fprintf(stdout, "%.7lf bps (compression %.1lfx, total %.1lf) %s\n", bps, 8/bps, entropy, bps >= threshold ? "RANDOM" : "");
   }
   free(buffer);
   return ret;

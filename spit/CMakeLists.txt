@@ -89,7 +89,10 @@ add_executable(hist hist.c)
 target_link_libraries(hist spitlib m numa)
 
 add_executable(montehist montehist.c)
-target_link_libraries(montehist spitlib m numa)
+target_link_libraries(montehist spitlib m numa pthread numa aio)
+
+add_executable(genpw genpw.c)
+target_link_libraries(genpw spitlib m numa pthread numa aio)
 
 add_executable(genpositions genpositions.c)
 target_link_libraries(genpositions spitlib m aio pthread numa)

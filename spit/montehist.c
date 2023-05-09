@@ -6,6 +6,8 @@
 #include "histogram.h"
 #include "numList.h"
 
+int keepRunning = 1;
+
 void usage() {
   fprintf(stdout,"Usage:\n");
   fprintf(stdout,"  montehist -i hist [-s n] [-m -M -a] [-r n]\n");

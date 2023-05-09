@@ -306,14 +306,3 @@ double histSample(histogramType *h) {
   return value;
 }
 
-long getDevRandom() {
-  FILE *fp = fopen("/dev/random", "rb");
-  long c = 0;
-  if (fread(&c, sizeof(long), 1, fp) == 0) {
-    //      perror("random");
-    c = time(NULL);
-    fprintf(stderr,"*info* random seed from clock\n");
-  }
-  fclose(fp);
-  return c;
-}
