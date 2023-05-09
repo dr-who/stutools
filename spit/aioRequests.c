@@ -524,11 +524,13 @@ size_t aioMultiplePositions( positionContainer *p,
       //      }
     }
 
-    const double difft  = thistime - lastsubmit;
-    if (difft > exitTimeout) {
-      if (timedouble() - start > 5) {
-	fprintf(stderr,"*error* IO took too long, %lf seconds (timestamp %lf)\n", difft, timedouble());
-	exit(-1);
+    if (exitTimeout) {
+      const double difft  = thistime - lastsubmit;
+      if (difft > exitTimeout) {
+	if (timedouble() - start > 5) {
+	  fprintf(stderr,"*error* IO took too long, %lf seconds (timestamp %lf)\n", difft, timedouble());
+	  exit(-1);
+	}
       }
     }
 
