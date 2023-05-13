@@ -31,6 +31,11 @@ target_link_libraries(numListTest spitlib m aio pthread numa)
 add_executable(pair pair.c )
 target_link_libraries(pair spitlib m )
 
+add_executable(stush stush.c)
+target_link_libraries(stush spitlib m readline pthread aio numa )
+
+set_target_properties(stush PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
 add_executable(stat stat.c )
 target_link_libraries(stat spitlib m )
 

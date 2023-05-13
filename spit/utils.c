@@ -197,18 +197,29 @@ int isBlockDevice(const char *name)
 // /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
 
 #define POWERPATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor"
-void printPowerMode()
-{
+
+
+char *getPowerMode() {
   FILE *fp = fopen(POWERPATH, "rt");
+  char *res = NULL;
   if (fp) {
     char s[1000];
     int ret = fscanf(fp, "%s", s);
     if (ret == 1) {
-      fprintf(stderr,"*info* power mode: '%s' (%s)\n", s, POWERPATH);
-    } else {
-      fprintf(stderr,"*info* power mode partial: '%s'\n", s);
+      res = strdup(s);
     }
     fclose(fp);
+  }
+  return res;
+}
+
+
+void printPowerMode()
+{
+  char *res = getPowerMode();
+  if (res) {
+    fprintf(stderr,"*info* power mode: '%s' (%s)\n", res, POWERPATH);
+    free(res);
   }
 }
 
