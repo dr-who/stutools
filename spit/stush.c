@@ -12,7 +12,20 @@
 #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
-          
+
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <net/if.h>
+
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <netdb.h>
+#include <ifaddrs.h>
+#include <linux/if_link.h>
+
 
 #include "utils.h"
 #include "procDiskStats.h"
@@ -39,6 +52,7 @@ COMMAND commands[] = {
   { "status", "Show system status" },
   { "pwgen", "Generate cryptographically complex 200-bit random password"},
   { "lsblk", "List drive block devices"},
+  { "lsnic", "List IP/HW addresses"},
   { "readspeed", "Measure read speed on device (readspeed /dev/sda)"},
   { "exit", "Exit the secure shell (or ^d/EOF)"}
 };
@@ -117,6 +131,104 @@ void colour_printString(const char *string, const unsigned int good, const char 
   }
 }
 
+
+void cmd_printHWAddr(char *nic) {
+  int s;
+  struct ifreq buffer;
+  
+  s = socket(PF_INET, SOCK_DGRAM, 0);
+  memset(&buffer, 0x00, sizeof(buffer));
+  strcpy(buffer.ifr_name, nic);
+  ioctl(s, SIOCGIFHWADDR, &buffer);
+  close(s);
+  
+  for( s = 0; s < 6; s++ ) {
+      if (s > 0) printf(":");
+      printf("%.2x", (unsigned char)buffer.ifr_hwaddr.sa_data[s]);
+    }
+  
+  //  printf("\n");
+
+  /*  s = socket(PF_INET, SOCK_DGRAM, 0);
+  memset(&buffer, 0x00, sizeof(buffer));
+  strcpy(buffer.ifr_name, nic);
+  ioctl(s, SIOCGIFADDR, &buffer);
+  close(s);
+
+  printf("%s\n", inet_ntoa(((struct sockaddr_in *)&buffer.ifr_addr)->sin_addr));*/
+
+}
+
+
+// from getifaddrs man page
+void cmd_listNICs(int tty) {
+  if (tty) {}
+  
+  struct ifaddrs *ifaddr;
+  int family, s;
+  char host[NI_MAXHOST];
+  
+  if (getifaddrs(&ifaddr) == -1) {
+    perror("getifaddrs");
+    exit(EXIT_FAILURE);
+  }
+  
+  /* Walk through linked list, maintaining head pointer so we
+     can free list later. */
+  
+  for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+    if (ifa->ifa_addr == NULL)
+      continue;
+    
+    family = ifa->ifa_addr->sa_family;
+    
+    /* Display interface name and family (including symbolic
+       form of the latter for the common families). */
+    
+    if (family != AF_PACKET) {
+      if (tty) printf("%s", BOLD);
+      printf("%-8s %s (%d)\n",
+	     ifa->ifa_name,
+	     (family == AF_PACKET) ? "AF_PACKET" :
+	     (family == AF_INET) ? "AF_INET" :
+	     (family == AF_INET6) ? "AF_INET6" : "???",
+	     family);
+      if (tty) printf("%s", END);
+    }
+
+    
+    /* For an AF_INET* interface address, display the address. */
+    
+    if (family == AF_INET || family == AF_INET6) {
+      s = getnameinfo(ifa->ifa_addr,
+		      (family == AF_INET) ? sizeof(struct sockaddr_in) :
+		      sizeof(struct sockaddr_in6),
+		      host, NI_MAXHOST,
+		      NULL, 0, NI_NUMERICHOST);
+      if (s != 0) {
+	printf("getnameinfo() failed: %s\n", gai_strerror(s));
+	exit(EXIT_FAILURE);
+      }
+      
+      printf("\t\tHW address: ");
+      cmd_printHWAddr(ifa->ifa_name);
+      printf("\taddress: <%s>", host);
+      printf("\n");
+      
+    }
+    /*else if (family == AF_PACKET && ifa->ifa_data != NULL) {
+      struct rtnl_link_stats *stats = ifa->ifa_data;
+      
+      printf("\t\ttx_packets = %10u; rx_packets = %10u\n"
+	     "\t\ttx_bytes   = %10u; rx_bytes   = %10u\n",
+	     stats->tx_packets, stats->rx_packets,
+	     stats->tx_bytes, stats->rx_bytes);
+	     }*/
+  }
+  
+  freeifaddrs(ifaddr);
+}
+
 void cmd_listAll() {
   printf("Commands: \n");
   for (size_t i = 0; i < sizeof(commands)/sizeof(commands[0]); i++) {
@@ -127,21 +239,34 @@ void cmd_listAll() {
 
 void cmd_pwgen(int tty) {
   const size_t len = 32;
-  double entropy = 0;
+  double pwentropy = 0, bitsentropy = 0;
   unsigned char *pw = NULL;
   do {
     if (pw) {
       free(pw);
     }
-    
-    pw = passwordGenerate(len);
-    entropy = entropyTotalBits(pw, len, 1);
-  } while (entropy < 200 && keepRunning);
 
-  printf("%s ", pw);
+    unsigned char *bits = randomGenerate(len);
+    bitsentropy = entropyTotalBits(bits, len, 1);
+    
+    pw = passwordGenerate(bits, len);
+    pwentropy = entropyTotalBits(pw, len, 1);
+    free(bits);
+    
+  } while ((pwentropy < 200 || bitsentropy < 242) && keepRunning);
+
   char ss[1000];
-  sprintf(ss, "(%.1lf bits of entropy)", entropy);
-  colour_printString(ss, entropy >= 200, "\n", tty);
+  if (tty) printf("%s", BOLD);
+  printf("generate random bits for length %zd: ", len);
+  if (tty) printf("%s", END);
+
+  sprintf(ss, "(%.1lf bits of entropy)", bitsentropy);
+  colour_printString(ss, bitsentropy >= 242, "\n", tty);
+  
+  
+  printf("%s ", pw);
+  sprintf(ss, "(%.1lf bits of entropy)", pwentropy);
+  colour_printString(ss, pwentropy >= 200, "\n", tty);
   
   free(pw);
 }
@@ -173,15 +298,37 @@ void cmd_listDriveBlockDevices(int tty) {
   procDiskStatsSample(&d);
 
   if (tty) printf("%s", BOLD);
-  printf("device   \tmaj:min\tGB\tvendor\t%-18s\n", "model");
+  printf("device   \tencrypt\t bits\t majmin\tGB\tvendor\t%-18s\n", "model");
   if (tty) printf("%s", END);
 
-  for (size_t i = 0; i < d.num; i++) {
+  for (size_t i = 0; i < d.num && keepRunning; i++) {
     if (d.devices[i].majorNumber == 8) {
       char path[1000];
       sprintf(path, "/dev/%s", d.devices[i].deviceName);
       size_t bdsize = blockDeviceSize(path);
-      printf("/dev/%s\t%zd:%zd\t%.0lf\t%s\t%-18s\n", d.devices[i].deviceName, d.devices[i].majorNumber, d.devices[i].minorNumber, TOGB(bdsize), d.devices[i].idVendor, d.devices[i].idModel);
+      double entropy = 0;
+
+      const int bufsize = 80*20*4096;
+      unsigned char *buffer = memalign(4096, bufsize); assert(buffer);
+      memset(buffer, 0, bufsize);
+
+      int fd = open(path, O_RDONLY | O_DIRECT);
+      if (fd) {
+	int didread = read(fd, buffer, bufsize);
+	if (didread) {
+	  entropy = entropyTotalBits(buffer, bufsize, 1);
+	  //	  fprintf(stderr,"%s read %d, entropy %lf\n", path, didread, entropy / bufsize);
+	}
+	close(fd);
+      } else {
+	perror(path);
+      }
+      free(buffer);
+      int encrypted = 0;
+      if (entropy/bufsize > 7.9) {
+	encrypted = 1;
+      }
+      printf("/dev/%s\t%s\t %.1lf\t %zd:%zd\t%.0lf\t%s\t%-18s\n", d.devices[i].deviceName, encrypted?"Encrypt":"No", entropy/bufsize,d.devices[i].majorNumber, d.devices[i].minorNumber, TOGB(bdsize), d.devices[i].idVendor, d.devices[i].idModel);
     }
   }
   
@@ -226,7 +373,8 @@ void cmd_status(const char *hostname, const int tty) {
   printf("Drive devices:     ");
   size_t drives = countDriveBlockDevices();
   colour_printNumber(drives, drives > 0, " devices\n", tty);
-  
+
+  printf("\n");
 }
 
 
@@ -239,6 +387,8 @@ int main() {
   
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
+  setvbuf(stdout, NULL, _IONBF, 0);  // turn off buffering
+  setvbuf(stderr, NULL, _IONBF, 0);  // turn off buffering
   
 
   char hostname[91], prefix[100];
@@ -279,6 +429,8 @@ int main() {
 	  cmd_pwgen(tty);
 	} else if (strcmp(commands[i].name, "lsblk") == 0) {
 	  cmd_listDriveBlockDevices(tty);
+	} else if (strcmp(commands[i].name, "lsnic") == 0) {
+	  cmd_listNICs(tty);
 	} else if (strcmp(commands[i].name, "readspeed") == 0) {
 	  char *second = strchr(line, ' ');
 	  if (second) {

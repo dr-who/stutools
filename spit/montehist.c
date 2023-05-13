@@ -5,6 +5,7 @@
 
 #include "histogram.h"
 #include "numList.h"
+#include "utils.h"
 
 int keepRunning = 1;
 

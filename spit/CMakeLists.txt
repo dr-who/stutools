@@ -111,7 +111,7 @@ target_link_libraries(testDiskStats spitlib m numa pthread)
 
 install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist DESTINATION bin)
 
-# install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin)
+install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
 
 # first check the position validation/collision collapsing is working
 #add_test(tds testDiskStats)

@@ -33,6 +33,4 @@ void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnu
 void histLoad(histogramType *h, const char *fn);
 double histSample(histogramType *h);
 
-long getDevRandom();
-
 #endif

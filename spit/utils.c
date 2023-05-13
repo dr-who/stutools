@@ -1518,7 +1518,7 @@ int backupExistingFile(const char *file, int versions) {
 }
   //
 
-long getDevRandom() {
+unsigned long getDevRandomLong() {
   FILE *fp = fopen("/dev/random", "rb");
   long c = 0;
   if (fread(&c, sizeof(long), 1, fp) == 0) {
@@ -1533,6 +1533,18 @@ long getDevRandom() {
   return c;
 }
 
+unsigned char getDevRandom() {
+  FILE *fp = fopen("/dev/random", "rb");
+  unsigned char c = 0;
+  if (fread(&c, sizeof(unsigned char), 1, fp) == 0) {
+    //      perror("random");
+    c = time(NULL);
+    fprintf(stderr,"*info* random seed from clock\n");
+  }
+  fclose(fp);
+  return c;
+}
+
 
 int entropyAvailable() {
   FILE *fp = fopen("/proc/sys/kernel/random/entropy_avail", "rt");
@@ -1544,7 +1556,24 @@ int entropyAvailable() {
   return c;
 }
 
-unsigned char * passwordGenerate(size_t len) {
+unsigned long * randomGenerateLong(size_t len) {
+  unsigned long *ret = malloc(len * sizeof(unsigned long)); assert(len);
+  for (size_t i = 0; i < len; i ++) {
+    ret[i] = getDevRandom();
+  }
+  return ret;
+}
+
+unsigned char * randomGenerate(size_t len) {
+  unsigned char *ret = malloc(len * sizeof(unsigned char)); assert(len);
+  for (size_t i = 0; i < len; i ++) {
+    ret[i] = getDevRandom();
+  }
+  return ret;
+}
+
+unsigned char * passwordGenerate(unsigned char *rnd, size_t len) {
+  
   unsigned char *ret = malloc(len + 1); assert(ret);
   
   const char *buf="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
@@ -1552,7 +1581,7 @@ unsigned char * passwordGenerate(size_t len) {
   const int buflen = strlen(buf);
   
   for (size_t i = 0; i < len; i++) {
-    unsigned long l = getDevRandom();
+    unsigned char l = rnd[i];
     l = l % buflen;
     ret[i] = buf[l];
   }

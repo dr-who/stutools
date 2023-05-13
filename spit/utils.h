@@ -142,9 +142,15 @@ int openRunLock(const char *fn);
 int backupExistingFile(const char *file, int versions);
 
 double entropyTotalBits(unsigned char *buffer, size_t size, int bytes);
-long getDevRandom();
+
+unsigned long getDevRandomLong();
+unsigned char getDevRandom();
 int entropyAvailable();
-unsigned char * passwordGenerate(size_t len);
+
+unsigned long * randomGenerateLong(size_t len);
+unsigned char * randomGenerate(size_t len);
+
+unsigned char * passwordGenerate(unsigned char *rnd, size_t len);
 
 void readSpeed(const int fd, const double seconds, const size_t blockSize);
 
