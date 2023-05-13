@@ -32,7 +32,7 @@ add_executable(pair pair.c )
 target_link_libraries(pair spitlib m )
 
 add_executable(stush stush.c)
-target_link_libraries(stush spitlib m readline pthread aio numa )
+target_link_libraries(stush spitlib m pthread aio numa readline)
 
 set_target_properties(stush PROPERTIES EXCLUDE_FROM_ALL TRUE)
 

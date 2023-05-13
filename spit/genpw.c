@@ -16,16 +16,15 @@ void usage() {
 
 int main()
 {
-  const char *buf="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  const size_t len = 32;
 
-  const int buflen = strlen(buf);
+  unsigned char *pw = passwordGenerate(len);
+
+  double entropy = entropyTotalBits(pw, len, 1);
   
-  for (size_t i = 0; i < 48; i++) {
-    unsigned long l = getDevRandom();
-    l = l % buflen;
-    fprintf(stdout,"%c", buf[l]);
-  }
-  fprintf(stdout,"\n");
+  fprintf(stdout, "%s (%.1lf bits of entropy)\n", pw, entropy);
+
+  free(pw);
   
   return 0;
 }

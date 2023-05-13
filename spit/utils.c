@@ -24,6 +24,7 @@
 #include <assert.h>
 
 #include "utils.h"
+#include "numList.h"
 
 extern int keepRunning;
 
@@ -1402,7 +1403,7 @@ size_t stringToBytesDefault(const char *str, const int assumePow2) {
 // if -4 then 4 byte numbers
 // if -8 then 8 byte numbers
 
-double analyseAsBits(unsigned char *buffer, size_t size, int bytes) {
+double entropyTotalBits(unsigned char *buffer, size_t size, int bytes) {
   const size_t bits = 8 * bytes;
   size_t counts0[bits], counts1[bits], tot[bits];
 
@@ -1448,31 +1449,31 @@ double analyseAsBits(unsigned char *buffer, size_t size, int bytes) {
   }
 
 
-  double bps = 0;
+  double entropy = 0;
   
   if (sz) {
-    double entropy = 0;
+    //    double bps = 0;
     //    fprintf(stderr,"size: %ld\n", sz);                                                                                                                                                      
     for (size_t i =0; i < bits; i++) {
       if (counts0[i]) {
-	double e = counts0[i] * (log((counts0[i]) * 1.0 / tot[i])) / log(2.0);
+	double e = counts0[i] * log((counts0[i] * 1.0 / tot[i])) / log(2.0);
 	//	if (verbose) fprintf(stderr,"[b%02zd=0] %3zd %3zd %.4lf\n", i, counts0[i], tot[i], e);
 	entropy = entropy - e;
       }
       
       if (counts1[i]) {
-	double e = counts1[i] * (log((counts1[i]) * 1.0 / tot[i])) / log(2.0);
+	double e = counts1[i] * log((counts1[i] * 1.0 / tot[i])) / log(2.0);
 	//	if (verbose) fprintf(stderr,"[b%02zd=1] %3zd %3zd %.4lf\n", i, counts1[i], tot[i], e);
 	entropy = entropy - e;
       }
     }
-    bps = bits * entropy / sz;
+    //    bps = bits * entropy / sz;
     //    const double threshold = bits * 0.99;
     //    fprintf(stderr,"entropy %.4lf, %zd\n", entropy, bits);
     //    fprintf(stdout, "%.7lf bps (compression %.1lfx) %s\n", bps, bits/bps, bps >= threshold ? "RANDOM" : "");
   }
 
-  return bps;
+  return entropy;
 }
 
 
@@ -1531,3 +1532,68 @@ long getDevRandom() {
   }
   return c;
 }
+
+
+int entropyAvailable() {
+  FILE *fp = fopen("/proc/sys/kernel/random/entropy_avail", "rt");
+  int c = 0;
+  if (fscanf(fp, "%d", &c) != 1) {
+    fprintf(stderr,"*warning* couldn't get entropy_avail\n");
+  }
+  fclose(fp);
+  return c;
+}
+
+unsigned char * passwordGenerate(size_t len) {
+  unsigned char *ret = malloc(len + 1); assert(ret);
+  
+  const char *buf="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
+
+  const int buflen = strlen(buf);
+  
+  for (size_t i = 0; i < len; i++) {
+    unsigned long l = getDevRandom();
+    l = l % buflen;
+    ret[i] = buf[l];
+  }
+  ret[len] = 0;
+
+  return ret;
+}  
+
+
+void readSpeed(const int fd, const double seconds, const size_t blockSize) {
+  numListType nl;
+  nlInit(&nl, 1000000);
+  //  const size_t blockSize = 2L*1024*1024;
+  
+  double start = timedouble();
+  size_t pos = 0;
+  char *buffer = memalign(4096, blockSize);
+  while ((timedouble() < start + seconds) && keepRunning) {
+    double time1 = timedouble();
+    int s = read(fd, buffer, blockSize);
+    double time2 = timedouble();
+    if (s > 0) {
+      double MBPS = TOMB(s) / (time2-time1);
+      if (MBPS > 0) {
+	nlAdd(&nl, MBPS);
+      }
+    } else {
+      break;
+    }
+    pos += s;
+  }
+  double elapsed = timedouble() - start;
+
+  if (!keepRunning) {
+    fprintf(stderr,"*warning* interrupted\n");
+  }
+  printf("time:  \t%.3lf\n", elapsed);
+  printf("size:  \t%zd\n", blockSize);
+  
+  nlSummary(&nl);
+  nlFree(&nl);
+}
+
+      

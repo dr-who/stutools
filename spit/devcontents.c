@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 	}
 	double bps = 0;
 	if (1) {
-	  bps = analyseAsBits(buf, blocksize, 1);
+	  bps = entropyTotalBits(buf, blocksize, 1) / blocksize;
 	}
         if (bps < showentropy) fprintf(stdout,"%09zx\t%6.1lf\t%8zd\t%6zd\t%6d\t%6d\t%6d\t%.4lf\t%s %s %s\n", pos, TOMiB(pos), pos, pos % (256*1024), min, max, range, bps, pbuf, (spit==1)?"*spit*":"", timestring);
         firstgap = 1;

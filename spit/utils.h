@@ -137,12 +137,17 @@ void sysLogArgs(const char *prog, int argc, char *argv[]);
 
 size_t stringToBytesDefault(const char *str, const int assumePow2);
 
-double analyseAsBits(unsigned char *buffer, size_t size, int bytes);
 int openRunLock(const char *fn);
 
 int backupExistingFile(const char *file, int versions);
 
+double entropyTotalBits(unsigned char *buffer, size_t size, int bytes);
 long getDevRandom();
+int entropyAvailable();
+unsigned char * passwordGenerate(size_t len);
+
+void readSpeed(const int fd, const double seconds, const size_t blockSize);
+
 
 #endif
 
