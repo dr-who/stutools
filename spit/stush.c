@@ -231,6 +231,12 @@ void cmd_status(const char *hostname, const int tty) {
 
 
 int main() {
+
+  if (geteuid() != 0) {
+    fprintf(stderr, "*error* app needs root. sudo chmod +s ...\n");
+    exit(1);
+  }
+  
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
   
