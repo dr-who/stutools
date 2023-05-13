@@ -302,7 +302,7 @@ void cmd_listDriveBlockDevices(int tty) {
   if (tty) printf("%s", END);
 
   for (size_t i = 0; i < d.num && keepRunning; i++) {
-    if (d.devices[i].majorNumber == 8) {
+    if ((d.devices[i].majorNumber == 8) || (d.devices[i].majorNumber == 254)) {
       char path[1000];
       sprintf(path, "/dev/%s", d.devices[i].deviceName);
       size_t bdsize = blockDeviceSize(path);

@@ -211,6 +211,9 @@ char *getPowerMode() {
     }
     fclose(fp);
   }
+  if (res == NULL) {
+    res = strdup("");
+  }
   return res;
 }
 
