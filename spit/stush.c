@@ -278,7 +278,7 @@ size_t countDriveBlockDevices() {
   procDiskStatsSample(&d);
   size_t count = 0;
   for (size_t i = 0; i < d.num; i++) {
-    if (d.devices[i].majorNumber == 8) {
+    if ((d.devices[i].majorNumber == 8) || (d.devices[i].majorNumber == 254)) {
       int len = strlen(d.devices[i].deviceName);
       char lastchar = d.devices[i].deviceName[len-1];
       //      printf("%s %c\n", d.devices[i].deviceName, lastchar);
