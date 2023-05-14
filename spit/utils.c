@@ -24,6 +24,8 @@
 #include <assert.h>
 #include <sys/vfs.h>
 
+#include <regex.h>
+
 #include "utils.h"
 #include "numList.h"
 
@@ -1630,7 +1632,17 @@ void readSpeed(const int fd, const double seconds, const size_t blockSize) {
 }
 
 
-void dumpFile(const char *fn) {
+void dumpFile(const char *fn, const char *regexstring) {
+  
+  regex_t regex;
+  int reti;
+  reti = regcomp(&regex, regexstring, 0);
+  if (reti) {
+    fprintf(stderr, "*error* could not compile regex\n");
+    return;
+  }
+  
+  
   FILE *stream = fopen(fn, "rt");
   if (stream) {
     char *line = NULL;
@@ -1639,7 +1651,11 @@ void dumpFile(const char *fn) {
     
     while ((nread = getline(&line, &len, stream)) != -1) {
       //      printf("Retrieved line of length %zu:\n", nread);
-      fwrite(line, nread, 1, stdout);
+      
+      reti = regexec(&regex, line, 0, NULL, 0);
+      if (!reti) {
+	fwrite(line, nread, 1, stdout);
+      }
     }
     
     free(line);
@@ -1647,20 +1663,23 @@ void dumpFile(const char *fn) {
   } else {
     perror(fn);
   }
+  
+  regfree(&regex);
 }
 
 
 void diskSpaceFromMount(char * FSPATH) {
   struct statfs info;
-  statfs (FSPATH, &info);
+  int ret = statfs (FSPATH, &info);
 
-  // Filesystem     1K-blocks      Used Available Use% Mounted on
-  // /dev/sdd1      114854472 105673980   3405780  97% /
-
-  size_t total = info.f_bsize * info.f_blocks / 1024 / 1024;
-  size_t free = info.f_bsize * info.f_bavail / 1024 / 1024;
-  double per = free * 100.0 / total;
-  
-  printf("%-15s\t%10s\t%10s\t%s\n", "Mount", "Total (1M)", "Free (1M)", "Use%");
-  printf("%-15s\t%10ld\t%10ld\t%.2lf%%\n", FSPATH, total, free, per);
+  if (ret == 0) {
+    size_t total = info.f_bsize * info.f_blocks / 1024 / 1024;
+    size_t free = info.f_bsize * info.f_bavail / 1024 / 1024;
+    double per = free * 100.0 / total;
+    
+    printf("%-15s\t%10s\t%10s\t%s\n", "Mount", "Total (1M)", "Free (1M)", "Use%");
+    printf("%-15s\t%10ld\t%10ld\t%.2lf%%\n", FSPATH, total, free, per);
+  } else {
+    perror(FSPATH);
+  }
 }

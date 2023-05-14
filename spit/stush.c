@@ -283,19 +283,19 @@ void cmd_listNICs(int tty) {
       printf("   Link: ");
       char ss[1000];
       sprintf(ss,"/sys/class/net/%s/carrier", ifa->ifa_name);
-      dumpFile(ss);
+      dumpFile(ss, "");
 
       printf("   Speed: ");
       sprintf(ss,"/sys/class/net/%s/speed", ifa->ifa_name);
-      dumpFile(ss);
+      dumpFile(ss, "");
 
       printf("   MTU: ");
       sprintf(ss,"/sys/class/net/%s/mtu", ifa->ifa_name);
-      dumpFile(ss);
+      dumpFile(ss, "");
 
             printf("   Carrier changes: ");
       sprintf(ss,"/sys/class/net/%s/carrier_changes", ifa->ifa_name);
-      dumpFile(ss);
+      dumpFile(ss, "");
 
       
     }
@@ -420,12 +420,12 @@ void cmd_listDriveBlockDevices(int tty) {
 
 void cmd_cpu(const int tty) {
   if (tty) {}
-  dumpFile("/proc/cpuinfo");
+  dumpFile("/proc/cpuinfo", "");
 }
 
 void cmd_mounts(const int tty) {
   if (tty) {}
-  dumpFile("/proc/mounts");
+  dumpFile("/proc/mounts", "^/");
 }
 
 void cmd_df(const int tty, char *origstring) {
@@ -446,7 +446,7 @@ void cmd_df(const int tty, char *origstring) {
 
 void cmd_scsi(const int tty) {
   if (tty) {}
-  dumpFile("/proc/scsi/scsi");
+  dumpFile("/proc/scsi/scsi", "");
 }
 
 void cmd_date(const int tty) {
@@ -548,6 +548,8 @@ int main() {
   
   header(tty);
   cmd_status(hostname, tty);
+
+  printf("Type ? or help to list commands.\n");
 
   sprintf(prefix, "%s$ ", hostname);
 
