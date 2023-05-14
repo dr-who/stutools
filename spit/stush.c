@@ -168,7 +168,7 @@ void colour_printString(const char *string, const unsigned int good, const char 
     }
   }
 
-  printf("%s", string);
+  if (string) printf("%s", string);
 
   printf("%s", suffix);
   if (tty) {
@@ -472,10 +472,10 @@ void cmd_status(const char *hostname, const int tty) {
   cmd_date(tty);
 
   printf("%-20s\t", "Location");
-  colour_printString("", 1, "\n", tty);
+  colour_printString(getenv("LOCATION"), 1, "\n", tty);
 
   printf("%-20s\t", "Support");
-  colour_printString("", 1, "\n", tty);
+  colour_printString(getenv("SUPPORT"), 1, "\n", tty);
 
   char *os = OSRelease();
   printf("%-20s\t", TeReo ? "kaihautū" : "Host");
@@ -618,6 +618,8 @@ int main(int argc, char *argv[]) {
     syslogString("stush", "error. app needs root.");
     exit(1);
   }
+
+  loadEnvVars("/etc/stush.cfg");
   
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);

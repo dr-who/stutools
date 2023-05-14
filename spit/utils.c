@@ -1686,3 +1686,31 @@ void diskSpaceFromMount(char * FSPATH) {
     perror(FSPATH);
   }
 }
+
+
+void loadEnvVars(char *filename) {
+  FILE *fp = fopen(filename, "rt");
+  if (!fp) {
+    //silent
+    //
+  } else {
+    printf("opened %s\n", filename);
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t nread;
+    
+    while ((nread = getline(&line, &len, fp)) != -1) {
+      char *first = strtok(line, "=");
+      char *second = strtok(NULL, "");
+      if (second) {
+	second[strlen(second)-1] = 0;
+	setenv(first, second, 1);
+	//	printf("%s\t->\t%s", first, second);
+      }
+    }
+    free(line);
+    fclose(fp);
+  }
+}
+
+      
