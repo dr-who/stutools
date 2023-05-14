@@ -61,6 +61,18 @@ COMMAND commands[] = {
   { "exit", "Exit the secure shell (or ^d/EOF)"}
 };
 
+COMMAND commands_mi[] = {
+  { "date", "Show the current date/time"},
+  { "entropy", "Calc entropy of a string"},
+  { "lang", "Set locale language (lang mi_NZ.UTF-8 or en_NZ.UTF-8)"},
+  { "lsblk", "List drive block devices"},
+  { "lsnic", "List IP/HW addresses"},
+  { "pwgen", "Generate cryptographically complex 200-bit random password"},
+  { "readspeed", "Measure read speed on device (readspeed /dev/sda)"},
+  { "status", "Show system status" },
+  { "whakamutu", "Exit the secure shell (or ^d/EOF)"}
+};
+
 const char *BOLD="\033[1m";
 const char *RED="\033[31m";
 const char *GREEN="\033[32m";
@@ -416,40 +428,52 @@ void cmd_status(const char *hostname, const int tty) {
   cmd_date(tty);
   
   char *os = OSRelease();
-  printf("Hostname:          ");
+  printf("%-20s\t", TeReo ? "kaihautū" : "Host");
   colour_printString(hostname, 1, "\n", tty);
 
   
-  printf("OS Release:        ");
+  printf("%-20s\t", TeReo ? "papa tūtohu" : "OS");
   colour_printString(os, 1, "\n", tty);
   if (os) free(os);
   
-  printf("Uptime (days):     %.0lf\n", getUptime()/86400.0);
-  printf("Load average:      %.1lf\n", loadAverage());
-  printf("Total RAM:         %.0lf GiB\n", TOGiB(totalRAM()));
-  printf("Free RAM:          ");
+  printf("%-20s\t", "Uptime (days)");
+  printf("%.0lf\n", getUptime()/86400.0);
+  
+  printf("%-20s\t", "Load average");
+  printf("%.1lf\n", loadAverage());
+
+  printf("%-20s\t", TeReo ? "pūmahara" : "Total RAM");
+  printf("%.0lf GiB\n", TOGiB(totalRAM()));
+  
+  printf("%-20s\t", TeReo ? "pūmahara wātea" : "Free RAM");
   colour_printNumber(TOGiB(freeRAM()), TOGiB(freeRAM()) >= 1, " GiB\n", tty);
   
-  printf("Swap Total:        %.0lf GB\n", TOGB(swapTotal()));
+  printf("%-20s\t", TeReo ? "mahara mariko" : "Swap");
+  printf("%.0lf GB\n", TOGB(swapTotal()));
+  
   char *cpu = getCPUModel();
-  printf("CPU Model:         %s\n", cpu);
+  printf("%-20s\t", TeReo ? "roro" : "CPU Model");
+  printf("%s\n", cpu);
   if (cpu) free(cpu);
   
-  printf("NUMA:              %d\n", getNumaCount());
-  printf("CPUs per NUMA      %d\n", cpuCountPerNuma(0));
+  printf("%-20s\t", "NUMA");
+  printf("%d\n", getNumaCount());
+
+  printf("%-20s\t" , "CPUs per NUMA");
+  printf("%d\n", cpuCountPerNuma(0));
 
   char *power = getPowerMode();
-  printf("Power mode:        ");
+  printf("%-20s\t", TeReo ? "kaitiaki hiko" : "Power mode");
   colour_printString(power, (strcmp("performance", power)==0), "\n", tty);
   if (power) free(power);
 
-  printf("Entropy Available: ");
+  printf("%-20s\t", "Entropy Available");
   int entropy = entropyAvailable();
   colour_printNumber(entropy, entropy > 200, " bits\n", tty);
 
-  printf("Drive devices:     ");
+  printf("%-20s\t", TeReo ? "taonga mahi wāhanga" : "Block devices");
   size_t drives = countDriveBlockDevices();
-  colour_printNumber(drives, drives > 0, " devices\n", tty);
+  colour_printNumber(drives, drives > 0, " \n", tty);
 
   printf("\n");
 }
