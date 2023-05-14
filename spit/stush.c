@@ -68,8 +68,6 @@ const char *END="\033[0m";
 
 
 void cmd_lang(const int tty, char *origstring) {
-  TeReo = 0;
-
   char *string = strdup(origstring);
   const char *delim = " ";
   char *first = strtok(string, delim);
@@ -83,13 +81,14 @@ void cmd_lang(const int tty, char *origstring) {
 	if (tty) printf("%s", BOLD);
 	printf("LANG is %s\n", second);
 	if (tty) printf("%s", END);
-      }
 
-      if (strncasecmp(second, "mi_NZ", 5) == 0) {
-	if (tty) printf("%s", BOLD);
-	TeReo = 1;
-	printf("Kia ora (%s)\n", second);
-	if (tty) printf("%s", END);
+	TeReo = 0;
+	if (strncasecmp(second, "mi_NZ", 5) == 0) {
+	  if (tty) printf("%s", BOLD);
+	  TeReo = 1;
+	  printf("Kia ora (%s)\n", second);
+	  if (tty) printf("%s", END);
+	}
       }
     }
   }
