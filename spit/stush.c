@@ -573,11 +573,11 @@ void run_command(int tty, char *line, char *hostname) {
 	      } else {
 		unsigned int major, minor;
 		majorAndMinor(fd, &major, &minor);
-		if (major != 8) {
+		/*		if (major != 8) {
 		  if (tty) printf("%s", BOLD);
 		  fprintf(stdout, "*error* not a major 8 device\n");
 		  if (tty) printf("%s", END);
-		} else {
+		  } else */{
 		  if (tty) printf("%s", BOLD);
 		  fprintf(stdout,"*info* readspeed '%s', size=2 MiB for 5 seconds (MB/s)\n", second);
 		  if (tty) printf("%s", END);
