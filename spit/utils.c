@@ -1628,4 +1628,24 @@ void readSpeed(const int fd, const double seconds, const size_t blockSize) {
   nlFree(&nl);
 }
 
-      
+
+void dumpFile(const char *fn) {
+  FILE *stream = fopen(fn, "rt");
+  if (stream) {
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t nread;
+    
+    while ((nread = getline(&line, &len, stream)) != -1) {
+      //      printf("Retrieved line of length %zu:\n", nread);
+      fwrite(line, nread, 1, stdout);
+    }
+    
+    free(line);
+    fclose(stream);
+  } else {
+    printf("\n");
+    perror(fn);
+  }
+}
+

@@ -235,7 +235,24 @@ void cmd_listNICs(int tty) {
       
       printf("   HW address: ");
       cmd_printHWAddr(ifa->ifa_name);
-      printf("\n   IP address: <%s>\n", host);
+      printf(", IP address: %s\n", host);
+      printf("   Link: ");
+      char ss[1000];
+      sprintf(ss,"/sys/class/net/%s/carrier", ifa->ifa_name);
+      dumpFile(ss);
+
+      printf("   Speed: ");
+      sprintf(ss,"/sys/class/net/%s/speed", ifa->ifa_name);
+      dumpFile(ss);
+
+      printf("   MTU: ");
+      sprintf(ss,"/sys/class/net/%s/mtu", ifa->ifa_name);
+      dumpFile(ss);
+
+            printf("   Carrier changes: ");
+      sprintf(ss,"/sys/class/net/%s/carrier_changes", ifa->ifa_name);
+      dumpFile(ss);
+
       
     }
     /*else if (family == AF_PACKET && ifa->ifa_data != NULL) {
