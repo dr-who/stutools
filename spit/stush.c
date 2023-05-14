@@ -52,7 +52,7 @@ typedef struct {
 COMMAND commands[] = {
   { "date", "Show the current date/time"},
   { "entropy", "Calc entropy of a string"},
-  { "lang", "Set locale language"},
+  { "lang", "Set locale language (lang mi_NZ.UTF-8 or en_NZ.UTF-8)"},
   { "lsblk", "List drive block devices"},
   { "lsnic", "List IP/HW addresses"},
   { "pwgen", "Generate cryptographically complex 200-bit random password"},
@@ -86,7 +86,7 @@ void cmd_lang(const int tty, char *origstring) {
 	if (strncasecmp(second, "mi_NZ", 5) == 0) {
 	  if (tty) printf("%s", BOLD);
 	  TeReo = 1;
-	  printf("Kia ora (%s)\n", second);
+	  printf("Kia ora\n");
 	  if (tty) printf("%s", END);
 	}
       }
