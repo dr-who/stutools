@@ -66,9 +66,6 @@ const char *END="\033[0m";
 
 
 void header(const int tty) {
-  time_t t = time(NULL);
-  struct tm tm = *localtime(&t);
-
   char *lang = getenv("LANG");
   if (lang == NULL) {
     lang = strdup("en_US");
@@ -81,9 +78,7 @@ void header(const int tty) {
   if (tty) {
     printf("%s", BOLD);
   }
-  char timestring[1000];
-  strftime(timestring, 999, "%c\n", &tm);
-  printf("stush: (secure sandpit: v0.2) - %s\n", timestring);
+  printf("stush: (secure sandpit: v0.2)\n\n");
   if (tty) {
     printf("%s", END);
   }
@@ -377,10 +372,20 @@ void cmd_listDriveBlockDevices(int tty) {
 
 
 void cmd_status(const char *hostname, const int tty) {
+  time_t t = time(NULL);
+  struct tm tm = *localtime(&t);
+
+  char timestring[1000];
+  strftime(timestring, 999, "%c", &tm);
+  if (tty) printf("%s", BOLD);
+  printf("%s\n", timestring);
+  if (tty) printf("%s", END);
+
+  
   char *os = OSRelease();
   printf("Hostname:          ");
   colour_printString(hostname, 1, "\n", tty);
-  
+
   
   printf("OS Release:        ");
   colour_printString(os, 1, "\n", tty);
