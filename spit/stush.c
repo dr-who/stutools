@@ -529,55 +529,8 @@ void cmd_status(const char *hostname, const int tty) {
 }
 
 
-int main(int argc, char *argv[]) {
-  if (argc) {}
-  if (argv) {}
-  
-  syslogString("stush", "Start session");
-  if (geteuid() != 0) {
-    fprintf(stderr, "*error* app needs root. sudo chmod +s ...\n");
-    syslogString("stush", "error. app needs root.");
-    exit(1);
-  }
-  
-  signal(SIGTERM, intHandler);
-  signal(SIGINT, intHandler);
-  setvbuf(stdout, NULL, _IONBF, 0);  // turn off buffering
-  setvbuf(stderr, NULL, _IONBF, 0);  // turn off buffering
-  
 
-  char hostname[91], prefix[100];
-  if (gethostname(hostname, 90)) {
-    sprintf(hostname, "stush");
-  }
-
-  int tty = isatty(1);
-  
-  header(tty);
-  cmd_status(hostname, tty);
-
-  printf("Type ? or help to list commands.\n");
-
-  sprintf(prefix, "%s$ ", hostname);
-
-  char *line = NULL;
-  rl_bind_key ('\t', rl_insert);
-  
-  while (1) {
-    keepRunning = 1;
-    line = readline (prefix);
-    
-    if ((line == NULL) || (strcmp(line, "exit")==0) || (strcmp(line, "quit")==0)) {
-      break;
-    }
-    if (strlen(line) < 1) {
-      free(line);
-      continue;
-    }
-    syslogString("stush", line); // log
-
-    
-    add_history (line);
+void run_command(int tty, char *line, char *hostname) {
     int known = 0;
     for (size_t i = 0; i < sizeof(commands)/sizeof(COMMAND); i++) {
       if (commands[i].name && (strncmp(line, commands[i].name, strlen(commands[i].name)) == 0)) {
@@ -654,6 +607,68 @@ int main(int argc, char *argv[]) {
 	printf("%s: unknown command\n", line);
       }
     }
+}
+
+
+int main(int argc, char *argv[]) {
+  
+  syslogString("stush", "Start session");
+  if (geteuid() != 0) {
+    fprintf(stderr, "*error* app needs root. sudo chmod +s ...\n");
+    syslogString("stush", "error. app needs root.");
+    exit(1);
+  }
+  
+  signal(SIGTERM, intHandler);
+  signal(SIGINT, intHandler);
+  setvbuf(stdout, NULL, _IONBF, 0);  // turn off buffering
+  setvbuf(stderr, NULL, _IONBF, 0);  // turn off buffering
+  
+
+  char hostname[91], prefix[100];
+  if (gethostname(hostname, 90)) {
+    sprintf(hostname, "stush");
+  }
+
+  int tty = isatty(1);
+
+
+  // cli
+  for (int i = 1; i < argc; i++) {
+    if (argv[i][0] != '-') {
+      run_command(tty, argv[i], hostname);
+      exit(0);
+    }
+  }
+  
+  
+  header(tty);
+  cmd_status(hostname, tty);
+
+  printf("Type ? or help to list commands.\n");
+
+  sprintf(prefix, "%s$ ", hostname);
+
+  char *line = NULL;
+  rl_bind_key ('\t', rl_insert);
+  
+  while (1) {
+    keepRunning = 1;
+    line = readline (prefix);
+    
+    if ((line == NULL) || (strcmp(line, "exit")==0) || (strcmp(line, "quit")==0)) {
+      break;
+    }
+    if (strlen(line) < 1) {
+      free(line);
+      continue;
+    }
+    syslogString("stush", line); // log
+
+    
+    add_history (line);
+
+    run_command(tty, line, hostname);
   }
 
   if (line == NULL) printf("\n");
