@@ -568,7 +568,7 @@ void run_command(int tty, char *line, char *hostname) {
 	      int fd = open(second, O_RDONLY | O_DIRECT);
 	      if (fd < 0) {
 		if (tty) printf("%s", BOLD);
-		fprintf(stdout, "*error* the device '%s' couldn't be opened O_DIRECT\n", second);
+		perror(second);
 		if (tty) printf("%s", END);
 	      } else {
 		unsigned int major, minor;
