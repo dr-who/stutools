@@ -52,6 +52,7 @@ typedef struct {
 COMMAND commands[] = {
   { "date", "Show the current date/time"},
   { "entropy", "Calc entropy of a string"},
+  { "lang", "Set locale language"},
   { "lsblk", "List drive block devices"},
   { "lsnic", "List IP/HW addresses"},
   { "pwgen", "Generate cryptographically complex 200-bit random password"},
@@ -66,15 +67,48 @@ const char *GREEN="\033[32m";
 const char *END="\033[0m";
 
 
+void cmd_lang(const int tty, char *origstring) {
+  TeReo = 0;
+
+  char *string = strdup(origstring);
+  const char *delim = " ";
+  char *first = strtok(string, delim);
+  if (first) {
+    char *second = strtok(NULL, delim);
+    if (second) {
+      second = origstring + (second - string);
+      if (setlocale(LC_ALL, second) == NULL) {
+	printf("the LANG/locate was not changed\n");
+      } else {
+	if (tty) printf("%s", BOLD);
+	printf("LANG is %s\n", second);
+	if (tty) printf("%s", END);
+      }
+
+      if (strncasecmp(second, "mi_NZ", 5) == 0) {
+	if (tty) printf("%s", BOLD);
+	TeReo = 1;
+	printf("Kia ora (%s)\n", second);
+	if (tty) printf("%s", END);
+      }
+    }
+  }
+}
+
+      
+  
+
 void header(const int tty) {
   char *lang = getenv("LANG");
   if (lang == NULL) {
-    lang = strdup("en_US");
+    lang = strdup("en_US.utf8");
   } else {
     lang = strdup(lang);
   }
 
-  setlocale(LC_ALL, lang);
+  char ss[1000];
+  sprintf(ss, "lang %s", lang);
+  cmd_lang(tty, ss);
 
   if (tty) {
     printf("%s", BOLD);
@@ -84,12 +118,6 @@ void header(const int tty) {
     printf("%s", END);
   }
 
-  if (strncasecmp(lang, "mi_NZ", 5) == 0) {
-    if (tty) printf("%s", BOLD);
-    TeReo = 1;
-    printf("Kia ora (%s)\n", lang);
-    if (tty) printf("%s", END);
-  }
   fflush(stdout);
   
   free(lang);
@@ -485,6 +513,8 @@ int main() {
 	  cmd_calcEntropy(tty, line);
 	} else if (strcmp(commands[i].name, "date") == 0) {
 	  cmd_date(tty);
+	} else if (strcmp(commands[i].name, "lang") == 0) {
+	  cmd_lang(tty, line);
 	} else if (strcmp(commands[i].name, "lsnic") == 0) {
 	  cmd_listNICs(tty);
 	} else if (strcmp(commands[i].name, "readspeed") == 0) {
