@@ -404,6 +404,7 @@ int main() {
   sprintf(prefix, "%s$ ", hostname);
 
   char *line = NULL;
+  rl_bind_key ('\t', rl_insert);
   
   while (1) {
     keepRunning = 1;
