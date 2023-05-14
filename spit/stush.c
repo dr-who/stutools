@@ -439,7 +439,7 @@ int main() {
       free(line);
       continue;
     }
-      
+    syslogString("stush", line); // log
 
     
     add_history (line);
