@@ -66,17 +66,6 @@ COMMAND commands[] = {
   { "exit", "Exit the secure shell (or ^d/EOF)"}
 };
 
-COMMAND commands_mi[] = {
-  { "date", "Show the current date/time"},
-  { "entropy", "Calc entropy of a string"},
-  { "lang", "Set locale language (lang mi_NZ.UTF-8 or en_NZ.UTF-8)"},
-  { "lsblk", "List drive block devices"},
-  { "lsnic", "List IP/HW addresses"},
-  { "pwgen", "Generate cryptographically complex 200-bit random password"},
-  { "readspeed", "Measure read speed on device (readspeed /dev/sda)"},
-  { "status", "Show system status" },
-  { "whakamutu", "Exit the secure shell (or ^d/EOF)"}
-};
 
 const char *BOLD="\033[1m";
 const char *RED="\033[31m";
@@ -199,6 +188,15 @@ void cmd_calcEntropy(const int tty, char *origstring) {
   
 void cmd_tty(int tty) {
   printf("tty: %s\n", tty ? "yes" : "no");
+}
+
+void cmd_env(int tty) {
+  if (tty) {}
+  
+  char **env = environ;
+  for (; *env; ++env) {
+    printf("%s\n", *env);
+  }
 }
 
 
@@ -556,6 +554,8 @@ void run_command(int tty, char *line, char *hostname) {
 	  cmd_lang(tty, line);
 	} else if (strcmp(commands[i].name, "tty") == 0) {
 	  cmd_tty(tty);
+	  //	} else if (strcmp(commands[i].name, "env") == 0) {
+	  //	  cmd_env(tty);
 	} else if (strcmp(commands[i].name, "lsnic") == 0) {
 	  cmd_listNICs(tty);
 	} else if (strcmp(commands[i].name, "readspeed") == 0) {
