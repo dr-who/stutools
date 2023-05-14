@@ -50,13 +50,16 @@ typedef struct {
 } COMMAND;
 
 COMMAND commands[] = {
+  { "cpu", "Show CPU info"},
   { "date", "Show the current date/time"},
   { "entropy", "Calc entropy of a string"},
   { "lang", "Set locale language (lang mi_NZ.UTF-8 or en_NZ.UTF-8)"},
   { "lsblk", "List drive block devices"},
   { "lsnic", "List IP/HW addresses"},
+  { "mounts", "Show mounts info"},
   { "pwgen", "Generate cryptographically complex 200-bit random password"},
   { "readspeed", "Measure read speed on device (readspeed /dev/sda)"},
+  { "scsi", "Show SCSI devices" },
   { "status", "Show system status" },
   { "exit", "Exit the secure shell (or ^d/EOF)"}
 };
@@ -409,6 +412,21 @@ void cmd_listDriveBlockDevices(int tty) {
   procDiskStatsFree(&d);
 }
 
+void cmd_cpu(const int tty) {
+  if (tty) {}
+  dumpFile("/proc/cpuinfo");
+}
+
+void cmd_mounts(const int tty) {
+  if (tty) {}
+  dumpFile("/proc/mounts");
+}
+
+void cmd_scsi(const int tty) {
+  if (tty) {}
+  dumpFile("/proc/scsi/scsi");
+}
+
 void cmd_date(const int tty) {
   time_t t = time(NULL);
   struct tm tm = *localtime(&t);
@@ -534,6 +552,12 @@ int main() {
 	  cmd_listDriveBlockDevices(tty);
 	} else if (strcmp(commands[i].name, "entropy") == 0) {
 	  cmd_calcEntropy(tty, line);
+	} else if (strcmp(commands[i].name, "cpu") == 0) {
+	  cmd_cpu(tty);
+	} else if (strcmp(commands[i].name, "mounts") == 0) {
+	  cmd_mounts(tty);
+	} else if (strcmp(commands[i].name, "scsi") == 0) {
+	  cmd_scsi(tty);
 	} else if (strcmp(commands[i].name, "date") == 0) {
 	  cmd_date(tty);
 	} else if (strcmp(commands[i].name, "lang") == 0) {
