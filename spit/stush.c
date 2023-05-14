@@ -62,6 +62,7 @@ COMMAND commands[] = {
   { "readspeed", "Measure read speed on device"},
   { "scsi", "Show SCSI devices" },
   { "status", "Show system status" },
+  { "tty", "Is the terminal interactive" },
   { "exit", "Exit the secure shell (or ^d/EOF)"}
 };
 
@@ -196,6 +197,9 @@ void cmd_calcEntropy(const int tty, char *origstring) {
 }
 
   
+void cmd_tty(int tty) {
+  printf("tty: %s\n", tty ? "yes" : "no");
+}
 
 
 void cmd_printHWAddr(char *nic) {
@@ -526,10 +530,8 @@ void cmd_status(const char *hostname, const int tty) {
 
 
 int main(int argc, char *argv[]) {
-  for (int i = 0; i < argc; i++) {
-    printf("argv[%d] = %s\n", i, argv[i]);
-  }
-
+  if (argc) {}
+  if (argv) {}
   
   syslogString("stush", "Start session");
   if (geteuid() != 0) {
@@ -599,6 +601,8 @@ int main(int argc, char *argv[]) {
 	  cmd_date(tty);
 	} else if (strcmp(commands[i].name, "lang") == 0) {
 	  cmd_lang(tty, line);
+	} else if (strcmp(commands[i].name, "tty") == 0) {
+	  cmd_tty(tty);
 	} else if (strcmp(commands[i].name, "lsnic") == 0) {
 	  cmd_listNICs(tty);
 	} else if (strcmp(commands[i].name, "readspeed") == 0) {
