@@ -54,12 +54,12 @@ COMMAND commands[] = {
   { "date", "Show the current date/time"},
   { "df", "Disk free"},
   { "entropy", "Calc entropy of a string"},
-  { "lang", "Set locale language (lang mi_NZ.UTF-8 or en_NZ.UTF-8)"},
+  { "lang", "Set locale language"},
   { "lsblk", "List drive block devices"},
   { "lsnic", "List IP/HW addresses"},
   { "mounts", "Show mounts info"},
   { "pwgen", "Generate cryptographically complex 200-bit random password"},
-  { "readspeed", "Measure read speed on device (readspeed /dev/sda)"},
+  { "readspeed", "Measure read speed on device"},
   { "scsi", "Show SCSI devices" },
   { "status", "Show system status" },
   { "exit", "Exit the secure shell (or ^d/EOF)"}
@@ -420,7 +420,7 @@ void cmd_listDriveBlockDevices(int tty) {
 
 void cmd_cpu(const int tty) {
   if (tty) {}
-  dumpFile("/proc/cpuinfo", "");
+  dumpFile("/proc/cpuinfo", "(vendor|name|mhz|cores|stepping|cache|bogo)");
 }
 
 void cmd_mounts(const int tty) {

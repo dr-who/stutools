@@ -1636,7 +1636,7 @@ void dumpFile(const char *fn, const char *regexstring) {
   
   regex_t regex;
   int reti;
-  reti = regcomp(&regex, regexstring, 0);
+  reti = regcomp(&regex, regexstring, REG_EXTENDED | REG_ICASE);
   if (reti) {
     fprintf(stderr, "*error* could not compile regex\n");
     return;
@@ -1651,7 +1651,10 @@ void dumpFile(const char *fn, const char *regexstring) {
     
     while ((nread = getline(&line, &len, stream)) != -1) {
       //      printf("Retrieved line of length %zu:\n", nread);
-      
+
+      if (strlen(line) < 2) {
+	break;
+      }
       reti = regexec(&regex, line, 0, NULL, 0);
       if (!reti) {
 	fwrite(line, nread, 1, stdout);
