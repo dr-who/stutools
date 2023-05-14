@@ -50,6 +50,7 @@ typedef struct {
 } COMMAND;
 
 COMMAND commands[] = {
+  { "date", "Show the current date/time"},
   { "entropy", "Calc entropy of a string"},
   { "lsblk", "List drive block devices"},
   { "lsnic", "List IP/HW addresses"},
@@ -368,10 +369,8 @@ void cmd_listDriveBlockDevices(int tty) {
   
   procDiskStatsFree(&d);
 }
-  
 
-
-void cmd_status(const char *hostname, const int tty) {
+void cmd_date(const int tty) {
   time_t t = time(NULL);
   struct tm tm = *localtime(&t);
 
@@ -380,7 +379,14 @@ void cmd_status(const char *hostname, const int tty) {
   if (tty) printf("%s", BOLD);
   printf("%s\n", timestring);
   if (tty) printf("%s", END);
+}
 
+  
+
+
+void cmd_status(const char *hostname, const int tty) {
+
+  cmd_date(tty);
   
   char *os = OSRelease();
   printf("Hostname:          ");
@@ -477,6 +483,8 @@ int main() {
 	  cmd_listDriveBlockDevices(tty);
 	} else if (strcmp(commands[i].name, "entropy") == 0) {
 	  cmd_calcEntropy(tty, line);
+	} else if (strcmp(commands[i].name, "date") == 0) {
+	  cmd_date(tty);
 	} else if (strcmp(commands[i].name, "lsnic") == 0) {
 	  cmd_listNICs(tty);
 	} else if (strcmp(commands[i].name, "readspeed") == 0) {
