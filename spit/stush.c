@@ -83,7 +83,7 @@ void header(const int tty) {
   }
   char timestring[1000];
   strftime(timestring, 999, "%c\n", &tm);
-  printf("stush: (secure sandpit: v0.1) - %s\n", timestring);
+  printf("stush: (secure sandpit: v0.2) - %s\n", timestring);
   if (tty) {
     printf("%s", END);
   }
