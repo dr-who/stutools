@@ -525,7 +525,12 @@ void cmd_status(const char *hostname, const int tty) {
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
+  for (int i = 0; i < argc; i++) {
+    printf("argv[%d] = %s\n", i, argv[i]);
+  }
+
+  
   syslogString("stush", "Start session");
   if (geteuid() != 0) {
     fprintf(stderr, "*error* app needs root. sudo chmod +s ...\n");
