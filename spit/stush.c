@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <time.h>
 #include <signal.h>
@@ -49,11 +50,12 @@ typedef struct {
 } COMMAND;
 
 COMMAND commands[] = {
-  { "status", "Show system status" },
-  { "pwgen", "Generate cryptographically complex 200-bit random password"},
+  { "entropy", "Calc entropy of a string"},
   { "lsblk", "List drive block devices"},
   { "lsnic", "List IP/HW addresses"},
+  { "pwgen", "Generate cryptographically complex 200-bit random password"},
   { "readspeed", "Measure read speed on device (readspeed /dev/sda)"},
+  { "status", "Show system status" },
   { "exit", "Exit the secure shell (or ^d/EOF)"}
 };
 
@@ -131,8 +133,29 @@ void colour_printString(const char *string, const unsigned int good, const char 
   }
 }
 
+void cmd_calcEntropy(const int tty, char *origstring) {
+  char *string = strdup(origstring);
+  const char *delim = " ";
+  char *first = strtok(string, delim);
+  if (first) {
+    char *second = strtok(NULL, delim);
+    second = origstring + (second - string);
+    if (second) {
+      double entropy = entropyTotalBits((unsigned char*)second, strlen(second), 1);
+      printf("%s ", second);
+      char ss[1000];
+      sprintf(ss,"(%.1lf bits of entropy)", entropy);
+      colour_printString(ss, entropy >= 200, "\n", tty);
+    }
+  }
+  free(string);
+}
+
+  
+
 
 void cmd_printHWAddr(char *nic) {
+
   int s;
   struct ifreq buffer;
   
@@ -210,10 +233,9 @@ void cmd_listNICs(int tty) {
 	exit(EXIT_FAILURE);
       }
       
-      printf("\t\tHW address: ");
+      printf("   HW address: ");
       cmd_printHWAddr(ifa->ifa_name);
-      printf("\taddress: <%s>", host);
-      printf("\n");
+      printf("\n   IP address: <%s>\n", host);
       
     }
     /*else if (family == AF_PACKET && ifa->ifa_data != NULL) {
@@ -430,6 +452,8 @@ int main() {
 	  cmd_pwgen(tty);
 	} else if (strcmp(commands[i].name, "lsblk") == 0) {
 	  cmd_listDriveBlockDevices(tty);
+	} else if (strcmp(commands[i].name, "entropy") == 0) {
+	  cmd_calcEntropy(tty, line);
 	} else if (strcmp(commands[i].name, "lsnic") == 0) {
 	  cmd_listNICs(tty);
 	} else if (strcmp(commands[i].name, "readspeed") == 0) {
