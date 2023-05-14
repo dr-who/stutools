@@ -401,9 +401,10 @@ void cmd_status(const char *hostname, const int tty) {
 
 
 int main() {
-
+  syslogString("stush", "Start session");
   if (geteuid() != 0) {
     fprintf(stderr, "*error* app needs root. sudo chmod +s ...\n");
+    syslogString("stush", "error. app needs root.");
     exit(1);
   }
   
@@ -513,6 +514,8 @@ int main() {
   }
   
   free(line);
+
+  syslogString("stush", "Close session");
 
   return 0;
 }
