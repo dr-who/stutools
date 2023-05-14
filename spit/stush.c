@@ -139,8 +139,8 @@ void cmd_calcEntropy(const int tty, char *origstring) {
   char *first = strtok(string, delim);
   if (first) {
     char *second = strtok(NULL, delim);
-    second = origstring + (second - string);
     if (second) {
+      second = origstring + (second - string);
       double entropy = entropyTotalBits((unsigned char*)second, strlen(second), 1);
       printf("%s ", second);
       char ss[1000];
