@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 #include <pwd.h>
 #include <assert.h>
+#include <sys/vfs.h>
 
 #include "utils.h"
 #include "numList.h"
@@ -1644,8 +1645,22 @@ void dumpFile(const char *fn) {
     free(line);
     fclose(stream);
   } else {
-    printf("\n");
     perror(fn);
   }
 }
 
+
+void diskSpaceFromMount(char * FSPATH) {
+  struct statfs info;
+  statfs (FSPATH, &info);
+
+  // Filesystem     1K-blocks      Used Available Use% Mounted on
+  // /dev/sdd1      114854472 105673980   3405780  97% /
+
+  size_t total = info.f_bsize * info.f_blocks / 1024 / 1024;
+  size_t free = info.f_bsize * info.f_bavail / 1024 / 1024;
+  double per = free * 100.0 / total;
+  
+  printf("%-15s\t%10s\t%10s\t%s\n", "Mount", "Total (1M)", "Free (1M)", "Use%");
+  printf("%-15s\t%10ld\t%10ld\t%.2lf%%\n", FSPATH, total, free, per);
+}

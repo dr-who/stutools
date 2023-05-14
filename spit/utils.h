@@ -155,6 +155,8 @@ unsigned char * passwordGenerate(unsigned char *rnd, size_t len);
 void readSpeed(const int fd, const double seconds, const size_t blockSize);
 
 void dumpFile(const char *fn);
+void diskSpaceFromMount(char * FSPATH);
+
 
 #endif
 

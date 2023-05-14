@@ -52,6 +52,7 @@ typedef struct {
 COMMAND commands[] = {
   { "cpu", "Show CPU info"},
   { "date", "Show the current date/time"},
+  { "df", "Disk free"},
   { "entropy", "Calc entropy of a string"},
   { "lang", "Set locale language (lang mi_NZ.UTF-8 or en_NZ.UTF-8)"},
   { "lsblk", "List drive block devices"},
@@ -105,8 +106,11 @@ void cmd_lang(const int tty, char *origstring) {
 	  if (tty) printf("%s", END);
 	}
       }
+    } else {
+      printf("usage: %s <locale>   (e.g. en_NZ.UTF-8, mi_NZ.UTF-8)\n", first);
     }
   }
+  free(string);
 }
 
       
@@ -184,6 +188,8 @@ void cmd_calcEntropy(const int tty, char *origstring) {
       char ss[1000];
       sprintf(ss,"(%.1lf bits of entropy)", entropy);
       colour_printString(ss, entropy >= 200, "\n", tty);
+    } else {
+      printf("usage: %s <string>\n", first);
     }
   }
   free(string);
@@ -422,6 +428,22 @@ void cmd_mounts(const int tty) {
   dumpFile("/proc/mounts");
 }
 
+void cmd_df(const int tty, char *origstring) {
+  if (tty) {}
+  char *string = strdup(origstring);
+  const char *delim = " ";
+  char *first = strtok(string, delim);
+  if (first) {
+    char *second = strtok(NULL, delim);
+    if (second) {
+      diskSpaceFromMount(second);
+    } else {
+      printf("usage: df <mountpoint>\n");
+    }
+  }
+  free(string);
+}
+
 void cmd_scsi(const int tty) {
   if (tty) {}
   dumpFile("/proc/scsi/scsi");
@@ -444,7 +466,13 @@ void cmd_date(const int tty) {
 void cmd_status(const char *hostname, const int tty) {
 
   cmd_date(tty);
-  
+
+  printf("%-20s\t", "Location");
+  colour_printString("", 1, "\n", tty);
+
+  printf("%-20s\t", "Support");
+  colour_printString("", 1, "\n", tty);
+
   char *os = OSRelease();
   printf("%-20s\t", TeReo ? "kaihautū" : "Host");
   colour_printString(hostname, 1, "\n", tty);
@@ -558,6 +586,8 @@ int main() {
 	  cmd_mounts(tty);
 	} else if (strcmp(commands[i].name, "scsi") == 0) {
 	  cmd_scsi(tty);
+	} else if (strcmp(commands[i].name, "df") == 0) {
+	  cmd_df(tty, line);
 	} else if (strcmp(commands[i].name, "date") == 0) {
 	  cmd_date(tty);
 	} else if (strcmp(commands[i].name, "lang") == 0) {
@@ -597,7 +627,10 @@ int main() {
 		}
 	      }
 	    }
+	  } else {
+	    printf("usage: readspeed <device>\n");
 	  }
+
 	}
 	known = 1;
 	break;
