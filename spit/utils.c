@@ -1694,7 +1694,7 @@ void loadEnvVars(char *filename) {
     //silent
     //
   } else {
-    printf("opened %s\n", filename);
+    //    printf("opened %s\n", filename);
     char *line = NULL;
     size_t len = 0;
     ssize_t nread;
@@ -1704,7 +1704,7 @@ void loadEnvVars(char *filename) {
       char *second = strtok(NULL, "");
       if (second) {
 	second[strlen(second)-1] = 0;
-	setenv(first, second, 1);
+	setenv(first, second, 0);
 	//	printf("%s\t->\t%s", first, second);
       }
     }

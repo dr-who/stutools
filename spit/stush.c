@@ -53,6 +53,7 @@ COMMAND commands[] = {
   { "cpu", "Show CPU info"},
   { "date", "Show the current date/time"},
   { "df", "Disk free"},
+  { "dropbear", "Dropbear SSH config"},
   { "entropy", "Calc entropy of a string"},
   { "lang", "Set locale language"},
   { "lsblk", "List drive block devices"},
@@ -430,6 +431,11 @@ void cmd_mounts(const int tty) {
   dumpFile("/proc/mounts", "^/");
 }
 
+void cmd_dropbear(const int tty) {
+  if (tty) {}
+  dumpFile("/etc/initramfs-tools/conf.d/dropbear", "^IP=");
+}
+
 void cmd_df(const int tty, char *origstring) {
   if (tty) {}
   char *string = strdup(origstring);
@@ -475,6 +481,9 @@ void cmd_status(const char *hostname, const int tty) {
   printf("%-20s\t", "Support");
   colour_printString(getenv("SUPPORT"), 1, "\n", tty);
 
+  printf("%-20s\t", "Hardware Type");
+  colour_printString(getenv("HARDWARE_TYPE"), 1, "\n", tty);
+
   char *os = OSRelease();
   printf("%-20s\t", TeReo ? "kaihautū" : "Host");
   colour_printString(hostname, 1, "\n", tty);
@@ -504,6 +513,17 @@ void cmd_status(const char *hostname, const int tty) {
   printf("%s\n", cpu);
   if (cpu) free(cpu);
   
+  printf("%-20s\t", "Dropbear");
+  int dropbear = 0;
+  FILE *fp = fopen("/etc/initramfs-tools/conf.d/dropbear", "rt");
+  if (fp) {
+    dropbear = 1;
+    fclose(fp);
+  }
+  colour_printString(dropbear ? "Yes" : "Not present", dropbear, "\n", tty);
+    
+
+
   printf("%-20s\t", "NUMA");
   printf("%d\n", getNumaCount());
 
@@ -542,6 +562,8 @@ void run_command(int tty, char *line, char *hostname) {
 	  cmd_calcEntropy(tty, line);
 	} else if (strcmp(commands[i].name, "cpu") == 0) {
 	  cmd_cpu(tty);
+	} else if (strcmp(commands[i].name, "dropbear") == 0) {
+	  cmd_dropbear(tty);
 	} else if (strcmp(commands[i].name, "mounts") == 0) {
 	  cmd_mounts(tty);
 	} else if (strcmp(commands[i].name, "scsi") == 0) {
