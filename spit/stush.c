@@ -534,9 +534,9 @@ void cmd_status(const char *hostname, const int tty) {
   colour_printString(power, (strcmp("performance", power)==0), "\n", tty);
   if (power) free(power);
 
-  printf("%-20s\t", "Entropy Available");
+  /*  printf("%-20s\t", "Entropy Available");
   int entropy = entropyAvailable();
-  colour_printNumber(entropy, entropy > 200, " bits\n", tty);
+  colour_printNumber(entropy, entropy > 200, " bits\n", tty);*/
 
   printf("%-20s\t", TeReo ? "taonga mahi wāhanga" : "Block devices");
   size_t drives = countDriveBlockDevices();
