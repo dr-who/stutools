@@ -1653,9 +1653,6 @@ int dumpFile(const char *fn, const char *regexstring, const int quiet) {
     while ((nread = getline(&line, &len, stream)) != -1) {
       //      printf("Retrieved line of length %zu:\n", nread);
 
-      if (strlen(line) < 2) {
-	break;
-      }
       reti = regexec(&regex, line, 0, NULL, 0);
       if (!reti) {
 	linecount++;
