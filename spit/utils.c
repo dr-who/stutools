@@ -1632,17 +1632,18 @@ void readSpeed(const int fd, const double seconds, const size_t blockSize) {
 }
 
 
-void dumpFile(const char *fn, const char *regexstring) {
+// returns the number of lines
+int dumpFile(const char *fn, const char *regexstring, const int quiet) {
   
   regex_t regex;
   int reti;
   reti = regcomp(&regex, regexstring, REG_EXTENDED | REG_ICASE);
   if (reti) {
     fprintf(stderr, "*error* could not compile regex\n");
-    return;
+    return 0;
   }
   
-  
+  int linecount = 0;
   FILE *stream = fopen(fn, "rt");
   if (stream) {
     char *line = NULL;
@@ -1657,7 +1658,10 @@ void dumpFile(const char *fn, const char *regexstring) {
       }
       reti = regexec(&regex, line, 0, NULL, 0);
       if (!reti) {
-	fwrite(line, nread, 1, stdout);
+	linecount++;
+	if (quiet == 0) {
+	  fwrite(line, nread, 1, stdout);
+	}
       }
     }
     
@@ -1668,6 +1672,7 @@ void dumpFile(const char *fn, const char *regexstring) {
   }
   
   regfree(&regex);
+  return linecount;
 }
 
 

@@ -154,7 +154,7 @@ unsigned char * passwordGenerate(unsigned char *rnd, size_t len);
 
 void readSpeed(const int fd, const double seconds, const size_t blockSize);
 
-void dumpFile(const char *fn, const char *regexstring);
+int dumpFile(const char *fn, const char *regexstring, const int quiet);
 void diskSpaceFromMount(char * FSPATH);
 
 void loadEnvVars(char *filename);

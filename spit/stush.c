@@ -286,19 +286,19 @@ void cmd_listNICs(int tty) {
       printf("   Link: ");
       char ss[1000];
       sprintf(ss,"/sys/class/net/%s/carrier", ifa->ifa_name);
-      dumpFile(ss, "");
+      dumpFile(ss, "", 0);
 
       printf("   Speed: ");
       sprintf(ss,"/sys/class/net/%s/speed", ifa->ifa_name);
-      dumpFile(ss, "");
+      dumpFile(ss, "", 0);
 
       printf("   MTU: ");
       sprintf(ss,"/sys/class/net/%s/mtu", ifa->ifa_name);
-      dumpFile(ss, "");
+      dumpFile(ss, "", 0);
 
             printf("   Carrier changes: ");
       sprintf(ss,"/sys/class/net/%s/carrier_changes", ifa->ifa_name);
-      dumpFile(ss, "");
+      dumpFile(ss, "", 0);
 
       
     }
@@ -423,17 +423,17 @@ void cmd_listDriveBlockDevices(int tty) {
 
 void cmd_cpu(const int tty) {
   if (tty) {}
-  dumpFile("/proc/cpuinfo", "(vendor|name|mhz|cores|stepping|cache|bogo)");
+  dumpFile("/proc/cpuinfo", "(vendor|name|mhz|cores|stepping|cache|bogo)", 0);
 }
 
 void cmd_mounts(const int tty) {
   if (tty) {}
-  dumpFile("/proc/mounts", "^/");
+  dumpFile("/proc/mounts", "^/", 0);
 }
 
 void cmd_dropbear(const int tty) {
   if (tty) {}
-  dumpFile("/etc/initramfs-tools/conf.d/dropbear", "^IP=");
+  dumpFile("/etc/initramfs-tools/conf.d/dropbear", "^IP=", 0);
 }
 
 void cmd_df(const int tty, char *origstring) {
@@ -454,7 +454,7 @@ void cmd_df(const int tty, char *origstring) {
 
 void cmd_scsi(const int tty) {
   if (tty) {}
-  dumpFile("/proc/scsi/scsi", "");
+  dumpFile("/proc/scsi/scsi", "", 0);
 }
 
 void cmd_date(const int tty) {
@@ -522,13 +522,12 @@ void cmd_status(const char *hostname, const int tty) {
   }
   colour_printString(dropbear ? "Yes" : "Not present", dropbear, "\n", tty);
     
+  printf("%-20s\t", "SSH Passwords");
+  int sshpasswords = dumpFile("/etc/ssh/sshd_config", "^PasswordAuthentication no", 1);
+  colour_printString(sshpasswords ? "Yes allowed :(" : "No", sshpasswords == 0, "\n", tty);
 
-
-  printf("%-20s\t", "NUMA");
-  printf("%d\n", getNumaCount());
-
-  printf("%-20s\t" , "CPUs per NUMA");
-  printf("%d\n", cpuCountPerNuma(0));
+  printf("%-20s\t" , "Cores");
+  printf("%d\n", cpuCountPerNuma(0) * getNumaCount());
 
   char *power = getPowerMode();
   printf("%-20s\t", TeReo ? "kaitiaki hiko" : "Power mode");
