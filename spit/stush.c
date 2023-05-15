@@ -524,7 +524,7 @@ void cmd_status(const char *hostname, const int tty) {
     
   printf("%-20s\t", "SSH Passwords");
   int sshpasswords = dumpFile("/etc/ssh/sshd_config", "^PasswordAuthentication no", 1);
-  colour_printString(sshpasswords ? "Yes allowed :(" : "No", sshpasswords == 0, "\n", tty);
+  colour_printString((sshpasswords==1) ? "No" : "Yes allowed :(", sshpasswords == 1, "\n", tty);
 
   printf("%-20s\t" , "Cores");
   printf("%d\n", cpuCountPerNuma(0) * getNumaCount());
