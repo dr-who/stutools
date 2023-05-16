@@ -184,6 +184,10 @@ spit [OPTIONS] \-f \fIdevice\fP \-c \fIcommands\fP
 .sp
 e.g.
 \fBspit \-f /dev/sda \-c rzs1k1024\fP
+.sp
+To see the IO operations and positions use the dump/\fB\-d\fP option to see the first 20 positions.
+.sp
+e.g. \fBspit \-f /dev/sda \-c rzs1k1024 \-d 20\fP
 .SH "DEVICE(S)"
 .sp
 \fB\-f device\fP
@@ -205,13 +209,18 @@ e.g. \fBspit \-I devices \-c rs1k1024\fP will start 200 threads, one per device,
 \fB\-O filename\fP
 .RS 4
 Specifies a list of raw devices, matched with the \fB\-f\fP option shows
-device read/write amplification. (e.g. \-f /dev/md0 \-O underlyingdevices.txt)
+device read/write amplification. e.g. \fBspit \-f /dev/md0 \-O underlyingdevices.txt\fP
 .RE
 .SH "OPTIONS"
 .sp
 \fB\-h\fP
 .RS 4
 Displays a myriad of testing commands
+.RE
+.sp
+\fB\-d n\fP
+.RS 4
+Dump the first \fBn\fP positions to understand the IO profile.
 .RE
 .sp
 \fB\-G size\fP
@@ -237,6 +246,11 @@ Limit the execution to \fBs\fP seconds (e.g. \-t 30)
 \fB\-T s\fP
 .RS 4
 Hard exit(\-1) execution if spit is still running after \fBs\fP seconds.
+.RE
+.sp
+\fB\-L GiB\fP
+.RS 4
+Specify the amount of RAM to use for the position information. \f(CRspit\fP stores information about each position, so RAM scales up with the number of positions. Less RAM can be used by having larger block sizes. More positions can be obtained by using more RAM and/or larger block sizes.
 .RE
 .sp
 \fB\-M options\fP
@@ -281,9 +295,19 @@ Performs reads
 Performs writes
 .RE
 .sp
+\fBc\fP
+.RS 4
+Copy regions, perform a read and then a write of the data 1/2 LBA away.
+.RE
+.sp
 \fBm\fP
 .RS 4
 Double the number of test positions, and add a read operation to the position of any previous write operation. Since the number of positions is usually much more than the QD there is no in\-flight issue. \fBm\fP can be combined with reading/writing or anymix. (e.g. ws0m)
+.RE
+.sp
+\fBAn\fP
+.RS 4
+After <n> MiB of IO, randomly change position inside the LBA range. e.g. to specify sequential reads and every 4 MiB jump to a new location use \fBspit \-c rs1k64A4\fP
 .RE
 .sp
 \fBpN\fP
@@ -359,6 +383,11 @@ continuous length in KiB. e.g. s32\-1024 makes 32 contiguous regions with a
 maximum size of 1024 KiB (1 MiB).
 .RE
 .sp
+\fBSn\fP
+.RS 4
+Speed contrained IO. e.g. S100 with do 100 IOs per second.
+.RE
+.sp
 \fBu\fP
 .RS 4
 Generate pairs of writes followed by reads with unique seeds. Combined with
@@ -412,12 +441,57 @@ Limits the thread/command to \fBn\fP seconds
 Instead of time based, iterate until the positions have been processed
 \fBn\fP times.
 .RE
+.SH "PATTERNS"
+.sp
+\fBrzs1P100\fP: read the first 100 positions starting from zero, 4 KiB blocks.
+.sp
+\fBrzs1P100k1024\fP: read the first 100 positions starting from zero, 1024 KiB/1 MiB blocks.
+.sp
+\fBrs1P100\fP: read 100 contiguous positions, offset by a random amount
+.sp
+\fBrzs1P100j8G_\fP: read 100 contiguous positions, offset by a random amount per thread, first carving up the LBA range.
+.sp
+\fBrzs1P+100\fP: read operations, 100 positions equally spaced across the LBA range.
+.sp
+\fBrzs1P\-100\fP: read operations, 100 positions randomly picked with replacement.
+.sp
+\fBrzs1P.100\fP: read operations, alternative start, end, start+1...
+.sp
+\fBck64\fP: copy the region using 64 KiB blocks
+.sp
+\fBs1z\fP: sequential, one contiguous region starting from zero
+.sp
+\fBs1\fP: sequential, one contiguous region starting from a random offset
+.sp
+\fBs0\fP: not sequential. e.g. random
+.sp
+\fBs2\fP: two sequential regions, dividing the region into two.
+.sp
+\fBs9\fP: two sequential regions, dividing the region into nine
+.sp
+\fBs\-1z\fP: reverse sequential starting from zero.
+.sp
+\fBs1\fP: monotonically increasing...
+.sp
+\fBs0\fP: random...
+.sp
+\fBs0.05\fP: almost entirely random, with a few monotonically increasing positions
+.sp
+\fBs0.95\fP: almost entirely monotonic
+.sp
+\fBs0.95\-20\fP with a 0.05 prob of swapping a position with another within 20 places.
+.sp
+\fBrs1k4q1\fP sequential 4KiB reads, 1 IO in flight
+.sp
+\fBrs1k4\-128q1\fP sequential reads, using block size 4 to 128 KiB, 1 IO in flight
+.sp
+\fBrs1k64A4q1\fP sequential reads, 64 KiB size, resetting position every 4 MiB.
 .SH "BENCHMARKING"
 .SS "Sequential reads / writes"
 .sp
 In the following commands, replace \fBr\fP with \fBw\fP for writes.
 .sp
-\fBspit\fP \-f /dev/device \-c rk64
+\fBspit \-f /dev/device \-c rk64\fP
 .sp
 .if n .RS 4
 .nf
@@ -425,7 +499,7 @@ Performs a single thread/job that performs reads, with 64 KiB reads
 .fi
 .if n .RE
 .sp
-\fBspit\fP \-f /dev/device \-c rk64 \-j 32
+\fBspit \-f /dev/device \-c rk64 \-j 32\fP
 .sp
 .if n .RS 4
 .nf
@@ -433,7 +507,7 @@ Create 32 threads, with a single contigous read inside each thread
 .fi
 .if n .RE
 .sp
-\fBspit\fP \-f /dev/device \-c r32k64
+\fBspit \-f /dev/device \-c r32k64\fP
 .sp
 .if n .RS 4
 .nf
@@ -442,7 +516,7 @@ Create a single threads, break the device into 32 contiguous regions
 .if n .RE
 .SS "Random read / writes"
 .sp
-\fBspit\fP \-f /dev/device \-c rs0
+\fBspit \-f /dev/device \-c rs0\fP
 .sp
 .if n .RS 4
 .nf
@@ -450,7 +524,7 @@ Performs a single thread/job, random 4KiB reads
 .fi
 .if n .RE
 .sp
-\fBspit\fP \-f /dev/device \-c rs0 \-j 32
+\fBspit \-f /dev/device \-c rs0 \-j 32\fP
 .sp
 .if n .RS 4
 .nf
@@ -458,7 +532,7 @@ Creates 32 threads, reads random 4KiB reads
 .fi
 .if n .RE
 .sp
-\fBspit\fP \-f /dev/device \-c rs0 \-j 32 \-G1
+\fBspit \-f /dev/device \-c rs0 \-j 32 \-G1\fP
 .sp
 .if n .RS 4
 .nf
@@ -467,7 +541,7 @@ For devices with cache these operations should be cached.
 .fi
 .if n .RE
 .sp
-\fBspit\fP \-f /dev/device \-c rP10000
+\fBspit \-f /dev/device \-c rP10000\fP
 .sp
 .if n .RS 4
 .nf
@@ -476,7 +550,7 @@ Read from the first 10,000 positions (4 KiB) blocks in a device.
 .if n .RE
 .SS "Mixing reads/writes"
 .sp
-\fBspit\fP \-f /dev/device \-c mP10000 \-c rk64
+\fBspit \-f /dev/device \-c mP10000 \-c rk64\fP
 .sp
 .if n .RS 4
 .nf
@@ -485,7 +559,7 @@ thread performing sequential reads.
 .fi
 .if n .RE
 .sp
-\fBspit\fP \-f /dev/device \-c w \-c r
+\fBspit \-f /dev/device \-c w \-c r\fP
 .sp
 .if n .RS 4
 .nf
@@ -493,7 +567,7 @@ Two threads, both sequential, one reading, one writing.
 .fi
 .if n .RE
 .sp
-\fBspit\fP \-f /dev/device \-c ws0 \-c rs0
+\fBspit \-f /dev/device \-c ws0 \-c rs0\fP
 .sp
 .if n .RS 4
 .nf
@@ -501,7 +575,7 @@ Two threads, both random, one reading, one writing.
 .fi
 .if n .RE
 .sp
-\fBspit\fP \-f /dev/device \-c ws1G0\-100 \-c ws0G100\-200
+\fBspit \-f /dev/device \-c ws1G0\-100 \-c "w s0 G100\-200"\fP
 .sp
 .if n .RS 4
 .nf
