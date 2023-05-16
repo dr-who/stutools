@@ -120,10 +120,6 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
       uucheck = (size_t*)(buf + starterror) + 1;
       fprintf(stderr,"*error* poscheck at the error start %zd, uuid %zd\n", *poscheck, *uucheck);
       fprintf(stderr,"*error* see actions e.g.: $ awk -v p=%zd -v l=%zd '{if (($2>=p && $2<=p+l) || ($2+$7>p && $2<p)) print}' positions.txt | sort -k 12n\n", pos, len);
-      /*char s1[1000],s2[1000];
-      memcpy(s1, buf+16, 80); s1[80]=0;
-      memcpy(s2, randomBuffer+16, 80); s2[80]=0;
-      fprintf(stderr,"*error* difference at block[%zd], len=%zd\n   disk:     %s\n   shouldbe: %s\n", pos, len, s1, s2);*/
     }
     *diff = (*diff)+1;
 

@@ -1,3 +1,4 @@
+#define _POSIX 1
 #define _XOPEN_SOURCE 500
 
 #include <stdlib.h>
@@ -12,7 +13,7 @@
 
 char *randomCommandString(const double rwratio)
 {
-  char string[1000];
+  char string[PATH_MAX];
 
   int seed = lrand48() % 65536;
   int s = lrand48() % 11;
@@ -66,7 +67,7 @@ char ** fuzzString(int *argc, const char *device, const double starttime, size_t
   char ** argv = NULL;
   CALLOC(argv, count, sizeof(char*));
 
-  char string[1000];
+  char string[PATH_MAX];
 
   argv[0] = strdup("spit");
   sprintf(string, "-f%s", device);

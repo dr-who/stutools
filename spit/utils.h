@@ -6,6 +6,7 @@
 #include <stdio.h> // FILE
 #include <pthread.h>
 #include <assert.h>
+#include <linux/limits.h>
 
 #include "logSpeed.h"
 
@@ -158,6 +159,8 @@ int dumpFile(const char *fn, const char *regexstring, const int quiet);
 void diskSpaceFromMount(char * FSPATH);
 
 void loadEnvVars(char *filename);
+
+char *serialFromFD(int fd);
 
 
 #endif

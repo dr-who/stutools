@@ -296,7 +296,7 @@ void diskStatLoadProc(diskStatType *d)
   size_t len = 0;
   ssize_t read = 0;
   d->deviceCount = 0;
-  char str[1000];
+  char str[PATH_MAX];
   while ((read = getline(&line, &len, fp)) != -1) {
     long mj, mn, s, inflight;
     size_t read1, write1, timespentIO, readcompl1, writecompl1, discardcount1 = 0;

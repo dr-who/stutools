@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#include <linux/limits.h>
 #include <limits.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
@@ -28,6 +29,8 @@
 
 #include "utils.h"
 #include "numList.h"
+#include "procDiskStats.h"
+#include "diskStats.h"
 
 extern int keepRunning;
 
@@ -126,7 +129,7 @@ size_t swapTotal()
     if (line[0] == '/') {
       // a /dev line
       size_t size;
-      char name[1000], part[1000];
+      char name[NAME_MAX], part[NAME_MAX];
       int s = sscanf(line, "%s %s %zu", name, part, &size);
       if (s == 3) {
         // in /proc the size is in KiB
@@ -207,7 +210,7 @@ char *getPowerMode() {
   FILE *fp = fopen(POWERPATH, "rt");
   char *res = NULL;
   if (fp) {
-    char s[1000];
+    char s[NAME_MAX];
     int ret = fscanf(fp, "%s", s);
     if (ret == 1) {
       res = strdup(s);
@@ -258,7 +261,7 @@ char* queueType(char *path)
     perror("problem opening");
     //    exit(-1);
   }
-  char instr[100];
+  char instr[NAME_MAX];
   size_t r = fscanf(fp, "%s", instr);
   fclose(fp);
   if (r != 1) {
@@ -330,7 +333,7 @@ int getWriteCacheStatus(int fd)
 
 int getWriteCache(const char *suf)
 {
-  char s[200],s2[200];
+  char s[PATH_MAX], s2[PATH_MAX];
   int ret = 0;
   FILE *fp = NULL;
   if (suf) {
@@ -364,7 +367,7 @@ int getNumRequests(const char *suf)
     return 0; // if null then not rotational                                                                                                                           
   }
 
-  char s[200];
+  char s[PATH_MAX];
   int nr = 0;
   FILE *fp = NULL;
   if (suf) {
@@ -391,7 +394,7 @@ int getRotational(const char *suf)
     return 0; // if null then not rotational
   }
 
-  char s[200];
+  char s[PATH_MAX];
   int rot = 0;
   FILE *fp = NULL;
   if (suf) {
@@ -415,8 +418,8 @@ wvret:
 
 char *hostname()
 {
-  char s[1000];
-  gethostname(s, 999);
+  char s[NAME_MAX];
+  gethostname(s, NAME_MAX-1);
   if (strchr(s,'.')) {
     *strchr(s,'.') = 0;
   }
@@ -462,13 +465,6 @@ size_t generateRandomBufferCyclic(char *buffer, const size_t size, unsigned shor
       startpoint = verystartpoint;
     }
   }
-
-  /*  char s[1000];
-  memset(s, 0, 1000);
-  const size_t topr = sprintf(s, "________________stutools - %s - %06d\n", "spit", seedin);
-  //  strncpy(buffer, s, topr);
-  memcpy(buffer, s, topr);
-  */
 
   for (size_t j = cyclic; j < size; j += cyclic) {
     memcpy(buffer + j, buffer, cyclic);
@@ -533,7 +529,7 @@ char *getSuffix(const char *path)
 char *getScheduler(const char *suffix)
 {
   if (suffix) {
-    char s[1000];
+    char s[NAME_MAX];
     sprintf(s, "/sys/block/%s/queue/scheduler", suffix);
     FILE *fp = fopen(s, "rt");
     if (!fp) {
@@ -594,7 +590,7 @@ char *getCPUModel()
   int ret = 0;
   if (fp) {
     while ((ret = getline(&s, &len, fp)) > 0) {
-      char first[100], sec[100];
+      char first[NAME_MAX], sec[NAME_MAX];
       if (sscanf(s, "%s %s", first, sec) >= 2) {
         if ((strcmp(first,"model") == 0) && (strcmp(sec,"name")) == 0) {
           s[ret - 1] = 0;
@@ -617,7 +613,7 @@ void getPhyLogSizes(const char *suffix, size_t *phy, size_t *max_io_bytes, size_
   *log = 512;
   *max_io_bytes = INT_MAX;
   if (suffix) {
-    char s[1000];
+    char s[PATH_MAX];
     // first physical
     sprintf(s, "/sys/block/%s/queue/physical_block_size", suffix);
     int d, ret;
@@ -926,7 +922,7 @@ size_t dirtyPagesBytes()
     long temp = 0;
     size_t len = 0;
     ssize_t read = 0;
-    char s[100];
+    char s[NAME_MAX];
 
     while ((read = getline(&line, &len, fp)) != -1) {
       if (sscanf(line, "%s %ld", s, &temp)==2) {
@@ -953,7 +949,7 @@ size_t getCachedBytes()
     long temp = 0;
     size_t len = 0;
     ssize_t read = 0;
-    char s[100];
+    char s[NAME_MAX];
 
     while ((read = getline(&line, &len, fp)) != -1) {
       if (sscanf(line, "%s %ld", s, &temp)==2) {
@@ -1135,7 +1131,7 @@ int getDiscardInfo(const char *suffix, size_t *alignment_offset, size_t *discard
     strcpy(base_block_device, suffix);
   }
 
-  char s[1000];
+  char s[PATH_MAX];
   sprintf(s, "/sys/block/%s/alignment_offset", base_block_device);
   FILE *fp = fopen(s, "rt");
   long ret = 0, d = 0;
@@ -1501,7 +1497,7 @@ int openRunLock(const char *fn) {
 // if file is called x,
 // mv x.2 to x.3, mv x.1 to x.2, mv x to x.1;
 int backupExistingFile(const char *file, int versions) {
-  char old[1024], new[1024];
+  char old[PATH_MAX], new[PATH_MAX];
 
   for (size_t v = versions; v >= 1; v--) {
 
@@ -1715,4 +1711,12 @@ void loadEnvVars(char *filename) {
   }
 }
 
-      
+// new string
+char *serialFromFD(int fd) {
+  unsigned int major, minor;
+
+  majorAndMinor(fd, &major, &minor);
+  char *serial = getFieldFromUdev(major, minor, "E:ID_SERIAL=");
+  return serial;
+}
+

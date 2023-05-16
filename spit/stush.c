@@ -115,7 +115,7 @@ void header(const int tty) {
     lang = strdup(lang);
   }
 
-  char ss[1000];
+  char ss[PATH_MAX];
   sprintf(ss, "lang %s", lang);
   cmd_lang(tty, ss);
 
@@ -176,7 +176,7 @@ void cmd_calcEntropy(const int tty, char *origstring) {
       second = origstring + (second - string);
       double entropy = entropyTotalBits((unsigned char*)second, strlen(second), 1);
       printf("%s ", second);
-      char ss[1000];
+      char ss[PATH_MAX];
       sprintf(ss,"(%.1lf bits of entropy)", entropy);
       colour_printString(ss, entropy >= 200, "\n", tty);
     } else {
@@ -284,7 +284,7 @@ void cmd_listNICs(int tty) {
       cmd_printHWAddr(ifa->ifa_name);
       printf(", IP address: %s\n", host);
       printf("   Link: ");
-      char ss[1000];
+      char ss[PATH_MAX];
       sprintf(ss,"/sys/class/net/%s/carrier", ifa->ifa_name);
       dumpFile(ss, "", 0);
 
@@ -341,7 +341,7 @@ void cmd_pwgen(int tty) {
     
   } while ((pwentropy < 200 || bitsentropy < 242) && keepRunning);
 
-  char ss[1000];
+  char ss[PATH_MAX];
   if (tty) printf("%s", BOLD);
   printf("generate random bits for length %zd: ", len);
   if (tty) printf("%s", END);
@@ -389,7 +389,7 @@ void cmd_listDriveBlockDevices(int tty) {
 
   for (size_t i = 0; i < d.num && keepRunning; i++) {
     if ((d.devices[i].majorNumber == 8) || (d.devices[i].majorNumber == 254)) {
-      char path[1000];
+      char path[PATH_MAX];
       sprintf(path, "/dev/%s", d.devices[i].deviceName);
       size_t bdsize = blockDeviceSize(path);
       double entropy = 0;
@@ -461,7 +461,7 @@ void cmd_date(const int tty) {
   time_t t = time(NULL);
   struct tm tm = *localtime(&t);
 
-  char timestring[1000];
+  char timestring[PATH_MAX];
   strftime(timestring, 999, "%c", &tm);
   if (tty) printf("%s", BOLD);
   printf("%s\n", timestring);
@@ -646,8 +646,8 @@ int main(int argc, char *argv[]) {
   setvbuf(stderr, NULL, _IONBF, 0);  // turn off buffering
   
 
-  char hostname[91], prefix[100];
-  if (gethostname(hostname, 90)) {
+  char hostname[NAME_MAX-10], prefix[NAME_MAX];
+  if (gethostname(hostname, NAME_MAX-11)) {
     sprintf(hostname, "stush");
   }
 

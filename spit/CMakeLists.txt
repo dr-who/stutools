@@ -14,6 +14,7 @@ include (CTest)
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wall -pedantic --std=gnu11 -O2" )
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
+
 add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c procDiskStats.c mapVoid.c)
 
 add_executable(spit spit.c)
@@ -139,7 +140,11 @@ install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
 
 
 add_test(testnumList numListTest)
-add_test(testspitHelp  spit)
+add_test(testspitHelp  spit -h)
+
+add_test(testspitHelpnoargs  spit)
+set_tests_properties(testspitHelpnoargs PROPERTIES WILL_FAIL TRUE )
+
 add_test(testspitfail1  spit -c r)
 set_tests_properties(testspitfail1 PROPERTIES WILL_FAIL TRUE )
 

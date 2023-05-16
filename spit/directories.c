@@ -6,6 +6,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <linux/limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -54,7 +55,7 @@ void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
   const size_t size = KiB * 1000;
 
   struct stat st = {0};
-  char s[1024];
+  char s[PATH_MAX];
   sprintf(s,"%s/testdir", prefix);
 
   if (stat(s, &st) == -1) {
@@ -70,7 +71,7 @@ void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
   if (ls) logSpeedReset(ls);
 
   for (size_t i = 0; i < count; i++) {
-    char s[1024];
+    char s[PATH_MAX];
     sprintf(s, "%s/testdir/file-%05zd", prefix, i);
     //    fprintf(stderr,"%s\n", s);
     makeFile(s, buffer, size, chunk);
@@ -86,7 +87,7 @@ void readDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
 {
   const size_t size = KiB * 1000;
 
-  char s[1024];
+  char s[PATH_MAX];
   sprintf(s,"%s/testdir", prefix);
 
   char *buffer = aligned_alloc(size * sizeof(char), 4096);
@@ -98,7 +99,7 @@ void readDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
   if (ls) logSpeedReset(ls);
 
   for (size_t i = 0; i < count; i++) {
-    char s[1024];
+    char s[PATH_MAX];
     sprintf(s, "%s/testdir/file-%05zd", prefix, i);
     //    fprintf(stderr,"%s\n", s);
     readFile(s, buffer, size, chunk);

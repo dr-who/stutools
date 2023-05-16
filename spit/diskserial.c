@@ -1,5 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "procDiskStats.h"
 
@@ -9,16 +12,19 @@
 int keepRunning = 1;
 
 int main() {
-
-  unsigned int major, minor;
-  char s[1001];
+  char s[PATH_MAX];
   
-  while (fgets(s, 1000, stdin) != NULL) {
+  while (fgets(s, PATH_MAX-1, stdin) != NULL) {
     s[strlen(s)-1] = 0;
-    majorAndMinorFromFilename(s, &major, &minor);
-    char *serial = getFieldFromUdev(major, minor, "E:ID_SERIAL=");
-    fprintf(stdout,"%s\t%s\n", s, serial);
-    free(serial);
+    int fd = open(s, O_RDONLY);
+    if (fd > 0) {
+      char *s = serialFromFD(fd);
+      printf("%s\n", s);
+      free(s);
+      close(fd);
+    } else {
+      perror(s);
+    }
   }
   
   exit(0);

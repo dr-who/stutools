@@ -5,6 +5,7 @@
 #include "jobType.h"
 #include <signal.h>
 #include <math.h>
+#include <linux/limits.h>
 
 #ifndef VERSION
 #define VERSION __TIMESTAMP__
@@ -172,7 +173,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     }
 
     for (size_t i = 0; i < jcount; i++) {
-      char temp[1000];
+      char temp[PATH_MAX];
       if (addthej) {
         sprintf(temp,"%s%c%zd#%zd", optarg, charJ ? *charJ : 'j', jcount, i);
       } else {
@@ -781,7 +782,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
 
   if (maxSizeInBytes == 0) maxSizeInBytes = 50 * 1024 * 1024;
 
-  char text[100];
+  char text[NAME_MAX];
   time_t now = time(NULL);
   struct tm *t = localtime(&now);
 
@@ -849,7 +850,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
   size_t threadBlock[] = {1,64};
 
   size_t dedupSizes[] = {1,10,100,1000,10000,100000,1000000};
-  char s[100];
+  char s[NAME_MAX];
   jobType j;
 
   double starttime = timedouble();
@@ -864,7 +865,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
   }
 
   while (forever || (timedouble() - starttime < runseconds)) {
-      char ss[200];
+    char ss[PATH_MAX];
       now = time(NULL);
       t = localtime(&now);
       strftime(text, sizeof(text)-1, "%Y-%m-%d %H:%M:%S", t);
@@ -1151,7 +1152,7 @@ int main(int argc, char *argv[])
     size_t showdate = 0;
 
     char *kcheckresults = NULL;
-    char commandstring[1000];
+    char commandstring[PATH_MAX];
     FILE *loadpos = NULL;
 
     double exitTimeout = 0;

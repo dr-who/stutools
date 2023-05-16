@@ -105,9 +105,11 @@ size_t nlAdd(numListType *n, const double value) {
 double nlSortedPos(numListType *n, const double pos) { 
   double ret = NAN;
 
-  if (pos >= 0.999 && n->num < 10000) return NAN;
-  if (pos >= 0.9999 && n->num < 100000) return NAN;
-  if (pos >= 0.99999 && n->num < 1000000) return NAN;
+  if ((pos != 0) && (pos < 1)) {
+    if (pos >= 0.999 && n->num < 10000) return NAN;
+    if (pos >= 0.9999 && n->num < 100000) return NAN;
+    if (pos >= 0.99999 && n->num < 1000000) return NAN;
+  }
   
   pthread_mutex_lock(&n->lock);
   size_t nnum = n->num;

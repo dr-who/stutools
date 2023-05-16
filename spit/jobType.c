@@ -104,7 +104,7 @@ void jobFileSequence(jobType *job)
 {
   const int origcount = job->count;
   for (int i = 0; i < origcount; i++) {
-    char s[1000];
+    char s[PATH_MAX];
     sprintf(s, "%s.%04d", job->devices[i], i+1);
     free(job->devices[i]);
     job->devices[i] = strdup(s);
@@ -747,7 +747,7 @@ char *getValue(const char *os, const char *prefix)
   if (!k) {
     return strdup(i + plen);
   } else {
-    char s[1000];
+    char s[PATH_MAX];
     strncpy(s, i + plen, k - i - plen);
     s[k-i-plen]=0;
     return strdup(s);
@@ -784,7 +784,7 @@ static void *runThreadTimer(void *arg)
 
 
   FILE *fp = NULL, *fpmysql = NULL;
-  char s[1000];
+  char s[PATH_MAX];
   if (threadContext->benchmarkName) {
     // first write out .gnufile
     sprintf(s, "%s_r.gnu", threadContext->benchmarkName);
@@ -2145,7 +2145,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   }
 
   for (int tid = 0; tid < num; tid++) {
-    char s[100];
+    char s[NAME_MAX];
     sprintf(s,"spit-t%d", tid);
     pthread_create(&(pt[tid]), NULL, runThread, &(threadContext[tid]));
     pthread_setname_np(pt[tid], s);
@@ -2368,7 +2368,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 
       fprintf(stderr,"*info* coverage %zd, with an IOPS limit of %zd (%.0lf MiB/sec) after %.3lf GiB is written\n", coverage, exitIOPS, exitIOPS * blockSize / 1024, TOGiB(gSize));
 
-      char s[100];
+      char s[NAME_MAX];
       sprintf(s, "w k%g z s%.2lf j%d b%zd x%zd nN I%zd q64", blockSize, seqFiles, 1, gSize, coverage, exitIOPS); // X1 not x1 means run once then rerandomise
       fprintf(stderr,"*info* '%s'\n", s);
       free(preconditions->strings[i]);
@@ -2379,7 +2379,7 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
       fprintf(stderr,"*info* precondition: step through LBA=%zd positions, LBA=[%.2lf, %.2lf) GB, batch %zd GB\n", fragmentLBA, TOGB(minSizeBytes), TOGB(maxSizeBytes), stepgb);
       for (size_t p = TOGiB(minSizeBytes); p < TOGiB(maxSizeBytes); p+= stepgb) if (keepRunning) {
 	free(preconditions->strings[0]); // free 'f'
-	char s[100];
+	char s[NAME_MAX];
 	sprintf(s,"wx1zs1k4G%zd-%.1lf", p, MIN(TOGiB(maxSizeBytes), p+stepgb));
 	fprintf(stderr,"*info* precondition: running string %s\n", s);
 	preconditions->strings[0] = strdup(s);

@@ -15,7 +15,7 @@
 
 
 char *getFieldFromUdev(size_t major, size_t minor, char *match) {
-  char s[100];
+  char s[PATH_MAX];
   sprintf(s, "/run/udev/data/b%zd:%zd", major, minor);
   FILE *fp = fopen(s, "rt");
   if (!fp) {
@@ -24,9 +24,9 @@ char *getFieldFromUdev(size_t major, size_t minor, char *match) {
     return NULL;
   }
 
-  char *line = calloc(1000,1);
-  char *result = calloc(1000,1);
-  while (fgets(line, 1000, fp) != NULL) {
+  char *line = calloc(PATH_MAX,1);
+  char *result = calloc(PATH_MAX,1);
+  while (fgets(line, PATH_MAX-1, fp) != NULL) {
     if (strstr(line, match)) {
       sscanf(strstr(line, "=")+1, "%s", result);
       //      fprintf(stderr,"matched: %s\n", result);
@@ -54,7 +54,7 @@ void procDiskStatsSample(procDiskStatsType *d) {
   char *line = NULL;
   size_t len = 0;
   ssize_t read = 0;
-  char str[1000];
+  char str[PATH_MAX];
   while ((read = getline(&line, &len, fp)) != -1) {
     size_t col1,col2,col4,col5,col6,col7,col8,col9,col10,col11,col12,col13,col14;
     sscanf(line,"%zu %zu %s %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu", &col1, &col2, str, &col4, &col5, &col6, &col7, &col8, &col9, &col10, &col11, &col12, &col13, &col14);
@@ -174,7 +174,7 @@ void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres, mapVo
 
 
     if (out) {
-      char s[1000];
+      char s[PATH_MAX];
       sprintf(s ,"%.3lf %.3lf %zd:%zd %s R %zd / %.1lf ms, W %zd / %.1lf ms, T_IO %zd ms, %.0lf %% %s\n", timedouble() - d->startTime, timedouble(),
 	      d->devices[i].majorNumber, d->devices[i].minorNumber, d->devices[i].deviceName,
 	      /*		  d->devices[i].idModel,
