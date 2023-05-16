@@ -15,12 +15,27 @@ spit - Stu's powerful I/O tester
 
 == DESCRIPTION
 
-The spit(1) performs various I/O. The *-c* command spins up a command
-string on a dedicated thread with an AIO context per thread.
+The spit(1) performs various I/O tests.
+
+The range of tests includes:
+
+* reading, writing, forwards, backwards, in stripes, back/forth, subsampling
+* time based tests, LBA coverage tests, limited number of position tests
+* sequential, random, mostly sequential
+* multiple measurements per position, output of median/max values
+* variable IOs in flight and steps
+* static and variable block sizes
+* multiple threads (with an AIO context per thread)
+* multiple commands
+* analysis of the underlying block devices for amplification measure
+* verification of writes
+* statistical output, min/max/mean/median/9s/and more
+* test patterns for readahead busting
+* *spit -h* to get a lot of example commands
 
 == OVERVIEW
 
-*spit* [GLOBAL OPTIONS] -c _commands_ -c _commands_ -c _commands_
+*spit* [GLOBAL OPTIONS] -c _commands_ ... -c _commands_
 
 == GLOBAL OPTIONS
  *h*::
@@ -196,7 +211,7 @@ In the following commands, replace *r* with *w* for writes.
 
 *spit* -f /dev/device -c rs0 -j 32 -G1
 
-  Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
+  Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GB.
   For devices with cache these operations should be cached.
 
 *spit* -f /dev/device -c rP10000
@@ -221,7 +236,7 @@ In the following commands, replace *r* with *w* for writes.
 
 *spit* -f /dev/device -c ws1G0-100 -c ws0G100-200
 
-  On a 200 GiB perform linear writes in the first half and
+  On a 200 GB device perform linear writes in the first half and
   random writes on the second half.
 
 
@@ -236,7 +251,8 @@ In the following commands, replace *r* with *w* for writes.
 
 == BUGS
 
-Bugs will be rewarded by choc fish.
+Bugs will be rewarded by choc fish... in person :)
+
 
 
 

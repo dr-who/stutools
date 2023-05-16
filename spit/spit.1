@@ -34,11 +34,155 @@ spit \- Stu\(aqs powerful I/O tester
 \fBspit\fP [\fIOPTION\fP]... \fIFILE\fP...
 .SH "DESCRIPTION"
 .sp
-The spit(1) performs various I/O. The \fB\-c\fP command spins up a command
-string on a dedicated thread with an AIO context per thread.
+The spit(1) performs various I/O tests.
+.sp
+The range of tests includes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+reading, writing, forwards, backwards, in stripes, back/forth, subsampling
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+time based tests, LBA coverage tests, limited number of position tests
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+sequential, random, mostly sequential
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+multiple measurements per position, output of median/max values
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+variable IOs in flight and steps
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+static and variable block sizes
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+multiple threads (with an AIO context per thread)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+multiple commands
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+analysis of the underlying block devices for amplification measure
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+verification of writes
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+statistical output, min/max/mean/median/9s/and more
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+test patterns for readahead busting
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\fBspit \-h\fP to get a lot of example commands
+.RE
 .SH "OVERVIEW"
 .sp
-\fBspit\fP [GLOBAL OPTIONS] \-c \fIcommands\fP \-c \fIcommands\fP \-c \fIcommands\fP
+\fBspit\fP [GLOBAL OPTIONS] \-c \fIcommands\fP ... \-c \fIcommands\fP
 .SH "GLOBAL OPTIONS"
 .sp
 \fBh\fP
@@ -310,7 +454,7 @@ Creates 32 threads, reads random 4KiB reads
 .sp
 .if n .RS 4
 .nf
-Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
+Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GB.
 For devices with cache these operations should be cached.
 .fi
 .if n .RE
@@ -353,7 +497,7 @@ Two threads, both random, one reading, one writing.
 .sp
 .if n .RS 4
 .nf
-On a 200 GiB perform linear writes in the first half and
+On a 200 GB device perform linear writes in the first half and
 random writes on the second half.
 .fi
 .if n .RE
@@ -370,7 +514,7 @@ Failure (syntax of usage error).
 .RE
 .SH "BUGS"
 .sp
-Bugs will be rewarded by choc fish.
+Bugs will be rewarded by choc fish... in person :)
 .SH "AUTHOR"
 .sp
 Stuart Inglis, Ph.D.
