@@ -248,13 +248,12 @@ In the following commands, replace *r* with *w* for writes.
 *non-zero*::
   Failure (syntax of usage error).
   
-
 == BUGS
 
 Bugs will be rewarded by choc fish... in person :)
 
+== AFFILIATIONS
 
+Department of Computer Science, University of Waikato, New Zealand.
 
-
-
-  
+Visit us, it's a lovely campus and a great place to live.
