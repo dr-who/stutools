@@ -11,13 +11,11 @@ spit - Stu's powerful I/O tester
 
 == SYNOPSIS
 
-*spit* [_OPTION_]... _FILE_...
+spit [ _OPTIONS_ ] ... _DEVICE(S)_ ... _COMMANDS_...
 
 == DESCRIPTION
 
-The spit(1) performs various I/O tests.
-
-The range of tests includes:
+spit(1) performs various I/O tests. The range of tests includes:
 
 * reading, writing, forwards, backwards, in stripes, back/forth, subsampling
 * time based tests, LBA coverage tests, limited number of position tests
@@ -33,63 +31,70 @@ The range of tests includes:
 * test patterns for readahead busting
 * *spit -h* to get a lot of example commands
 
-== OVERVIEW
+== SIMPLE EXAMPLE
 
-*spit* [GLOBAL OPTIONS] -c _commands_ ... -c _commands_
+spit [OPTIONS] -f _device_ -c _commands_
 
-== GLOBAL OPTIONS
- *h*::
-   Displays a myriad of testing commands
+e.g.
+  *spit -f /dev/sda -c rzs1k1024*
 
- *f device*::
+== DEVICE(S)
+ *-f device*::
    Specific a single block device (e.g. -f /dev/ram0)
 
- *F prefix*::
+ *-F prefix*::
    The filesystem filename prefix for filesystem tests (e.g. -F testprefix -j 32). *-F* is an alternative to *-f* and conflicts with it. Choose *-f* or *-F prefix*.
 
- *G size*::
-   Limit the positions to a maximum of *size* GB (e.g. -G 32). Without a suffix the units are in GB. Optional suffixes include: GiB, TiB, TB, PiB, PB.
+ *-I filename*::
+   Specific a file that contains a list of device names (e.g. -I devices.txt). The *devices.txt* file contains one device per line. To process 200 block devices at once, create devices.txt with 200 lines.
+   e.g. *spit -I devices -c rs1k1024* will start 200 threads, one per device, and run the same command on them. Note in this case the starting position is not specified so each drive will start at a random location. Adding *z* will start each job from position zero.
 
-
- *I filename*::
-   Specific a file that contains a list of device names (e.g. -I devices.txt). The *devices.txt* file contains one device per line. To process 200 block devices at once, create devices.txt with 200 lines. e.g. *spit -I devices -c rs1k1024* will start 200 threads, one per device, and run the same command on them. Note in this case the starting position is not specified so each drive will start at a random location. Adding *z* will start each job from position zero.
-
- *B filename*::
-   The benchmarking file that has the per second read/write speed and IOPs
-
- *P filename*::
-   All positions with their size and timing and read/write actions are output. This file can be used by *spitchecker* to verify the positions between run.s
-   
- *j N*::
-   Multiply the number of commands (*-c*) by N. (e.g. -j 8). *-c rs0j8* will create 8 threads, each performing random reads. Each thread will be seeded with a unique random value so the random positions will not be the same. 
-
- *t s*::
-   Limit the execution to *s* seconds (e.g. -t 30)
-
- *T s*::
-   Hard exit(-1) execution if spit is still running after *s* seconds.
-
- *M options*::
-   Output MySQL options per test. (e.g. -M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1,precondition=GI20000)
-
- *N options*::
-   Output MySQL options per machine/type. (e.g. -N os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid)
-
- *O filename*::
+ *-O filename*::
    Specifies a list of raw devices, matched with the *-f* option shows
    device read/write amplification. (e.g. -f /dev/md0 -O underlyingdevices.txt)
 
- *P filename*::
+== OPTIONS
+ *-h*::
+   Displays a myriad of testing commands
+
+ *-G size*::
+   Limit the positions to a maximum of *size* GB (e.g. -G 32). Without a suffix the units are in GB. Optional suffixes include: GiB, TiB, TB, PiB, PB.
+
+
+ *-B filename*::
+   The benchmarking file that has the per second read/write speed and IOPs
+
+ *-P filename*::
+   All positions with their size and timing and read/write actions are output. This file can be used by *spitchecker* to verify the positions between run.s
+   
+ *-t s*::
+   Limit the execution to *s* seconds (e.g. -t 30)
+
+ *-T s*::
+   Hard exit(-1) execution if spit is still running after *s* seconds.
+
+ *-M options*::
+   Output MySQL options per test. (e.g. -M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1,precondition=GI20000)
+
+ *-N options*::
+   Output MySQL options per machine/type. (e.g. -N os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid)
+
+ *-P filename*::
    Save position information to *filename*. The positions file contains the device, offset, size, random seed, start time, end time, latency, and more.
 
- *v*::
+ *-v*::
    Verify writes by reading and checking. The positions can also be written using the global *P filename* command, then verified with *spitchecker*
 
-== COMMAND OPTIONS
+== COMMANDS
 
 A command is a single contiguous string. Spaces are ignored if the
 entire string is quoted. An example of a command string may look like:
-*spit* -c *rk64P1000s3* -f /dev/device
+
+*spit -f /dev/device -c rk64P1000s3*
+
+Note: For readability it is possible to pass in the command options surround by double quotes.
+
+*spit -f /dev/device -c "r z s1 k1024 q1"*
 
 The command options are described below:
 
@@ -109,8 +114,11 @@ The command options are described below:
    Limit the position range to *low* to *high* GB. (e.g. G2-3).
 
  *G_*::
-   The range can be specified with the syntax *G_* which will split the G ranges evenly between all threads (no thread contention). e.g. *spit -f dev -c rzs1j32* will create 32 threads, all accessing the same block device, all reading the same positions. To partition the LBA space between threads use the *G_* option, which will first divide the LBA range by the number of threads.
+   The range can be specified with the syntax *G_* which will split the G ranges evenly between all threads (no thread contention). e.g. *spit -f /dev/device -c rzs1j32* will create 32 threads, all accessing the same block device, all reading the same positions. To partition the LBA space between threads use the *G_* option, which will first divide the LBA range by the number of threads.
  
+ *j N*::
+   Multiply the number of commands (*-c*) by N. (e.g. -j 8). *-c rs0j8* will create 8 threads, each performing random reads. Each thread will be seeded with a unique random value so the random positions will not be the same. 
+
  *kN* or *klowBS-highBS*::
    Block size or _lowblocksize_ to _highblocksize_ range. (e.g. k4-128). The hypen as a range will pick a value between the low and high range, in multiples of a 4KiB block size. The range with a colon (e.g. k4-128) will only pick values that are also powers of 2.
 

@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 2.0.10
-.\"      Date: 2023-05-16
+.\"      Date: 2023-05-17
 .\"    Manual: spit manual
 .\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2023-05-16" "spit 1.2" "spit manual"
+.TH "SPIT" "1" "2023-05-17" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -31,12 +31,10 @@
 spit \- Stu\(aqs powerful I/O tester
 .SH "SYNOPSIS"
 .sp
-\fBspit\fP [\fIOPTION\fP]... \fIFILE\fP...
+spit [ \fIOPTIONS\fP ] ... \fIDEVICE(S)\fP ... \fICOMMANDS\fP...
 .SH "DESCRIPTION"
 .sp
-The spit(1) performs various I/O tests.
-.sp
-The range of tests includes:
+spit(1) performs various I/O tests. The range of tests includes:
 .sp
 .RS 4
 .ie n \{\
@@ -180,91 +178,96 @@ test patterns for readahead busting
 .\}
 \fBspit \-h\fP to get a lot of example commands
 .RE
-.SH "OVERVIEW"
+.SH "SIMPLE EXAMPLE"
 .sp
-\fBspit\fP [GLOBAL OPTIONS] \-c \fIcommands\fP ... \-c \fIcommands\fP
-.SH "GLOBAL OPTIONS"
+spit [OPTIONS] \-f \fIdevice\fP \-c \fIcommands\fP
 .sp
-\fBh\fP
-.RS 4
-Displays a myriad of testing commands
-.RE
+e.g.
+\fBspit \-f /dev/sda \-c rzs1k1024\fP
+.SH "DEVICE(S)"
 .sp
-\fBf device\fP
+\fB\-f device\fP
 .RS 4
 Specific a single block device (e.g. \-f /dev/ram0)
 .RE
 .sp
-\fBF prefix\fP
+\fB\-F prefix\fP
 .RS 4
 The filesystem filename prefix for filesystem tests (e.g. \-F testprefix \-j 32). \fB\-F\fP is an alternative to \fB\-f\fP and conflicts with it. Choose \fB\-f\fP or \fB\-F prefix\fP.
 .RE
 .sp
-\fBG size\fP
+\fB\-I filename\fP
 .RS 4
-Limit the positions to a maximum of \fBsize\fP GB (e.g. \-G 32). Without a suffix the units are in GB. Optional suffixes include: GiB, TiB, TB, PiB, PB.
+Specific a file that contains a list of device names (e.g. \-I devices.txt). The \fBdevices.txt\fP file contains one device per line. To process 200 block devices at once, create devices.txt with 200 lines.
+e.g. \fBspit \-I devices \-c rs1k1024\fP will start 200 threads, one per device, and run the same command on them. Note in this case the starting position is not specified so each drive will start at a random location. Adding \fBz\fP will start each job from position zero.
 .RE
 .sp
-\fBI filename\fP
-.RS 4
-Specific a file that contains a list of device names (e.g. \-I devices.txt). The \fBdevices.txt\fP file contains one device per line. To process 200 block devices at once, create devices.txt with 200 lines. e.g. \fBspit \-I devices \-c rs1k1024\fP will start 200 threads, one per device, and run the same command on them. Note in this case the starting position is not specified so each drive will start at a random location. Adding \fBz\fP will start each job from position zero.
-.RE
-.sp
-\fBB filename\fP
-.RS 4
-The benchmarking file that has the per second read/write speed and IOPs
-.RE
-.sp
-\fBP filename\fP
-.RS 4
-All positions with their size and timing and read/write actions are output. This file can be used by \fBspitchecker\fP to verify the positions between run.s
-.RE
-.sp
-\fBj N\fP
-.RS 4
-Multiply the number of commands (\fB\-c\fP) by N. (e.g. \-j 8). \fB\-c rs0j8\fP will create 8 threads, each performing random reads. Each thread will be seeded with a unique random value so the random positions will not be the same.
-.RE
-.sp
-\fBt s\fP
-.RS 4
-Limit the execution to \fBs\fP seconds (e.g. \-t 30)
-.RE
-.sp
-\fBT s\fP
-.RS 4
-Hard exit(\-1) execution if spit is still running after \fBs\fP seconds.
-.RE
-.sp
-\fBM options\fP
-.RS 4
-Output MySQL options per test. (e.g. \-M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1,precondition=GI20000)
-.RE
-.sp
-\fBN options\fP
-.RS 4
-Output MySQL options per machine/type. (e.g. \-N os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid)
-.RE
-.sp
-\fBO filename\fP
+\fB\-O filename\fP
 .RS 4
 Specifies a list of raw devices, matched with the \fB\-f\fP option shows
 device read/write amplification. (e.g. \-f /dev/md0 \-O underlyingdevices.txt)
 .RE
+.SH "OPTIONS"
 .sp
-\fBP filename\fP
+\fB\-h\fP
+.RS 4
+Displays a myriad of testing commands
+.RE
+.sp
+\fB\-G size\fP
+.RS 4
+Limit the positions to a maximum of \fBsize\fP GB (e.g. \-G 32). Without a suffix the units are in GB. Optional suffixes include: GiB, TiB, TB, PiB, PB.
+.RE
+.sp
+\fB\-B filename\fP
+.RS 4
+The benchmarking file that has the per second read/write speed and IOPs
+.RE
+.sp
+\fB\-P filename\fP
+.RS 4
+All positions with their size and timing and read/write actions are output. This file can be used by \fBspitchecker\fP to verify the positions between run.s
+.RE
+.sp
+\fB\-t s\fP
+.RS 4
+Limit the execution to \fBs\fP seconds (e.g. \-t 30)
+.RE
+.sp
+\fB\-T s\fP
+.RS 4
+Hard exit(\-1) execution if spit is still running after \fBs\fP seconds.
+.RE
+.sp
+\fB\-M options\fP
+.RS 4
+Output MySQL options per test. (e.g. \-M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1,precondition=GI20000)
+.RE
+.sp
+\fB\-N options\fP
+.RS 4
+Output MySQL options per machine/type. (e.g. \-N os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid)
+.RE
+.sp
+\fB\-P filename\fP
 .RS 4
 Save position information to \fBfilename\fP. The positions file contains the device, offset, size, random seed, start time, end time, latency, and more.
 .RE
 .sp
-\fBv\fP
+\fB\-v\fP
 .RS 4
 Verify writes by reading and checking. The positions can also be written using the global \fBP filename\fP command, then verified with \fBspitchecker\fP
 .RE
-.SH "COMMAND OPTIONS"
+.SH "COMMANDS"
 .sp
 A command is a single contiguous string. Spaces are ignored if the
 entire string is quoted. An example of a command string may look like:
-\fBspit\fP \-c \fBrk64P1000s3\fP \-f /dev/device
+.sp
+\fBspit \-f /dev/device \-c rk64P1000s3\fP
+.sp
+Note: For readability it is possible to pass in the command options surround by double quotes.
+.sp
+\fBspit \-f /dev/device \-c "r z s1 k1024 q1"\fP
 .sp
 The command options are described below:
 .sp
@@ -295,7 +298,12 @@ Limit the position range to \fBlow\fP to \fBhigh\fP GB. (e.g. G2\-3).
 .sp
 \fBG_\fP
 .RS 4
-The range can be specified with the syntax \fBG_\fP which will split the G ranges evenly between all threads (no thread contention). e.g. \fBspit \-f dev \-c rzs1j32\fP will create 32 threads, all accessing the same block device, all reading the same positions. To partition the LBA space between threads use the \fBG_\fP option, which will first divide the LBA range by the number of threads.
+The range can be specified with the syntax \fBG_\fP which will split the G ranges evenly between all threads (no thread contention). e.g. \fBspit \-f /dev/device \-c rzs1j32\fP will create 32 threads, all accessing the same block device, all reading the same positions. To partition the LBA space between threads use the \fBG_\fP option, which will first divide the LBA range by the number of threads.
+.RE
+.sp
+\fBj N\fP
+.RS 4
+Multiply the number of commands (\fB\-c\fP) by N. (e.g. \-j 8). \fB\-c rs0j8\fP will create 8 threads, each performing random reads. Each thread will be seeded with a unique random value so the random positions will not be the same.
 .RE
 .sp
 \fBkN\fP or \fBklowBS\-highBS\fP
