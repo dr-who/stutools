@@ -4,7 +4,9 @@ Stu's Powerful I/O Tester (spit)
 
       ./spit/spit   - powerful test program, sequential random, queue depth, timings and more.
 
-      Tools for generating SNIA (Storage Networking Industry Association) compatible benchmarking.
+      Tools for generating benchmarking, with an aim to be able to
+      regenerate the important tests from the SNIA (Storage Networking
+      Industry Association) suite. And a lot more!
 
 ## Dependencies
 
@@ -32,7 +34,7 @@ then
 
 ## Man page
 
-      man -l spit/man.1
+      man -l spit/spit.1
 
 ## Write tests
 

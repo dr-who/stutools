@@ -2,7 +2,7 @@
 Stuart Inglis, Ph.D.
 :doctype: manpage
 :man manual: spit manual
-:man source: spit 1.1
+:man source: spit 1.2
 :page-layout: base
 
 == NAME
@@ -23,21 +23,21 @@ string on a dedicated thread with an AIO context per thread.
 *spit* [GLOBAL OPTIONS] -c _commands_ -c _commands_ -c _commands_
 
 == GLOBAL OPTIONS
+ *h*::
+   Displays a myriad of testing commands
 
  *f device*::
-   Specific a single device (e.g. -f /dev/ram0)
+   Specific a single block device (e.g. -f /dev/ram0)
 
  *F prefix*::
-   The filesystem filename prefix for parallel jobs. (e.g. -F testprefix -j 32)
+   The filesystem filename prefix for filesystem tests (e.g. -F testprefix -j 32). *-F* is an alternative to *-f* and conflicts with it. Choose *-f* or *-F prefix*.
 
  *G size*::
-   Limit the positions to a maximum of *size* GiB (e.g. -G 32)
+   Limit the positions to a maximum of *size* GB (e.g. -G 32). Without a suffix the units are in GB. Optional suffixes include: GiB, TiB, TB, PiB, PB.
 
- *i size*::
-   Ignore the first *size* GiB of output for benchmarking/timing.
 
  *I filename*::
-   Specific a file that contains a list of device names (e.g. -f devices.txt)
+   Specific a file that contains a list of device names (e.g. -I devices.txt). The *devices.txt* file contains one device per line. To process 200 block devices at once, create devices.txt with 200 lines. e.g. *spit -I devices -c rs1k1024* will start 200 threads, one per device, and run the same command on them. Note in this case the starting position is not specified so each drive will start at a random location. Adding *z* will start each job from position zero.
 
  *B filename*::
    The benchmarking file that has the per second read/write speed and IOPs
@@ -46,10 +46,13 @@ string on a dedicated thread with an AIO context per thread.
    All positions with their size and timing and read/write actions are output. This file can be used by *spitchecker* to verify the positions between run.s
    
  *j N*::
-   Multiply the number of commands (*-c*) by N. (e.g. -j 8)
+   Multiply the number of commands (*-c*) by N. (e.g. -j 8). *-c rs0j8* will create 8 threads, each performing random reads. Each thread will be seeded with a unique random value so the random positions will not be the same. 
 
  *t s*::
    Limit the execution to *s* seconds (e.g. -t 30)
+
+ *T s*::
+   Hard exit(-1) execution if spit is still running after *s* seconds.
 
  *M options*::
    Output MySQL options per test. (e.g. -M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1,precondition=GI20000)
@@ -57,18 +60,12 @@ string on a dedicated thread with an AIO context per thread.
  *N options*::
    Output MySQL options per machine/type. (e.g. -N os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid)
 
- *p precondition_options*::
-  Before executing any commands, run the precondition write
-  commands. Defaults to 4k writes. Options include: *-p Gn*, *-p Gs1* for
-  sequential, *-p Gk8* for 8 KiB writes. (e.g. -p G32). *I100000* will exit
-  the preconditioning step after the first LBA pass if the IOPS is under the specified threshold.
-   
  *O filename*::
    Specifies a list of raw devices, matched with the *-f* option shows
-   device read/write amplification. (e.g. -f /dev/md0 -O devices.txt)
+   device read/write amplification. (e.g. -f /dev/md0 -O underlyingdevices.txt)
 
- *P*::
-   Save positions to the file `spit-positions.txt`
+ *P filename*::
+   Save position information to *filename*. The positions file contains the device, offset, size, random seed, start time, end time, latency, and more.
 
  *v*::
    Verify writes by reading and checking. The positions can also be written using the global *P filename* command, then verified with *spitchecker*
@@ -94,13 +91,13 @@ The command options are described below:
    Set the read/write ratio to *N*. (e.g. p0 is write only, p1 is read only, p0.75 is 75% reads)
 
  *Glow-high*::
-   Limit the position range to *low* to *high* GiB. (e.g. G2-3).
+   Limit the position range to *low* to *high* GB. (e.g. G2-3).
 
  *G_*::
-   The range can be specified with the syntax *G_* which will split the G ranges evenly between all threads (no thread contention). 
+   The range can be specified with the syntax *G_* which will split the G ranges evenly between all threads (no thread contention). e.g. *spit -f dev -c rzs1j32* will create 32 threads, all accessing the same block device, all reading the same positions. To partition the LBA space between threads use the *G_* option, which will first divide the LBA range by the number of threads.
  
  *kN* or *klowBS-highBS*::
-   Block size or _lowblocksize_ to _highblocksize_ range. (e.g. k4-128)
+   Block size or _lowblocksize_ to _highblocksize_ range. (e.g. k4-128). The hypen as a range will pick a value between the low and high range, in multiples of a 4KiB block size. The range with a colon (e.g. k4-128) will only pick values that are also powers of 2.
 
  *n*::
    Use random positions with replacement 
@@ -123,6 +120,9 @@ The command options are described below:
  *sN*::
    number of contiguous sequence regions. *s0* means random, *s1* means
    a single linear stream, *s32* means 32 contigous stream.
+
+ *s0.x*::
+   Between s0 (random) and s1 (linear stream) there is a range of s0.0 up to s1. The s0.1 will be lineared by with a probability of 0.1 the location will be randomised.
 
  *sN-maxSizeInKiB*::
    Specify the number of continuous sequence regions, include the maximum
@@ -148,7 +148,7 @@ The command options are described below:
    Limit the number of positions to *n*
 
  *xn*::
-   Multiply the number of positions by *n*
+   Cover each of the LBA positions *n* times. e.g. -c rs1x1 will cover the LBA range and will ignore the time duration commands.
 
 === Timing commands
 
@@ -224,16 +224,6 @@ In the following commands, replace *r* with *w* for writes.
   On a 200 GiB perform linear writes in the first half and
   random writes on the second half.
 
-=== SNIA latency graphs
-
-*spit* -p G -f /dev/device -c rs0n -t 3600
-
-  To generate the Response Time Histogram - Confidence Level Plot of
-  the SNIA SSS PTS 2.0.1 use the above command. This will run a
-  preconditioning step, 2x the size of the device LBA.  The proceed
-  with a random 4k read pattern, reordering after each pass.  The
-  output will be written 'spit-latency-read.gnu' which can be loaded
-  into gnuplot.
 
 == EXIT STATUS
 

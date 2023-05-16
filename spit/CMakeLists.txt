@@ -109,7 +109,28 @@ target_link_libraries(genpositions spitlib m aio pthread numa)
 add_executable(testDiskStats testDiskStats.c)
 target_link_libraries(testDiskStats spitlib m numa pthread)
 
-install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist DESTINATION bin)
+
+#ADD_CUSTOM_TARGET(man ALL)
+
+ADD_CUSTOM_COMMAND(
+  TARGET man
+  SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/spit.adoc
+  COMMAND asciidoctor -b manpage spit.adoc
+  OUTPUTS ${CMAKE_CURRENT_BINARY_DIR}/spit.1
+)
+
+ADD_CUSTOM_COMMAND(
+  TARGET man
+  SOURCE man
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/spit.1
+)
+
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/spit.1 DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man1)
+
+
+
+
+install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist  DESTINATION bin)
 
 install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
 

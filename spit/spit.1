@@ -1,23 +1,32 @@
 '\" t
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
-.\" Generator: Asciidoctor 1.5.5
-.\"      Date: 2019-10-09
+.\" Generator: Asciidoctor 2.0.10
+.\"      Date: 2023-05-16
 .\"    Manual: spit manual
-.\"    Source: spit 1.1
+.\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2019-10-09" "spit 1.1" "spit manual"
+.TH "SPIT" "1" "2023-05-16" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
 .nh
 .ad l
 .de URL
-\\$2 \(laURL: \\$1 \(ra\\$3
+\fI\\$2\fP <\\$1>\\$3
 ..
-.if \n[.g] .mso www.tmac
-.LINKSTYLE blue R < >
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
 .SH "NAME"
 spit \- Stu\(aqs powerful I/O tester
 .SH "SYNOPSIS"
@@ -32,29 +41,29 @@ string on a dedicated thread with an AIO context per thread.
 \fBspit\fP [GLOBAL OPTIONS] \-c \fIcommands\fP \-c \fIcommands\fP \-c \fIcommands\fP
 .SH "GLOBAL OPTIONS"
 .sp
+\fBh\fP
+.RS 4
+Displays a myriad of testing commands
+.RE
+.sp
 \fBf device\fP
 .RS 4
-Specific a single device (e.g. \-f /dev/ram0)
+Specific a single block device (e.g. \-f /dev/ram0)
 .RE
 .sp
 \fBF prefix\fP
 .RS 4
-The filesystem filename prefix for parallel jobs. (e.g. \-F testprefix \-j 32)
+The filesystem filename prefix for filesystem tests (e.g. \-F testprefix \-j 32). \fB\-F\fP is an alternative to \fB\-f\fP and conflicts with it. Choose \fB\-f\fP or \fB\-F prefix\fP.
 .RE
 .sp
 \fBG size\fP
 .RS 4
-Limit the positions to a maximum of \fBsize\fP GiB (e.g. \-G 32)
-.RE
-.sp
-\fBi size\fP
-.RS 4
-Ignore the first \fBsize\fP GiB of output for benchmarking/timing.
+Limit the positions to a maximum of \fBsize\fP GB (e.g. \-G 32). Without a suffix the units are in GB. Optional suffixes include: GiB, TiB, TB, PiB, PB.
 .RE
 .sp
 \fBI filename\fP
 .RS 4
-Specific a file that contains a list of device names (e.g. \-f devices.txt)
+Specific a file that contains a list of device names (e.g. \-I devices.txt). The \fBdevices.txt\fP file contains one device per line. To process 200 block devices at once, create devices.txt with 200 lines. e.g. \fBspit \-I devices \-c rs1k1024\fP will start 200 threads, one per device, and run the same command on them. Note in this case the starting position is not specified so each drive will start at a random location. Adding \fBz\fP will start each job from position zero.
 .RE
 .sp
 \fBB filename\fP
@@ -69,12 +78,17 @@ All positions with their size and timing and read/write actions are output. This
 .sp
 \fBj N\fP
 .RS 4
-Multiply the number of commands (\fB\-c\fP) by N. (e.g. \-j 8)
+Multiply the number of commands (\fB\-c\fP) by N. (e.g. \-j 8). \fB\-c rs0j8\fP will create 8 threads, each performing random reads. Each thread will be seeded with a unique random value so the random positions will not be the same.
 .RE
 .sp
 \fBt s\fP
 .RS 4
 Limit the execution to \fBs\fP seconds (e.g. \-t 30)
+.RE
+.sp
+\fBT s\fP
+.RS 4
+Hard exit(\-1) execution if spit is still running after \fBs\fP seconds.
 .RE
 .sp
 \fBM options\fP
@@ -87,23 +101,15 @@ Output MySQL options per test. (e.g. \-M iotype=write,opsize=64,iopattern=rand,q
 Output MySQL options per machine/type. (e.g. \-N os=centos,version=1.2.59,machine=wow,blockdevice=lsiraid)
 .RE
 .sp
-\fBp precondition_options\fP
-.RS 4
-Before executing any commands, run the precondition write
-commands. Defaults to 4k writes. Options include: \fB\-p Gn\fP, \fB\-p Gs1\fP for
-sequential, \fB\-p Gk8\fP for 8 KiB writes. (e.g. \-p G32). \fBI100000\fP will exit
-the preconditioning step after the first LBA pass if the IOPS is under the specified threshold.
-.RE
-.sp
 \fBO filename\fP
 .RS 4
 Specifies a list of raw devices, matched with the \fB\-f\fP option shows
-device read/write amplification. (e.g. \-f /dev/md0 \-O devices.txt)
+device read/write amplification. (e.g. \-f /dev/md0 \-O underlyingdevices.txt)
 .RE
 .sp
-\fBP\fP
+\fBP filename\fP
 .RS 4
-Save positions to the file \f[CR]spit\-positions.txt\fP
+Save position information to \fBfilename\fP. The positions file contains the device, offset, size, random seed, start time, end time, latency, and more.
 .RE
 .sp
 \fBv\fP
@@ -140,17 +146,17 @@ Set the read/write ratio to \fBN\fP. (e.g. p0 is write only, p1 is read only, p0
 .sp
 \fBGlow\-high\fP
 .RS 4
-Limit the position range to \fBlow\fP to \fBhigh\fP GiB. (e.g. G2\-3).
+Limit the position range to \fBlow\fP to \fBhigh\fP GB. (e.g. G2\-3).
 .RE
 .sp
 \fBG_\fP
 .RS 4
-The range can be specified with the syntax \fBG_\fP which will split the G ranges evenly between all threads (no thread contention).
+The range can be specified with the syntax \fBG_\fP which will split the G ranges evenly between all threads (no thread contention). e.g. \fBspit \-f dev \-c rzs1j32\fP will create 32 threads, all accessing the same block device, all reading the same positions. To partition the LBA space between threads use the \fBG_\fP option, which will first divide the LBA range by the number of threads.
 .RE
 .sp
 \fBkN\fP or \fBklowBS\-highBS\fP
 .RS 4
-Block size or \fIlowblocksize\fP to \fIhighblocksize\fP range. (e.g. k4\-128)
+Block size or \fIlowblocksize\fP to \fIhighblocksize\fP range. (e.g. k4\-128). The hypen as a range will pick a value between the low and high range, in multiples of a 4KiB block size. The range with a colon (e.g. k4\-128) will only pick values that are also powers of 2.
 .RE
 .sp
 \fBn\fP
@@ -189,6 +195,11 @@ number of contiguous sequence regions. \fBs0\fP means random, \fBs1\fP means
 a single linear stream, \fBs32\fP means 32 contigous stream.
 .RE
 .sp
+\fBs0.x\fP
+.RS 4
+Between s0 (random) and s1 (linear stream) there is a range of s0.0 up to s1. The s0.1 will be lineared by with a probability of 0.1 the location will be randomised.
+.RE
+.sp
 \fBsN\-maxSizeInKiB\fP
 .RS 4
 Specify the number of continuous sequence regions, include the maximum
@@ -225,7 +236,7 @@ Limit the number of positions to \fBn\fP
 .sp
 \fBxn\fP
 .RS 4
-Multiply the number of positions by \fBn\fP
+Cover each of the LBA positions \fBn\fP times. e.g. \-c rs1x1 will cover the LBA range and will ignore the time duration commands.
 .RE
 .SS "Timing commands"
 .sp
@@ -256,158 +267,96 @@ In the following commands, replace \fBr\fP with \fBw\fP for writes.
 .sp
 \fBspit\fP \-f /dev/device \-c rk64
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Performs a single thread/job that performs reads, with 64 KiB reads
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c rk64 \-j 32
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Create 32 threads, with a single contigous read inside each thread
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c r32k64
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Create a single threads, break the device into 32 contiguous regions
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .SS "Random read / writes"
 .sp
 \fBspit\fP \-f /dev/device \-c rs0
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Performs a single thread/job, random 4KiB reads
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c rs0 \-j 32
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Creates 32 threads, reads random 4KiB reads
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c rs0 \-j 32 \-G1
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
 For devices with cache these operations should be cached.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c rP10000
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Read from the first 10,000 positions (4 KiB) blocks in a device.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .SS "Mixing reads/writes"
 .sp
 \fBspit\fP \-f /dev/device \-c mP10000 \-c rk64
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Two threads, one reading/write metadata to 10,000 positions. Another
 thread performing sequential reads.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c w \-c r
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Two threads, both sequential, one reading, one writing.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c ws0 \-c rs0
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 Two threads, both random, one reading, one writing.
 .fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .sp
 \fBspit\fP \-f /dev/device \-c ws1G0\-100 \-c ws0G100\-200
 .sp
-.if n \{\
-.RS 4
-.\}
+.if n .RS 4
 .nf
 On a 200 GiB perform linear writes in the first half and
 random writes on the second half.
 .fi
-.if n \{\
-.RE
-.\}
-.SS "SNIA latency graphs"
-.sp
-\fBspit\fP \-p G \-f /dev/device \-c rs0n \-t 3600
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-To generate the Response Time Histogram \- Confidence Level Plot of
-the SNIA SSS PTS 2.0.1 use the above command. This will run a
-preconditioning step, 2x the size of the device LBA.  The proceed
-with a random 4k read pattern, reordering after each pass.  The
-output will be written \(aqspit\-latency\-read.gnu\(aq which can be loaded
-into gnuplot.
-.fi
-.if n \{\
-.RE
-.\}
+.if n .RE
 .SH "EXIT STATUS"
 .sp
 \fB0\fP
@@ -422,9 +371,6 @@ Failure (syntax of usage error).
 .SH "BUGS"
 .sp
 Bugs will be rewarded by choc fish.
-.SH "AUTHOR(S)"
+.SH "AUTHOR"
 .sp
-\fBStuart Inglis, Ph.D.\fP
-.RS 4
-Author(s).
-.RE
+Stuart Inglis, Ph.D.

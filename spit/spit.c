@@ -32,6 +32,8 @@
 
 #define DEFAULTTIME 10
 
+void usage();
+
 int verbose = 0;
 int keepRunning = 1;
 char *benchmarkName = NULL;
@@ -70,10 +72,14 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   size_t jglobalcount = 1;
   size_t keepversions = 0;
 
-  const char *getoptstring = "Ej:b:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:T:rC:1L:DK:l:S:3";
+  const char *getoptstring = "hEj:b:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:T:rC:1L:DK:l:S:3";
 
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {
     switch (opt) {
+    case 'h':
+      usage();
+      exit(0);
+      break;
     case '3': keepversions = 3; break;
     case 'K':
       // check
@@ -404,10 +410,10 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     device = strdup(deviceList[0].devicename);
   } else {
     if (deviceCount == 0) {
-      fprintf(stderr,"*error* no devices specified\n");
+      fprintf(stderr,"*error* no devices specified. e.g. -f /device\n");
     }
     if (jtemp.count == 0) {
-      fprintf(stderr,"*error* no jobs specified\n");
+      fprintf(stderr,"*error* no jobs specified. e.g. -c rs1k1024\n");
     }
     exit(-1);
   }
@@ -754,7 +760,7 @@ void intHandler(int d)
 {
   if (d) {}
   fprintf(stderr,"got signal\n");
-  keepRunning--;
+  keepRunning = 0;
 }
 
 
@@ -1090,7 +1096,7 @@ int main(int argc, char *argv[])
   int exitcode = 0;
   
   if (argc == 1) {
-    usage();
+    //  usage();
   } else if (argc > 2) {
     fuzz = (strcmp(argv[1],"fuzz") == 0);
     if (fuzz) fuzzdevice = argv[2];
