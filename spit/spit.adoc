@@ -189,9 +189,6 @@ The command options are described below:
  *Pn*::
    Limit the number of positions to *n*
 
- *xn*::
-   Cover each of the LBA positions *n* times. e.g. -c rs1x1 will cover the LBA range and will ignore the time duration commands.
-
 === Timing commands
 
  *Bn*::
@@ -203,9 +200,12 @@ The command options are described below:
  *Tn*::
    Limits the thread/command to *n* seconds
 
+ *xn*::
+   Lower case *x*. Cover each of the LBA positions *n* times. e.g. -c rs1x1 will cover the LBA range and will ignore the time duration commands. If combined with P1000x1, this will repeat the 1,000 IO operations until a total amount of IO equals the size of the LBA (e.g. millions of times to get to TB).
+
  *Xn*::
-   Instead of time based, iterate until the positions have been processed
-   *n* times.
+   Upper case *X*. Instead of time based, iterate until the positions have been processed
+   *n* times. e.g. if combined with P1000X1 this will process 1,000 IOs only.
 
 == Patterns
 *rzs1P100*: read the first 100 positions starting from zero, 4 KiB blocks.
@@ -216,7 +216,11 @@ The command options are described below:
 
 *rzs1P100j8G_*: read 100 contiguous positions, offset by a random amount per thread, first carving up the LBA range.
 
-*rzs1P+100*: read operations, 100 positions equally spaced across the LBA range.
+*rzs1P+100*: read operations, 100 positions equally spaced across the LBA range, time based.
+
+*rzs1P+1000X1*: read operations, 100 positions equally spaced across the LBA range, do 1,000 operations then stop. Uppercase *X*.
+
+*rzs1P+1000x1*: read operations, 100 positions equally spaced across the LBA range, repeat until IO equals the size of the LBA. Lowercase *x*.
 
 *rzs1P-100*: read operations, 100 positions randomly picked with replacement.
 

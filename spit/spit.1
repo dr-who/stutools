@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 2.0.10
-.\"      Date: 2023-05-17
+.\"      Date: 2023-05-18
 .\"    Manual: spit manual
 .\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2023-05-17" "spit 1.2" "spit manual"
+.TH "SPIT" "1" "2023-05-18" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -414,11 +414,6 @@ Turn off O_DIRECT device access mode. e.g. required for ZFS and similar file sys
 .RS 4
 Limit the number of positions to \fBn\fP
 .RE
-.sp
-\fBxn\fP
-.RS 4
-Cover each of the LBA positions \fBn\fP times. e.g. \-c rs1x1 will cover the LBA range and will ignore the time duration commands.
-.RE
 .SS "Timing commands"
 .sp
 \fBBn\fP
@@ -436,10 +431,15 @@ Wait for \fBn\fP seconds between iterations
 Limits the thread/command to \fBn\fP seconds
 .RE
 .sp
+\fBxn\fP
+.RS 4
+Lower case \fBx\fP. Cover each of the LBA positions \fBn\fP times. e.g. \-c rs1x1 will cover the LBA range and will ignore the time duration commands. If combined with P1000x1, this will repeat the 1,000 IO operations until a total amount of IO equals the size of the LBA (e.g. millions of times to get to TB).
+.RE
+.sp
 \fBXn\fP
 .RS 4
-Instead of time based, iterate until the positions have been processed
-\fBn\fP times.
+Upper case \fBX\fP. Instead of time based, iterate until the positions have been processed
+\fBn\fP times. e.g. if combined with P1000X1 this will process 1,000 IOs only.
 .RE
 .SH "PATTERNS"
 .sp
@@ -451,7 +451,11 @@ Instead of time based, iterate until the positions have been processed
 .sp
 \fBrzs1P100j8G_\fP: read 100 contiguous positions, offset by a random amount per thread, first carving up the LBA range.
 .sp
-\fBrzs1P+100\fP: read operations, 100 positions equally spaced across the LBA range.
+\fBrzs1P+100\fP: read operations, 100 positions equally spaced across the LBA range, time based.
+.sp
+\fBrzs1P+1000X1\fP: read operations, 100 positions equally spaced across the LBA range, do 1,000 operations then stop. Uppercase \fBX\fP.
+.sp
+\fBrzs1P+1000x1\fP: read operations, 100 positions equally spaced across the LBA range, repeat until IO equals the size of the LBA. Lowercase \fBx\fP.
 .sp
 \fBrzs1P\-100\fP: read operations, 100 positions randomly picked with replacement.
 .sp
