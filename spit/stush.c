@@ -29,9 +29,12 @@
 
 
 #include "utils.h"
+#include "jobType.h"
+#include "devices.h"
 #include "procDiskStats.h"
 
 int keepRunning = 1;
+int verbose = 0;
 int TeReo = 0;
 
 void intHandler(int d)
@@ -62,6 +65,7 @@ COMMAND commands[] = {
   { "pwgen", "Generate cryptographically complex 200-bit random password"},
   { "readspeed", "Measure read speed on device"},
   { "scsi", "Show SCSI devices" },
+  { "spit", "Stu's powerful I/O tester" },
   { "status", "Show system status" },
   { "tty", "Is the terminal interactive" },
   { "exit", "Exit the secure shell (or ^d/EOF)"}
@@ -166,6 +170,41 @@ void colour_printString(const char *string, const unsigned int good, const char 
   }
 }
 
+void cmd_spit(const int tty, char *origstring) {
+  char *string = strdup(origstring);
+  const char *delim = " ";
+  char *first = strtok(string, delim);
+  if (first) {
+    char *second = strtok(NULL, delim);
+    char *third = strtok(NULL, delim);
+    if (third) {
+      third = origstring + (third - string);
+
+      size_t bdsize = blockDeviceSize(second);
+      if (bdsize == 0) {
+	perror(second);
+      } else {
+	if (tty) printf("%s", BOLD);
+	printf("%s\n", origstring);
+	if (tty) printf("%s", END);
+	
+	jobType j;
+	jobInit(&j);
+	jobAdd(&j, third);
+	jobAddDeviceToAll(&j, second);
+	
+	jobRunThreads(&j, j.count, NULL, 0, bdsize, 10, 0, NULL, 4, 42, 0, NULL, 1, 0, 0, NULL, NULL, NULL, "all", 0, /*&r*/NULL, 15L*1024*1024*1024, 0, 0, NULL, 0);
+	jobFree(&j);
+      }
+    } else {
+      printf("usage: spit <device> <commands>\n");
+    }
+  }
+  free(string);
+}
+
+
+      
 void cmd_calcEntropy(const int tty, char *origstring) {
   char *string = strdup(origstring);
   const char *delim = " ";
@@ -567,6 +606,8 @@ void run_command(int tty, char *line, char *hostname) {
 	  cmd_mounts(tty);
 	} else if (strcmp(commands[i].name, "scsi") == 0) {
 	  cmd_scsi(tty);
+	} else if (strcmp(commands[i].name, "spit") == 0) {
+	  cmd_spit(tty, line);
 	} else if (strcmp(commands[i].name, "df") == 0) {
 	  cmd_df(tty, line);
 	} else if (strcmp(commands[i].name, "date") == 0) {
