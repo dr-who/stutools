@@ -19,6 +19,8 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
+#include <math.h>
+
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -490,7 +492,7 @@ void cmd_listDriveBlockDevices(int tty, char *origstring) {
   procDiskStatsSample(&d);
 
   if (tty) printf("%s", BOLD);
-  printf("device   \tencrypt\t bits\t majmin\tGB\tvendor\t%-18s\t%10s\n", "model", "serial");
+  printf("device   \tencrypt\t bits\t majmin\tGB\tvendor\t%-18s\t%-10s\n", "model", "serial");
   if (tty) printf("%s", END);
 
   for (size_t i = 0; i < d.num && keepRunning; i++) {
@@ -498,7 +500,7 @@ void cmd_listDriveBlockDevices(int tty, char *origstring) {
       char path[PATH_MAX];
       sprintf(path, "/dev/%s", d.devices[i].deviceName);
       size_t bdsize = blockDeviceSize(path);
-      double entropy = 0;
+      double entropy = NAN;
 
       const int bufsize = 80*20*4096;
       unsigned char *buffer = memalign(4096, bufsize); assert(buffer);
@@ -509,9 +511,9 @@ void cmd_listDriveBlockDevices(int tty, char *origstring) {
       if (fd) {
 	int didread = read(fd, buffer, bufsize);
 	if (didread) {
-	  entropy = entropyTotalBits(buffer, bufsize, 1);
+	  entropy = entropyTotalBytes(buffer, bufsize);
 	  serial = serialFromFD(fd);
-	  //	  fprintf(stderr,"%s read %d, entropy %lf\n", path, didread, entropy / bufsize);
+	  //	  	  fprintf(stderr,"%s read %d, entropy %lf\n", path, didread, entropy / bufsize);
 	}
 	close(fd);
       } else {
@@ -522,7 +524,7 @@ void cmd_listDriveBlockDevices(int tty, char *origstring) {
       if (entropy/bufsize > 7.9) {
 	encrypted = 1;
       }
-      printf("/dev/%s\t%s\t %.1lf\t %zd:%zd\t%.0lf\t%s\t%-18s\t%10s\n", d.devices[i].deviceName, encrypted?"Encrypt":"No", entropy/bufsize,d.devices[i].majorNumber, d.devices[i].minorNumber, TOGB(bdsize), d.devices[i].idVendor, d.devices[i].idModel, serial ? serial : "error");
+      printf("/dev/%s\t%s\t %.1lf\t %zd:%zd\t%.0lf\t%s\t%-18s\t%-10s\n", d.devices[i].deviceName, encrypted?"Encrypt":"No", entropy/bufsize,d.devices[i].majorNumber, d.devices[i].minorNumber, TOGB(bdsize), d.devices[i].idVendor, d.devices[i].idModel, serial ? serial : "can't open");
       free(serial);
     }
   }

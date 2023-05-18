@@ -1451,9 +1451,10 @@ double entropyTotalBits(unsigned char *buffer, size_t size, int bytes) {
   }
 
 
-  double entropy = 0;
+  double entropy = NAN;
   
   if (sz) {
+    entropy = 0;
     //    double bps = 0;
     //    fprintf(stderr,"size: %ld\n", sz);                                                                                                                                                      
     for (size_t i =0; i < bits; i++) {
@@ -1495,8 +1496,10 @@ double entropyTotalBytes(unsigned char *buffer, size_t size) {
   }
   sz += size;
 
-  double entropy = 0;
+  double entropy = NAN;
+  
   if (sz) {
+    entropy = 0;
     //                fprintf(stderr,"size: %ld\n", sz);
     for (size_t i =0; i < 256; i++) {
       if (counts[i]) {
