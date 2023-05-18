@@ -704,18 +704,14 @@ void run_command(int tty, char *line, char *hostname) {
 		perror(second);
 	      } else {
 		unsigned int major, minor;
-		majorAndMinor(fd, &major, &minor);
-		/*		if (major != 8) {
-		  if (tty) printf("%s", BOLD);
-		  fprintf(stdout, "*error* not a major 8 device\n");
-		  if (tty) printf("%s", END);
-		  } else */{
-		  if (tty) printf("%s", BOLD);
-		  fprintf(stdout,"*info* readspeed '%s', size=2 MiB for 5 seconds (MB/s)\n", second);
-		  if (tty) printf("%s", END);
-		  readSpeed(fd, 5, 2L*1024*1024);
-		  close(fd);
+		if (majorAndMinor(fd, &major, &minor) != 0) {
+		  printf("*warning* can't get major:minor for '%s'\n", second);
 		}
+		if (tty) printf("%s", BOLD);
+		fprintf(stdout,"*info* readspeed '%s', size=2 MiB for 5 seconds (MB/s)\n", second);
+		if (tty) printf("%s", END);
+		readSpeed(fd, 5, 2L*1024*1024);
+		close(fd);
 	      }
 	    }
 	  } else {
