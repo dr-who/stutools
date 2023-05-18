@@ -517,8 +517,13 @@ static void *runThread(void *arg)
     // P-ve
     if (threadContext->LBAtimes) {
       if (externalLoops) {
-	// if external, internal stays out, X loops
-	externalLoops = threadContext->LBAtimes;
+	if (threadContext->rerandomize) {
+	  posLimit = threadContext->pos.sz;
+	  externalLoops = INT_MAX;
+	} else {
+	  // if external, internal stays out, X loops
+	  externalLoops = threadContext->LBAtimes;
+	}
 	byteLimit = outerrange;
       } else {
 	// if internal then set LBA limit only
@@ -659,6 +664,11 @@ static void *runThread(void *arg)
 
     if (!externalLoops) break;
 
+    if (byteLimit && (totalB >= byteLimit)) {
+      // if rounds go over byteLimit;
+      break;
+    }
+
     if (threadContext->finishSeconds && (timedouble() > starttime + threadContext->finishSeconds)) {
       if (verbose) fprintf(stderr,"*info* timer threshold reached\n");
       break;
@@ -688,8 +698,13 @@ static void *runThread(void *arg)
     }
     if (keepRunning && externalLoops && (iteratorCount < externalLoops)) {
       if (threadContext->rerandomize) {
-        fprintf(stderr,"*info* randomizing position array\n");
-        positionContainerRandomize(&threadContext->pos, threadContext->seed + iteratorCount);
+	if (threadContext->randomSubSample) {
+	  //	  fprintf(stderr,"*info* randomizing position array\n");
+	  randomSubSample(&threadContext->pos, threadContext->seed + iteratorCount, &threadContext->len, MIN(4096, threadContext->blockSize));
+	} else {
+	  //	  fprintf(stderr,"*info* shuffling existing positions\n");
+	  positionContainerRandomize(&threadContext->pos, threadContext->seed + iteratorCount);
+	}
       }
       if (threadContext->addBlockSize) {
         fprintf(stderr,"*info* adding %zd to all position in array\n", threadContext->highBlockSize);
@@ -1210,10 +1225,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
   //  }
 
   if (seed == 0) {
-    const double d = timedouble() * 100.0; // use the fractions so up/return is different
-    const unsigned long d2 = (unsigned long)d;
-    seed = d2 & 0xffff;
-    fprintf(stderr,"*info* setting seed based on the time to '-R %d'\n", seed);
+    seed = (getDevRandomLong() % 65536) + 1;
+    //    const double d = timedouble() * 100.0; // use the fractions so up/return is different
+    //    const unsigned long d2 = (unsigned long)d;
+    //    seed = d2 & 0xffff;
+    fprintf(stderr,"*info* setting seed to '-R %d'\n", seed);
   }
 
   positionContainer **allThreadsPC;

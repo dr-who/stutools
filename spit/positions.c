@@ -638,7 +638,20 @@ size_t positionContainerCreatePositionsGC(positionContainer *pc,
   return 0;
 }
 					
+void randomSubSample(positionContainer *pc, unsigned short seed, lengthsType *len, size_t alignment) {
+  fprintf(stderr,"*info* resample/recreating %zd positions [%.1lf-%.1lf) TB, seed=%d\n", pc->sz, TOTB(pc->minbdSize), TOTB(pc->maxbdSize), seed);
+  unsigned short xsubi[3] = {seed,seed,seed};
 
+  const int alignbits = (int)(log(alignment)/log(2) + 0.01);
+  unsigned int jumpseed = seed;
+  for (size_t i = 0; i < pc->sz; i++) {
+    const size_t thislen = lengthsGet(len, &jumpseed);
+    pc->positions[i].pos = randomBlockSize(pc->minbdSize, pc->maxbdSize - thislen, alignbits, erand48(xsubi) * (pc->maxbdSize - thislen - pc->minbdSize));
+    assert(pc->positions[i].pos >= pc->minbdSize);
+    assert(pc->positions[i].pos + thislen <= pc->maxbdSize);
+  }
+}
+  
 
 // create the position array
 size_t positionContainerCreatePositions(positionContainer *pc,
@@ -1241,8 +1254,8 @@ void positionsSortPositions(positionType *positions, const size_t count) {
 
 void positionsRandomize(positionType *positions, const size_t count, unsigned int seed)
 {
-  if (verbose)  fprintf(stderr,"*info* randomizing the array of %zd values, seed %u\n", count, seed);
-  fprintf(stderr,"*info* before rand: first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
+  fprintf(stderr,"*info* shuffling existing %zd positions, seed %u\n", count, seed);
+  if (verbose) fprintf(stderr,"*info* before rand: first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
   for (size_t shuffle = 0; shuffle < 1; shuffle++) {
     for (size_t i = 0; i < count-2 && keepRunning; i++) {
       assert (i < count -2);
@@ -1255,11 +1268,10 @@ void positionsRandomize(positionType *positions, const size_t count, unsigned in
       positions[j] = p;
     }
   }
-  fprintf(stderr,"*info* after rand:  first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
+  if (verbose) fprintf(stderr,"*info* after rand:  first %zd, last %zd\n", positions[0].pos, positions[count-1].pos);
 }
 
-void positionContainerRandomize(positionContainer *pc, unsigned int seed)
-{
+void positionContainerRandomize(positionContainer *pc, unsigned int seed) {
   const size_t count = pc->sz;
   if (count > 1) {
     positionsRandomize(pc->positions, count, seed);

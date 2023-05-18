@@ -541,6 +541,7 @@ void usage(void)
   fprintf(stdout,"  spit -f dev -c rs1P+100       # 100 positions equally spaced across the array, offset by a random amount\n");
   fprintf(stdout,"  spit -f dev -c rs0P+100       # 100 positions equally spaced, randomised\n");
   fprintf(stdout,"  spit -f dev -c rs1P-100       # subsample with replacement, 100 positions randomly distributed over the array\n");
+  fprintf(stdout,"  spit ... -c ws1P-1000nx1      # 1,000 positions with replacement. IO until LBA 1x, 'n'/'P-' combo means re-subsample every 1,000\n");
   fprintf(stdout,"  spit -f dev -c rs0P-100       # effectively the same as above with s1. But re-randomised.\n");
   fprintf(stdout,"  spit -f dev -c rs1P.100z      # 100 equally spaced, alternating start,end,s+1,e-1... centre\n");
   fprintf(stdout,"  spit -f dev -c rs1P.100       # effectively the same as above with s1 but with random offset\n");

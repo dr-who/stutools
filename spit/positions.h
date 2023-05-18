@@ -141,6 +141,7 @@ void positionsRandomize(positionType *positions, const size_t count, unsigned in
 void positionsSortPositions(positionType *positions, const size_t count);
 void positionContainerInfo(const positionContainer *pc);
 
+void randomSubSample(positionContainer *pc, unsigned short seed, lengthsType *len, size_t alignment);
 
 #endif
 
