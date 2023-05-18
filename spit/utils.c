@@ -1479,6 +1479,37 @@ double entropyTotalBits(unsigned char *buffer, size_t size, int bytes) {
 }
 
 
+
+double entropyTotalBytes(unsigned char *buffer, size_t size) {
+  size_t counts[256];
+
+  for (size_t i = 0; i < 256; i++) {
+    counts[i] = 0;
+  }
+
+  size_t sz = 0;
+  for (size_t i = 0; i < size; i++) {
+    unsigned int v = (unsigned int)buffer[i];
+    assert (v<256);
+    counts[v]++;
+  }
+  sz += size;
+
+  double entropy = 0;
+  if (sz) {
+    //                fprintf(stderr,"size: %ld\n", sz);
+    for (size_t i =0; i < 256; i++) {
+      if (counts[i]) {
+	double e = log(counts[i] * 1.0 / sz) / log(2.0);
+	entropy = entropy - (counts[i] * e);
+      }
+    }
+  }
+  return entropy;
+}  
+
+
+
 int openRunLock(const char *fn) {
   int fd = open(fn, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
   if (fd > 0) {

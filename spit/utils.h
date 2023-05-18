@@ -143,6 +143,7 @@ int openRunLock(const char *fn);
 int backupExistingFile(const char *file, int versions);
 
 double entropyTotalBits(unsigned char *buffer, size_t size, int bytes);
+double entropyTotalBytes(unsigned char *buffer, size_t size);
 
 unsigned long getDevRandomLong();
 unsigned char getDevRandom();

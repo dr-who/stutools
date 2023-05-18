@@ -363,22 +363,31 @@ void cmd_listAll() {
 
 
 void cmd_pwgen(int tty) {
-  const size_t len = 32;
+  size_t len = 38;
   double pwentropy = 0, bitsentropy = 0;
   unsigned char *pw = NULL;
-  do {
+
+  // try 1,000 times
+  for (size_t i = 0; i < 1000 && keepRunning; i++ ){
     if (pw) {
       free(pw);
     }
 
     unsigned char *bits = randomGenerate(len);
-    bitsentropy = entropyTotalBits(bits, len, 1);
+    bitsentropy = entropyTotalBytes(bits, len);
     
     pw = passwordGenerate(bits, len);
-    pwentropy = entropyTotalBits(pw, len, 1);
+    pwentropy = entropyTotalBytes(pw, len);
     free(bits);
+
+    if (pwentropy > 200 && bitsentropy > 200) {
+      break;
+    } else {
+      printf("*warning* target of length %zd, achieved only %lf bits\n", len, pwentropy);
+      len++;
+    }
     
-  } while ((pwentropy < 200 || bitsentropy < 242) && keepRunning);
+  }
 
   char ss[PATH_MAX];
   if (tty) printf("%s", BOLD);
@@ -386,11 +395,11 @@ void cmd_pwgen(int tty) {
   if (tty) printf("%s", END);
 
   sprintf(ss, "(%.1lf bits of entropy)", bitsentropy);
-  colour_printString(ss, bitsentropy >= 242, "\n", tty);
+  colour_printString(ss, bitsentropy >= 200, "\n", tty);
   
   
   printf("%s ", pw);
-  sprintf(ss, "(%.1lf bits of entropy)", pwentropy);
+  sprintf(ss, "(%.1lf bits of entropy, %.2lf bpc)", pwentropy, pwentropy / len);
   colour_printString(ss, pwentropy >= 200, "\n", tty);
   
   free(pw);

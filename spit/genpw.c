@@ -21,7 +21,7 @@ int main()
   unsigned char *bits = randomGenerate(len);
   unsigned char *pw = passwordGenerate(bits, len);
 
-  double entropy = entropyTotalBits(pw, len, 1);
+  double entropy = entropyTotalBytes(pw, len);
   
   fprintf(stdout, "%s (%.1lf bits of entropy)\n", pw, entropy);
 
