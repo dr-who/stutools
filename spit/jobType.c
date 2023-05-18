@@ -1648,7 +1648,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 	      threadContext[i].firstPPositions = 1;
 	    }
 	  } else { // P.x
-	    if ((*(pChar+1) == '.') && (pChar+2)) {
+	    if ((*(pChar+1) == '.') && *(pChar+2)) {
 	      threadContext[i].linearSubSample = abs(atoi(pChar + 2));
 	      threadContext[i].linearAlternate = 1;
 	      fprintf(stderr,"*warning* P.x linearAlternate: %zd, %zd\n", threadContext[i].linearSubSample, threadContext[i].linearAlternate);
