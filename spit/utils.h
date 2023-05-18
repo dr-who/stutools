@@ -79,8 +79,6 @@ size_t fileSize(int fd);
 size_t fileSizeFromName(const char *path);
 size_t fileExists(const char *path);
 
-void majorAndMinor(int fd, unsigned int *major, unsigned int *minor);
-
 int getWriteCacheStatus(int fd);
 int trimDevice(int fd, char *path, unsigned long low, unsigned long high);
 

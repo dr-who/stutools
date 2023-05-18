@@ -268,21 +268,24 @@ void majorAndMinorFromFilename(const char *filename, unsigned int *major, unsign
   *major = 0;
   *minor = 0;
   if (fd > 0) {
-    majorAndMinor(fd, major, minor);
+    if (majorAndMinor(fd, major, minor) != 0) {
+      fprintf(stderr,"*warning* can't get major:minor from '%s'\n", filename);
+    }
+	
     close(fd);
   }
 }
 
-void majorAndMinor(int fd, unsigned int *major, unsigned int *minor)
+int majorAndMinor(int fd, unsigned int *major, unsigned int *minor)
 {
   struct stat buf;
   if (fstat(fd, &buf) == 0) {
     dev_t dt = buf.st_rdev;
     *major = major(dt);
     *minor = minor(dt);
-  } else {
-    fprintf(stderr,"*warning* can't get major/minor\n");
+    return 0;
   }
+  return 1;
 }
 
 void diskStatLoadProc(diskStatType *d)
