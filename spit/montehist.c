@@ -14,29 +14,24 @@ void usage() {
   fprintf(stdout,"  montehist -i hist [-s n] [-m -M -a] [-r n]\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Options:\n");
-  fprintf(stdout,"  -s sn    # specify the number of samples\n");
-  fprintf(stdout,"  -m       # output the minimum of the <sn> samples\n");
-  fprintf(stdout,"  -a       # output the mean of the <sn> samples\n");
-  fprintf(stdout,"  -M       # output the max of the <sn> samples\n");
-  fprintf(stdout,"  -r n     # perform <n> runs of <sn> samples, as a table\n");
+  fprintf(stdout,"  -n n    # specify the number of samples\n");
+  fprintf(stdout,"  -r n    # perform <n> runs of <sn> samples, as a table\n");
+  fprintf(stdout,"  -R      # performing a rolling row based sum per sample\n");
+  fprintf(stdout,"  -s n    # scale up the input by * n\n");
 }
 
 int main(int argc, char *argv[])
 {
   char *histfile = "hist.out";
   size_t samples = 10;
-
-  size_t calcMin = 0, calcMax = 0, calcMean = 0;
-
   size_t rows = 0;
+  double scale = 1.0;
+  size_t rollingsum = 0;
   
   int opt;
-  const char *getoptstring = "i:s:mMar:h";
+  const char *getoptstring = "i:s:Rr:hn:";
   while ((opt = getopt(argc, argv, getoptstring)) != -1) {
     switch (opt) {
-    case 'a':
-      calcMean = 1;
-      break;
     case 'h':
       usage();
       exit(1);
@@ -47,14 +42,14 @@ int main(int argc, char *argv[])
     case 'r':
       rows = atoi(optarg); 
       break;
+    case 'R':
+      rollingsum = 1;
+      break;
     case 's':
+      scale = atof(optarg);
+      break;
+    case 'n':
       samples = atoi(optarg);
-      break;
-    case 'm':
-      calcMin = 1;
-      break;
-    case 'M':
-      calcMax = 1;
       break;
     default:
       fprintf(stderr,"*error* unknown option '%s'\n", optarg);
@@ -74,42 +69,42 @@ int main(int argc, char *argv[])
 
   size_t r = 0;
   
+  double *samplearray = calloc(samples, sizeof(double)); assert(samplearray);
+
   do {
     r++;
     
-    double theMin = NAN, theMax = NAN, theSum = NAN;
+    numListType nl;
+    nlInit(&nl, samples);
+
+
     for (size_t i = 0; i < samples; i++) {
-      const double sample = histSample(&h);
-      if (rows == 0) {
-	fprintf(stdout, "%lf\n", sample);
-      }
-      
-      if (i==0) {
-	theMin = sample;
-	theMax = sample;
-	theSum = sample;
+      if (rollingsum) { 
+	samplearray[i] += histSample(&h) * scale;
       } else {
-	if (sample < theMin) theMin = sample;
-	if (sample > theMax) theMax = sample;
-	theSum += sample;
+	samplearray[i] = histSample(&h) * scale;
       }
     }
 
-    if (rows == 0) {
-      if (calcMin) {
-	fprintf(stderr,"*info* min value %lf\n", theMin);
+    for (size_t i = 0; i < samples; i++) {
+      if (rows == 0) {
+	fprintf(stdout, "%lf\n", samplearray[i]);
       }
-      if (calcMean) {
-	fprintf(stderr,"*info* mean value %lf\n", theSum / samples);
-      }
-      if (calcMax) {
-	fprintf(stderr,"*info* max value %lf\n", theMax);
-      }
-    } else {
-      fprintf(stdout,"%zd\t%lf\t%lf\t%lf\n", r, theMin, theSum/samples, theMax);
+      nlAdd(&nl, samplearray[i]);
     }
     
+    if (rows == 0) {
+      fprintf(stderr, "*info* N values %zd\n", nlN(&nl));
+      fprintf(stderr, "*info* min value %lf\n", nlMin(&nl));
+      fprintf(stderr, "*info* mean value %lf\n", nlMean(&nl));
+      fprintf(stderr, "*info* max value %lf\n", nlMax(&nl));
+      fprintf(stderr, "*info* SD value %lf\n", nlSD(&nl));
+    } else {
+      fprintf(stdout, "%zd\t%lf\t%lf\t%lf\t%lf\n", r, nlMin(&nl), nlMean(&nl), nlMax(&nl), nlSD(&nl));
+    }
+    nlFree(&nl);
   } while (r < rows);
+  free(samplearray);
 
   histFree(&h);
   return 0;
