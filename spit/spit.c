@@ -33,7 +33,8 @@
 
 #define DEFAULTTIME 10
 
-void usage();
+void usage(void);
+void usage_no_args(void);
 
 int verbose = 0;
 int keepRunning = 1;
@@ -522,7 +523,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
   return 0;
 }
 
-void usage()
+void usage_no_args(void)
+{
+   fprintf(stderr, "Usage: spit [OPTIONS]\n");
+   fprintf(stderr, "\t-h : help\n");
+}
+
+void usage(void)
 {
   fprintf(stdout,"\nUsage:\n  spit [-f device] [-c string] [-c string] ... [-c string]\n");
   fprintf(stdout,"\nCreate positions:\n");
@@ -1097,7 +1104,8 @@ int main(int argc, char *argv[])
   int exitcode = 0;
   
   if (argc == 1) {
-    //  usage();
+     usage_no_args();
+     exit(1);
   } else if (argc > 2) {
     fuzz = (strcmp(argv[1],"fuzz") == 0);
     if (fuzz) fuzzdevice = argv[2];
