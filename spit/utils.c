@@ -1749,9 +1749,11 @@ void loadEnvVars(char *filename) {
 // new string
 char *serialFromFD(int fd) {
   unsigned int major, minor;
+  char *serial = NULL;
 
-  majorAndMinor(fd, &major, &minor);
-  char *serial = getFieldFromUdev(major, minor, "E:ID_SERIAL=");
+  if (majorAndMinor(fd, &major, &minor) == 0) {
+    serial = getFieldFromUdev(major, minor, "E:ID_SERIAL=");
+  } 
   return serial;
 }
 
