@@ -520,11 +520,12 @@ static void *runThread(void *arg)
 	if (threadContext->rerandomize) {
 	  posLimit = threadContext->pos.sz;
 	  externalLoops = INT_MAX;
+	  byteLimit = outerrange * threadContext->LBAtimes;
 	} else {
 	  // if external, internal stays out, X loops
 	  externalLoops = threadContext->LBAtimes;
+	  byteLimit = outerrange;
 	}
-	byteLimit = outerrange;
       } else {
 	// if internal then set LBA limit only
 	byteLimit = outerrange * threadContext->LBAtimes;
