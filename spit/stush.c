@@ -203,6 +203,9 @@ void cmd_spit(const int tty, char *origstring) {
       }
     } else {
       printf("usage: spit <device> <commands>\n");
+      printf("\nexamples: \n");
+      printf("  spit <device> rs0       --- random 4KiB read \n");
+      printf("  spit <device> rzs1k64   --- seq 64KiB read\n");
     }
   }
   free(string);
@@ -366,13 +369,26 @@ void cmd_listAll() {
   }
 }
 
+// 16 is the minimum
+void cmd_pwgen(int tty, char *origstring) {
+  size_t len = 16, targetbits = 200;
 
-void cmd_pwgen(int tty) {
-  size_t len = 38;
+  char *string = strdup(origstring);
+  const char *delim = " ";
+  char *first = strtok(string, delim);
+  if (first) {
+    char *second = strtok(NULL, delim);
+    if (second) {
+      targetbits = atoi(second);
+    }
+  }
+  free(string);
+  
   double pwentropy = 0, bitsentropy = 0;
   unsigned char *pw = NULL;
 
   // try 1,000 times
+  int found = 0;
   for (size_t i = 0; i < 1000 && keepRunning; i++ ){
     if (pw) {
       free(pw);
@@ -385,13 +401,13 @@ void cmd_pwgen(int tty) {
     pwentropy = entropyTotalBytes(pw, len);
     free(bits);
 
-    if (pwentropy > 200 && bitsentropy > 200) {
+    if (pwentropy > targetbits && bitsentropy > targetbits) {
+      found = 1;
       break;
     } else {
-      printf("*warning* target of length %zd, achieved only %lf bits\n", len, pwentropy);
+      //      printf("*warning* target of length %zd, achieved only %lf bits\n", len, pwentropy);
       len++;
     }
-    
   }
 
   char ss[PATH_MAX];
@@ -406,6 +422,12 @@ void cmd_pwgen(int tty) {
   printf("%s ", pw);
   sprintf(ss, "(%.1lf bits of entropy, %.2lf bpc)", pwentropy, pwentropy / len);
   colour_printString(ss, pwentropy >= 200, "\n", tty);
+  if (found == 0) {
+    if (tty) printf("%s", BOLD);
+    printf("*warning: password is weak and is below entropy target\n");
+    if (tty) printf("%s", END);
+  }
+
   
   free(pw);
 }
@@ -416,32 +438,63 @@ size_t countDriveBlockDevices() {
   procDiskStatsInit(&d);
   procDiskStatsSample(&d);
   size_t count = 0;
+
+  size_t majCount[1024];
+  memset(&majCount, 0, sizeof(size_t) * 1024);
+  
   for (size_t i = 0; i < d.num; i++) {
+    size_t mn = d.devices[i].majorNumber;
+    if (mn > 1024) mn = 1023;
+    majCount[mn]++;
+    
     if ((d.devices[i].majorNumber == 8) || (d.devices[i].majorNumber == 254)) {
       int len = strlen(d.devices[i].deviceName);
       char lastchar = d.devices[i].deviceName[len-1];
       //      printf("%s %c\n", d.devices[i].deviceName, lastchar);
-      if (!isdigit(lastchar))
+      if (!isdigit(lastchar)) {
 	count++;
+	// check serial is unique
+      }
+    }
+  }
+  printf("\n");
+  for (size_t i = 0; i < 1024; i++) {
+    if (majCount[i]) {
+      char *majString = majorBDToString(i);
+      printf("   BlockCount[%-6s]  =  %3zd (major=%zd)\n", majString, majCount[i], i);
+      free(majString);
     }
   }
   return count;
 }
 
 
-void cmd_listDriveBlockDevices(int tty) {
+void cmd_listDriveBlockDevices(int tty, char *origstring) {
   if (tty) {}
+  size_t major = 0;
+  
+  char *string = strdup(origstring);
+  const char *delim = " ";
+  char *first = strtok(string, delim);
+  if (first) {
+    char *second = strtok(NULL, delim);
+    if (second) {
+      major = atoi(second);
+    }
+  }
+  free(string);
+      
   
   procDiskStatsType d;
   procDiskStatsInit(&d);
   procDiskStatsSample(&d);
 
   if (tty) printf("%s", BOLD);
-  printf("device   \tencrypt\t bits\t majmin\tGB\tvendor\t%-18s\n", "model");
+  printf("device   \tencrypt\t bits\t majmin\tGB\tvendor\t%-18s\t%10s\n", "model", "serial");
   if (tty) printf("%s", END);
 
   for (size_t i = 0; i < d.num && keepRunning; i++) {
-    if ((d.devices[i].majorNumber == 8) || (d.devices[i].majorNumber == 254)) {
+    if ((major == 0) || (d.devices[i].majorNumber == major)) {
       char path[PATH_MAX];
       sprintf(path, "/dev/%s", d.devices[i].deviceName);
       size_t bdsize = blockDeviceSize(path);
@@ -452,10 +505,12 @@ void cmd_listDriveBlockDevices(int tty) {
       memset(buffer, 0, bufsize);
 
       int fd = open(path, O_RDONLY | O_DIRECT);
+      char *serial = NULL;
       if (fd) {
 	int didread = read(fd, buffer, bufsize);
 	if (didread) {
 	  entropy = entropyTotalBits(buffer, bufsize, 1);
+	  serial = serialFromFD(fd);
 	  //	  fprintf(stderr,"%s read %d, entropy %lf\n", path, didread, entropy / bufsize);
 	}
 	close(fd);
@@ -467,7 +522,8 @@ void cmd_listDriveBlockDevices(int tty) {
       if (entropy/bufsize > 7.9) {
 	encrypted = 1;
       }
-      printf("/dev/%s\t%s\t %.1lf\t %zd:%zd\t%.0lf\t%s\t%-18s\n", d.devices[i].deviceName, encrypted?"Encrypt":"No", entropy/bufsize,d.devices[i].majorNumber, d.devices[i].minorNumber, TOGB(bdsize), d.devices[i].idVendor, d.devices[i].idModel);
+      printf("/dev/%s\t%s\t %.1lf\t %zd:%zd\t%.0lf\t%s\t%-18s\t%10s\n", d.devices[i].deviceName, encrypted?"Encrypt":"No", entropy/bufsize,d.devices[i].majorNumber, d.devices[i].minorNumber, TOGB(bdsize), d.devices[i].idVendor, d.devices[i].idModel, serial ? serial : "error");
+      free(serial);
     }
   }
   
@@ -592,8 +648,8 @@ void cmd_status(const char *hostname, const int tty) {
   colour_printNumber(entropy, entropy > 200, " bits\n", tty);*/
 
   printf("%-20s\t", TeReo ? "taonga mahi wāhanga" : "Block devices");
-  size_t drives = countDriveBlockDevices();
-  colour_printNumber(drives, drives > 0, " \n", tty);
+  countDriveBlockDevices();
+  //  colour_printNumber(drives, drives > 0, " \n", tty);
 
   printf("\n");
 }
@@ -607,9 +663,9 @@ void run_command(int tty, char *line, char *hostname) {
 	if (strcmp(commands[i].name, "status") == 0) {
 	  cmd_status(hostname, tty);
 	} else if (strcmp(commands[i].name, "pwgen") == 0) {
-	  cmd_pwgen(tty);
+	  cmd_pwgen(tty, line);
 	} else if (strcmp(commands[i].name, "lsblk") == 0) {
-	  cmd_listDriveBlockDevices(tty);
+	  cmd_listDriveBlockDevices(tty, line);
 	} else if (strcmp(commands[i].name, "entropy") == 0) {
 	  cmd_calcEntropy(tty, line);
 	} else if (strcmp(commands[i].name, "cpu") == 0) {
@@ -656,11 +712,6 @@ void run_command(int tty, char *line, char *hostname) {
 		  fprintf(stdout,"*info* readspeed '%s', size=2 MiB for 5 seconds (MB/s)\n", second);
 		  if (tty) printf("%s", END);
 		  readSpeed(fd, 5, 2L*1024*1024);
-
-		  if (tty) printf("%s", BOLD);
-		  fprintf(stdout,"*info* readspeed '%s', size=4096 B for 5 seconds (MB/s)\n", second);
-		  if (tty) printf("%s", END);
-		  readSpeed(fd, 5, 4*1024);
 		  close(fd);
 		}
 	      }

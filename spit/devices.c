@@ -448,3 +448,38 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
   }
   return iop;
 }
+
+
+char * majorBDToString(int major) {
+  FILE *fp = fopen("/proc/devices", "rt");
+  if (!fp) {
+    return strdup("");
+  }
+  
+  char *line = NULL;
+  size_t len = 0;
+  ssize_t read = 0;
+  int skip = 1;
+  
+  while ((read = getline(&line, &len, fp)) != -1) {
+    if (strlen(line) > 1) {
+      if (skip) continue;
+    }
+    skip = 0;
+    
+    if (((strchr(line, ':')==NULL) && (strlen(line) > 3))) {
+      int mmm;
+      char name[NAME_MAX];
+      int s = sscanf(line, "%d %s", &mmm, name);
+      if (s == 2) {
+	if(mmm == major)
+	  return strdup(name);
+      }
+    }
+  }
+  fclose(fp);
+  return strdup("");
+}
+      
+
+  

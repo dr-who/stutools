@@ -32,4 +32,6 @@ size_t expandDevices(deviceDetails **devs, size_t *numDevs, int *seqFiles, doubl
 
 size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose);
 
+char * majorBDToString(int major);
+
 #endif
