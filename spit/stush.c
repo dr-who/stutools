@@ -184,17 +184,22 @@ void cmd_spit(const int tty, char *origstring) {
       if (bdsize == 0) {
 	perror(second);
       } else {
-	if (tty) printf("%s", BOLD);
-	printf("%s\n", origstring);
-	if (tty) printf("%s", END);
-	
-	jobType j;
-	jobInit(&j);
-	jobAdd(&j, third);
-	jobAddDeviceToAll(&j, second);
-	
-	jobRunThreads(&j, j.count, NULL, 0, bdsize, 10, 0, NULL, 4, 42, 0, NULL, 1, 0, 0, NULL, NULL, NULL, "all", 0, /*&r*/NULL, 15L*1024*1024*1024, 0, 0, NULL, 0);
-	jobFree(&j);
+	if (canOpenExclusively(second) == 0) { //0 is no
+	  perror(second);
+	} else {
+	  
+	  if (tty) printf("%s", BOLD);
+	  printf("%s\n", origstring);
+	  if (tty) printf("%s", END);
+	  
+	  jobType j;
+	  jobInit(&j);
+	  jobAdd(&j, third);
+	  jobAddDeviceToAll(&j, second);
+	  
+	  jobRunThreads(&j, j.count, NULL, 0, bdsize, 10, 0, NULL, 4, 42, 0, NULL, 1, 0, 0, NULL, NULL, NULL, "all", 0, /*&r*/NULL, 15L*1024*1024*1024, 0, 0, NULL, 0);
+	  jobFree(&j);
+	}
       }
     } else {
       printf("usage: spit <device> <commands>\n");
