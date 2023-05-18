@@ -172,42 +172,54 @@ void colour_printString(const char *string, const unsigned int good, const char 
   }
 }
 
+void usage_spit() {
+  printf("usage: spit <device> <command> ... <command>\n");
+  printf("\nexamples: \n");
+  printf("  spit <device> rs0           --- random 4KiB read \n");
+  printf("  spit <device> rzs1k64       --- seq 64KiB read\n");
+  printf("  spit <device> rs1k64 ws1k4  --- a 64KiB read thread and a 4KiB write thread\n");
+} 
+
+
 void cmd_spit(const int tty, char *origstring) {
   char *string = strdup(origstring);
   const char *delim = " ";
   char *first = strtok(string, delim);
   if (first) {
     char *second = strtok(NULL, delim);
-    char *third = strtok(NULL, delim);
-    if (third) {
-      third = origstring + (third - string);
 
-      size_t bdsize = blockDeviceSize(second);
-      if (bdsize == 0) {
-	perror(second);
+    if (second == NULL) {
+      usage_spit();
+    } else {
+      char *third = NULL;
+      
+      jobType j;
+      jobInit(&j);
+      
+      while ((third = strtok(NULL, delim))) {
+	jobAdd(&j, third);
+      }
+
+      if (j.count == 0) {
+	usage_spit();
       } else {
-	if (canOpenExclusively(second) == 0) { //0 is no
+	size_t bdsize = blockDeviceSize(second);
+	if (bdsize == 0) {
 	  perror(second);
 	} else {
-	  
-	  if (tty) printf("%s", BOLD);
-	  printf("%s\n", origstring);
-	  if (tty) printf("%s", END);
-	  
-	  jobType j;
-	  jobInit(&j);
-	  jobAdd(&j, third);
-	  jobAddDeviceToAll(&j, second);
-	  
-	  jobRunThreads(&j, j.count, NULL, 0, bdsize, 10, 0, NULL, 4, 42, 0, NULL, 1, 0, 0, NULL, NULL, NULL, "all", 0, /*&r*/NULL, 15L*1024*1024*1024, 0, 0, NULL, 0);
-	  jobFree(&j);
+	  if (canOpenExclusively(second) == 0) { //0 is no
+	    perror(second);
+	  } else {
+	    jobAddDeviceToAll(&j, second);
+	    if (tty) printf("%s", BOLD);
+	    jobDump(&j);
+	    if (tty) printf("%s", END);
+	    
+	    jobRunThreads(&j, j.count, NULL, 0, bdsize, 10, 0, NULL, 4, 42, 0, NULL, 1, 0, 0, NULL, NULL, NULL, "all", 0, /*&r*/NULL, 15L*1024*1024*1024, 0, 0, NULL, 0);
+	    jobFree(&j);
+	  }
 	}
       }
-    } else {
-      printf("usage: spit <device> <commands>\n");
-      printf("\nexamples: \n");
-      printf("  spit <device> rs0       --- random 4KiB read \n");
-      printf("  spit <device> rzs1k64   --- seq 64KiB read\n");
     }
   }
   free(string);
