@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 
   double median, three9, four9, five9;
   histSumPercentages(&h, &median, &three9, &four9, &five9, 1);
-  histSave(&h, datafile, 1);
+  histSave(&h, datafile);
   char xlabel[100];
   sprintf(xlabel, "Time (ms) - %g bins", binSize);
   histWriteGnuplot(&h, datafile, gnufile, pngfile, xlabel, "Count");

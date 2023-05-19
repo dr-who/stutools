@@ -215,7 +215,7 @@ void cmd_spit(const int tty, char *origstring) {
 	    jobDump(&j);
 	    if (tty) printf("%s", END);
 	    
-	    jobRunThreads(&j, j.count, NULL, 0, bdsize, 10, 0, NULL, 4, 42, 0, NULL, 1, 0, 0, NULL, NULL, NULL, "all", 0, /*&r*/NULL, 15L*1024*1024*1024, 0, 0, NULL, 0);
+	    jobRunThreads(&j, j.count, NULL, 0, bdsize, 30, 0, NULL, 4, 42, 0, NULL, 1, 0, 0, NULL, NULL, NULL, "all", 0, /*&r*/NULL, 15L*1024*1024*1024, 0, 0, NULL, 0, 1);
 	    jobFree(&j);
 	  }
 	}

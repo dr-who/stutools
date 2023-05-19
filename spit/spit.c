@@ -905,7 +905,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
             sprintf(s, "w s0 k%zd-%zd G_ j%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
             fprintf(stdout, "| %s ", s);
             fflush(stdout);
-            jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout);
+            jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
             fprintf(stdout, "| %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf \n", threadBlock[t], r.readIOPS, r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
             fflush(stdout);
           }
@@ -932,7 +932,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
               jobAdd(&j, s);
             }
             jobAddDeviceToAll(&j, device);
-            jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout);
+            jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
             sprintf(s, "w s1 k%zd-%zd G_ j%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime * 2);
             fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
             fflush(stdout);
@@ -960,7 +960,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
             jobAdd(&j, s);
           }
           jobAddDeviceToAll(&j, device);
-          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout);
+          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
           sprintf(s, "r s0 k%zd-%zd G_ j%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
           fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
           fflush(stdout);
@@ -988,7 +988,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
             jobAdd(&j, s);
           }
           jobAddDeviceToAll(&j, device);
-          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout);
+          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
           sprintf(s, "r s1 k%zd-%zd G_ j%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd, thetime);
           fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
           fflush(stdout);
@@ -1017,7 +1017,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
             low = fsize * i;
             high = fsize * (i+1);
           }
-          jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout);
+          jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 4, round+42, 0, NULL /* diskstats &d*/, MIN(thetime/10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0,  &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
           fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
           fflush(stdout);
         }
@@ -1046,7 +1046,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
           }
 
           jobAddDeviceToAll(&j, device);
-          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/, NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout);
+          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/, NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
           sprintf(s, "rs0k%zdP100000q1-%zdG_j%zd/+wk%zd", blockSize1[i], qd, threadBlock[t], blockSize2[i]);
           fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
           fflush(stdout);
@@ -1075,7 +1075,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
             jobAdd(&j, s);
           }
           jobAddDeviceToAll(&j, device);
-          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/, NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout);
+          jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round+42, NULL /* save positions*/, NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
           sprintf(s, "p0.7 s0 k%zd-%zd q1-%zd G_ j%zd x%zd", blockSize1[i], blockSize2[i], qd, threadBlock[t], xcopies);
           fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS, r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
           fflush(stdout);
@@ -1207,7 +1207,7 @@ int main(int argc, char *argv[])
 
       resultType r; memset(&r, 0, sizeof(resultType));
 
-      jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, runseconds, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, numaBinding, performPreDiscard, &r, ramBytesForPositions, tripleX==3, showdate, loadpos, exitTimeout);
+      jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, runseconds, dumpPositions, benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify, mysqloptions, mysqloptions2, commandstring, numaBinding, performPreDiscard, &r, ramBytesForPositions, tripleX==3, showdate, loadpos, exitTimeout, 0);
 
       resultDump(&r, kcheckresults, verbose);
 

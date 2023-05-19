@@ -20,14 +20,59 @@ void histSetup(histogramType *h, const double min, const double max, const doubl
   } else {
     h->binScale = pow(10, (ceil(log10( 1.0 / binscale)))); // 0.01ms for 1 seconds is 100,000 bins
   }
-  h->arraySize = h->max * h->binScale;
+  assert(h->max >= h->min);
+  h->arraySize = (h->max - h->min) * h->binScale;
   CALLOC(h->bin, h->arraySize + 1, sizeof(size_t));
   CALLOC(h->binSum, h->arraySize + 1, sizeof(size_t));
+  h->maxSeen = min;
+  h->minSeen = max;
+  h->showASCII = 0;
   h->dataSum = 0;
   h->dataCount = 0;
   h->dataSummed = 0;
   nlInit(&h->nl, 1000000); // keep 1 million positions
   //  fprintf(stderr,"*info* [%lf,%lf], binscale %zd, numBins %zd\n", h->min, h->max, h->binScale, h->arraySize);
+}
+
+
+double getIndexToXValueScale(histogramType *h, const size_t index, const size_t maxindex, const size_t w) {
+  if (h) {}
+  double rat = index * 1.0 / maxindex;
+  return (w-1) * rat;
+}
+
+double getIndexToYValueScale(histogramType *h, const size_t index, const size_t y) {
+  size_t mv = 0;
+  for (size_t i = 0; i <= h->arraySize; i++) {
+    if (h->bin[i] > mv) mv = h->bin[i];
+  }
+  double rat = h->bin[index] * 1.0 * (y-1) / mv;
+  return rat;
+}
+
+double getIndexToXValue(histogramType *h, const size_t index) {
+  assert(index <= h->arraySize);
+  double val = h->min + (index * 1.0 / h->binScale);
+  assert(val >= h->min);
+  assert(val <= h->max);
+  return val;
+}
+
+double getIndexToYValue(histogramType *h, const size_t index) {
+  assert(index <= h->arraySize);
+  return h->bin[index];
+}
+
+size_t getXIndexFromValue(histogramType *h, const double val) {
+  if (val < h->min || val > h->max) {
+    fprintf(stderr,"*error* value %lf is outside the range [%lf, %lf]\n", val, h->min, h->max);
+    return 0;
+  }
+  assert(val >= h->min);
+  assert(val <= h->max);
+  size_t ind =  (val - h->min) * h->binScale;
+  assert(ind <= h->arraySize);
+  return ind;
 }
 
 
@@ -115,14 +160,16 @@ void histLoad(histogramType *h, const char *fn) {
 void histAdd(histogramType *h, double value)
 {
   size_t bin = 0;
+  if ((h->dataCount == 0) || (value > h->maxSeen)) {
+    h->maxSeen = value;
+  }
+  if ((h->dataCount == 0) || (value < h->minSeen)) {
+    h->minSeen = value;
+  }
+    
   nlAdd(&h->nl, value);
 
-  if (value < 0) value = 0;
-
-  bin = (size_t) (value * h->binScale);
-  if (bin > h->arraySize) {
-    bin = h->arraySize;
-  }
+  bin = getXIndexFromValue(h, value);
   h->bin[bin]++;
   h->dataSum += value;
   h->dataCount++;
@@ -166,7 +213,7 @@ double histLowestPresentValue(histogramType *h)
 {
   for (size_t i = 0; i <= h->arraySize; i++) {
     if (h->bin[i] > 0) {
-      const double value = i * 1.0 / h->binScale;
+      const double value = getIndexToXValue(h, i);
       return value;
     }
   }
@@ -177,7 +224,7 @@ double histHighestPresentValue(histogramType *h)
 {
   for (int i = h->arraySize; i >= 0; i--) {
     if (h->bin[i] > 0) {
-      const double value = i * 1.0 / h->binScale;
+      const double value = getIndexToXValue(h, i);
       return value;
     }
   }
@@ -216,7 +263,7 @@ void histSumPercentages(histogramType *h, double *median, double *three9, double
 
 
 
-void histSave(histogramType *h, const char *filename, const size_t scale)
+void histSave(histogramType *h, const char *filename)
 {
   histSum(h);
   //  assert(h->dataSum);
@@ -231,7 +278,7 @@ void histSave(histogramType *h, const char *filename, const size_t scale)
   }
 
   for (size_t i = 0; i <= h->arraySize; i++) {
-    fprintf(fp, "%.3lf\t%zd\t%.2lf\n", i * scale * 1.0 / h->binScale, h->bin[i], 100.0 * h->binSum[i] / maxvalue);
+    fprintf(fp, "%.3lf\t%zd\t%.2lf\n", getIndexToXValue(h, i), h->bin[i], 100.0 * h->binSum[i] / maxvalue);
     if (h->binSum[i] == maxvalue) {
       break; // stop when we hit the max
     }
@@ -296,7 +343,7 @@ double histSample(histogramType *h) {
    
   for (size_t i = 0; i <= h->arraySize; i++) {
     if (n <= h->binSum[i]) {
-      value = i * 1.0 / h->binScale;
+      value = getIndexToXValue(h, i);
       break;
     }
   }
@@ -304,5 +351,54 @@ double histSample(histogramType *h) {
   if (value > h->max) value = h->max;
   
   return value;
+}
+
+
+void asciiField(histogramType *h, const size_t x, const size_t y, const char *title) {
+
+  char *field = calloc(x * y, sizeof(char)); assert(field);
+  memset(field, ' ', x*y);
+
+  //  printf("index %zd, maxseen = %lf\n", getXIndexFromValue(h, h->maxSeen), h->maxSeen);
+  size_t maxi = getXIndexFromValue(h, h->maxSeen);
+  int drawn = 0;
+  for (size_t i = 0; i <= maxi; i++) {
+    if (h->bin[i]) {
+
+      // i index from min to max;
+      double xpos = getIndexToXValueScale(h, i, maxi, (double)x);
+      double ypos = ceil(getIndexToYValueScale(h, i, (double)y));
+
+      //      fprintf(stderr,"%lf %lf\n", xpos, ypos);
+
+      for (size_t j = 0; j <= ypos; j++) {
+	size_t p = j*x + xpos;
+	assert(p < x*y);
+	field[p] = '*';
+	drawn =1;
+      }
+    }
+  }
+  if (drawn) {
+    printf("\n"); // blank line before
+    printf("+ %30s %s\n", "", title);
+    for (size_t j = y-1; j > 0; j--) {
+      printf("|");
+      for (size_t i =0; i < x; i++) {
+	size_t p = j*x + i;
+	assert(p < x*y);
+	
+	printf("%c", field[p]);
+      }
+      printf("\n");
+    }
+    printf("+");
+    for (size_t i = 0; i< x; i++) {
+      printf("-");
+    }
+    printf("\n");
+    printf("%-10.2lf%-25s%10.2lf%25s%10.2lf\n", h->minSeen, "", (h->maxSeen+h->minSeen)/2, "", h->maxSeen);
+  }
+
 }
 

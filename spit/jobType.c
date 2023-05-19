@@ -1211,7 +1211,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    unsigned short seed, FILE *savePositions, diskStatType *d, const double timeperline, const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, char* numaBinding, const int performPreDiscard,
                    resultType *result, size_t ramBytesForPositions, size_t notexclusive, const size_t showdate,
-		   FILE *loadpos, const double exitTimeout)
+		   FILE *loadpos, const double exitTimeout, const size_t showASCII)
 {
   pthread_t *pt;
   CALLOC(pt, num+1, sizeof(pthread_t));
@@ -2251,13 +2251,16 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     for (int i = 0; i < num; i++) {
       latencySetup(&lat, &origpc[i]);
     }
+    if (showASCII) {
+      lat.histRead.showASCII = 1;
+      lat.histWrite.showASCII = 1;
+    }
     latencyStats(&lat);
     latencyWriteGnuplot(&lat);
     latencyReadGnuplot(&lat);
     latencyFree(&lat);
 
     latencyLenVsLatency(origpc, num);
-
   }
 
   if ( (savePositions && (savePositions != stdout)) || verify) {
@@ -2400,18 +2403,18 @@ size_t jobRunPreconditions(jobType *preconditions, const size_t count, const siz
 	sprintf(s,"wx1zs1k4G%zd-%.1lf", p, MIN(TOGiB(maxSizeBytes), p+stepgb));
 	fprintf(stderr,"*info* precondition: running string %s\n", s);
 	preconditions->strings[0] = strdup(s);
-	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0, 0);
 
 	free(preconditions->strings[0]); // free 'f'
 	sprintf(s,"wx1zs1k4G%zd-%.1lfK%zd", p, MIN(TOGiB(maxSizeBytes), p+stepgb), fragmentLBA);
 	fprintf(stderr,"*info* precondition: running string %s\n", s);
 	preconditions->strings[0] = strdup(s);
-	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0);
+	jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024, MIN(maxSizeBytes, (p+stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0, 0);
 
 	
 	}
     } else {
-      jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0);
+      jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/, 0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */, 0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0, 0);
     }
     if (keepRunning) {
       fprintf(stderr,"*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");

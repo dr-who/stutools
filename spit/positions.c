@@ -95,6 +95,9 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
     }
     p++;
   }
+  if (!keepRunning) {
+    return 0;
+  }
 
   if (sizelow <= 0) {
     fprintf(stderr,"size low 0!\n");
@@ -103,7 +106,7 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
   // check all positions are aligned to low and high lengths
   p = (positionType *) positions;
   if (sizelow > 0) {
-    for (size_t j = 0; j < num; j++) {
+    for (size_t j = 0; j < num && keepRunning; j++) {
       if (p->len == 0) {
         fprintf(stderr,"*error* len of 0\n");
       }
@@ -890,7 +893,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
       size_t readSum = 0, thislen = 0;
       count = 0;
-      while (count < pc->sz) {
+      while (keepRunning && count < pc->sz) {
 	memset(&poss[count], 0, sizeof(positionType));
 	if (readSum < maxBS) {
 	  thislen = minBS;
@@ -1043,7 +1046,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
   //    fprintf(stderr,"starting offset %d\n", offset);
 
   // copy from poss array and rotate the start
-  for (size_t i = 0; i < count; i++) {
+  for (size_t i = 0; i < count && keepRunning; i++) {
     int index = i + offset;
     if (index >= (int)count) {
       index -= count;
@@ -1077,7 +1080,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     if (verbose) {
       fprintf(stderr,"*info* reversing positions from the end of the BD, %zd bytes (%.1lf GB)\n", maxbdSize, TOGB(maxbdSize));
     }
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < count && keepRunning; i++) {
       positions[i].pos = maxbdSize - (size_t) positions[i].len - (positions[i].pos - minbdSize);
     }
   }

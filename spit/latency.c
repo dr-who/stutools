@@ -18,8 +18,10 @@
 
 
 void latencyClear(latencyType *lat) {
-  histSetup(&lat->histRead, 0, 10000, 1e-2);
-  histSetup(&lat->histWrite, 0, 10000, 1e-2);
+  histSetup(&lat->histRead, 0, 10000, 0.01);
+  lat->histRead.showASCII = 0;
+  histSetup(&lat->histWrite, 0, 10000, 0.01);
+  lat->histWrite.showASCII = 0;
 }  
 
 void latencySetup(latencyType *lat, positionContainer *pc) {
@@ -135,7 +137,9 @@ void latencyStats(latencyType *lat) {
     if (n<100000) four9 = NAN;
     if (n<1000000) five9 = NAN;
     fprintf(stderr,"*info* read latency: n = %zd, mean = %.3lf ms (sd = %.2lf ms), median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", n, histMean(&lat->histRead), nlSD(&lat->histRead.nl), median, three9, four9, five9);
-    histSave(&lat->histRead, "spit-latency-histogram-read.txt", 1);
+    if (lat->histRead.showASCII)
+      asciiField(&lat->histRead, 79, 20, "Latency histogram (read ms)");
+    histSave(&lat->histRead, "spit-latency-histogram-read.txt");
   }
   if (histCount(&lat->histWrite)) {
     histSumPercentages(&lat->histWrite, &median, &three9, &four9, &five9, 1);
@@ -144,7 +148,9 @@ void latencyStats(latencyType *lat) {
     if (n<100000) four9 = NAN;
     if (n<1000000) five9 = NAN;
     fprintf(stderr,"*info* write latency: n = %zd, mean = %.3lf ms (sd = %.2lf ms), median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n", n, histMean(&lat->histWrite), nlSD(&lat->histWrite.nl), median, three9, four9, five9);
-    histSave(&lat->histWrite, "spit-latency-histogram-write.txt", 1);
+    if (lat->histWrite.showASCII)
+      asciiField(&lat->histWrite, 79, 20, "Latency histogram (write ms)");
+    histSave(&lat->histWrite, "spit-latency-histogram-write.txt");
   }
 }
 
