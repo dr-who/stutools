@@ -3,6 +3,8 @@ project (stutools C)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/utils/Version.cmake)
 
+enable_testing()
+
 add_subdirectory(iotests)
 add_subdirectory(spit)
 add_subdirectory(utils)
