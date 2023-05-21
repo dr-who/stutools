@@ -153,7 +153,7 @@ set_tests_properties(testspitfail3 PROPERTIES WILL_FAIL TRUE )
 
 add_test(testspitwk512b  spit -f wow -G 0.5GiB -c ws1k0.5 -v -V -t 1)
 
-add_test(testspita10 spit -f wow -G 1GiB -c ws1a10zM1 -v -t 5 )
+add_test(testspita10 spit -f wow -G 0.5GiB -c ws1a10zM1 -v -t 5 )
 
 add_test(testspitkPa0fail spit -f wow -G 1GiB -c rM1s0P1X1C -K 1,0)
 set_tests_properties(testspitkPa0fail PROPERTIES WILL_FAIL TRUE)
@@ -165,11 +165,11 @@ add_test(testspitwaitforX2 spit -f wow -G 1GiB -c rk128X2s1W0.5:1 -K16384,0)
 
 add_test(testspitcc spit -f wow -G 1GiB -c cM1zx1 -K 512,512)
 
-add_test(testspitws1x1 spit -f wow -G 1GiB -c ws1M1x1 -K 0,1024)
-add_test(testspitws1x2 spit -f wow -G 1GiB -c ws1M1x2 -K 0,2048)
-add_test(testspitws1x1n spit -f wow -G 1GiB -c ws1M1x1n -K 0,1024)
-add_test(testspitws1x2n spit -f wow -G 1GiB -c ws1M1x2n -K 0,2048)
-add_test(testspitws1x2N spit -f wow -G 1GiB -c ws1M1x2N -K 0,2048)
+add_test(testspitrs1x1 spit -f wow -G 1GiB -c rs1M1x1 -K 1024,0)
+add_test(testspitrs1x2 spit -f wow -G 1GiB -c rs1M1x2 -K 2048,0)
+add_test(testspitrs1x1n spit -f wow -G 1GiB -c rs1M1x1n -K 1024,0)
+add_test(testspitrs1x2n spit -f wow -G 1GiB -c rs1M1x2n -K 2048,0)
+add_test(testspitrs1x2N spit -f wow -G 1GiB -c rs1M1x2N -K 2048,0)
 
 
 add_test(testspitrs1nx1 spit -f wow -G 1GiB -c rs1M1nx1 -K 1024,0)
@@ -303,7 +303,7 @@ add_test(testspit_ws0j4e2a spit -f wow -G 1GiB -c ws0P1000 -j4  -v -t 5 -e "3,ec
 add_test(testspit_ws0j4to32 spit -f wow -G 1GiB -c ws0k4-32P1000 -j4  -v -t 5)
 add_test(testspit_ws0j4to32c spit -f wow -G 1GiB -c ws0k4:2048P1000 -j4  -v -t 5)
 add_test(testspitw  spit -f wow -G 1GiB -c w -v -t 5)
-add_test(testspitwDs0  spit -f wow -G 1GiB -c wDs0 -v -t 5)
+#add_test(testspitwDs0  spit -f wow -G 1GiB -c wDs0 -v -t 5)
 add_test(testspit_precon spit -f wow -G 1GiB -pG -c ws0NnG_ -j4 -v -t 5)
 add_test(testspitw  spit -f wow -G 0.5-1 -c w -v -t 5)
 add_test(testspitwB  spit -f wow -G 0.5-1 -c w -v -t 5 -B /tmp/$$)

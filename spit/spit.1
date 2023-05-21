@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 2.0.10
-.\"      Date: 2023-05-18
+.\"      Date: 2023-05-21
 .\"    Manual: spit manual
 .\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2023-05-18" "spit 1.2" "spit manual"
+.TH "SPIT" "1" "2023-05-21" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -587,6 +587,162 @@ On a 200 GB device perform linear writes in the first half and
 random writes on the second half.
 .fi
 .if n .RE
+.SH "COMBINATIONS"
+.sp
+Using 1 GiB and 1 MiB blocks (e.g. \fBspit \-f device \-G 1GiB \-c rM1...\fP) the following options have the following behaviour:
+.TS
+allbox tab(:);
+lt lt lt lt lt.
+T{
+.sp
+Command
+T}:T{
+.sp
+Round Details
+T}:T{
+.sp
+Data written
+T}:T{
+.sp
+Round action
+T}:T{
+.sp
+Explanation
+T}
+T{
+.sp
+rM1x1
+T}:T{
+.sp
+1 GiB / 1024
+T}:T{
+.sp
+1 GiB
+T}:T{
+.sp
+none
+T}:T{
+.sp
+write positions in a loop until 1 GiB of IO
+T}
+T{
+.sp
+rk256x1
+T}:T{
+.sp
+1 GiB / 4096
+T}:T{
+.sp
+1 GiB
+T}:T{
+.sp
+none
+T}:T{
+.sp
+write positions in a loop until 1 GiB of IO
+T}
+T{
+.sp
+rM1x2
+T}:T{
+.sp
+1 GiB / 1024
+T}:T{
+.sp
+2 GiB
+T}:T{
+.sp
+none
+T}:T{
+.sp
+write positions in a loop until 2 GiB of IO
+T}
+T{
+.sp
+rM1X1
+T}:T{
+.sp
+1024 / 1 GiB
+T}:T{
+.sp
+1 GiB
+T}:T{
+.sp
+none
+T}:T{
+.sp
+write each position once
+T}
+T{
+.sp
+rM1X2
+T}:T{
+.sp
+1024 / 1 GiB
+T}:T{
+.sp
+2 GiB
+T}:T{
+.sp
+none
+T}:T{
+.sp
+write each position twice
+T}
+T{
+.sp
+rM1x1n
+T}:T{
+.sp
+1 1GiB / 1024
+T}:T{
+.sp
+1 GiB
+T}:T{
+.sp
+rerandomize
+T}:T{
+.sp
+write positions in a loop until 1 GiB of IO
+T}
+T{
+.sp
+rM1x2n
+T}:T{
+.sp
+1 1GiB / 1024
+T}:T{
+.sp
+1 GiB
+T}:T{
+.sp
+rerandomize
+T}:T{
+.sp
+write positions in a loop until 1 GiB, then resuffle, repeat until 2 GiB
+T}
+T{
+.sp
+rM1
+T}:T{
+.sp
+time / time
+T}:T{
+.sp
+time
+T}:T{
+.sp
+none
+T}:T{
+.sp
+time based
+T}
+.TE
+.sp
+.sp
+Note the \f(CRn\fP option performs a re\-sampling (it\(cqs not just a
+shuffle). The \f(CRN\fP option adds a blockSize value to each position after
+each round.
 .SH "EXIT STATUS"
 .sp
 \fB0\fP

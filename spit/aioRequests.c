@@ -28,7 +28,7 @@ int canseekanywhere(int fd)
 size_t aioMultiplePositions( positionContainer *p,
                              const size_t sz,
                              const double finishTime,
-                             const size_t finishBytes,
+                             const size_t byteLimit,
                              size_t QDmin,
                              size_t QDmax,
                              const int verbose,
@@ -85,7 +85,7 @@ size_t aioMultiplePositions( positionContainer *p,
     }
   }
   
-  //  if (finishBytes) fprintf(stderr,"*info* maxbytes %zd\n", finishBytes);
+  //  if (byteLimit) fprintf(stderr,"*info* maxbytes %zd\n", byteLimit);
   //  if (posLimit) fprintf(stderr,"*info* maxpositions %zd\n", posLimit);
   
   int ret, checkTime = finishTime > 0;
@@ -367,7 +367,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		io_prep_pread(cbs[qdIndex], fd, readdata[qdIndex], len, newpos);
 		cbs[qdIndex]->data = &positions[pos];
 
-		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+		if (byteLimit && (totalWriteSubmit + totalReadSubmit + len > byteLimit)) {
 		  goto endoffunction;
 		}
 		totalReadSubmit += len;
@@ -406,7 +406,7 @@ size_t aioMultiplePositions( positionContainer *p,
 		io_prep_pwrite(cbs[qdIndex], fd, data[qdIndex], len, newpos);
 		cbs[qdIndex]->data = &positions[pos];
 
-		if (finishBytes && (totalWriteSubmit + totalReadSubmit + len > finishBytes)) {
+		if (byteLimit && (totalWriteSubmit + totalReadSubmit + len > byteLimit)) {
 		  goto endoffunction;
 		}
 		totalWriteSubmit += len;

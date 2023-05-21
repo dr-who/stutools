@@ -493,7 +493,9 @@ static void *runThread(void *arg)
 
   size_t iteratorCount = 0, numberOfRounds = 1, externalLoops = 0;
 
-  size_t byteLimit = 0, posLimit = 0;
+  size_t roundByteLimit = 0, roundPosLimit = 0;
+  size_t totalLimitB = 0;
+
   // the other limit is threadContext->runSeconds
   float timeLimit = threadContext->runSeconds;
   
@@ -501,7 +503,7 @@ static void *runThread(void *arg)
   for (size_t qq = 0; qq < threadContext->pos.sz; qq++) {
     sumOfLens += threadContext->pos.positions[qq].len;
   }
-  //  fprintf(stderr,"byteLimit %zd, sum of thread positions %zd\n", byteLimit, sum);
+  //  fprintf(stderr,"roundByteLimit %zd, sum of thread positions %zd\n", roundByteLimit, sum);
 
 
   if (threadContext->alternateEvery) {
@@ -510,33 +512,29 @@ static void *runThread(void *arg)
   }
 
   if (threadContext->positionLimit) { // if Y 
-    posLimit = threadContext->positionLimit;
+    roundPosLimit = threadContext->positionLimit;
   } else if (threadContext->randomSubSample || threadContext->firstPPositions) { // if P-ve
     externalLoops = threadContext->rerandomize || threadContext->addBlockSize; // if n or N specified then doRounds
     //    fprintf(stderr,"ext loop %zd, LBA %zd, postimes %zd, finsec %.1lf\n", externalLoops, threadContext->LBAtimes, threadContext->POStimes,threadContext->finishSeconds);
     // P-ve
     if (threadContext->LBAtimes) {
+      externalLoops = threadContext->LBAtimes;
+      roundByteLimit = outerrange;
+      
       if (externalLoops) {
-	if (threadContext->rerandomize) {
-	  posLimit = threadContext->pos.sz;
-	  externalLoops = INT_MAX;
-	  byteLimit = outerrange * threadContext->LBAtimes;
-	} else {
-	  // if external, internal stays out, X loops
-	  externalLoops = threadContext->LBAtimes;
-	  byteLimit = outerrange;
-	}
+	externalLoops = INT_MAX;
+	totalLimitB = outerrange * threadContext->LBAtimes;
       } else {
 	// if internal then set LBA limit only
-	byteLimit = outerrange * threadContext->LBAtimes;
+	roundByteLimit = outerrange * threadContext->LBAtimes;
       }
     } else if (threadContext->POStimes) {
       if (externalLoops) {
-	posLimit = threadContext->pos.sz;
+	roundPosLimit = threadContext->pos.sz;
 	externalLoops = threadContext->POStimes;
       } else {
-	// if internal limit by posLimit
-	posLimit = threadContext->pos.sz * threadContext->POStimes;
+	// if internal limit by roundPosLimit
+	roundPosLimit = threadContext->pos.sz * threadContext->POStimes;
       }
     } else {
       // time limit
@@ -554,20 +552,22 @@ static void *runThread(void *arg)
       numberOfRounds = 1;
 
       // if LBAtimes then don't use the range, use the sum of the lens
-      posLimit = 0;
-      byteLimit = sumOfLens;
+      // since it's rerandomizing, we use the X range
+      roundPosLimit = 0;
+      roundByteLimit = outerrange; // round byte limit
+      totalLimitB = threadContext->pos.sz * outerrange;
       timeLimit = INF_SECONDS;
     } else if (threadContext->POStimes) { // with X
       externalLoops = threadContext->POStimes;
       numberOfRounds = 1;
 
-      posLimit = threadContext->pos.sz;
-      byteLimit = 0;
+      roundPosLimit = threadContext->pos.sz;
+      roundByteLimit = 0;
       timeLimit = INF_SECONDS;
     } else if (threadContext->positionLimit || threadContext->runonce) {
-      posLimit = threadContext->pos.sz;
+      roundPosLimit = threadContext->pos.sz;
       timeLimit = INF_SECONDS;
-      byteLimit = 0;
+      roundByteLimit = 0;
       if (threadContext->runonce) {
 	numberOfRounds = 1; // don't do rounds with O
       }
@@ -576,12 +576,12 @@ static void *runThread(void *arg)
     // specifing an x option
     // if we specify xn
     if (threadContext->jmodonly) { // if alternating the LBA is sum of lengths
-      byteLimit = sumOfLens * threadContext->LBAtimes;
+      roundByteLimit = sumOfLens * threadContext->LBAtimes;
     } else {
-      byteLimit = outerrange * threadContext->LBAtimes;
+      roundByteLimit = outerrange * threadContext->LBAtimes;
     }
   } else if (threadContext->POStimes) { // if not P constrained
-    posLimit = threadContext->pos.sz;
+    roundPosLimit = threadContext->pos.sz;
     numberOfRounds = threadContext->POStimes;
   } else {
     // time limit
@@ -591,12 +591,12 @@ static void *runThread(void *arg)
   }
 
   if (threadContext->posIncrement) {
-    if (posLimit) {
-      posLimit = posLimit / threadContext->posIncrement;
+    if (roundPosLimit) {
+      roundPosLimit = roundPosLimit / threadContext->posIncrement;
     } else {
-      posLimit = threadContext->pos.sz / threadContext->posIncrement;
+      roundPosLimit = threadContext->pos.sz / threadContext->posIncrement;
     }
-    fprintf(stderr,"*info* posLimit = %zd\n", posLimit);
+    fprintf(stderr,"*info* roundPosLimit = %zd\n", roundPosLimit);
   }
 
   // if W option and X option
@@ -616,7 +616,7 @@ static void *runThread(void *arg)
 
   if (threadContext->id == 0) {
     //    if (verbose) {
-    fprintf(stderr,"*info* numberOfRounds (internal) %zd, loops (external) %zd, roundTime %.1lf, totalTime %.1lf, posLimit %zd, byteLimitPerIteration %zd (%.03lf GiB)\n", numberOfRounds, externalLoops, threadContext->runSeconds, threadContext->finishSeconds, posLimit, byteLimit, TOGiB(byteLimit));
+    fprintf(stderr,"*info* numberOfRounds (internal) %zd, loops (external) %zd, roundTime %.1lf, totalTime %.1lf, roundPosLimit %zd, roundByteLimitPerIteration %zd (%.03lf GiB)\n", numberOfRounds, externalLoops, threadContext->runSeconds, threadContext->finishSeconds, roundPosLimit, roundByteLimit, TOGiB(roundByteLimit));
     fflush(stderr);
       //    }
   }
@@ -635,7 +635,7 @@ static void *runThread(void *arg)
   }
 
 
-  size_t totalB = 0, ioerrors = 0, totalP = 0;
+  size_t totalB = 0, ioerrors = 0;
   size_t posStart = 0, posCompleted = 0, posLoops = 0;
   
   while (keepRunning) {
@@ -658,15 +658,13 @@ static void *runThread(void *arg)
       }
     }
     // if fp == stdout then it's streaming so you don't need to accumulate
-    //    fprintf(stderr,"**** %zd    , limit %zd, \n", posStart, (posLimit - posStart));
-    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, byteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posStart, (posLimit - (posStart % threadContext->pos.sz)), &posCompleted, 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, (threadContext->fp == stdout) ? 0: numSamples/* true if writing positions */, threadContext->alternateEvery, 0, threadContext->exitTimeout);
-
-    totalP += posLimit;
+    //    fprintf(stderr,"**** %zd    , limit %zd, \n", posStart, (roundPosLimit - posStart));
+    totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timedouble() + timeLimit, roundByteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax, -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios, &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posStart, (roundPosLimit - (posStart % threadContext->pos.sz)), &posCompleted, 1, fd, threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp, threadContext->jobdevice, threadContext->posIncrement, (threadContext->fp == stdout) ? 0: numSamples/* true if writing positions */, threadContext->alternateEvery, 0, threadContext->exitTimeout);
 
     if (!externalLoops) break;
 
-    if (byteLimit && (totalB >= byteLimit)) {
-      // if rounds go over byteLimit;
+    if (totalLimitB && (totalB >= totalLimitB)) {
+      // if rounds go over roundByteLimit;
       break;
     }
 

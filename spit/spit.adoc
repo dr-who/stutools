@@ -317,6 +317,28 @@ In the following commands, replace *r* with *w* for writes.
   random writes on the second half.
 
 
+
+== Combinations
+
+Using 1 GiB and 1 MiB blocks (e.g. *spit -f device -G 1GiB -c rM1...*) the following options have the following behaviour:
+
+[cols="1,1,1,1,5"]
+|===
+| Command | Round Details | Data written | Round action | Explanation
+| rM1x1   | 1 GiB / 1024     | 1 GiB       | none  | write positions in a loop until 1 GiB of IO
+| rk256x1 | 1 GiB / 4096     | 1 GiB       | none  | write positions in a loop until 1 GiB of IO
+| rM1x2   | 1 GiB / 1024     | 2 GiB       | none  | write positions in a loop until 2 GiB of IO
+| rM1X1   | 1024 / 1 GiB     | 1 GiB       | none  | write each position once
+| rM1X2   | 1024 / 1 GiB     | 2 GiB       | none  | write each position twice
+| rM1x1n  | 1 1GiB / 1024    | 1 GiB       |rerandomize | write positions in a loop until 1 GiB of IO
+| rM1x2n  | 1 1GiB / 1024    | 1 GiB       |rerandomize| write positions in a loop until 1 GiB, then resuffle, repeat until 2 GiB
+| rM1     | time / time      | time        | none  | time based
+|===
+
+Note the *n* option performs a re-sampling (it's not just a
+shuffle). The *N* option adds a blockSize value to each position after
+each round.
+
 == EXIT STATUS
 
 *0*::
