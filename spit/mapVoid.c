@@ -8,28 +8,30 @@
 #include <assert.h>
 
 void mapVoidInit(mapVoidType *h) {
-  h->n = 0;
-  h->map = NULL;
-  h->key = NULL;
+    h->n = 0;
+    h->map = NULL;
+    h->key = NULL;
 }
 
-void * mapVoidFind(mapVoidType *h, const char *name) {
-  for (size_t i = 0; i < h->n; i++) {
-    if (strcmp(h->key[i], name) == 0) {
-      return h->map[i];
+void *mapVoidFind(mapVoidType *h, const char *name) {
+    for (size_t i = 0; i < h->n; i++) {
+        if (strcmp(h->key[i], name) == 0) {
+            return h->map[i];
+        }
     }
-  }
-  return NULL;
+    return NULL;
 }
 
-void * mapVoidAdd(mapVoidType *h, const char *name, void * p) {
-  h->n++;
-  h->key = realloc(h->key, (h->n) * (sizeof(char*))); assert(h->key);
-  h->key[h->n - 1] = strdup(name);
+void *mapVoidAdd(mapVoidType *h, const char *name, void *p) {
+    h->n++;
+    h->key = realloc(h->key, (h->n) * (sizeof(char *)));
+    assert(h->key);
+    h->key[h->n - 1] = strdup(name);
 
-  h->map = realloc(h->map, (h->n) * (sizeof(void*))); assert(h->map);
-  h->map[h->n - 1] = p;
-  return p;
+    h->map = realloc(h->map, (h->n) * (sizeof(void *)));
+    assert(h->map);
+    h->map[h->n - 1] = p;
+    return p;
 }
 
 /*

@@ -4,15 +4,14 @@
 #include "numList.h"
 
 typedef struct {
-  size_t n;
-  char **key;
-  numListType *map;
+    size_t n;
+    char **key;
+    numListType *map;
 } mapNumListType;
 
 void mapNumListInit(mapNumListType *h);
 
-numListType * mapNumListAdd(mapNumListType *h, const char *name);
-
+numListType *mapNumListAdd(mapNumListType *h, const char *name);
 
 
 #endif

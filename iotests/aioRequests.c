@@ -92,7 +92,7 @@ size_t aioMultiplePositions( positionType *positions,
 
   size_t pos = 0;
 
-  double start = timedouble();
+  double start = timeAsDouble();
   double last = start, gt = start, lastsubmit =start, lastreceive = start;
   logSpeedReset(benchl);
   logSpeedReset(alll);
@@ -155,7 +155,7 @@ size_t aioMultiplePositions( positionType *positions,
 	      if (ret > 0) {
 		inFlightPer[positions[pos].dev->ctxIndex]++;
 		inFlight++;
-		lastsubmit = timedouble(); // last good submit
+		lastsubmit = timeAsDouble(); // last good submit
 		submitted++;
 		if (verbose >= 2 || (newpos & (alignment-1))) {
 		  fprintf(stderr,"fd %d, pos %lld (%s), size %zd, inFlight %zd, QD %zd, submitted %zd, received %zd\n", positions[pos].dev->fd, newpos, (newpos % alignment) ? "NO!!" : "aligned", len, inFlight, QD, submitted, received);
@@ -183,7 +183,7 @@ size_t aioMultiplePositions( positionType *positions,
 	  }
 	}
 	
-	gt = timedouble();
+	gt = timeAsDouble();
 
 	double timeelapsed = gt - last;
 	if (timeelapsed >= DISPLAYEVERY) {
@@ -217,10 +217,10 @@ size_t aioMultiplePositions( positionType *positions,
 	  if (verbose >= 2) {
 	    fprintf(stderr,"[%zd] SYNC: calling fsync()\n", pos);
 	  }
-	  double start_f = timedouble(); // time and store
+	  double start_f = timeAsDouble(); // time and store
 	  assert(positions[pos].dev);
 	  fsync(positions[pos].dev->fd);
-	  double elapsed_f = timedouble() - start_f;
+	  double elapsed_f = timeAsDouble() - start_f;
 
 	  flush_totaltime += (elapsed_f);
 	  flush_count++;
@@ -258,13 +258,13 @@ size_t aioMultiplePositions( positionType *positions,
 	if ((rescode <= 0) || (rescode2 != 0)) { // if return of bytes written or read
 	  if (!printed) {
 	    fprintf(stderr,"*error* AIO failure codes: res=%d (%s) and res2=%d (%s)\n", rescode, strerror(-rescode), rescode2, strerror(-rescode2));
-	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timedouble() - lastsubmit);
-	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timedouble() - lastreceive);
+	    fprintf(stderr, "*error* last successful submission was %.3lf seconds ago\n", timeAsDouble() - lastsubmit);
+	    fprintf(stderr, "*error* last successful receive was %.3lf seconds ago\n", timeAsDouble() - lastreceive);
 	  }
 	  printed = 1;
 	  //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
 	} else {
-	  lastreceive = timedouble(); // last good receive
+	  lastreceive = timeAsDouble(); // last good receive
 
 	  // all ok
 	  //	  struct iocb *my_iocb = events[j].obj;
@@ -359,7 +359,7 @@ int aioVerifyWrites(positionType *positions,
     }
   }
 
-  double start = timedouble();
+  double start = timeAsDouble();
   fprintf(stderr,"*info* started verification (%zd positions, %.1lf GiB)\n", posTOV, TOGiB(bytesToVerify));
 
   for (size_t i = 0; i < maxpos; i++) {
@@ -420,7 +420,7 @@ int aioVerifyWrites(positionType *positions,
       }
     }
   }
-  double elapsed = timedouble() - start;
+  double elapsed = timeAsDouble() - start;
   fprintf(stderr,"checked %zd/%zd blocks, I/O errors %zd, errors/incorrect %zd, elapsed = %.1lf secs (%.1lf MiB/s)\n", checked, posTOV, ioerrors, errors, elapsed, TOMiB(bytesToVerify)/elapsed);
 
   

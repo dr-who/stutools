@@ -35,7 +35,7 @@ struct timeval gettm() {
   return now;
 }
 
-double timedouble() {
+double timeAsDouble() {
   struct timeval now = gettm();
   double tm = ((double)now.tv_sec * 1000000.0 + now.tv_usec);
   assert(tm > 0);
@@ -189,7 +189,7 @@ void dropCaches() {
 }
 
 
-char* queueType(char *path) {
+char* queueType(const char *path) {
   if (path) {
   }
   FILE *fp = fopen("/sys/block/sda/device/queue_type", "rt");

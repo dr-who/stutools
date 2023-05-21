@@ -5,14 +5,15 @@
 #include "positions.h"
 
 typedef struct {
-  histogramType histRead;
-  histogramType histWrite;
+    histogramType histRead;
+    histogramType histWrite;
 
 } latencyType;
 
 void latencyClear(latencyType *lat);
 
 void latencySetup(latencyType *lat, positionContainer *pc);
+
 void latencySetupSizeonly(latencyType *lat, positionContainer *pc, size_t size);
 
 void latencyStats(latencyType *lat);

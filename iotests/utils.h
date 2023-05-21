@@ -18,7 +18,7 @@
 
 #define DIFF(x,y) ((x) > (y)) ? ((x)-(y)) : ((y) - (x))
 
-double timedouble();
+double timeAsDouble();
 
 void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess, int verifyWrites, float flushEverySecs);
 void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l, size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess);
@@ -31,7 +31,7 @@ size_t blockDeviceSizeFromFD(const int fd);
 void dropCaches();
 char *username();
 
-char* queueType(char *path);
+char* queueType(const char *path);
 
 void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage, size_t stopatbytes);
 void shmemUnlink();

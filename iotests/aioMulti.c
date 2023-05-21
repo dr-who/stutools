@@ -88,7 +88,7 @@ static void *runThread(void *arg) {
     usleep(100);
   }
   if (threadContext->id == 0) {
-    startTime = timedouble();
+    startTime = timeAsDouble();
   }
   //  fprintf(stderr,"go(%zd)\n",threadContext->id);
   threadContext->total = aioMultiplePositions(positions, positionsNum, 100, threadContext->qd, 0, 0, NULL, NULL, randomBuffer, blockSize, blockSize, &ios, &trb, &twb, 0, 0, threadContext->ioc, threadContext->contextCount);
@@ -128,7 +128,7 @@ void startThreads(deviceDetails *deviceList, size_t num, size_t qd, float rr, io
     pthread_join(pt[i], NULL);
   }
 
-  double elapsed = timedouble() - startTime;
+  double elapsed = timeAsDouble() - startTime;
   size_t sum = 0;
   for (size_t i = 0; i <num;i++) {
     sum += threadContext[i].total;

@@ -73,14 +73,14 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"*info* numPositions %zd, min block size %zd, block size %zd, alignment %zd\n", numPositions, minbs, blocksize, minbs);
 
   size_t rb = 0, ios = 0, totalRB = 0, totalWB = 0;
-  double start = timedouble();
+  double start = timeAsDouble();
   if (positions) {
     logSpeedType l;
     logSpeedInit(&l);
     rb = aioMultiplePositions(positions, numPositions, 100000, 256, verbose, 0, &l, NULL, randomBuffer, blocksize, minbs, &ios, &totalRB, &totalWB, 1, 0, ioc, contextCount);
     logSpeedFree(&l);
   }
-  double elapsed = timedouble() - start;
+  double elapsed = timeAsDouble() - start;
   fprintf(stderr,"*info* %zd bytes (%.3lf GiB), read %.3lf GiB, write %.3lf GiB in %.1lf seconds. Total speed %.1lf MiB/sec\n", rb, TOGiB(rb), TOGiB(totalRB), TOGiB(totalWB), elapsed, TOMiB(rb) / elapsed);
   
   freeDeviceDetails(devices, numDevices);

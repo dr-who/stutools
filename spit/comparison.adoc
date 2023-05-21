@@ -1,0 +1,381 @@
+= Latency on HGST 12T(C925), WDC 18T(C120) and WDC 18T(C820): CONFIDENTIAL
+Stuart Inglis, Ph.D.
+12 Dec 2022
+:title-logo-image: image:Nyriad.png[top=25%,align=center,pdfwidth=2.5in]
+
+:!webfonts:
+:icons: font
+:sectnums:
+
+:toc:
+:toclevels: 4
+:outlinelevels: 4
+
+*Changelog*
+
+* v0.1: latency for constrained 100 IO/s writes
+* v0.2: latency for constrained 100 IO/s reads
+* v0.3: added t-test results
+* v0.4: Feedback from MS and BH, distributed internally
+* v0.5: Updated graph axes
+* v0.6: Feedback from HH, added consistency measure
+* v0.7: Added latency response curves
+* v0.8: Updated stats
+* v0.9: Updated with bins of 0.5 ms
+* v1.0: Circulated
+
+== Introduction
+
+Nyriad's UltraIO product has been experiencing very high latencies
+periodically with WDC drives ON SEQUENTIAL OPERATIONS THAT DON'T FULLY
+KEEP THE DRIVE BUSY sometimes taking up to 400ms when performing a
+read operation (previously measured). The largest latency in this
+report is 171ms, longer runs experience longer maximum latencies.
+
+Note the use case is simple sequential reads, but with a low queue
+depth/time between the sequential operations. 
+
+We note that the same test on another vendor's 18TB drive show no
+latency spikes, and spikes are not seen with SSD/flash drives.
+
+Nyriad reported this issue to WDC who confirmed the latency issues.
+
+Nyriad has recently received an updated firmware and this report
+records the analyis.
+
+This document uses open source tools and compares a previously used
+12TB drive, the original 18TB firmware (C120) and the recently
+updated/provided firmware (C820).
+
+=== Confidential
+
+This report is confidential. And to be only distributed inside Nyriad and Western Digital or by the author.
+
+
+== Server Hardware
+
+=== CPU / Memory Speed
+[source,indent=0]
+----
+include::cpu.txt[]
+----
+
+=== Drive paths
+[source,indent=0]
+----
+include::paths.txt[]
+----
+
+<<<
+=== PCI
+[source,indent=0]
+----
+include::pci.txt[]
+----
+
+== Drive information
+
+=== `/dev/sdi` 12TB 
+[source,indent=0]
+----
+include::smart.sdi[]
+----
+
+=== `/dev/sdl` 18TB -- new f/w -- C820 revision
+[source,indent=0]
+----
+include::smart.sdl[]
+----
+
+=== `/dev/sdk` 18TB -- old f/w -- C120 revision
+[source,indent=0]
+----
+include::smart.sdk[]
+----
+
+<<<
+=== SCSI params difference between `/dev/sdl` and `/dev/sdk`
+
+ diff <(sdparm --all --long /dev/sdl) <(sdparm --all --long /dev/sdk)
+ 
+[source,indent=0]
+----
+include::sdparms-diff.txt[]
+----
+
+
+== Methodology
+
+Benchmarks were performed using the `stutools` HDD/flash testing suite, available from github.
+
+Each I/O operation is performed multiple times. When N=3 that performs
+an IO operation at each position three times (e.g. three sequential
+passes over the LBA test range.)
+
+`spit ... -c 'r z s1 k1024 S100 q16 X3' -G 10` (N=3, 100 IO/s, 1024 KiB block, limit to 10 GB)
+
+The various graphs were generated using this script:
+
+ # cat testfirmware-experiment.sh
+ export BLOCKSIZEK=1024
+ export SAMPLES=3
+ export GBSIZE=100
+ export IOPS=100
+ # 100
+ export RWMODE=w
+ export TESTDEVICE=sdi; ./generate-TimevsLatency.sh
+ export TESTDEVICE=sdl; ./generate-TimevsLatency.sh
+ export TESTDEVICE=sdk; ./generate-TimevsLatency.sh
+ # now read
+ export RWMODE=r
+ export TESTDEVICE=sdi; ./generate-TimevsLatency.sh
+ export TESTDEVICE=sdl; ./generate-TimevsLatency.sh
+ export TESTDEVICE=sdk; ./generate-TimevsLatency.sh
+
+The output files are in the format `position, mean, median, max` latency, one row per position.
+
+ # head TimevsLatency-sdi-r-100IOPS-HUH721212AL4204-C925-100GB-N3-k1024.txt
+ 0 0.00891026 0.01131892 0.01315379
+ 1048576 0.00472935 0.00513101 0.00696993
+ 2097152 0.00799362 0.00210190 0.01980305
+ 3145728 0.00596070 0.00208306 0.01371717
+ 4194304 0.00393430 0.00208282 0.00765109
+ 5242880 0.00208704 0.00207496 0.00211215
+
+The `stutools` package provides statistics: `awk '{print $2}' < Times..txt ./stat`
+
+ # awk '{print $2}' TimevsLatency-sdi-r-100IOPS-HUH721212AL4204-C925-100GB-N3-k1024.txt | ./stat 
+ mean: 	0.00211
+ min: 	0.00206
+ Q25%: 	0.00207
+ Med: 	0.00207
+ Q75%: 	0.00208
+ max: 	0.0338
+ N:   	95367
+ SD: 	0.000418
+ SEM: 	1.35e-06
+ 99.9%:  	0.00656
+ 99.99%: 	0.0186
+ 99.999%:	0.0326
+
+And two different output files can be combined with `join` and passed
+into `pair` which performs a two-tailed t-test. The example below
+compares two files, performs the join which creates a combined line,
+matched on the position. In this case columns 2 and 5 are the mean
+values for each position. Columns 3 and 6 are the median values and
+Columnes 4 and 7 are the max values per position.
+
+ # join TimevsLatency-sdl-w-100IOPS-WUH721818AL5204-C820-100GB-N3-k1024.txt \
+      TimevsLatency-sdk-w-100IOPS-WUH721818AL5204-C120-100GB-N3-k1024.txt | \
+      awk 'BEGIN {print "sdl\tsdk\n";} {print $2"\t"$5}' | ./pair
+ 'sdl', mean: 0.0029, N 1999, SD 0.0027, SEM 0.0001, median 0.0026, 99.999% 0.0371
+ 'sdk', mean: 0.0023, N 1999, SD 0.0004, SEM 0.0000, median 0.0023, 99.999% 0.0084
+ r = -0.0124
+ mean of diff = 0.0006
+   SD of diff = 0.0027
+  SEM of diff = 0.0001
+ t = 9.7349
+ df = 1998
+ *info* load table 1998, 2, 0.0500
+ critical value p = 1.9719
+ *info* as 9.7349 > 1.9719 confident of difference at 0.05 level
+
+
+<<<
+== Constrained Write Benchmarks, 100 IO/s, seq, 1MiB blocksize
+
+=== `/dev/sdi` 12TB
+image::TimevsLatency-sdi-w-100IOPS-HUH721212AL4204-C925-100GB-N3-k1024.png[]
+
+[source,indent=0]
+----
+include::stats-sdi-w.txt[]
+----
+
+<<<
+=== `/dev/sdl` 18TB -- new f/w -- C820 revision
+image::TimevsLatency-sdl-w-100IOPS-WUH721818AL5204-C820-100GB-N3-k1024.png[]
+
+[source,indent=0]
+----
+include::stats-sdl-w.txt[]
+----
+
+<<<
+=== `/dev/sdk` 18TB -- old f/w -- C120 revision
+image::TimevsLatency-sdk-w-100IOPS-WUH721818AL5204-C120-100GB-N3-k1024.png[]
+
+[source,indent=0]
+----
+include::stats-sdk-w.txt[]
+----
+
+<<<
+=== Consistency between new/old firmware (writing)
+
+Individual latencies were placed into histogram bins. Consistency is
+measured by the most frequent value as a percentage of total
+operations. The `stutools` `hist` command is used with an
+incomingScale set to 1000. This converts the per second measurements
+to milliseconds for ease of binning/histogram display.
+
+ awk '{print $2}' <measurements.txt | ./hist -s 1000 -b 1
+
+==== `/dev/sdi` 12TB
+
+image::hist-sdi-w.png[]
+[source,indent=0]
+----
+include::consistency-sdi-w.txt[]
+----
+
+<<<
+==== `/dev/sdl` 18TB -- new f/w -- C820 revision
+image::hist-sdl-w.png[]
+[source,indent=0]
+----
+include::consistency-sdl-w.txt[]
+----
+
+<<<
+==== `/dev/sdk` 18TB -- old f/w -- C120 revision
+image::hist-sdk-w.png[]
+[source,indent=0]
+----
+include::consistency-sdk-w.txt[]
+----
+
+<<<
+=== Comparison between new/old firmware (writing)
+
+A two-tailed t-test at the 95% confidence level was performed, pairing on the position. Three tests were
+performed for the mean, median and max latency per position.
+
+All three showed the `sdk` (older firmware) drive had lower latency.
+
+==== Comparison new (sdl) and old (sdk) f/w mean latency per position
+[source,indent=0]
+----
+include::ttest-sdl-sdk-mean.txt[]
+----
+
+==== Comparison using median latency per position
+[source,indent=0]
+----
+include::ttest-sdl-sdk-median.txt[]
+----
+
+==== Comparison using maximum latency per position
+[source,indent=0]
+----
+include::ttest-sdl-sdk-max.txt[]
+----
+
+
+== Constrained Read Benchmarks, 100 IO/s, seq, 1 MiB blocksize
+
+=== `/dev/sdi` 12TB 
+image::TimevsLatency-sdi-r-100IOPS-HUH721212AL4204-C925-100GB-N3-k1024.png[]
+[source,indent=0]
+----
+include::stats-sdi-r.txt[]
+----
+
+=== `/dev/sdl` 18TB -- new f/w -- C820 revision
+image::TimevsLatency-sdl-r-100IOPS-WUH721818AL5204-C820-100GB-N3-k1024.png[]
+[source,indent=0]
+----
+include::stats-sdl-r.txt[]
+----
+
+=== `/dev/sdk` 18TB -- old f/w -- C120 revision
+image::TimevsLatency-sdk-r-100IOPS-WUH721818AL5204-C120-100GB-N3-k1024.png[]
+[source,indent=0]
+----
+include::stats-sdk-r.txt[]
+----
+
+<<<
+=== Consistency between new/old firmware (reading)
+
+Individual latencies were placed into histogram bins of 0.1 ms. Consistency is measured by the most frequent value as a percentage of total operations.
+
+==== `/dev/sdi` 12TB
+image::hist-sdi-r.png[]
+[source,indent=0]
+----
+include::consistency-sdi-r.txt[]
+----
+
+<<<
+==== `/dev/sdl` 18TB -- new f/w -- C820 revision
+image::hist-sdl-r.png[]
+[source,indent=0]
+----
+include::consistency-sdl-r.txt[]
+----
+
+<<<
+==== `/dev/sdk` 18TB -- old f/w -- C120 revision
+image::hist-sdk-r.png[]
+[source,indent=0]
+----
+include::consistency-sdk-r.txt[]
+----
+
+<<<
+=== Comparison between new/old firmware (reading)
+
+A two-tailed t-test at the 95% confidence level was performed, pairing on the position. Three tests were
+performed for the mean, median and max latency per position.
+
+All three tests showed a significant difference, with the older firmware being approximately 5% lower latency.
+
+==== Comparison new (sdl) and old (sdk) f/w mean latency per position
+[source,indent=0]
+----
+include::ttest-sdl-sdk-r-mean.txt[]
+----
+
+==== Comparison using median latency per position
+[source,indent=0]
+----
+include::ttest-sdl-sdk-r-median.txt[]
+----
+
+==== Comparison using maximum latency per position
+[source,indent=0]
+----
+include::ttest-sdl-sdk-r-max.txt[]
+----
+
+
+
+
+== Conclusion
+
+* Writing: Constrained 100 IO/s
+** Older wins: The old firmware (C120) had ~88% of the mean latency of the new (C820) firmware (2.3 ms vs 2.6 ms)
+** Older wins: The old firmware had ~75% of the max latency per position (2.4 ms vs 3.2 ms)
+** Newer wins: The largest write latency was seen with the old firmware, it was lowered from 171 ms to 129 ms.
+** Older wins: The old firmware had a consistency of ~99%, the new firmware had a consistency of ~97.5%
+
+* Reading: Constrained 100 IO/s
+** Older wins: The old firmware (C120) had ~95% of the mean latency of the new (C820) firmware (2.2 ms vs 2.3 ms)
+** Older wins: The old firmware had about 92% of the max latency per position (2.4 ms vs 2.6 ms)
+** Older wins: The largest read latency was seen with the new firmware, it was increased from 101ms to 124 ms.
+** Newer slight win: The old firmware had a consistency of ~98.3%, the new firmware had a consistency of ~98.8% 
+
+For better (lower) mean latency, the old firmware is significantly
+better at the 95% confidence level for 100 IO/s operations.
+
+
+
+
+
+
+
+
+
+
+

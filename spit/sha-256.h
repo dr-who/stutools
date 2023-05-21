@@ -28,12 +28,12 @@ extern "C" {
  * accessing the fields, as they may change in the future.
  */
 struct Sha_256 {
-	uint8_t *hash;
-	uint8_t chunk[SIZE_OF_SHA_256_CHUNK];
-	uint8_t *chunk_pos;
-	size_t space_left;
-	size_t total_len;
-	uint32_t h[8];
+    uint8_t *hash;
+    uint8_t chunk[SIZE_OF_SHA_256_CHUNK];
+    uint8_t *chunk_pos;
+    size_t space_left;
+    size_t total_len;
+    uint32_t h[8];
 };
 
 /*

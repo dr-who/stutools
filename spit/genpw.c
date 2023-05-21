@@ -9,24 +9,23 @@
 int keepRunning = 1;
 
 void usage() {
-  fprintf(stdout,"Usage:\n");
-  fprintf(stdout,"  genpw\n");
-  fprintf(stdout,"\n");
+    fprintf(stdout, "Usage:\n");
+    fprintf(stdout, "  genpw\n");
+    fprintf(stdout, "\n");
 }
 
-int main()
-{
-  const size_t len = 32;
+int main() {
+    const size_t len = 32;
 
-  unsigned char *bits = randomGenerate(len);
-  unsigned char *pw = passwordGenerate(bits, len);
+    unsigned char *bits = randomGenerate(len);
+    unsigned char *pw = passwordGenerate(bits, len);
 
-  double entropy = entropyTotalBytes(pw, len);
-  
-  fprintf(stdout, "%s (%.1lf bits of entropy)\n", pw, entropy);
+    double entropy = entropyTotalBytes(pw, len);
 
-  free(pw);
-  free(bits);
-  
-  return 0;
+    fprintf(stdout, "%s (%.1lf bits of entropy)\n", pw, entropy);
+
+    free(pw);
+    free(bits);
+
+    return 0;
 }

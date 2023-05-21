@@ -11,7 +11,7 @@
 
 
 double logSpeedInit(volatile logSpeedType *l) {
-  l->starttime = timedouble();
+  l->starttime = timeAsDouble();
   l->lasttime = l->starttime;
   l->num = 0;
   l->alloc = 10000;
@@ -23,7 +23,7 @@ double logSpeedInit(volatile logSpeedType *l) {
 
 void logSpeedReset(logSpeedType *l) {
   if (l) {
-    l->starttime = timedouble();
+    l->starttime = timeAsDouble();
     l->lasttime = l->starttime;
     l->num = 0;
   }
@@ -53,7 +53,7 @@ int logSpeedAdd2(logSpeedType *l, double value, size_t count) {
     //    fprintf(stderr,"new size %zd\n", l->num);
   } 
   // fprintf(stderr,"it's been %zd bytes in %lf time, is %lf, total %zd, %lf,  %lf sec\n", value, timegap, value/timegap, l->total, l->total/logSpeedTime(l), logSpeedTime(l));
-  l->rawtime[l->num] = timedouble();
+  l->rawtime[l->num] = timeAsDouble();
   l->lasttime = l->rawtime[l->num];
   l->rawvalues[l->num] = value;
   l->rawcount[l->num] = count;

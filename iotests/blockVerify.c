@@ -92,7 +92,7 @@ static void *runThread(void *arg) {
     if (!keepRunning) {break;}
     if (positions[i].action == 'W' && positions[i].success) {
       threadContext->bytesRead += positions[i].len;
-      //      double start = timedouble();
+      //      double start = timeAsDouble();
       int ret = verifyPosition(&positions[i], threadContext->randomBuffer, buf, positions[i].len, positions[i].pos);
 
       if (ret !=0) {
@@ -101,7 +101,7 @@ static void *runThread(void *arg) {
 	  fprintf(stderr,"*info* !surprise! the read worked again the second time!\n");
 	}
       }
-//      threadContext->elapsed = timedouble() - start;
+//      threadContext->elapsed = timeAsDouble() - start;
       switch (ret) {
       case 0: threadContext->correct++; break;
       case -1: threadContext->ioerrors++; break;
@@ -136,7 +136,7 @@ int verifyPositions(positionType *positions, size_t numPositions,char *randomBuf
   threadInfoType *threadContext;
   CALLOC(threadContext, threads, sizeof(threadInfoType));
 
-  double start = timedouble();
+  double start = timeAsDouble();
     
   for (size_t i =0 ; i < threads; i++) {
     threadContext[i].id = i;
@@ -163,7 +163,7 @@ int verifyPositions(positionType *positions, size_t numPositions,char *randomBuf
     pthread_join(pt[i], NULL);
   }
 
-  double elapsed = timedouble() - start;
+  double elapsed = timeAsDouble() - start;
 
   size_t tr = 0;
   for (size_t i = 0; i < threads; i++) {

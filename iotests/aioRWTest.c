@@ -73,7 +73,7 @@ void intHandler(int d) {
 
 void handle_args(int argc, char *argv[]) {
   int opt;
-  seed = (long int) (timedouble());
+  seed = (long int) (timeAsDouble());
   if (seed < 0) seed=-seed;
   seed = seed & 0xffff; // only one of 65536 values
   srand48(seed);
@@ -575,14 +575,14 @@ int main(int argc, char *argv[]) {
 	      // setup random positions. An value of 0 means random. e.g. zero sequential files
 	      setupPositions(positions, &maxPositions, deviceList, deviceCount, 0, rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
 
-	      start = timedouble(); // start timing after positions created
+	      start = timeAsDouble(); // start timing after positions created
 	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot, dontExitOnErrors, ioc, contextCount);
 	    } else {
 	      // setup multiple/parallel sequential region
 	      setupPositions(positions, &maxPositions, deviceList, deviceCount, ssArray[ssindex], rrArray[rrindex], bsArray[bsindex], bsArray[bsindex], alignment, singlePosition, jumpStep, startAtZero, bdSizeWeAreUsing, blocksFromEnd, &cigar, seed);
 
 	      
-	      start = timedouble(); // start timing after positions created
+	      start = timeAsDouble(); // start timing after positions created
 	      rb = aioMultiplePositions(positions, maxPositions, exitAfterSeconds, qdArray[qdindex], 0, 1, &l, NULL, randomBuffer, bsArray[bsindex], alignment, &ios, &totalRB, &totalWB, oneShot, dontExitOnErrors, ioc, contextCount);
 	    }
 	    if (verbose) {
@@ -597,7 +597,7 @@ int main(int argc, char *argv[]) {
 	      fprintf(stderr,"\n");
 	    }
 
-	    elapsed = timedouble() - start;
+	    elapsed = timeAsDouble() - start;
 	      
 	    diskStatFinish(&dst);
 
@@ -673,7 +673,7 @@ int main(int argc, char *argv[]) {
       fprintf(stderr,"\n");
     }
     
-    double elapsed = timedouble() - start;
+    double elapsed = timeAsDouble() - start;
 
     if (logPositions) { 
       fprintf(stderr, "*info* writing positions to '%s'\n", logPositions); 

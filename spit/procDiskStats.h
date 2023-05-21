@@ -49,45 +49,47 @@
 /* 		==  ===================================== */
 
 /* 		For more details refer to Documentation/admin-guide/iostats. */
-  
-typedef struct {
-  size_t majorNumber;  // 1
-  size_t minorNumber;  // 2 
-  char *deviceName;    // 3
-  size_t readsCompleted; // 4
-  size_t readsMerged;  // 5
-  size_t sectorsRead;  //6
-  size_t timeSpentReading_ms;  //7
-  size_t writesCompleted; // 8
-  size_t writesMerged;    // 9
-  size_t sectorsWritten;  // 10
-  size_t timeSpentWriting_ms; // 11
-  size_t IOsCurrentInProgress; // 12
-  size_t timeSpentDoingIO_ms;  // 13
-  size_t weightedTimeSpentDoingIOs_ms; // 14
-  size_t discardsCompleteSuccessfully; // 15
-  size_t discardsMerged; // 16
-  size_t sectorsDiscarded; // 17
-  size_t timeSpentDiscarding; // 18
 
-  char *serialShort;
-  char *idVendor;
-  char *idModel;
+typedef struct {
+    size_t majorNumber;  // 1
+    size_t minorNumber;  // 2
+    char *deviceName;    // 3
+    size_t readsCompleted; // 4
+    size_t readsMerged;  // 5
+    size_t sectorsRead;  //6
+    size_t timeSpentReading_ms;  //7
+    size_t writesCompleted; // 8
+    size_t writesMerged;    // 9
+    size_t sectorsWritten;  // 10
+    size_t timeSpentWriting_ms; // 11
+    size_t IOsCurrentInProgress; // 12
+    size_t timeSpentDoingIO_ms;  // 13
+    size_t weightedTimeSpentDoingIOs_ms; // 14
+    size_t discardsCompleteSuccessfully; // 15
+    size_t discardsMerged; // 16
+    size_t sectorsDiscarded; // 17
+    size_t timeSpentDiscarding; // 18
+
+    char *serialShort;
+    char *idVendor;
+    char *idModel;
 } procDiskLineType;
 
 typedef struct {
-  size_t num;
-  procDiskLineType *devices;
-  double sampleTime;
-  double startTime;
-} procDiskStatsType; 
+    size_t num;
+    procDiskLineType *devices;
+    double sampleTime;
+    double startTime;
+} procDiskStatsType;
 
 void procDiskStatsInit(procDiskStatsType *d);
 
 void procDiskStatsSample(procDiskStatsType *d);
 
 void procDiskStatsDump(procDiskStatsType *d);
-void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres, mapVoidType *map_r, mapVoidType *map_w, const double zscore);
+
+void procDiskStatsDumpThres(FILE *fp, procDiskStatsType *d, float msthres, mapVoidType *map_r, mapVoidType *map_w,
+                            const double zscore);
 
 void procDiskStatsFree(procDiskStatsType *d);
 

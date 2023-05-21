@@ -17,7 +17,7 @@ size_t totalswap() {
   return info.totalswap;
 }
 
-inline double timedouble() {
+inline double timeAsDouble() {
   struct timeval now;
   gettimeofday(&now, NULL);
   double tm = ((double)now.tv_sec * 1000000.0) + now.tv_usec;
@@ -52,11 +52,11 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* setting pattern to %2x\n", pattern[pat]);
     memset(c, pattern[pat], ram);
 
-    double starttime = timedouble();
+    double starttime = timeAsDouble();
     double runtime = 5* 60;
     size_t pass = 1;
-    while (timedouble() - starttime < runtime) { // 5 mins
-      fprintf(stderr,"*info* pass %zd looking for non %2x (%.0lf secs remain)\n", pass++, pattern[pat], runtime - (timedouble() - starttime));
+    while (timeAsDouble() - starttime < runtime) { // 5 mins
+      fprintf(stderr,"*info* pass %zd looking for non %2x (%.0lf secs remain)\n", pass++, pattern[pat], runtime - (timeAsDouble() - starttime));
       if (errors) {
 	fprintf(stderr,"**ERROR** memory errors: %zd\n", errors);
       }

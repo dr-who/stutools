@@ -195,10 +195,10 @@ static void *runVerifyThread(void *arg)
 	memcpy(randombuf, pp, sizeof(size_t));
 	int ret = verifyPosition(fd, pp, randombuf, buf, &diff, lastseed, 0, threadContext->b->onlycheckfirst);
 	if (ret == 0) {
-	  if (verbose) fprintf(stdout,"verify %lf [%zd] %d %zd, num %zd\n", timedouble(), threadContext->id, pp->deviceid, pp->pos, threadContext->b->numPositions);
+	  if (verbose) fprintf(stdout, "verify %lf [%zd] %d %zd, num %zd\n", timeAsDouble(), threadContext->id, pp->deviceid, pp->pos, threadContext->b->numPositions);
 	  threadContext->correct++;
 	} else {
-	  fprintf(stdout,"error %lf [%zd] %d %zd, num %zd\n", timedouble(), threadContext->id, pp->deviceid, pp->pos, threadContext->b->numPositions);
+	  fprintf(stdout, "error %lf [%zd] %d %zd, num %zd\n", timeAsDouble(), threadContext->id, pp->deviceid, pp->pos, threadContext->b->numPositions);
 	  fprintf(stderr,"*error* incorrect block at position %zd\n", pp->pos);
 	  threadContext->wrong++;
 	  if (threadContext->wrong > 2) {
@@ -280,7 +280,7 @@ blockVerifyType blockVerifySetup(size_t threads, size_t merge, size_t randomize,
   b.p = NULL;
   b.minbs = 9e9;
   b.onlycheckfirst = onlycheckfirst;
-  b.start = timedouble();
+  b.start = timeAsDouble();
 
   return b;
 }
@@ -294,7 +294,7 @@ void blockVerifyStop(blockVerifyType *b) {
 }
 
 void blockVerifyFinish(blockVerifyType *b) {
-  b->finish = timedouble();
+  b->finish = timeAsDouble();
   size_t bbb = 0, ccc = 0, www = 0;
   for (size_t i = 1; i <= b->threads; i++) {
     pthread_join(pt[i], NULL);
