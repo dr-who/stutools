@@ -82,7 +82,15 @@ void latencyOverTime(positionContainer *origpc) {
 
 void latencyLenVsLatency(positionContainer *origpc, int num) {
   FILE *fp_r = fopen("size_vs_latency_r.txt", "wt");
+  if (fp_r == NULL) {
+    perror("size_vs_latency_r.txt");
+    return;
+  }
   FILE *fp_w = fopen("size_vs_latency_w.txt", "wt");
+  if (fp_w == NULL) {
+    perror("size_vs_latency_w.txt");
+    return;
+  }
   assert(fp_r);
   assert(fp_w);
   const double jitter = 10.0 / 100.0; // 10%
@@ -120,7 +128,7 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
     fprintf(fp, "set ylabel 'Latency (s)'\n");
     fprintf(fp, "plot 'size_vs_latency_r.txt' using 1:2:2 with %s palette title 'Block reads', 'size_vs_latency_w.txt' using 1:2:2 with %s palette title 'Block writes'\n", type, type);
   } else {
-    perror("filename");
+    perror("size_vs_latency.gnu");
   }
   fclose(fp);
 }
@@ -184,7 +192,7 @@ void latencyReadGnuplot(latencyType *lat) {
     fprintf(fp, "set y2label 'Confidence level'\n");
     fprintf(fp, "plot 'spit-latency-histogram-read.txt' using 1:2 with imp title 'Read Latency', 'spit-latency-histogram-read.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.3lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
   } else {
-    perror("filename");
+    perror("spit-latency-histogram-read.gnu");
   }
   if (fp) {
     fclose(fp);
@@ -216,7 +224,7 @@ void latencyWriteGnuplot(latencyType *lat) {
     fprintf(fp, "set y2label 'Confidence level'\n");
     fprintf(fp, "plot 'spit-latency-histogram-write.txt' using 1:2 with imp title 'Write Latency', 'spit-latency-histogram-write.txt' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.3lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n", median, median, three9, three9, four9, four9, five9, five9);
   } else {
-    perror("filename");
+    perror("spit-latency-histogram-write.gnu");
   }
   if (fp) {
     fclose(fp);
