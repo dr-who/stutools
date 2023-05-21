@@ -354,3 +354,10 @@ add_test(testspit_J4S100  spit -f wow -G 1GiB -c ws0J4S100 -v -t 5 )
 
 #set (CTEST_TEST_TIMEOUT 1)
 #add_test(testspit_fuzz spit fuzz wow)
+
+set_property(
+  TARGET spit
+  APPEND
+  PROPERTY ADDITIONAL_CLEAN_FILES spit-version.h
+)
+      
