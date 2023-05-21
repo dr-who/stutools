@@ -5,7 +5,22 @@ get_directory_property(hasParent PARENT_DIRECTORY)
 if(NOT hasParent)
   include( ${CMAKE_CURRENT_SOURCE_DIR}/../utils/Version.cmake)
 endif()
-  
+
+execute_process(COMMAND git describe --tags
+    OUTPUT_VARIABLE GIT_REV
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+# This is used if there is no tag or the working dir is not a git repo.
+if("${GIT_REV}" STREQUAL "")
+    set(GIT_REV "1.1-unofficial")
+endif()
+
+set(VERSION "const char* SPIT_VERSION=\"${GIT_REV}\";")
+
+if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/spit-version.h)
+    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/spit-version.h "${VERSION}")
+endif()
 
 include (CTest)
 
@@ -17,7 +32,7 @@ set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wall -pedantic --std=gn
 
 add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c procDiskStats.c mapVoid.c)
 
-add_executable(spit spit.c)
+add_executable(spit spit.c spit-version.h)
 target_link_libraries(spit spitlib m aio pthread numa)
 
 add_executable(snackrec netrec.c transfer.h)

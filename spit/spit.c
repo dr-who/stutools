@@ -3,13 +3,10 @@
 #define _GNU_SOURCE
 
 #include "jobType.h"
+#include "spit-version.h"
 #include <signal.h>
 #include <math.h>
 #include <linux/limits.h>
-
-#ifndef VERSION
-#define VERSION __TIMESTAMP__
-#endif
 
 /**
  * spit.c
@@ -837,7 +834,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
   fprintf(stdout, " OS: %s\n", os);
   if (os) free(os);
   fprintf(stdout, " RAM: %.0lf GiB (%.1lf GiB)\n", TOGiB(totalRAM()), TOGiB(ramBytesForPositions));
-  fprintf(stdout, " stutools: %s\n", VERSION);
+  fprintf(stdout, " stutools: %s\n", SPIT_VERSION);
   fprintf(stdout, "\n\n");
 
   diskStatType d;
@@ -1120,7 +1117,7 @@ int main(int argc, char *argv[])
 
   double starttime = timedouble();
 
-  fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], VERSION);
+  fprintf(stderr,"*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], SPIT_VERSION);
 
   if (swapTotal() > 0) {
     fprintf(stderr,"*warning* spit needs swap to be off for consistent numbers. `sudo swapoff -a`\n");
