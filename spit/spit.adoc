@@ -15,6 +15,28 @@ spit [ _OPTIONS_ ] ... _DEVICE(S)_ ... _COMMANDS_...
 
 == DESCRIPTION
 
+Spit is a comprehensive tool designed for testing block devices and
+file systems. It offers a robust suite of testing capabilities including
+latency tests, speed tests, and multi-threaded conflict resolution tests.
+
+It's particularly useful for validating system performance and reliability,
+with features specifically designed to test Non-Uniform Memory Access (NUMA)
+actions, caches, read-ahead and action ordering. This functionality helps in identifying and resolving
+ issues that might arise in custom block devices and file systems.
+
+Spit also supports decoupling of writes from verification, allowing
+system reboots in between, which is crucial for system resilience
+testing.
+
+This makes spit an indispensable tool for system administrators, developers,
+and performance engineers looking to evaluate and improve system performance
+and stability.
+
+This package contains the CLI version of spit and spitchecker.
+
+== PACKAGE
+
+
 spit(1) performs various I/O tests. The range of tests includes:
 
 * reading, writing, forwards, backwards, in stripes, back/forth, subsampling
@@ -42,6 +64,27 @@ To see the IO operations and positions use the dump/*-d* option to see the first
 
 e.g. *spit -f /dev/sda -c rzs1k1024 -d 20*
 
+== PROCESS FLOW
+
+The process flow is as follows:
+
+. Generate an array of positions. The position structure includes
+location, size and records the various timing information.
+
+. A set of precondition actions are optionally performed.
+
+. An outer loop is created. The outer loop is to enable periodic adjustment of the positions (resampling etc).
+
+. An inner loop is created. The inner loop quickly iterates over the
+position array. It has a variety of early exit conditions including:
+
+* bytes-processed limit
+* positions-processed limit
+* time-limit
+
+. The positions and their timing/location information can be optionally dumped to a file.
+
+. Performance/latency statistics are generated.
 
 == DEVICE(S)
  *-f device*::
@@ -72,7 +115,7 @@ e.g. *spit -f /dev/sda -c rzs1k1024 -d 20*
    The benchmarking file that has the per second read/write speed and IOPs
 
  *-P filename*::
-   All positions with their size and timing and read/write actions are output. This file can be used by *spitchecker* to verify the positions between run.s
+   All positions with their size and timing and read/write actions are output. This file can be used by *spitchecker* to verify the positions between run. Overlapping write actions that overlap in position are filtered to keep the most recent action.  The positions file can be later verified using the *spitchecker(1)* program. If *-P -* is used instead of a filename, the positions will be stream to stdout (without overlap filtering) so verification may not be possible if writes overlap.
    
  *-t s*::
    Limit the execution to *s* seconds (e.g. -t 30)
@@ -93,6 +136,8 @@ e.g. *spit -f /dev/sda -c rzs1k1024 -d 20*
  *-P filename*::
    Save position information to *filename*. The positions file contains the device, offset, size, random seed, start time, end time, latency, and more.
 
+ *-R seed*::
+   Specify the starting random *seed*
 
  *-v*::
    Verify writes by reading and checking. The positions can also be written using the global *P filename* command, then verified with *spitchecker*
@@ -130,11 +175,14 @@ The command options are described below:
  *Glow-high*::
    Limit the position range to *low* to *high* GB. (e.g. G2-3).
 
- *G_*::
-   The range can be specified with the syntax *G_* which will split the G ranges evenly between all threads (no thread contention). e.g. *spit -f /dev/device -c rzs1j32* will create 32 threads, all accessing the same block device, all reading the same positions. To partition the LBA space between threads use the *G_* option, which will first divide the LBA range by the number of threads.
- 
+ *H*::
+   Alternate the IOs per NUMA. e.g. run the first command first thread from NUMA0, then first command second thread from NUMA1. Use the *-d 10* option to dump out the commands per thread to understand it quickly.
+
  *j N*::
-   Multiply the number of commands (*-c*) by N. (e.g. -j 8). *-c rs0j8* will create 8 threads, each performing random reads. Each thread will be seeded with a unique random value so the random positions will not be the same. 
+   Create *N* threads with the same command. Using lowercase *j* the LBA range will first be divided by *N* to avoid overlapping thread ranges. Each thread will be seeded with a unique random value so the random positions will not be the same. 
+
+ *J N*::
+   Similar to lowercase *j*, but with uppercase *J* the range will be the same for all threads. Allows cache test and other conflict resolution.
 
  *kN* or *klowBS-highBS*::
    Block size or _lowblocksize_ to _highblocksize_ range. (e.g. k4-128). The hypen as a range will pick a value between the low and high range, in multiples of a 4KiB block size. The range with a colon (e.g. k4-128) will only pick values that are also powers of 2.
@@ -147,15 +195,6 @@ The command options are described below:
 
  *qN*::
    Queue depth
-
- *JN*::
-   Jumble/shuffle *N* values at a time. (e.g. s1J10 randomises each 10 values)
-
- *jN*::
-   Scales up the number of jobs. Similar to the global *j* command.
-
- *RN*::
-   Seed
 
  *sN*::
    number of contiguous sequence regions. *s0* means random, *s1* means
@@ -351,6 +390,10 @@ each round.
 == BUGS
 
 Bugs will be rewarded by choc fish... in person :)
+
+== SEE ALSO
+
+*spitchecker*(1)
 
 == AFFILIATIONS
 

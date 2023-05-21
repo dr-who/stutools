@@ -220,6 +220,7 @@ typedef struct {
     size_t posIncrement;
     size_t alternateEvery;
     int jmodonly;
+    size_t divideRange;
     size_t showdate;
     int copyMode;
     size_t completeCoverage;
@@ -1400,18 +1401,22 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
         int jcount = 1;
         {
-            // specify the block device size in GiB
-            char *charG = strchr(job->strings[i], 'j'); // j or J
+	  threadContext[i].jmodonly = 0;
+	  threadContext[i].divideRange = 1;
+	  // specify the block device size in GiB
+            char *charG = strchr(job->strings[i], 'j'); // j or J if threads are specified
             if (charG == NULL) {
                 charG = strchr(job->strings[i], 'J');
+		threadContext[i].divideRange = 0; // if J then allow the ranges to overlap
             }
 
             if (charG && *(charG + 1)) {
+	      // then with the threadcount, with H modulate the NUMA actions
                 jcount = atoi(charG + 1);
                 if (jcount < 1) jcount = 1;
-                if (*charG == 'J') {
-                    //	  fprintf(stderr,"*info* jmodonly = %d\n", jcount);
-                    threadContext[i].jmodonly = jcount;
+		if (strchr(job->strings[i], 'H')) {
+		  fprintf(stderr,"*info* jmodonly = %d\n", jcount);
+		  threadContext[i].jmodonly = jcount;
                 }
             }
         }
@@ -1438,53 +1443,52 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         size_t mod = 1;
         size_t remain = 0;
         {
-            // specify the block device size in GiB
+	    // if the block device size has been specified the block device size in GiB
+  	    double lowg = minSizeInBytes, highg = maxSizeInBytes;
             char *charG = strchr(job->strings[i], 'G');
             if (charG && *(charG + 1)) {
-                double lowg = 0, highg = 0;
+		
+		char retch = '-';
+		splitRangeChar(charG + 1, &lowg, &highg, &retch);
+		if (lowg > highg) {
+		  fprintf(stderr, "*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
+		  lowg = 0;
+		  //	  exit(1);
+		}
+		lowg = lowg * 1024 * 1024 * 1024;
+		highg = highg * 1024 * 1024 * 1024;
+		
+		if (retch == '_') {
+		  size_t __lowg = (size_t) lowg + (jindex * 1.0 / (jcount)) * (size_t) (highg - lowg);
+		  size_t __highg = (size_t) lowg + ((jindex + 1) * 1.0 / (jcount)) * (size_t) (highg - lowg);
+		  lowg = __lowg;
+		  highg = __highg;
+		}
 
-                if ((jcount > 1) && (*(charG + 1) == '_')) {
-                    // 2: 1/1
-                    lowg = minSizeInBytes + (jindex * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
-                    highg = minSizeInBytes + ((jindex + 1) * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
-                } else if ((jcount > 1) && (*(charG + 1) == '%')) {
-                    // 2: 1/1
-                    mod = jcount;
-                    remain = i;
-                } else {
-                    char retch = '-';
-                    splitRangeChar(charG + 1, &lowg, &highg, &retch);
-                    if (lowg > highg) {
-                        fprintf(stderr, "*error* low range needs to be lower [%.1lf, %.1lf]\n", lowg, highg);
-                        lowg = 0;
-                        //	  exit(1);
-                    }
-                    lowg = lowg * 1024 * 1024 * 1024;
-                    highg = highg * 1024 * 1024 * 1024;
-
-                    if (retch == '_') {
-                        size_t __lowg = (size_t) lowg + (jindex * 1.0 / (jcount)) * (size_t) (highg - lowg);
-                        size_t __highg = (size_t) lowg + ((jindex + 1) * 1.0 / (jcount)) * (size_t) (highg - lowg);
-                        lowg = __lowg;
-                        highg = __highg;
-                    }
-
-                }
                 if (lowg == highg) { // if both the same, same as just having 1
-                    lowg = minSizeInBytes;
+		  lowg = minSizeInBytes;
                 }
                 if (lowg < minSizeInBytes) lowg = minSizeInBytes;
                 if (lowg > maxSizeInBytes) lowg = minSizeInBytes;
                 if (highg > maxSizeInBytes) highg = maxSizeInBytes;
                 if (highg < minSizeInBytes) highg = minSizeInBytes;
                 if (highg - lowg < 4096) { // if both the same, same as just having 1
-                    lowg = minSizeInBytes;
-                    highg = maxSizeInBytes;
+		  lowg = minSizeInBytes;
+		  highg = maxSizeInBytes;
                 }
-                localminbdsize = alignedNumber(lowg, 4096);
-                localmaxbdsize = alignedNumber(highg, 4096);
+		fprintf(stderr,"*info* G option specified, range [%.3lf, %.3lf]\n", TOGiB(lowg), TOGiB(highg));
             }
+	    if ((jcount > 1) && threadContext[i].divideRange) {
+	      // 2: 1/1
+	      fprintf(stderr,"*info divide range option\n");
+	      lowg = minSizeInBytes + (jindex * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
+	      highg = minSizeInBytes + ((jindex + 1) * 1.0 / (jcount)) * (maxSizeInBytes - minSizeInBytes);
+	    }
+	    localminbdsize = alignedNumber(lowg, 4096);
+	    localmaxbdsize = alignedNumber(highg, 4096);
         }
+
+	
 
         {
             // specify the block device size in bytes

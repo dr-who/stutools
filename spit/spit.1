@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
-.\" Generator: Asciidoctor 2.0.18
-.\"      Date: 2023-05-20
+.\" Generator: Asciidoctor 2.0.10
+.\"      Date: 2023-05-22
 .\"    Manual: spit manual
 .\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2023-05-20" "spit 1.2" "spit manual"
+.TH "SPIT" "1" "2023-05-22" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -28,11 +28,31 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-spit \- Stu\*(Aqs powerful I/O tester
+spit \- Stu\(aqs powerful I/O tester
 .SH "SYNOPSIS"
 .sp
 spit [ \fIOPTIONS\fP ] ... \fIDEVICE(S)\fP ... \fICOMMANDS\fP...
 .SH "DESCRIPTION"
+.sp
+Spit is a comprehensive tool designed for testing block devices and
+file systems. It offers a robust suite of testing capabilities including
+latency tests, speed tests, and multi\-threaded conflict resolution tests.
+.sp
+It\(cqs particularly useful for validating system performance and reliability,
+with features specifically designed to test Non\-Uniform Memory Access (NUMA)
+actions, caches, read\-ahead and action ordering. This functionality helps in identifying and resolving
+issues that might arise in custom block devices and file systems.
+.sp
+Spit also supports decoupling of writes from verification, allowing
+system reboots in between, which is crucial for system resilience
+testing.
+.sp
+This makes spit an indispensable tool for system administrators, developers,
+and performance engineers looking to evaluate and improve system performance
+and stability.
+.sp
+This package contains the CLI version of spit and spitchecker.
+.SH "PACKAGE"
 .sp
 spit(1) performs various I/O tests. The range of tests includes:
 .sp
@@ -188,6 +208,110 @@ e.g.
 To see the IO operations and positions use the dump/\fB\-d\fP option to see the first 20 positions.
 .sp
 e.g. \fBspit \-f /dev/sda \-c rzs1k1024 \-d 20\fP
+.SH "PROCESS FLOW"
+.sp
+The process flow is as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+Generate an array of positions. The position structure includes
+location, size and records the various timing information.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 2." 4.2
+.\}
+A set of precondition actions are optionally performed.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 3." 4.2
+.\}
+An outer loop is created. The outer loop is to enable periodic adjustment of the positions (resampling etc).
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 4." 4.2
+.\}
+An inner loop is created. The inner loop quickly iterates over the
+position array. It has a variety of early exit conditions including:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+bytes\-processed limit
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+positions\-processed limit
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+time\-limit
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 5." 4.2
+.\}
+The positions and their timing/location information can be optionally dumped to a file.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 6.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 6." 4.2
+.\}
+Performance/latency statistics are generated.
+.RE
 .SH "DEVICE(S)"
 .sp
 \fB\-f device\fP
@@ -235,7 +359,7 @@ The benchmarking file that has the per second read/write speed and IOPs
 .sp
 \fB\-P filename\fP
 .RS 4
-All positions with their size and timing and read/write actions are output. This file can be used by \fBspitchecker\fP to verify the positions between run.s
+All positions with their size and timing and read/write actions are output. This file can be used by \fBspitchecker\fP to verify the positions between run. Overlapping write actions that overlap in position are filtered to keep the most recent action.  The positions file can be later verified using the \fBspitchecker(1)\fP program. If \fB\-P \-\fP is used instead of a filename, the positions will be stream to stdout (without overlap filtering) so verification may not be possible if writes overlap.
 .RE
 .sp
 \fB\-t s\fP
@@ -267,6 +391,11 @@ Output MySQL options per machine/type. (e.g. \-N os=centos,version=1.2.59,machin
 \fB\-P filename\fP
 .RS 4
 Save position information to \fBfilename\fP. The positions file contains the device, offset, size, random seed, start time, end time, latency, and more.
+.RE
+.sp
+\fB\-R seed\fP
+.RS 4
+Specify the starting random \fBseed\fP
 .RE
 .sp
 \fB\-v\fP
@@ -321,14 +450,19 @@ Set the read/write ratio to \fBN\fP. (e.g. p0 is write only, p1 is read only, p0
 Limit the position range to \fBlow\fP to \fBhigh\fP GB. (e.g. G2\-3).
 .RE
 .sp
-\fBG_\fP
+\fBH\fP
 .RS 4
-The range can be specified with the syntax \fBG_\fP which will split the G ranges evenly between all threads (no thread contention). e.g. \fBspit \-f /dev/device \-c rzs1j32\fP will create 32 threads, all accessing the same block device, all reading the same positions. To partition the LBA space between threads use the \fBG_\fP option, which will first divide the LBA range by the number of threads.
+Alternate the IOs per NUMA. e.g. run the first command first thread from NUMA0, then first command second thread from NUMA1. Use the \fB\-d 10\fP option to dump out the commands per thread to understand it quickly.
 .RE
 .sp
 \fBj N\fP
 .RS 4
-Multiply the number of commands (\fB\-c\fP) by N. (e.g. \-j 8). \fB\-c rs0j8\fP will create 8 threads, each performing random reads. Each thread will be seeded with a unique random value so the random positions will not be the same.
+Create \fBN\fP threads with the same command. Using lowercase \fBj\fP the LBA range will first be divided by \fBN\fP to avoid overlapping thread ranges. Each thread will be seeded with a unique random value so the random positions will not be the same.
+.RE
+.sp
+\fBJ N\fP
+.RS 4
+Similar to lowercase \fBj\fP, but with uppercase \fBJ\fP the range will be the same for all threads. Allows cache test and other conflict resolution.
 .RE
 .sp
 \fBkN\fP or \fBklowBS\-highBS\fP
@@ -349,21 +483,6 @@ Add the maximum block size to all positions
 \fBqN\fP
 .RS 4
 Queue depth
-.RE
-.sp
-\fBJN\fP
-.RS 4
-Jumble/shuffle \fBN\fP values at a time. (e.g. s1J10 randomises each 10 values)
-.RE
-.sp
-\fBjN\fP
-.RS 4
-Scales up the number of jobs. Similar to the global \fBj\fP command.
-.RE
-.sp
-\fBRN\fP
-.RS 4
-Seed
 .RE
 .sp
 \fBsN\fP
@@ -500,9 +619,7 @@ In the following commands, replace \fBr\fP with \fBw\fP for writes.
 .sp
 .if n .RS 4
 .nf
-.fam C
 Performs a single thread/job that performs reads, with 64 KiB reads
-.fam
 .fi
 .if n .RE
 .sp
@@ -510,9 +627,7 @@ Performs a single thread/job that performs reads, with 64 KiB reads
 .sp
 .if n .RS 4
 .nf
-.fam C
 Create 32 threads, with a single contigous read inside each thread
-.fam
 .fi
 .if n .RE
 .sp
@@ -520,9 +635,7 @@ Create 32 threads, with a single contigous read inside each thread
 .sp
 .if n .RS 4
 .nf
-.fam C
 Create a single threads, break the device into 32 contiguous regions
-.fam
 .fi
 .if n .RE
 .SS "Random read / writes"
@@ -531,9 +644,7 @@ Create a single threads, break the device into 32 contiguous regions
 .sp
 .if n .RS 4
 .nf
-.fam C
 Performs a single thread/job, random 4KiB reads
-.fam
 .fi
 .if n .RE
 .sp
@@ -541,9 +652,7 @@ Performs a single thread/job, random 4KiB reads
 .sp
 .if n .RS 4
 .nf
-.fam C
 Creates 32 threads, reads random 4KiB reads
-.fam
 .fi
 .if n .RE
 .sp
@@ -551,10 +660,8 @@ Creates 32 threads, reads random 4KiB reads
 .sp
 .if n .RS 4
 .nf
-.fam C
 Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GB.
 For devices with cache these operations should be cached.
-.fam
 .fi
 .if n .RE
 .sp
@@ -562,9 +669,7 @@ For devices with cache these operations should be cached.
 .sp
 .if n .RS 4
 .nf
-.fam C
 Read from the first 10,000 positions (4 KiB) blocks in a device.
-.fam
 .fi
 .if n .RE
 .SS "Mixing reads/writes"
@@ -573,10 +678,8 @@ Read from the first 10,000 positions (4 KiB) blocks in a device.
 .sp
 .if n .RS 4
 .nf
-.fam C
 Two threads, one reading/write metadata to 10,000 positions. Another
 thread performing sequential reads.
-.fam
 .fi
 .if n .RE
 .sp
@@ -584,9 +687,7 @@ thread performing sequential reads.
 .sp
 .if n .RS 4
 .nf
-.fam C
 Two threads, both sequential, one reading, one writing.
-.fam
 .fi
 .if n .RE
 .sp
@@ -594,9 +695,7 @@ Two threads, both sequential, one reading, one writing.
 .sp
 .if n .RS 4
 .nf
-.fam C
 Two threads, both random, one reading, one writing.
-.fam
 .fi
 .if n .RE
 .sp
@@ -604,10 +703,8 @@ Two threads, both random, one reading, one writing.
 .sp
 .if n .RS 4
 .nf
-.fam C
 On a 200 GB device perform linear writes in the first half and
 random writes on the second half.
-.fam
 .fi
 .if n .RE
 .SH "COMBINATIONS"
@@ -780,6 +877,9 @@ Failure (syntax of usage error).
 .SH "BUGS"
 .sp
 Bugs will be rewarded by choc fish... in person :)
+.SH "SEE ALSO"
+.sp
+\fBspitchecker\fP(1)
 .SH "AFFILIATIONS"
 .sp
 Department of Computer Science, University of Waikato, New Zealand.
