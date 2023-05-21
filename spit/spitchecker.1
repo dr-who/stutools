@@ -1,0 +1,104 @@
+'\" t
+.\"     Title: spitchecker
+.\"    Author: Stuart Inglis, Ph.D.
+.\" Generator: Asciidoctor 2.0.10
+.\"      Date: 2023-05-22
+.\"    Manual: spitchecker manual
+.\"    Source: spit 1.2
+.\"  Language: English
+.\"
+.TH "SPITCHECKER" "1" "2023-05-22" "spit 1.2" "spitchecker manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+spitchecker \- replay and verify previously recorded I/O
+.SH "SYNOPSIS"
+.sp
+spitchecker [ \fIOPTIONS\fP ] ... \fIPOSITION FILE\fP...
+.SH "DESCRIPTION"
+.sp
+After spit has written a variety of IO operations and they are
+recorded with the \fB\-P positions\fP option, this file can be replayed.
+.sp
+Each write was generated using a random seed, and the random seed is included in the positions file.
+.sp
+This enables a read to be performed and compared for correctness.
+.SH "SIMPLE EXAMPLE"
+.sp
+e.g.
+\fBspitchecker positions.txt\fP
+.SH "PROCESS FLOW"
+
+.SH "OPTIONS"
+.sp
+\fB\-4\fP
+.RS 4
+For large blocks, only read and compare the first 4KiB
+.RE
+.sp
+\fB\-D\fP
+.RS 4
+Turn off IO_DIRECT.
+.RE
+.sp
+\fB\-t n\fP
+.RS 4
+Specify the number of threads to run IO in parallel.
+.RE
+.sp
+\fB\-b n\fP
+.RS 4
+Perform IO in batches. This helps when IO operations are sorted by their position, to attempt to linearise random writes.
+.RE
+.sp
+\fB\-n\fP
+.RS 4
+Don\(cqt sort positions. Execute verification in the same order as they\(cqre in the positions file.
+.RE
+.sp
+\fB\-E n\fP
+.RS 4
+Exit after \fBn\fP errors.
+.RE
+.SH "EXIT STATUS"
+.sp
+\fB0\fP
+.RS 4
+Success.
+.RE
+.sp
+\fBnon\-zero\fP
+.RS 4
+Failure
+.RE
+.SH "BUGS"
+.sp
+Bugs will be rewarded by choc fish... in person :)
+.SH "SEE ALSO"
+.sp
+\fBspit\fP(1)
+.SH "AFFILIATIONS"
+.sp
+Department of Computer Science, University of Waikato, New Zealand.
+.sp
+Visit us, it\(cqs a lovely campus and a great place to live.
+.SH "AUTHOR"
+.sp
+Stuart Inglis, Ph.D.

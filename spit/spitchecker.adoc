@@ -1,0 +1,72 @@
+= spitchecker(1)
+Stuart Inglis, Ph.D.
+:doctype: manpage
+:man manual: spitchecker manual
+:man source: spit 1.2
+:page-layout: base
+
+== NAME
+
+spitchecker - replay and verify previously recorded I/O
+
+== SYNOPSIS
+
+spitchecker [ _OPTIONS_ ] ... _POSITION FILE_...
+
+== DESCRIPTION
+
+After spit has written a variety of IO operations and they are
+recorded with the *-P positions* option, this file can be replayed.
+
+Each write was generated using a random seed, and the random seed is included in the positions file.
+
+This enables a read to be performed and compared for correctness.
+
+== SIMPLE EXAMPLE
+
+e.g.
+  *spitchecker positions.txt*
+
+
+== PROCESS FLOW
+
+== OPTIONS
+ *-4*::
+   For large blocks, only read and compare the first 4KiB
+
+ *-D*::
+   Turn off IO_DIRECT.
+
+ *-t n*::
+   Specify the number of threads to run IO in parallel.
+
+ *-b n*::
+   Perform IO in batches. This helps when IO operations are sorted by their position, to attempt to linearise random writes.
+      
+ *-n*::
+   Don't sort positions. Execute verification in the same order as they're in the positions file.
+
+*-E n*::
+   Exit after *n* errors.
+
+== EXIT STATUS
+
+*0*::
+  Success.
+
+*non-zero*::
+  Failure 
+  
+== BUGS
+
+Bugs will be rewarded by choc fish... in person :)
+
+== SEE ALSO
+
+*spit*(1)
+
+== AFFILIATIONS
+
+Department of Computer Science, University of Waikato, New Zealand.
+
+Visit us, it's a lovely campus and a great place to live.
