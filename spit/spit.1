@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
-.\" Generator: Asciidoctor 2.0.10
-.\"      Date: 2023-05-21
+.\" Generator: Asciidoctor 2.0.18
+.\"      Date: 2023-05-20
 .\"    Manual: spit manual
 .\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2023-05-21" "spit 1.2" "spit manual"
+.TH "SPIT" "1" "2023-05-20" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -28,7 +28,7 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-spit \- Stu\(aqs powerful I/O tester
+spit \- Stu\*(Aqs powerful I/O tester
 .SH "SYNOPSIS"
 .sp
 spit [ \fIOPTIONS\fP ] ... \fIDEVICE(S)\fP ... \fICOMMANDS\fP...
@@ -255,7 +255,8 @@ Specify the amount of RAM to use for the position information. \f(CRspit\fP stor
 .sp
 \fB\-M options\fP
 .RS 4
-Output MySQL options per test. (e.g. \-M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1,precondition=GI20000)
+Output MySQL options per test. (e.g. \-M iotype=write,opsize=64,iopattern=rand,qd=128,devicestate=burst,\(rs
+degraded=0,k=10,m=2,encryption=none,checksum=crc32c,cache=1,precondition=GI20000)
 .RE
 .sp
 \fB\-N options\fP
@@ -499,7 +500,9 @@ In the following commands, replace \fBr\fP with \fBw\fP for writes.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Performs a single thread/job that performs reads, with 64 KiB reads
+.fam
 .fi
 .if n .RE
 .sp
@@ -507,7 +510,9 @@ Performs a single thread/job that performs reads, with 64 KiB reads
 .sp
 .if n .RS 4
 .nf
+.fam C
 Create 32 threads, with a single contigous read inside each thread
+.fam
 .fi
 .if n .RE
 .sp
@@ -515,7 +520,9 @@ Create 32 threads, with a single contigous read inside each thread
 .sp
 .if n .RS 4
 .nf
+.fam C
 Create a single threads, break the device into 32 contiguous regions
+.fam
 .fi
 .if n .RE
 .SS "Random read / writes"
@@ -524,7 +531,9 @@ Create a single threads, break the device into 32 contiguous regions
 .sp
 .if n .RS 4
 .nf
+.fam C
 Performs a single thread/job, random 4KiB reads
+.fam
 .fi
 .if n .RE
 .sp
@@ -532,7 +541,9 @@ Performs a single thread/job, random 4KiB reads
 .sp
 .if n .RS 4
 .nf
+.fam C
 Creates 32 threads, reads random 4KiB reads
+.fam
 .fi
 .if n .RE
 .sp
@@ -540,8 +551,10 @@ Creates 32 threads, reads random 4KiB reads
 .sp
 .if n .RS 4
 .nf
+.fam C
 Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GB.
 For devices with cache these operations should be cached.
+.fam
 .fi
 .if n .RE
 .sp
@@ -549,7 +562,9 @@ For devices with cache these operations should be cached.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Read from the first 10,000 positions (4 KiB) blocks in a device.
+.fam
 .fi
 .if n .RE
 .SS "Mixing reads/writes"
@@ -558,8 +573,10 @@ Read from the first 10,000 positions (4 KiB) blocks in a device.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Two threads, one reading/write metadata to 10,000 positions. Another
 thread performing sequential reads.
+.fam
 .fi
 .if n .RE
 .sp
@@ -567,7 +584,9 @@ thread performing sequential reads.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Two threads, both sequential, one reading, one writing.
+.fam
 .fi
 .if n .RE
 .sp
@@ -575,7 +594,9 @@ Two threads, both sequential, one reading, one writing.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Two threads, both random, one reading, one writing.
+.fam
 .fi
 .if n .RE
 .sp
@@ -583,8 +604,10 @@ Two threads, both random, one reading, one writing.
 .sp
 .if n .RS 4
 .nf
+.fam C
 On a 200 GB device perform linear writes in the first half and
 random writes on the second half.
+.fam
 .fi
 .if n .RE
 .SH "COMBINATIONS"
@@ -740,8 +763,8 @@ T}
 .TE
 .sp
 .sp
-Note the \f(CRn\fP option performs a re\-sampling (it\(cqs not just a
-shuffle). The \f(CRN\fP option adds a blockSize value to each position after
+Note the \fBn\fP option performs a re\-sampling (it\(cqs not just a
+shuffle). The \fBN\fP option adds a blockSize value to each position after
 each round.
 .SH "EXIT STATUS"
 .sp
