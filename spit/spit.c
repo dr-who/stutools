@@ -67,10 +67,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     commandstring[0] = 0;
 
     optind = 0;
-    size_t jglobalcount = 1;
     size_t keepversions = 0;
 
-    const char *getoptstring = "hEj:b:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:T:rC:1L:DK:l:S:3";
+    const char *getoptstring = "hEb:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:T:rC:1L:DK:l:S:3";
 
     while ((opt = getopt(argc, argv, getoptstring)) != -1) {
         switch (opt) {
@@ -105,11 +104,6 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 break;
             case '1':
                 *forever = 1;
-                break;
-            case 'j':
-                jglobalcount = atoi(optarg);
-                fprintf(stderr,
-                        "*DEPRECATED, WILL BE REMOVED SOON* please move the j option into the -c command string\n");
                 break;
         }
     }
@@ -155,31 +149,19 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                     charJ = strchr(optarg, 'J');
                 }
 
-                int addthej = jglobalcount;
-                if (charJ) {
-                    //      fprintf(stderr,"has a %c\n", *charJ);
-                    addthej = 0;
-                }
-
-                int joption = 0;
+                size_t joption = 1;
                 if (charJ && *(charJ + 1)) {
                     joption = atoi(charJ + 1);
                     if (joption < 1) joption = 1;
                 }
-                size_t jcount = jglobalcount; // global is the default
-                if (joption) jcount = joption; // overwritten by an option
 
-                if (verbose && jcount > 1) {
-                    fprintf(stderr, "*info* adding command '%s' x %zd times\n", optarg, jcount);
-                }
-
-                for (size_t i = 0; i < jcount; i++) {
+                for (size_t i = 0; i < joption; i++) {
                     char temp[PATH_MAX];
-                    if (addthej) {
+		    /*                    if (addthej) {
                         sprintf(temp, "%s%c%zd#%zd", optarg, charJ ? *charJ : 'j', jcount, i);
-                    } else {
+			} else {*/
                         sprintf(temp, "%s#%zd", optarg, i);
-                    }
+			//                    }
                     //	fprintf(stderr,"Adding %s\n", temp);
                     jobAdd(&jtemp, temp);
                 }
@@ -648,7 +630,7 @@ void usage(void) {
     fprintf(stdout, "\nSpeed targets: (IOPS target)\n");
     fprintf(stdout, "  spit ... -c ws1S1000q1        # Target 1000 IOPS, with QD=1\n");
     fprintf(stdout,
-            "  spit -c ws1zk10001J2S1000     # Writing monotonically, but from alternating between two threads at 1 MB x 1000/s = 1 GB/s\n");
+            "  spit -c ws1zk10001J2HS1000     # Writing monotonically, but from alternating between two threads at 1 MB x 1000/s = 1 GB/s\n");
     fprintf(stdout, "  spit -F. -c ws1zx1j64S100q1 -G1 # creates files from .0001 to .0128, with IOPS targets\n");
     fprintf(stdout,
             "  spit ... -c ws1S100           # Targets slower IOPS, S100 targets 100 IOPS per thread, with default qd\n");
@@ -810,7 +792,7 @@ void usage(void) {
             "  spit ... -c rs0Y1000          # Limit the number of positions to process to 1,000 then end the run\n");
     fprintf(stdout, "  spit -c ... -D                # Display the 'D'ate/time per line\n");
     fprintf(stdout,
-            "  spit -f .. -c ws0J8           # Use 8 threads, but only do every 8th IO in each thread. For NUMA/S testing\n");
+            "  spit -f .. -c ws0j8H           # Use 8 threads, but only do every 8th IO in each thread. For NUMA/S testing\n");
 
     exit(0);
 }

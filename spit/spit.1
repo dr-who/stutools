@@ -50,9 +50,7 @@ testing.
 This makes spit an indispensable tool for system administrators, developers,
 and performance engineers looking to evaluate and improve system performance
 and stability.
-.sp
-This package contains the CLI version of spit and spitchecker.
-.SH "PACKAGE"
+.SH "FEATURES"
 .sp
 spit(1) performs various I/O tests. The range of tests includes:
 .sp
@@ -354,12 +352,17 @@ Limit the positions to a maximum of \fBsize\fP GB (e.g. \-G 32). Without a suffi
 .sp
 \fB\-B filename\fP
 .RS 4
-The benchmarking file that has the per second read/write speed and IOPs
+The benchmarking file that records the regular console output to the benchmark file. The format is described in the second below. To get more fine grained results decrease the \fB\-s time\fP option.
 .RE
 .sp
 \fB\-P filename\fP
 .RS 4
 All positions with their size and timing and read/write actions are output. This file can be used by \fBspitchecker\fP to verify the positions between run. Overlapping write actions that overlap in position are filtered to keep the most recent action.  The positions file can be later verified using the \fBspitchecker(1)\fP program. If \fB\-P \-\fP is used instead of a filename, the positions will be stream to stdout (without overlap filtering) so verification may not be possible if writes overlap.
+.RE
+.sp
+\fB\-s time\fP
+.RS 4
+Specify the time between regular output. The default is \fB\-s 1\fP, which is one output line per second. \fB\-s 0.01\fP will output every 1/100th of a second. \fB\-s 0\fP will start off fast and slow time over time.
 .RE
 .sp
 \fB\-t s\fP
@@ -707,6 +710,288 @@ On a 200 GB device perform linear writes in the first half and
 random writes on the second half.
 .fi
 .if n .RE
+.SH "FILE FORMATS"
+.SS "Position format (\-P output)"
+.sp
+The position file is tab separated. Make sure you process with tabs, as two of the columns include " GB" as a suffix.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+Device name
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 2." 4.2
+.\}
+Position on disk (in bytes)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 3." 4.2
+.\}
+Position on disk (in GB)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 4." 4.2
+.\}
+Position (as a percentage of the device)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 5." 4.2
+.\}
+Action: \(aqR\(aq, \(aqW\(aq
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 6.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 6." 4.2
+.\}
+Block length (in bytes)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 7.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 7." 4.2
+.\}
+Maximum block device size
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 8.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 8." 4.2
+.\}
+Maximum block device size (in GB)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 9.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 9." 4.2
+.\}
+Seed (used to calculate the random block)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 10.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 10." 4.2
+.\}
+Submit time
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 11.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 11." 4.2
+.\}
+Finish time
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 12.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 12." 4.2
+.\}
+Mean IO time
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 13.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 13." 4.2
+.\}
+Position index
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 14.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 14." 4.2
+.\}
+Number of samples that were performed
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 15.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 15." 4.2
+.\}
+Median IO time
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 16.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 16." 4.2
+.\}
+Max IO time
+.RE
+.SS "Benchmark format (\-B output)"
+.sp
+The benchmark format is tab separated.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+Elapsed time (seconds)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 2." 4.2
+.\}
+Unix time (seconds)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 3." 4.2
+.\}
+read bytes (MB)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 4." 4.2
+.\}
+read IOPS
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 5." 4.2
+.\}
+write bytes (MB)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 6.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 6." 4.2
+.\}
+write IOPS
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 7.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 7." 4.2
+.\}
+read bytes/s (MB/s)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 8.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 8." 4.2
+.\}
+write bytes/s (MB/s)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 9.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 9." 4.2
+.\}
+device util
+.RE
 .SH "COMBINATIONS"
 .sp
 Using 1 GiB and 1 MiB blocks (e.g. \fBspit \-f device \-G 1GiB \-c rM1...\fP) the following options have the following behaviour:

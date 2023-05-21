@@ -32,9 +32,7 @@ This makes spit an indispensable tool for system administrators, developers,
 and performance engineers looking to evaluate and improve system performance
 and stability.
 
-This package contains the CLI version of spit and spitchecker.
-
-== PACKAGE
+== FEATURES
 
 
 spit(1) performs various I/O tests. The range of tests includes:
@@ -112,10 +110,13 @@ position array. It has a variety of early exit conditions including:
    Limit the positions to a maximum of *size* GB (e.g. -G 32). Without a suffix the units are in GB. Optional suffixes include: GiB, TiB, TB, PiB, PB.
 
  *-B filename*::
-   The benchmarking file that has the per second read/write speed and IOPs
+   The benchmarking file that records the regular console output to the benchmark file. The format is described in the second below. To get more fine grained results decrease the *-s time* option.
 
  *-P filename*::
    All positions with their size and timing and read/write actions are output. This file can be used by *spitchecker* to verify the positions between run. Overlapping write actions that overlap in position are filtered to keep the most recent action.  The positions file can be later verified using the *spitchecker(1)* program. If *-P -* is used instead of a filename, the positions will be stream to stdout (without overlap filtering) so verification may not be possible if writes overlap.
+
+ *-s time*::
+   Specify the time between regular output. The default is *-s 1*, which is one output line per second. *-s 0.01* will output every 1/100th of a second. *-s 0* will start off fast and slow time over time.
    
  *-t s*::
    Limit the execution to *s* seconds (e.g. -t 30)
@@ -356,7 +357,42 @@ In the following commands, replace *r* with *w* for writes.
   On a 200 GB device perform linear writes in the first half and
   random writes on the second half.
 
+== File Formats
 
+=== Position format (-P output)
+
+The position file is tab separated. Make sure you process with tabs, as two of the columns include " GB" as a suffix.
+
+. Device name
+. Position on disk (in bytes)
+. Position on disk (in GB)
+. Position (as a percentage of the device)
+. Action: 'R', 'W'
+. Block length (in bytes)
+. Maximum block device size
+. Maximum block device size (in GB)
+. Seed (used to calculate the random block)
+. Submit time
+. Finish time
+. Mean IO time
+. Position index
+. Number of samples that were performed
+. Median IO time
+. Max IO time
+
+=== Benchmark format (-B output)
+
+The benchmark format is tab separated.
+
+. Elapsed time (seconds)
+. Unix time (seconds)
+. read bytes (MB)
+. read IOPS
+. write bytes (MB)
+. write IOPS
+. read bytes/s (MB/s)
+. write bytes/s (MB/s)
+. device util 
 
 == Combinations
 
