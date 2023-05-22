@@ -222,7 +222,7 @@ void cmd_lang(const int tty, char *origstring) {
         if (second) {
             second = origstring + (second - string);
             if (setlocale(LC_ALL, second) == NULL) {
-                printf("the LANG/locale was not changed\n");
+	      printf("LANG/locale '%s' is not available\n", second);
             } else {
                 if (tty) printf("%s", BOLD);
                 printf("LANG is %s\n", second);
@@ -792,7 +792,7 @@ void cmd_status(const char *hostname, const int tty) {
 
     char *power = getPowerMode();
     printf("%-20s\t", T("Power saving mode"));
-    colour_printString(power, (strcmp("performance", power) == 0), "\n", tty);
+    colour_printString(power, (strcasecmp("performance", power) == 0), "\n", tty);
     if (power) free(power);
 
     /*  printf("%-20s\t", "Entropy Available");
@@ -807,43 +807,49 @@ void cmd_status(const char *hostname, const int tty) {
 }
 
 
+void help_prompt() {
+  printf("%s\n", T("Type ? or help to list commands"));
+}
+
+
 void run_command(int tty, char *line, char *hostname) {
     int known = 0;
     for (size_t i = 0; i < sizeof(commands) / sizeof(COMMAND); i++) {
         if (commands[i].name && (strncmp(line, commands[i].name, strlen(commands[i].name)) == 0)) {
-            if (strcmp(commands[i].name, "status") == 0) {
+            if (strcasecmp(commands[i].name, "status") == 0) {
                 cmd_status(hostname, tty);
-	    } else if (strcmp(commands[i].name, "translations") == 0) {
+	    } else if (strcasecmp(commands[i].name, "translations") == 0) {
 	      cmd_translations(tty);
-            } else if (strcmp(commands[i].name, "pwgen") == 0) {
+            } else if (strcasecmp(commands[i].name, "pwgen") == 0) {
                 cmd_pwgen(tty, line);
-            } else if (strcmp(commands[i].name, "lsblk") == 0) {
+            } else if (strcasecmp(commands[i].name, "lsblk") == 0) {
                 cmd_listDriveBlockDevices(tty, line);
-            } else if (strcmp(commands[i].name, "entropy") == 0) {
+            } else if (strcasecmp(commands[i].name, "entropy") == 0) {
                 cmd_calcEntropy(tty, line);
-            } else if (strcmp(commands[i].name, "cpu") == 0) {
+            } else if (strcasecmp(commands[i].name, "cpu") == 0) {
                 cmd_cpu(tty);
-            } else if (strcmp(commands[i].name, "dropbear") == 0) {
+            } else if (strcasecmp(commands[i].name, "dropbear") == 0) {
                 cmd_dropbear(tty);
-            } else if (strcmp(commands[i].name, "mounts") == 0) {
+            } else if (strcasecmp(commands[i].name, "mounts") == 0) {
                 cmd_mounts(tty);
-            } else if (strcmp(commands[i].name, "scsi") == 0) {
+            } else if (strcasecmp(commands[i].name, "scsi") == 0) {
                 cmd_scsi(tty);
-            } else if (strcmp(commands[i].name, "spit") == 0) {
+            } else if (strcasecmp(commands[i].name, "spit") == 0) {
                 cmd_spit(tty, line);
-            } else if (strcmp(commands[i].name, "df") == 0) {
+            } else if (strcasecmp(commands[i].name, "df") == 0) {
                 cmd_df(tty, line);
-            } else if (strcmp(commands[i].name, "date") == 0) {
+            } else if (strcasecmp(commands[i].name, "date") == 0) {
                 cmd_date(tty);
-            } else if (strcmp(commands[i].name, "lang") == 0) {
+            } else if (strcasecmp(commands[i].name, "lang") == 0) {
                 cmd_lang(tty, line);
-            } else if (strcmp(commands[i].name, "tty") == 0) {
+		help_prompt();
+            } else if (strcasecmp(commands[i].name, "tty") == 0) {
                 cmd_tty(tty);
-                //	} else if (strcmp(commands[i].name, "env") == 0) {
+                //	} else if (strcasecmp(commands[i].name, "env") == 0) {
                 //	  cmd_env(tty);
-            } else if (strcmp(commands[i].name, "lsnic") == 0) {
+            } else if (strcasecmp(commands[i].name, "lsnic") == 0) {
                 cmd_listNICs(tty);
-            } else if (strcmp(commands[i].name, "readspeed") == 0) {
+            } else if (strcasecmp(commands[i].name, "readspeed") == 0) {
                 char *second = strchr(line, ' ');
                 if (second) {
                     int len = strlen(second + 1);
@@ -874,7 +880,7 @@ void run_command(int tty, char *line, char *hostname) {
             break;
         }
     }
-    if ((strcmp(line, "?") == 0) || (strcmp(line, "help") == 0)) {
+    if ((strcasecmp(line, "?") == 0) || (strcasecmp(line, "help") == 0)) {
         cmd_listAll();
     } else {
         if (!known) {
@@ -921,8 +927,7 @@ int main(int argc, char *argv[]) {
     header(tty);
     cmd_status(hostname, tty);
 
-    printf("%s\n", T("Type ? or help to list commands"));
-
+    help_prompt();
     sprintf(prefix, "%s$ ", hostname);
 
     char *line = NULL;
@@ -932,7 +937,7 @@ int main(int argc, char *argv[]) {
         keepRunning = 1;
         line = readline(prefix);
 
-        if ((line == NULL) || (strcmp(line, "exit") == 0) || (strcmp(line, "quit") == 0)) {
+        if ((line == NULL) || (strcasecmp(line, "exit") == 0) || (strcasecmp(line, "quit") == 0)) {
             break;
         }
         if (strlen(line) < 1) {
