@@ -38,6 +38,7 @@
 int keepRunning = 1;
 int verbose = 0;
 int TeReo = 0;
+int German = 0;
 
 void intHandler(int d) {
     if (d) {}
@@ -52,6 +53,142 @@ typedef struct {
     char *name;            /* User printable name of the function. */
     char *doc;            /* Documentation for this function.  */
 } COMMAND;
+
+typedef struct {
+  char *en;
+  char *trans;
+} translateType;
+
+translateType trans_mi[] = {
+			 {"Yes", "Āe"},
+			 {"No", "Kāo"},
+			 {"Not available", "Kāore e wātea"},
+			 {"Available", "Wātea"},
+			 {"secure sandpit", "wahi ripoata haumaru"},
+			 {"Location", "Tūnga"},
+			 {"Support", "Tautoko"},
+			 {"Hardware Type", "Momo Pūkenga"},
+			 {"Host", "Kaiwhakahaere"},
+			 {"OS Type", "Pūnaha Whakahaere"},
+			 {"Uptime (days)", "Wā whakahaere (ra)"},
+			 {"Utilization", "Whakamahinga"},
+			 {"Total RAM", "Mahara Katoa"},
+			 {"Free RAM", "Mahara wātea"},
+			 {"Swap space", "Wāhi Whakakapi"},
+			 {"CPU Model", "Momo Tīhanga"},
+			 {"CPU Cores", "Ngā Kēnga"},
+			 {"SSH Passwords", "SSH Kupuhipa"},
+			 {"Power saving mode", "Aratau Whakaiti Hiko"},
+			 {"Block device count", "Tau Pūrere Pūtau"},
+			 {"Count", "Tatau"},
+			 {"Commands", "Whakahau"},
+			 {"Show CPU info", "Whakaatu pūnaha whakahaere"},
+			 {"Show the current date/time", "Whakaatu rā/tāima o nāianei"},
+			 {"Disk free", "Pūtau wātea"},
+			 {"Dropbear SSH config", "Whirihoranga SSH Dropbear"},
+			 {"Calc entropy of a string", "Tātai entropi o te reta"},
+			 {"Set locale language", "Whakatakoto reo"},
+			 {"List drive block devices", "Whakaatu pūtau pūrere"},
+			 {"List IP/HW addresses", "Whakaatu IP/Ngā wāhitau hangarau"},
+			 {"Show mounts info", "Whakaatu pātengi raraunga"},
+			 {"Generate cryptographically complex 200-bit random password", "Hanga kupuhipa matatini whakakotahitanga 200-bit"},
+			 {"Measure read speed on device", "Ine tere pānui o te pūrere"},
+			 {"Show SCSI devices", "Whakaatu pūrere SCSI"},
+			 //			 {"Stu's powerful I/O tester", "
+			 {"Show system status", "Whakaatu tūnga pūnaha"},
+			 {"List translations", "Whakaatu whakamāoritanga"},
+			 {"Is the terminal interactive", "He whakawhitiwhitiwhiti te whakawhitiwhiti"},
+			 {"Exit the secure shell", "Whakakore i te kiriata haumaru"},
+			 {"Usage", "Whakamahi"},
+			 {"Examples", "Whakarāpopototanga"},
+			 {"Hello", "Kia ora"},
+			 {"Goodbye", "Kia pai tō rā"},
+			 {"Type ? or help to list commands", "Pāwhiritia ? or āwhina hei whakaatu i ngā whakahau"},
+			 {"Unknown command", "Whakahau kore e mōhio ana"}
+};
+
+
+
+translateType trans_de[] = {
+    {"Yes", "Ja"},
+    {"No", "Nein"},
+    {"Not available", "Nicht verfügbar"},
+    {"Available", "Verfügbar"},
+    {"secure sandpit", "Sicherer Sandkasten"},
+    {"Location", "Ort"},
+    {"Support", "Unterstützung"},
+    {"Hardware Type", "Hardwaretyp"},
+    {"Host", "Host"},
+    {"OS Type", "Betriebssystemtyp"},
+    {"Uptime (days)", "Betriebszeit (Tage)"},
+    {"Utilization", "Auslastung"},
+    {"Total RAM", "Gesamter RAM"},
+    {"Free RAM", "Freier RAM"},
+    {"Swap space", "Auslagerungsdatei"},
+    {"CPU Model", "CPU-Modell"},
+    {"CPU Cores", "CPU-Kerne"},
+    {"SSH Passwords", "SSH-Passwörter"},
+    {"Power saving mode", "Energiesparmodus"},
+    {"Block device count", "Anzahl der Blockgeräte"},
+    {"Count", "Anzahl"},
+    {"Commands", "Befehle"},
+    {"Show CPU info", "CPU-Informationen anzeigen"},
+    {"Show the current date/time", "Aktuelles Datum/Uhrzeit anzeigen"},
+    {"Disk free", "Festplattenspeicher frei"},
+    {"Dropbear SSH config", "Dropbear SSH-Konfiguration"},
+    {"Calc entropy of a string", "Entropie eines Strings berechnen"},
+    {"Set locale language", "Sprache festlegen"},
+    {"List drive block devices", "Blockgeräte auflisten"},
+    {"List IP/HW addresses", "IP-/HW-Adressen auflisten"},
+    {"Show mounts info", "Mount-Informationen anzeigen"},
+    {"Generate cryptographically complex 200-bit random password", "Kryptografisch komplexe Zufallspasswörter (200 Bit) generieren"},
+    {"Measure read speed on device", "Lesegeschwindigkeit des Geräts messen"},
+    {"Show SCSI devices", "SCSI-Geräte anzeigen"},
+    {"Show system status", "Systemstatus anzeigen"},
+    {"List translations", "Übersetzungen auflisten"},
+    {"Is the terminal interactive", "Ist das Terminal interaktiv"},
+    {"Exit the secure shell", "Sichere Shell beenden"},
+    {"Usage", "Verwendung"},
+    {"Examples", "Beispiele"},
+    {"Hello", "Hallo"},
+    {"Goodbye", "Auf Wiedersehen"},
+    {"Type ? or help to list commands", "Geben Sie ? oder Hilfe ein, um Befehle aufzulisten"},
+    {"Unknown command", "Unbekannter Befehl"}
+};
+			  
+
+const char *T(const char *s) {
+  for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
+    if (strcasecmp(trans_mi[i].en, s)==0) {
+      if (TeReo) return trans_mi[i].trans;
+      if (German) return trans_de[i].trans;
+      return s;
+    }
+  }
+  return s;
+}
+
+const char *BOLD = "\033[1m";
+const char *RED = "\033[31m";
+const char *GREEN = "\033[32m";
+const char *END = "\033[0m";
+
+
+void cmd_translations(int tty) {
+  if (tty) printf("%s", BOLD);
+  printf("%-40s\t| %-40s\n", "en_NZ.UTF-8", TeReo?"mi_NZ.UTF-8":(German?"de_DE.UTF-8":"?"));
+  if (tty) printf("%s", END);
+  for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
+    if (TeReo) {
+      printf("%-40s\t| %-40s\n", trans_mi[i].en, trans_mi[i].trans);
+    } else {
+      printf("%-40s\t| %-40s\n", trans_de[i].en, trans_de[i].trans);
+    }
+  }
+}
+
+  
+
 
 COMMAND commands[] = {
         {"cpu",       "Show CPU info"},
@@ -68,15 +205,12 @@ COMMAND commands[] = {
         {"scsi",      "Show SCSI devices"},
         {"spit",      "Stu's powerful I/O tester"},
         {"status",    "Show system status"},
+        {"translations",    "List translations"},
         {"tty",       "Is the terminal interactive"},
-        {"exit",      "Exit the secure shell (or ^d/EOF)"}
+        {"exit",      "Exit the secure shell"}
 };
 
 
-const char *BOLD = "\033[1m";
-const char *RED = "\033[31m";
-const char *GREEN = "\033[32m";
-const char *END = "\033[0m";
 
 
 void cmd_lang(const int tty, char *origstring) {
@@ -88,22 +222,26 @@ void cmd_lang(const int tty, char *origstring) {
         if (second) {
             second = origstring + (second - string);
             if (setlocale(LC_ALL, second) == NULL) {
-                printf("the LANG/locate was not changed\n");
+                printf("the LANG/locale was not changed\n");
             } else {
                 if (tty) printf("%s", BOLD);
                 printf("LANG is %s\n", second);
                 if (tty) printf("%s", END);
 
                 TeReo = 0;
+		German = 0;
                 if (strncasecmp(second, "mi_NZ", 5) == 0) {
-                    if (tty) printf("%s", BOLD);
                     TeReo = 1;
-                    printf("Kia ora\n");
-                    if (tty) printf("%s", END);
-                }
-            }
+		}
+                if (strncasecmp(second, "de_DE", 5) == 0) {
+		    German = 1;
+		}
+		if (tty) printf("%s", BOLD);
+		printf("%s\n", T("Hello"));
+		if (tty) printf("%s", END);
+	    }
         } else {
-            printf("usage: %s <locale>   (e.g. en_NZ.UTF-8, mi_NZ.UTF-8)\n", first);
+	  printf("%s: %s <locale>   (e.g. en_NZ.UTF-8, mi_NZ.UTF-8)\n", T("Usage"), first);
         }
     }
     free(string);
@@ -125,7 +263,7 @@ void header(const int tty) {
     if (tty) {
         printf("%s", BOLD);
     }
-    printf("stush: (secure sandpit: v0.2)\n\n");
+    printf("stush: (%s: v0.2)\n\n", T("secure sandpit"));
     if (tty) {
         printf("%s", END);
     }
@@ -170,8 +308,8 @@ void colour_printString(const char *string, const unsigned int good, const char 
 }
 
 void usage_spit() {
-    printf("usage: spit <device> <command> ... <command>\n");
-    printf("\nexamples: \n");
+    printf("%s: spit <device> <command> ... <command>\n", T("Usage"));
+    printf("\n%s: \n", T("Examples"));
     printf("  spit <device> rs0           --- random 4KiB read \n");
     printf("  spit <device> rzs1k64       --- seq 64KiB read\n");
     printf("  spit <device> rs1k64 ws1k4  --- a 64KiB read thread and a 4KiB write thread\n");
@@ -246,7 +384,7 @@ void cmd_calcEntropy(const int tty, char *origstring) {
 
 
 void cmd_tty(int tty) {
-    printf("tty: %s\n", tty ? "yes" : "no");
+    printf("tty: %s\n", tty ? T("Yes") : T("No"));
 }
 
 void cmd_env(int tty) {
@@ -374,9 +512,9 @@ void cmd_listNICs(int tty) {
 }
 
 void cmd_listAll() {
-    printf("Commands: \n");
+    printf("%s: \n", T("Commands"));
     for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
-        printf("  %-10s \t %s\n", commands[i].name, commands[i].doc);
+       printf("  %-10s \t| %s\n", commands[i].name, T(commands[i].doc));
     }
 }
 
@@ -472,7 +610,7 @@ size_t countDriveBlockDevices() {
     for (size_t i = 0; i < 1024; i++) {
         if (majCount[i]) {
             char *majString = majorBDToString(i);
-            printf("   BlockCount[%-6s]  =  %3zd (major=%zd)\n", majString, majCount[i], i);
+            printf("   %s[%-6s]  =  %3zd (major=%zd)\n", T("Count"), majString, majCount[i], i);
             free(majString);
         }
     }
@@ -596,43 +734,47 @@ void cmd_status(const char *hostname, const int tty) {
 
     cmd_date(tty);
 
-    printf("%-20s\t", "Location");
+    printf("%-20s\t", T("Location"));
     colour_printString(getenv("LOCATION"), 1, "\n", tty);
 
-    printf("%-20s\t", "Support");
+    printf("%-20s\t", T("Support"));
     colour_printString(getenv("SUPPORT"), 1, "\n", tty);
 
-    printf("%-20s\t", "Hardware Type");
+    printf("%-20s\t", T("Hardware Type"));
     colour_printString(getenv("HARDWARE_TYPE"), 1, "\n", tty);
 
     char *os = OSRelease();
-    printf("%-20s\t", TeReo ? "kaihautū" : "Host");
+    printf("%-20s\t", T("Host"));
     colour_printString(hostname, 1, "\n", tty);
 
 
-    printf("%-20s\t", TeReo ? "papa tūtohu" : "OS");
+    printf("%-20s\t", T("OS Type"));
     colour_printString(os, 1, "\n", tty);
     if (os) free(os);
 
-    printf("%-20s\t", "Uptime (days)");
+    printf("%-20s\t", T("Uptime (days)"));
     printf("%.0lf\n", getUptime() / 86400.0);
 
-    printf("%-20s\t", "Load average");
+    printf("%-20s\t", T("Utilization")); // load average
     printf("%.1lf\n", loadAverage());
-
-    printf("%-20s\t", TeReo ? "pūmahara" : "Total RAM");
+    
+    printf("%-20s\t", T("Total RAM"));
     printf("%.0lf GiB\n", TOGiB(totalRAM()));
 
-    printf("%-20s\t", TeReo ? "pūmahara wātea" : "Free RAM");
+    printf("%-20s\t", T("Free RAM"));
     colour_printNumber(TOGiB(freeRAM()), TOGiB(freeRAM()) >= 1, " GiB\n", tty);
 
-    printf("%-20s\t", TeReo ? "mahara mariko" : "Swap");
+    printf("%-20s\t", T("Swap space"));
     printf("%.0lf GB\n", TOGB(swapTotal()));
 
     char *cpu = getCPUModel();
-    printf("%-20s\t", TeReo ? "roro" : "CPU Model");
+    printf("%-20s\t", T("CPU Model"));
     printf("%s\n", cpu);
     if (cpu) free(cpu);
+
+    printf("%-20s\t", T("CPU Cores"));
+    printf("%d\n", cpuCountPerNuma(0) * getNumaCount());
+
 
     printf("%-20s\t", "Dropbear");
     int dropbear = 0;
@@ -641,17 +783,15 @@ void cmd_status(const char *hostname, const int tty) {
         dropbear = 1;
         fclose(fp);
     }
-    colour_printString(dropbear ? "Yes" : "Not present", dropbear, "\n", tty);
+    colour_printString(dropbear ? T("Yes") : T("No"), dropbear, "\n", tty);
 
-    printf("%-20s\t", "SSH Passwords");
+    printf("%-20s\t", T("SSH Passwords"));
     int sshpasswords = dumpFile("/etc/ssh/sshd_config", "^PasswordAuthentication no", 1);
-    colour_printString((sshpasswords == 1) ? "No" : "Yes allowed :(", sshpasswords == 1, "\n", tty);
+    colour_printString((sshpasswords == 1) ? T("No") : T("Yes"), sshpasswords == 1, "\n", tty);
 
-    printf("%-20s\t", "Cores");
-    printf("%d\n", cpuCountPerNuma(0) * getNumaCount());
 
     char *power = getPowerMode();
-    printf("%-20s\t", TeReo ? "kaitiaki hiko" : "Power mode");
+    printf("%-20s\t", T("Power saving mode"));
     colour_printString(power, (strcmp("performance", power) == 0), "\n", tty);
     if (power) free(power);
 
@@ -659,7 +799,7 @@ void cmd_status(const char *hostname, const int tty) {
     int entropy = entropyAvailable();
     colour_printNumber(entropy, entropy > 200, " bits\n", tty);*/
 
-    printf("%-20s\t", TeReo ? "taonga mahi wāhanga" : "Block devices");
+    printf("%-20s\t", T("Block device count"));
     countDriveBlockDevices();
     //  colour_printNumber(drives, drives > 0, " \n", tty);
 
@@ -673,6 +813,8 @@ void run_command(int tty, char *line, char *hostname) {
         if (commands[i].name && (strncmp(line, commands[i].name, strlen(commands[i].name)) == 0)) {
             if (strcmp(commands[i].name, "status") == 0) {
                 cmd_status(hostname, tty);
+	    } else if (strcmp(commands[i].name, "translations") == 0) {
+	      cmd_translations(tty);
             } else if (strcmp(commands[i].name, "pwgen") == 0) {
                 cmd_pwgen(tty, line);
             } else if (strcmp(commands[i].name, "lsblk") == 0) {
@@ -736,7 +878,7 @@ void run_command(int tty, char *line, char *hostname) {
         cmd_listAll();
     } else {
         if (!known) {
-            printf("%s: unknown command\n", line);
+  	    printf("%s: %s\n", line, T("Unknown command"));
         }
     }
 }
@@ -779,7 +921,7 @@ int main(int argc, char *argv[]) {
     header(tty);
     cmd_status(hostname, tty);
 
-    printf("Type ? or help to list commands.\n");
+    printf("%s\n", T("Type ? or help to list commands"));
 
     sprintf(prefix, "%s$ ", hostname);
 
@@ -809,7 +951,7 @@ int main(int argc, char *argv[]) {
 
     if (TeReo) {
         if (tty) printf("%s", BOLD);
-        printf("Kia pai tō rā\n");
+        printf("%s\n", T("Goodbye"));
         if (tty) printf("%s", END);
     }
 
