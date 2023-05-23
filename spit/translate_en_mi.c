@@ -13,7 +13,6 @@ translateType trans_mi[] = {
 			    {"Collapse", "Katia"},
 			    {"Commands", "Whakahau"},
 			    {"Confirm", "Whakamanahia"},
-			    {"Confirm", "Whakamanahia"},
 			    {"Copy", "Tāruatia"},
 			    {"Count", "Tatau"},
 			    {"Create", "Waihanga"},

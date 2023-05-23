@@ -134,7 +134,8 @@ const char *END = "\033[0m";
 
 void cmd_translations(int tty) {
   if (tty) printf("%s", BOLD);
-  printf("%-40s (%zd)\t| %-40s\n", "en_NZ.UTF-8", sizeof(trans_mi)/sizeof(trans_mi[0]), TeReo?"mi_NZ.UTF-8":(German?"de_DE.UTF-8":"?"));
+  printf("Translation entries: %zd\n", sizeof(trans_mi)/sizeof(trans_mi[0]));
+  printf("%-40s\t| %-40s\n", "en_NZ.UTF-8", TeReo?"mi_NZ.UTF-8":(German?"de_DE.UTF-8":"?"));
   if (tty) printf("%s", END);
   if (TeReo) {
     for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
