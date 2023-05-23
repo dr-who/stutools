@@ -82,7 +82,7 @@ translateType trans_mi[] = {
 			    {"Block device count", "Tau Pūrere Pūtau"},
 			    {"Count", "Tatau"},
 			    {"Commands", "Whakahau"},
-			    {"Show CPU info", "Whakaatu pūnaha whakahaere"},
+			    {"Show CPU info", "Whakaatu pūnaha"},
 			    {"Show the current date/time", "Whakaatu rā/tāima o nāianei"},
 			    {"Disk free", "Pūtau wātea"},
 			    {"Dropbear SSH config", "Whirihoranga SSH Dropbear"},
