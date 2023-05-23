@@ -24,10 +24,11 @@ int inet_aton(const char *cp, struct in_addr *addr)
 }
 #endif
 
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        perror("usage: snacksend <IPaddress>");
+        perror("usage: snacksend <IPaddress> <size>");
         exit(1);
     }
     int port = 8877;
@@ -82,25 +83,39 @@ int main(int argc, char *argv[]) {
         usleep(1);
     } while (1);
 
-    //    fprintf(stdout,"*info* connected on port %d\n", port);
+    size_t bufSizeToUse = BUFFSIZE;
+    if (argc > 2) {
+      bufSizeToUse = atoi(argv[2]);
+    }
+    
+    fprintf(stderr,"*info* connected on port %d, size = %zd\n", port, bufSizeToUse);
 
-    char *buff = malloc(BUFFSIZE);
+    
+    char *buff = malloc(bufSizeToUse);
     assert(buff);
 
     ssize_t n;
     clock_t lastclock = clock();
     double lasttime = time(NULL);
-    while ((n = send(sockfd, buff, BUFFSIZE, 0)) > 0) {
+    size_t lastcount = 0, thiscount = 0;
+    
+    while ((n = send(sockfd, buff, bufSizeToUse, 0)) > 0) {
+      if ((size_t)n==bufSizeToUse) {
+	thiscount++;
+      }
         if (argc > 2) {
             if (time(NULL) - lasttime > 1) {
-                fprintf(stdout, "*info* [port %d] CPU %.1lf %% (100%% is one core)\n", port,
-                        (clock() - lastclock) * 100.0 / (time(NULL) - lasttime) / CLOCKS_PER_SEC);
+                fprintf(stdout, "*info* [port %d] CPU %.1lf %% (100%% is one core), %zd IOPS\n", port,
+                        (clock() - lastclock) * 100.0 / (time(NULL) - lasttime) / CLOCKS_PER_SEC, (thiscount - lastcount));
                 lasttime = time(NULL);
                 lastclock = clock();
+		lastcount = thiscount;
             }
         }
         //      fprintf(stderr,"sent %zd\n", n);
     }
+
+    free(buff);
 
     close(sockfd);
     return 0;
