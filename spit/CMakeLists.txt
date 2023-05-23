@@ -35,10 +35,10 @@ add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c 
 add_executable(spit spit.c spit-version.h)
 target_link_libraries(spit spitlib m aio pthread numa)
 
-add_executable(snackrec netrec.c transfer.h)
+add_executable(snackrec snackrec.c transfer.h)
 target_link_libraries(snackrec spitlib m aio pthread numa pci)
 
-add_executable(snacksend netsend.c transfer.h)
+add_executable(snacksend snacksend.c transfer.h)
 target_link_libraries(snacksend )
 
 add_executable(numListTest numListTest.c)
