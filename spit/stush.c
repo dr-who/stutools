@@ -94,17 +94,22 @@ translateType trans_mi[] = {
 			 {"Generate cryptographically complex 200-bit random password", "Hanga kupuhipa matatini whakakotahitanga 200-bit"},
 			 {"Measure read speed on device", "Ine tere pānui o te pūrere"},
 			 {"Show SCSI devices", "Whakaatu pūrere SCSI"},
-			 //			 {"Stu's powerful I/O tester", "
+			 {"Stu's powerful I/O tester", "Te whakamātaitai I/O kaha a Stu"},
 			 {"Show system status", "Whakaatu tūnga pūnaha"},
 			 {"List translations", "Whakaatu whakamāoritanga"},
-			 {"Is the terminal interactive", "He whakawhitiwhitiwhiti te whakawhitiwhiti"},
+			 {"Is the terminal interactive", "He whakawhitiwhitiwhiti te tātārua"},
 			 {"Exit the secure shell", "Whakakore i te kiriata haumaru"},
 			 {"usage", "whakamahi"},
 			 {"Examples", "Whakarāpopototanga"},
 			 {"Hello", "Kia ora"},
 			 {"Goodbye", "Kia pai tō rā"},
 			 {"Type ? or help to list commands", "Pāwhiritia ? or āwhina hei whakaatu i ngā whakahau"},
-			 {"Unknown command", "Whakahau kore e mōhio ana"}
+			 {"Unknown command", "Whakahau kore e mōhio ana"},
+			 {"Lists the number of processes", "Whakaatu i te tātau o ngā tukanga"},
+			 {"Mount point", "Pātengi Raraunga"},
+			 {"Total (GB)", "Tapeke (GB)"},
+			 {"Free (GB)", "Wātea (GB)"},
+			 {"Use%", "Whakamahinga%"}
 };
 
 
@@ -208,6 +213,7 @@ COMMAND commands[] = {
         {"lsblk",     "List drive block devices"},
         {"lsnic",     "List IP/HW addresses"},
         {"mounts",    "Show mounts info"},
+        {"ps",        "Lists the number of processes"},
         {"pwgen",     "Generate cryptographically complex 200-bit random password"},
         {"readspeed", "Measure read speed on device"},
         {"scsi",      "Show SCSI devices"},
@@ -323,6 +329,14 @@ void usage_spit() {
     printf("  spit <device> rs1k64 ws1k4  --- a 64KiB read thread and a 4KiB write thread\n");
 }
 
+void cmd_numProcesses(const int tty) {
+  if (tty) {}
+  size_t np = numberOfDirectories("/proc");
+  printf("%zd\n", np);
+}
+    
+    
+  
 
 void cmd_spit(const int tty, char *origstring) {
     char *string = strdup(origstring);
@@ -618,7 +632,7 @@ size_t countDriveBlockDevices() {
     for (size_t i = 0; i < 1024; i++) {
         if (majCount[i]) {
             char *majString = majorBDToString(i);
-            printf("   %s[%-6s]  =  %3zd (major=%zd)\n", T("Count"), majString, majCount[i], i);
+            printf("   %s[%3zd] =  %3zd '%s'\n", T("Count"), i, majCount[i], majString);
             free(majString);
         }
     }
@@ -713,7 +727,7 @@ void cmd_df(const int tty, char *origstring) {
     if (first) {
         char *second = strtok(NULL, delim);
         if (second) {
-            diskSpaceFromMount(second);
+	  diskSpaceFromMount(second, T("Mount point"), T("Total (GB)"), T("Free (GB)"), T("Use%"));
         } else {
 	    printf("%s: df <mountpoint>\n", T("usage"));
         }
@@ -844,6 +858,8 @@ void run_command(int tty, char *line, char *hostname) {
                 cmd_scsi(tty);
             } else if (strcasecmp(commands[i].name, "spit") == 0) {
                 cmd_spit(tty, line);
+            } else if (strcasecmp(commands[i].name, "ps") == 0) {
+	      cmd_numProcesses(tty);
             } else if (strcasecmp(commands[i].name, "df") == 0) {
                 cmd_df(tty, line);
             } else if (strcasecmp(commands[i].name, "date") == 0) {

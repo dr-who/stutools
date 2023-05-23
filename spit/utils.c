@@ -1660,7 +1660,7 @@ int dumpFile(const char *fn, const char *regexstring, const int quiet) {
 }
 
 
-void diskSpaceFromMount(char *FSPATH) {
+void diskSpaceFromMount(char *FSPATH, const char *s1, const char *total1, const char *free1, const char *per1) {
     struct statfs info;
     int ret = statfs(FSPATH, &info);
 
@@ -1669,8 +1669,8 @@ void diskSpaceFromMount(char *FSPATH) {
         double free = info.f_bsize * info.f_bavail / 1024.0 / 1024 / 1024;
         double per = (total - free) * 100.0 / total;
 
-        printf("%-15s\t%10s\t%10s\t%s\n", "Mount", "Total (GB)", "Free (GB)", "Use%");
-        printf("%-15s\t%10.2lf\t%10.2lf\t%.1lf%%\n", FSPATH, total, free, per);
+        printf("%-20s\t%10s\t%10s\t%s\n", s1, total1, free1, per1);
+        printf("%-20s\t%10.2lf\t%10.2lf\t%.1lf%%\n", FSPATH, total, free, per);
     } else {
         perror(FSPATH);
     }
@@ -1713,3 +1713,44 @@ char *serialFromFD(int fd) {
     return serial;
 }
 
+
+
+#include <dirent.h>
+
+size_t numberOfDirectories(char *dir) {
+ struct dirent *dp;
+ DIR *dfd;
+
+ if ((dfd = opendir(dir)) == NULL) {
+   perror(dir);
+   return 0;
+ }
+ 
+ char filename_qfd[PATH_MAX] ;
+ // char new_name_qfd[MAX_PATH] ;
+
+ size_t count = 0;
+ 
+ while ((dp = readdir(dfd)) != NULL) {
+   struct stat stbuf ;
+   sprintf(filename_qfd, "%s/%s",dir,dp->d_name) ;
+   if(stat(filename_qfd, &stbuf ) == -1 ) {
+       perror(filename_qfd);
+       //       printf("Unable to stat file: %s\n",filename_qfd) ;
+       continue ;
+  }
+
+  if ( ( stbuf.st_mode & S_IFMT ) == S_IFDIR ) {
+    count++;
+    continue;
+   // Skip directories
+  } else {
+    // not a dir
+    //    char* new_name = get_new_name( dp->d_name ) ;// returns the new string
+    // after removing reqd part
+    //    sprintf(new_name_qfd,"%s/%s",dir,new_name) ;
+    //    rename( filename_qfd , new_name_qfd ) ;
+  }
+ }
+ return count;
+}

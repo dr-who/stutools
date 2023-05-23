@@ -208,11 +208,12 @@ void readSpeed(const int fd, const double seconds, const size_t blockSize);
 
 int dumpFile(const char *fn, const char *regexstring, const int quiet);
 
-void diskSpaceFromMount(char *FSPATH);
+void diskSpaceFromMount(char *FSPATH, const char *s1, const char *total1, const char *free1, const char *per1);
 
 void loadEnvVars(char *filename);
 
 char *serialFromFD(int fd);
 
+size_t numberOfDirectories(char *dir);
 
 #endif
