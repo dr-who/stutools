@@ -531,19 +531,19 @@ void cmd_pwgen(int tty, char *origstring) {
 
     char ss[PATH_MAX];
     if (tty) printf("%s", BOLD);
-    printf("generate random bits for length %zd: ", len);
+    printf("%s %zd: ", T("generate random bits for length"), len);
     if (tty) printf("%s", END);
 
-    sprintf(ss, "(%.1lf bits of entropy)", bitsentropy);
+    sprintf(ss, "(%.1lf %s)", bitsentropy, T("bits of entropy"));
     colour_printString(ss, bitsentropy >= 200, "\n", tty);
 
 
     printf("%s ", pw);
-    sprintf(ss, "(%.1lf bits of entropy, %.2lf bpc)", pwentropy, pwentropy / len);
+    sprintf(ss, "(%.1lf %s, %.2lf bpc)", pwentropy, T("bits of entropy"), pwentropy / len);
     colour_printString(ss, pwentropy >= 200, "\n", tty);
     if (found == 0) {
         if (tty) printf("%s", BOLD);
-        printf("*warning: password is weak and is below entropy target\n");
+        printf("%s\n", T("password is weak and is below complexity target"));
         if (tty) printf("%s", END);
     }
 
