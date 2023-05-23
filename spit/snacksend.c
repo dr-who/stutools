@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
       bufSizeToUse = atoi(argv[2]);
     }
     
-    fprintf(stderr,"*info* connected on port %d, size = %zd\n", port, bufSizeToUse);
+    fprintf(stderr,"*info* connected to %s on port %d, size = %zd\n", argv[1], port, bufSizeToUse);
 
     
     char *buff = aligned_alloc(4096, bufSizeToUse);
