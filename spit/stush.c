@@ -99,7 +99,7 @@ translateType trans_mi[] = {
 			 {"List translations", "Whakaatu whakamāoritanga"},
 			 {"Is the terminal interactive", "He whakawhitiwhitiwhiti te whakawhitiwhiti"},
 			 {"Exit the secure shell", "Whakakore i te kiriata haumaru"},
-			 {"Usage", "Whakamahi"},
+			 {"usage", "whakamahi"},
 			 {"Examples", "Whakarāpopototanga"},
 			 {"Hello", "Kia ora"},
 			 {"Goodbye", "Kia pai tō rā"},
@@ -158,11 +158,17 @@ translateType trans_de[] = {
 			  
 
 const char *T(const char *s) {
-  for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
-    if (strcasecmp(trans_mi[i].en, s)==0) {
-      if (TeReo) return trans_mi[i].trans;
-      if (German) return trans_de[i].trans;
-      return s;
+  if (TeReo) {
+    for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
+      if (strcasecmp(trans_mi[i].en, s)==0) {
+	return trans_mi[i].trans;
+      }
+    }
+  } else if (German) {
+    for (size_t i = 0; i < sizeof(trans_de)/sizeof(trans_de[0]); i++) {
+      if (strcasecmp(trans_de[i].en, s)==0) {
+	return trans_de[i].trans;
+      }
     }
   }
   return s;
@@ -178,10 +184,12 @@ void cmd_translations(int tty) {
   if (tty) printf("%s", BOLD);
   printf("%-40s\t| %-40s\n", "en_NZ.UTF-8", TeReo?"mi_NZ.UTF-8":(German?"de_DE.UTF-8":"?"));
   if (tty) printf("%s", END);
-  for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
-    if (TeReo) {
+  if (TeReo) {
+    for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
       printf("%-40s\t| %-40s\n", trans_mi[i].en, trans_mi[i].trans);
-    } else {
+    }
+  } else if (German) {
+    for (size_t i = 0; i < sizeof(trans_de)/sizeof(trans_de[0]); i++) {
       printf("%-40s\t| %-40s\n", trans_de[i].en, trans_de[i].trans);
     }
   }
@@ -376,7 +384,7 @@ void cmd_calcEntropy(const int tty, char *origstring) {
             sprintf(ss, "(%.1lf bits of entropy)", entropy);
             colour_printString(ss, entropy >= 200, "\n", tty);
         } else {
-            printf("usage: %s <string>\n", first);
+	  printf("%s: %s <string>\n", T("Usage"), first);
         }
     }
     free(string);
@@ -707,7 +715,7 @@ void cmd_df(const int tty, char *origstring) {
         if (second) {
             diskSpaceFromMount(second);
         } else {
-            printf("usage: df <mountpoint>\n");
+	    printf("%s: df <mountpoint>\n", T("usage"));
         }
     }
     free(string);
@@ -872,7 +880,7 @@ void run_command(int tty, char *line, char *hostname) {
                         }
                     }
                 } else {
-                    printf("usage: readspeed <device>\n");
+		    printf("%s: readspeed <device>\n", T("usage"));
                 }
 
             }

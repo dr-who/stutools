@@ -1665,12 +1665,12 @@ void diskSpaceFromMount(char *FSPATH) {
     int ret = statfs(FSPATH, &info);
 
     if (ret == 0) {
-        size_t total = info.f_bsize * info.f_blocks / 1024 / 1024;
-        size_t free = info.f_bsize * info.f_bavail / 1024 / 1024;
-        double per = free * 100.0 / total;
+        double total = info.f_bsize * info.f_blocks / 1024.0 / 1024 / 1024;
+        double free = info.f_bsize * info.f_bavail / 1024.0 / 1024 / 1024;
+        double per = (total - free) * 100.0 / total;
 
-        printf("%-15s\t%10s\t%10s\t%s\n", "Mount", "Total (1M)", "Free (1M)", "Use%");
-        printf("%-15s\t%10ld\t%10ld\t%.2lf%%\n", FSPATH, total, free, per);
+        printf("%-15s\t%10s\t%10s\t%s\n", "Mount", "Total (GB)", "Free (GB)", "Use%");
+        printf("%-15s\t%10.2lf\t%10.2lf\t%.1lf%%\n", FSPATH, total, free, per);
     } else {
         perror(FSPATH);
     }
