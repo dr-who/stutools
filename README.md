@@ -10,7 +10,7 @@ Stu's Powerful I/O Tester (spit)
 
 ## Dependencies
 
-      apt install libaio-dev libnuma-dev libpci-dev
+      apt install libaio-dev libnuma-dev libpci-dev libreadline-dev
 
 ## Install
 
