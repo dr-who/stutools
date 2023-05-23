@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"*info* connected on port %d, size = %zd\n", port, bufSizeToUse);
 
     
-    char *buff = malloc(bufSizeToUse);
+    char *buff = aligned_alloc(4096, bufSizeToUse);
     assert(buff);
 
     ssize_t n;
@@ -104,11 +104,13 @@ int main(int argc, char *argv[]) {
 	thiscount++;
       }
         if (argc > 2) {
-            if (time(NULL) - lasttime > 1) {
-                fprintf(stdout, "*info* [port %d] CPU %.1lf %% (100%% is one core), %zd IOPS\n", port,
-                        (clock() - lastclock) * 100.0 / (time(NULL) - lasttime) / CLOCKS_PER_SEC, (thiscount - lastcount));
-                lasttime = time(NULL);
-                lastclock = clock();
+	  clock_t thistime = time(NULL);
+            if (thistime - lasttime > 1) {
+	      const clock_t thisclock = clock();
+                fprintf(stdout, "*info* [port %d] CPU %.1lf %% (100%% is one core), %zd IOPS, %.1lf µs latency\n", port,
+                        (thisclock - lastclock) * 100.0 / (thistime - lasttime) / CLOCKS_PER_SEC, (thiscount - lastcount), 1000000.0/(thiscount - lastcount));
+                lasttime = thistime;
+                lastclock = thisclock;
 		lastcount = thiscount;
             }
         }
