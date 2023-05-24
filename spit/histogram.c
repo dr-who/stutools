@@ -202,12 +202,10 @@ void histSum(histogramType *h) {
 
 double histLowestPresentValue(histogramType *h) {
     for (size_t i = 0; i <= h->arraySize; i++) {
-      //      fprintf(stderr,"%zd\n", i);
-      //        if (h->bin[i] > 0) {
-            const double value = getIndexToXValue(h, i);
-	  fprintf(stderr,"index %zd valu %lf\n", i, value);
-            return value;
-	    //        }
+      if (h->bin[i] > 0) {
+	const double value = getIndexToXValue(h, i);
+	return value;
+      }
     }
     return NAN;
 }
