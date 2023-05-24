@@ -38,9 +38,6 @@ target_link_libraries(spit spitlib m aio pthread numa)
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
-add_executable(snacksend snacksend.c transfer.h)
-target_link_libraries(snacksend )
-
 add_executable(numListTest numListTest.c)
 target_link_libraries(numListTest spitlib m aio pthread numa)
 
@@ -128,7 +125,7 @@ target_link_libraries(testDiskStats spitlib m numa pthread)
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/spit.1 DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man1)
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/spitchecker.1 DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man1)
 
-install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist snacksend stush snack DESTINATION bin)
+install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist stush snack DESTINATION bin)
 
 # install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
 
