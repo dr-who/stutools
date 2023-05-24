@@ -63,6 +63,8 @@ translateType trans_mi[] = {
 			    {"Monitoring", "Tiaki"},
 			    {"Mount point", "Pātengi Raraunga"},
 			    {"Navigate", "Haereere"},
+			    {"Starts server for network tests", "Tīmata tūmau mō ngā whakamātautau whāngaihono"},
+			    {"Client connects to a server for tests", "Kiritaki hono ki tētahi tūmau mō ngā whakamātautau"},
 			    {"Network", "Whāngaihono"},
 			    {"No", "Kāo"},
 			    {"Not available", "Kāore e wātea"},

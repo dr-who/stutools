@@ -453,7 +453,7 @@ void *display(void *arg) {
     return NULL;
 }
 
-void startSnack(size_t num) {
+void snackServer(size_t num) {
     pthread_t *pt;
     threadInfoType *tc;
     double *lasttime;
@@ -502,4 +502,89 @@ void startSnack(size_t num) {
     free(pt);
 }
 
+
+
+
+
+///sending
+
+void snackClient(char *ipaddress, size_t bufSizeToUse) {
+  assert(ipaddress);
+  assert(bufSizeToUse);
+  
+    int port = 8877;
+
+#ifdef __WIN32
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif
+
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Can't allocate sockfd");
+        return;
+    }
+
+    struct sockaddr_in serveraddr;
+    memset(&serveraddr, 0, sizeof(serveraddr));
+    long c = getDevRandomLong();
+    srand(c);
+    
+    int tries = 0;
+    do {
+        port = 8877 + rand() % 100;
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_port = htons(port);
+
+        if (inet_aton(ipaddress, &serveraddr.sin_addr) < 0)
+            //      if (inet_pton(AF_INET, argv[1], &serveraddr.sin_addr) < 0)
+        {
+            perror("IPaddress Convert Error");
+            return;
+        }
+
+        if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
+            //	  perror("Listening port not available");
+            tries++;
+            if (tries > 1000) {
+                fprintf(stderr, "*error* couldn't find any ports. exiting\n");
+		return;
+            }
+            continue;
+        } else {
+            break;
+        }
+        usleep(1);
+    } while (keepRunning);
+
+    fprintf(stderr,"*info* connected to %s on port %d, size = %zd\n", ipaddress, port, bufSizeToUse);
+
+    char *buff = aligned_alloc(4096, bufSizeToUse);
+    assert(buff);
+
+    ssize_t n;
+    clock_t lastclock = clock();
+    double lasttime = time(NULL);
+    size_t lastcount = 0, thiscount = 0;
+    
+    while (keepRunning && ((n = send(sockfd, buff, bufSizeToUse, 0)) > 0)) {
+      if ((size_t)n==bufSizeToUse) {
+	thiscount++;
+      }
+      clock_t thistime = time(NULL);
+      if (thistime - lasttime > 1) {
+	const clock_t thisclock = clock();
+	fprintf(stdout, "*info* [port %d] CPU %.1lf %% (100%% is one core), %zd IOPS, %.1lf µs latency\n", port,
+		(thisclock - lastclock) * 100.0 / (thistime - lasttime) / CLOCKS_PER_SEC, (thiscount - lastcount), 1000000.0/(thiscount - lastcount));
+	lasttime = thistime;
+	lastclock = thisclock;
+	lastcount = thiscount;
+      }
+    }
+
+    free(buff);
+
+    close(sockfd);
+    return;
+}
 

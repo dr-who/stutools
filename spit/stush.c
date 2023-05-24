@@ -163,7 +163,8 @@ COMMAND commands[] = {
         {"lsblk",     "List drive block devices"},
         {"lsnic",     "List IP/HW addresses"},
         {"mounts",    "Show mounts info"},
-        {"netspeed",  "Starts received for network tests"},
+        {"netserver", "Starts server for network tests"},
+        {"netclient", "Client connects to a server for tests"},
         {"ps",        "Lists the number of processes"},
         {"pwgen",     "Generate cryptographically complex 200-bit random password"},
         {"devspeed",  "Measure read speed on device"},
@@ -671,7 +672,7 @@ void cmd_dropbear(const int tty) {
 }
 
 void cmd_df(const int tty, char *origstring) {
-    if (tty) {}
+    if (tty) {}	
     char *string = strdup(origstring);
     const char *delim = " ";
     char *first = strtok(string, delim);
@@ -691,9 +692,30 @@ void cmd_scsi(const int tty) {
     dumpFile("/proc/scsi/scsi", "", 0);
 }
 
-void cmd_netspeed(const int tty) {
+void cmd_netserver(const int tty) {
   if (tty) {}
-  startSnack(32);
+  snackServer(32);
+}
+
+void cmd_netclient(const int tty, char *origstring) {
+  if (tty) {}
+    char *string = strdup(origstring);
+    const char *delim = " ";
+    char *first = strtok(string, delim);
+    if (first) {
+        char *second = strtok(NULL, delim);
+        if (second) {
+	  size_t len = 1024*1024;
+	  char *third = strtok(NULL, delim);
+	  if (third) {
+	    len = atoi(third);
+	  }
+	  
+	  snackClient(second, len);
+	} else {
+	  printf("%s: netclient <ipaddress> [len]\n", T("usage"));
+	}
+    }
 }
 
 
@@ -822,8 +844,10 @@ void run_command(int tty, char *line, char *hostname) {
                 cmd_df(tty, line);
             } else if (strcasecmp(commands[i].name, "date") == 0) {
                 cmd_date(tty);
-            } else if (strcasecmp(commands[i].name, "netspeed") == 0) {
-                cmd_netspeed(tty);
+            } else if (strcasecmp(commands[i].name, "netserver") == 0) {
+                cmd_netserver(tty);
+            } else if (strcasecmp(commands[i].name, "netclient") == 0) {
+	        cmd_netclient(tty, line);
             } else if (strcasecmp(commands[i].name, "lang") == 0) {
                 cmd_lang(tty, line);
 		help_prompt();

@@ -26,7 +26,8 @@ typedef struct {
     long thisrxerrors, thistxerrors, carrier_changes;
 } stringType;
 
-void startSnack(size_t num);
+void snackServer(size_t num);
+void snackClient(char *ipaddress, size_t bufSizeToUse);
 
 void dumpEthernet(void);
 
