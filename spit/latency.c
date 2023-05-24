@@ -236,8 +236,8 @@ void latencyWriteGnuplot(latencyType *lat) {
         fprintf(fp, "set yrange [0.9:%lf]\n", histMaxCount(&lat->histWrite) * 1.1);
         fprintf(fp, "set y2tics 10 out\n");
         fprintf(fp, "set grid\n");
-        fprintf(fp, "set xrange [%lf:%lf]\n", histLowestPresentValue(&lat->histRead) * 0.95,
-                histHighestPresentValue(&lat->histRead) * 1.05);
+        fprintf(fp, "set xrange [%lf:%lf]\n", histLowestPresentValue(&lat->histWrite) * 0.95,
+                histHighestPresentValue(&lat->histWrite) * 1.05);
         fprintf(fp, "set y2range [0:100]\n");
         fprintf(fp, "set xlabel 'Time (ms) - 0.01ms bins'\n");
         fprintf(fp, "set ylabel 'Count'\n");

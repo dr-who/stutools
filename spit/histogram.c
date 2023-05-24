@@ -202,12 +202,14 @@ void histSum(histogramType *h) {
 
 double histLowestPresentValue(histogramType *h) {
     for (size_t i = 0; i <= h->arraySize; i++) {
-        if (h->bin[i] > 0) {
+      //      fprintf(stderr,"%zd\n", i);
+      //        if (h->bin[i] > 0) {
             const double value = getIndexToXValue(h, i);
+	  fprintf(stderr,"index %zd valu %lf\n", i, value);
             return value;
-        }
+	    //        }
     }
-    return 0;
+    return NAN;
 }
 
 double histHighestPresentValue(histogramType *h) {
@@ -217,7 +219,7 @@ double histHighestPresentValue(histogramType *h) {
             return value;
         }
     }
-    return 0;
+    return NAN;
 }
 
 double histConsistency(histogramType *h) {
