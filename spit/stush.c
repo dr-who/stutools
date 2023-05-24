@@ -693,7 +693,7 @@ void cmd_scsi(const int tty) {
 
 void cmd_netspeed(const int tty) {
   if (tty) {}
-  startSnack(4);
+  startSnack(32);
 }
 
 
