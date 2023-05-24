@@ -35,8 +35,8 @@ add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c 
 add_executable(spit spit.c spit-version.h)
 target_link_libraries(spit spitlib m aio pthread numa)
 
-add_executable(snackrec snackrec.c transfer.h)
-target_link_libraries(snackrec spitlib m aio pthread numa pci)
+add_executable(snack snackmain.c snack.c snack.h transfer.h)
+target_link_libraries(snack spitlib m aio pthread numa pci)
 
 add_executable(snacksend snacksend.c transfer.h)
 target_link_libraries(snacksend )
@@ -47,10 +47,9 @@ target_link_libraries(numListTest spitlib m aio pthread numa)
 add_executable(pair pair.c )
 target_link_libraries(pair spitlib m )
 
-add_executable(stush stush.c)
-target_link_libraries(stush spitlib m pthread aio numa readline)
+add_executable(stush stush.c snack.h snack.c)
+target_link_libraries(stush spitlib m pthread aio numa readline pci)
 
-set_target_properties(stush PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 add_executable(stat stat.c )
 target_link_libraries(stat spitlib m )
@@ -129,9 +128,9 @@ target_link_libraries(testDiskStats spitlib m numa pthread)
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/spit.1 DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man1)
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/spitchecker.1 DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man1)
 
-install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist snacksend snackrec DESTINATION bin)
+install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist snacksend stush snack DESTINATION bin)
 
-install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
+# install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
 
 # first check the position validation/collision collapsing is working
 #add_test(tds testDiskStats)

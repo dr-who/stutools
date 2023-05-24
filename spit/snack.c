@@ -16,29 +16,9 @@
 
 #include <glob.h>
 
-int keepRunning = 1;
+extern volatile int keepRunning;
 
-typedef struct {
-    int id;
-    int num;
-    int serverport;
-    //  double *gbps;
-    double *lasttime;
-    numListType *nl;
-    char **ips;
-    double starttime;
-} threadInfoType;
-
-typedef struct {
-    char *path;
-    int speed;
-    long lastrx, lasttx;
-    double lasttime;
-    long thisrx, thistx;
-    double thistime;
-    int mtu, numa;
-    long thisrxerrors, thistxerrors, carrier_changes;
-} stringType;
+#include "snack.h"
 
 stringType *listDevices(size_t *retcount) {
 
@@ -196,7 +176,7 @@ void getEthStats(stringType *devs, size_t num) {
 
 #include <pci/pci.h>
 
-void dumpEthernet() {
+void dumpEthernet(void) {
     struct pci_access *pacc;
     struct pci_dev *dev;
     u8 cfg_space[4096] = {0};
@@ -283,23 +263,38 @@ void dumpEthernet() {
 
 static void *receiver(void *arg) {
     threadInfoType *tc = (threadInfoType *) arg;
-    //  fprintf(stderr,"%d\n", tc->serverport);
     while (keepRunning) {
-
         int serverport = tc->serverport;
 
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd == -1) {
             perror("Can't allocate sockfd");
-            exit(1);
+	    continue;
         }
 
         int true = 1;
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(int)) == -1) {
             perror("Setsockopt");
-            exit(1);
+	  close(sockfd);
+	  continue;
+	    //            exit(1);
         }
-
+	struct timeval timeout;
+	timeout.tv_sec = 5;
+	timeout.tv_usec = 0;
+        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+            perror("Setsockopt");
+	  close(sockfd);
+	  continue;
+	    //            exit(1);
+        }
+        if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
+            perror("Setsockopt");
+	  close(sockfd);
+	  continue;
+	    //            exit(1);
+        }
+	
 
         struct sockaddr_in clientaddr, serveraddr;
         memset(&serveraddr, 0, sizeof(serveraddr));
@@ -309,20 +304,27 @@ static void *receiver(void *arg) {
 
         if (bind(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) == -1) {
             perror("Bind Error");
-            exit(1);
+	  close(sockfd);
+	  continue;
+	    //            exit(1);
         }
 
         if (listen(sockfd, 7788 + tc->id) == -1) {
             perror("Listen Error");
-            exit(1);
+	  close(sockfd);
+	  continue;
+	    //            exit(1);
         }
 
         socklen_t addrlen = sizeof(clientaddr);
         int connfd = accept(sockfd, (struct sockaddr *) &clientaddr, &addrlen);
-        if (connfd == -1) {
-            perror("Connect Error");
-            exit(1);
-        }
+	if (connfd == -1) {
+	  //	  perror("Connect Error");
+	  close(sockfd);
+	  continue;
+	}
+	    //            exit(1);
+	    //        }
         char addr[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
         tc->ips[tc->id] = strdup(addr);
@@ -347,8 +349,8 @@ static void *receiver(void *arg) {
 
         double sumTime = 0;
         size_t sumBytes = 0;
-
-        while ((n = recv(connfd, buff, BUFFSIZE, 0)) > 0) {
+	
+        while (keepRunning && (n = recv(connfd, buff, BUFFSIZE, 0)) > 0) {
             const double thistime = timeAsDouble();
             tc->lasttime[tc->id] = thistime;
             const double gaptime = thistime - lasttime;
@@ -368,7 +370,8 @@ static void *receiver(void *arg) {
 
             if (n == -1) {
                 perror("Receive File Error");
-                exit(1);
+		continue;
+		//                exit(1);
             }
         }
 
@@ -389,7 +392,7 @@ void *display(void *arg) {
     stringType *dev = listDevices(&devcount);
 
 
-    while (1) {
+    while (keepRunning) {
         double t = 0;
 
         const double thistime = timeAsDouble();
@@ -447,9 +450,10 @@ void *display(void *arg) {
         lastclock = clock();
         sleep(1);
     }
+    return NULL;
 }
 
-void startServers(size_t num) {
+void startSnack(size_t num) {
     pthread_t *pt;
     threadInfoType *tc;
     double *lasttime;
@@ -492,28 +496,10 @@ void startServers(size_t num) {
 
     for (size_t i = 0; i < num + 1; i++) {
         pthread_join(pt[i], NULL);
+	//	printf("thread %zd finished %d\n", i, keepRunning);
     }
     free(tc);
     free(pt);
 }
 
 
-int main() {
-
-    // args
-
-    /*  if (argc != 2) {
-      fprintf(stderr,"*info* usage ./netrec\n");
-      exit(1);
-      }*/
-    int threads = 100;
-    fprintf(stderr, "*info* starting receiver -- using %d ports/threads\n", threads);
-    dumpEthernet();
-
-    if (threads < 1) threads = 1;
-    // start servers
-    startServers(threads);
-
-
-    return 0;
-}

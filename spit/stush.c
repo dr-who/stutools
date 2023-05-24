@@ -35,6 +35,8 @@
 #include "devices.h"
 #include "procDiskStats.h"
 
+#include "snack.h"
+
 int keepRunning = 1;
 int verbose = 0;
 int TeReo = 0;
@@ -161,9 +163,10 @@ COMMAND commands[] = {
         {"lsblk",     "List drive block devices"},
         {"lsnic",     "List IP/HW addresses"},
         {"mounts",    "Show mounts info"},
+        {"netspeed",  "Starts received for network tests"},
         {"ps",        "Lists the number of processes"},
         {"pwgen",     "Generate cryptographically complex 200-bit random password"},
-        {"readspeed", "Measure read speed on device"},
+        {"devspeed",  "Measure read speed on device"},
         {"scsi",      "Show SCSI devices"},
         {"spit",      "Stu's powerful I/O tester"},
         {"status",    "Show system status"},
@@ -688,6 +691,13 @@ void cmd_scsi(const int tty) {
     dumpFile("/proc/scsi/scsi", "", 0);
 }
 
+void cmd_netspeed(const int tty) {
+  if (tty) {}
+  startSnack(4);
+}
+
+
+
 void cmd_date(const int tty) {
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
@@ -812,6 +822,8 @@ void run_command(int tty, char *line, char *hostname) {
                 cmd_df(tty, line);
             } else if (strcasecmp(commands[i].name, "date") == 0) {
                 cmd_date(tty);
+            } else if (strcasecmp(commands[i].name, "netspeed") == 0) {
+                cmd_netspeed(tty);
             } else if (strcasecmp(commands[i].name, "lang") == 0) {
                 cmd_lang(tty, line);
 		help_prompt();
@@ -821,7 +833,7 @@ void run_command(int tty, char *line, char *hostname) {
                 //	  cmd_env(tty);
             } else if (strcasecmp(commands[i].name, "lsnic") == 0) {
                 cmd_listNICs(tty);
-            } else if (strcasecmp(commands[i].name, "readspeed") == 0) {
+            } else if (strcasecmp(commands[i].name, "devspeed") == 0) {
                 char *second = strchr(line, ' ');
                 if (second) {
                     int len = strlen(second + 1);
