@@ -1582,9 +1582,9 @@ unsigned char *passwordGenerate(unsigned char *rnd, size_t len) {
 }
 
 
-void readSpeed(const int fd, const double seconds, const size_t blockSize) {
-    numListType nl;
-    nlInit(&nl, 1000000);
+void readBenchmark(const int fd, const double seconds, const size_t blockSize, numListType *speed, numListType *latencyus) {
+  //    numListType nl;
+  //    nlInit(&nl, 1000000);
     //  const size_t blockSize = 2L*1024*1024;
 
     double start = timeAsDouble();
@@ -1597,7 +1597,8 @@ void readSpeed(const int fd, const double seconds, const size_t blockSize) {
         if (s > 0) {
             double MBPS = TOMB(s) / (time2 - time1);
             if (MBPS > 0) {
-                nlAdd(&nl, MBPS);
+	        if (speed) nlAdd(speed, MBPS);
+                if (latencyus) nlAdd(latencyus, 1000000.0 * (time2 - time1));
             }
         } else {
             pos = 0;
@@ -1613,9 +1614,6 @@ void readSpeed(const int fd, const double seconds, const size_t blockSize) {
     }
     printf("time:  \t%.3lf\n", elapsed);
     printf("size:  \t%zd\n", blockSize);
-
-    nlSummary(&nl);
-    nlFree(&nl);
 }
 
 

@@ -34,6 +34,7 @@
 #include "jobType.h"
 #include "devices.h"
 #include "procDiskStats.h"
+#include "numList.h"
 
 #include "snack.h"
 
@@ -166,6 +167,8 @@ void cmd_translations(int tty) {
 COMMAND commands[] = {
         {"cpu",       "Show CPU info"},
         {"date",      "Show the current date/time"},
+        {"devlatency", "Measure read latency on device"},
+        {"devspeed",  "Measure read speed on device"},
         {"df",        "Disk free"},
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
@@ -177,7 +180,6 @@ COMMAND commands[] = {
         {"netclient", "Client connects to a server for tests"},
         {"ps",        "Lists the number of processes"},
         {"pwgen",     "Generate cryptographically complex 200-bit random password"},
-        {"devspeed",  "Measure read speed on device"},
         {"scsi",      "Show SCSI devices"},
         {"spit",      "Stu's powerful I/O tester"},
         {"status",    "Show system status"},
@@ -290,6 +292,60 @@ void usage_spit() {
     printf("  spit <device> rzs1k64       --- seq 64KiB read\n");
     printf("  spit <device> rs1k64 ws1k4  --- a 64KiB read thread and a 4KiB write thread\n");
 }
+
+
+void cmd_devSpeed(const int tty, char *origline, int showspeedorlatency) {
+  char *line = strdup(origline);
+  char *first = strtok(line, " ");
+  if (first) {
+    char *second = strtok(NULL, " ");
+    if (second) {
+      int fd = open(second, O_RDONLY | O_DIRECT);
+      if (fd < 0) {
+	perror(second);
+      } else {
+	unsigned int major, minor;
+	if (majorAndMinor(fd, &major, &minor) != 0) {
+	  printf("*warning* can't get major:minor for '%s'\n", second);
+	}
+	
+	numListType speed, latency;
+	
+	nlInit(&speed, 1000000); 
+	nlInit(&latency, 1000000);
+	
+	size_t len = 2L * 1024 * 1024;
+	if (showspeedorlatency == 0) {
+	  len = 4096;
+	}
+	
+	if (showspeedorlatency) {
+	  if (tty) printf("%s", BOLD);
+	  fprintf(stdout, "*info* sequential speed '%s', size=%zd for 5 seconds (MB/s)\n", second, len);
+	  if (tty) printf("%s", END);
+	} else {
+	  if (tty) printf("%s", BOLD);
+	  fprintf(stdout, "*info* sequential latency '%s', size=%zd for 5 seconds (µs)\n", second, len);
+	  if (tty) printf("%s", END);
+	}
+	// do test
+	readBenchmark(fd, 5, len, &speed, &latency);
+	
+	if (showspeedorlatency) {
+	  nlSummary(&speed);
+	} else {
+	  nlSummary(&latency);
+	}
+	  
+	nlFree(&speed);
+	nlFree(&latency);
+	close(fd);
+      }
+    } else {
+      printf("%s: dev%s <device>\n", T("usage"), (showspeedorlatency?"speed":"latency"));
+    }
+  }
+}  
 
 void cmd_numProcesses(const int tty) {
   if (tty) {}
@@ -868,31 +924,9 @@ void run_command(int tty, char *line, char *hostname) {
             } else if (strcasecmp(commands[i].name, "lsnic") == 0) {
                 cmd_listNICs(tty);
             } else if (strcasecmp(commands[i].name, "devspeed") == 0) {
-                char *second = strchr(line, ' ');
-                if (second) {
-                    int len = strlen(second + 1);
-                    if (len > 0) {
-                        second++;
-
-                        int fd = open(second, O_RDONLY | O_DIRECT);
-                        if (fd < 0) {
-                            perror(second);
-                        } else {
-                            unsigned int major, minor;
-                            if (majorAndMinor(fd, &major, &minor) != 0) {
-                                printf("*warning* can't get major:minor for '%s'\n", second);
-                            }
-                            if (tty) printf("%s", BOLD);
-                            fprintf(stdout, "*info* readspeed '%s', size=2 MiB for 5 seconds (MB/s)\n", second);
-                            if (tty) printf("%s", END);
-                            readSpeed(fd, 5, 2L * 1024 * 1024);
-                            close(fd);
-                        }
-                    }
-                } else {
-		    printf("%s: readspeed <device>\n", T("usage"));
-                }
-
+	        cmd_devSpeed(tty, line, 1);
+            } else if (strcasecmp(commands[i].name, "devlatency") == 0) {
+  	        cmd_devSpeed(tty, line, 0);
             }
             known = 1;
             break;

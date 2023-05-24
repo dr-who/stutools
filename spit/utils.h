@@ -9,6 +9,7 @@
 #include <linux/limits.h>
 
 #include "logSpeed.h"
+#include "numList.h"
 
 // https://www.openwall.com/lists/musl/2020/01/20/4
 #ifndef __GLIBC__
@@ -204,7 +205,7 @@ unsigned char *randomGenerate(size_t len);
 
 unsigned char *passwordGenerate(unsigned char *rnd, size_t len);
 
-void readSpeed(const int fd, const double seconds, const size_t blockSize);
+void readBenchmark(const int fd, const double seconds, const size_t blockSize, numListType *speed, numListType *latencyms);
 
 int dumpFile(const char *fn, const char *regexstring, const int quiet);
 
