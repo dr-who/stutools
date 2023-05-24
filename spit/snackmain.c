@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     char *client = NULL;
     size_t len = 1024*1024;
     
-    const char *getoptstring = "hsc:t:";
+    const char *getoptstring = "hsc:t:l:";
 
     while ((opt = getopt(argc, argv, getoptstring)) != -1) {
         switch (opt) {
