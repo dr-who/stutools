@@ -760,7 +760,7 @@ void cmd_scsi(const int tty) {
 
 void cmd_netserver(const int tty) {
   if (tty) {}
-  snackServer(1, 5001);
+  snackServer(10, 5001);
 }
 
 void cmd_netclient(const int tty, char *origstring) {
@@ -777,9 +777,9 @@ void cmd_netclient(const int tty, char *origstring) {
 	    len = atoi(third);
 	  }
 	  
-	  snackClient(second, len, 5001, 1);
+	  snackClient(second, len, 5001, 10);
 	} else {
-	  printf("%s: netclient <ipaddress> [len] (on port 5001)\n", T("usage"));
+	  printf("%s: netclient <ipaddress> [len] (on ports [5001-5010]\n", T("usage"));
 	}
     }
 }
