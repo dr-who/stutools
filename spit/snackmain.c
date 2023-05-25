@@ -17,6 +17,7 @@
 #include <glob.h>
 
 int keepRunning = 1;
+int serverPort = 5001; // shares with iperf for firewall reasons
 
 #include "snack.h"
 
@@ -31,19 +32,20 @@ void usage(int defaultthreads, size_t defaultlen) {
   printf("options:\n");
   printf("   -c IP                 # client (sending) mode. IP only to avoid interface woes\n");
   printf("   -l size               # specifies the packet length <size>, default %zd\n", defaultlen);
+  printf("   -p port               # port base to use (+threads), default port %d\n", serverPort);
   printf("   -s                    # server (listening) mode\n");
   printf("   -t n                  # specifies the number of threads/ports\n");
 }
   
 
 int main(int argc, char *argv[]) {
-    int threads = 32;
+    int threads = 1;
     int opt;
     int servermode = 0;
     char *client = NULL;
     size_t len = 1024*1024;
     
-    const char *getoptstring = "hsc:t:l:";
+    const char *getoptstring = "hsc:t:l:p:";
 
     while ((opt = getopt(argc, argv, getoptstring)) != -1) {
         switch (opt) {
@@ -56,6 +58,9 @@ int main(int argc, char *argv[]) {
 	      break;
 	    case 'c':
 	      client = strdup(optarg);
+	      break;
+	    case 'p':
+	      serverPort = atoi(optarg);
 	      break;
 	    case 't':
 	      threads = MAX(1, atoi(optarg));
@@ -71,12 +76,12 @@ int main(int argc, char *argv[]) {
 
 
     if (servermode) {
-      fprintf(stderr, "*info* starting receiver -- using %d ports/threads\n", threads);
+      fprintf(stderr, "*info* starting receiver -- using %d threads on ports [%d,%d]\n", threads, serverPort, serverPort+threads-1);
       //      dumpEthernet();
       // start servers
-      snackServer(threads);
+      snackServer(threads, serverPort);
     } else if (client) {
-      snackClient(client, len);
+      snackClient(client, len, serverPort, threads);
     } else {
       usage(threads, len);
     }

@@ -415,7 +415,7 @@ void *display(void *arg) {
             if (nlN(&tc->nl[i]) != 0) {
                 clients++;
                 fprintf(stdout, "[%d - %s], mean = %.1lf Gb/s (99%% = %.1lf Gb/s), n = %zd / %zd, SD = %.4lf %s\n",
-                        SERVERPORT + i, tc->ips[i] ? tc->ips[i] : "", nlMean(&tc->nl[i]), nlSortedPos(&tc->nl[i], 0.99),
+                        i + tc->serverport, tc->ips[i] ? tc->ips[i] : "", nlMean(&tc->nl[i]), nlSortedPos(&tc->nl[i], 0.99),
                         nlN(&tc->nl[i]), tc->nl[i].ever, nlSD(&tc->nl[i]), starsList[stars]);
                 t += nlMean(&tc->nl[i]);
             }
@@ -453,7 +453,7 @@ void *display(void *arg) {
     return NULL;
 }
 
-void snackServer(size_t num) {
+void snackServer(size_t num, const int serverport) {
     pthread_t *pt;
     threadInfoType *tc;
     double *lasttime;
@@ -475,7 +475,7 @@ void snackServer(size_t num) {
     for (size_t i = 0; i < num; i++) {
         tc[i].id = i;
         tc[i].num = num;
-        tc[i].serverport = SERVERPORT + i;
+        tc[i].serverport = serverport + i;
         //    tc[i].gbps = gbps;
         tc[i].ips = ips;
         tc[i].lasttime = lasttime;
@@ -486,7 +486,7 @@ void snackServer(size_t num) {
 
     tc[num].id = num;
     tc[num].num = num;
-    tc[num].serverport = 0;
+    tc[num].serverport = serverport;
     //  tc[num].gbps = gbps;
     tc[num].ips = ips;
     tc[num].lasttime = lasttime;
@@ -508,12 +508,11 @@ void snackServer(size_t num) {
 
 ///sending
 
-void snackClient(char *ipaddress, size_t bufSizeToUse) {
+void snackClient(char *ipaddress, size_t bufSizeToUse, const int serverport, const size_t threads) {
   assert(ipaddress);
   assert(bufSizeToUse);
+  assert(threads >= 1);
   
-    int port = 8877;
-
 #ifdef __WIN32
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -530,9 +529,9 @@ void snackClient(char *ipaddress, size_t bufSizeToUse) {
     long c = getDevRandomLong();
     srand(c);
     
-    int tries = 0;
+    int tries = 0, port = 0;
     do {
-        port = 8877 + rand() % 100;
+        port = serverport + rand() % threads;
         serveraddr.sin_family = AF_INET;
         serveraddr.sin_port = htons(port);
 

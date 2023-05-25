@@ -1,4 +1,3 @@
 
-#define SERVERPORT 8877
 #define BUFFSIZE (1024*1024)
 
