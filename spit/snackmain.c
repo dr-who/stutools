@@ -32,14 +32,14 @@ void usage(int defaultthreads, size_t defaultlen) {
   printf("options:\n");
   printf("   -c IP                 # client (sending) mode. IP only to avoid interface woes\n");
   printf("   -l size               # specifies the packet length <size>, default %zd\n", defaultlen);
-  printf("   -p port               # port base to use (+threads), default port %d\n", serverPort);
+  printf("   -p port               # port base to use (+threads), ports [%d-%d]\n", serverPort, serverPort+defaultthreads-1);
   printf("   -s                    # server (listening) mode\n");
-  printf("   -t n                  # specifies the number of threads/ports\n");
+  printf("   -t n                  # specifies the number of threads/ports, default %d\n", defaultthreads);
 }
   
 
 int main(int argc, char *argv[]) {
-    int threads = 1;
+    int threads = 10;
     int opt;
     int servermode = 0;
     char *client = NULL;
