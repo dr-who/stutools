@@ -60,7 +60,7 @@ typedef struct {
 typedef struct {
   char *en;
   char *trans;
-  char *translator;
+  char *source;
 } translateType;
 
 #include "translate_en_mi.c"
@@ -117,7 +117,14 @@ const char *T(const char *s) {
   if (TeReo) {
     for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
       if (strcasecmp(trans_mi[i].en, s)==0) {
-	return trans_mi[i].trans;
+	char *p = strchr(trans_mi[i].trans, '|');
+	if (p) {
+	  char *dup = strdup(trans_mi[i].trans);
+	  dup[p - trans_mi[i].trans] = 0;
+	  return dup; // leaking pointer
+	} else {
+	  return trans_mi[i].trans;
+	}
       }
     }
   } else if (German) {
@@ -138,22 +145,21 @@ const char *END = "\033[0m";
 
 void cmd_translations(int tty) {
   if (tty) printf("%s", BOLD);
-  printf("Translation entries: %zd\n", sizeof(trans_mi)/sizeof(trans_mi[0]));
-  printf("%-40s\t| %-40s\n", "en_NZ.UTF-8", TeReo?"mi_NZ.UTF-8":(German?"de_DE.UTF-8":"?"));
+  printf("%-40s\t| %-60s\n", "en_NZ.UTF-8", TeReo?"mi_NZ.UTF-8":(German?"de_DE.UTF-8":"?"));
   if (tty) printf("%s", END);
   FILE *fp = fopen("translations.txt", "wt");
   if (TeReo) {
     for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
       printf("%-40s\t| %-40s\n", trans_mi[i].en, trans_mi[i].trans);
       if (fp) {
-	fprintf(fp, "%s\t%s\n", trans_mi[i].en, trans_mi[i].trans);
+	fprintf(fp, "%s\t%s\t%s\n", trans_mi[i].en, trans_mi[i].trans, trans_mi[i].source);
       }
     }
   } else if (German) {
     for (size_t i = 0; i < sizeof(trans_de)/sizeof(trans_de[0]); i++) {
       printf("%-40s\t| %-40s\n", trans_de[i].en, trans_de[i].trans);
       if (fp) {
-	fprintf(fp, "%s\t%s\n", trans_de[i].en, trans_de[i].trans);
+	fprintf(fp, "%s\t%s\t%s\n", trans_de[i].en, trans_de[i].trans, trans_de[i].source);
       }
     }
   }
