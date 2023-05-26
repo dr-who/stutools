@@ -4,6 +4,7 @@ translateType trans_mi[] = {
 			    {"Available", "Wātea", ""},
 			    {"Backup", "Tiaki tūemi", ""},
 			    {"Bit", "moka|binary digit", "MSOFT"},
+			    {"Byte", "paita", "Google"},
 			    {"bits of entropy", "kupuhipa o te entropi", ""},
 			    {"Block device", "taonga mahi wāhanga", "Mandrake"},
 			    {"Block device count", "Tau Pūrere Pūtau", ""},
