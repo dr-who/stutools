@@ -14,8 +14,8 @@ void usage() {
   fprintf(stdout,"  -b 0.01      # specify the bin size\n");
   fprintf(stdout,"  -i infile    # input file\n");
   fprintf(stdout,"  -o prefix    # the output prefix\n");
-  fprintf(stdout,"  -m           # the min range\n");
-  fprintf(stdout,"  -M           # the max range\n");
+  fprintf(stdout,"  -m value     # specify the min histogram value\n");
+  fprintf(stdout,"  -M value     # specify the max histogram value\n");
 }
 
 

@@ -1298,24 +1298,31 @@ int endsWith(const char *str, const char *suffix) {
 }
 
 
-size_t stringToBytesDefault(const char *str, const int assumePow2) {
+// if not suffix, multiple by defaultScale
+size_t stringToBytesDefault(const char *str, const size_t defaultScale) {
     size_t ret = 0;
+    assert(defaultScale > 0);
     if (str && (strlen(str) >= 1)) {
-        if (endsWith(str, "P")) {
-            fprintf(stderr, "*warning* '%s' assuming PB. Must be {K,M,G,T,P}[i*]B\n", str);
+        if (endsWith(str, "E")) {
+            fprintf(stderr, "*warning* '%s' assuming EB. Must be {K,M,G,T,P,E}[i*]B\n", str);
+            ret = 1000L * atof(str) * 1000 * 1000 * 1000 * 1000 * 1000;
+	} else if (endsWith(str, "P")) {
+            fprintf(stderr, "*warning* '%s' assuming PB. Must be {K,M,G,T,P,E}[i*]B\n", str);
             ret = 1000L * atof(str) * 1000 * 1000 * 1000 * 1000;
         } else if (endsWith(str, "T")) {
-            fprintf(stderr, "*warning* '%s' assuming TB. Must be {K,M,G,T,P}[i*]B\n", str);
+            fprintf(stderr, "*warning* '%s' assuming TB. Must be {K,M,G,T,P,E}[i*]B\n", str);
             ret = 1000L * atof(str) * 1000 * 1000 * 1000;
         } else if (endsWith(str, "G")) {
-            fprintf(stderr, "*warning* '%s' assuming GB. Must be {K,M,G,T,P}[i*]B\n", str);
+            fprintf(stderr, "*warning* '%s' assuming GB. Must be {K,M,G,T,P,E}[i*]B\n", str);
             ret = 1000L * atof(str) * 1000 * 1000;
         } else if (endsWith(str, "M")) {
-            fprintf(stderr, "*warning* '%s' assuming MB. Must be {K,M,G,T,P}[i*]B\n", str);
+            fprintf(stderr, "*warning* '%s' assuming MB. Must be {K,M,G,T,P,E}[i*]B\n", str);
             ret = 1000L * atof(str) * 1000;
         } else if (endsWith(str, "K")) {
-            fprintf(stderr, "*warning* '%s' assuming KB. Must be {K,M,G,T,P}[i*]B\n", str);
+            fprintf(stderr, "*warning* '%s' assuming KB. Must be {K,M,G,T,P,E}[i*]B\n", str);
             ret = 1000L * atof(str);
+        } else if (endsWith(str, "EiB")) {
+	    ret = 1024L * atof(str) * 1024 * 1024 * 1024 * 1024 * 1024;
         } else if (endsWith(str, "PiB")) {
             ret = 1024L * atof(str) * 1024 * 1024 * 1024 * 1024;
         } else if (endsWith(str, "TiB")) {
@@ -1326,6 +1333,8 @@ size_t stringToBytesDefault(const char *str, const int assumePow2) {
             ret = 1024L * atof(str) * 1024;
         } else if (endsWith(str, "KiB")) {
             ret = 1024L * atof(str);
+        } else if (endsWith(str, "EB")) {
+	    ret = 1000L * atof(str) * 1000 * 1000 * 1000 * 1000 * 1000;
         } else if (endsWith(str, "PB")) {
             ret = 1000L * atof(str) * 1000 * 1000 * 1000 * 1000;
         } else if (endsWith(str, "TB")) {
@@ -1339,12 +1348,13 @@ size_t stringToBytesDefault(const char *str, const int assumePow2) {
         } else if (endsWith(str, "B")) {
             ret = atof(str);
         } else {
-            if (assumePow2) {
+	    ret = atof(str) * defaultScale;
+            /*if (assumePow2) {
                 // no known or ambiguous suffix, so GiB
                 ret = 1024L * atof(str) * 1024 * 1024;
             } else {
                 ret = 1000L * atof(str) * 1000 * 1000;
-            }
+		}*/
         }
     }
 

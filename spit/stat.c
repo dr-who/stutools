@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
         assert(argv);
 
     numListType first;
-    nlInit(&first, 1000000);
+    nlInit(&first, 10000000); // 10M values
 
     // first line is header use tabs
 
@@ -47,13 +47,17 @@ int main(int argc, char *argv[]) {
 
     if (argc < 2) {
         if (nlN(&first) >= 1) {
+    	  double mean = NAN, max = NAN;
+	  mean = nlMean(&first);
+	  max = nlMax(&first);
+	  
             fprintf(stdout,
-                    "mean: \t%.3g\nmin: \t%.3g\nQ25%%: \t%.3g\nMed: \t%.3g\nQ75%%: \t%.3g\nmax: \t%.3g\nN:   \t%zd\nSD: \t%.3g\nSEM: \t%.3g\n",
-                    nlMean(&first), nlMin(&first), nlSortedPos(&first, 0.25), nlMedian(&first),
-                    nlSortedPos(&first, 0.75), nlMax(&first), nlN(&first), nlSD(&first), nlSEM(&first));
-            fprintf(stdout, "99.9%%:  \t%.3g\n", nlSortedPos(&first, 0.999));
-            fprintf(stdout, "99.99%%: \t%.3g\n", nlSortedPos(&first, 0.9999));
-            fprintf(stdout, "99.999%%:\t%.3g\n", nlSortedPos(&first, 0.99999));
+                    "mean: \t%.3lf\t(%.0lf bits)\nmin: \t%.3lf\nQ25%%: \t%.3lf\nMed: \t%.3lf\nQ75%%: \t%.3lf\nmax: \t%.3lf\t(%.0lf bits)\nN:   \t%zd\nSD: \t%.3lf\nSEM: \t%.3lf\n",
+                    mean, ceil(log(mean+1)/log(2)), nlMin(&first), nlSortedPos(&first, 0.25), nlMedian(&first),
+                    nlSortedPos(&first, 0.75), max, ceil(log(max+1)/log(2)), nlN(&first), nlSD(&first), nlSEM(&first));
+            fprintf(stdout, "99.9%%:  \t%.3lf\n", nlSortedPos(&first, 0.999));
+            fprintf(stdout, "99.99%%: \t%.3lf\n", nlSortedPos(&first, 0.9999));
+            fprintf(stdout, "99.999%%:\t%.3lf\n", nlSortedPos(&first, 0.99999));
         }
         fprintf(stderr, "*info* stat - N: %zd Mean: %.4lf\n", nlN(&first), nlMean(&first));
     } else {

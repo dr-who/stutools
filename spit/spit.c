@@ -230,7 +230,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                         *minSizeInBytes = num;
                         *maxSizeInBytes = num;
                     } else {
-                        num = alignedNumber(stringToBytesDefault(optarg, GBpow2), 4096);
+                        num = alignedNumber(stringToBytesDefault(optarg, 1024L*1024*1024), 4096);
                         *minSizeInBytes = num;
                         *maxSizeInBytes = num;
                     }
