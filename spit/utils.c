@@ -654,12 +654,11 @@ size_t alignedNumber(size_t num, size_t alignment) {
 
 // return the blockSize
 inline size_t
-randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits, size_t randomValue) {
+randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits, const size_t randomValue) {
     if (highbsBytes == 0) {
         return 0;
     }
-
-    assert(alignmentbits < 100);
+    //    assert(alignmentbits < 100);
 
     size_t lowbs_k = lowbsBytes >> alignmentbits; // 1 / 4096 = 0
     //  if (lowbs_k < 1) lowbs_k = 1;
@@ -668,7 +667,11 @@ randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t 
 
     size_t randombs_k = lowbs_k;
     if (highbs_k > lowbs_k) {
-        randombs_k += (randomValue % (highbs_k - lowbs_k + 1));
+      randombs_k += (randomValue >>alignmentbits);
+      if (randombs_k > highbs_k) {
+	randombs_k -= (highbs_k - lowbs_k);
+	assert(randombs_k <= highbs_k);
+      }
     }
 
     size_t randombs = randombs_k << alignmentbits;

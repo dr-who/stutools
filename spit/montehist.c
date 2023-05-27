@@ -30,7 +30,7 @@ void usage() {
 
 int main(int argc, char *argv[])
 {
-  char *histfile = "hist.out";
+  char *histfile = NULL;
   size_t samples = 10;
   size_t rows = 0;
   double scale = 1.0;
@@ -61,14 +61,12 @@ int main(int argc, char *argv[])
 	if (second) {
 	  char *third = strtok(NULL, ",");
 	  if (third) {
-	    linear = 1;
 	    alignment = atoi(third);
-	    low = stringToBytesDefault(first, 1);
-	    high = stringToBytesDefault(second, 1);
-	    if (alignment < 1) alignment = 1;
-	    fprintf(stderr, "*info* linear distribution in range [%zd, %zd), alignment %zd\n", low, high, alignment);
-	    high = high - alignment;
 	  }
+	  linear = 1;
+	  low = stringToBytesDefault(first, 1);
+	  high = stringToBytesDefault(second, 1);
+	  fprintf(stderr, "*info* linear distribution in range [%zd, %zd), alignment %zd\n", low, high, alignment);
 	}
       }}
       break;
@@ -91,6 +89,11 @@ int main(int argc, char *argv[])
       fprintf(stderr,"*error* unknown option '%s'\n", optarg);
       exit(-1);
     }
+  }
+
+  if (histfile==NULL && linear==0) {
+    usage();
+    exit(-1);
   }
 
   histogramType h;
@@ -122,7 +125,8 @@ int main(int argc, char *argv[])
       if (linear == 0) {
 	value = histSample(&h);
       } else {
-	value = randomBlockSize(low, high, log(alignment*1.0)/log(2), drand48() * (high - low));
+	//	fprintf(stderr,"%zd\n", (high - low));
+	value = randomBlockSize(low, high, log(alignment*1.0)/log(2), (size_t)(drand48() * (high - low)));
       }
       value = value * scale;
 

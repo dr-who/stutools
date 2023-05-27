@@ -55,9 +55,9 @@ int main(int argc, char *argv[]) {
                     "mean: \t%.3lf\t(%.0lf bits)\nmin: \t%.3lf\nQ25%%: \t%.3lf\nMed: \t%.3lf\nQ75%%: \t%.3lf\nmax: \t%.3lf\t(%.0lf bits)\nN:   \t%zd\nSD: \t%.3lf\nSEM: \t%.3lf\n",
                     mean, ceil(log(mean+1)/log(2)), nlMin(&first), nlSortedPos(&first, 0.25), nlMedian(&first),
                     nlSortedPos(&first, 0.75), max, ceil(log(max+1)/log(2)), nlN(&first), nlSD(&first), nlSEM(&first));
-            fprintf(stdout, "99.9%%:  \t%.3lf\n", nlSortedPos(&first, 0.999));
-            fprintf(stdout, "99.99%%: \t%.3lf\n", nlSortedPos(&first, 0.9999));
-            fprintf(stdout, "99.999%%:\t%.3lf\n", nlSortedPos(&first, 0.99999));
+            fprintf(stdout, "99.9%%  \t%.3lf\n", nlSortedPos(&first, 0.999));
+            fprintf(stdout, "99.99%% \t%.3lf\n", nlSortedPos(&first, 0.9999));
+            fprintf(stdout, "99.999%%\t%.3lf\n", nlSortedPos(&first, 0.99999));
         }
         fprintf(stderr, "*info* stat - N: %zd Mean: %.4lf\n", nlN(&first), nlMean(&first));
     } else {
