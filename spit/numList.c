@@ -340,11 +340,12 @@ void nlUnbiasedSD(numListType *n1, numListType *n2, const double r, double *unsd
 #include "crit-t.h"
 
 double loadTTable(size_t df, size_t tail, double a) {
+  if (tail < 1) tail = 1;
     a = 0.05; // hard coded
-    fprintf(stderr, "*info* load table %zd, %zd, %.4lf\n", df, tail, a);
+    fprintf(stderr, "*info* t-distribution table, df=%zd, tail=%zd, confidence=%.4lf\n", df, tail, a);
     if (df > 199) df = 199;
 
-    return tvaluesp[df][2];
+    return tvaluesp[df-1][tail];
 }
 
 

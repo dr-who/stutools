@@ -56,13 +56,26 @@ size_t fileSize(int fd) {
 size_t fileSizeFromName(const char *path) {
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
+      perror(path);
         //    fprintf(stderr,"*info* no file present '%s'\n", path);
-        //    perror(path);
-        return 0;
+      return 0;
     }
     size_t sz = lseek(fd, 0L, SEEK_END);
-    lseek(fd, 0L, SEEK_SET);
+    size_t ret = lseek(fd, 0L, SEEK_SET);
+    unsigned int major, minor;
+    majorAndMinor(fd, &major, &minor);
     close(fd);
+    if (sz == 0) {
+      // may
+      if (ret == 0) {
+	// zero but can set seek
+	// might be /dev/null
+	if ((major==1) && (minor==3)) {
+	  fprintf(stderr, "*info* device is /dev/null, pretending it's 1EB in size\n");
+	  sz = (size_t)(1000L*1000*1000*1000*1000*1000);
+	}
+      }
+    }
     return sz;
 }
 
@@ -652,12 +665,18 @@ size_t alignedNumber(size_t num, size_t alignment) {
     return ret;
 }
 
-// return the blockSize
+// return a random size, between [lowbsBytes and highbsBytes] aligned at alignmentbits, randomvalue in [low,high] range
+// both low and high are inclusive, so those values are allowed.
+// alignments bits is as it says, the shift left/right powers of 2 bits.
 inline size_t
 randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t alignmentbits, const size_t randomValue) {
     if (highbsBytes == 0) {
         return 0;
     }
+    if (lowbsBytes > highbsBytes) {
+      fprintf(stderr, "*error* lowbs %zd > highbs %zd\n", lowbsBytes, highbsBytes);
+    }
+    
     //    assert(alignmentbits < 100);
 
     size_t lowbs_k = lowbsBytes >> alignmentbits; // 1 / 4096 = 0
@@ -665,13 +684,13 @@ randomBlockSize(const size_t lowbsBytes, const size_t highbsBytes, const size_t 
     size_t highbs_k = highbsBytes >> alignmentbits;   // 8 / 4096 = 2
     //  if (highbs_k < 1) highbs_k = 1;
 
+    if ((randomValue >> alignmentbits) > highbs_k) {
+      fprintf(stderr, "*error* randomBlockSize out of range\n");
+    }
+
     size_t randombs_k = lowbs_k;
     if (highbs_k > lowbs_k) {
       randombs_k += (randomValue >>alignmentbits);
-      if (randombs_k > highbs_k) {
-	randombs_k -= (highbs_k - lowbs_k);
-	assert(randombs_k <= highbs_k);
-      }
     }
 
     size_t randombs = randombs_k << alignmentbits;

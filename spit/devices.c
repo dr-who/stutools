@@ -380,13 +380,17 @@ deviceDetails *prune(deviceDetails *devList, size_t *devCount, const size_t bloc
 }
 
 size_t smallestBDSize(deviceDetails *devList, size_t devCount) {
-    size_t min = 0, sz = 0;
+    size_t min = 0,  sz = 0, one = 0;
 
     for (size_t f = 0; f < devCount; f++) {
         sz = fileSizeFromName(devList[f].devicename);
-        if ((f == 0) || (sz < min)) {
-            min = sz;
-        }
+	if ((f == 0) || (sz < min)) {
+	  min = sz;
+	  one = 1;
+	}
+    }
+    if (one == 0) {
+      fprintf(stderr,"couldn't get a size\n");
     }
     fprintf(stderr, "*info* min size is %zd (%.3lf GiB)\n", min, TOGiB(min));
     return min;
@@ -404,8 +408,10 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
         majorAndMinor(fd, &major, &minor);
         close(fd);
 
-
-        if (major == 252) {
+        if ((major == 1) && (minor == 3)) {
+	  iop = 100*1000;
+	  fprintf(stderr,"*info* IOP estimate for /dev/null is %zd IOPS\n", iop);
+	} else if (major == 252) {
             // nsulate/HPSc
             iop = 50L * 1024 * 1024 * 1024 / blocksize; // if 50GB/s / blocksize
             if (iop < 10) iop = 10;

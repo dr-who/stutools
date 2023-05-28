@@ -402,19 +402,16 @@ static void *runThread(void *arg) {
             fprintf(stderr, "*info* open device without O_EXCL\n");
         }
         fd = open(threadContext->jobdevice, O_RDONLY | direct | excl);
-        if (verbose >= 2) fprintf(stderr, "*info* open with O_RDONLY\n");
+        if (verbose >= 2 && fd>0) fprintf(stderr, "*info* open with O_RDONLY\n");
     }
-
 
     if (fd < 0) {
         fprintf(stderr, "*error* problem opening '%s' with direct=%d, writes=%zd\n", threadContext->jobdevice, direct,
                 threadContext->anywrites);
-        fprintf(stderr, "*info* some filesystems don't support direct, maybe add D to the command string.\n");
+        fprintf(stderr, "*info* some devices/filesystems don't support direct, try D in the command string.\n");
         perror(threadContext->jobdevice);
         exit(-1);
     }
-
-
 
 //    fprintf(stderr,"*info* device %s, physical io size %zd, logical io size %zd\n", threadContext->jobdevice, phybs, logbs);
 

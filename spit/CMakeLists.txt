@@ -51,6 +51,9 @@ target_link_libraries(stush spitlib m pthread aio numa readline pci)
 add_executable(stat stat.c )
 target_link_libraries(stat spitlib m )
 
+add_executable(pvalue pvalue.c )
+target_link_libraries(pvalue spitlib m )
+
 add_executable(diskperf diskperf.c)
 target_link_libraries(diskperf spitlib m aio pthread numa)
 
@@ -190,8 +193,8 @@ add_test(testspitk1j spit -f wow -G 1GiB -c rM2s0X2 -K 334,0 -L0.00001 )
 add_test(testspitk1k spit -f wow -G 1GiB -c rM1s0x1 -K 1024,0 -L0.00001 )
 
 add_test(testspitk1l spit -f wow -G 1GiB -c rM1s0x1j2 -K 1024,0)
-add_test(testspitk1m spit -f wow -G 1GiB -c rM1s0x1j11 -K 1024,0)
-add_test(testspitk1n spit -f wow -G 1GiB -c rM1s0x2j11 -K 2048,0)
+add_test(testspitk1m spit -f wow -G 1GiB -c rM1s0x1j8 -K 1024,0)
+add_test(testspitk1n spit -f wow -G 1GiB -c rM1s0x2j8 -K 2048,0)
 add_test(testspitk1o spit -f wow -G 1GiB -c rM1s0X1 -K 1024,0)
 add_test(testspitk1pj4 spit -f wow -G 1GiB -c rM1s0X1j4 -K 1024,0 -R1)
 add_test(testspitk1pJ4 spit -f wow -G 1GiB -c rM1s0X1J4 -K 4096,0 -R1)
