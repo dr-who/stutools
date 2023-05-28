@@ -763,6 +763,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         fprintf(stderr, "*error* setupPositions number of positions can't be 0\n");
     }
 
+    assert(mod>0);
     if (mod != 1) {
         fprintf(stderr, "*info* modulo %zd, remain %zd\n", mod, remain);
     }

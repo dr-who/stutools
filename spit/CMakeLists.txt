@@ -54,6 +54,9 @@ target_link_libraries(stat spitlib m )
 add_executable(pvalue pvalue.c )
 target_link_libraries(pvalue spitlib m )
 
+add_executable(positionTest positionTest.c)
+target_link_libraries(positionTest spitlib m aio pthread numa )
+
 add_executable(diskperf diskperf.c)
 target_link_libraries(diskperf spitlib m aio pthread numa)
 
@@ -137,6 +140,7 @@ install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
 
 
 add_test(testnumList numListTest)
+add_test(testPositionTest positionTest)
 add_test(testspitHelp  spit -h)
 
 add_test(testspitHelpnoargs  spit)
