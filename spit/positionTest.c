@@ -107,8 +107,19 @@ int main() {
     positionContainerFree(&pc);
   }
 
-  lengthsFree(&len);
-  lengthsFree(&resetSizes);
+
+  /*    positionContainerInit(&pc, 0);
+    positionContainerSetup(&pc, 10000000);
+    createUniqueRandomPositions(&pc, &len, 0, 1024L*1024*1024*1024*1024, 4096, 0);
+    positionContainerDump(&pc, 10);
+    positionContainerFree(&pc);*/
+
+    
+    
+    
+    lengthsFree(&len);
+    lengthsFree(&resetSizes);
+
   
   return 0;
 }

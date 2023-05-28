@@ -1887,3 +1887,52 @@ positionType *readPos3Cols(FILE *fp, size_t *sz, size_t *minlen, size_t *maxlen)
     return p;
 }
   
+int createUniqueRandomPositions(positionContainer *pc,
+			  const lengthsType *len,
+			  const size_t minbdSize,
+			  const size_t maxbdSize,
+				const size_t alignment,
+				const unsigned long seed) {
+
+  srand48(seed);
+  
+  size_t range = maxbdSize - minbdSize; // [100-0] = 100
+  size_t bitmax = (range / alignment) / 1024;
+
+  fprintf(stderr, "*info* createUniqueRandomPositions size=%zd, maxlen=%zd, [%zd, %zd], alignment %zd\n", pc->sz, len->max, minbdSize, maxbdSize, alignment);
+
+  fprintf(stderr, "*info* range %zd, bitmax %zd\n", range, bitmax);
+
+  char *bits = calloc(1, bitmax + 1); assert(bits);
+
+  for (size_t i = 0; i < pc->sz; i++) {
+    size_t pos = randomBlockSize(minbdSize, maxbdSize, 12, drand48() * range);
+
+    size_t index = (pos/4096) * 1.0 /1024;
+    //    fprintf(stdout,"%zd\t%zd\n", pos, index);
+    assert(index <= bitmax);
+    if (bits[index]==0) {
+      //      fprintf(stdout,"%zd, %.1lf%%\n", pos, pos*100.0/maxbdSize);
+    } else {
+      fprintf(stdout,"%zd hash hitt!\n", i);
+      for (size_t j = 0; j < i; j++) {
+	size_t index2 = (pc->positions[j].pos/4096) * 1.0 /1024;
+	if (bits[index2]) {
+	  if (pc->positions[j].pos == pos) {
+	    fprintf(stdout,"%zd CONFLICTt!\n", i);
+	    i--;
+	    continue;
+	  }
+	}
+      }
+    }
+    pc->positions[i].pos = pos;
+    bits[index] = 1;
+  }
+
+  
+
+
+  return 0;
+
+}

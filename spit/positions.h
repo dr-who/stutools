@@ -169,5 +169,9 @@ void positionContainerInfo(const positionContainer *pc);
 
 void randomSubSample(positionContainer *pc, unsigned short seed, lengthsType *len, size_t alignment);
 
+int createUniqueRandomPositions(positionContainer *pc, const lengthsType *len, const size_t minbdSize, const size_t maxbdSize,
+				const size_t alignment, const unsigned long seed);
+
+
 #endif
 
