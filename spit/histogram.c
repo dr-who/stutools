@@ -64,7 +64,7 @@ double getIndexToYValue(histogramType *h, const size_t index) {
 
 size_t getXIndexFromValue(histogramType *h, const double val) {
     if (val < h->min || val > h->max) {
-        fprintf(stderr, "*error* value %lf is outside the range [%lf, %lf]\n", val, h->min, h->max);
+      //        fprintf(stderr, "** value %lf is outside the range [%lf, %lf]\n", val, h->min, h->max);
         return 0;
     }
     assert(val >= h->min);
