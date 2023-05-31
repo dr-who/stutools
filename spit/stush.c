@@ -185,6 +185,7 @@ COMMAND commands[] = {
         {"mounts",    "Show mounts info"},
         {"netserver", "Starts server for network tests"},
         {"netclient", "Client connects to a server for tests"},
+        {"raidsim",   "Simulate k+m parity/RAID durability"},
         {"ps",        "Lists the number of processes"},
         {"pwgen",     "Generate cryptographically complex 200-bit random password"},
         {"scsi",      "Show SCSI devices"},
@@ -472,6 +473,36 @@ void cmd_printHWAddr(char *nic) {
 
 }
 
+#include "failureType.h"
+
+void cmd_raidsim(int tty, char *origline) {
+  if (tty) {}
+
+  char *s = strdup(origline);
+  int ran = 0;
+  char *first = strtok(s, " ");
+  if (first) {
+    char *second = strtok(NULL, " ");
+    if (second) {
+      char *third = strtok(NULL, " ");
+      if (third) {
+	char *four = strtok(NULL, " ");
+	if (four) {
+	  char *arg[]={first, second, third, four};
+	  ran = 1;
+	  failureType(4, arg);
+	}
+      }
+    }
+  }
+  free(s);
+  if (ran == 0) {
+    printf("%s: raidsim <k> <m> <LHS>\n", T("usage"));
+    printf("\n%s:: \n", T("Examples"));
+    printf("  raidsim 6 2 0      --- 8 drives in RAID6/2-parity with 0 spares\n");
+  }
+}
+
 
 // from getifaddrs man page
 void cmd_listNICs(int tty) {
@@ -748,7 +779,7 @@ void cmd_df(const int tty, char *origstring) {
     if (tty) {}	
     char *string = strdup(origstring);
     const char *delim = " ";
-    char *first = strtok(string, delim);
+    char *first = strtok(string, delim); 
     if (first) {
         char *second = strtok(NULL, delim);
         if (second) {
@@ -899,6 +930,8 @@ void run_command(int tty, char *line, char *hostname) {
                 cmd_pwgen(tty, line);
             } else if (strcasecmp(commands[i].name, "lsblk") == 0) {
                 cmd_listDriveBlockDevices(tty, line);
+            } else if (strcasecmp(commands[i].name, "raidsim") == 0) {
+                cmd_raidsim(tty, line);
             } else if (strcasecmp(commands[i].name, "entropy") == 0) {
                 cmd_calcEntropy(tty, line);
             } else if (strcasecmp(commands[i].name, "cpu") == 0) {
