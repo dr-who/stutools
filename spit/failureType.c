@@ -165,6 +165,10 @@ int failureType(int argc, char *argv[]) {
   int k = atoi(argv[1]);
   int m = atoi(argv[2]);
   int lhs = atoi(argv[3]);
+  float per = 0.99;
+  if (argc >= 5) {
+    per = atof(argv[4]);
+  }
   const size_t years = 5;
 
   fprintf(stderr,"*info* Simulation for %zd years\n", years);
@@ -181,16 +185,16 @@ int failureType(int argc, char *argv[]) {
       //    printf("--> %zd\n", i);
       failureGroup g;
       
-      failureGroupInit(&g, 0, 60, 20*1024*1024);
+      failureGroupInit(&g, 0, 90, 20*1024*1024);
       
       virtualDeviceType f;
       
-      virtualDeviceInit(&f, "a", k, m, lhs, 20L*1024*1024*1024*1024, 0.95);
+      virtualDeviceInit(&f, "a", k, m, lhs, 20L*1024*1024*1024*1024, per);
       failureGroupAdd(&g, &f);
       
       virtualDeviceType f2;
       if (p==2) {
-	virtualDeviceInit(&f2, "b", k, m, lhs, 20L*1024*1024*1024*1024, 0.95);
+	virtualDeviceInit(&f2, "b", k, m, lhs, 20L*1024*1024*1024*1024, per);
 	failureGroupAdd(&g, &f2);
       }
       
@@ -214,10 +218,11 @@ int failureType(int argc, char *argv[]) {
       }
 
       // count drives that have failed in this array
+      size_t drivesF = 0;
       for (size_t k = 0; k < g.len; k++) {
-	nlAdd(&sparesRequired, g.f[k].drivesFailed);
-      }	    
-	  
+	drivesF += g.f[k].drivesFailed;
+      }
+      nlAdd(&sparesRequired, drivesF);
       
       
       if (thisonebad) {
