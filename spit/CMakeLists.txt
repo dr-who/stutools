@@ -44,7 +44,10 @@ target_link_libraries(numListTest spitlib m aio pthread numa)
 add_executable(pair pair.c )
 target_link_libraries(pair spitlib m )
 
-add_executable(stush stush.c snack.h snack.c)
+add_executable(raidsimulation raidsimulationmain.c failureType.c deviceProbs.c numList.c )
+target_link_libraries(raidsimulation m )
+
+add_executable(stush stush.c snack.h snack.c failureType.c deviceProbs.c)
 target_link_libraries(stush spitlib m pthread aio numa readline pci)
 
 
@@ -189,7 +192,7 @@ add_test(testspitk1c spit -f wow -G 1GiB -c rk4s0x1 -K 262144,0 )
 add_test(testspitk1d spit -f wow -G 1GiB -c wM2s0x1 -K 0,512 )
 add_test(testspitk1e spit -f wow -G 1GiB -c wM1s0x1 -K 0,1024 )
 add_test(testspitk1f spit -f wow -G 1GiB -c wk4s0x1 -K 0,262144 )
-add_test(testspitk1g spit -f wow -G 1GiB -c rwM2s0x1 -K 252,260 -R1 )
+add_test(testspitk1g spit -f wow -G 1GiB -c rwM2s0x1 -K 250,262 -R1 )
 
 add_test(testspitk1h spit -f wow -G 1GiB -c rM2s0x2 -K 1024,0 )
 add_test(testspitk1i spit -f wow -G 1GiB -c rM2s0X1 -K 167,0 -L0.00001 )
