@@ -616,12 +616,12 @@ size_t aioMultiplePositions(positionContainer *p,
                                     pos, strcmpres, pp->action, pp->seed, pp->success, pp->verify, p->UUID, *uucheck,
                                     pp->pos, *poscheck);
                             fprintf(stderr,
-                                    "*error* Maybe: combinations of meta-data 'm', multiple threads 'j' and without G_ may fail\n");
+                                    "*error* Maybe: combinations of meta-data 'm', multiple threads 'j' and high QD can clobber\n");
                             fprintf(stderr,
                                     "*error* as the different threads will clobber data from other threads in real time\n");
                             fprintf(stderr,
                                     "*error* Potentially write to -P positions.txt and check after data is written\n");
-                            exit(-1);
+			    //                            exit(-1);
                             //              abort();
                         }
                     }

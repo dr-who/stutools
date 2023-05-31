@@ -293,8 +293,8 @@ static void *runThread(void *arg) {
     //    positionContainerCheck(&threadContext->pos, threadContext->minbdSize, threadContext->maxbdSize, threadContext->metaData ? 0 : 1 /*don't exit if meta*/);
     //  }
 
-    if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos, threadContext->seed);
-    else if (threadContext->seqFiles > 0 && threadContext->seqFiles < 1 && threadContext->seqFilesRange > 0) {
+    /*if (threadContext->seqFiles == 0) positionContainerRandomize(&threadContext->pos, threadContext->seed);
+      else */ if (threadContext->seqFiles > 0 && threadContext->seqFiles < 1 && threadContext->seqFilesRange > 0) {
         fprintf(stderr, "*info* partial randomisation, prob of %lf, switched within range of %zd\n",
                 threadContext->seqFiles, threadContext->seqFilesRange);
         positionContainerRandomizeProbandRange(&threadContext->pos, threadContext->seed, threadContext->seqFiles,
@@ -396,6 +396,11 @@ static void *runThread(void *arg) {
             if (verbose) fprintf(stderr, "*info* open with O_RDWR, direct=%d, excl=%d\n", direct, excl);
         }
     } else {
+      // check /dev/null
+        if (strcmp(threadContext->jobdevice,"/dev/null")==0) {
+	  fprintf(stderr,"*info* /dev/null, turning off O_DIRECT\n");
+	  direct = 0;
+	}
         int excl = (threadContext->id == 0) ? O_EXCL : 0;
         if (threadContext->notexclusive) excl = 0;
         if ((excl == 0) && (threadContext->id == 0)) {

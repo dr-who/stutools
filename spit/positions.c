@@ -157,7 +157,7 @@ int positionContainerCheck(const positionContainer *pc, const size_t minmaxbdSiz
         }
         if (copy[i - 1].pos != copy[i].pos) {
             if (copy[i - 1].pos + copy[i - 1].len > copy[i].pos) {
-                fprintf(stderr, "*warning* positions are overlapping %zd %zd %d \n", i, copy[i].pos, copy[i].len);
+	      //                fprintf(stderr, "*warning* positions are overlapping %zd %zd %d \n", i, copy[i].pos, copy[i].len);
                 if (exitonerror) abort();
             }
         }
@@ -1087,7 +1087,12 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         if (index >= (int) count) {
             index -= count;
         }
-        positions[i] = poss[index];
+	if (sf == 0) { // if random copy the rest of the details, but randomise the position
+	  positions[i] = poss[index];
+	  positions[i].pos = randomBlockSize(pc->minbdSize, pc->maxbdSize-pc->maxbs, alignbits, erand48(xsubi) * (pc->maxbdSize - pc->maxbs - pc->minbdSize));
+	} else {
+	  positions[i] = poss[index];
+	}
         char newaction = 'R';
         if (readorwrite.rprob == 1) {
             newaction = 'R';

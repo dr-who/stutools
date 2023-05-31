@@ -233,7 +233,9 @@ int failureType(int argc, char *argv[]) {
       
       
       failureGroupFree(&g);
-    }
+    } // keepRunning
+    keepRunning = 1;
+    
     fprintf(stderr,"*** Array failure statistics\n");
     if (nlN(&failAge) > 0) {
       fprintf(stderr,"Array failure statistics (failure hour) \n");
