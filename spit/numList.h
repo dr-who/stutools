@@ -68,7 +68,7 @@ double nlMode(numListType *n, size_t buckets, size_t div);
 double loadTTable(size_t df, size_t tail, double a);
 
 void nlSummary(numListType *nl);
-
+void nlBriefSummary(numListType *nl);
 
 #endif
 

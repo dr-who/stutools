@@ -364,6 +364,7 @@ int main() {
 */
 
 
+
 void nlSummary(numListType *nl) {
     fprintf(stdout,
             "mean: \t%lf\nmin: \t%lf\nQ25%%: \t%lf\nMedian:\t%lf\nQ75%%: \t%lf\nmax: \t%lf\nN:   \t%zd\nSD: \t%lf\nSEM: \t%lf\n",
@@ -373,4 +374,9 @@ void nlSummary(numListType *nl) {
     //  fprintf(stdout,"99.99%%: \t%lf\n", nlSortedPos(nl, 0.9999));
     //  fprintf(stdout,"99.999%%:\t%lf\n", nlSortedPos(nl, 0.99999));
 }
-    
+
+void nlBriefSummary(numListType *nl) {
+    fprintf(stdout, "mean: \t%lf\nmin: \t%lf\nmax: \t%lf\n",
+            nlMean(nl), nlMin(nl), nlMax(nl));
+}
+
