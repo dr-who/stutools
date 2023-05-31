@@ -39,6 +39,7 @@ int virtualDeviceIterate(virtualDeviceType *f, failureGroup *g) {
     //    printf("\n%f\n", f->dp.probs[f->age]);
     if ((f->status[i] >= 0) && (drand48() < f->dp.probs[f->age])) {
       diedage = f->status[i];
+      f->drivesFailed++;
       //      printf("%d\n", (diedage*24)); //died
       if (f->LHS > 0) {
 	// if we have a spare ready
@@ -76,11 +77,13 @@ int virtualDeviceIterate(virtualDeviceType *f, failureGroup *g) {
 }
 
 void virtualDeviceDump(virtualDeviceType *f, failureGroup *g, size_t showDrives) {
-  fprintf(stderr, "*info*   Virtual Device: k=%zd, m=%zd, lhs=%zd\n", f->k, f->m, f->LHS);
-  fprintf(stderr, "*info*       Drive size: %.0lf (TB)\n", ceil(f->driveSizeInBytes / 1024.0/1024/1024/1024));
-  fprintf(stderr, "*info*       Survival prob/year: %.2lf\n", f->flatProb);
-  const size_t rebuildDays = ceil((f->driveSizeInBytes / g->rebuildSpeedInBytesPerSec) * 1.0 / (3600*24));
-  fprintf(stderr, "*info*       Rebuild speed %.0lf MB/s (%zd days)\n", ceil(g->rebuildSpeedInBytesPerSec / 1024.0 /1024), rebuildDays);
+  if (showDrives == 0) {
+    fprintf(stderr, "*info*   Virtual Device: k=%zd, m=%zd, lhs=%zd\n", f->k, f->m, f->LHS);
+    fprintf(stderr, "*info*       Drive size: %.0lf (TB)\n", ceil(f->driveSizeInBytes / 1024.0/1024/1024/1024));
+    fprintf(stderr, "*info*       Drive survival probability/year: %.2lf\n", f->flatProb);
+    const size_t rebuildDays = ceil((f->driveSizeInBytes / g->rebuildSpeedInBytesPerSec) * 1.0 / (3600*24));
+    fprintf(stderr, "*info*       Rebuild speed %.0lf MB/s (%zd days)\n", ceil(g->rebuildSpeedInBytesPerSec / 1024.0 /1024), rebuildDays);
+  }
 
   if (showDrives) {
     fprintf(stderr, "(%s LHS=%zd/%d) ", f->name, f->LHS, f->LHSstatus);
@@ -91,8 +94,8 @@ void virtualDeviceDump(virtualDeviceType *f, failureGroup *g, size_t showDrives)
 	fail++;
       }
     }
-    fprintf(stderr, " ==> %zd", fail);
-  }
+    fprintf(stderr, " ==> %zd\n", fail);
+  } //
 }  
 
 void virtualDeviceFree(virtualDeviceType *g) {
@@ -114,9 +117,11 @@ void failureGroupInit(failureGroup *g, int ghs, int order, size_t rebuildSpeed) 
 
 
 void failureGroupDump(failureGroup *g, size_t showDrives) {
-  fprintf(stderr, "*info* Group of %zd virtualDevices\n", g->len);
-  fprintf(stderr, "*info*     Global hot spares: %zd\n", g->GHS);
-  fprintf(stderr, "*info*     Time for replacements: %zd (days)\n", g->order);
+  if (showDrives == 0) {
+    fprintf(stderr, "*info* Group of %zd virtualDevices\n", g->len);
+    fprintf(stderr, "*info*     Global hot spares: %zd\n", g->GHS);
+    fprintf(stderr, "*info*     Time for replacements: %zd (days)\n", g->order);
+  }
   for (size_t i =0; i < g->len; i++) {
     virtualDeviceDump(&g->f[i], g, showDrives);
   }
@@ -160,20 +165,23 @@ int failureType(int argc, char *argv[]) {
   int k = atoi(argv[1]);
   int m = atoi(argv[2]);
   int lhs = atoi(argv[3]);
+  const size_t years = 5;
 
-
+  fprintf(stderr,"*info* Simulation for %zd years\n", years);
+  
   for (size_t p = 1; p<=2; p++) {
     size_t good =0, bad = 0;
     fprintf(stderr,"*** Number of Failure Groups: %zd (%s)\n", p, (p==1)?"Single Server":"Mirror");
     
-    numListType failAge;
+    numListType failAge, sparesRequired;
     nlInit(&failAge, 1000000);
+    nlInit(&sparesRequired, 1000000);
     
-    for (size_t i = 0 ; keepRunning && (i < 1000); i++) {
+    for (size_t i = 0 ; keepRunning && (i < 10000); i++) {
       //    printf("--> %zd\n", i);
       failureGroup g;
       
-      failureGroupInit(&g, 0, 90, 20*1024*1024);
+      failureGroupInit(&g, 0, 60, 20*1024*1024);
       
       virtualDeviceType f;
       
@@ -194,15 +202,23 @@ int failureType(int argc, char *argv[]) {
       
       
       int thisonebad = 0;
-      for (size_t i = 0; i < 365*5; i++) {
+      for (size_t i = 0; i < 365 * years; i++) {
 	int age = failureGroupIterate(&g);
 	if (age != 0) {
 	  nlAdd(&failAge, age * 24); // failure
+
 	  thisonebad = 1;
 	  break;
 	}
-	//      failureGroupDump(&g);
+	//	failureGroupDump(&g, 1);
       }
+
+      // count drives that have failed in this array
+      for (size_t k = 0; k < g.len; k++) {
+	nlAdd(&sparesRequired, g.f[k].drivesFailed);
+      }	    
+	  
+      
       
       if (thisonebad) {
 	bad++;
@@ -213,15 +229,21 @@ int failureType(int argc, char *argv[]) {
       
       failureGroupFree(&g);
     }
+    fprintf(stderr,"*** Array failure statistics\n");
     if (nlN(&failAge) > 0) {
-      fprintf(stderr,"Array failure statistics in hours: \n");
-      nlSummary(&failAge);
+      fprintf(stderr,"Array failure statistics (failure hour) \n");
+      nlBriefSummary(&failAge);
     } else {
-      fprintf(stderr,"There were no array failures.\n");
+      fprintf(stderr,"There were *no* simulated array failures\n");
     }
-    nlFree(&failAge);
+    fprintf(stderr,"*** Spares required (drives)\n");
+    nlBriefSummary(&sparesRequired);
     
-    fprintf(stderr, "summary: %zd good, %zd bad\n", good, bad);
+    nlFree(&failAge);
+    nlFree(&sparesRequired);
+
+    fprintf(stderr,"*** Simulation summary\n");
+    fprintf(stderr, "Arrays: %zd good (%.3lf %%), %zd bad (%.3lf)\n", good, good * 100.0 / (good + bad), bad, bad * 100.0 / (good + bad));
     if (p == 1) {
       fprintf(stderr, "\n");
     }

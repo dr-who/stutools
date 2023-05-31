@@ -17,6 +17,8 @@ typedef struct {
   size_t agesincerebuilt;
   size_t driveSizeInBytes;
 
+  size_t drivesFailed;
+
   int *status;
   size_t total;
 
