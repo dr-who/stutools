@@ -366,11 +366,11 @@ int main() {
 
 void nlSummary(numListType *nl) {
     fprintf(stdout,
-            "mean: \t%.3g\nmin: \t%.3g\nQ25%%: \t%.3g\nMedian:\t%.3g\nQ75%%: \t%.3g\nmax: \t%.3g\nN:   \t%zd\nSD: \t%.3g\nSEM: \t%.3g\n",
+            "mean: \t%lf\nmin: \t%lf\nQ25%%: \t%lf\nMedian:\t%lf\nQ75%%: \t%lf\nmax: \t%lf\nN:   \t%zd\nSD: \t%lf\nSEM: \t%lf\n",
             nlMean(nl), nlMin(nl), nlSortedPos(nl, 0.25), nlMedian(nl), nlSortedPos(nl, 0.75), nlMax(nl), nlN(nl),
             nlSD(nl), nlSEM(nl));
-    //fprintf(stdout,"99.9%%:  \t%.3g\n", nlSortedPos(nl, 0.999));
-    //  fprintf(stdout,"99.99%%: \t%.3g\n", nlSortedPos(nl, 0.9999));
-    //  fprintf(stdout,"99.999%%:\t%.3g\n", nlSortedPos(nl, 0.99999));
+    //fprintf(stdout,"99.9%%:  \t%lf\n", nlSortedPos(nl, 0.999));
+    //  fprintf(stdout,"99.99%%: \t%lf\n", nlSortedPos(nl, 0.9999));
+    //  fprintf(stdout,"99.999%%:\t%lf\n", nlSortedPos(nl, 0.99999));
 }
     
