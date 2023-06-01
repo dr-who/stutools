@@ -107,6 +107,22 @@ int main() {
     positionContainerFree(&pc);
   }
 
+  for (size_t i = 1; i <=100000; i+=1000) 
+  for (size_t s = 0; s<=1; s++) {
+    // P100z
+    positionContainerInit(&pc, 0);
+    positionContainerSetup(&pc, i);
+    //    pc.sz = i;
+    positionContainerCreatePositions(&pc, 0, s, 0, rorw, &len, 4096, i/2, 0, bdSize, i+s, 1, 0, 0, 0, i /*P100*/, 0, 0, 0, 0, 0, resetSizes);
+    positionContainerDump(&pc, 10);
+    for (size_t i = 0; i <pc.sz-1; i++) {
+      for (size_t j = i+1; j <pc.sz; j++) {
+	assert(pc.positions[i].pos != pc.positions[j].pos);
+      }
+    }
+    positionContainerFree(&pc);
+  }
+
 
   /*    positionContainerInit(&pc, 0);
     positionContainerSetup(&pc, 10000000);
