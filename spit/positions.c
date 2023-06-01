@@ -1087,7 +1087,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         if (index >= (int) count) {
             index -= count;
         }
-	if (sf == 0) { // if random copy the rest of the details, but randomise the position
+	if ((firstPPositions == 0) && (sf == 0)) { // if random copy the rest of the details, but randomise the position
 	  positions[i] = poss[index];
 	  positions[i].pos = randomBlockSize(pc->minbdSize, pc->maxbdSize-pc->maxbs, alignbits, erand48(xsubi) * (pc->maxbdSize - pc->maxbs - pc->minbdSize));
 	} else {
@@ -1134,9 +1134,9 @@ size_t positionContainerCreatePositions(positionContainer *pc,
     }
 
     // if randomise then reorder
-    //  if (sf == 0) {
-    //    positionContainerRandomize(pc);
-    //  }
+    if ((firstPPositions) && (sf == 0)) {
+      positionContainerRandomize(pc, seed);
+    }
 
     // rotate
     size_t sum = 0;
