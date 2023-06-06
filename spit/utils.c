@@ -2040,7 +2040,7 @@ size_t isSSHLogin() {
   return 0;
 }
 
-double getValueFromFile(const char *filename) {
+double getValueFromFile(const char *filename, const int quiet) {
   FILE *fp = fopen (filename, "rt");
   double value = NAN;
   if (fp) {
@@ -2051,7 +2051,9 @@ double getValueFromFile(const char *filename) {
     }
     fclose(fp);
   } else {
-    perror(filename);
+    if (quiet == 0) { 
+      perror(filename);
+    }
   }
   return value;
 }

@@ -230,6 +230,7 @@ void timeToDHS(time_t t, time_t *d, time_t *h, time_t *s);
 
 size_t isSSHLogin();
 
-double getValueFromFile(const char *filename);
+double getValueFromFile(const char *filename, const int quiet);
+
 
 #endif

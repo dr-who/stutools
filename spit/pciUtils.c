@@ -47,12 +47,12 @@ void listPCIdevices(size_t classfilter) {
 
       ///sys/bus/pci/devices/0000\:21\:00.0/max_link_speed
 
-      double currentLinkSpeed = getValueFromFile(cls);
-      double maxLinkSpeed = getValueFromFile(mls);
+      double currentLinkSpeed = getValueFromFile(cls, 1);
+      double maxLinkSpeed = getValueFromFile(mls, 1);
       printf(", speed %.0lf/%.0lf %s", currentLinkSpeed, maxLinkSpeed, (currentLinkSpeed==maxLinkSpeed)?"":"(Suboptimal)");
 
-      double currentLinkWidth = getValueFromFile(clw);
-      double maxLinkWidth = getValueFromFile(mlw);
+      double currentLinkWidth = getValueFromFile(clw, 1);
+      double maxLinkWidth = getValueFromFile(mlw, 1);
       printf(", width = %.0lf/%.0lf %s", currentLinkWidth, maxLinkWidth, (currentLinkWidth==maxLinkWidth)?"":"(Suboptimal)");
 
       printf(", %.1lf Gb/s", currentLinkWidth * currentLinkSpeed * 128.0/130);
