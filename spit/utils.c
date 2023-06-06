@@ -1844,3 +1844,65 @@ int who()
     return 0;
  }
 
+
+
+
+
+size_t listRunningProcessses() {
+ struct dirent *dp;
+ DIR *dfd;
+
+ if ((dfd = opendir("/proc")) == NULL) {
+   perror("/proc");
+   return 0;
+ }
+ 
+ char filename_qfd[PATH_MAX] ;
+ // char new_name_qfd[MAX_PATH] ;
+
+ size_t count = 0;
+ 
+ while ((dp = readdir(dfd)) != NULL) {
+   struct stat stbuf ;
+
+   char *end;
+   strtod(dp->d_name, &end);
+
+   if (end != NULL) {
+     if (*end != 0) {
+       continue;
+     }
+   }
+     
+   sprintf(filename_qfd, "/proc/%s", dp->d_name) ;
+   if(stat(filename_qfd, &stbuf ) == -1 ) {
+       perror(filename_qfd);
+       //       printf("Unable to stat file: %s\n",filename_qfd) ;
+       continue ;
+  }
+
+  if ( ( stbuf.st_mode & S_IFMT ) == S_IFDIR ) {
+
+    char s[PATH_MAX];
+    sprintf(s, "/proc/%s/status", dp->d_name);
+    //    printf("%s\n", s);
+    if (dumpFile(s, "(running|sleeping)", 1) > 0) {
+      dumpFile(s, "(running|sleeping|name)", 0);
+    }
+    
+    count++;
+    continue;
+   // Skip directories
+  } else {
+    // not a dir
+    //    char* new_name = get_new_name( dp->d_name ) ;// returns the new string
+    // after removing reqd part
+    //    sprintf(new_name_qfd,"%s/%s",dir,new_name) ;
+    //    rename( filename_qfd , new_name_qfd ) ;
+  }
+ }
+ return count;
+}
+
+
+

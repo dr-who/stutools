@@ -187,6 +187,7 @@ COMMAND commands[] = {
         {"netclient", "Client connects to a server for tests"},
         {"raidsim",   "Simulate k+m parity/RAID durability"},
         {"ps",        "Lists the number of processes"},
+        {"top",       "Lists the running processes"},
         {"pwgen",     "Generate cryptographically complex 200-bit random password"},
         {"scsi",      "Show SCSI devices"},
         {"spit",      "Stu's powerful I/O tester"},
@@ -307,6 +308,12 @@ void cmd_who(const int tty) {
   if (tty) {}
   who();
 }
+
+void cmd_top(const int tty) {
+  if (tty) {}
+  listRunningProcessses();
+}
+
 void cmd_devSpeed(const int tty, char *origline, int showspeedorlatency) {
   char *line = strdup(origline);
   char *first = strtok(line, " ");
@@ -971,8 +978,10 @@ void run_command(int tty, char *line, char *hostname) {
             } else if (strcasecmp(commands[i].name, "devspeed") == 0) {
 	        cmd_devSpeed(tty, line, 1);
             } else if (strcasecmp(commands[i].name, "who") == 0) {
-	      cmd_who(tty);
-            } else if (strcasecmp(commands[i].name, "devlatency") == 0) {
+	      cmd_who(tty); 
+            } else if (strcasecmp(commands[i].name, "top") == 0) {
+	      cmd_top(tty);
+           } else if (strcasecmp(commands[i].name, "devlatency") == 0) {
   	        cmd_devSpeed(tty, line, 0);
             }
             known = 1;
