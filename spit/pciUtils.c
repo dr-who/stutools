@@ -49,11 +49,11 @@ void listPCIdevices(size_t classfilter) {
 
       double currentLinkSpeed = getValueFromFile(cls, 1);
       double maxLinkSpeed = getValueFromFile(mls, 1);
-      printf(", speed %.0lf/%.0lf %s", currentLinkSpeed, maxLinkSpeed, (currentLinkSpeed==maxLinkSpeed)?"":"(Suboptimal)");
+      printf(", speed %.0lf/%.0lf%s", currentLinkSpeed, maxLinkSpeed, (currentLinkSpeed!=maxLinkSpeed)?" (Suboptimal)":"");
 
       double currentLinkWidth = getValueFromFile(clw, 1);
       double maxLinkWidth = getValueFromFile(mlw, 1);
-      printf(", width = %.0lf/%.0lf %s", currentLinkWidth, maxLinkWidth, (currentLinkWidth==maxLinkWidth)?"":"(Suboptimal)");
+      printf(", width = %.0lf/%.0lf%s", currentLinkWidth, maxLinkWidth, (currentLinkWidth!=maxLinkWidth)?" (Suboptimal)":"");
 
       printf(", %.1lf Gb/s", currentLinkWidth * currentLinkSpeed * 128.0/130);
 
