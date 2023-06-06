@@ -1054,8 +1054,8 @@ int main(int argc, char *argv[]) {
 	ssh_timeout = atoi(getenv("SSH_TIMEOUT"));
 	syslogString("stush", getenv("SSH_TIMEOUT"));
       } else {
-	syslogString("stush", "60");
-	ssh_timeout = 60;
+	syslogString("stush", "180"); // default is 180
+	ssh_timeout = 180;
       }
     }
 
