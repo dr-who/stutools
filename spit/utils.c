@@ -1860,7 +1860,7 @@ size_t who(const int quiet)
 	  char timestring[PATH_MAX];
 	  strftime(timestring, 999, "%a %b %d %H:%M", &tm);
 
-	  printf("%-s\t %-s\t %-12s\t %-d\t %-15s\t%s\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid), timestring);
+	  printf("%-s\t %-s\t %-12s\t %-d\t %-15s\t%s (%.0lf mins)\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid), timestring, ceil((time(NULL) -tt)/60.0));
 	}
 	count++;
       }
@@ -1885,6 +1885,12 @@ size_t last(const int quiet)
     }
 
     size_t count = 0;
+    time_t logintime = 0;
+    int lastpid = -1;
+    int needsnew = 0;
+
+    char timestring[PATH_MAX];
+    
     while (read(tmpfile, &buffer, sizeof(struct utmpx)) != 0) {
       //      if (buffer.ut_type == USER_PROCESS) {
 	if (quiet == 0) {
@@ -1892,16 +1898,40 @@ size_t last(const int quiet)
 
 	  struct tm tm = *localtime(&tt);
 	  
-	  char timestring[PATH_MAX];
-	  strftime(timestring, 999, "%a %b %d %H:%M", &tm);
+
 
 	  size_t logout = strlen(buffer.ut_user) == 0;
 	  
-	  printf("%-10s\t %-8s\t %-15s\t %-8d\t%s\n", logout?"logout":buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, timestring);
+	  if (buffer.ut_pid != lastpid) {
+	    if (needsnew) {
+	      printf("\n");
+	    }
+	    
+	    strftime(timestring, 999, "%a %b %d %H:%M", &tm);
+	    if (logout == 0) {
+	      logintime = tt;
+	      printf("%-10s\t %-8s\t %-15s\t %-8d\t%s", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, timestring);
+	      needsnew = 1;
+	    } else {
+	      needsnew = 0;
+	    }
+	  } else if (logout == 1) {
+	    size_t duration = tt - logintime;
+	    
+	    strftime(timestring, 999, "%H:%M", &tm);
+	    
+	    printf(" - %s (%.0lf mins)\n", timestring, ceil(duration/60.0));
+	    needsnew = 0;
+	  }
+
+	  lastpid = buffer.ut_pid;
 	}
 	count++;
       }
     //    }
+    if (needsnew) {
+      printf("\n");
+    }
     
     return count;
  }
