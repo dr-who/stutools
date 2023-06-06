@@ -2039,4 +2039,21 @@ size_t isSSHLogin() {
 
   return 0;
 }
-    
+
+double getValueFromFile(const char *filename) {
+  FILE *fp = fopen (filename, "rt");
+  double value = NAN;
+  if (fp) {
+    char result[1024];
+    int ret = fscanf(fp, "%s", result);
+    if (ret == 1) {
+      value = atof(result);
+    }
+    fclose(fp);
+  } else {
+    perror(filename);
+  }
+  return value;
+}
+
+  
