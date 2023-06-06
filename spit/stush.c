@@ -44,7 +44,12 @@ int TeReo = 0;
 int German = 0;
 
 void intHandler(int d) {
-    if (d) {}
+    if (d==SIGALRM) {
+      syslogString("stush", "Timeout alarm");
+      syslogString("stush", "Close session");
+      //      fprintf(stderr,"timeout\n");
+      exit(1);
+    }
     //  fprintf(stderr,"got signal\n");
     keepRunning = 0;
 }
@@ -179,6 +184,7 @@ COMMAND commands[] = {
         {"df",        "Disk free"},
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
+        {"env",       "List environment variables"},
         {"lang",      "Set locale language"},
         {"last",      "Show previous users"},
         {"lsblk",     "List drive block devices"},
@@ -954,7 +960,7 @@ void help_prompt() {
 }
 
 
-void run_command(int tty, char *line, char *hostname) {
+void run_command(const int tty, char *line, const char *hostname, const int ssh_login) {
     int known = 0;
     for (size_t i = 0; i < sizeof(commands) / sizeof(COMMAND); i++) {
         if (commands[i].name && (strncmp(line, commands[i].name, strlen(commands[i].name)) == 0)) {
@@ -995,8 +1001,8 @@ void run_command(int tty, char *line, char *hostname) {
 		help_prompt();
             } else if (strcasecmp(commands[i].name, "tty") == 0) {
                 cmd_tty(tty);
-                //	} else if (strcasecmp(commands[i].name, "env") == 0) {
-                //	  cmd_env(tty);
+	    } else if ((strcasecmp(commands[i].name, "env") == 0) && (ssh_login == 0)) { // can only run env if not sshed in
+	      cmd_env(tty);
             } else if (strcasecmp(commands[i].name, "lsnic") == 0) {
                 cmd_listNICs(tty);
             } else if (strcasecmp(commands[i].name, "devspeed") == 0) {
@@ -1036,9 +1042,27 @@ int main(int argc, char *argv[]) {
     }
 
     loadEnvVars("/etc/stush.cfg");
+    syslogString("stush", getenv("SSH_CLIENT"));
+
+    size_t ssh_timeout;
+    
+    const size_t ssh_login = isSSHLogin();
+
+    if (ssh_login) {
+      syslogString("stush", "SSH_TIMEOUT");
+      if (getenv("SSH_TIMEOUT")) {
+	ssh_timeout = atoi(getenv("SSH_TIMEOUT"));
+	syslogString("stush", getenv("SSH_TIMEOUT"));
+      } else {
+	syslogString("stush", "60");
+	ssh_timeout = 60;
+      }
+    }
+
 
     signal(SIGTERM, intHandler);
     signal(SIGINT, intHandler);
+    signal(SIGALRM, intHandler);
     setvbuf(stdout, NULL, _IONBF, 0);  // turn off buffering
     setvbuf(stderr, NULL, _IONBF, 0);  // turn off buffering
 
@@ -1050,14 +1074,18 @@ int main(int argc, char *argv[]) {
 
     int tty = isatty(1);
 
-
     // cli
+    size_t runArg = 0;
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] != '-') {
-            run_command(tty, argv[i], hostname);
-            exit(0);
+	    char s[1024];
+	    sprintf(s, "argv[%d] = '%s'", i, argv[i]);
+ 	    syslogString("stush", s);
+            run_command(tty, argv[i], hostname, ssh_login);
+	    runArg = 1;
         }
     }
+    if (runArg) goto end;
 
 
     header(tty);
@@ -1071,7 +1099,10 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         keepRunning = 1;
+
+	if (ssh_login) {alarm(ssh_timeout);}
         line = readline(prefix);
+	if (ssh_login) {alarm(0);}
 
         if ((line == NULL) || (strcasecmp(line, "exit") == 0) || (strcasecmp(line, "quit") == 0)) {
             break;
@@ -1085,7 +1116,7 @@ int main(int argc, char *argv[]) {
 
         add_history(line);
 
-        run_command(tty, line, hostname);
+        run_command(tty, line, hostname, ssh_login);
     }
 
     if (line == NULL) printf("\n");
@@ -1098,6 +1129,7 @@ int main(int argc, char *argv[]) {
 
     free(line);
 
+ end:    
     syslogString("stush", "Close session");
 
     return 0;

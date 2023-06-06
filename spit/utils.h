@@ -228,4 +228,6 @@ size_t listRunningProcessses();
 void printUptime();
 void timeToDHS(time_t t, time_t *d, time_t *h, time_t *s);
 
+size_t isSSHLogin();
+
 #endif

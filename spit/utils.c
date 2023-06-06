@@ -1314,7 +1314,13 @@ void syslogString(const char *prog, const char *message) {
     setlogmask(LOG_UPTO (LOG_NOTICE));
 
     //  openlog(prog, LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
-    syslog(LOG_NOTICE, message, "");
+    if (message && (strlen(message)<1023)) {
+      char s[1024];
+      sprintf(s, "%s - %s", ttyname(1)?ttyname(1):"-", message?message:"");
+      syslog(LOG_NOTICE, s);
+    } else {
+      syslog(LOG_NOTICE, "msg not valid");
+    }
     //  closelog();
 }
 
@@ -1736,7 +1742,7 @@ void loadEnvVars(char *filename) {
             if (second) {
                 second[strlen(second) - 1] = 0;
                 setenv(first, second, 0);
-                //	printf("%s\t->\t%s", first, second);
+		//		printf("*info* setting ENV %s\t->\t%s\n", first, second);
             }
         }
         free(line);
@@ -2010,3 +2016,19 @@ void timeToDHS(time_t t, time_t *d, time_t *h, time_t *s) {
   *h = (t - (*d * 3600*24)) / 3600;
   *s = (t %3600)*60/3600;
 }
+
+
+// look at parent process, if cmdline contains sshd then the parent is sshd
+size_t isSSHLogin() {
+  int p_pid;
+
+  p_pid = getppid(); /*parent process id*/
+
+  char *cmd = getcmdline(p_pid);
+  if (cmd && strstr(cmd, "sshd")) {
+    return 1;
+  }
+
+  return 0;
+}
+    
