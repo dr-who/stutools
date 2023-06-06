@@ -1036,7 +1036,7 @@ int main(int argc, char *argv[]) {
     cmd_status(hostname, tty);
 
     help_prompt();
-    sprintf(prefix, "%s$ ", hostname);
+    sprintf(prefix, "%s%s$%s ", tty?BOLD:"", hostname, tty?END:"");
 
     char *line = NULL;
     rl_bind_key('\t', rl_insert);
