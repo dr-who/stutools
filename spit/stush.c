@@ -193,6 +193,7 @@ COMMAND commands[] = {
         {"status",    "Show system status"},
         {"translations",    "List translations"},
         {"tty",       "Is the terminal interactive"},
+        {"who",       "List active users"},
         {"exit",      "Exit the secure shell"}
 };
 
@@ -302,6 +303,10 @@ void usage_spit() {
 }
 
 
+void cmd_who(const int tty) {
+  if (tty) {}
+  who();
+}
 void cmd_devSpeed(const int tty, char *origline, int showspeedorlatency) {
   char *line = strdup(origline);
   char *first = strtok(line, " ");
@@ -965,6 +970,8 @@ void run_command(int tty, char *line, char *hostname) {
                 cmd_listNICs(tty);
             } else if (strcasecmp(commands[i].name, "devspeed") == 0) {
 	        cmd_devSpeed(tty, line, 1);
+            } else if (strcasecmp(commands[i].name, "who") == 0) {
+	      cmd_who(tty);
             } else if (strcasecmp(commands[i].name, "devlatency") == 0) {
   	        cmd_devSpeed(tty, line, 0);
             }

@@ -217,4 +217,7 @@ char *serialFromFD(int fd);
 
 size_t numberOfDirectories(char *dir);
 
+char *getcmdline(const size_t pid);
+int who(); 
+
 #endif

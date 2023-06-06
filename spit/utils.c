@@ -1784,3 +1784,53 @@ size_t numberOfDirectories(char *dir) {
  }
  return count;
 }
+
+
+
+#include <utmpx.h>
+
+char *getcmdline(const size_t pid) {
+  char s[PATH_MAX];
+  sprintf(s, "/proc/%zd/cmdline", pid);
+  int fp = open(s, O_RDONLY);
+  if (fp > 0) {
+    char buffer[1024];
+    int rsz = read(fp, buffer, 1024);
+    s[0] = 0;
+    if (rsz > 0) {
+      for (int i = 0; i < rsz; i++) {
+	if (buffer[i] < 31) buffer[i] = 32;
+      }
+      buffer[rsz-1] = 0;
+    }
+    sprintf(s, "%s", buffer);
+    close(fp);
+    return strdup(s);
+  } else {
+    perror(s);
+  }
+  return NULL;
+}
+
+int who() 
+{
+    struct utmpx buffer;
+
+    int tmpfile = open("/var/run/utmp", O_RDONLY);
+
+    if (tmpfile < 0) {
+      perror("/var/run/utmp");
+      return -1;
+    }
+
+    printf("%-s\t %-s\t %-12s\t %-s\t %-s\n", "USER", "TTY", "FROM", "PID", "WHAT");
+    
+    while (read(tmpfile, &buffer, sizeof(struct utmpx)) != 0) {
+      if (buffer.ut_type == USER_PROCESS) {
+	printf("%-s\t %-s\t %-12s\t %-d\t %-s\t\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid));
+      }
+    }
+    
+    return 0;
+ }
+
