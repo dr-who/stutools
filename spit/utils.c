@@ -1763,6 +1763,16 @@ size_t numberOfDirectories(char *dir) {
  
  while ((dp = readdir(dfd)) != NULL) {
    struct stat stbuf ;
+
+   char *end;
+   strtod(dp->d_name, &end);
+
+   if (end != NULL) {
+     if (*end != 0) {
+       continue;
+     }
+   }
+     
    sprintf(filename_qfd, "%s/%s",dir,dp->d_name) ;
    if(stat(filename_qfd, &stbuf ) == -1 ) {
        perror(filename_qfd);
