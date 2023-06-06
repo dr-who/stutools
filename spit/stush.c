@@ -38,6 +38,8 @@
 
 #include "snack.h"
 
+#include "pciUtils.h"
+
 int keepRunning = 1;
 int verbose = 0;
 int TeReo = 0;
@@ -190,6 +192,7 @@ COMMAND commands[] = {
         {"last",      "Show previous users"},
         {"lsblk",     "List drive block devices"},
         {"lsnic",     "List IP/HW addresses"},
+        {"lspci",     "List PCI devices"},
         {"mounts",    "Show mounts info"},
         {"netserver", "Starts server for network tests"},
         {"netclient", "Client connects to a server for tests"},
@@ -554,6 +557,15 @@ void cmd_raidsim(int tty, char *origline) {
   }
 }
 
+void cmd_listPCI(int tty, size_t filterclass, char *label) {
+  if (tty) printf("%s", BOLD);
+  printf("%s\n", label);
+  if (tty) printf("%s", END);
+  
+  listPCIdevices(filterclass);
+}
+
+  
 
 // from getifaddrs man page
 void cmd_listNICs(int tty) {
@@ -1014,6 +1026,10 @@ void run_command(const int tty, char *line, const char *hostname, const int ssh_
 	      cmd_env(tty);
             } else if (strcasecmp(commands[i].name, "lsnic") == 0) {
                 cmd_listNICs(tty);
+            } else if (strcasecmp(commands[i].name, "lspci") == 0) {
+	      cmd_listPCI(tty, 0x0200, "Networking");
+	      cmd_listPCI(tty, 0x0100, "Storage");
+	      cmd_listPCI(tty, 0x0300, "Video");
             } else if (strcasecmp(commands[i].name, "devspeed") == 0) {
 	        cmd_devSpeed(tty, line, 1);
             } else if (strcasecmp(commands[i].name, "who") == 0) {
