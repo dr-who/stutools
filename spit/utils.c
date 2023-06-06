@@ -1846,7 +1846,7 @@ size_t who(const int quiet)
     }
 
     if (quiet == 0) {
-      printf("%-s\t %-s\t %-12s\t %-s\t %-s\t%s\n", "USER", "TTY", "FROM", "PID", "WHAT", "WHEN");
+      printf("%-s\t %-s\t %-12s\t %-s\t %-15s\t%s\n", "USER", "TTY", "FROM", "PID", "WHAT", "WHEN");
     }
 
     size_t count = 0;
@@ -1860,7 +1860,7 @@ size_t who(const int quiet)
 	  char timestring[PATH_MAX];
 	  strftime(timestring, 999, "%a %b %d %H:%M", &tm);
 
-	  printf("%-s\t %-s\t %-12s\t %-d\t %-s\t%s\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid), timestring);
+	  printf("%-s\t %-s\t %-12s\t %-d\t %-15s\t%s\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid), timestring);
 	}
 	count++;
       }
