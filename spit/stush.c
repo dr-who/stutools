@@ -321,8 +321,8 @@ void cmd_who(const int tty) {
 
 void cmd_id(const int tty) {
   if (tty) {}
-  printf("process id:  %d\n", getpid());
-  printf("parent pid:  %d\n", getppid());
+  printf("process id:  %d (%s)\n", getpid(), getcmdline(getpid()));
+  printf("parent pid:  %d (%s)\n", getppid(), getcmdline(getppid()));
   printf("ttyname:     %s\n", ttyname(1));
 }
   
