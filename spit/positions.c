@@ -741,18 +741,17 @@ size_t positionContainerCreatePositions(positionContainer *pc,
         const double cov = ((pc->sz) * 1.0 * ((pc->minbs + pc->maxbs) / 2)) / (maxbdSize - minbdSize);
         if (cov < 0.99) {
             if (firstPPositions) {}
-            fprintf(stderr, "*warning*\n");
-            fprintf(stderr, "*warning* not a full coverage of the device, coverage = %.2lf%% of %.3lf TB\n",
+            fprintf(stderr, "*error* not a full coverage of the device, coverage = %.2lf%% of %.3lf TB\n",
                     cov * 100.0, TOTB(maxbdSize - minbdSize));
             size_t usebs = (maxbdSize - minbdSize) * 1.0 / (pc->sz) / 1024;
-            fprintf(stderr, "*warning* ");
+            fprintf(stderr, "*error* ");
             commaPrint0dp(stderr, (maxbdSize - minbdSize) / pc->maxbs);
             fprintf(stderr, " positions are required with the current max block size (%zd KiB)\n", pc->maxbs / 1024);
             fprintf(stderr,
-                    "*warning* the block size would need to be >= %zd KiB ('k%zd' in the command string or increase RAM/-L)\n",
+                    "*error* the block size would need to be >= %zd KiB ('k%zd' in the command string or increase RAM/-L)\n",
                     usebs, usebs);
-            fprintf(stderr, "*warning*\n");
             fflush(stderr);
+	    exit(-1);
 
             //xxx bad idea with overlapping block ranges
             //    }
