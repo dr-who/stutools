@@ -221,9 +221,11 @@ size_t numberOfDirectories(char *dir);
 char *getcmdline(const size_t pid);
 
 size_t who(const int quiet);
+size_t last(const int quiet);
 
 size_t listRunningProcessses();
 
 void printUptime();
+void timeToDHS(time_t t, time_t *d, time_t *h, time_t *s);
 
 #endif

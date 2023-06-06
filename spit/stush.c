@@ -180,6 +180,7 @@ COMMAND commands[] = {
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
         {"lang",      "Set locale language"},
+        {"last",      "Show previous users"},
         {"lsblk",     "List drive block devices"},
         {"lsnic",     "List IP/HW addresses"},
         {"mounts",    "Show mounts info"},
@@ -310,6 +311,11 @@ void cmd_who(const int tty) {
   who(0);
 }
 
+void cmd_last(const int tty) {
+  if (tty) {}
+  last(0);
+}
+
 void cmd_top(const int tty) {
   if (tty) {}
   listRunningProcessses();
@@ -324,12 +330,12 @@ void cmd_uptime(const int tty) {
   strftime(timestring, 999, " %H:%M:%S", &tm);
 
   t = getUptime();
-  time_t intd = t / (3600*24);
-  time_t h = t - (intd * 3600*24);
-
+  time_t d,h,s;
+  timeToDHS(t, &d, &h, &s);
+  
   double d1,d2,d3;
   loadAverage3(&d1, &d2, &d3);
-  printf("%s up %zd days, %2zd:%02zd, %3zd users, load average: %.2lf, %.2lf, %.2lf\n", timestring, t / (3600*24), h / 3600, (t %3600)*60/3600, who(1), d1, d2, d3);
+  printf("%s up %zd days, %2zd:%02zd, %3zd users, load average: %.2lf, %.2lf, %.2lf\n", timestring, d, h, s, who(1), d1, d2, d3);
 }
 
 void cmd_devSpeed(const int tty, char *origline, int showspeedorlatency) {
@@ -997,6 +1003,8 @@ void run_command(int tty, char *line, char *hostname) {
 	        cmd_devSpeed(tty, line, 1);
             } else if (strcasecmp(commands[i].name, "who") == 0) {
 	      cmd_who(tty); 
+            } else if (strcasecmp(commands[i].name, "last") == 0) {
+	      cmd_last(tty); 
             } else if (strcasecmp(commands[i].name, "top") == 0) {
 	      cmd_top(tty);
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {

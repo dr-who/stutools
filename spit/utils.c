@@ -1846,18 +1846,62 @@ size_t who(const int quiet)
     }
 
     if (quiet == 0) {
-      printf("%-s\t %-s\t %-12s\t %-s\t %-s\n", "USER", "TTY", "FROM", "PID", "WHAT");
+      printf("%-s\t %-s\t %-12s\t %-s\t %-s\t%s\n", "USER", "TTY", "FROM", "PID", "WHAT", "WHEN");
     }
 
     size_t count = 0;
     while (read(tmpfile, &buffer, sizeof(struct utmpx)) != 0) {
       if (buffer.ut_type == USER_PROCESS) {
 	if (quiet == 0) {
-	  printf("%-s\t %-s\t %-12s\t %-d\t %-s\t\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid));
+	  time_t tt = buffer.ut_tv.tv_sec;
+
+	  struct tm tm = *localtime(&tt);
+	  
+	  char timestring[PATH_MAX];
+	  strftime(timestring, 999, "%a %b %d %H:%M", &tm);
+
+	  printf("%-s\t %-s\t %-12s\t %-d\t %-s\t%s\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid), timestring);
 	}
 	count++;
       }
     }
+    
+    return count;
+}
+
+size_t last(const int quiet) 
+{
+    struct utmpx buffer;
+
+    int tmpfile = open("/var/log/wtmp", O_RDONLY);
+
+    if (tmpfile < 0) {
+      perror("/var/log/wtmp");
+      return -1;
+    }
+
+    if (quiet == 0) {
+      printf("%-10s\t %-8s\t %-12s\t %-s\t %-s\t%s\n", "USER", "TTY", "FROM", "PID", "WHAT", "WHEN");
+    }
+
+    size_t count = 0;
+    while (read(tmpfile, &buffer, sizeof(struct utmpx)) != 0) {
+      //      if (buffer.ut_type == USER_PROCESS) {
+	if (quiet == 0) {
+	  time_t tt = buffer.ut_tv.tv_sec;
+
+	  struct tm tm = *localtime(&tt);
+	  
+	  char timestring[PATH_MAX];
+	  strftime(timestring, 999, "%a %b %d %H:%M", &tm);
+
+	  size_t logout = strlen(buffer.ut_user) == 0;
+	  
+	  printf("%-10s\t %-8s\t %-15s\t %-8d\t%s\n", logout?"logout":buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, timestring);
+	}
+	count++;
+      }
+    //    }
     
     return count;
  }
@@ -1927,4 +1971,12 @@ void printUptime() {
   size_t uptime = getUptime();
 
   printf("%zd time\n", uptime);
+}
+
+
+void timeToDHS(time_t t, time_t *d, time_t *h, time_t *s) {
+  
+  *d = t / (3600*24);
+  *h = (t - (*d * 3600*24)) / 3600;
+  *s = (t %3600)*60/3600;
 }
