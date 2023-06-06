@@ -981,7 +981,7 @@ void help_prompt() {
 }
 
 
-void run_command(const int tty, char *line, const char *hostname, const int ssh_login) {
+int run_command(const int tty, char *line, const char *hostname, const int ssh_login) {
     int known = 0;
     for (size_t i = 0; i < sizeof(commands) / sizeof(COMMAND); i++) {
         if (commands[i].name && (strncmp(line, commands[i].name, strlen(commands[i].name)) == 0)) {
@@ -1056,6 +1056,7 @@ void run_command(const int tty, char *line, const char *hostname, const int ssh_
   	    printf("%s: %s\n", line, T("Unknown command"));
         }
     }
+    return !known;
 }
 
 
@@ -1069,13 +1070,13 @@ int main(int argc, char *argv[]) {
     }
 
     loadEnvVars("/etc/stush.cfg");
-    syslogString("stush", getenv("SSH_CLIENT"));
 
     size_t ssh_timeout;
     
     const size_t ssh_login = isSSHLogin();
 
     if (ssh_login) {
+      syslogString("stush", getenv("SSH_CLIENT"));
       syslogString("stush", "SSH_TIMEOUT");
       if (getenv("SSH_TIMEOUT")) {
 	ssh_timeout = atoi(getenv("SSH_TIMEOUT"));
@@ -1108,7 +1109,10 @@ int main(int argc, char *argv[]) {
 	    char s[1024];
 	    sprintf(s, "argv[%d] = '%s'", i, argv[i]);
  	    syslogString("stush", s);
-            run_command(tty, argv[i], hostname, ssh_login);
+            int ret = run_command(tty, argv[i], hostname, ssh_login);
+	    if (ret) {
+	      syslogString("stush", "-- command failed");
+	    }
 	    runArg = 1;
         }
     }
@@ -1143,7 +1147,10 @@ int main(int argc, char *argv[]) {
 
         add_history(line);
 
-        run_command(tty, line, hostname, ssh_login);
+        int ret = run_command(tty, line, hostname, ssh_login);
+	if (ret) {
+	  syslogString("stush", "-- command failed");
+	}
     }
 
     if (line == NULL) printf("\n");

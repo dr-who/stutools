@@ -1295,6 +1295,8 @@ void sysLogArgs(const char *prog, int argc, char *argv[]) {
     s += sprintf(s, "%s: ", prog);
     for (int i = 0; i < argc; i++) {
         s += sprintf(s, "%s ", argv[i]);
+	if ((s - orig)>9000) // don't get too close
+	  break;
     }
     //  fprintf(stderr,"log: %s\n", orig);
     syslog(LOG_NOTICE, orig, "");
@@ -1318,8 +1320,12 @@ void syslogString(const char *prog, const char *message) {
       char s[1024];
       sprintf(s, "%s - %s", ttyname(1)?ttyname(1):"-", message?message:"");
       syslog(LOG_NOTICE, s, "");
+    } else if (message == NULL) {
+      syslog(LOG_NOTICE, "msg empty");
+      abort();
     } else {
       syslog(LOG_NOTICE, "msg not valid");
+      fprintf(stderr,"*warning* msg not valid: '%s'\n", message);
     }
     //  closelog();
 }
