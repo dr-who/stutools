@@ -1317,7 +1317,7 @@ void syslogString(const char *prog, const char *message) {
     if (message && (strlen(message)<1023)) {
       char s[1024];
       sprintf(s, "%s - %s", ttyname(1)?ttyname(1):"-", message?message:"");
-      syslog(LOG_NOTICE, s);
+      syslog(LOG_NOTICE, s, "");
     } else {
       syslog(LOG_NOTICE, "msg not valid");
     }
