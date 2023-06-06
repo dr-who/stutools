@@ -79,6 +79,7 @@ void checkContents(char *label, char *charbuf, size_t size, const size_t checksu
 void shmemUnlink();
 
 double loadAverage();
+void loadAverage3(double *d1, double *d2, double *d3);
 
 size_t numThreads();
 
@@ -218,7 +219,11 @@ char *serialFromFD(int fd);
 size_t numberOfDirectories(char *dir);
 
 char *getcmdline(const size_t pid);
-int who(); 
+
+size_t who(const int quiet);
+
 size_t listRunningProcessses();
+
+void printUptime();
 
 #endif

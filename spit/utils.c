@@ -150,6 +150,18 @@ size_t swapTotal(void) {
 }
 
 
+void loadAverage3(double *d1, double *d2, double *d3) {
+    FILE *fp = fopen("/proc/loadavg", "rt");
+    if (fp == NULL) {
+        perror("can't open /proc/loadavg");
+        return;
+    }
+    if (fscanf(fp, "%lf %lf %lf", d1, d2, d3) != 3) {
+        fprintf(stderr, "warning: problem with loadavg\n");
+    }
+    fclose(fp);
+}
+
 double loadAverage(void) {
     FILE *fp = fopen("/proc/loadavg", "rt");
     if (fp == NULL) {
@@ -1822,7 +1834,7 @@ char *getcmdline(const size_t pid) {
   return NULL;
 }
 
-int who() 
+size_t who(const int quiet) 
 {
     struct utmpx buffer;
 
@@ -1833,15 +1845,21 @@ int who()
       return -1;
     }
 
-    printf("%-s\t %-s\t %-12s\t %-s\t %-s\n", "USER", "TTY", "FROM", "PID", "WHAT");
-    
+    if (quiet == 0) {
+      printf("%-s\t %-s\t %-12s\t %-s\t %-s\n", "USER", "TTY", "FROM", "PID", "WHAT");
+    }
+
+    size_t count = 0;
     while (read(tmpfile, &buffer, sizeof(struct utmpx)) != 0) {
       if (buffer.ut_type == USER_PROCESS) {
-	printf("%-s\t %-s\t %-12s\t %-d\t %-s\t\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid));
+	if (quiet == 0) {
+	  printf("%-s\t %-s\t %-12s\t %-d\t %-s\t\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid));
+	}
+	count++;
       }
     }
     
-    return 0;
+    return count;
  }
 
 
@@ -1905,4 +1923,8 @@ size_t listRunningProcessses() {
 }
 
 
+void printUptime() {
+  size_t uptime = getUptime();
 
+  printf("%zd time\n", uptime);
+}
