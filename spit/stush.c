@@ -185,6 +185,7 @@ COMMAND commands[] = {
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
         {"env",       "List environment variables"},
+        {"id",       "Shows process IDs"},
         {"lang",      "Set locale language"},
         {"last",      "Show previous users"},
         {"lsblk",     "List drive block devices"},
@@ -317,6 +318,14 @@ void cmd_who(const int tty) {
   who(0);
 }
 
+
+void cmd_id(const int tty) {
+  if (tty) {}
+  printf("process id:  %d\n", getpid());
+  printf("parent pid:  %d\n", getppid());
+  printf("ttyname:     %s\n", ttyname(1));
+}
+  
 void cmd_last(const int tty) {
   if (tty) {}
   last(0);
@@ -1013,6 +1022,8 @@ void run_command(const int tty, char *line, const char *hostname, const int ssh_
 	      cmd_last(tty); 
             } else if (strcasecmp(commands[i].name, "top") == 0) {
 	      cmd_top(tty);
+            } else if (strcasecmp(commands[i].name, "id") == 0) {
+	      cmd_id(tty);
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
            } else if (strcasecmp(commands[i].name, "devlatency") == 0) {

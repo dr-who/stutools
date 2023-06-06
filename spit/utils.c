@@ -1866,7 +1866,15 @@ size_t who(const int quiet)
 	  char timestring[PATH_MAX];
 	  strftime(timestring, 999, "%a %b %d %H:%M", &tm);
 
-	  printf("%-s\t %-s\t %-12s\t %-d\t %-15s\t%s (%.0lf mins)\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid), timestring, ceil((time(NULL) -tt)/60.0));
+	  char *ttyn = ttyname(1);
+	  int ttysame = 0;
+	  if (ttyn && strlen(ttyn)>5) {
+	    if (strncmp(ttyn+5, buffer.ut_line, __UT_LINESIZE)==0) {
+	      ttysame = 1;
+	    }
+	  }
+
+	  printf("%-s\t %-s\t %-12s\t %-d\t %-15s\t%s (%.0lf mins) %s\n", buffer.ut_user, buffer.ut_line, buffer.ut_host, buffer.ut_pid, getcmdline(buffer.ut_pid), timestring, ceil((time(NULL) -tt)/60.0), ((getppid()==buffer.ut_pid) || ttysame)?"*":"");
 	}
 	count++;
       }
