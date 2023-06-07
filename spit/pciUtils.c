@@ -39,21 +39,32 @@ void listPCIdevices(size_t classfilter) {
       sprintf(clw, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/current_link_width", dev->domain, dev->bus, dev->dev, dev->func);
       sprintf(mlw, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/max_link_width", dev->domain, dev->bus, dev->dev, dev->func);
 
+      int numa = dev->numa_node;
+      if (numa < 0) numa = 0;
+
       //      printf("%s\n", cls);
       printf("%04x:%02x:%02x.%d [v=%04x,d=%04x] numa=%d",
 	     dev->domain, dev->bus, dev->dev, dev->func, dev->vendor_id, dev->device_id,
-	     /*dev->device_class, dev->irq, c,*/ /*(long) dev->base_addr[0],*/  dev->numa_node);
+	     /*dev->device_class, dev->irq, c,*/ /*(long) dev->base_addr[0],*/  numa);
 
 
       ///sys/bus/pci/devices/0000\:21\:00.0/max_link_speed
 
       double currentLinkSpeed = getValueFromFile(cls, 1);
       double maxLinkSpeed = getValueFromFile(mls, 1);
-      printf(", speed %.0lf/%.0lf%s", currentLinkSpeed, maxLinkSpeed, (currentLinkSpeed!=maxLinkSpeed)?" (Suboptimal)":"");
+      if (isnan(currentLinkSpeed) || isnan(maxLinkSpeed)) {
+	//	printf(", speed %.0lf/%.0lf%s", currentLinkSpeed, maxLinkSpeed, (currentLinkSpeed!=maxLinkSpeed)?" (Suboptimal)":"");
+      } else {
+	printf(", speed %.0lf/%.0lf%s", currentLinkSpeed, maxLinkSpeed, (currentLinkSpeed!=maxLinkSpeed)?" (Suboptimal)":"");
+      }
 
       double currentLinkWidth = getValueFromFile(clw, 1);
       double maxLinkWidth = getValueFromFile(mlw, 1);
-      printf(", width = %.0lf/%.0lf%s", currentLinkWidth, maxLinkWidth, (currentLinkWidth!=maxLinkWidth)?" (Suboptimal)":"");
+      if (isnan(currentLinkWidth) || isnan(maxLinkWidth)) {
+	//printf(", width = %.0lf/%.0lf%s", currentLinkWidth, maxLinkWidth, (currentLinkWidth!=maxLinkWidth)?" (Suboptimal)":"");
+      } else {
+	printf(", width = %.0lf/%.0lf%s", currentLinkWidth, maxLinkWidth, (currentLinkWidth!=maxLinkWidth)?" (Suboptimal)":"");
+      }
 
       printf(", %.1lf Gb/s", currentLinkWidth * currentLinkSpeed * 128.0/130);
 

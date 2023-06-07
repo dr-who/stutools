@@ -353,7 +353,7 @@ void cmd_uptime(const int tty) {
   
   double d1,d2,d3;
   loadAverage3(&d1, &d2, &d3);
-  printf("%s up %zd days, %2zd:%02zd, %3zd users, load average: %.2lf, %.2lf, %.2lf\n", timestring, d, h, s, who(1), d1, d2, d3);
+  printf("%s up %zd days, %2zd:%02zd, %2zd user%s load average: %.2lf, %.2lf, %.2lf\n", timestring, d, h, s, who(1), who(1)>1?"s,":", ", d1, d2, d3);
 }
 
 void cmd_devSpeed(const int tty, char *origline, int showspeedorlatency) {

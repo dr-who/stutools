@@ -38,6 +38,9 @@ target_link_libraries(spit spitlib m aio pthread numa)
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
+add_executable(dns dnsmain.c dns.c)
+target_link_libraries(dns spitlib m aio pthread numa pci)
+
 add_executable(numListTest numListTest.c)
 target_link_libraries(numListTest spitlib m aio pthread numa)
 
