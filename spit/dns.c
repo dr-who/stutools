@@ -9,7 +9,10 @@
 #include <netinet/in.h>
 #include <unistd.h>	//getpid
 
+#include <regex.h>
+
 #include "utils.h"
+#include "dns.h"
 
 //Types of DNS resource records :)
 
@@ -383,3 +386,77 @@ void ChangetoDnsNameFormat(char* dns,char* host)
 	}
 	*dns++='\0';
 }
+
+
+void dnsServersInit(dnsServersType *d) {
+  memset(d, 0, sizeof(dnsServersType));
+}
+
+void dnsServersFree(dnsServersType *d) {
+  for (size_t i = 0; i < d->num; i++) {
+    free(d->dnsServer[i]);
+  }
+  free(d->dnsServer);
+}
+
+void dnsServersDump(dnsServersType *d) {
+  for (size_t i = 0; i < d->num; i++) {
+    printf("[%zd]\t%s\n", i, d->dnsServer[i]);
+  }
+}
+
+void dnsServersAdd(dnsServersType *d, const char *server) {
+  for (size_t i = 0; i < d->num; i++) {
+    if (strcmp(d->dnsServer[i], server)==0) {
+      // found, not adding
+      return;
+    }
+  }
+  // new server
+  d->num++;
+  d->dnsServer = realloc(d->dnsServer, (d->num) * sizeof(dnsServersType)); assert(d->dnsServer);
+  d->dnsServer[d->num - 1] = strdup(server);
+}
+
+void dnsServersAddFile(dnsServersType *d, const char *filename, const char *regexstring) {
+  regex_t regex;
+  int reti;
+  reti = regcomp(&regex, regexstring, REG_EXTENDED | REG_ICASE);
+  if (reti) {
+    fprintf(stderr, "*error* could not compile regex\n");
+    return;
+  }
+  
+  FILE *fp = fopen(filename, "rt");
+  if (fp) {
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t nread;
+
+    while ((nread = getline(&line, &len, fp)) != -1) {
+      //      printf("Retrieved line of length %zu:\n", nread);
+
+      reti = regexec(&regex, line, 0, NULL, 0);
+      if (!reti) {
+	// grab second part
+	char *first = strtok(line, " \n");
+	if (first) {
+	  char *second = strtok(NULL, " \n");
+	  if (second) {
+	    dnsServersAdd(d, strdup(second));
+	  }
+	}
+      }
+    }
+
+    free(line);
+    fclose(fp);
+  } else {
+    perror(filename);
+  }
+}
+	 
+size_t dnsServersN(dnsServersType *d) {
+  return d->num;
+}
+				       

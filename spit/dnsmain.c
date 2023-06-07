@@ -5,24 +5,44 @@
 int keepRunning = 1;
 
 int main() {
-  char *servers[]={"1.1.1.1", "8.8.8.8", "9.9.9.9", "8.8.4.4", "202.37.129.2", "202.37.129.3"};
-  double lookup[6];
+  dnsServersType d;
+  dnsServersInit(&d);
 
-  for (size_t i =0 ;i < sizeof(lookup)/sizeof(lookup[0]); i++) {
-    printf("dns server: %s\n", servers[i]);
+  dnsServersAdd(&d, "1.1.1.1");
+  dnsServersAdd(&d, "1.1.1.1");
+  dnsServersAdd(&d, "8.8.8.8");
+  dnsServersAdd(&d, "8.8.4.4");
+  dnsServersAddFile(&d, "/etc/resolv.conf", "nameserver");
+
+  dnsServersDump(&d);
+
+  numListType *lookup = calloc(dnsServersN(&d), sizeof(numListType)); assert(lookup);
+
+  const size_t N = dnsServersN(&d);
+
+  for (size_t i =0; i < N; i++) {
+    nlInit(&lookup[i], 10000);
+  }
+
+  for (size_t i =0; i < N; i++) {
+    //    printf("dns server: %s\n", d.dnsServer[i]);
     
     double start = timeAsDouble();
-    dnsLookupAServer("example.com", servers[i]);
+    dnsLookupAServer("example.com", d.dnsServer[i]);
     double end = timeAsDouble();
-    lookup[i] = 1000.0 * (end - start);
+    nlAdd(&lookup[i], 1000.0 * (end - start));
   }
 
-  for (size_t i =0 ;i < 6; i++) {
-    printf("dns server: %-12s\t%6.2lf ms\n", servers[i], lookup[i]);
+  for (size_t i =0 ;i < N; i++) {
+    printf("dns server: %-12s\tmean %6.2lf ms\n", d.dnsServer[i], nlMean(&lookup[i]));
   }
 
-
-
+  for (size_t i =0 ;i < N; i++) {
+    nlFree(&lookup[i]);
+  }
+  
+  
+  dnsServersFree(&d);
 
   return 0;
 }
