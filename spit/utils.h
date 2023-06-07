@@ -206,6 +206,7 @@ unsigned long *randomGenerateLong(size_t len);
 unsigned char *randomGenerate(size_t len);
 
 unsigned char *passwordGenerate(unsigned char *rnd, size_t len);
+unsigned char *passwordGenerateString(unsigned char *rnd, size_t len, const char *buf);
 
 void readBenchmark(const int fd, const double seconds, const size_t blockSize, numListType *speed, numListType *latencyms);
 

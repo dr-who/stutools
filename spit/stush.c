@@ -187,7 +187,7 @@ COMMAND commands[] = {
         {"devlatency", "Measure read latency on device"},
         {"devspeed",  "Measure read speed on device"},
         {"df",        "Disk free"},
-        {"dns",       "Measure DNS latencies"},
+        {"dnstest",   "Measure DNS latencies"},
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
         {"env",       "List environment variables"},
@@ -196,6 +196,7 @@ COMMAND commands[] = {
         {"lang",      "Set locale language"},
         {"last",      "Show previous users"},
         {"lsblk",     "List drive block devices"},
+        {"lsdns",     "List DNS servers"},
         {"lsnic",     "List IP/HW addresses"},
         {"lspci",     "List PCI devices"},
         {"mem",      "Show memory usage"},
@@ -357,44 +358,76 @@ void cmd_id(const int tty) {
   printf("ttyname:     %s\n", ttyname(1));
 }
 
-void cmd_dns(const int tty, const char *origline) {
+void cmd_dns(const int tty, const char *origline, size_t justShow) {
   if (tty) {}
   char hostname[100];
 
-  unsigned char *rand = randomGenerate(200);
+  dnsServersType d;
+  dnsServersInit(&d);
 
-  unsigned char *pw = passwordGenerate(rand, 3);
-  sprintf(hostname, "%s.com", pw);
+  dnsServersAddFile(&d, "/etc/resolv.conf", "nameserver");
 
-  free(rand);
-  free(pw);
+  if (justShow) {
+    // just show the resolv.conf
+    dnsServersDump(&d);
+    return;
+  }
+  // otherwise continue and test, adding in some standard ones
+    
+  dnsServersAdd(&d, "1.1.1.1");
+  dnsServersAdd(&d, "8.8.8.8");
+  dnsServersAdd(&d, "8.8.4.4");
+  dnsServersDump(&d);
+
+  const size_t N = dnsServersN(&d);
+
+  numListType *lookup = calloc(N, sizeof(numListType)); assert(lookup);
+
+  for (size_t i =0 ;i < N; i++) {
+    nlInit(&lookup[i], 10000);
+  }
   
-  //  sprintf(hostname, "example.com");
+  for (size_t iterations = 0; keepRunning && iterations < 100; iterations++) {
+
+    unsigned char *rand = randomGenerate(3*8);
+
+    unsigned char *pw = passwordGenerateString(rand, 3, "abcdefghijklmnopqrstuvwxyz");
+    sprintf(hostname, "%s.com", pw);
+
+    free(rand);
+    free(pw);
   
-  char *line = strdup(origline);
-  char *first = strtok(line, " ");
-  if (first) {
-    char *second = strtok(NULL, " ");
-    if (second) {
-      sprintf(hostname, "%s", second);
+    //  sprintf(hostname, "example.com");
+  
+    char *line = strdup(origline);
+    char *first = strtok(line, " ");
+    if (first) {
+      char *second = strtok(NULL, " ");
+      if (second) {
+	sprintf(hostname, "%s", second);
+      }
+    }
+
+    for (size_t i = 0; keepRunning && i < N; i++) {
+      printf("dns server: %s\n", d.dnsServer[i]);
+    
+      double start = timeAsDouble();
+      int ret = dnsLookupAServer(hostname, d.dnsServer[i]);
+      double end = timeAsDouble();
+      if (ret > 0) {
+	nlAdd(&lookup[i], 1000.0 * (end - start));
+      }
     }
   }
-  char *servers[]={"1.1.1.1", "8.8.8.8", "8.8.4.4", "202.37.129.2", "202.37.129.3"};
-  const int num = sizeof(servers)/sizeof(servers[0]);
-  double *lookup = calloc(num, sizeof(double));
 
-  for (size_t i =0 ;i < num; i++) {
-    printf("dns server: %s\n", servers[i]);
-    
-    double start = timeAsDouble();
-    dnsLookupAServer(hostname, servers[i]);
-    double end = timeAsDouble();
-    lookup[i] = 1000.0 * (end - start);
+  for (size_t i =0 ;i < N; i++) {
+    printf("dns server: %-12s\t%zd\tmean %6.2lf ms\tmedian %6.1lf ms\n", d.dnsServer[i], nlN(&lookup[i]), nlMean(&lookup[i]), nlMedian(&lookup[i]));
   }
-
-  for (size_t i =0 ;i < num; i++) {
-    printf("dns server: %-12s\t%6.2lf ms\n", servers[i], lookup[i]);
+  for (size_t i =0 ;i < N; i++) {
+    nlFree(&lookup[i]);
   }
+  free(lookup);
+  dnsServersFree(&d);
 }  
   
 void cmd_last(const int tty) {
@@ -1203,8 +1236,10 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      cmd_top(tty);
             } else if (strcasecmp(commands[i].name, "id") == 0) {
 	      cmd_id(tty);
-            } else if (strcasecmp(commands[i].name, "dns") == 0) {
-	      cmd_dns(tty, line);
+            } else if (strcasecmp(commands[i].name, "lsdns") == 0) {
+	      cmd_dns(tty, line, 1);
+            } else if (strcasecmp(commands[i].name, "dnstest") == 0) {
+	      cmd_dns(tty, line, 0);
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
            } else if (strcasecmp(commands[i].name, "devlatency") == 0) {

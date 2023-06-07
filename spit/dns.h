@@ -1,9 +1,29 @@
 #ifndef __DNS_H
 #define __DNS_H
 
-void dnsLookupA(char *hostname);
+#include "numList.h"
 
-void dnsLookupAServer(char *hostname, char *dns_server);
+typedef struct {
+  size_t num;
+  char **dnsServer;
+} dnsServersType;
+
+
+void dnsServersInit(dnsServersType *d);
+
+void dnsServersAdd(dnsServersType *d, const char *server);
+void dnsServersAddFile(dnsServersType *d, const char *server, const char *regexstring);
+
+void dnsServersFree(dnsServersType *d);
+void dnsServersDump(dnsServersType *d);
+
+size_t dnsServersN(dnsServersType *d);
+
+
+
+int dnsLookupA(char *hostname);
+
+int dnsLookupAServer(char *hostname, char *dns_server);
 
 
   
