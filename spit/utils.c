@@ -116,15 +116,13 @@ size_t blockDeviceSize(const char *path) {
 }
 
 
-size_t swapTotal(void) {
+double swapTotal(size_t *t, size_t *u) {
 
     FILE *fp = fopen("/proc/swaps", "rt");
     if (fp == NULL) {
         perror("/proc/swaps");
         return 0;
     }
-
-    size_t ts = 0;
 
     char *line = NULL;
     size_t len = 0;
@@ -133,12 +131,13 @@ size_t swapTotal(void) {
     while ((read = getline(&line, &len, fp)) != -1) {
         if (line[0] == '/') {
             // a /dev line
-            size_t size;
+	    size_t size, used;
             char name[NAME_MAX], part[NAME_MAX];
-            int s = sscanf(line, "%s %s %zu", name, part, &size);
-            if (s == 3) {
+            int s = sscanf(line, "%s %s %zu %zu", name, part, &size, &used);
+            if (s == 4) {
                 // in /proc the size is in KiB
-                ts += (size << 10);
+	      (*t) = (*t) + (size << 10);
+	      (*u) = (*u) + (used << 10);
             }
         }
     }
@@ -146,7 +145,7 @@ size_t swapTotal(void) {
     free(line);
     fclose(fp);
 
-    return ts;
+    return (*u) * 100.0 / (*t);
 }
 
 

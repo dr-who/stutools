@@ -187,12 +187,14 @@ COMMAND commands[] = {
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
         {"env",       "List environment variables"},
-        {"id",       "Shows process IDs"},
+        {"id",        "Shows process IDs"},
+        {"ip",        "List IPv4 information"},
         {"lang",      "Set locale language"},
         {"last",      "Show previous users"},
         {"lsblk",     "List drive block devices"},
         {"lsnic",     "List IP/HW addresses"},
         {"lspci",     "List PCI devices"},
+        {"mem",      "Show memory usage"},
         {"mounts",    "Show mounts info"},
         {"netserver", "Starts server for network tests"},
         {"netclient", "Client connects to a server for tests"},
@@ -203,6 +205,7 @@ COMMAND commands[] = {
         {"scsi",      "Show SCSI devices"},
         {"spit",      "Stu's powerful I/O tester"},
         {"status",    "Show system status"},
+        {"swap",      "Show swap status"},
         {"translations",    "List translations"},
         {"tty",       "Is the terminal interactive"},
         {"uptime",    "Time since the system booted"},
@@ -316,10 +319,30 @@ void usage_spit() {
 }
 
 
+
 void cmd_who(const int tty) {
   if (tty) {}
   who(0);
 }
+
+
+void cmd_memUsage(const int tty) {
+  if (tty) {}
+  size_t total = totalRAM();
+  size_t free = freeRAM();
+  size_t used = total - free;
+  printf("Memory usage: %.0lf%%\n", used * 100.0 / total);
+}
+
+void cmd_swapUsage(const int tty) {
+  if (tty) {}
+
+  size_t total, used;
+  swapTotal(&total, &used);
+  
+  printf("Swap usage: %.0lf%%\n", used * 100.0 / total);
+}
+
 
 
 void cmd_id(const int tty) {
@@ -623,19 +646,26 @@ void cmd_listNICs(int tty) {
             printf("   Link: ");
             char ss[PATH_MAX];
             sprintf(ss, "/sys/class/net/%s/carrier", ifa->ifa_name);
-            dumpFile(ss, "", 0);
+	    //            dumpFile(ss, "", 0);
+	    double linkup = getValueFromFile(ss, 1);
+	    printf("%s\n", linkup>=1 ? "UP" : "DOWN");
 
             printf("   Speed: ");
             sprintf(ss, "/sys/class/net/%s/speed", ifa->ifa_name);
-            dumpFile(ss, "", 0);
+	    double speed = getValueFromFile(ss, 1);
+	    printf("%.0lf\n", speed);
 
             printf("   MTU: ");
             sprintf(ss, "/sys/class/net/%s/mtu", ifa->ifa_name);
-            dumpFile(ss, "", 0);
+	    double mtu = getValueFromFile(ss, 1);
+	    printf("%.0lf\n", mtu);
+	    //            dumpFile(ss, "", 0);
 
             printf("   Carrier changes: ");
             sprintf(ss, "/sys/class/net/%s/carrier_changes", ifa->ifa_name);
-            dumpFile(ss, "", 0);
+	    double cc = getValueFromFile(ss, 1);
+	    printf("%.0lf\n", cc);
+	    //            dumpFile(ss, "", 0);
 
 
         }
@@ -647,6 +677,77 @@ void cmd_listNICs(int tty) {
              stats->tx_packets, stats->rx_packets,
              stats->tx_bytes, stats->rx_bytes);
              }*/
+    }
+
+    freeifaddrs(ifaddr);
+}
+
+
+// from getifaddrs man page
+void cmd_listNICs2(int tty) {
+    if (tty) {}
+
+    struct ifaddrs *ifaddr;
+    int family, s;
+    char host[NI_MAXHOST];
+
+    if (getifaddrs(&ifaddr) == -1) {
+        perror("getifaddrs");
+        exit(EXIT_FAILURE);
+    }
+
+    if (tty) printf("%s", BOLD);
+    printf("if    \tIPv4         \tHW/MAC           \tLINK  \tSPEED\tMTU\tChanges\n");
+    if (tty) printf("%s", END);
+
+    for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL)
+            continue;
+
+        family = ifa->ifa_addr->sa_family;
+
+        /* Display interface name and family (including symbolic
+           form of the latter for the common families). */
+
+        if (family == AF_INET/* || family == AF_INET6*/) {
+	  if (strcmp(ifa->ifa_name, "lo")==0) {
+	    continue; // don't print info on localhost
+	  }
+	  
+	  printf("%s\t", ifa->ifa_name);
+
+	  s = getnameinfo(ifa->ifa_addr,
+                            (family == AF_INET) ? sizeof(struct sockaddr_in) :
+                            sizeof(struct sockaddr_in6),
+                            host, NI_MAXHOST,
+                            NULL, 0, NI_NUMERICHOST);
+            if (s != 0) {
+                printf("getnameinfo() failed: %s\n", gai_strerror(s));
+                exit(EXIT_FAILURE);
+            }
+	    
+            printf("%s\t", host);
+            cmd_printHWAddr(ifa->ifa_name); printf("\t");
+
+            char ss[PATH_MAX];
+            sprintf(ss, "/sys/class/net/%s/carrier", ifa->ifa_name);
+	    //            dumpFile(ss, "", 0);
+	    double linkup = getValueFromFile(ss, 1);
+	    printf("%-6s", linkup>=1 ? "UP" : "DOWN");
+	    printf("\t");
+
+            sprintf(ss, "/sys/class/net/%s/speed", ifa->ifa_name);
+	    double speed = getValueFromFile(ss, 1);
+	    printf("%.0lf\t", speed);
+
+            sprintf(ss, "/sys/class/net/%s/mtu", ifa->ifa_name);
+	    double mtu = getValueFromFile(ss, 1);
+	    printf("%.0lf\t", mtu);
+
+            sprintf(ss, "/sys/class/net/%s/carrier_changes", ifa->ifa_name);
+	    double cc = getValueFromFile(ss, 1);
+	    printf("%.0lf\n", cc);
+        }
     }
 
     freeifaddrs(ifaddr);
@@ -933,9 +1034,6 @@ void cmd_status(const char *hostname, const int tty) {
     printf("%-20s\t", T("Free RAM"));
     colour_printNumber(TOGiB(freeRAM()), TOGiB(freeRAM()) >= 1, " GiB\n", tty);
 
-    printf("%-20s\t", T("Swap space"));
-    printf("%.0lf GB\n", TOGB(swapTotal()));
-
     char *cpu = getCPUModel();
     printf("%-20s\t", T("CPU Model"));
     printf("%s\n", cpu);
@@ -1026,6 +1124,8 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      cmd_env(tty);
             } else if (strcasecmp(commands[i].name, "lsnic") == 0) {
                 cmd_listNICs(tty);
+            } else if (strcasecmp(commands[i].name, "ip") == 0) {
+                cmd_listNICs2(tty);
             } else if (strcasecmp(commands[i].name, "lspci") == 0) {
 	      cmd_listPCI(tty, 0x0200, "Networking");
 	      cmd_listPCI(tty, 0x0100, "Storage");
@@ -1034,6 +1134,10 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	        cmd_devSpeed(tty, line, 1);
             } else if (strcasecmp(commands[i].name, "who") == 0) {
 	      cmd_who(tty); 
+            } else if (strcasecmp(commands[i].name, "mem") == 0) {
+	      cmd_memUsage(tty); 
+            } else if (strcasecmp(commands[i].name, "swap") == 0) {
+	      cmd_swapUsage(tty); 
             } else if (strcasecmp(commands[i].name, "last") == 0) {
 	      cmd_last(tty); 
             } else if (strcasecmp(commands[i].name, "top") == 0) {

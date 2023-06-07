@@ -379,10 +379,10 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    if (swapTotal() != 0) {
+    /*    if (swapTotal() != 0) {
         fprintf(stderr, "*warning* SWAP should be off. Pausing for 20 seconds (or you can just `swapoff -a`)\n");
         sleep(20);
-    }
+	}*/
 
 
     size_t totalfilespace;

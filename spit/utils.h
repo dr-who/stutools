@@ -91,7 +91,8 @@ size_t totalBuffer();
 
 char *OSRelease();
 
-size_t swapTotal();
+double swapTotal(size_t *t, size_t *u);
+
 
 size_t fileSize(int fd);
 

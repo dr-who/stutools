@@ -1190,7 +1190,9 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "*info* spit %s %s (Stu's powerful I/O tester)\n", argv[0], SPIT_VERSION);
 
-    if (swapTotal() > 0) {
+    size_t swaptotal, swapfree;
+    swapTotal(&swaptotal, &swapfree);
+    if (swaptotal > 0) {
         fprintf(stderr, "*warning* spit needs swap to be off for consistent numbers. `sudo swapoff -a`\n");
     }
 
