@@ -1071,8 +1071,8 @@ void cmd_ntp(const int tty) {
   struct ntptimeval ntv;
   ntp_gettimex(&ntv);
 
-  printf("estimated error:          %.3lf s\n", ntv.esterror/1000000.0);
-  printf("maximum error:            %.3lf s\n", ntv.maxerror/1000000.0);
+  printf("Estimated error:          %.3lf s\n", ntv.esterror/1000000.0);
+  printf("Maximum error:            %.3lf s\n", ntv.maxerror/1000000.0);
   printf("TAI (Atomic Time Offset): %.3lf\n", ntv.tai/1000000.0);
 }
   
