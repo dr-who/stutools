@@ -386,9 +386,9 @@ void cmd_dns(const int tty, const char *origline, size_t justShow) {
   
   for (size_t iterations = 0; keepRunning && iterations < 100; iterations++) {
 
-    unsigned char *rand = randomGenerate(200);
+    unsigned char *rand = randomGenerate(3*8);
 
-    unsigned char *pw = passwordGenerate(rand, 3);
+    unsigned char *pw = passwordGenerateString(rand, 3, "abcdefghijklmnopqrstuvwxyz");
     sprintf(hostname, "%s.com", pw);
 
     free(rand);

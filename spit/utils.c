@@ -1617,12 +1617,11 @@ unsigned char *randomGenerate(size_t len) {
     return ret;
 }
 
-unsigned char *passwordGenerate(unsigned char *rnd, size_t len) {
+
+unsigned char *passwordGenerateString(unsigned char *rnd, size_t len, const char *buf) {
 
     unsigned char *ret = malloc(len + 1);
     assert(ret);
-
-    const char *buf = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
 
     const int buflen = strlen(buf);
 
@@ -1634,6 +1633,12 @@ unsigned char *passwordGenerate(unsigned char *rnd, size_t len) {
     ret[len] = 0;
 
     return ret;
+}
+
+
+unsigned char *passwordGenerate(unsigned char *rnd, size_t len) {
+    const char *buf = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
+    return passwordGenerateString(rnd, len, buf);
 }
 
 
