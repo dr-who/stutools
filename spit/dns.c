@@ -21,7 +21,7 @@
 #define T_MX 15 //Mail server
 
 //Function Prototypes
-void ngethostbyname (char* , int, char*);
+int ngethostbyname (char* , int, char*);
 void ChangetoDnsNameFormat (char*,char*);
 unsigned char* ReadName (unsigned char*,unsigned char*,int*);
 
@@ -81,24 +81,24 @@ typedef struct
 	struct QUESTION *ques;
 } QUERY;
 
-void dnsLookupA(char *hostname) {
+int dnsLookupA(char *hostname) {
   char name[1000];
   name[0] = 0;
   strcat(name, hostname);
-  ngethostbyname(name , T_A, "8.8.8.8");
+  return ngethostbyname(name , T_A, "8.8.8.8");
 }
 
-void dnsLookupAServer(char *hostname, char *dns_server) {
+int dnsLookupAServer(char *hostname, char *dns_server) {
   char name[1000];
   name[0] = 0;
   strcat(name, hostname);
-  ngethostbyname(name, T_A, dns_server);
+  return ngethostbyname(name, T_A, dns_server);
 }
 
 /*
  * Perform a DNS query by sending a packet
  * */
-void ngethostbyname(char *host , int query_type, char *dns_server)
+int ngethostbyname(char *host , int query_type, char *dns_server)
 {
 	unsigned char buf[65536],*reader;
 	char *qname;
@@ -113,7 +113,7 @@ void ngethostbyname(char *host , int query_type, char *dns_server)
 	struct DNS_HEADER *dns = NULL;
 	struct QUESTION *qinfo = NULL;
 
-	printf("Resolving %s" , host);
+	//	printf("Resolving %s" , host);
 
 	s = socket(AF_INET , SOCK_DGRAM , IPPROTO_UDP); //UDP packet for DNS queries
 
@@ -149,32 +149,32 @@ void ngethostbyname(char *host , int query_type, char *dns_server)
 	qinfo->qtype = htons( query_type ); //type of the query , A , MX , CNAME , NS etc
 	qinfo->qclass = htons(1); //its internet (lol)
 
-	printf("\nSending Packet...");
+	//	printf("\nSending Packet...");
 	if( sendto(s,(char*)buf,sizeof(struct DNS_HEADER) + (strlen((const char*)qname)+1) + sizeof(struct QUESTION),0,(struct sockaddr*)&dest,sizeof(dest)) < 0)
 	{
 		perror("sendto failed");
 	}
-	printf("Done");
+	//	printf("Done");
 	
 	//Receive the answer
 	i = sizeof dest;
-	printf("\nReceiving answer...");
+	//	printf("\nReceiving answer...");
 	if(recvfrom (s,(char*)buf , 65536 , 0 , (struct sockaddr*)&dest , (socklen_t*)&i ) < 0)
 	{
 		perror("recvfrom failed");
 	}
-	printf("Done");
+	//	printf("Done");
 
 	dns = (struct DNS_HEADER*) buf;
 
 	//move ahead of the dns header and the query field
 	reader = &buf[sizeof(struct DNS_HEADER) + (strlen((const char*)qname)+1) + sizeof(struct QUESTION)];
 
-	printf("\nThe response contains : ");
-	printf("\n %d Questions.",ntohs(dns->q_count));
-	printf("\n %d Answers.",ntohs(dns->ans_count));
-	printf("\n %d Authoritative Servers.",ntohs(dns->auth_count));
-	printf("\n %d Additional records.\n\n",ntohs(dns->add_count));
+	//	printf("\nThe response contains : ");
+	//	printf("\n %d Questions.",ntohs(dns->q_count));
+	//	printf("\n %d Answers.",ntohs(dns->ans_count));
+	//	printf("\n %d Authoritative Servers.",ntohs(dns->auth_count));
+	//	printf("\n %d Additional records.\n\n",ntohs(dns->add_count));
 
 	//Start reading answers
 	stop=0;
@@ -246,7 +246,7 @@ void ngethostbyname(char *host , int query_type, char *dns_server)
 	}
 
 	//print answers
-	printf("\nAnswer Records : %d \n" , ntohs(dns->ans_count) );
+	//	printf("\nAnswer Records : %d \n" , ntohs(dns->ans_count) );
 	for(i=0 ; i < ntohs(dns->ans_count) ; i++)
 	{
 		printf("Name : %s ",answers[i].name);
@@ -269,33 +269,38 @@ void ngethostbyname(char *host , int query_type, char *dns_server)
 	}
 
 	//print authorities
-	printf("\nAuthoritive Records : %d \n" , ntohs(dns->auth_count) );
-	for( i=0 ; i < ntohs(dns->auth_count) ; i++)
-	{
-		
-		printf("Name : %s ",auth[i].name);
-		if(ntohs(auth[i].resource->type)==2)
+	if (0) {
+	  printf("\nAuthoritive Records : %d \n" , ntohs(dns->auth_count) );
+	  for( i=0 ; i < ntohs(dns->auth_count) ; i++)
+	    {
+	      
+	      printf("Name : %s ",auth[i].name);
+	      if(ntohs(auth[i].resource->type)==2)
 		{
-			printf("has nameserver : %s",auth[i].rdata);
+		  printf("has nameserver : %s",auth[i].rdata);
 		}
-		printf("\n");
+	      printf("\n");
+	    }
 	}
 
+	  
 	//print additional resource records
-	printf("\nAdditional Records : %d \n" , ntohs(dns->add_count) );
-	for(i=0; i < ntohs(dns->add_count) ; i++)
-	{
-		printf("Name : %s ",addit[i].name);
-		if(ntohs(addit[i].resource->type)==1)
+	if (0) {
+	  printf("\nAdditional Records : %d \n" , ntohs(dns->add_count) );
+	  for(i=0; i < ntohs(dns->add_count) ; i++)
+	    {
+	      printf("Name : %s ",addit[i].name);
+	      if(ntohs(addit[i].resource->type)==1)
 		{
-			long *p;
-			p=(long*)addit[i].rdata;
-			a.sin_addr.s_addr=(*p);
-			printf("has IPv4 address : %s",inet_ntoa(a.sin_addr));
+		  long *p;
+		  p=(long*)addit[i].rdata;
+		  a.sin_addr.s_addr=(*p);
+		  printf("has IPv4 address : %s",inet_ntoa(a.sin_addr));
 		}
-		printf("\n");
+	      printf("\n");
+	    }
 	}
-	return;
+	return ntohs(dns->ans_count);
 }
 
 /*

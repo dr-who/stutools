@@ -358,40 +358,54 @@ void cmd_dns(const int tty, const char *origline) {
   if (tty) {}
   char hostname[100];
 
-  unsigned char *rand = randomGenerate(200);
-
-  unsigned char *pw = passwordGenerate(rand, 3);
-  sprintf(hostname, "%s.com", pw);
-
-  free(rand);
-  free(pw);
-  
-  //  sprintf(hostname, "example.com");
-  
-  char *line = strdup(origline);
-  char *first = strtok(line, " ");
-  if (first) {
-    char *second = strtok(NULL, " ");
-    if (second) {
-      sprintf(hostname, "%s", second);
-    }
-  }
   char *servers[]={"1.1.1.1", "8.8.8.8", "8.8.4.4", "202.37.129.2", "202.37.129.3"};
   const int num = sizeof(servers)/sizeof(servers[0]);
-  double *lookup = calloc(num, sizeof(double));
-
+  numListType *lookup = calloc(num, sizeof(numListType));
+  
   for (size_t i =0 ;i < num; i++) {
-    printf("dns server: %s\n", servers[i]);
+    nlInit(&lookup[i], 10000);
+  }
+  
+  for (size_t iterations = 0; keepRunning && iterations < 100; iterations++) {
+
+    unsigned char *rand = randomGenerate(200);
+
+    unsigned char *pw = passwordGenerate(rand, 3);
+    sprintf(hostname, "%s.com", pw);
+
+    free(rand);
+    free(pw);
+  
+    //  sprintf(hostname, "example.com");
+  
+    char *line = strdup(origline);
+    char *first = strtok(line, " ");
+    if (first) {
+      char *second = strtok(NULL, " ");
+      if (second) {
+	sprintf(hostname, "%s", second);
+      }
+    }
+
+    for (size_t i =0 ;i < num; i++) {
+      printf("dns server: %s\n", servers[i]);
     
-    double start = timeAsDouble();
-    dnsLookupAServer(hostname, servers[i]);
-    double end = timeAsDouble();
-    lookup[i] = 1000.0 * (end - start);
+      double start = timeAsDouble();
+      int ret = dnsLookupAServer(hostname, servers[i]);
+      double end = timeAsDouble();
+      if (ret > 0) {
+	nlAdd(&lookup[i], 1000.0 * (end - start));
+      }
+    }
   }
 
   for (size_t i =0 ;i < num; i++) {
-    printf("dns server: %-12s\t%6.2lf ms\n", servers[i], lookup[i]);
+    printf("dns server: %-12s\t%zd\tmean %6.2lf ms\tmedian %6.1lf ms\n", servers[i], nlN(&lookup[i]), nlMean(&lookup[i]), nlMedian(&lookup[i]));
   }
+  for (size_t i =0 ;i < num; i++) {
+    nlFree(&lookup[i]);
+  }
+  free(lookup);
 }  
   
 void cmd_last(const int tty) {
