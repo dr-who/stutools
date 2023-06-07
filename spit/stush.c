@@ -37,6 +37,7 @@
 #include "numList.h"
 
 #include "snack.h"
+#include "dns.h"
 
 #include "pciUtils.h"
 
@@ -184,6 +185,7 @@ COMMAND commands[] = {
         {"devlatency", "Measure read latency on device"},
         {"devspeed",  "Measure read speed on device"},
         {"df",        "Disk free"},
+        {"dns",       "Measure DNS latencies"},
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
         {"env",       "List environment variables"},
@@ -351,6 +353,46 @@ void cmd_id(const int tty) {
   printf("parent pid:  %d (%s)\n", getppid(), getcmdline(getppid()));
   printf("ttyname:     %s\n", ttyname(1));
 }
+
+void cmd_dns(const int tty, const char *origline) {
+  if (tty) {}
+  char hostname[100];
+
+  unsigned char *rand = randomGenerate(200);
+
+  unsigned char *pw = passwordGenerate(rand, 3);
+  sprintf(hostname, "%s.com", pw);
+
+  free(rand);
+  free(pw);
+  
+  //  sprintf(hostname, "example.com");
+  
+  char *line = strdup(origline);
+  char *first = strtok(line, " ");
+  if (first) {
+    char *second = strtok(NULL, " ");
+    if (second) {
+      sprintf(hostname, "%s", second);
+    }
+  }
+  char *servers[]={"1.1.1.1", "8.8.8.8", "8.8.4.4", "202.37.129.2", "202.37.129.3"};
+  const int num = sizeof(servers)/sizeof(servers[0]);
+  double *lookup = calloc(num, sizeof(double));
+
+  for (size_t i =0 ;i < num; i++) {
+    printf("dns server: %s\n", servers[i]);
+    
+    double start = timeAsDouble();
+    dnsLookupAServer(hostname, servers[i]);
+    double end = timeAsDouble();
+    lookup[i] = 1000.0 * (end - start);
+  }
+
+  for (size_t i =0 ;i < num; i++) {
+    printf("dns server: %-12s\t%6.2lf ms\n", servers[i], lookup[i]);
+  }
+}  
   
 void cmd_last(const int tty) {
   if (tty) {}
@@ -1144,6 +1186,8 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      cmd_top(tty);
             } else if (strcasecmp(commands[i].name, "id") == 0) {
 	      cmd_id(tty);
+            } else if (strcasecmp(commands[i].name, "dns") == 0) {
+	      cmd_dns(tty, line);
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
            } else if (strcasecmp(commands[i].name, "devlatency") == 0) {

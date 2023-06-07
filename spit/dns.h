@@ -1,7 +1,11 @@
 #ifndef __DNS_H
 #define __DNS_H
 
-void dnsConnect(char *ipaddress);
+void dnsLookupA(char *hostname);
 
+void dnsLookupAServer(char *hostname, char *dns_server);
+
+
+  
 #endif
 
