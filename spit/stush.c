@@ -1069,7 +1069,7 @@ void cmd_ntp(const int tty) {
   if (tty) {}
   
   struct ntptimeval ntv;
-  ntp_gettimex(&ntv);
+  ntp_gettime(&ntv);
 
   printf("Estimated error:          %.3lf s\n", ntv.esterror/1000000.0);
   printf("Maximum error:            %.3lf s\n", ntv.maxerror/1000000.0);
