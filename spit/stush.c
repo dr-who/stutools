@@ -29,6 +29,8 @@
 #include <ifaddrs.h>
 #include <linux/if_link.h>
 
+#include <sys/timex.h>
+
 
 #include "utils.h"
 #include "jobType.h"
@@ -200,6 +202,7 @@ COMMAND commands[] = {
         {"mounts",    "Show mounts info"},
         {"netserver", "Starts server for network tests"},
         {"netclient", "Client connects to a server for tests"},
+        {"ntp",       "Show NTP/network time status"},
         {"raidsim",   "Simulate k+m parity/RAID durability"},
         {"ps",        "Lists the number of processes"},
         {"top",       "Lists the running processes"},
@@ -268,7 +271,7 @@ void header(const int tty) {
     if (tty) {
         printf("%s", BOLD);
     }
-    printf("stush: (%s: v0.2)\n\n", T("secure sandpit"));
+    printf("stush: (%s: v0.85)\n\n", T("secure sandpit"));
     if (tty) {
         printf("%s", END);
     }
@@ -1029,6 +1032,18 @@ void cmd_netclient(const int tty, char *origstring) {
 }
 
 
+void cmd_ntp(const int tty) {
+  if (tty) {}
+  
+  struct ntptimeval ntv;
+  ntp_gettimex(&ntv);
+
+  printf("estimated error:          %.3lf s\n", ntv.esterror/1000000.0);
+  printf("maximum error:            %.3lf s\n", ntv.maxerror/1000000.0);
+  printf("TAI (Atomic Time Offset): %.3lf\n", ntv.tai/1000000.0);
+}
+  
+
 
 void cmd_date(const int tty) {
     time_t t = time(NULL);
@@ -1153,6 +1168,8 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
                 cmd_df(tty, line);
             } else if (strcasecmp(commands[i].name, "date") == 0) {
                 cmd_date(tty);
+            } else if (strcasecmp(commands[i].name, "ntp") == 0) {
+  	        cmd_ntp(tty);
             } else if (strcasecmp(commands[i].name, "netserver") == 0) {
                 cmd_netserver(tty);
             } else if (strcasecmp(commands[i].name, "netclient") == 0) {
