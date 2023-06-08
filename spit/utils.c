@@ -140,6 +140,9 @@ size_t blockDeviceSize(const char *path) {
 
 double swapTotal(size_t *t, size_t *u) {
 
+    *t = 0;
+    *u = 0;
+
     FILE *fp = fopen("/proc/swaps", "rt");
     if (fp == NULL) {
         perror("/proc/swaps");
