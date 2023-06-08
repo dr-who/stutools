@@ -1130,14 +1130,14 @@ void cmd_time(const int tty, const double timeSinceStart) {
 
 
 void cmd_date(const int tty) {
+    if (tty) {}
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
     char timestring[PATH_MAX];
     strftime(timestring, 999, "%c", &tm);
-    if (tty) printf("%s", BOLD);
+
     printf("%s\n", timestring);
-    if (tty) printf("%s", END);
 }
 
 
