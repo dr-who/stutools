@@ -20,7 +20,7 @@
 #include <net/if.h>
 
 #include <math.h>
-
+#include <limits.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -209,6 +209,7 @@ COMMAND commands[] = {
         {"top",       "Lists the running processes"},
         {"pwgen",     "Generate cryptographically complex 200-bit random password"},
         {"scsi",      "Show SCSI devices"},
+        {"sleep",     "Sleep for a few seconds"},
         {"spit",      "Stu's powerful I/O tester"},
         {"status",    "Show system status"},
         {"swap",      "Show swap status"},
@@ -326,6 +327,15 @@ void usage_spit() {
 }
 
 
+
+void cmd_sleep(const int tty) {
+  if (tty) {}
+  unsigned long l = getDevRandomLong();
+  size_t fr = 1000000L * 3 * (l * 1.0 / ULONG_MAX);
+
+  //  printf("sleeping for %zd microseconds\n", fr);
+  usleep(fr);
+}
 
 void cmd_who(const int tty) {
   if (tty) {}
@@ -1254,6 +1264,8 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      cmd_dns(tty, line, 0);
             } else if (strcasecmp(commands[i].name, "time") == 0) {
 	      cmd_time(tty, timeSinceStart);
+            } else if (strcasecmp(commands[i].name, "sleep") == 0) {
+	      cmd_sleep(tty);
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
            } else if (strcasecmp(commands[i].name, "devlatency") == 0) {

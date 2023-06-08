@@ -1574,8 +1574,8 @@ int backupExistingFile(const char *file, int versions) {
 
 unsigned long getDevRandomLong(void) {
     FILE *fp = fopen("/dev/random", "rb");
-    long c = 0;
-    if (fread(&c, sizeof(long), 1, fp) == 0) {
+    unsigned long c = 0;
+    if (fread(&c, sizeof(unsigned long), 1, fp) == 0) {
         //      perror("random");
         c = time(NULL);
         fprintf(stderr, "*info* random seed from clock\n");
