@@ -1363,35 +1363,25 @@ int main(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] != '-') {
 	    char s[1024];
-	    //	    sprintf(s, "argv[%d] = '%s'", i, argv[i]);
-	    // 	    syslogString("stush", s);
-	    //	    if (strstr(s, ";")) {
-	      // if there is a ; between phrases
-	      char *copy = strdup(argv[i]);
-	      char *tok = strtok(copy, "; \r\t\n"); // split on spaces etc
-	      size_t count = 0;
-	      do {
-		count++;
-		if (tok) {
-		  sprintf(s, "argv[%d.%zd] = '%s'", i, count, tok);
+	    char *copy = strdup(argv[i]);
+	    char *save;
+	    char *tok = strtok_r(copy, ";", &save); // split on ; only
+	    size_t count = 0;
+	    do {
+	      count++;
+	      if (tok) {
+		sprintf(s, "argv[%d.%zd] = '%s'", i, count, tok);
+		syslogString("stush", s);
+		int ret = run_command(tty, tok, hostname, ssh_login, timeSinceStart);
+		if (ret) {
+		  sprintf(s, "'%s' -- command failed", tok);
 		  syslogString("stush", s);
-		  int ret = run_command(tty, tok, hostname, ssh_login, timeSinceStart);
-		  if (ret) {
-		    syslogString("stush", "-- command failed");
-		  }
-		  runArg = 1;
-		  tok = strtok(NULL, "; \n");
 		}
-	      } while (tok);
-	      free(copy);
-	      /*	    } else {
-	      // no ;
-	      int ret = run_command(tty, argv[i], hostname, ssh_login, timeSinceStart);
-	      if (ret) {
-		syslogString("stush", "-- command failed");
+		runArg = 1;
+		tok = strtok_r(NULL, ";", &save);
 	      }
-	      runArg = 1;
-	      }*/
+	    } while (tok);
+	    free(copy);
         }
     }
     if (runArg) goto end;
