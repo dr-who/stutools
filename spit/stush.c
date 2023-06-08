@@ -328,13 +328,32 @@ void usage_spit() {
 
 
 
-void cmd_sleep(const int tty) {
+void cmd_sleep(const int tty, const char *origline) {
   if (tty) {}
-  unsigned long l = getDevRandomLong();
-  size_t fr = 1000000L * 3 * (l * 1.0 / ULONG_MAX);
 
-  //  printf("sleeping for %zd microseconds\n", fr);
-  usleep(fr);
+  double spectime = -1;
+
+  char *line = strdup(origline);
+  char *first = strtok(line, " \t\n");
+  if (first) { // sleep
+    char *second = strtok(NULL, " \t\n");
+    if (second) {
+      spectime = atof(second);
+    }
+  }
+  free(line);
+  
+
+  if (spectime < 0) {
+    unsigned long l = getDevRandomLong();
+    spectime = 3L * (l * 1.0 / ULONG_MAX);
+  }
+
+  char s[1000];
+  sprintf(s, "sleeping for %.3lf seconds", spectime);
+  syslogString("stush", s);
+  
+  usleep(spectime * 1000000L);
 }
 
 void cmd_who(const int tty) {
@@ -343,12 +362,18 @@ void cmd_who(const int tty) {
 }
 
 
-void cmd_memUsage(const int tty) {
-  if (tty) {}
+double usedMemoryPercent() {
   size_t total = totalRAM();
   size_t free = freeRAM();
   size_t used = total - free;
-  printf("Memory usage: %.0lf%%\n", used * 100.0 / total);
+  return used * 100.0 / total;
+}
+  
+
+
+void cmd_memUsage(const int tty) {
+  if (tty) {}
+  printf("Memory usage: %.0lf%%\n", usedMemoryPercent());
 }
 
 void cmd_swapUsage(const int tty) {
@@ -1097,6 +1122,7 @@ void cmd_time(const int tty, const double timeSinceStart) {
   char *os = OSRelease();
 
   double t = timeOnPPS();
+  
   printf("%lf %s %lf %s\n", t, timestring, t - timeSinceStart, os);
   fflush(stdout);
   free(os);
@@ -1268,7 +1294,7 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
             } else if (strcasecmp(commands[i].name, "time") == 0) {
 	      cmd_time(tty, timeSinceStart);
             } else if (strcasecmp(commands[i].name, "sleep") == 0) {
-	      cmd_sleep(tty);
+	      cmd_sleep(tty, line);
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
            } else if (strcasecmp(commands[i].name, "devlatency") == 0) {
@@ -1337,13 +1363,35 @@ int main(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] != '-') {
 	    char s[1024];
-	    sprintf(s, "argv[%d] = '%s'", i, argv[i]);
- 	    syslogString("stush", s);
-            int ret = run_command(tty, argv[i], hostname, ssh_login, timeSinceStart);
-	    if (ret) {
-	      syslogString("stush", "-- command failed");
-	    }
-	    runArg = 1;
+	    //	    sprintf(s, "argv[%d] = '%s'", i, argv[i]);
+	    // 	    syslogString("stush", s);
+	    //	    if (strstr(s, ";")) {
+	      // if there is a ; between phrases
+	      char *copy = strdup(argv[i]);
+	      char *tok = strtok(copy, "; \r\t\n"); // split on spaces etc
+	      size_t count = 0;
+	      do {
+		count++;
+		if (tok) {
+		  sprintf(s, "argv[%d.%zd] = '%s'", i, count, tok);
+		  syslogString("stush", s);
+		  int ret = run_command(tty, tok, hostname, ssh_login, timeSinceStart);
+		  if (ret) {
+		    syslogString("stush", "-- command failed");
+		  }
+		  runArg = 1;
+		  tok = strtok(NULL, "; \n");
+		}
+	      } while (tok);
+	      free(copy);
+	      /*	    } else {
+	      // no ;
+	      int ret = run_command(tty, argv[i], hostname, ssh_login, timeSinceStart);
+	      if (ret) {
+		syslogString("stush", "-- command failed");
+	      }
+	      runArg = 1;
+	      }*/
         }
     }
     if (runArg) goto end;
