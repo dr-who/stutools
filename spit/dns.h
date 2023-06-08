@@ -14,6 +14,8 @@ void dnsServersInit(dnsServersType *d);
 void dnsServersAdd(dnsServersType *d, const char *server);
 void dnsServersAddFile(dnsServersType *d, const char *server, const char *regexstring);
 
+void dnsServersRm(dnsServersType *d, size_t id);
+void dnsServersClear(dnsServersType *d);
 void dnsServersFree(dnsServersType *d);
 void dnsServersDump(dnsServersType *d);
 

@@ -392,6 +392,24 @@ void dnsServersInit(dnsServersType *d) {
   memset(d, 0, sizeof(dnsServersType));
 }
 
+void dnsServersRm(dnsServersType *d, size_t id) {
+  if (id >= d->num) {
+    fprintf(stderr,"DNS index out of range: %zd\n", id);
+  } else {
+    free(d->dnsServer[id]);
+    d->dnsServer[id] = NULL;
+  }
+}
+    
+
+void dnsServersClear(dnsServersType *d) {
+  for (size_t i = 0; i < d->num; i++) {
+    free(d->dnsServer[i]);
+  }
+  free(d->dnsServer);
+  dnsServersInit(d);
+}
+
 void dnsServersFree(dnsServersType *d) {
   for (size_t i = 0; i < d->num; i++) {
     free(d->dnsServer[i]);
@@ -407,8 +425,16 @@ void dnsServersDump(dnsServersType *d) {
 
 void dnsServersAdd(dnsServersType *d, const char *server) {
   for (size_t i = 0; i < d->num; i++) {
-    if (strcmp(d->dnsServer[i], server)==0) {
+    if (d->dnsServer[i] && (strcmp(d->dnsServer[i], server)==0)) {
       // found, not adding
+      return;
+    }
+  }
+  // check for empty slot
+  for (size_t i = 0; i < d->num; i++) {
+    if (d->dnsServer[i] == NULL) {
+      // found a gap
+      d->dnsServer[i] = strdup(server);
       return;
     }
   }

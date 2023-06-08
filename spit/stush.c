@@ -188,7 +188,10 @@ COMMAND commands[] = {
         {"devspeed",  "Measure read speed on device"},
         {"df",        "Disk free"},
         {"dnsadd",    "Add DNS server"},
+        {"dnsclear",  "Remove all DNS servers"},
+        {"dnsrm",     "Remove a specific DNS server"},
         {"dnsls",     "List DNS servers"},
+        {"dnsrc",     "Load DNS servers from /etc/resolv.conf"},
         {"dnstest",   "Measure DNS latencies"},
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
@@ -435,7 +438,7 @@ void cmd_testdns(const int tty, const char *origline, dnsServersType *d) {
       }
     }
 
-    for (size_t i = 0; keepRunning && i < N; i++) {
+    for (size_t i = 0; keepRunning && i < N; i++) if (d->dnsServer[i]) {
       printf("dns server: %s\n", d->dnsServer[i]);
     
       double start = timeAsDouble();
@@ -1279,6 +1282,22 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      cmd_id(tty);
             } else if (strcasecmp(commands[i].name, "dnsls") == 0) {
 	      dnsServersDump(dns);
+            } else if (strcasecmp(commands[i].name, "dnsrc") == 0) {
+	      dnsServersAddFile(dns, "/etc/resolv.conf", "nameserver");
+	      dnsServersDump(dns);
+            } else if (strcasecmp(commands[i].name, "dnsclear") == 0) {
+	      dnsServersClear(dns);
+            } else if (strcasecmp(commands[i].name, "dnsrm") == 0) {
+	      char *copy = strdup(line);
+	      char *first = strtok(copy, " ");
+	      if (first) {
+		char *second = strtok(NULL, " ");
+		if (second) {
+		  dnsServersRm(dns, atoi(second));
+		}
+	      }
+	      dnsServersDump(dns);
+	      free(copy);
             } else if (strcasecmp(commands[i].name, "dnsadd") == 0) {
 	      char *copy = strdup(line);
 	      char *first = strtok(copy, " ");
