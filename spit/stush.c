@@ -384,8 +384,12 @@ void cmd_swapUsage(const int tty) {
 
   size_t total, used;
   swapTotal(&total, &used);
-  
-  printf("Swap usage: %.0lf%%\n", used * 100.0 / total);
+
+  if (total == 0) {
+    printf("Swap disabled\n");
+  } else {
+    printf("Swap usage: %.0lf%%\n", used * 100.0 / total);
+  }
 }
 
 
