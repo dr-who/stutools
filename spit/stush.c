@@ -212,6 +212,7 @@ COMMAND commands[] = {
         {"spit",      "Stu's powerful I/O tester"},
         {"status",    "Show system status"},
         {"swap",      "Show swap status"},
+        {"time",      "Show the time in seconds"},
         {"translations",    "List translations"},
         {"tty",       "Is the terminal interactive"},
         {"uptime",    "Time since the system booted"},
@@ -1076,6 +1077,17 @@ void cmd_ntp(const int tty) {
   printf("TAI (Atomic Time Offset): %.3lf\n", ntv.tai/1000000.0);
 }
   
+void cmd_time(const int tty, const double timeSinceStart) {
+  if (tty) {}
+  time_t tz = time(NULL);
+  struct tm tm = *localtime(&tz);
+  char timestring[PATH_MAX];
+  strftime(timestring, 999, " %Z", &tm); // just want the time zone
+
+  double t = timeOnPPS();
+  printf("%lf %s %lf\n", t, timestring, t - timeSinceStart);
+  fflush(stdout);
+}
 
 
 void cmd_date(const int tty) {
@@ -1169,7 +1181,7 @@ void help_prompt() {
 }
 
 
-int run_command(const int tty, char *line, const char *hostname, const int ssh_login) {
+int run_command(const int tty, char *line, const char *hostname, const int ssh_login, const double timeSinceStart) {
     int known = 0;
     for (size_t i = 0; i < sizeof(commands) / sizeof(COMMAND); i++) {
         if (commands[i].name && (strncmp(line, commands[i].name, strlen(commands[i].name)) == 0)) {
@@ -1240,6 +1252,8 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      cmd_dns(tty, line, 1);
             } else if (strcasecmp(commands[i].name, "dnstest") == 0) {
 	      cmd_dns(tty, line, 0);
+            } else if (strcasecmp(commands[i].name, "time") == 0) {
+	      cmd_time(tty, timeSinceStart);
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
            } else if (strcasecmp(commands[i].name, "devlatency") == 0) {
@@ -1261,7 +1275,8 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 
 
 int main(int argc, char *argv[]) {
-
+    const double timeSinceStart = timeAsDouble();
+  
     syslogString("stush", "Start session");
     if (geteuid() != 0) {
         fprintf(stderr, "*error* app needs root. sudo chmod +s ...\n");
@@ -1309,7 +1324,7 @@ int main(int argc, char *argv[]) {
 	    char s[1024];
 	    sprintf(s, "argv[%d] = '%s'", i, argv[i]);
  	    syslogString("stush", s);
-            int ret = run_command(tty, argv[i], hostname, ssh_login);
+            int ret = run_command(tty, argv[i], hostname, ssh_login, timeSinceStart);
 	    if (ret) {
 	      syslogString("stush", "-- command failed");
 	    }
@@ -1347,7 +1362,7 @@ int main(int argc, char *argv[]) {
 
         add_history(line);
 
-        int ret = run_command(tty, line, hostname, ssh_login);
+        int ret = run_command(tty, line, hostname, ssh_login, timeSinceStart);
 	if (ret) {
 	  syslogString("stush", "-- command failed");
 	}

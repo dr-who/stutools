@@ -47,6 +47,17 @@ inline double timeAsDouble(void) {
     return tm / 1000000.0;
 }
 
+double timeOnPPS() {
+  double thetime = timeAsDouble();
+  const size_t firsttime = thetime;
+  
+  do {
+    thetime = timeAsDouble();
+  } while ((size_t)thetime == firsttime);
+
+  return thetime;
+}
+
 size_t fileSize(int fd) {
     size_t sz = lseek(fd, 0L, SEEK_END);
     lseek(fd, 0L, SEEK_SET);
