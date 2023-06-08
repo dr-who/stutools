@@ -50,7 +50,16 @@ inline double timeAsDouble(void) {
 double timeOnPPS() {
   double thetime = (10*timeAsDouble());
   //  const size_t firsttime = thetime;
+  
   size_t loops = 0;
+  // first loop until the time doesn't end in .5
+  do {
+    if (loops) usleep(10); // to avoid doing 20 million time operations
+    thetime = (10*timeAsDouble());
+    loops++;
+  } while ((size_t)thetime%10 == 5);
+  // at this point the time doesn't in .5
+
   do {
     if (loops) usleep(10); // to avoid doing 20 million time operations
     thetime = (10*timeAsDouble());
