@@ -1094,9 +1094,12 @@ void cmd_time(const int tty, const double timeSinceStart) {
   char timestring[PATH_MAX];
   strftime(timestring, 999, " %Z", &tm); // just want the time zone
 
+  char *os = OSRelease();
+
   double t = timeOnPPS();
-  printf("%lf %s %lf\n", t, timestring, t - timeSinceStart);
+  printf("%lf %s %lf %s\n", t, timestring, t - timeSinceStart, os);
   fflush(stdout);
+  free(os);
 }
 
 

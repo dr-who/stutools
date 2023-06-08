@@ -48,14 +48,14 @@ inline double timeAsDouble(void) {
 }
 
 double timeOnPPS() {
-  double thetime = timeAsDouble();
-  const size_t firsttime = thetime;
+  double thetime = (10*timeAsDouble());
+  //  const size_t firsttime = thetime;
   
   do {
-    thetime = timeAsDouble();
-  } while ((size_t)thetime == firsttime);
+    thetime = (10*timeAsDouble());
+  } while ((size_t)thetime%10 != 5);
 
-  return thetime;
+  return thetime / 10.0;
 }
 
 size_t fileSize(int fd) {
