@@ -187,6 +187,8 @@ COMMAND commands[] = {
         {"devlatency", "Measure read latency on device"},
         {"devspeed",  "Measure read speed on device"},
         {"df",        "Disk free"},
+        {"dnsadd",    "Add DNS server"},
+        {"dnsls",     "List DNS servers"},
         {"dnstest",   "Measure DNS latencies"},
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
@@ -196,7 +198,6 @@ COMMAND commands[] = {
         {"lang",      "Set locale language"},
         {"last",      "Show previous users"},
         {"lsblk",     "List drive block devices"},
-        {"lsdns",     "List DNS servers"},
         {"lsnic",     "List IP/HW addresses"},
         {"lspci",     "List PCI devices"},
         {"mem",      "Show memory usage"},
@@ -224,7 +225,7 @@ COMMAND commands[] = {
 
 
 
-void cmd_lang(const int tty, char *origstring) {
+void cmd_lang(const int tty, char *origstring, int quiet) {
     char *string = strdup(origstring);
     const char *delim = " ";
     char *first = strtok(string, delim);
@@ -235,9 +236,11 @@ void cmd_lang(const int tty, char *origstring) {
             if (setlocale(LC_ALL, second) == NULL) {
 	      printf("LANG/locale '%s' is not available\n", second);
             } else {
-                if (tty) printf("%s", BOLD);
-                printf("LANG is %s\n", second);
-                if (tty) printf("%s", END);
+	        if (quiet == 0)  {
+                  if (tty) printf("%s", BOLD);
+                  printf("LANG is %s\n", second);
+                  if (tty) printf("%s", END);
+	        }
 
                 TeReo = 0;
 		German = 0;
@@ -269,7 +272,7 @@ void header(const int tty) {
 
     char ss[PATH_MAX];
     sprintf(ss, "lang %s", lang);
-    cmd_lang(tty, ss);
+    cmd_lang(tty, ss, 1);
 
     if (tty) {
         printf("%s", BOLD);
@@ -394,28 +397,12 @@ void cmd_id(const int tty) {
   printf("ttyname:     %s\n", ttyname(1));
 }
 
-void cmd_dns(const int tty, const char *origline, size_t justShow) {
+void cmd_testdns(const int tty, const char *origline, dnsServersType *d) {
   if (tty) {}
   char hostname[100];
 
-  dnsServersType d;
-  dnsServersInit(&d);
-
-  dnsServersAddFile(&d, "/etc/resolv.conf", "nameserver");
-
-  if (justShow) {
-    // just show the resolv.conf
-    dnsServersDump(&d);
-    return;
-  }
   // otherwise continue and test, adding in some standard ones
-    
-  dnsServersAdd(&d, "1.1.1.1");
-  dnsServersAdd(&d, "8.8.8.8");
-  dnsServersAdd(&d, "8.8.4.4");
-  dnsServersDump(&d);
-
-  const size_t N = dnsServersN(&d);
+  const size_t N = dnsServersN(d);
 
   numListType *lookup = calloc(N, sizeof(numListType)); assert(lookup);
 
@@ -445,10 +432,10 @@ void cmd_dns(const int tty, const char *origline, size_t justShow) {
     }
 
     for (size_t i = 0; keepRunning && i < N; i++) {
-      printf("dns server: %s\n", d.dnsServer[i]);
+      printf("dns server: %s\n", d->dnsServer[i]);
     
       double start = timeAsDouble();
-      int ret = dnsLookupAServer(hostname, d.dnsServer[i]);
+      int ret = dnsLookupAServer(hostname, d->dnsServer[i]);
       double end = timeAsDouble();
       if (ret > 0) {
 	nlAdd(&lookup[i], 1000.0 * (end - start));
@@ -457,13 +444,12 @@ void cmd_dns(const int tty, const char *origline, size_t justShow) {
   }
 
   for (size_t i =0 ;i < N; i++) {
-    printf("dns server: %-12s\t%zd\tmean %6.2lf ms\tmedian %6.1lf ms\n", d.dnsServer[i], nlN(&lookup[i]), nlMean(&lookup[i]), nlMedian(&lookup[i]));
+    printf("dns server: %-12s\t%zd\tmean %6.2lf ms\tmedian %6.1lf ms\n", d->dnsServer[i], nlN(&lookup[i]), nlMean(&lookup[i]), nlMedian(&lookup[i]));
   }
   for (size_t i =0 ;i < N; i++) {
     nlFree(&lookup[i]);
   }
   free(lookup);
-  dnsServersFree(&d);
 }  
   
 void cmd_last(const int tty) {
@@ -1220,7 +1206,7 @@ void help_prompt() {
 }
 
 
-int run_command(const int tty, char *line, const char *hostname, const int ssh_login, const double timeSinceStart) {
+int run_command(const int tty, char *line, const char *hostname, const int ssh_login, const double timeSinceStart, dnsServersType *dns) {
     int known = 0;
     for (size_t i = 0; i < sizeof(commands) / sizeof(COMMAND); i++) {
         if (commands[i].name && (strncmp(line, commands[i].name, strlen(commands[i].name)) == 0)) {
@@ -1259,7 +1245,7 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
             } else if (strcasecmp(commands[i].name, "netclient") == 0) {
 	        cmd_netclient(tty, line);
             } else if (strcasecmp(commands[i].name, "lang") == 0) {
-                cmd_lang(tty, line);
+	        cmd_lang(tty, line, 0);
 		help_prompt();
             } else if (strcasecmp(commands[i].name, "tty") == 0) {
                 cmd_tty(tty);
@@ -1287,10 +1273,21 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      cmd_top(tty);
             } else if (strcasecmp(commands[i].name, "id") == 0) {
 	      cmd_id(tty);
-            } else if (strcasecmp(commands[i].name, "lsdns") == 0) {
-	      cmd_dns(tty, line, 1);
+            } else if (strcasecmp(commands[i].name, "dnsls") == 0) {
+	      dnsServersDump(dns);
+            } else if (strcasecmp(commands[i].name, "dnsadd") == 0) {
+	      char *copy = strdup(line);
+	      char *first = strtok(copy, " ");
+	      if (first) {
+		char *second = strtok(NULL, " ");
+		if (second) {
+		  dnsServersAdd(dns, second);
+		}
+	      }
+	      dnsServersDump(dns);
+	      free(copy);
             } else if (strcasecmp(commands[i].name, "dnstest") == 0) {
-	      cmd_dns(tty, line, 0);
+	      cmd_testdns(tty, line, dns);
             } else if (strcasecmp(commands[i].name, "time") == 0) {
 	      cmd_time(tty, timeSinceStart);
             } else if (strcasecmp(commands[i].name, "sleep") == 0) {
@@ -1325,7 +1322,15 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    // ENV load
     loadEnvVars("/etc/stush.cfg");
+
+    // DNS load
+    dnsServersType dns;
+    dnsServersInit(&dns);
+    dnsServersAddFile(&dns, "/etc/resolv.conf", "nameserver");
+
+
 
     size_t ssh_timeout;
     
@@ -1372,7 +1377,7 @@ int main(int argc, char *argv[]) {
 	      if (tok) {
 		sprintf(s, "argv[%d.%zd] = '%s'", i, count, tok);
 		syslogString("stush", s);
-		int ret = run_command(tty, tok, hostname, ssh_login, timeSinceStart);
+		int ret = run_command(tty, tok, hostname, ssh_login, timeSinceStart, &dns);
 		if (ret) {
 		  sprintf(s, "'%s' -- command failed", tok);
 		  syslogString("stush", s);
@@ -1415,24 +1420,23 @@ int main(int argc, char *argv[]) {
 
         add_history(line);
 
-        int ret = run_command(tty, line, hostname, ssh_login, timeSinceStart);
+        int ret = run_command(tty, line, hostname, ssh_login, timeSinceStart, &dns);
 	if (ret) {
 	  syslogString("stush", "-- command failed");
 	}
     }
 
-    if (line == NULL) printf("\n");
+    //    if (line == NULL) printf("\n");
 
-    if (TeReo) {
-        if (tty) printf("%s", BOLD);
-        printf("%s\n", T("Goodbye"));
-        if (tty) printf("%s", END);
-    }
+    if (tty) printf("%s", BOLD);
+    printf("%s\n", T("Goodbye"));
+    if (tty) printf("%s", END);
 
     free(line);
 
  end:    
     syslogString("stush", "Close session");
+    dnsServersFree(&dns);
 
     return 0;
 }
