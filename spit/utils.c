@@ -2107,3 +2107,9 @@ double getValueFromFile(const char *filename, const int quiet) {
 }
 
   
+void printBinary(const unsigned long value, const size_t bits) {
+  for (int i = bits-1; i >= 0; i--) {
+    if (value & (1L << i)) printf("1"); else printf("0");
+    if ((i > 0) && ((i%8)==0)) printf (".");
+  }
+}

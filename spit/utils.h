@@ -238,5 +238,6 @@ size_t isSSHLogin();
 
 double getValueFromFile(const char *filename, const int quiet);
 
+void printBinary(const unsigned long value, const size_t bits);
 
 #endif

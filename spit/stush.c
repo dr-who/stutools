@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include <time.h>
 #include <signal.h>
@@ -163,6 +164,7 @@ const char *GREEN = "\033[32m";
 const char *END = "\033[0m";
 
 
+
 void cmd_translations(int tty) {
   if (tty) printf("%s", BOLD);
   printf("%-40s\t| %-60s\n", "en_NZ.UTF-8", TeReo?"mi_NZ.UTF-8":(German?"de_DE.UTF-8":"?"));
@@ -192,8 +194,11 @@ void cmd_translations(int tty) {
 
 
 COMMAND commands[] = {
+        {"ascii",     "Show ASCII info for a character"},
         {"cpu",       "Show CPU info"},
         {"date",      "Show the current date/time"},
+	{"d2b",       "Decimal to binary"},
+	{"d2h",       "Decimal to hex"},
         {"devlatency", "Measure read latency on device"},
         {"devspeed",  "Measure read speed on device"},
         {"df",        "Disk free"},
@@ -206,6 +211,7 @@ COMMAND commands[] = {
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
         {"env",       "List environment variables"},
+        {"h2d",        "Hex to decimal"},
         {"host",      "Convert hostname to IP"},
         {"id",        "Shows process IDs"},
         {"ip",        "List IPv4 information"},
@@ -223,6 +229,7 @@ COMMAND commands[] = {
         {"ps",        "Lists the number of processes"},
         {"top",       "Lists the running processes"},
         {"pwgen",     "Generate cryptographically complex 200-bit random password"},
+	{"route",     "Show route info"},
         {"scsi",      "Show SCSI devices"},
         {"sleep",     "Sleep for a few seconds"},
         {"spit",      "Stu's powerful I/O tester"},
@@ -343,6 +350,11 @@ void usage_spit() {
     printf("  spit <device> rs1k64 ws1k4  --- a 64KiB read thread and a 4KiB write thread\n");
 }
 
+
+
+void cmd_route() {
+  dumpFile("/proc/net/route", "", 0);
+}
 
 
 void cmd_sleep(const int tty, const char *origline) {
@@ -1306,18 +1318,14 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
             } else if (strcasecmp(commands[i].name, "dnsclear") == 0) {
 	      dnsServersClear(dns);
             } else if (strcasecmp(commands[i].name, "dnsrm") == 0) {
-	      char *copy = strdup(line);
-	      char *first = strtok(copy, " ");
-	      if (first) {
-		char *second = strtok(NULL, " ");
-		if (second) {
-		  dnsServersRm(dns, atoi(second));
-		}
+	      if (second) {
+		dnsServersRm(dns, atoi(second));
 	      }
 	      dnsServersDump(dns);
-	      free(copy);
             } else if (strcasecmp(commands[i].name, "dnsadd") == 0) {
-	      dnsServersAdd(dns, second);
+	      if (second) {
+		dnsServersAdd(dns, second);
+	      }
             } else if (strcasecmp(commands[i].name, "dnstest") == 0) {
 	      cmd_testdns(tty, line, dns);
             } else if (strcasecmp(commands[i].name, "time") == 0) {
@@ -1325,10 +1333,47 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
             } else if (strcasecmp(commands[i].name, "sleep") == 0) {
 	      cmd_sleep(tty, line);
             } else if (strcasecmp(commands[i].name, "host") == 0) {
-	      dnsLookupAll(dns, second);
+	      dnsLookupAll(dns, second); 
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
-           } else if (strcasecmp(commands[i].name, "devlatency") == 0) {
+            } else if (strcasecmp(commands[i].name, "route") == 0) {
+	      cmd_route();
+	    } else if (strcasecmp(commands[i].name, "h2d") == 0) {
+	      if (second) {
+		unsigned long n = strtoul(second, NULL, 16);
+		printf("%ld\n", n);
+		unsigned long n2 = n;
+		volatile unsigned char *p = (unsigned char*)&n2;
+		printf("%d.%d.%d.%d\n", p[0],p[1],p[2],p[3]);
+		printBinary(p[0], 8); printf(".");
+		printBinary(p[1], 8); printf(".");
+		printBinary(p[2], 8); printf(".");
+		printBinary(p[3], 8); printf("\n");
+		printBinary(n2, 64); printf("\n");
+	      }
+            } else if (strcasecmp(commands[i].name, "d2h") == 0) {
+	      if (second) {
+		unsigned long n = strtoul(second, NULL, 10);
+		printf("%lu\n", n);
+		printf("0x%lX\n", n);
+	      }
+            } else if (strcasecmp(commands[i].name, "d2b") == 0) {
+	      if (second) {
+		unsigned long n = strtoul(second, NULL, 10);
+		if (errno == ERANGE) {
+		  printf("number too big\n");
+		} 
+		printBinary(n, 64);
+		printf("\n");
+	      }
+            } else if (strcasecmp(commands[i].name, "ascii") == 0) {
+	      if (second) {
+		unsigned char cc= second[0];
+		printf("'%c',  '%d'  ", cc, cc);
+		printBinary(cc, 8);
+		printf("\n");
+	      }
+	    } else if (strcasecmp(commands[i].name, "devlatency") == 0) {
 	      cmd_devSpeed(tty, line, 0);
 	    }
             known = 1;
