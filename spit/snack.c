@@ -448,7 +448,7 @@ void *display(void *arg) {
         count++;
         lasttime = timeAsDouble();
         lastclock = clock();
-        sleep(1);
+        if (keepRunning) sleep(1);
     }
     return NULL;
 }

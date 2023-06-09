@@ -60,6 +60,16 @@ void intHandler(int d) {
 }
 
 
+void funHeader() {
+  printf("     _             _     \n");
+  printf(" ___| |_ _   _ ___| |__  \n");
+  printf("/ __| __| | | / __| '_ \\ \n");
+  printf("\\__ \\ |_| |_| \\__ \\ | | |\n");
+  printf("|___/\\__|\\__,_|___/_| |_|\n");
+}
+
+  
+
 int com_status();
 
 typedef struct {
@@ -1415,6 +1425,7 @@ int main(int argc, char *argv[]) {
     if (runArg) goto end;
 
 
+    funHeader();
     header(tty);
     cmd_status(hostname, tty);
 
