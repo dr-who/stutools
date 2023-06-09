@@ -1356,6 +1356,7 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 		unsigned long n = strtoul(second, NULL, 10);
 		printf("%lu\n", n);
 		printf("0x%lX\n", n);
+		printBinary(n, 64); printf("\n");
 	      }
             } else if (strcasecmp(commands[i].name, "d2b") == 0) {
 	      if (second) {
