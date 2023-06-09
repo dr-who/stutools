@@ -206,6 +206,7 @@ COMMAND commands[] = {
         {"dropbear",  "Dropbear SSH config"},
         {"entropy",   "Calc entropy of a string"},
         {"env",       "List environment variables"},
+        {"host",      "Convert hostname to IP"},
         {"id",        "Shows process IDs"},
         {"ip",        "List IPv4 information"},
         {"lang",      "Set locale language"},
@@ -361,8 +362,7 @@ void cmd_sleep(const int tty, const char *origline) {
   
 
   if (spectime < 0) {
-    unsigned long l = getDevRandomLong();
-    spectime = 3L * (l * 1.0 / ULONG_MAX);
+    spectime = getRandomDouble(3.0);
   }
 
   char s[1000];
@@ -1227,6 +1227,14 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
     int known = 0;
     for (size_t i = 0; i < sizeof(commands) / sizeof(COMMAND); i++) {
         if (commands[i].name && (strncmp(line, commands[i].name, strlen(commands[i].name)) == 0)) {
+
+	    char *copy = strdup(line);
+	    char *first = strtok(copy, " ");
+	    char *second = NULL;
+	    if (first) {
+	      second = strtok(NULL, " ");
+	    }
+	  
             if (strcasecmp(commands[i].name, "status") == 0) {
                 cmd_status(hostname, tty);
 	    } else if (strcasecmp(commands[i].name, "translations") == 0) {
@@ -1309,30 +1317,25 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      dnsServersDump(dns);
 	      free(copy);
             } else if (strcasecmp(commands[i].name, "dnsadd") == 0) {
-	      char *copy = strdup(line);
-	      char *first = strtok(copy, " ");
-	      if (first) {
-		char *second = strtok(NULL, " ");
-		if (second) {
-		  dnsServersAdd(dns, second);
-		}
-	      }
-	      dnsServersDump(dns);
-	      free(copy);
+	      dnsServersAdd(dns, second);
             } else if (strcasecmp(commands[i].name, "dnstest") == 0) {
 	      cmd_testdns(tty, line, dns);
             } else if (strcasecmp(commands[i].name, "time") == 0) {
 	      cmd_time(tty, timeSinceStart);
             } else if (strcasecmp(commands[i].name, "sleep") == 0) {
 	      cmd_sleep(tty, line);
+            } else if (strcasecmp(commands[i].name, "host") == 0) {
+	      dnsLookupAll(dns, second);
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
            } else if (strcasecmp(commands[i].name, "devlatency") == 0) {
-  	        cmd_devSpeed(tty, line, 0);
-            }
+	      cmd_devSpeed(tty, line, 0);
+	    }
             known = 1;
-            break;
-        }
+	    free(copy);
+
+	    break;
+	}
     }
     if ((strcasecmp(line, "?") == 0) || (strcasecmp(line, "help") == 0)) {
         cmd_listAll();

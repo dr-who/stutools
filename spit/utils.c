@@ -1584,7 +1584,20 @@ int backupExistingFile(const char *file, int versions) {
 
     return 0;
 }
-//
+
+// max value is inclusive
+unsigned long getRandomLong(const unsigned long max) {
+  const unsigned long l = getDevRandomLong();  // 0...ULONG_MAX
+  unsigned long ret = max * (l * 1.0 / ULONG_MAX + 0.5);
+  return ret;
+}
+
+// returns [0..max] inclusive
+double getRandomDouble(const double max) {
+  const unsigned long l = getDevRandomLong();
+  double ret = max * (l * 1.0 / ULONG_MAX);
+  return ret;
+}
 
 unsigned long getDevRandomLong(void) {
     FILE *fp = fopen("/dev/random", "rb");

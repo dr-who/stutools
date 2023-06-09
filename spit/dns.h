@@ -27,7 +27,7 @@ int dnsLookupA(char *hostname);
 
 int dnsLookupAServer(char *hostname, char *dns_server);
 
-
+void dnsLookupAll(dnsServersType *d, const char *hostname);
   
 #endif
 

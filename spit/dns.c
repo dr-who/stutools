@@ -28,6 +28,8 @@ int ngethostbyname (char* , int, char*);
 void ChangetoDnsNameFormat (char*,char*);
 unsigned char* ReadName (unsigned char*,unsigned char*,int*);
 
+extern int keepRunning;
+
 //DNS header structure
 struct DNS_HEADER
 {
@@ -486,3 +488,19 @@ size_t dnsServersN(dnsServersType *d) {
   return d->num;
 }
 				       
+
+void dnsLookupAll(dnsServersType *d, const char *hostname) {
+  size_t off = getRandomLong(1);
+  //  printf("offset = %zd\n", off);
+  for (size_t i = 0; keepRunning && i < d->num; i++) {
+    char name[1000];
+    if (hostname) {
+      name[0] = 0;
+      strcat(name, hostname);
+      printf("Looking up '%s' using server '%s'\n", hostname, d->dnsServer[(i+off) % d->num]);
+      int ret = ngethostbyname(name, T_A, d->dnsServer[(i+off) % d->num]);
+      if (ret > 0)
+	break;
+    }
+  }
+}

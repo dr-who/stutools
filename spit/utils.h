@@ -196,6 +196,9 @@ double entropyTotalBits(unsigned char *buffer, size_t size, int bytes);
 
 double entropyTotalBytes(unsigned char *buffer, size_t size);
 
+unsigned long getRandomLong(const unsigned long max);
+double getRandomDouble(const double max);
+
 unsigned long getDevRandomLong();
 
 unsigned char getDevRandom();
