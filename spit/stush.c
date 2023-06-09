@@ -1398,7 +1398,7 @@ int main(int argc, char *argv[]) {
 
     // cli
     size_t runArg = 0;
-    for (int i = 1; i < argc; i++) {
+    for (int i = 1; i < argc; i++) if (strlen(argv[i]) < 100) { // no crazy commands
         if (argv[i][0] != '-') {
 	    char s[1024];
 	    char *copy = strdup(argv[i]);
@@ -1441,6 +1441,8 @@ int main(int argc, char *argv[]) {
 	if (ssh_login) {alarm(ssh_timeout);}
         line = readline(prefix);
 	if (ssh_login) {alarm(0);}
+
+	if (line && strlen(line)>=100) continue; // no crazy commands
 
         if ((line == NULL) || (strcasecmp(line, "exit") == 0) || (strcasecmp(line, "quit") == 0)) {
             break;
