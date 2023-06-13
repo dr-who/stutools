@@ -314,12 +314,12 @@ Performance/latency statistics are generated.
 .sp
 \fB\-f device\fP
 .RS 4
-Specific a single block device (e.g. \-f /dev/ram0)
+Specific a single block device (e.g. \-f /dev/ram0). Multiple threads can divide up the LBA range using the \fBj\fP option. (e.g. \-f /dev/ram0 \-c rzs1j8). If the goal is for each thread to access the same range, using uppercase \fBJ\fP option. (e.g. \-f /dev/ram0 \-c rzs1j8 would create 8 threads accessing the same range).)
 .RE
 .sp
 \fB\-F prefix\fP
 .RS 4
-The filesystem filename prefix for filesystem tests (e.g. \-F testprefix \-j 32). \fB\-F\fP is an alternative to \fB\-f\fP and conflicts with it. Choose \fB\-f\fP or \fB\-F prefix\fP.
+The filesystem filename prefix for filesystem tests (e.g. to create 32 files, each 1GiB in size use \fB\-F testprefix \-G1 \-J 32\fP). \fB\-F\fP is an alternative to \fB\-f\fP and conflicts with it. Choose \fB\-f\fP or \fB\-F prefix\fP. Note that uppercase J is used with the \-F option. This is because lowercase j means divide the LBA range by the number of threads, which would only write 1/32th of the data into each file. The file sizes may look correct due to an initial fallocate(1), but the total IO performed would be incorrect.
 .RE
 .sp
 \fB\-I filename\fP
