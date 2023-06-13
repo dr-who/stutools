@@ -183,7 +183,7 @@ The command options are described below:
    Create *N* threads with the same command. Using lowercase *j* the LBA range will first be divided by *N* to avoid overlapping thread ranges. Each thread will be seeded with a unique random value so the random positions will not be the same. 
 
  *J N*::
-   Similar to lowercase *j*, but with uppercase *J* the range will be the same for all threads. Allows cache test and other conflict resolution.
+   Similar to lowercase *j*, but with uppercase *J* the range will be the same for all threads. Allows cache test and other conflict resolution. Uppercase J is particularly important with the per file (*-F prefix*) mode, so that each file isn't written a divided range.
 
  *kN* or *klowBS-highBS*::
    Block size or _lowblocksize_ to _highblocksize_ range. (e.g. k4-128). The hypen as a range will pick a value between the low and high range, in multiples of a 4KiB block size. The range with a colon (e.g. k4-128) will only pick values that are also powers of 2.
