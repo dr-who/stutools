@@ -86,10 +86,10 @@ position array. It has a variety of early exit conditions including:
 
 == DEVICE(S)
  *-f device*::
-   Specific a single block device (e.g. -f /dev/ram0)
+   Specific a single block device (e.g. -f /dev/ram0). Multiple threads can divide up the LBA range using the *j* option. (e.g. -f /dev/ram0 -c rzs1j8). If the goal is for each thread to access the same range, using uppercase *J* option. (e.g. -f /dev/ram0 -c rzs1j8 would create 8 threads accessing the same range).)
 
  *-F prefix*::
-   The filesystem filename prefix for filesystem tests (e.g. -F testprefix -j 32). *-F* is an alternative to *-f* and conflicts with it. Choose *-f* or *-F prefix*.
+   The filesystem filename prefix for filesystem tests (e.g. to create 32 files, each 1GiB in size use *-F testprefix -G1 -J 32*). *-F* is an alternative to *-f* and conflicts with it. Choose *-f* or *-F prefix*. Note that uppercase J is used with the -F option. This is because lowercase j means divide the LBA range by the number of threads, which would only write 1/32th of the data into each file. The file sizes may look correct due to an initial fallocate(1), but the total IO performed would be incorrect.
 
  *-I filename*::
    Specific a file that contains a list of device names (e.g. -I devices.txt). The *devices.txt* file contains one device per line. To process 200 block devices at once, create devices.txt with 200 lines.
@@ -183,7 +183,7 @@ The command options are described below:
    Create *N* threads with the same command. Using lowercase *j* the LBA range will first be divided by *N* to avoid overlapping thread ranges. Each thread will be seeded with a unique random value so the random positions will not be the same. 
 
  *J N*::
-   Similar to lowercase *j*, but with uppercase *J* the range will be the same for all threads. Allows cache test and other conflict resolution.
+   Similar to lowercase *j*, but with uppercase *J* the range will be the same for all threads. Allows cache test and other conflict resolution. Uppercase J is particularly important with the per file (*-F prefix*) mode, so that each file isn't written a divided range.
 
  *kN* or *klowBS-highBS*::
    Block size or _lowblocksize_ to _highblocksize_ range. (e.g. k4-128). The hypen as a range will pick a value between the low and high range, in multiples of a 4KiB block size. The range with a colon (e.g. k4-128) will only pick values that are also powers of 2.

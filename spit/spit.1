@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
-.\" Generator: Asciidoctor 2.0.10
-.\"      Date: 2023-05-22
+.\" Generator: Asciidoctor 2.0.16
+.\"      Date: 2023-06-13
 .\"    Manual: spit manual
 .\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2023-05-22" "spit 1.2" "spit manual"
+.TH "SPIT" "1" "2023-06-13" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -28,7 +28,7 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-spit \- Stu\(aqs powerful I/O tester
+spit \- Stu\*(Aqs powerful I/O tester
 .SH "SYNOPSIS"
 .sp
 spit [ \fIOPTIONS\fP ] ... \fIDEVICE(S)\fP ... \fICOMMANDS\fP...
@@ -314,12 +314,12 @@ Performance/latency statistics are generated.
 .sp
 \fB\-f device\fP
 .RS 4
-Specific a single block device (e.g. \-f /dev/ram0)
+Specific a single block device (e.g. \-f /dev/ram0). Multiple threads can divide up the LBA range using the \fBj\fP option. (e.g. \-f /dev/ram0 \-c rzs1j8). If the goal is for each thread to access the same range, using uppercase \fBJ\fP option. (e.g. \-f /dev/ram0 \-c rzs1j8 would create 8 threads accessing the same range).)
 .RE
 .sp
 \fB\-F prefix\fP
 .RS 4
-The filesystem filename prefix for filesystem tests (e.g. \-F testprefix \-j 32). \fB\-F\fP is an alternative to \fB\-f\fP and conflicts with it. Choose \fB\-f\fP or \fB\-F prefix\fP.
+The filesystem filename prefix for filesystem tests (e.g. to create 32 files, each 1GiB in size use \fB\-F testprefix \-G1 \-J 32\fP). \fB\-F\fP is an alternative to \fB\-f\fP and conflicts with it. Choose \fB\-f\fP or \fB\-F prefix\fP. Note that uppercase J is used with the \-F option. This is because lowercase j means divide the LBA range by the number of threads, which would only write 1/32th of the data into each file. The file sizes may look correct due to an initial fallocate(1), but the total IO performed would be incorrect.
 .RE
 .sp
 \fB\-I filename\fP
@@ -465,7 +465,7 @@ Create \fBN\fP threads with the same command. Using lowercase \fBj\fP the LBA ra
 .sp
 \fBJ N\fP
 .RS 4
-Similar to lowercase \fBj\fP, but with uppercase \fBJ\fP the range will be the same for all threads. Allows cache test and other conflict resolution.
+Similar to lowercase \fBj\fP, but with uppercase \fBJ\fP the range will be the same for all threads. Allows cache test and other conflict resolution. Uppercase J is particularly important with the per file (\fB\-F prefix\fP) mode, so that each file isn\(cqt written a divided range.
 .RE
 .sp
 \fBkN\fP or \fBklowBS\-highBS\fP
@@ -622,7 +622,9 @@ In the following commands, replace \fBr\fP with \fBw\fP for writes.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Performs a single thread/job that performs reads, with 64 KiB reads
+.fam
 .fi
 .if n .RE
 .sp
@@ -630,7 +632,9 @@ Performs a single thread/job that performs reads, with 64 KiB reads
 .sp
 .if n .RS 4
 .nf
+.fam C
 Create 32 threads, with a single contigous read inside each thread
+.fam
 .fi
 .if n .RE
 .sp
@@ -638,7 +642,9 @@ Create 32 threads, with a single contigous read inside each thread
 .sp
 .if n .RS 4
 .nf
+.fam C
 Create a single threads, break the device into 32 contiguous regions
+.fam
 .fi
 .if n .RE
 .SS "Random read / writes"
@@ -647,7 +653,9 @@ Create a single threads, break the device into 32 contiguous regions
 .sp
 .if n .RS 4
 .nf
+.fam C
 Performs a single thread/job, random 4KiB reads
+.fam
 .fi
 .if n .RE
 .sp
@@ -655,7 +663,9 @@ Performs a single thread/job, random 4KiB reads
 .sp
 .if n .RS 4
 .nf
+.fam C
 Creates 32 threads, reads random 4KiB reads
+.fam
 .fi
 .if n .RE
 .sp
@@ -663,8 +673,10 @@ Creates 32 threads, reads random 4KiB reads
 .sp
 .if n .RS 4
 .nf
+.fam C
 Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GB.
 For devices with cache these operations should be cached.
+.fam
 .fi
 .if n .RE
 .sp
@@ -672,7 +684,9 @@ For devices with cache these operations should be cached.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Read from the first 10,000 positions (4 KiB) blocks in a device.
+.fam
 .fi
 .if n .RE
 .SS "Mixing reads/writes"
@@ -681,8 +695,10 @@ Read from the first 10,000 positions (4 KiB) blocks in a device.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Two threads, one reading/write metadata to 10,000 positions. Another
 thread performing sequential reads.
+.fam
 .fi
 .if n .RE
 .sp
@@ -690,7 +706,9 @@ thread performing sequential reads.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Two threads, both sequential, one reading, one writing.
+.fam
 .fi
 .if n .RE
 .sp
@@ -698,7 +716,9 @@ Two threads, both sequential, one reading, one writing.
 .sp
 .if n .RS 4
 .nf
+.fam C
 Two threads, both random, one reading, one writing.
+.fam
 .fi
 .if n .RE
 .sp
@@ -706,8 +726,10 @@ Two threads, both random, one reading, one writing.
 .sp
 .if n .RS 4
 .nf
+.fam C
 On a 200 GB device perform linear writes in the first half and
 random writes on the second half.
+.fam
 .fi
 .if n .RE
 .SH "FILE FORMATS"
@@ -767,7 +789,7 @@ Position (as a percentage of the device)
 .  sp -1
 .  IP " 5." 4.2
 .\}
-Action: \(aqR\(aq, \(aqW\(aq
+Action: \*(AqR\*(Aq, \*(AqW\*(Aq
 .RE
 .sp
 .RS 4
