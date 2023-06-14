@@ -508,7 +508,7 @@ void snackServer(size_t num, const int serverport) {
 
 ///sending
 
-void snackClient(char *ipaddress, size_t bufSizeToUse, const int serverport, const size_t threads) {
+void snackClient(const char *ipaddress, size_t bufSizeToUse, const int serverport, const size_t threads) {
   assert(ipaddress);
   assert(bufSizeToUse);
   assert(threads >= 1);

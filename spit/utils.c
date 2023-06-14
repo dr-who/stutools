@@ -1757,7 +1757,7 @@ int dumpFile(const char *fn, const char *regexstring, const int quiet) {
 }
 
 
-void diskSpaceFromMount(char *FSPATH, const char *s1, const char *total1, const char *free1, const char *per1) {
+void diskSpaceFromMount(const char *FSPATH, const char *s1, const char *total1, const char *free1, const char *per1) {
     struct statfs info;
     int ret = statfs(FSPATH, &info);
 

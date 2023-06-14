@@ -250,40 +250,31 @@ COMMAND commands[] = {
 
 
 
-void cmd_lang(const int tty, char *origstring, int quiet) {
-    char *string = strdup(origstring);
-    const char *delim = " ";
-    char *first = strtok(string, delim);
-    if (first) {
-        char *second = strtok(NULL, delim);
-        if (second) {
-            second = origstring + (second - string);
-            if (setlocale(LC_ALL, second) == NULL) {
-	      printf("LANG/locale '%s' is not available\n", second);
-            } else {
-	        if (quiet == 0)  {
-                  if (tty) printf("%s", BOLD);
-                  printf("LANG is %s\n", second);
-                  if (tty) printf("%s", END);
-	        }
-
-                TeReo = 0;
-		German = 0;
-                if (strncasecmp(second, "mi_NZ", 5) == 0) {
-                    TeReo = 1;
-		}
-                if (strncasecmp(second, "de_DE", 5) == 0) {
-		    German = 1;
-		}
-		if (tty) printf("%s", BOLD);
-		printf("%s\n", T("Hello"));
-		if (tty) printf("%s", END);
-	    }
-        } else {
-	  printf("%s: %s <locale>   (e.g. en_NZ.UTF-8, mi_NZ.UTF-8)\n", T("Usage"), first);
-        }
+void cmd_lang(const int tty, const char *second, const int quiet) {
+  if (second == NULL) {
+    printf("%s: %s <locale>   (e.g. en_NZ.UTF-8, mi_NZ.UTF-8)\n", T("Usage"), "lang");
+    return; // as it's NULL
+  } else if (setlocale(LC_ALL, second) == NULL) {
+    printf("LANG/locale '%s' is not available\n", second);
+  } else {
+    if (quiet == 0)  {
+      if (tty) printf("%s", BOLD);
+      printf("LANG is %s\n", second);
+      if (tty) printf("%s", END);
     }
-    free(string);
+  }
+  
+  TeReo = 0;
+  German = 0;
+  if (strncasecmp(second, "mi_NZ", 5) == 0) {
+    TeReo = 1;
+  }
+  if (strncasecmp(second, "de_DE", 5) == 0) {
+    German = 1;
+  }
+  if (tty) printf("%s", BOLD);
+  printf("%s\n", T("Hello"));
+  if (tty) printf("%s", END);
 }
 
 
@@ -375,6 +366,7 @@ static void printQr(const uint8_t qrcode[]) {
 
 void cmd_qr(int tty, const char *text) {
   if (tty) {}
+  printf("input: '%s'\n", text);
   if (text) {
     //	const char *text = "https://example.com";                // User-supplied text
 	enum qrcodegen_Ecc errCorLvl = qrcodegen_Ecc_LOW;  // Error correction level
@@ -391,21 +383,14 @@ void cmd_qr(int tty, const char *text) {
     
     
 
-void cmd_sleep(const int tty, const char *origline) {
+void cmd_sleep(const int tty, const char *second) {
   if (tty) {}
 
   double spectime = -1;
 
-  char *line = strdup(origline);
-  char *first = strtok(line, " \t\n");
-  if (first) { // sleep
-    char *second = strtok(NULL, " \t\n");
-    if (second) {
-      spectime = atof(second);
-    }
+  if (second) { // sleep
+    spectime = atof(second);
   }
-  free(line);
-  
 
   if (spectime < 0) {
     spectime = getRandomDouble(3.0);
@@ -460,7 +445,7 @@ void cmd_id(const int tty) {
   printf("ttyname:     %s\n", ttyname(1));
 }
 
-void cmd_testdns(const int tty, const char *origline, dnsServersType *d) {
+void cmd_testdns(const int tty, const char *second, dnsServersType *d) {
   if (tty) {}
   char hostname[100];
 
@@ -484,14 +469,8 @@ void cmd_testdns(const int tty, const char *origline, dnsServersType *d) {
     free(pw);
   
     //  sprintf(hostname, "example.com");
-  
-    char *line = strdup(origline);
-    char *first = strtok(line, " ");
-    if (first) {
-      char *second = strtok(NULL, " ");
-      if (second) {
-	sprintf(hostname, "%s", second);
-      }
+    if (second) {
+      sprintf(hostname, "%s", second);
     }
 
     for (size_t i = 0; keepRunning && i < N; i++) if (d->dnsServer[i]) {
@@ -542,11 +521,7 @@ void cmd_uptime(const int tty) {
   printf("%s up %zd days, %2zd:%02zd, %2zd user%s load average: %.2lf, %.2lf, %.2lf\n", timestring, d, h, s, who(1), who(1)>1?"s,":", ", d1, d2, d3);
 }
 
-void cmd_devSpeed(const int tty, char *origline, int showspeedorlatency) {
-  char *line = strdup(origline);
-  char *first = strtok(line, " ");
-  if (first) {
-    char *second = strtok(NULL, " ");
+void cmd_devSpeed(const int tty, const char *second, int showspeedorlatency) {
     if (second) {
       int fd = open(second, O_RDONLY | O_DIRECT);
       if (fd < 0) {
@@ -592,7 +567,6 @@ void cmd_devSpeed(const int tty, char *origline, int showspeedorlatency) {
     } else {
       printf("%s: dev%s <device>\n", T("usage"), (showspeedorlatency?"speed":"latency"));
     }
-  }
 }  
 
 void cmd_numProcesses(const int tty) {
@@ -650,24 +624,16 @@ void cmd_spit(const int tty, char *origstring) {
 }
 
 
-void cmd_calcEntropy(const int tty, char *origstring) {
-    char *string = strdup(origstring);
-    const char *delim = " ";
-    char *first = strtok(string, delim);
-    if (first) {
-        char *second = strtok(NULL, delim);
-        if (second) {
-            second = origstring + (second - string);
-            double entropy = entropyTotalBits((unsigned char *) second, strlen(second), 1);
-            printf("%s ", second);
-            char ss[PATH_MAX];
-            sprintf(ss, "(%.1lf bits of entropy)", entropy);
-            colour_printString(ss, entropy >= 200, "\n", tty);
-        } else {
-	  printf("%s: %s <string>\n", T("Usage"), first);
-        }
-    }
-    free(string);
+void cmd_calcEntropy(const int tty, const char *second) {
+  if (second) {
+    double entropy = entropyTotalBits((unsigned char *) second, strlen(second), 1);
+    printf("%s ", second);
+    char ss[PATH_MAX];
+    sprintf(ss, "(%.1lf bits of entropy)", entropy);
+    colour_printString(ss, entropy >= 200, "\n", tty);
+  } else {
+    printf("%s: %s <string>\n", T("Usage"), "entropy");
+  }
 }
 
 
@@ -933,19 +899,12 @@ void cmd_listAll(const size_t adminMode) {
 }
 
 // 16 is the minimum
-void cmd_pwgen(int tty, char *origstring) {
+void cmd_pwgen(int tty, const char *second) {
     size_t len = 16, targetbits = 200;
 
-    char *string = strdup(origstring);
-    const char *delim = " ";
-    char *first = strtok(string, delim);
-    if (first) {
-        char *second = strtok(NULL, delim);
-        if (second) {
-            targetbits = atoi(second);
-        }
+    if (second) {
+      targetbits = atoi(second);
     }
-    free(string);
 
     double pwentropy = 0, bitsentropy = 0;
     unsigned char *pw = NULL;
@@ -1032,21 +991,13 @@ size_t countDriveBlockDevices() {
 }
 
 
-void cmd_listDriveBlockDevices(int tty, char *origstring) {
+void cmd_listDriveBlockDevices(int tty, const char *second) {
     if (tty) {}
     size_t major = 0;
 
-    char *string = strdup(origstring);
-    const char *delim = " ";
-    char *first = strtok(string, delim);
-    if (first) {
-        char *second = strtok(NULL, delim);
-        if (second) {
-            major = atoi(second);
-        }
+    if (second) {
+      major = atoi(second);
     }
-    free(string);
-
 
     procDiskStatsType d;
     procDiskStatsInit(&d);
@@ -1111,20 +1062,13 @@ void cmd_dropbear(const int tty) {
     dumpFile("/etc/initramfs-tools/conf.d/dropbear", "^IP=", 0);
 }
 
-void cmd_df(const int tty, char *origstring) {
+void cmd_df(const int tty, const char *second) {
     if (tty) {}	
-    char *string = strdup(origstring);
-    const char *delim = " ";
-    char *first = strtok(string, delim); 
-    if (first) {
-        char *second = strtok(NULL, delim);
-        if (second) {
-	    diskSpaceFromMount(second, T("Mount point"), T("Total (GB)"), T("Free (GB)"), T("Use%"));
-        } else {
-	    printf("%s: df <%s>\n", T("usage"), T("mount point"));
-        }
+    if (second) {
+      diskSpaceFromMount(second, T("Mount point"), T("Total (GB)"), T("Free (GB)"), T("Use%"));
+    } else {
+      printf("%s: df <%s>\n", T("usage"), T("mount point"));
     }
-    free(string);
 }
 
 void cmd_scsi(const int tty) {
@@ -1137,25 +1081,23 @@ void cmd_netserver(const int tty) {
   snackServer(10, 5001);
 }
 
-void cmd_netclient(const int tty, char *origstring) {
+void cmd_netclient(const int tty, const char *second) {
   if (tty) {}
-    char *string = strdup(origstring);
-    const char *delim = " ";
-    char *first = strtok(string, delim);
-    if (first) {
-        char *second = strtok(NULL, delim);
-        if (second) {
-	  size_t len = 1024*1024;
-	  char *third = strtok(NULL, delim);
-	  if (third) {
-	    len = atoi(third);
-	  }
-	  
-	  snackClient(second, len, 5001, 10);
-	} else {
-	  printf("%s: netclient <ipaddress> [len] (on ports [5001-5010]\n", T("usage"));
-	}
+
+  if (second) {
+    size_t len = 1024*1024;
+
+    char *temp = strdup(second);
+    char *third = strtok(temp, " \t");
+    if (third) {
+      len = atoi(third);
     }
+    free(temp);
+    
+    snackClient(second, len, 5001, 10);
+  } else {
+    printf("%s: netclient <ipaddress> [len] (on ports [5001-5010]\n", T("usage"));
+  }
 }
 
 
@@ -1290,9 +1232,13 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 
 	    char *copy = strdup(line);
 	    char *first = strtok(copy, " ");
-	    char *second = NULL;
+	    char *rest = NULL;
 	    if (first) {
-	      second = strtok(NULL, " ");
+	      char *second = strtok(NULL, " ");
+
+	      if (second) {
+		rest = line + (second - first);
+	      }
 	    }
 	  
             if (strcasecmp(commands[i].name, "status") == 0) {
@@ -1300,13 +1246,13 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	    } else if (strcasecmp(commands[i].name, "translations") == 0) {
 	      cmd_translations(tty);
             } else if (strcasecmp(commands[i].name, "pwgen") == 0) {
-                cmd_pwgen(tty, line);
+                cmd_pwgen(tty, rest);
             } else if (strcasecmp(commands[i].name, "lsblk") == 0) {
-                cmd_listDriveBlockDevices(tty, line);
+                cmd_listDriveBlockDevices(tty, rest);
             } else if (strcasecmp(commands[i].name, "raidsim") == 0) {
-                cmd_raidsim(tty, line);
+	        cmd_raidsim(tty, line); // needs the whole line
             } else if (strcasecmp(commands[i].name, "entropy") == 0) {
-                cmd_calcEntropy(tty, line);
+                cmd_calcEntropy(tty, rest);
             } else if (strcasecmp(commands[i].name, "cpu") == 0) {
                 cmd_cpu(tty);
             } else if (strcasecmp(commands[i].name, "dropbear") == 0) {
@@ -1316,11 +1262,11 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
             } else if (strcasecmp(commands[i].name, "scsi") == 0) {
                 cmd_scsi(tty);
             } else if (strcasecmp(commands[i].name, "spit") == 0) {
-                cmd_spit(tty, line);
+   	        cmd_spit(tty, line); // needs whole line
             } else if (strcasecmp(commands[i].name, "ps") == 0) {
 	      cmd_numProcesses(tty);
             } else if (strcasecmp(commands[i].name, "df") == 0) {
-                cmd_df(tty, line);
+                cmd_df(tty, rest);
             } else if (strcasecmp(commands[i].name, "date") == 0) {
                 cmd_date(tty);
             } else if (strcasecmp(commands[i].name, "ntp") == 0) {
@@ -1328,9 +1274,9 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
             } else if (strcasecmp(commands[i].name, "netserver") == 0) {
                 cmd_netserver(tty);
             } else if (strcasecmp(commands[i].name, "netclient") == 0) {
-	        cmd_netclient(tty, line);
+	        cmd_netclient(tty, rest);
             } else if (strcasecmp(commands[i].name, "lang") == 0) {
-	        cmd_lang(tty, line, 0);
+	        cmd_lang(tty, rest, 0);
 		help_prompt();
             } else if (strcasecmp(commands[i].name, "tty") == 0) {
                 cmd_tty(tty);
@@ -1345,7 +1291,7 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      cmd_listPCI(tty, 0x0100, "Storage");
 	      cmd_listPCI(tty, 0x0300, "Video");
             } else if (strcasecmp(commands[i].name, "devspeed") == 0) {
-	        cmd_devSpeed(tty, line, 1);
+	        cmd_devSpeed(tty, rest, 1);
             } else if (strcasecmp(commands[i].name, "who") == 0) {
 	      cmd_who(tty); 
             } else if (strcasecmp(commands[i].name, "mem") == 0) {
@@ -1366,33 +1312,33 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
             } else if (strcasecmp(commands[i].name, "dnsclear") == 0) {
 	      dnsServersClear(dns);
             } else if (strcasecmp(commands[i].name, "dnsrm") == 0) {
-	      if (second) {
-		dnsServersRm(dns, atoi(second));
+	      if (rest) {
+		dnsServersRm(dns, atoi(rest));
 	      }
 	      dnsServersDump(dns);
             } else if (strcasecmp(commands[i].name, "dnsadd") == 0) {
-	      if (second) {
-		dnsServersAdd(dns, second);
+	      if (rest) {
+		dnsServersAdd(dns, rest);
 	      }
             } else if (strcasecmp(commands[i].name, "dnstest") == 0) {
-	      cmd_testdns(tty, line, dns);
+	      cmd_testdns(tty, rest, dns);
             } else if (strcasecmp(commands[i].name, "time") == 0) {
 	      cmd_time(tty, timeSinceStart);
             } else if (strcasecmp(commands[i].name, "sleep") == 0) {
-	      cmd_sleep(tty, line);
+	      cmd_sleep(tty, rest);
             } else if (strcasecmp(commands[i].name, "host") == 0) {
-	      dnsLookupAll(dns, second); 
+	      dnsLookupAll(dns, rest); 
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
             } else if (strcasecmp(commands[i].name, "adminqr") == 0) {
 	      cmd_qr(tty, getenv("ADMIN_SECRET"));
             } else if (strcasecmp(commands[i].name, "qr") == 0) {
-	      cmd_qr(tty, second);
+	      cmd_qr(tty, rest);
             } else if (strcasecmp(commands[i].name, "route") == 0) {
 	      cmd_route();
 	    } else if (strcasecmp(commands[i].name, "h2d") == 0) {
-	      if (second) {
-		unsigned long n = strtoul(second, NULL, 16);
+	      if (rest) {
+		unsigned long n = strtoul(rest, NULL, 16);
 		printf("%ld\n", n);
 		unsigned long n2 = n;
 		volatile unsigned char *p = (unsigned char*)&n2;
@@ -1404,15 +1350,15 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 		printBinary(n2, 64); printf("\n");
 	      }
             } else if (strcasecmp(commands[i].name, "d2h") == 0) {
-	      if (second) {
-		unsigned long n = strtoul(second, NULL, 10);
+	      if (rest) {
+		unsigned long n = strtoul(rest, NULL, 10);
 		printf("%lu\n", n);
 		printf("0x%lX\n", n);
 		printBinary(n, 64); printf("\n");
 	      }
             } else if (strcasecmp(commands[i].name, "d2b") == 0) {
-	      if (second) {
-		unsigned long n = strtoul(second, NULL, 10);
+	      if (rest) {
+		unsigned long n = strtoul(rest, NULL, 10);
 		if (errno == ERANGE) {
 		  printf("number too big\n");
 		} 
@@ -1420,8 +1366,8 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 		printf("\n");
 	      }
             } else if (strcasecmp(commands[i].name, "ascii") == 0) {
-	      if (second) {
-		unsigned char cc= second[0];
+	      if (rest) {
+		unsigned char cc= rest[0];
 		printf("'%c',  '%d'  ", cc, cc);
 		printBinary(cc, 8);
 		printf("\n");

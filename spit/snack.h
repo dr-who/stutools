@@ -27,7 +27,7 @@ typedef struct {
 } stringType;
 
 void snackServer(size_t threads, const int serverport);
-void snackClient(char *ipaddress, size_t bufSizeToUse, const int serverport, const size_t threads);
+void snackClient(const char *ipaddress, size_t bufSizeToUse, const int serverport, const size_t threads);
 
 void dumpEthernet(void);
 
