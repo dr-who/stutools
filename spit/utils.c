@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
+#include <ctype.h>
 
 #include "linux-headers.h"
 
@@ -1788,8 +1789,10 @@ void loadEnvVars(char *filename) {
             char *first = strtok(line, "=");
             char *second = strtok(NULL, "");
             if (second) {
+	      if (isspace(second[strlen(second)-1])) {
                 second[strlen(second) - 1] = 0;
-                setenv(first, second, 0);
+	      }
+	      setenv(first, second, 0);
 		//		printf("*info* setting ENV %s\t->\t%s\n", first, second);
             }
         }

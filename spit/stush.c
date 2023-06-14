@@ -76,6 +76,7 @@ int com_status();
 typedef struct {
     char *name;            /* User printable name of the function. */
     char *doc;            /* Documentation for this function.  */
+    char *admin;          /* admin user required */
 } COMMAND;
 
 typedef struct {
@@ -194,53 +195,56 @@ void cmd_translations(int tty) {
 
 
 COMMAND commands[] = {
-        {"ascii",     "Show ASCII info for a character"},
-        {"cpu",       "Show CPU info"},
-        {"date",      "Show the current date/time"},
-	{"d2b",       "Decimal to binary"},
-	{"d2h",       "Decimal to hex"},
-        {"devlatency", "Measure read latency on device"},
-        {"devspeed",  "Measure read speed on device"},
-        {"df",        "Disk free"},
-        {"dnsadd",    "Add DNS server"},
-        {"dnsclear",  "Remove all DNS servers"},
-        {"dnsrm",     "Remove a specific DNS server"},
-        {"dnsls",     "List DNS servers"},
-        {"dnsrc",     "Load DNS servers from /etc/resolv.conf"},
-        {"dnstest",   "Measure DNS latencies"},
-        {"dropbear",  "Dropbear SSH config"},
-        {"entropy",   "Calc entropy of a string"},
-        {"env",       "List environment variables"},
-        {"h2d",        "Hex to decimal"},
-        {"host",      "Convert hostname to IP"},
-        {"id",        "Shows process IDs"},
-        {"ip",        "List IPv4 information"},
-        {"lang",      "Set locale language"},
-        {"last",      "Show previous users"},
-        {"lsblk",     "List drive block devices"},
-        {"lsnic",     "List IP/HW addresses"},
-        {"lspci",     "List PCI devices"},
-        {"mem",      "Show memory usage"},
-        {"mounts",    "Show mounts info"},
-        {"netserver", "Starts server for network tests"},
-        {"netclient", "Client connects to a server for tests"},
-        {"ntp",       "Show NTP/network time status"},
-        {"raidsim",   "Simulate k+m parity/RAID durability"},
-        {"ps",        "Lists the number of processes"},
-        {"top",       "Lists the running processes"},
-        {"pwgen",     "Generate cryptographically complex 200-bit random password"},
-	{"route",     "Show route info"},
-        {"scsi",      "Show SCSI devices"},
-        {"sleep",     "Sleep for a few seconds"},
-        {"spit",      "Stu's powerful I/O tester"},
-        {"status",    "Show system status"},
-        {"swap",      "Show swap status"},
-        {"time",      "Show the time in seconds"},
-        {"translations",    "List translations"},
-        {"tty",       "Is the terminal interactive"},
-        {"uptime",    "Time since the system booted"},
-        {"who",       "List active users"},
-        {"exit",      "Exit the secure shell"}
+        {"adminqr",   "Show the QR code for the admin secret", "admin"},
+        {"ascii",     "Show ASCII info for a character", ""},
+        {"cpu",       "Show CPU info", "admin"},
+        {"date",      "Show the current date/time", ""},
+	{"d2b",       "Decimal to binary", ""},
+	{"d2h",       "Decimal to hex", ""},
+        {"devlatency", "Measure read latency on device", "admin"},
+        {"devspeed",  "Measure read speed on device", "admin"},
+        {"df",        "Disk free", "admin"},
+        {"dnsadd",    "Add DNS server", "admin"},
+        {"dnsclear",  "Remove all DNS servers", "admin"},
+        {"dnsrm",     "Remove a specific DNS server", "admin"},
+        {"dnsls",     "List DNS servers", "admin"},
+        {"dnsrc",     "Load DNS servers from /etc/resolv.conf", "admin"},
+        {"dnstest",   "Measure DNS latencies", "admin"},
+        {"dropbear",  "Dropbear SSH config", "admin"},
+        {"enable",    "Enter admin mode", ""},
+        {"entropy",   "Calc entropy of a string", ""},
+        {"env",       "List environment variables", "admin"},
+        {"h2d",        "Hex to decimal", ""},
+        {"host",      "Convert hostname to IP", ""},
+        {"id",        "Shows process IDs", "admin"},
+        {"ip",        "List IPv4 information", ""},
+        {"lang",      "Set locale language", ""},
+        {"last",      "Show previous users", "admin"},
+        {"lsblk",     "List drive block devices", "admin"},
+        {"lsnic",     "List IP/HW addresses", "admin"},
+        {"lspci",     "List PCI devices", "admin"},
+        {"mem",      "Show memory usage", "admin"},
+        {"mounts",    "Show mounts info", "admin"},
+        {"netserver", "Starts server for network tests", "admin"},
+        {"netclient", "Client connects to a server for tests", "admin"},
+        {"ntp",       "Show NTP/network time status", ""},
+        {"raidsim",   "Simulate k+m parity/RAID durability", ""},
+        {"ps",        "Lists the number of processes", "admin"},
+        {"top",       "Lists the running processes", "admin"},
+        {"pwgen",     "Generate cryptographically complex 200-bit random password", ""},
+	{"qr",        "Generate QR code", ""},
+	{"route",     "Show route info", "admin"},
+        {"scsi",      "Show SCSI devices", "admin"},
+        {"sleep",     "Sleep for a few seconds", ""},
+        {"spit",      "Stu's powerful I/O tester", "admin"},
+        {"status",    "Show system status", ""},
+        {"swap",      "Show swap status", "admin"},
+        {"time",      "Show the time in seconds", ""},
+        {"translations",    "List translations", "admin"},
+        {"tty",       "Is the terminal interactive", ""},
+        {"uptime",    "Time since the system booted", ""},
+        {"who",       "List active users", "admin"},
+        {"exit",      "Exit the secure shell", ""}
 };
 
 
@@ -356,6 +360,36 @@ void cmd_route() {
   dumpFile("/proc/net/route", "", 0);
 }
 
+#include "qr/qrcodegen.h"
+
+static void printQr(const uint8_t qrcode[]) {
+	int size = qrcodegen_getSize(qrcode);
+	int border = 4;
+	for (int y = -border; y < size + border; y++) {
+		for (int x = -border; x < size + border; x++) {
+			fputs((qrcodegen_getModule(qrcode, x, y) ? "\x1b[1;40m  \x1b[0;m" : "  "), stdout);
+		}
+		fputs("\n", stdout);
+	}
+}
+
+void cmd_qr(int tty, const char *text) {
+  if (tty) {}
+  if (text) {
+    //	const char *text = "https://example.com";                // User-supplied text
+	enum qrcodegen_Ecc errCorLvl = qrcodegen_Ecc_LOW;  // Error correction level
+	
+	// Make and print the QR Code symbol
+	uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
+	uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
+	bool ok = qrcodegen_encodeText(text, tempBuffer, qrcode, errCorLvl,
+		qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true);
+	if (ok)
+		printQr(qrcode);
+  }
+}
+    
+    
 
 void cmd_sleep(const int tty, const char *origline) {
   if (tty) {}
@@ -882,10 +916,19 @@ void cmd_listNICs2(int tty) {
     freeifaddrs(ifaddr);
 }
 
-void cmd_listAll() {
+void cmd_listAll(const size_t adminMode) {
     printf("%s: \n", T("Commands"));
     for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
-       printf("  %-10s \t| %s\n", commands[i].name, T(commands[i].doc));
+      size_t show = 1;
+      if (adminMode) {} // same as default
+      else {
+	// not root
+	if (strcmp(commands[i].admin, "admin")==0) show = 0;
+      }
+
+      if (show) {
+	printf("  %-10s \t| %s\n", commands[i].name, T(commands[i].doc));
+      }
     }
 }
 
@@ -1235,9 +1278,14 @@ void help_prompt() {
 }
 
 
-int run_command(const int tty, char *line, const char *hostname, const int ssh_login, const double timeSinceStart, dnsServersType *dns) {
+int run_command(const int tty, char *line, const char *hostname, const int ssh_login, const double timeSinceStart, dnsServersType *dns, const size_t adminMode) {
+    if (ssh_login) {}
+    
     int known = 0;
     for (size_t i = 0; i < sizeof(commands) / sizeof(COMMAND); i++) {
+
+        if ((adminMode == 0) && (strcasecmp(commands[i].admin, "admin")==0)) continue; // skip admin commands
+       
         if (commands[i].name && (strncmp(line, commands[i].name, strlen(commands[i].name)) == 0)) {
 
 	    char *copy = strdup(line);
@@ -1286,7 +1334,7 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 		help_prompt();
             } else if (strcasecmp(commands[i].name, "tty") == 0) {
                 cmd_tty(tty);
-	    } else if ((strcasecmp(commands[i].name, "env") == 0) && (ssh_login == 0)) { // can only run env if not sshed in
+	    } else if ((strcasecmp(commands[i].name, "env") == 0) /*&& (ssh_login == 0)*/) { // can only run env if not sshed in
 	      cmd_env(tty);
             } else if (strcasecmp(commands[i].name, "lsnic") == 0) {
                 cmd_listNICs(tty);
@@ -1336,6 +1384,10 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      dnsLookupAll(dns, second); 
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
+            } else if (strcasecmp(commands[i].name, "adminqr") == 0) {
+	      cmd_qr(tty, getenv("ADMIN_SECRET"));
+            } else if (strcasecmp(commands[i].name, "qr") == 0) {
+	      cmd_qr(tty, second);
             } else if (strcasecmp(commands[i].name, "route") == 0) {
 	      cmd_route();
 	    } else if (strcasecmp(commands[i].name, "h2d") == 0) {
@@ -1384,7 +1436,7 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	}
     }
     if ((strcasecmp(line, "?") == 0) || (strcasecmp(line, "help") == 0)) {
-        cmd_listAll();
+        cmd_listAll(adminMode);
     } else {
         if (!known) {
   	    printf("%s: %s\n", line, T("Unknown command"));
@@ -1395,6 +1447,7 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 
 
 int main(int argc, char *argv[]) {
+    size_t adminMode = 1;
     const double timeSinceStart = timeAsDouble();
   
     syslogString("stush", "Start session");
@@ -1405,7 +1458,14 @@ int main(int argc, char *argv[]) {
     }
 
     // ENV load
+    char *username = NULL; // means admin
+    
     loadEnvVars("/etc/stush.cfg");
+    if (getenv("ADMIN_SECRET")) {
+      adminMode = 0;
+      username = strdup(getenv("USER"));
+    } 
+
 
     // DNS load
     dnsServersType dns;
@@ -1459,7 +1519,7 @@ int main(int argc, char *argv[]) {
 	      if (tok) {
 		sprintf(s, "argv[%d.%zd] = '%s'", i, count, tok);
 		syslogString("stush", s);
-		int ret = run_command(tty, tok, hostname, ssh_login, timeSinceStart, &dns);
+		int ret = run_command(tty, tok, hostname, ssh_login, timeSinceStart, &dns, adminMode);
 		if (ret) {
 		  sprintf(s, "'%s' -- command failed", tok);
 		  syslogString("stush", s);
@@ -1479,25 +1539,50 @@ int main(int argc, char *argv[]) {
     cmd_status(hostname, tty);
 
     help_prompt();
-    sprintf(prefix, "%s%s$%s ", tty?BOLD:"", hostname, tty?END:"");
 
     char *line = NULL;
     rl_bind_key('\t', rl_insert);
 
     while (1) {
+      sprintf(prefix, "%s%s@%s%c%s ", tty?BOLD:"", username ? username : "root", hostname, adminMode ? '#' : '$', tty?END:"");
         keepRunning = 1;
 
 	if (ssh_login) {alarm(ssh_timeout);}
         line = readline(prefix);
 	if (ssh_login) {alarm(0);}
 
-	if (line && strlen(line)>=100) continue; // no crazy commands
+	if (line && strlen(line)>=100) {
+	  free(line);
+	  line = NULL;
+	  continue; // no crazy commands
+	}
+
+	if (adminMode == 0) { // user mode
+	  if (line && (strcasecmp(line, "enable")==0)) {
+	    sprintf(prefix, "passphase# ");
+	    line = readline(prefix);
+	    if (line && (strcasecmp(line, getenv("ADMIN_SECRET"))==0)) {
+	      adminMode = 1;
+	      free(username);
+	      username = NULL; // root@
+	      free(line);
+	      line = NULL;
+	      continue;
+	    } else {
+	      sleep(2);
+	      printf("error: password incorrect\n");
+	      continue;
+	    }
+	  }
+	}
 
         if ((line == NULL) || (strcasecmp(line, "exit") == 0) || (strcasecmp(line, "quit") == 0)) {
             break;
         }
+	
         if (strlen(line) < 1) {
             free(line);
+	    line = NULL;
             continue;
         }
         syslogString("stush", line); // log
@@ -1505,7 +1590,7 @@ int main(int argc, char *argv[]) {
 
         add_history(line);
 
-        int ret = run_command(tty, line, hostname, ssh_login, timeSinceStart, &dns);
+        int ret = run_command(tty, line, hostname, ssh_login, timeSinceStart, &dns, adminMode);
 	if (ret) {
 	  syslogString("stush", "-- command failed");
 	}
