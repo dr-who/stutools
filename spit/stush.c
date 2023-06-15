@@ -229,8 +229,8 @@ COMMAND commands[] = {
         {"lspci",     "List PCI devices", "admin"},
         {"mem",      "Show memory usage", "admin"},
         {"mounts",    "Show mounts info", "admin"},
-        {"netserver", "Starts server for network tests", "admin"},
-        {"netclient", "Client connects to a server for tests", "admin"},
+        {"netserver", "Starts server for network tests", ""},
+        {"netclient", "Client connects to a server for tests", ""},
         {"ntp",       "Show NTP/network time status", ""},
         {"raidsim",   "Simulate k+m parity/RAID durability", ""},
         {"ps",        "Lists the number of processes", "admin"},
@@ -394,10 +394,12 @@ void cmd_authPrint(const int tty) {
   if (tty) {}
   if (hmacKey) {
     uint8_t *p = (uint8_t*)hmacKey;
+    printf("raw: ");
     for (size_t i = 0; i < 10; i++) {
-      printf("%2x\n", *p);
+      printf("%02x ", *p);
       p++;
     }
+    printf("\n");
     unsigned char coded[100];
     memset(coded, 0, 100);
     base32_encode((unsigned char*)hmacKey, 10, coded);
@@ -1488,7 +1490,6 @@ int main(int argc, char *argv[]) {
       adminMode = 0; // needs a TOTP to become admin
       username = strdup(getenv("USER"));
       hmacKey = calloc(100, 1);
-      printf("decoding '%s'\n", getenv("ADMIN_SECRET"));
       base32_decode((unsigned char*)getenv("ADMIN_SECRET"), hmacKey);
     } 
 
