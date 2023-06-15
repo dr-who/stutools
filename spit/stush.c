@@ -1628,12 +1628,14 @@ int main(int argc, char *argv[]) {
 	    line = readline(prefix);
 	    int t = cmd_generateTOTP(tty);
 	    if (atoi(line) == t) {
+	      syslogString("stush", "promoted to admin. TOTP was correct.");
 	      printf("promoted to admin#\n");
 	      adminMode = 1;
 	      free(line);
 	      line = NULL;
 	      continue;
 	    } else {
+	      syslogString("stush", "incorrect enable password");
 	      sleep(2);
 	      printf("error: incorrect\n");
 	      continue;
