@@ -243,7 +243,7 @@ COMMAND commands[] = {
         {"translations",    "List translations", "admin"},
         {"tty",       "Is the terminal interactive", ""},
         {"uptime",    "Time since the system booted", ""},
-        {"who",       "List active users", "admin"},
+        {"who",       "List active users", ""},
         {"wifiqr",    "Create WIFI QR login", ""},
         {"exit",      "Exit the secure shell", ""}
 };
