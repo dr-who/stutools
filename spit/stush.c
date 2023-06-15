@@ -188,7 +188,7 @@ void cmd_translations(int tty) {
 
 
 COMMAND commands[] = {
-        {"adminqr",   "Show the QR code for the admin secret", "admin"},
+        {"admin",     "Enter admin mode", ""},
         {"ascii",     "Show ASCII info for a character", ""},
 	{"authenv",   "Reset TOTP key from ENV", "admin"},
 	{"authgen",   "Generate TOTP key", "admin"},
@@ -211,7 +211,6 @@ COMMAND commands[] = {
         {"dnsrc",     "Load DNS servers from /etc/resolv.conf", "admin"},
         {"dnstest",   "Measure DNS latencies", "admin"},
         {"dropbear",  "Dropbear SSH config", "admin"},
-        {"enable",    "Enter admin mode", ""},
         {"entropy",   "Calc entropy of a string", ""},
         {"env",       "List environment variables", "admin"},
         {"h2d",        "Hex to decimal", ""},
@@ -1744,13 +1743,13 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (adminMode == 0) { // user mode
-	  if (line && (strcasecmp(line, "enable")==0)) {
-	    sprintf(prefix, "TOTP# ");
+	  if (line && (strcasecmp(line, "admin")==0)) {
+	    sprintf(prefix, "auth token# ");
 	    line = readline(prefix);
 	    int t = cmd_generateTOTP(tty);
 	    if (atoi(line) == t) {
-	      syslogString("stush", "promoted to admin. TOTP was correct.");
-	      printf("promoted to admin#\n");
+	      syslogString("stush", "[promoted to admin]");
+	      printf("[promoted to admin]\n");
 	      adminMode = 1;
 	      free(line);
 	      line = NULL;
