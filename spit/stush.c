@@ -53,7 +53,7 @@ void intHandler(int d) {
     if (d==SIGALRM) {
       syslogString("stush", "Timeout alarm");
       syslogString("stush", "Close session");
-      //      fprintf(stderr,"timeout\n");
+      fprintf(stderr,"Inactivity timeout\n");
       exit(1);
     }
     //  fprintf(stderr,"got signal\n");
