@@ -371,11 +371,11 @@ static void printQr(const uint8_t qrcode[]) {
 }
 
 void cmd_qr(int tty, const char *text) {
-  if (tty) printf("%s", BOLD);
-  printf("qrcode: qr %s\n", text);
-  if (tty) printf("%s", END);
-
   if (text) {
+    if (tty) printf("%s", BOLD);
+    printf("qrcode: qr %s\n", text);
+    if (tty) printf("%s", END);
+    
     //	const char *text = "https://example.com";                // User-supplied text
 	enum qrcodegen_Ecc errCorLvl = qrcodegen_Ecc_LOW;  // Error correction level
 	
@@ -386,6 +386,8 @@ void cmd_qr(int tty, const char *text) {
 		qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true);
 	if (ok)
 		printQr(qrcode);
+  } else {
+    printf("usage: qr <encoded URI/text>\n");
   }
 }
 
@@ -468,17 +470,22 @@ void cmd_authGen(const int tty, const char *rest) {
 
 void cmd_authQR(const int tty, const char *username, const char *hostname) {
   if (tty) {}
-  
-  const size_t codedSize = (int)(ceil(hmacKeyBytes * 8.0 / 5));
-  unsigned char coded[1+codedSize];
-  memset(coded, 0, codedSize);
-  base32_encode((unsigned char*)hmacKey, hmacKeyBytes, coded);
-  coded[codedSize] = 0;
 
-
-  char s[1024];
-  sprintf(s, "otpauth://totp/%s@%s-%zd-bits?secret=%s&issuer=stush", username, hostname, hmacKeyBytes * 8, coded);
-  cmd_qr(tty, s);
+  if(hmacKey) {
+    
+    const size_t codedSize = (int)(ceil(hmacKeyBytes * 8.0 / 5));
+    unsigned char coded[1+codedSize];
+    memset(coded, 0, codedSize);
+    base32_encode((unsigned char*)hmacKey, hmacKeyBytes, coded);
+    coded[codedSize] = 0;
+    
+    
+    char s[1024];
+    sprintf(s, "otpauth://totp/%s@%s-%zd-bits?secret=%s&issuer=stush", username, hostname, hmacKeyBytes * 8, coded);
+    cmd_qr(tty, s);
+  } else {
+    printf("no auth setup\n");
+  }
 }
 
 #include "TOTP-MCU/TOTP.h"
