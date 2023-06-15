@@ -1521,7 +1521,7 @@ int main(int argc, char *argv[]) {
     
     loadEnvVars("/etc/stush.cfg");
     char s[1024];
-    sprintf(s, "ADMIN_SECRET_USER_%s", username);
+    sprintf(s, "ADMIN_TOTP_USER_%s", username);
     for (size_t i =0; i < strlen(s); i++) {
       if (islower(s[i])) {
 	s[i]=toupper(s[i]);
