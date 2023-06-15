@@ -240,4 +240,6 @@ double getValueFromFile(const char *filename, const int quiet);
 
 void printBinary(const unsigned long value, const size_t bits);
 
+void logStringToFile(const char *fn, const char *string) ;
+
 #endif

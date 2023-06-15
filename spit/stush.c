@@ -238,6 +238,7 @@ COMMAND commands[] = {
         {"spit",      "Stu's powerful I/O tester", "admin"},
         {"status",    "Show system status", ""},
         {"swap",      "Show swap status", "admin"},
+        {"timeaudit", "Accept external time", ""},
         {"time",      "Show the time in seconds", ""},
         {"translations",    "List translations", "admin"},
         {"tty",       "Is the terminal interactive", ""},
@@ -436,9 +437,10 @@ size_t cmd_authFromENV(const int tty, const char *username) { // returns adminMo
     hmacKey = calloc(strlen(getenv(s)), 1);
     base32_decode((unsigned char*)getenv(s), hmacKey);
     hmacKeyBytes = strlen((char*)hmacKey);
+
+    cmd_authPrint(tty);
   }
 
-  cmd_authPrint(tty);
   return adminMode;
 }
 
@@ -1276,6 +1278,50 @@ void cmd_time(const int tty, const double timeSinceStart) {
   free(os);
 }
 
+void cmd_timeAudit(const int tty, const double timeSinceStart, const char *rest) {
+  if (tty) {}
+  if (timeSinceStart) {}
+
+  if (rest) {
+    char *endp;
+    double incomingTime = strtoul(rest, &endp, 10);
+    if (endp) {
+      if (*endp == ' ' || *endp == 0) {
+	// ok
+      } else {
+	printf("error: not valid syntax of <time> <server details> ('%s')\n", rest);
+	return;
+      }
+    }
+    double now = timeAsDouble(); // now - time start
+    double slowDown = now - timeSinceStart; // seconds of slow to get here
+    if (slowDown < 1) { // if it takes less than a sec to start, then use it
+      if (fabs(now - incomingTime) < 2) { // 2 secs max difference else log it
+	char s[1024];
+	sprintf(s, "time audit accurate: %lf - %s", now, rest);
+	syslogString("stush", s);
+	printf("%s\n", s);
+	
+	logStringToFile("/var/log/timeaudit.log", s);
+	
+      } else {
+	char s[1024];
+	sprintf(s, "**WARNING** time is out of sync: %lf delta - %s", now - incomingTime, rest);
+	printf("%s\n", s);
+	syslogString("stush", s);
+
+	logStringToFile("/var/log/timeaudit.log", s);
+
+      }
+    } else {
+      printf("**warning** ignoring as server is slow to respond\n");
+    }
+  } else {
+    printf("usage: timeaudit <time> <calling server details>\n");
+  }
+}
+
+
 
 void cmd_date(const int tty) {
     if (tty) {}
@@ -1470,6 +1516,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      }
             } else if (strcasecmp(commands[i].name, "dnstest") == 0) {
 	      cmd_testdns(tty, rest, dns);
+            } else if (strcasecmp(commands[i].name, "timeaudit") == 0) {
+	      cmd_timeAudit(tty, timeSinceStart, rest);
             } else if (strcasecmp(commands[i].name, "time") == 0) {
 	      cmd_time(tty, timeSinceStart);
             } else if (strcasecmp(commands[i].name, "sleep") == 0) {

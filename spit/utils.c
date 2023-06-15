@@ -2118,3 +2118,27 @@ void printBinary(const unsigned long value, const size_t bits) {
     if ((i > 0) && ((i%8)==0)) printf (".");
   }
 }
+
+
+void logStringToFile(const char *fn, const char *string) {
+  char *s = calloc(1024, 1);
+
+  time_t t = time(NULL);
+  struct tm tm = *localtime(&t);
+  
+  char timestring[100];
+  strftime(timestring, 100, "%c %Z", &tm);
+
+
+  sprintf(s, "%lf - %s - %s\n", timeAsDouble(), timestring, string);
+  
+  FILE *fp = fopen(fn, "at");
+  if (fp) {
+
+    fprintf(fp, "%s", s);
+    fclose(fp);
+  } else {
+    perror(fn);
+  }
+  free(s);
+}
