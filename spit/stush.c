@@ -371,8 +371,10 @@ static void printQr(const uint8_t qrcode[]) {
 }
 
 void cmd_qr(int tty, const char *text) {
-  if (tty) {}
-  printf("input: '%s'\n", text);
+  if (tty) printf("%s", BOLD);
+  printf("qrcode: qr %s\n", text);
+  if (tty) printf("%s", END);
+
   if (text) {
     //	const char *text = "https://example.com";                // User-supplied text
 	enum qrcodegen_Ecc errCorLvl = qrcodegen_Ecc_LOW;  // Error correction level
@@ -421,19 +423,21 @@ void cmd_authPrint(const int tty) {
   if (hmacKey) {
     printf("HMAC size: %zd bytes (%zd bits)\n", hmacKeyBytes, hmacKeyBytes * 8);
     uint8_t *p = (uint8_t*)hmacKey;
-    printf("raw: ");
+    printf("RAW random: ");
     for (size_t i = 0; i < hmacKeyBytes; i++) {
       printf("%02x ", *p);
       p++;
     }
     printf("\n");
     const size_t codedSize = (int)(ceil(hmacKeyBytes * 8.0 / 5));
-    printf("base32 size: %zd\n", codedSize);
+    printf("base32 size: %zd bytes\n", codedSize);
     unsigned char coded[1+codedSize];
     memset(coded, 0, 1+codedSize);
     base32_encode((unsigned char*)hmacKey, hmacKeyBytes, coded);
     coded[codedSize] = 0;
+    if (tty) printf("%s", BOLD);
     printf("key: '%s'\n", coded);
+    if (tty) printf("%s", END);
   } else {
     printf("no auth setup\n");
   }
@@ -471,12 +475,9 @@ void cmd_authQR(const int tty, const char *username, const char *hostname) {
   base32_encode((unsigned char*)hmacKey, hmacKeyBytes, coded);
   coded[codedSize] = 0;
 
-  
+
   char s[1024];
   sprintf(s, "otpauth://totp/%s@%s-%zd-bits?secret=%s&issuer=stush", username, hostname, hmacKeyBytes * 8, coded);
-  if (tty) printf("%s", BOLD);
-  printf("qr '%s'\n", s);
-  if (tty) printf("%s", END);
   cmd_qr(tty, s);
 }
 
