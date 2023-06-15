@@ -419,15 +419,31 @@ size_t hmacKeyBytes = 10; // bytes
 void cmd_authClear();
 void cmd_authPrint(const int tty);
 
-void cmd_authSet(const int tty, const char *key) {
-  hmacKey = calloc(strlen(key), 1);
-  base32_decode((unsigned char*)key, hmacKey);
-  hmacKeyBytes = strlen((char*)hmacKey);
-  cmd_authPrint(tty);
+void cmd_authSet(const int tty, const char *keyorig) {
+  if (tty) {}
+  
+  if (keyorig) {
+
+    char *key = strdup(keyorig);
+    for (size_t i = 0; i < strlen(key); i++) {
+      if (islower(key[i])) key[i] = toupper(key[i]);
+    }
+    
+    hmacKey = calloc(strlen(key), 1);
+    hmacKeyBytes = base32_decode((unsigned char*)key, hmacKey);
+    //    hmacKeyBytes = strlen((char*)hmacKey);
+    if (hmacKeyBytes < 10) {
+      cmd_authClear();
+    }
+    cmd_authPrint(tty);
+    free(key);
+  } else {
+    printf("usage: authset <key>\n");
+  }
 }
 
 
-size_t cmd_authFromENV(const int tty, const char *username) { // returns adminMode
+size_t cmd_authFromENV(const int tty, const char *username, const size_t quiet) { // returns adminMode
   cmd_authClear();
 
   size_t adminMode = 1;
@@ -441,11 +457,12 @@ size_t cmd_authFromENV(const int tty, const char *username) { // returns adminMo
   }
   
   if (getenv(s)) {
-    printf("Admin/enable required for %s\n", username);
+    //    printf("Admin/enable required for %s\n", username);
     adminMode = 0; // needs a TOTP to become admin
 
     cmd_authSet(tty, getenv(s));
   }
+  if (quiet == 0) cmd_authPrint(tty);
 
   return adminMode;
 }
@@ -483,6 +500,9 @@ void cmd_authClear() {
   }
 }
 
+void cmd_calcEntropy(const int tty, unsigned char *second);
+
+
 void cmd_authGen(const int tty, const char *rest) {
   cmd_authClear();
 
@@ -495,6 +515,8 @@ void cmd_authGen(const int tty, const char *rest) {
   hmacKeyBytes = ceil (bits / 8.0); // 80 bits, 10 bytes by default
 
   hmacKey = randomGenerate(hmacKeyBytes);
+  double entropy = entropyTotalBits(hmacKey, hmacKeyBytes, 1);
+  printf("Shannon entropy: %.0lf bits\n", entropy);
   
   cmd_authPrint(tty);
 }
@@ -779,9 +801,9 @@ void cmd_spit(const int tty, char *origstring) {
 }
 
 
-void cmd_calcEntropy(const int tty, const char *second) {
+void cmd_calcEntropy(const int tty, unsigned char *second) {
   if (second) {
-    double entropy = entropyTotalBits((unsigned char *) second, strlen(second), 1);
+    double entropy = entropyTotalBits(second, strlen((char*)second), 1);
     printf("%s ", second);
     char ss[PATH_MAX];
     sprintf(ss, "(%.1lf bits of entropy)", entropy);
@@ -1452,7 +1474,7 @@ int run_command(const int tty, char *line, const char *username, const char *hos
             } else if (strcasecmp(commands[i].name, "raidsim") == 0) {
 	        cmd_raidsim(tty, line); // needs the whole line
             } else if (strcasecmp(commands[i].name, "entropy") == 0) {
-                cmd_calcEntropy(tty, rest);
+	      cmd_calcEntropy(tty, (unsigned char*) rest);
             } else if (strcasecmp(commands[i].name, "cpu") == 0) {
                 cmd_cpu(tty);
             } else if (strcasecmp(commands[i].name, "dropbear") == 0) {
@@ -1547,7 +1569,7 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	    } else if (strcasecmp(commands[i].name, "authset") == 0) {
 	      cmd_authSet(tty, rest);
 	    } else if (strcasecmp(commands[i].name, "authenv") == 0) {
-	      cmd_authFromENV(tty, username);
+	      cmd_authFromENV(tty, username, 0);
             } else if (strcasecmp(commands[i].name, "authtok") == 0) {
 	      if (hmacKey) {
 		uint32_t t = cmd_generateTOTP(tty);
@@ -1630,7 +1652,7 @@ int main(int argc, char *argv[]) {
 
     //
     loadEnvVars("/etc/stush.cfg");
-    size_t adminMode = cmd_authFromENV(tty, username);
+    size_t adminMode = cmd_authFromENV(tty, username, 1);
 
     // DNS load
     dnsServersType dns;
