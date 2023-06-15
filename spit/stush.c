@@ -1483,15 +1483,26 @@ int main(int argc, char *argv[]) {
     }
 
     // ENV load
-    char *username = NULL; // means admin
+    char *username = getenv("USER");
+    if (username) username = strdup(username);
     
     loadEnvVars("/etc/stush.cfg");
-    if (getenv("ADMIN_SECRET")) {
+    char s[1024];
+    sprintf(s, "ADMIN_SECRET_USER_%s", username);
+    for (size_t i =0; i < strlen(s); i++) {
+      if (islower(s[i])) {
+	s[i]=toupper(s[i]);
+      }
+    }	  
+    
+    if (getenv(s)) {
+      printf("Admin/enable required for %s\n", username);
       adminMode = 0; // needs a TOTP to become admin
-      username = strdup(getenv("USER"));
       hmacKey = calloc(100, 1);
-      base32_decode((unsigned char*)getenv("ADMIN_SECRET"), hmacKey);
-    } 
+      base32_decode((unsigned char*)getenv(s), hmacKey);
+    } else {
+      //      printf("no TOTP for '%s'\n", s);
+    }
 
 
     // DNS load
@@ -1631,7 +1642,9 @@ int main(int argc, char *argv[]) {
 
     free(line);
 
- end:    
+ end:
+    free(username);
+    
     syslogString("stush", "Close session");
     dnsServersFree(&dns);
 
