@@ -293,7 +293,7 @@ void header(const int tty) {
     }
 
     char ss[PATH_MAX];
-    sprintf(ss, "lang %s", lang);
+    sprintf(ss, "%s", lang);
     cmd_lang(tty, ss, 1);
 
     if (tty) {
