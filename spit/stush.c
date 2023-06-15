@@ -467,11 +467,15 @@ void cmd_authQR(const int tty, const char *username, const char *hostname) {
 
 uint32_t cmd_generateTOTP(const int tty) {
   if (tty) {}
-  
-  TOTP(hmacKey, 10, 30); 
-  
-  setTimezone(9);        // set timezone used
-  uint32_t newCode = getCodeFromTimestamp(time(NULL));
+
+  uint32_t newCode = 0;
+  if (hmacKey) {
+    
+    TOTP(hmacKey, 10, 30); 
+    
+    setTimezone(9);        // set timezone used
+    newCode = getCodeFromTimestamp(time(NULL));
+  }
   //  printf("%06u\n", newCode);
   return newCode;
 }
@@ -1438,8 +1442,10 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	    } else if (strcasecmp(commands[i].name, "authqr") == 0) {
 	      cmd_authQR(tty, username, hostname);
             } else if (strcasecmp(commands[i].name, "totp") == 0) {
-	      uint32_t t = cmd_generateTOTP(tty);
-	      printf("%06u\n", t);
+	      if (hmacKey) {
+		uint32_t t = cmd_generateTOTP(tty);
+		printf("%06u\n", t);
+	      }
             } else if (strcasecmp(commands[i].name, "route") == 0) {
 	      cmd_route();
 	    } else if (strcasecmp(commands[i].name, "h2d") == 0) {
