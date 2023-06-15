@@ -249,6 +249,7 @@ COMMAND commands[] = {
         {"tty",       "Is the terminal interactive", ""},
         {"uptime",    "Time since the system booted", ""},
         {"who",       "List active users", "admin"},
+        {"wifiqr",    "Create WIFI QR login", ""},
         {"exit",      "Exit the secure shell", ""}
 };
 
@@ -385,6 +386,30 @@ void cmd_qr(int tty, const char *text) {
 		printQr(qrcode);
   }
 }
+
+
+void cmd_wifiqr(const int tty, const char *rest) {
+  int ok = 0;
+  if (rest) {
+    char *copy = strdup(rest);
+    char *network = strtok(copy, " ");
+    if (network) {
+      char *pw = strtok(NULL, " ");
+      if (pw) {
+	char s[1024];
+	sprintf(s, "WIFI:S:%s;T:WPA2;P:%s;;", network, pw);
+	cmd_qr(tty, s);
+	ok = 1;
+      }
+    }
+    free(copy);
+  }
+  if (ok == 0) {
+    printf("usage: wifiqr <network> <password>\n");
+  }
+}
+
+      
 
 #include "tpmtotp/base32.h"
 
@@ -1402,6 +1427,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_uptime(tty);
             } else if (strcasecmp(commands[i].name, "qr") == 0) {
 	      cmd_qr(tty, rest);
+            } else if (strcasecmp(commands[i].name, "wifiqr") == 0) {
+	      cmd_wifiqr(tty, rest);
             } else if (strcasecmp(commands[i].name, "authgen") == 0) {
 	      cmd_authGen(tty);
             } else if (strcasecmp(commands[i].name, "authls") == 0) {
