@@ -239,6 +239,7 @@ COMMAND commands[] = {
         {"status",    "Show system status", ""},
         {"swap",      "Show swap status", "admin"},
         {"timeaudit", "Accept external time", ""},
+        {"timeout",   "Show the auto logout timeout", ""},
         {"time",      "Show the time in seconds", ""},
         {"translations",    "List translations", "admin"},
         {"tty",       "Is the terminal interactive", ""},
@@ -1440,6 +1441,18 @@ void help_prompt() {
   printf("%s\n", T("Type ? or help to list commands"));
 }
 
+// for the ssh/logout alarm()
+size_t ssh_timeout = 0;
+
+void setSSHTimeout(const size_t t, const size_t quiet) {
+  ssh_timeout = t;
+  if (quiet == 0) printf("timeout: %zd\n", ssh_timeout);
+}
+
+size_t getSSHTimeout() {
+  return ssh_timeout;
+}
+
 
 int run_command(const int tty, char *line, const char *username, const char *hostname, const int ssh_login, const double timeSinceStart, dnsServersType *dns, const size_t adminMode) {
     if (ssh_login) {}
@@ -1464,6 +1477,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	  
             if (strcasecmp(commands[i].name, "status") == 0) {
                 cmd_status(hostname, tty);
+            } else if (strcasecmp(commands[i].name, "timeout") == 0) {
+	      printf("%zd\n", getSSHTimeout());
 	    } else if (strcasecmp(commands[i].name, "translations") == 0) {
 	      cmd_translations(tty);
             } else if (strcasecmp(commands[i].name, "pwgen") == 0) {
@@ -1631,7 +1646,6 @@ int run_command(const int tty, char *line, const char *username, const char *hos
     return !known;
 }
 
-
 int main(int argc, char *argv[]) {
     const double timeSinceStart = timeAsDouble();
   
@@ -1660,19 +1674,17 @@ int main(int argc, char *argv[]) {
 
 
 
-    size_t ssh_timeout;
-    
     const size_t ssh_login = isSSHLogin();
 
     if (ssh_login) {
       syslogString("stush", getenv("SSH_CLIENT"));
       syslogString("stush", "SSH_TIMEOUT");
       if (getenv("SSH_TIMEOUT")) {
-	ssh_timeout = atoi(getenv("SSH_TIMEOUT"));
+	setSSHTimeout(atoi(getenv("SSH_TIMEOUT")), 1);
 	syslogString("stush", getenv("SSH_TIMEOUT"));
       } else {
+	setSSHTimeout(180, 1);
 	syslogString("stush", "180"); // default is 180
-	ssh_timeout = 180;
       }
     }
 
@@ -1732,7 +1744,7 @@ int main(int argc, char *argv[]) {
       sprintf(prefix, "%s%s@%s%c%s ", tty?BOLD:"", username ? username : "root", hostname, adminMode ? '#' : '$', tty?END:"");
         keepRunning = 1;
 
-	if (ssh_login) {alarm(ssh_timeout);}
+	if (ssh_login) {alarm(getSSHTimeout());}
         line = readline(prefix);
 	if (ssh_login) {alarm(0);}
 
@@ -1751,6 +1763,7 @@ int main(int argc, char *argv[]) {
 	      syslogString("stush", "[promoted to admin]");
 	      printf("[promoted to admin]\n");
 	      adminMode = 1;
+	      setSSHTimeout(0, 0); // don't kick an admin out ever, and don't be quiet, let them know
 	      free(line);
 	      line = NULL;
 	      continue;
