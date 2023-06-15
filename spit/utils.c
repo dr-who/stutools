@@ -1648,7 +1648,7 @@ unsigned long *randomGenerateLong(size_t len) {
 }
 
 unsigned char *randomGenerate(size_t len) {
-    unsigned char *ret = malloc(len * sizeof(unsigned char));
+    unsigned char *ret = calloc(len, sizeof(unsigned char));
     assert(len);
     for (size_t i = 0; i < len; i++) {
         ret[i] = getDevRandom();

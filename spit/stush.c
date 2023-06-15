@@ -413,21 +413,26 @@ void cmd_wifiqr(const int tty, const char *rest) {
 
 #include "tpmtotp/base32.h"
 
-unsigned char * hmacKey;
+unsigned char * hmacKey = NULL;
+size_t hmacKeyBytes = 10; // bytes
 
 void cmd_authPrint(const int tty) {
   if (tty) {}
   if (hmacKey) {
+    printf("HMAC size: %zd bytes (%zd bits)\n", hmacKeyBytes, hmacKeyBytes * 8);
     uint8_t *p = (uint8_t*)hmacKey;
     printf("raw: ");
-    for (size_t i = 0; i < 10; i++) {
+    for (size_t i = 0; i < hmacKeyBytes; i++) {
       printf("%02x ", *p);
       p++;
     }
     printf("\n");
-    unsigned char coded[100];
-    memset(coded, 0, 100);
-    base32_encode((unsigned char*)hmacKey, 10, coded);
+    const size_t codedSize = (int)(ceil(hmacKeyBytes * 8.0 / 5));
+    printf("base32 size: %zd\n", codedSize);
+    unsigned char coded[1+codedSize];
+    memset(coded, 0, 1+codedSize);
+    base32_encode((unsigned char*)hmacKey, hmacKeyBytes, coded);
+    coded[codedSize] = 0;
     printf("key: '%s'\n", coded);
   } else {
     printf("no auth setup\n");
@@ -441,22 +446,34 @@ void cmd_authClear() {
   }
 }
 
-void cmd_authGen(const int tty) {
+void cmd_authGen(const int tty, const char *rest) {
   cmd_authClear();
+
+  // the argument is in bits
+  int bits = 80; // default with no args is 80
+  if (rest) {
+    bits = MAX(80, atoi(rest));
+  }
   
-  hmacKey = randomGenerate(20); // 160 bits // save?
+  hmacKeyBytes = ceil (bits / 8.0); // 80 bits, 10 bytes by default
+
+  hmacKey = randomGenerate(hmacKeyBytes);
   
   cmd_authPrint(tty);
 }
 
 void cmd_authQR(const int tty, const char *username, const char *hostname) {
   if (tty) {}
-  unsigned char coded[100];
-  memset(coded, 0, 100);
-  base32_encode((unsigned char*)hmacKey, 10, coded);
+  
+  const size_t codedSize = (int)(ceil(hmacKeyBytes * 8.0 / 5));
+  unsigned char coded[1+codedSize];
+  memset(coded, 0, codedSize);
+  base32_encode((unsigned char*)hmacKey, hmacKeyBytes, coded);
+  coded[codedSize] = 0;
+
   
   char s[1024];
-  sprintf(s, "otpauth://totp/%s@%s?secret=%s&issuer=stush", username, hostname, coded);
+  sprintf(s, "otpauth://totp/%s@%s-%zd-bits?secret=%s&issuer=stush", username, hostname, hmacKeyBytes * 8, coded);
   if (tty) printf("%s", BOLD);
   printf("qr '%s'\n", s);
   if (tty) printf("%s", END);
@@ -471,7 +488,7 @@ uint32_t cmd_generateTOTP(const int tty) {
   uint32_t newCode = 0;
   if (hmacKey) {
     
-    TOTP(hmacKey, 10, 30); 
+    TOTP(hmacKey, hmacKeyBytes, 30); 
     
     setTimezone(9);        // set timezone used
     newCode = getCodeFromTimestamp(time(NULL));
@@ -1434,7 +1451,7 @@ int run_command(const int tty, char *line, const char *username, const char *hos
             } else if (strcasecmp(commands[i].name, "wifiqr") == 0) {
 	      cmd_wifiqr(tty, rest);
             } else if (strcasecmp(commands[i].name, "authgen") == 0) {
-	      cmd_authGen(tty);
+	      cmd_authGen(tty, rest);
             } else if (strcasecmp(commands[i].name, "authls") == 0) {
 	      cmd_authPrint(tty);
             } else if (strcasecmp(commands[i].name, "authclear") == 0) {
@@ -1531,8 +1548,9 @@ int main(int argc, char *argv[]) {
     if (getenv(s)) {
       printf("Admin/enable required for %s\n", username);
       adminMode = 0; // needs a TOTP to become admin
-      hmacKey = calloc(100, 1);
+      hmacKey = calloc(strlen(getenv(s)), 1);
       base32_decode((unsigned char*)getenv(s), hmacKey);
+      hmacKeyBytes = strlen((char*)hmacKey);
     } else {
       //      printf("no TOTP for '%s'\n", s);
     }
