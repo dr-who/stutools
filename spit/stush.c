@@ -418,7 +418,7 @@ size_t hmacKeyBytes = 10; // bytes
 void cmd_authClear();
 void cmd_authPrint(const int tty);
 
-void cmd_authSet(const int tty, const char *keyorig) {
+void cmd_authSet(const int tty, const char *keyorig, const size_t quiet) {
   if (tty) {}
   
   if (keyorig) {
@@ -434,7 +434,7 @@ void cmd_authSet(const int tty, const char *keyorig) {
     if (hmacKeyBytes < 10) {
       cmd_authClear();
     }
-    cmd_authPrint(tty);
+    if (quiet == 0) cmd_authPrint(tty);
     free(key);
   } else {
     printf("usage: authset <key>\n");
@@ -459,7 +459,7 @@ size_t cmd_authFromENV(const int tty, const char *username, const size_t quiet) 
     //    printf("Admin/enable required for %s\n", username);
     adminMode = 0; // needs a TOTP to become admin
 
-    cmd_authSet(tty, getenv(s));
+    cmd_authSet(tty, getenv(s), quiet);
   }
   if (quiet == 0) cmd_authPrint(tty);
 
@@ -1566,7 +1566,7 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	    } else if (strcasecmp(commands[i].name, "authqr") == 0) {
 	      cmd_authQR(tty, username, hostname);
 	    } else if (strcasecmp(commands[i].name, "authset") == 0) {
-	      cmd_authSet(tty, rest);
+	      cmd_authSet(tty, rest, 0);
 	    } else if (strcasecmp(commands[i].name, "authenv") == 0) {
 	      cmd_authFromENV(tty, username, 0);
             } else if (strcasecmp(commands[i].name, "authtok") == 0) {
