@@ -197,6 +197,10 @@ void cmd_translations(int tty) {
 COMMAND commands[] = {
         {"adminqr",   "Show the QR code for the admin secret", "admin"},
         {"ascii",     "Show ASCII info for a character", ""},
+	{"authgen",   "Generate TOTP key", "admin"},
+	{"authls",    "Show the TOTP key", "admin"},
+	{"authclear", "Clear the TOTP key", "admin"},
+	{"authqr",    "Show the TOTP QR code", "admin"},
         {"cpu",       "Show CPU info", "admin"},
         {"date",      "Show the current date/time", ""},
 	{"d2b",       "Decimal to binary", ""},
@@ -240,6 +244,7 @@ COMMAND commands[] = {
         {"status",    "Show system status", ""},
         {"swap",      "Show swap status", "admin"},
         {"time",      "Show the time in seconds", ""},
+	{"totp",      "Show the TOTP", "admin"},
         {"translations",    "List translations", "admin"},
         {"tty",       "Is the terminal interactive", ""},
         {"uptime",    "Time since the system booted", ""},
@@ -380,8 +385,71 @@ void cmd_qr(int tty, const char *text) {
 		printQr(qrcode);
   }
 }
-    
-    
+
+#include "tpmtotp/base32.h"
+
+unsigned char * hmacKey;
+
+void cmd_authPrint(const int tty) {
+  if (tty) {}
+  if (hmacKey) {
+    uint8_t *p = (uint8_t*)hmacKey;
+    for (size_t i = 0; i < 10; i++) {
+      printf("%2x\n", *p);
+      p++;
+    }
+    unsigned char coded[100];
+    memset(coded, 0, 100);
+    base32_encode((unsigned char*)hmacKey, 10, coded);
+    printf("key: '%s'\n", coded);
+  } else {
+    printf("no auth setup\n");
+  }
+}
+
+void cmd_authClear() {
+  if (hmacKey) {
+    free(hmacKey);
+    hmacKey = NULL;
+  }
+}
+
+void cmd_authGen(const int tty) {
+  cmd_authClear();
+  
+  hmacKey = randomGenerate(20); // 160 bits // save?
+  
+  cmd_authPrint(tty);
+}
+
+void cmd_authQR(const int tty, const char *username, const char *hostname) {
+  if (tty) {}
+  unsigned char coded[100];
+  memset(coded, 0, 100);
+  base32_encode((unsigned char*)hmacKey, 10, coded);
+  
+  char s[1024];
+  sprintf(s, "otpauth://totp/%s@%s?secret=%s&issuer=stush", username, hostname, coded);
+  if (tty) printf("%s", BOLD);
+  printf("qr '%s'\n", s);
+  if (tty) printf("%s", END);
+  cmd_qr(tty, s);
+}
+
+#include "TOTP-MCU/TOTP.h"
+
+uint32_t cmd_generateTOTP(const int tty) {
+  if (tty) {}
+  
+  TOTP(hmacKey, 10, 30); 
+  
+  setTimezone(9);        // set timezone used
+  uint32_t newCode = getCodeFromTimestamp(time(NULL));
+  //  printf("%06u\n", newCode);
+  return newCode;
+}
+  
+
 
 void cmd_sleep(const int tty, const char *second) {
   if (tty) {}
@@ -1220,7 +1288,7 @@ void help_prompt() {
 }
 
 
-int run_command(const int tty, char *line, const char *hostname, const int ssh_login, const double timeSinceStart, dnsServersType *dns, const size_t adminMode) {
+int run_command(const int tty, char *line, const char *username, const char *hostname, const int ssh_login, const double timeSinceStart, dnsServersType *dns, const size_t adminMode) {
     if (ssh_login) {}
     
     int known = 0;
@@ -1330,10 +1398,19 @@ int run_command(const int tty, char *line, const char *hostname, const int ssh_l
 	      dnsLookupAll(dns, rest); 
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
-            } else if (strcasecmp(commands[i].name, "adminqr") == 0) {
-	      cmd_qr(tty, getenv("ADMIN_SECRET"));
             } else if (strcasecmp(commands[i].name, "qr") == 0) {
 	      cmd_qr(tty, rest);
+            } else if (strcasecmp(commands[i].name, "authgen") == 0) {
+	      cmd_authGen(tty);
+            } else if (strcasecmp(commands[i].name, "authls") == 0) {
+	      cmd_authPrint(tty);
+            } else if (strcasecmp(commands[i].name, "authclear") == 0) {
+	      cmd_authClear(tty);
+	    } else if (strcasecmp(commands[i].name, "authqr") == 0) {
+	      cmd_authQR(tty, username, hostname);
+            } else if (strcasecmp(commands[i].name, "totp") == 0) {
+	      uint32_t t = cmd_generateTOTP(tty);
+	      printf("%06u\n", t);
             } else if (strcasecmp(commands[i].name, "route") == 0) {
 	      cmd_route();
 	    } else if (strcasecmp(commands[i].name, "h2d") == 0) {
@@ -1408,8 +1485,11 @@ int main(int argc, char *argv[]) {
     
     loadEnvVars("/etc/stush.cfg");
     if (getenv("ADMIN_SECRET")) {
-      adminMode = 0;
+      adminMode = 0; // needs a TOTP to become admin
       username = strdup(getenv("USER"));
+      hmacKey = calloc(100, 1);
+      printf("decoding '%s'\n", getenv("ADMIN_SECRET"));
+      base32_decode((unsigned char*)getenv("ADMIN_SECRET"), hmacKey);
     } 
 
 
@@ -1465,7 +1545,7 @@ int main(int argc, char *argv[]) {
 	      if (tok) {
 		sprintf(s, "argv[%d.%zd] = '%s'", i, count, tok);
 		syslogString("stush", s);
-		int ret = run_command(tty, tok, hostname, ssh_login, timeSinceStart, &dns, adminMode);
+		int ret = run_command(tty, tok, username, hostname, ssh_login, timeSinceStart, &dns, adminMode);
 		if (ret) {
 		  sprintf(s, "'%s' -- command failed", tok);
 		  syslogString("stush", s);
@@ -1505,23 +1585,23 @@ int main(int argc, char *argv[]) {
 
 	if (adminMode == 0) { // user mode
 	  if (line && (strcasecmp(line, "enable")==0)) {
-	    sprintf(prefix, "passphase# ");
+	    sprintf(prefix, "TOTP# ");
 	    line = readline(prefix);
-	    if (line && (strcasecmp(line, getenv("ADMIN_SECRET"))==0)) {
+	    int t = cmd_generateTOTP(tty);
+	    if (atoi(line) == t) {
+	      printf("promoted to admin#\n");
 	      adminMode = 1;
-	      free(username);
-	      username = NULL; // root@
 	      free(line);
 	      line = NULL;
 	      continue;
 	    } else {
 	      sleep(2);
-	      printf("error: password incorrect\n");
+	      printf("error: incorrect\n");
 	      continue;
 	    }
 	  }
 	}
-
+	  
         if ((line == NULL) || (strcasecmp(line, "exit") == 0) || (strcasecmp(line, "quit") == 0)) {
             break;
         }
@@ -1536,7 +1616,7 @@ int main(int argc, char *argv[]) {
 
         add_history(line);
 
-        int ret = run_command(tty, line, hostname, ssh_login, timeSinceStart, &dns, adminMode);
+        int ret = run_command(tty, line, username, hostname, ssh_login, timeSinceStart, &dns, adminMode);
 	if (ret) {
 	  syslogString("stush", "-- command failed");
 	}
