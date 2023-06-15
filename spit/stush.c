@@ -195,6 +195,7 @@ COMMAND commands[] = {
 	{"authls",    "Show the TOTP key", "admin"},
 	{"authclear", "Clear the TOTP key", "admin"},
 	{"authqr",    "Show the TOTP QR code", "admin"},
+	{"authset",   "Set the TOTP key", "admin"},
 	{"authtok",   "Show the current TOTP token", "admin"},
         {"cpu",       "Show CPU info", "admin"},
         {"date",      "Show the current date/time", ""},
@@ -418,6 +419,14 @@ size_t hmacKeyBytes = 10; // bytes
 void cmd_authClear();
 void cmd_authPrint(const int tty);
 
+void cmd_authSet(const int tty, const char *key) {
+  hmacKey = calloc(strlen(key), 1);
+  base32_decode((unsigned char*)key, hmacKey);
+  hmacKeyBytes = strlen((char*)hmacKey);
+  cmd_authPrint(tty);
+}
+
+
 size_t cmd_authFromENV(const int tty, const char *username) { // returns adminMode
   cmd_authClear();
 
@@ -434,11 +443,8 @@ size_t cmd_authFromENV(const int tty, const char *username) { // returns adminMo
   if (getenv(s)) {
     printf("Admin/enable required for %s\n", username);
     adminMode = 0; // needs a TOTP to become admin
-    hmacKey = calloc(strlen(getenv(s)), 1);
-    base32_decode((unsigned char*)getenv(s), hmacKey);
-    hmacKeyBytes = strlen((char*)hmacKey);
 
-    cmd_authPrint(tty);
+    cmd_authSet(tty, getenv(s));
   }
 
   return adminMode;
@@ -1538,6 +1544,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_authClear(tty);
 	    } else if (strcasecmp(commands[i].name, "authqr") == 0) {
 	      cmd_authQR(tty, username, hostname);
+	    } else if (strcasecmp(commands[i].name, "authset") == 0) {
+	      cmd_authSet(tty, rest);
 	    } else if (strcasecmp(commands[i].name, "authenv") == 0) {
 	      cmd_authFromENV(tty, username);
             } else if (strcasecmp(commands[i].name, "authtok") == 0) {
