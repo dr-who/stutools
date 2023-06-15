@@ -391,12 +391,12 @@ void cmd_wifiqr(const int tty, const char *rest) {
   int ok = 0;
   if (rest) {
     char *copy = strdup(rest);
-    char *network = strtok(copy, " ");
-    if (network) {
-      char *pw = strtok(NULL, " ");
-      if (pw) {
+    char *pw = strtok(copy, " ");
+    if (pw) {
+      char *network = strtok(NULL, " ");
+      if (network) {
 	char s[1024];
-	sprintf(s, "WIFI:S:%s;T:WPA2;P:%s;;", network, pw);
+	sprintf(s, "WIFI:S:%s;T:WPA2;P:%s;;", rest + (network - copy), pw);
 	cmd_qr(tty, s);
 	ok = 1;
       }
@@ -404,7 +404,7 @@ void cmd_wifiqr(const int tty, const char *rest) {
     free(copy);
   }
   if (ok == 0) {
-    printf("usage: wifiqr <network> <password>\n");
+    printf("usage: wifiqr <password> <network>>\n");
   }
 }
 
