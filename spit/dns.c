@@ -471,7 +471,7 @@ void dnsServersAddFile(dnsServersType *d, const char *filename, const char *rege
 	if (first) {
 	  char *second = strtok(NULL, " \n");
 	  if (second) {
-	    dnsServersAdd(d, strdup(second));
+	    dnsServersAdd(d, second);
 	  }
 	}
       }
@@ -482,6 +482,7 @@ void dnsServersAddFile(dnsServersType *d, const char *filename, const char *rege
   } else {
     perror(filename);
   }
+  regfree(&regex);
 }
 	 
 size_t dnsServersN(dnsServersType *d) {

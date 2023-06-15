@@ -139,14 +139,7 @@ const char *T(const char *s) {
   if (TeReo) {
     for (size_t i = 0; i < sizeof(trans_mi)/sizeof(trans_mi[0]); i++) {
       if (strcasecmp(trans_mi[i].en, s)==0) {
-	char *p = strchr(trans_mi[i].trans, '|');
-	if (p) {
-	  char *dup = strdup(trans_mi[i].trans);
-	  dup[p - trans_mi[i].trans] = 0;
-	  return dup; // leaking pointer
-	} else {
-	  return trans_mi[i].trans;
-	}
+	return trans_mi[i].trans;
       }
     }
   } else if (German) {
@@ -197,10 +190,12 @@ void cmd_translations(int tty) {
 COMMAND commands[] = {
         {"adminqr",   "Show the QR code for the admin secret", "admin"},
         {"ascii",     "Show ASCII info for a character", ""},
+	{"authenv",   "Reset TOTP key from ENV", "admin"},
 	{"authgen",   "Generate TOTP key", "admin"},
 	{"authls",    "Show the TOTP key", "admin"},
 	{"authclear", "Clear the TOTP key", "admin"},
 	{"authqr",    "Show the TOTP QR code", "admin"},
+	{"authtok",   "Show the current TOTP token", "admin"},
         {"cpu",       "Show CPU info", "admin"},
         {"date",      "Show the current date/time", ""},
 	{"d2b",       "Decimal to binary", ""},
@@ -244,7 +239,6 @@ COMMAND commands[] = {
         {"status",    "Show system status", ""},
         {"swap",      "Show swap status", "admin"},
         {"time",      "Show the time in seconds", ""},
-	{"totp",      "Show the TOTP", "admin"},
         {"translations",    "List translations", "admin"},
         {"tty",       "Is the terminal interactive", ""},
         {"uptime",    "Time since the system booted", ""},
@@ -419,6 +413,35 @@ void cmd_wifiqr(const int tty, const char *rest) {
 
 unsigned char * hmacKey = NULL;
 size_t hmacKeyBytes = 10; // bytes
+
+void cmd_authClear();
+void cmd_authPrint(const int tty);
+
+size_t cmd_authFromENV(const int tty, const char *username) { // returns adminMode
+  cmd_authClear();
+
+  size_t adminMode = 1;
+  
+  char s[1024];
+  sprintf(s, "ADMIN_TOTP_USER_%s", username);
+  for (size_t i =0; i < strlen(s); i++) {
+    if (islower(s[i])) {
+      s[i]=toupper(s[i]);
+    }
+  }
+  
+  if (getenv(s)) {
+    printf("Admin/enable required for %s\n", username);
+    adminMode = 0; // needs a TOTP to become admin
+    hmacKey = calloc(strlen(getenv(s)), 1);
+    base32_decode((unsigned char*)getenv(s), hmacKey);
+    hmacKeyBytes = strlen((char*)hmacKey);
+  }
+
+  cmd_authPrint(tty);
+  return adminMode;
+}
+
 
 void cmd_authPrint(const int tty) {
   if (tty) {}
@@ -1107,10 +1130,11 @@ size_t countDriveBlockDevices() {
     for (size_t i = 0; i < 1024; i++) {
         if (majCount[i]) {
             char *majString = majorBDToString(i);
-            printf("   %s[%3zd] =  %3zd '%s'\n", T("Count"), i, majCount[i], majString);
+            printf("   %s[%3zd] =  %3zd '%s'\n", T("Count"), i, majCount[i], majString?majString:"");
             free(majString);
         }
     }
+    procDiskStatsFree(&d);
     return count;
 }
 
@@ -1466,7 +1490,9 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_authClear(tty);
 	    } else if (strcasecmp(commands[i].name, "authqr") == 0) {
 	      cmd_authQR(tty, username, hostname);
-            } else if (strcasecmp(commands[i].name, "totp") == 0) {
+	    } else if (strcasecmp(commands[i].name, "authenv") == 0) {
+	      cmd_authFromENV(tty, username);
+            } else if (strcasecmp(commands[i].name, "authtok") == 0) {
 	      if (hmacKey) {
 		uint32_t t = cmd_generateTOTP(tty);
 		printf("%06u\n", t);
@@ -1530,7 +1556,6 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 
 
 int main(int argc, char *argv[]) {
-    size_t adminMode = 1;
     const double timeSinceStart = timeAsDouble();
   
     syslogString("stush", "Start session");
@@ -1543,26 +1568,13 @@ int main(int argc, char *argv[]) {
     // ENV load
     char *username = getenv("USER");
     if (username) username = strdup(username);
-    
-    loadEnvVars("/etc/stush.cfg");
-    char s[1024];
-    sprintf(s, "ADMIN_TOTP_USER_%s", username);
-    for (size_t i =0; i < strlen(s); i++) {
-      if (islower(s[i])) {
-	s[i]=toupper(s[i]);
-      }
-    }	  
-    
-    if (getenv(s)) {
-      printf("Admin/enable required for %s\n", username);
-      adminMode = 0; // needs a TOTP to become admin
-      hmacKey = calloc(strlen(getenv(s)), 1);
-      base32_decode((unsigned char*)getenv(s), hmacKey);
-      hmacKeyBytes = strlen((char*)hmacKey);
-    } else {
-      //      printf("no TOTP for '%s'\n", s);
-    }
 
+    //
+    int tty = isatty(1);
+
+    //
+    loadEnvVars("/etc/stush.cfg");
+    size_t adminMode = cmd_authFromENV(tty, username);
 
     // DNS load
     dnsServersType dns;
@@ -1600,7 +1612,6 @@ int main(int argc, char *argv[]) {
         sprintf(hostname, "stush");
     }
 
-    int tty = isatty(1);
 
     // cli
     size_t runArg = 0;
@@ -1705,7 +1716,8 @@ int main(int argc, char *argv[]) {
 
  end:
     free(username);
-    
+
+    clear_history();
     syslogString("stush", "Close session");
     dnsServersFree(&dns);
 

@@ -2082,13 +2082,15 @@ size_t isSSHLogin() {
   int p_pid;
 
   p_pid = getppid(); /*parent process id*/
-
+  int ret = 0;
+  
   char *cmd = getcmdline(p_pid);
   if (cmd && strstr(cmd, "sshd")) {
-    return 1;
+    ret = 1;
   }
-
-  return 0;
+  free(cmd);
+  
+  return ret;
 }
 
 double getValueFromFile(const char *filename, const int quiet) {

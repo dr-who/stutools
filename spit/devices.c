@@ -460,13 +460,15 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
 char *majorBDToString(int major) {
     FILE *fp = fopen("/proc/devices", "rt");
     if (!fp) {
-        return strdup("");
+      return NULL;
     }
 
     char *line = NULL;
     size_t len = 0;
     ssize_t read = 0;
     int skip = 1;
+
+    char *res = NULL;
 
     while ((read = getline(&line, &len, fp)) != -1) {
         if (strlen(line) > 1) {
@@ -479,13 +481,17 @@ char *majorBDToString(int major) {
             char name[NAME_MAX];
             int s = sscanf(line, "%d %s", &mmm, name);
             if (s == 2) {
-                if (mmm == major)
-                    return strdup(name);
+	      if (mmm == major) {
+		res = strdup(name);
+		break;
+	      }
             }
         }
     }
     fclose(fp);
-    return strdup("");
+    free(line);
+
+    return res;
 }
       
 
