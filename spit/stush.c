@@ -548,11 +548,21 @@ uint32_t cmd_generateTOTP(const int tty) {
 
   uint32_t newCode = 0;
   if (hmacKey) {
-    
-    TOTP(hmacKey, hmacKeyBytes, 30); 
-    
-    setTimezone(9);        // set timezone used
-    newCode = getCodeFromTimestamp(time(NULL));
+
+    long start = time(NULL);
+    for (long i = start; i < start + (30*20) ; i+=30) {
+      
+      TOTP(hmacKey, hmacKeyBytes, 30); 
+      
+      setTimezone(9);        // set timezone used
+      newCode = getCodeFromTimestamp(i);
+
+      char timestring[PATH_MAX];
+      struct tm tm = *localtime(&i);
+      strftime(timestring, 999, "%c", &tm);
+      
+      printf("%s: \t%06d%s\n", timestring, newCode, (i==start)?"\t* now":"");
+    }
   }
   //  printf("%06u\n", newCode);
   return newCode;
