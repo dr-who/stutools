@@ -360,8 +360,9 @@ static void printQr(const uint8_t qrcode[]) {
 	int border = 4;
 	for (int y = -border; y < size + border; y++) {
 		for (int x = -border; x < size + border; x++) {
-			fputs((qrcodegen_getModule(qrcode, x, y) ? "\x1b[1;40m  \x1b[0;m" : "  "), stdout);
+			fputs((qrcodegen_getModule(qrcode, x, y) ? "\x1b[1;40m  \x1b[0;m" : "\x1b[1;107m  \x1b[0;m"), stdout);
 		}
+		//		fputs("\x1b[0;m", stdout);
 		fputs("\n", stdout);
 	}
 }
