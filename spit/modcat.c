@@ -10,6 +10,7 @@ void usage() {
   printf("\n");
   printf("  -m num   # print the line if (line_no %% num) == 1\n");
   printf("  -d num   # print date every num lines\n");
+  printf("  -t secs  # print date every few secs\n");
   exit(-1);
 }
   
@@ -19,10 +20,12 @@ int main(int argc, char *argv[]) {
   size_t len = 0;
   ssize_t nread;
 
-  int mod = 1, opt;
-  int progress = 0;
+  int opt;
+  int mod = 1;      // -m option
+  int progress = 0; // -d option
+  int fewsecs = 0;  // -t option
 
-  while ((opt = getopt(argc, argv, "d:m:")) != -1) {
+  while ((opt = getopt(argc, argv, "d:m:t:")) != -1) {
     switch (opt) {
     case 'm':
       mod = atoi(optarg);
@@ -33,6 +36,10 @@ int main(int argc, char *argv[]) {
       progress = atoi(optarg);
       if (progress < 1) progress = 1;
       break;
+    case 't':
+      fewsecs = atoi(optarg);
+      if (fewsecs < 0) fewsecs = 0;
+      break;
     default:
       usage();
       break;
@@ -42,14 +49,29 @@ int main(int argc, char *argv[]) {
 
   int count = 0;
   char outstr[1000];
+  time_t lasttime = 0;
   
   while ((nread = getline(&line, &len, stdin)) != -1) {
     count++;
+
     if ((mod == 1) || ((count % mod) == 1)) {
       fwrite(line, nread, 1, stdout);
     }
-    
-    if ((progress == 1) || ((count % progress) == 1)) {
+
+    int printprogress = 0;
+
+    if (progress > 0) {
+      if ((progress == 1) || ((count % progress) == 1)) {
+	printprogress = 1;
+      }
+    }
+    if (fewsecs > 0) {
+      if ((time(NULL) - lasttime) >= fewsecs) {
+	printprogress = 1;
+      }
+    }
+
+    if (printprogress) {
       time_t t;
       struct tm *tmp;
       
@@ -66,6 +88,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	fprintf(stderr,"[%s] processed %d lines\n", outstr, count);
+      lasttime = time(NULL);
     }
   }
   
