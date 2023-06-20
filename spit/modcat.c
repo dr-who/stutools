@@ -9,7 +9,7 @@ void usage() {
   printf("usage: modcat [options] < stdin > stdout\n");
   printf("\n");
   printf("  -m num   # print the line if (line_no %% num) == 1\n");
-  printf("  -c       # also output stderr progress\n");
+  printf("  -d num   # print date every num lines\n");
   exit(-1);
 }
   
@@ -22,15 +22,16 @@ int main(int argc, char *argv[]) {
   int mod = 1, opt;
   int progress = 0;
 
-  while ((opt = getopt(argc, argv, "cm:")) != -1) {
+  while ((opt = getopt(argc, argv, "d:m:")) != -1) {
     switch (opt) {
     case 'm':
       mod = atoi(optarg);
       if (mod < 1) mod = 1;
       //      fprintf(stderr,"*info* print every %d lines\n", mod);
       break;
-    case 'c':
-      progress = 1;
+    case 'd':
+      progress = atoi(optarg);
+      if (progress < 1) progress = 1;
       break;
     default:
       usage();
@@ -46,11 +47,11 @@ int main(int argc, char *argv[]) {
     count++;
     if ((mod == 1) || ((count % mod) == 1)) {
       fwrite(line, nread, 1, stdout);
-
-      if (progress) {
-      
-	time_t t;
-	struct tm *tmp;
+    }
+    
+    if ((progress == 1) || ((count % progress) == 1)) {
+      time_t t;
+      struct tm *tmp;
       
 	t = time(NULL);
 	tmp = localtime(&t);
@@ -58,15 +59,13 @@ int main(int argc, char *argv[]) {
 	  perror("localtime");
 	  exit(EXIT_FAILURE);
 	}
-      
+	
 	if (strftime(outstr, sizeof(outstr), "%c %Z" , tmp) == 0) {
 	  fprintf(stderr, "strftime returned 0");
 	  exit(EXIT_FAILURE);
 	}
-      
+	
 	fprintf(stderr,"[%s] processed %d lines\n", outstr, count);
-      }
-    
     }
   }
   
