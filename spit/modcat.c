@@ -8,7 +8,7 @@
 void usage() {
   printf("usage: modcat [options] < stdin > stdout\n");
   printf("\n");
-  printf("  -m num   # print the line if (linenofromzero %% num) == 0\n");
+  printf("  -m num   # print the line if (line_no %% num) == 1\n");
   printf("  -c       # also output stderr progress\n");
   exit(-1);
 }
@@ -43,31 +43,31 @@ int main(int argc, char *argv[]) {
   char outstr[1000];
   
   while ((nread = getline(&line, &len, stdin)) != -1) {
-    if ((mod == 1) || ((count % mod) == 0)) {
-      fwrite(line, nread, 1, stdout);
-    }
     count++;
+    if ((mod == 1) || ((count % mod) == 1)) {
+      fwrite(line, nread, 1, stdout);
 
-    if (progress) {
+      if (progress) {
       
-      time_t t;
-      struct tm *tmp;
+	time_t t;
+	struct tm *tmp;
       
-      t = time(NULL);
-      tmp = localtime(&t);
-      if (tmp == NULL) {
-	perror("localtime");
-	exit(EXIT_FAILURE);
+	t = time(NULL);
+	tmp = localtime(&t);
+	if (tmp == NULL) {
+	  perror("localtime");
+	  exit(EXIT_FAILURE);
+	}
+      
+	if (strftime(outstr, sizeof(outstr), "%c %Z" , tmp) == 0) {
+	  fprintf(stderr, "strftime returned 0");
+	  exit(EXIT_FAILURE);
+	}
+      
+	fprintf(stderr,"[%s] processed %d lines\n", outstr, count);
       }
-      
-      if (strftime(outstr, sizeof(outstr), "%c %Z" , tmp) == 0) {
-	fprintf(stderr, "strftime returned 0");
-	exit(EXIT_FAILURE);
-      }
-      
-      fprintf(stderr,"[%s] processed %d lines\n", outstr, count);
-    }
     
+    }
   }
   
   free(line);
