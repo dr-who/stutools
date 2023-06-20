@@ -242,4 +242,6 @@ void printBinary(const unsigned long value, const size_t bits);
 
 void logStringToFile(const char *fn, const char *string) ;
 
+unsigned char * hexString(const char *hexstring, size_t *retLen);
+
 #endif

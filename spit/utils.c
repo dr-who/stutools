@@ -2142,3 +2142,62 @@ void logStringToFile(const char *fn, const char *string) {
   }
   free(s);
 }
+
+
+// incoming 2 bytes, return 1
+// incoming 4 bytes, return 2
+// incoming 5 bytes, return 3 0x12345
+unsigned char * hexString(const char *hexstring, size_t *retLen) {
+
+  //  printf("input '%s'\n", hexstring);
+  
+  if (hexstring == NULL) {
+    *retLen = 0;
+    return NULL;
+  }
+  
+  char *cov;
+  size_t len = strlen(hexstring);
+
+  // first string spaces
+  char *strip = malloc(len+1);
+  int p = 0;
+  for (size_t i = 0; i < len; i++) {
+    if (isalpha(hexstring[i]) || isdigit(hexstring[i])) {
+      strip[p++] = hexstring[i];
+    }
+  }
+  strip[p] = 0;
+  len = strlen(strip);
+
+  //  printf("strip: '%s'\n", strip);
+
+  if ((len % 2) == 1) { // odd, prefix with 0
+    cov = calloc(len + 2, 1);
+    sprintf(cov, "0%s", strip);
+  } else {
+    cov = strdup(strip);
+  }
+
+  assert ((strlen(cov) % 2) == 0);
+  *retLen = strlen(cov) / 2;
+  unsigned char *val = calloc(*retLen, 1);
+
+
+  char *pos = cov;
+  for (size_t count = 0; count < *retLen; count++) {
+    int ret = sscanf(pos, "%2hhx", &val[count]);
+    if (ret != 1) {
+      free(val); val = NULL; *retLen = 0;
+      break;
+    }
+    pos += 2;
+  }
+
+  free(cov);
+  free(strip);
+
+  return val;
+}
+
+         

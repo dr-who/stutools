@@ -234,6 +234,10 @@ COMMAND commands[] = {
 	{"qr",        "Generate QR code", ""},
 	{"route",     "Show route info", "admin"},
         {"scsi",      "Show SCSI devices", "admin"},
+        {"hexascii",  "Display ENV variable in ASCII format", "admin"},
+        {"hexdump",   "Dump ENV variable in spaced hex format", "admin"},
+        {"hexset",    "Set ENV variable in hex format", "admin"},
+        {"hexstring", "Convert string to hex ENV", "admin"},
         {"sleep",     "Sleep for a few seconds", ""},
         {"spit",      "Stu's powerful I/O tester", "admin"},
         {"status",    "Show system status", ""},
@@ -385,6 +389,107 @@ void cmd_qr(int tty, const char *text) {
 		printQr(qrcode);
   } else {
     printf("usage: qr <encoded URI/text>\n");
+  }
+}
+
+
+void cmd_hexdump(const int tty, const char *rest) {
+  if (tty) {}
+  if (rest) {
+    char *s = getenv(rest);
+    if (s) {
+      size_t hexlen;
+      unsigned char *hex = hexString(s, &hexlen);
+      for (size_t i = 0;i < hexlen; i++) {
+	printf("%02x", hex[i]);
+	printf(" ");
+      }
+      printf("\n");
+    }
+  }
+}
+void cmd_encodeASCII(const int tty, const char *rest) {
+  if (tty) {}
+  if (rest) {
+    char *copy = strdup(rest);
+    char *first = strtok(copy, " ");
+    if (first) {
+      char *s = getenv(first);
+      if (s) {
+	size_t hexlen;
+	unsigned char *hex = hexString(s, &hexlen);
+	for (size_t i = 0;i < hexlen; i++) {
+	  printf("%c", hex[i]);
+	}
+	printf(" (%zd bytes, %zd bits)\n", hexlen, hexlen * 8);
+      }
+    }
+    free(copy);
+  }
+}
+
+// hexstring S hello world
+void cmd_hexstring(const int tty, const char *rest) {
+  if (tty) {}
+  
+  if (rest) {
+    char *copy = strdup(rest);
+    char *first = strtok(copy, " ");
+    if (first) {
+      char *second = strtok(NULL, " ");
+      if (second) {
+	  
+	const char *val = rest + (second - copy);
+	size_t len = strlen(val);
+	char *store = calloc(len * 2 + 1, 1);
+	const char *origstore = store;
+	for (size_t i = 0; i < len; i++) {
+	  store += sprintf(store, "%02x", val[i]);
+	}
+	*store = 0;
+	setenv(first, strdup(origstore), 0);
+	if (strcmp(getenv(first), origstore)) {
+	  printf("error: couldn't change '%s'\n", first);
+	}
+      }
+    }
+    free(copy);
+  }
+}
+	  
+  
+// set c 1
+void cmd_hexset(const int tty, const char *rest) {
+  if (tty) {}
+  
+  if (rest) {
+    char *copy = strdup(rest);
+    char *first = strtok(copy, " ");
+    if (first) {
+      char *second = strtok(NULL, " ");
+      if (second) {
+	  
+	const char *val = rest + (second - copy);
+	
+	size_t hexlen;
+	unsigned char *hex = hexString(val, &hexlen);
+	if (hexlen) { // then a hex string
+	  char *s = calloc(hexlen * 2 + 1, 1);
+	  const char *starts = s;
+	  //	  s += sprintf(s, "x"); // 16# or x#
+	  for (size_t i =0; i <hexlen; i++) {
+	    s += sprintf(s, "%02x", hex[i]); 
+	  }
+	  *s = 0;
+	  printf("%s (%zd bits)\n", starts, hexlen * 8);
+	  // normal string
+	  setenv(first, strdup(starts), 0);
+	  if (strcmp(getenv(first), starts)) {
+	    printf("error: couldn't change '%s'\n", first);
+	  }
+	}
+      }
+    }
   }
 }
 
@@ -550,7 +655,7 @@ uint32_t cmd_generateTOTP(const int tty) {
   uint32_t newCode = 0;
   if (hmacKey) {
 
-    long start = time(NULL);
+    long start = 30*(long)(time(NULL)/30);
     for (long i = start; i < start + (30*20) ; i+=30) {
       
       TOTP(hmacKey, hmacKeyBytes, 30); 
@@ -560,7 +665,7 @@ uint32_t cmd_generateTOTP(const int tty) {
 
       char timestring[PATH_MAX];
       struct tm tm = *localtime(&i);
-      strftime(timestring, 999, "%c", &tm);
+      strftime(timestring, 999, "%c %Z", &tm);
       
       printf("%s: \t%06d%s\n", timestring, newCode, (i==start)?"\t* now":"");
     }
@@ -1547,6 +1652,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_swapUsage(tty); 
             } else if (strcasecmp(commands[i].name, "last") == 0) {
 	      cmd_last(tty); 
+            } else if (strcasecmp(commands[i].name, "hexset") == 0) {
+	      cmd_hexset(tty, rest); 
             } else if (strcasecmp(commands[i].name, "top") == 0) {
 	      cmd_top(tty);
             } else if (strcasecmp(commands[i].name, "id") == 0) {
@@ -1581,6 +1688,12 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_uptime(tty);
             } else if (strcasecmp(commands[i].name, "qr") == 0) {
 	      cmd_qr(tty, rest);
+            } else if (strcasecmp(commands[i].name, "hexascii") == 0) {
+	      cmd_encodeASCII(tty, rest);
+            } else if (strcasecmp(commands[i].name, "hexdump") == 0) {
+	      cmd_hexdump(tty, rest);
+            } else if (strcasecmp(commands[i].name, "hexstring") == 0) {
+	      cmd_hexstring(tty, rest);
             } else if (strcasecmp(commands[i].name, "wifiqr") == 0) {
 	      cmd_wifiqr(tty, rest);
             } else if (strcasecmp(commands[i].name, "authgen") == 0) {
