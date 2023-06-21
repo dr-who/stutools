@@ -189,7 +189,6 @@ void cmd_translations(int tty) {
 
 COMMAND commands[] = {
         {"admin",     "Enter admin mode", ""},
-	{"sha1",      "SHA1 hash ENV", ""},
         {"ascii",     "Show ASCII info for a character", ""},
 	{"authenv",   "Reset TOTP key from ENV", "admin"},
 	{"authgen",   "Generate TOTP key", "admin"},
@@ -731,27 +730,6 @@ void cmd_authQR(const int tty, const char *username, const char *hostname) {
 }
 
 #include "TOTP-MCU/TOTP.h"
-
-#include "TOTP-MCU/sha1.h"
-void cmd_sha1(const int tty, const char *rest) {
-  if (tty) {}
-  
-  char *s = getenv(rest);
-  
-  if (s) {
-    init();
-    //    initHmac((uint8_t*)
-    writeArray((uint8_t*)s, strlen(s));
-    uint8_t *r = result();
-    for (size_t i =0 ; i < HASH_LENGTH; i++) {
-      printf("%02x", r[i]);
-    }
-    printf(" (%s)\n", s);
-  } else {
-    printf("usage: sha1 <variable>\n");
-  }
-}
-
 
 
 uint32_t cmd_generateTOTP(const int tty, const int N, const int quiet) {
@@ -1766,8 +1744,6 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_hexset(tty, rest); 
             } else if (strcasecmp(commands[i].name, "top") == 0) {
 	      cmd_top(tty);
-            } else if (strcasecmp(commands[i].name, "sha1") == 0) {
-	      cmd_sha1(tty, rest);
             } else if (strcasecmp(commands[i].name, "id") == 0) {
 	      cmd_id(tty);
             } else if (strcasecmp(commands[i].name, "dnsls") == 0) {
