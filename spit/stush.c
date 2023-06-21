@@ -189,6 +189,7 @@ void cmd_translations(int tty) {
 
 COMMAND commands[] = {
         {"admin",     "Enter admin mode", ""},
+	{"sha1",      "SHA1 hash ENV", ""},
         {"ascii",     "Show ASCII info for a character", ""},
 	{"authenv",   "Reset TOTP key from ENV", "admin"},
 	{"authgen",   "Generate TOTP key", "admin"},
@@ -238,6 +239,8 @@ COMMAND commands[] = {
         {"hexdump",   "Dump ENV variable in spaced hex format", "admin"},
         {"hexset",    "Set ENV variable in hex format", "admin"},
         {"hexstring", "Convert string to hex ENV", "admin"},
+	{"salt",      "Prefix an ENV variable with salt", "admin"},
+	{"setenv",    "Set ENV", "admin"},
         {"sleep",     "Sleep for a few seconds", ""},
         {"spit",      "Stu's powerful I/O tester", "admin"},
         {"status",    "Show system status", ""},
@@ -395,6 +398,7 @@ void cmd_qr(int tty, const char *text) {
 
 void cmd_hexdump(const int tty, const char *rest) {
   if (tty) {}
+  int showUsage = 1;
   if (rest) {
     char *s = getenv(rest);
     if (s) {
@@ -405,11 +409,36 @@ void cmd_hexdump(const int tty, const char *rest) {
 	printf(" ");
       }
       printf("\n");
+      showUsage = 0;
     }
   }
+  if (showUsage) printf("usage: hexdump <variable>\n");
 }
+
+
+void cmd_setenv(const int tty, const char *rest) {
+  if (tty) {}
+  int showUsage = 1;
+  if (rest) {
+    char *copy = strdup(rest);
+    char *first = strtok(copy, " ");
+    if (first) {
+      char *second = strtok(NULL, " ");
+      if (second) {
+	  
+	const char *val = rest + (second - copy);
+
+	setenv(first, val, 1);
+	showUsage = 0;
+      }
+    }
+  }
+  if (showUsage) printf("usage: setenv <variable> <string...>\n");
+}
+
 void cmd_encodeASCII(const int tty, const char *rest) {
   if (tty) {}
+  int showUsage = 1;
   if (rest) {
     char *copy = strdup(rest);
     char *first = strtok(copy, " ");
@@ -422,15 +451,19 @@ void cmd_encodeASCII(const int tty, const char *rest) {
 	  printf("%c", hex[i]);
 	}
 	printf(" (%zd bytes, %zd bits)\n", hexlen, hexlen * 8);
+	showUsage = 0;
       }
     }
     free(copy);
   }
+  if (showUsage) printf("usage: hexascii <variable>\n");
 }
 
 // hexstring S hello world
 void cmd_hexstring(const int tty, const char *rest) {
   if (tty) {}
+
+  int showUsage = 1;
   
   if (rest) {
     char *copy = strdup(rest);
@@ -450,11 +483,16 @@ void cmd_hexstring(const int tty, const char *rest) {
 	setenv(first, strdup(origstore), 0);
 	if (strcmp(getenv(first), origstore)) {
 	  printf("error: couldn't change '%s'\n", first);
+	} else {
+	  printf("set '%s' = '%s'\n", first, origstore);
 	}
+	  
+	showUsage = 0;
       }
     }
     free(copy);
   }
+  if (showUsage) printf("usage: hexstring <variable> <string...>\n");
 }
 	  
   
@@ -491,6 +529,51 @@ void cmd_hexset(const int tty, const char *rest) {
       }
     }
   }
+}
+
+// salt variable string
+void cmd_addSalt(const int tty, const char *rest) {
+  if (tty) {}
+
+  int showUsage = 1;
+  if (rest) {
+    char *copy = strdup(rest);
+    char *first = strtok(copy, " ");
+    if (first) {
+      char *second = strtok(NULL, " ");
+      if (second) {
+	  
+	const char *val = rest + (second - copy);
+
+
+	size_t len = strlen(val);
+	char *store = calloc(len * 2 + 1, 1);
+	char *origstore = store;
+	for (size_t i = 0; i < len; i++) {
+	  store += sprintf(store, "%02x", val[i]);
+	}
+	*store = 0;
+
+	printf("new string: %s\n", origstore);
+	
+	printf("old string: %s\n", getenv(first));
+
+	char *concat = calloc(strlen(origstore) + strlen(getenv(first)) + 1, 1);
+	strcat(concat, origstore);
+	strcat(concat, getenv(first));
+	
+	// normal string
+	setenv(first, concat, 1);
+	if (strcmp(getenv(first), concat)) {
+	  printf("error: couldn't change '%s'\n", first);
+	}
+	free(concat);
+	free(origstore);
+	showUsage = 0;
+      }
+    }
+  }
+  if (showUsage) printf("usage: salt <variable> <string...>\n");
 }
 
 
@@ -649,29 +732,54 @@ void cmd_authQR(const int tty, const char *username, const char *hostname) {
 
 #include "TOTP-MCU/TOTP.h"
 
-uint32_t cmd_generateTOTP(const int tty) {
+#include "TOTP-MCU/sha1.h"
+void cmd_sha1(const int tty, const char *rest) {
+  if (tty) {}
+  
+  char *s = getenv(rest);
+  
+  if (s) {
+    init();
+    //    initHmac((uint8_t*)
+    writeArray((uint8_t*)s, strlen(s));
+    uint8_t *r = result();
+    for (size_t i =0 ; i < HASH_LENGTH; i++) {
+      printf("%02x", r[i]);
+    }
+    printf(" (%s)\n", s);
+  } else {
+    printf("usage: sha1 <variable>\n");
+  }
+}
+
+
+
+uint32_t cmd_generateTOTP(const int tty, const int N, const int quiet) {
   if (tty) {}
 
-  uint32_t newCode = 0;
+  uint32_t newCode = 0, firstCode = 0;
   if (hmacKey) {
 
     long start = 30*(long)(time(NULL)/30);
-    for (long i = start; i < start + (30*20) ; i+=30) {
+    for (long i = start; i < start + (30*N) ; i+=30) {
       
       TOTP(hmacKey, hmacKeyBytes, 30); 
       
       setTimezone(9);        // set timezone used
       newCode = getCodeFromTimestamp(i);
+      if (i == start) {
+	firstCode = newCode;
+      }
 
       char timestring[PATH_MAX];
       struct tm tm = *localtime(&i);
       strftime(timestring, 999, "%c %Z", &tm);
       
-      printf("%s: \t%06d%s\n", timestring, newCode, (i==start)?"\t* now":"");
+      if (quiet == 0) printf("%s: \t%06d%s\n", timestring, newCode, (i==start)?"\t* now":"");
     }
   }
   //  printf("%06u\n", newCode);
-  return newCode;
+  return firstCode;
 }
   
 
@@ -1631,9 +1739,11 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	        cmd_lang(tty, rest, 0);
 		help_prompt();
             } else if (strcasecmp(commands[i].name, "tty") == 0) {
-                cmd_tty(tty);
-	    } else if ((strcasecmp(commands[i].name, "env") == 0) /*&& (ssh_login == 0)*/) { // can only run env if not sshed in
-	      cmd_env(tty);
+	        cmd_tty(tty);
+	    } else if (strcasecmp(commands[i].name, "env") == 0) {
+	        cmd_env(tty);
+	    } else if (strcasecmp(commands[i].name, "setenv") == 0)  {
+		cmd_setenv(tty, rest);
             } else if (strcasecmp(commands[i].name, "lsnic") == 0) {
                 cmd_listNICs(tty);
             } else if (strcasecmp(commands[i].name, "ip") == 0) {
@@ -1656,6 +1766,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_hexset(tty, rest); 
             } else if (strcasecmp(commands[i].name, "top") == 0) {
 	      cmd_top(tty);
+            } else if (strcasecmp(commands[i].name, "sha1") == 0) {
+	      cmd_sha1(tty, rest);
             } else if (strcasecmp(commands[i].name, "id") == 0) {
 	      cmd_id(tty);
             } else if (strcasecmp(commands[i].name, "dnsls") == 0) {
@@ -1694,6 +1806,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_hexdump(tty, rest);
             } else if (strcasecmp(commands[i].name, "hexstring") == 0) {
 	      cmd_hexstring(tty, rest);
+            } else if (strcasecmp(commands[i].name, "salt") == 0) {
+	      cmd_addSalt(tty, rest);
             } else if (strcasecmp(commands[i].name, "wifiqr") == 0) {
 	      cmd_wifiqr(tty, rest);
             } else if (strcasecmp(commands[i].name, "authgen") == 0) {
@@ -1710,8 +1824,15 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_authFromENV(tty, username, 0);
             } else if (strcasecmp(commands[i].name, "authtok") == 0) {
 	      if (hmacKey) {
-		uint32_t t = cmd_generateTOTP(tty);
-		printf("%06u\n", t);
+		int n = 1;
+		if (rest) n = atoi(rest);
+		if (n < 1) n = 1;
+		if (rest) {
+		  cmd_generateTOTP(tty, n, 0);
+		} else {
+		  int t = cmd_generateTOTP(tty, n, 1);
+		  printf("%06u\n", t);
+		}
 	      }
             } else if (strcasecmp(commands[i].name, "route") == 0) {
 	      cmd_route();
@@ -1882,7 +2003,7 @@ int main(int argc, char *argv[]) {
 	  if (line && (strcasecmp(line, "admin")==0)) {
 	    sprintf(prefix, "auth token# ");
 	    line = readline(prefix);
-	    int t = cmd_generateTOTP(tty);
+	    int t = cmd_generateTOTP(tty, 1, 1);
 	    if (atoi(line) == t) {
 	      syslogString("stush", "[promoted to admin]");
 	      printf("[promoted to admin]\n");
