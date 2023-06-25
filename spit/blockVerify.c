@@ -77,6 +77,7 @@ verifyPosition(const int fd, const positionType *p, const char *randomBuffer, ch
     ssize_t ret = pread(fd, buf, len, pos); // use pread as it's thread safe as you pass in the fd, size and offset
 
     if (ret == -1) {
+        fprintTimePrefix(stderr);
         fprintf(stderr, "*error* seeking to pos %zd: ", pos);
         perror("pread");
         return -1;
@@ -85,12 +86,14 @@ verifyPosition(const int fd, const positionType *p, const char *randomBuffer, ch
     int dataok = strncmp(buf + 16, randomBuffer + 16, len - 16) == 0;
 
     if (ret != (int) len) {
+        fprintTimePrefix(stderr);
         fprintf(stderr, "*error* [%zd], wrong len %zd instead of %zd (data ok: %d)\n", pos, ret, len, dataok);
         return -2;
     } else {
         size_t *p1 = (size_t *) buf;
         size_t *p2 = (size_t *) randomBuffer;
         if (*p1 != *p2) {
+	    fprintTimePrefix(stderr);
             fprintf(stderr,
                     "*error* [%zd] encoded positions are wrong %zd (from disk) and %zd (at position %zd). Data ok: %d\n",
                     pos, *p1, *p2, pos, dataok);
@@ -103,23 +106,28 @@ verifyPosition(const int fd, const positionType *p, const char *randomBuffer, ch
             size_t lines = 0, starterror = 0;
             for (size_t i = 16; i < len; i++) {
                 if (buf[i] != randomBuffer[i]) {
-                    if (lines < 10)
-                        fprintf(stderr,
-                                "*error* [%zd] difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n",
-                                pos, pos, i, buf[i], randomBuffer[i], seed);
+		  if (lines < 10) {
+		      fprintTimePrefix(stderr);
+		      fprintf(stderr,
+			    "*error* [%zd] difference at block[%zd] offset %zd, disk '%c', should be '%c', seed %d\n",
+			    pos, pos, i, buf[i], randomBuffer[i], seed);
+		    }
                     if (lines == 0) starterror = i;
                     lines++;
                 }
             }
+	    fprintTimePrefix(stderr);
             fprintf(stderr, "*error* total characters incorrect %zd from %zd\n", lines, len);
 
             //awk '{if((($2>=3415666688) && $2+$7<=(3415666688+122880)) || ($2+$7>=3415666688 && $2<3415666688)) print}' positions.txt
 
             size_t *poscheck = (size_t *) buf;
             size_t *uucheck = (size_t *) buf + 1;
-            fprintf(stderr, "*error* poscheck at the start %zd, uuid %zd\n", *poscheck, *uucheck);
+	    fprintTimePrefix(stderr);
+	    fprintf(stderr, "*error* poscheck at the start %zd, uuid %zd\n", *poscheck, *uucheck);
             poscheck = (size_t *) (buf + starterror);
             uucheck = (size_t *) (buf + starterror) + 1;
+	    fprintTimePrefix(stderr);
             fprintf(stderr, "*error* poscheck at the error start %zd, uuid %zd\n", *poscheck, *uucheck);
             fprintf(stderr,
                     "*error* see actions e.g.: $ awk -v p=%zd -v l=%zd '{if (($2>=p && $2<=p+l) || ($2+$7>p && $2<p)) print}' positions.txt | sort -k 12n\n",
@@ -346,7 +354,8 @@ int verifyPositions(positionContainer *pc, size_t threads, jobType *job, const s
         //        fprintf(stderr,"*info* starting thread[%zd] in range [%zd, %zd)\n", i, threadContext[i].startInc, threadContext[i].endExc);
 
         if (pthread_create(&(pt[i]), NULL, runThread, &(threadContext[i]))) {
-            fprintf(stderr, "*error* can't create a thread\n");
+	    fprintTimePrefix(stderr);
+	    fprintf(stderr, "*error* can't create a thread\n");
             exit(-1);
         }
     }

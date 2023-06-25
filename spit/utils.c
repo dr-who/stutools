@@ -2200,4 +2200,15 @@ unsigned char * hexString(const char *hexstring, size_t *retLen) {
   return val;
 }
 
-         
+
+void fprintTimePrefix(FILE *fp) {
+  time_t tt = time(NULL);
+  
+  struct tm tm = *localtime(&tt);
+  
+  char timestring[PATH_MAX];
+  strftime(timestring, 999, "%c %Z", &tm);
+  fprintf(fp, "[%s] ", timestring);
+}
+
+

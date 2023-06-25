@@ -451,8 +451,9 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
             if ((*tripleX) < 3) {
                 if (!canOpenExclusively(j->devices[i])) {
-                    perror(device);
+		    fprintTimePrefix(stderr);
                     fprintf(stderr, "*error* can't open '%s' exclusively\n", device);
+                    perror(device);
                     exit(-1);
                 }
             }
