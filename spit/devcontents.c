@@ -114,11 +114,12 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "\nDisplay the contents of a block device\n");
         fprintf(stderr, "\nOptions:\n");
         fprintf(stderr, "   -f dev    specify the device\n");
+        fprintf(stderr, "   -b n      the block size step (defaults to %zd bytes)\n", blocksize);
+        fprintf(stderr, "   -p pos    dump a single position\n");
         fprintf(stderr, "   -g n      starting at n GiB (defaults byte 0)\n");
         fprintf(stderr, "   -g 16M    starting at 16 MiB\n");
         fprintf(stderr, "   -G n      finishing at n GiB (defaults to 1 GiB)\n");
         fprintf(stderr, "   -G 32M    finishing at 32 MiB\n");
-        fprintf(stderr, "   -b n      the block size to step through the devices (defaults to %zd bytes)\n", blocksize);
         fprintf(stderr, "   -s        show SHA-256 of each block\n");
         fprintf(stderr, "   -w n      first n bytes per block to display (defaults to %zd)\n", width);
         fprintf(stderr, "   -e val    only print lines when entropy < val\n");
