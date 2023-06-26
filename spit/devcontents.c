@@ -51,13 +51,20 @@ int main(int argc, char *argv[]) {
     size_t startAt = 0 * 1024 * 1024, finishAt = 1024L * 1024L * 1024L * 1;
     int showsha256 = 0;
     float showentropy = 9e9;
+    size_t oneposition = 0;
 
     optind = 0;
-    while ((opt = getopt(argc, argv, "G:g:w:b:f:se:")) != -1) {
+    while ((opt = getopt(argc, argv, "G:g:w:b:f:se:p:")) != -1) {
         switch (opt) {
             case 'b':
                 blocksize = alignedNumber(atoi(optarg), 512);
                 break;
+	    case 'p':
+	        oneposition = atol(optarg);
+		startAt = oneposition;
+		finishAt = startAt + blocksize;
+		fprintf(stderr,"*info* position %zd\n", oneposition);
+	        break;
             case 'e':
                 showentropy = atof(optarg);
                 break;
