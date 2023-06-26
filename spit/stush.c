@@ -839,6 +839,8 @@ void cmd_testdns(const int tty, const char *second, dnsServersType *d) {
   
   for (size_t iterations = 0; keepRunning && iterations < 100; iterations++) {
 
+    for (size_t i = 0; keepRunning && i < N; i++) if (d->dnsServer[i]) {
+
     unsigned char *rand = randomGenerate(3*8);
 
     unsigned char *pw = passwordGenerateString(rand, 3, "abcdefghijklmnopqrstuvwxyz");
@@ -852,7 +854,8 @@ void cmd_testdns(const int tty, const char *second, dnsServersType *d) {
       sprintf(hostname, "%s", second);
     }
 
-    for (size_t i = 0; keepRunning && i < N; i++) if (d->dnsServer[i]) {
+
+	
       printf("dns server: %s\n", d->dnsServer[i]);
     
       double start = timeAsDouble();
