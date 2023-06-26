@@ -87,19 +87,30 @@ verifyPosition(const int fd, const positionType *p, const char *randomBuffer, ch
 
     if (ret != (int) len) {
         fprintTimePrefix(stderr);
-        fprintf(stderr, "*error* [%zd], wrong len %zd instead of %zd (data ok: %d)\n", pos, ret, len, dataok);
+        fprintf(stderr, "*error* [%zd], wrong len %zd instead of %zd (data ok: %s)\n", pos, ret, len, dataok ? "Yes" : "No");
         return -2;
-    } else {
-        size_t *p1 = (size_t *) buf;
-        size_t *p2 = (size_t *) randomBuffer;
-        if (*p1 != *p2) {
-	    fprintTimePrefix(stderr);
-            fprintf(stderr,
-                    "*error* [%zd] encoded positions are wrong %zd (from disk) and %zd (at position %zd). Data ok: %d\n",
-                    pos, *p1, *p2, pos, dataok);
-            return -3;
+    } else { // len are the same
+        size_t blank = 1;         // first check not zero
+        for (size_t qq = 0; qq < len; qq++) {
+	  if (buf[qq] != 0) {blank = 0; break;}
         }
+	if (blank) {
+	    fprintTimePrefix(stderr);
+            fprintf(stderr, "[%zd] block is empty (all 0x00)\n", pos);
+	    return -3;
+	} else { // same len, not blank, check encoded positions
+	    size_t *p1 = (size_t *) buf;
+	    size_t *p2 = (size_t *) randomBuffer;
+	    if (*p1 != *p2) {
+	      fprintTimePrefix(stderr);
+	      fprintf(stderr,
+		      "*error* [%zd] encoded positions are wrong %zd (from disk) and %zd (at position %zd). Data ok: %s\n",
+		      pos, *p1, *p2, pos, dataok ? "Yes" : "No");
+	      return -3;
+	    }
+	} // not blank 
 
+    
         if (dataok) return 0;
 
         if (*diff < 3) {
