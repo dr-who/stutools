@@ -61,8 +61,8 @@ int main(int argc, char *argv[]) {
                 break;
 	    case 'p':
 	        oneposition = atol(optarg);
-		startAt = oneposition;
-		finishAt = startAt + blocksize;
+		startAt = alignedNumber(oneposition, blocksize);
+		finishAt = alignedNumber(startAt + blocksize, blocksize);
 		fprintf(stderr,"*info* position %zd\n", oneposition);
 	        break;
             case 'e':
