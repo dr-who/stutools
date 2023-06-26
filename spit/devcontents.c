@@ -113,8 +113,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (!device) {
-        fprintf(stderr, "*info* devcontents -f /dev/device [options...)\n");
-        fprintf(stderr, "\nDisplay the contents of a block device\n");
+        fprintf(stderr, "Usage:\n  devcontents -f /dev/device [options...)\n");
+	//        fprintf(stderr, "\nDisplay the contents of a block device\n");
         fprintf(stderr, "\nOptions:\n");
         fprintf(stderr, "   -f dev    specify the device\n");
         fprintf(stderr, "   -b n      the block size step (defaults to %zd bytes)\n", blocksize);
