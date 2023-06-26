@@ -173,7 +173,7 @@ int main(int argc, char *argv[]) {
                 size_t *codedtime = (size_t *) (buf + sizeof(size_t));
                 size_t spit = 0;
                 timestring[0] = 0;
-                if (pos == *codedpos) {
+                if ((pos == *codedpos) && (pos != 0)) {
                     spit = 1;
                     sprintf(timestring, "%.1lf secs ago", statictime - (*codedtime) / 10.0);
                 }
