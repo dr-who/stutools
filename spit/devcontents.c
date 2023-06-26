@@ -54,8 +54,11 @@ int main(int argc, char *argv[]) {
     size_t oneposition = 0;
 
     optind = 0;
-    while ((opt = getopt(argc, argv, "G:g:w:b:f:se:p:")) != -1) {
+    while ((opt = getopt(argc, argv, "hG:g:w:b:f:se:p:")) != -1) {
         switch (opt) {
+	    case 'h':
+	        device = NULL;
+	        break;
             case 'b':
                 blocksize = alignedNumber(atoi(optarg), 512);
                 break;
