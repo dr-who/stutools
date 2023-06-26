@@ -125,9 +125,9 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    fprintf(stderr, "*info* aligned start:  %lx (%zd, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt),
+    fprintf(stderr, "*info* aligned start:  0x%lx (%zd, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt),
             TOGiB(startAt));
-    fprintf(stderr, "*info* aligned finish: %lx (%zd, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt),
+    fprintf(stderr, "*info* aligned finish: 0x%lx (%zd, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt),
             TOGiB(finishAt));
 
     int fd = open(device, O_RDONLY, S_IRUSR | S_IWUSR);
