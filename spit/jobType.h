@@ -50,7 +50,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, char *numaBinding,
                    const int performDiscard, resultType *result, size_t ramBytesForPositions, size_t notexclusive,
-                   const size_t showdate, FILE *loadpos, const double exitTimeout, const size_t showASCII);
+                   const size_t showdate, FILE *loadpos, const double exitTimeout, const size_t showASCII, const size_t exitOnErrors);
 
 void jobMultiply(jobType *retjobs, jobType *job, deviceDetails *deviceList, size_t deviceCount);
 

@@ -64,8 +64,8 @@ int main(int argc, char *argv[])
 	    alignment = atoi(third);
 	  }
 	  linear = 1;
-	  low = stringToBytesDefault(first, 1);
-	  high = stringToBytesDefault(second, 1);
+	  low = stringToBytesDefault(first, 1, 1);
+	  high = stringToBytesDefault(second, 1, 1);
 	  fprintf(stderr, "*info* linear distribution in range [%zd, %zd), alignment %zd\n", low, high, alignment);
 	}
       }}

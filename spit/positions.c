@@ -1177,7 +1177,7 @@ size_t positionContainerCreatePositions(positionContainer *pc,
 
 
 void monotonicCheck(positionContainer *pc, const float prob) {
-    fprintf(stderr, "*info* checking monotonic ordering of positions, prob = %.3lf\n", prob);
+  if (verbose > 0) fprintf(stderr, "*info* checking monotonic ordering of positions, prob = %.3lf\n", prob);
     size_t up = 0, monoup = 0, monodown = 0, down = 0, close = 0, far = 0, total = 0;
 
     for (size_t i = 1; i < pc->sz; i++) {
@@ -1209,7 +1209,7 @@ void monotonicCheck(positionContainer *pc, const float prob) {
         }
         total++;
     }
-    fprintf(stderr,
+    if (verbose > 0) fprintf(stderr,
             "*info* monotonic check (%zd): up %zd (%.1lf %%), mono-up %zd (%.1lf %%), mono-down %zd (%.1lf %%), down %zd (%.1lf %%), close %zd, far %zd)\n",
             total, up, up * 100.0 / total, monoup, monoup * 100.0 / total, monodown, monodown * 100.0 / total, down,
             down * 100.0 / total, close, far);

@@ -24,6 +24,7 @@
 #include "utils.h"
 #include "diskStats.h"
 #include "spitfuzz.h"
+#include "positions.h"
 
 #define DEFAULTTIME 10
 
@@ -45,7 +46,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, char **numaBinding,
                 int *performPreDiscard, int *reportMode,
                 size_t *cacheSizeBytes, size_t *forever, size_t *ramBytesForPositions, size_t *tripleX,
-                size_t *showdate, char **kcheckresults, FILE **filepos, double *exitTimeout) {
+                size_t *showdate, char **kcheckresults, FILE **filepos, double *exitTimeout, size_t *exitOnErrors) {
     int opt;
 
     deviceDetails *deviceList = NULL;
@@ -109,7 +110,6 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     }
     optind = 0;
     int GBpow2;
-    int GBpercent = 0;
 
     while ((opt = getopt(argc, argv, getoptstring)) != -1) {
         switch (opt) {
@@ -212,8 +212,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
             }
                 break;
             case 'E':
-                fprintf(stderr, "*warning* -G/g values are percents...0..100%%\n");
-                GBpercent = 1;
+	        *exitOnErrors = 0;
+                fprintf(stderr, "*info* turning off 'exitOnErrors'\n");
                 break;
             case 'g':
                 GBpow2 = 0;
@@ -225,31 +225,33 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 if (strchr(optarg, '-') == NULL) {
                     // no range
                     size_t num = 0;
-                    if (GBpercent) {
-                        num = alignedNumber(atof(optarg) * smallbdsize / 100.0, 4096);
-                        *minSizeInBytes = num;
-                        *maxSizeInBytes = num;
-                    } else {
-                        num = alignedNumber(stringToBytesDefault(optarg, 1024L*1024*1024), 4096);
-                        *minSizeInBytes = num;
-                        *maxSizeInBytes = num;
-                    }
+		    num = alignedNumber(stringToBytesDefault(optarg, pow(GBpow2?1024:1000, 3.0), smallbdsize), 4096);
+		    *minSizeInBytes = num;
+		    *maxSizeInBytes = num;
+
                     lowg = atof(optarg);
                     highg = atof(optarg);
                     fprintf(stderr, "*info* -G option %zd bytes, power2=%d, (%.3lf TiB, %.3lf GiB, %.3lf GB)\n", num,
                             GBpow2, TOTiB(num), TOGiB(num), TOGB(num));
-                } else {
-                    splitRange(optarg, &lowg, &highg);
-                    if (GBpercent) {
-                        *minSizeInBytes = alignedNumber(lowg * smallbdsize / 100, 4096);
-                        *maxSizeInBytes = alignedNumber(highg * smallbdsize / 100, 4096);
-                    } else {
-                        *minSizeInBytes = alignedNumber(pow(GBpow2 ? 1024 : 1000, 3.0) * lowg, 4096);
-                        *maxSizeInBytes = alignedNumber(pow(GBpow2 ? 1024 : 1000, 3.0) * highg, 4096);
-                    }
-                    if ((highg == 0) && (lowg > 0)) {
-                        *maxSizeInBytes = smallbdsize;
-                    }
+                } else { // range
+		  char *copy = strdup(optarg);
+		  char *first = strtok(copy, "-");
+		  if (first) {
+		    char *second = strtok(NULL, "-");
+		    if (second) {
+		      char *rest = optarg + (second - copy);
+		      fprintf(stderr," -G options %s and %s\n", first, rest);
+
+		      *minSizeInBytes = alignedNumber(stringToBytesDefault(first, pow(GBpow2?1024:1000, 3.0), smallbdsize), 4096);
+		      *maxSizeInBytes = alignedNumber(stringToBytesDefault(rest, pow(GBpow2?1024:1000, 3.0), smallbdsize), 4096);
+		    } else {
+		      fprintf(stderr,"*error* needs a range low-high\n");
+		      exit(-1);
+		    }
+		  } else {
+		      fprintf(stderr,"*error* needs a range low-high\n");
+		  }
+		  free(copy);
                 }
                 if (*minSizeInBytes == *maxSizeInBytes) {
                     *minSizeInBytes = 0;
@@ -267,8 +269,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 fprintf(stderr, "*info* summary stats logged to file '%s'\n", logfile);
                 break;
             case 'L':
-                *ramBytesForPositions = 1024L * 1024L * 1024L * atof(optarg);
-                fprintf(stderr, "*info* limit RAM use to %.2lf GiB\n", TOGiB(*ramBytesForPositions));
+	        *ramBytesForPositions = stringToBytesDefault(optarg, 1024L * 1024L * 1024L, sizeof(positionType));
+                fprintf(stderr, "*info* limit RAM use to %.2lf GiB or %zd objects\n", TOGiB(*ramBytesForPositions), (*ramBytesForPositions) / sizeof(positionType));
                 break;
             case 'M':
                 *mysqloptions = strdup(optarg);
@@ -660,10 +662,7 @@ void usage(void) {
     fprintf(stdout, "  spit -f device -c r -G 384MiB # -G without a range is GB. {M,G,T}[i*]B\n");
     fprintf(stdout, "  spit -f device -c r -G 100GB  # Support GB/GiB etc");
     fprintf(stdout, "  spit -f device -c r -G 1-2    # Only perform actions in the 1-2 GB range\n");
-    fprintf(stdout,
-            "  spit -f device -c r -E -G 2-5 # if the -E argument is *before* -G, G values are percentages. e.g. 2%%-5%%\n");
-    fprintf(stdout, "  spit -f device -c r -G 2-5 -E # NOTE: This doesn't work. -E must be before -G\n");
-    //  fprintf(stdout,"  spit -c wx3 -G4 -T            # perform pre-DISCARD/TRIM operations before each round\n");
+    fprintf(stdout, "  spit -f device -c r -G 2per-5per # if the suffix is per then it's a percent\n");
     fprintf(stdout, "  spit -c wx1G0-64k4zs1         # Write from [0,64) GiB, in 4KiB steps, sequentially \n");
     fprintf(stdout, "  spit -c wx1G0-64k4zs1K20      # Write from [0,64) GiB, in 4KiB steps, writing 1 in 20. \n");
     fprintf(stdout,
@@ -735,7 +734,8 @@ void usage(void) {
     fprintf(stdout, "  spit -f ... -c rs1M1 -K M200  # assert that the read IO is more than 200 MB/s\n");
     fprintf(stdout, "  spit -f ... -c rws1M1 -K M100,100       # assert that both r/w IO is more than 200 MB/s\n");
     fprintf(stdout, "  spit -f ... -c rM1x1 -G 1GiB -K 1024,0  # assert that there are exactly 1024 read IOs\n");
-    fprintf(stdout, "  spit -f ... -c ... -T 0.001   # if it's been 0.001 seconds (1ms) between IOs then exit(-1)\n");
+    fprintf(stdout, "  spit -f ... -c ... -T 30     # set noIOExitTimeout to 30. Defaults is 3600.\n");
+    fprintf(stdout, "  spit -f ... -c ... -E        # set exitOnErrors to no. Defaults to yes.\n");
 
     fprintf(stdout, "\nMisc examples:\n");
     fprintf(stdout, "  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
@@ -947,7 +947,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
                     fflush(stdout);
                     jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round + 42, 0,
                                   NULL /* diskstats &d*/, MIN(thetime / 10.0, 1), cacheSizeBytes, verify, NULL, NULL,
-                                  NULL, "all", 0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
+                                  NULL, "all", 0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0, 0);
                     fprintf(stdout, "| %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf \n", threadBlock[t], r.readIOPS,
                             r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
                     fflush(stdout);
@@ -979,7 +979,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
                     jobAddDeviceToAll(&j, device);
                     jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime * 2, 0, NULL, 4, round + 42, 0,
                                   NULL /* diskstats &d*/, MIN(thetime / 10.0, 1), cacheSizeBytes, verify, NULL, NULL,
-                                  NULL, "all", 0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
+                                  NULL, "all", 0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0, 0);
                     sprintf(s, "w s1 k%zd-%zd G_ j%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd,
                             thetime * 2);
                     fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS,
@@ -1011,7 +1011,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
                 jobAddDeviceToAll(&j, device);
                 jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round + 42, 0, NULL /* diskstats &d*/,
                               MIN(thetime / 10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r,
-                              ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
+                              ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0, 0);
                 sprintf(s, "r s0 k%zd-%zd G_ j%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd,
                         thetime);
                 fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS,
@@ -1043,7 +1043,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
                 jobAddDeviceToAll(&j, device);
                 jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 16, round + 42, 0, NULL /* diskstats &d*/,
                               MIN(thetime / 10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r,
-                              ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
+                              ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0, 0);
                 sprintf(s, "r s1 k%zd-%zd G_ j%zd q1-%zd T%.1lf", blockSize1[i], blockSize2[i], threadBlock[t], qd,
                         thetime);
                 fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS,
@@ -1076,7 +1076,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
                 }
                 jobRunThreads(&j, j.count, NULL, low, high, -1, 0, NULL, 4, round + 42, 0, NULL /* diskstats &d*/,
                               MIN(thetime / 10.0, 1), cacheSizeBytes, verify, NULL, NULL, NULL, "all", 0, &r,
-                              ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
+                              ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0, 0);
                 fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS,
                         r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
                 fflush(stdout);
@@ -1110,7 +1110,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
                 jobAddDeviceToAll(&j, device);
                 jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round + 42, NULL /* save positions*/,
                               NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all",
-                              0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
+                              0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0, 0);
                 sprintf(s, "rs0k%zdP100000q1-%zdG_j%zd/+wk%zd", blockSize1[i], qd, threadBlock[t], blockSize2[i]);
                 fprintf(stdout, "| %s | %zd |  %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS,
                         r.writeIOPS, TOMB(r.readBps), TOMB(r.writeBps));
@@ -1143,7 +1143,7 @@ int doReport(const double runseconds, size_t maxSizeInBytes, const size_t cacheS
                 jobAddDeviceToAll(&j, device);
                 jobRunThreads(&j, j.count, NULL, 0, bdsize, thetime, 0, NULL, 32, round + 42, NULL /* save positions*/,
                               NULL /* diskstats &d*/, 0.1 /*timeline*/, cacheSizeBytes, verify, NULL, NULL, NULL, "all",
-                              0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0);
+                              0, &r, ramBytesForPositions, 0, showdate, NULL, exitTimeout, 0, 0);
                 sprintf(s, "p0.7 s0 k%zd-%zd q1-%zd G_ j%zd x%zd", blockSize1[i], blockSize2[i], qd, threadBlock[t],
                         xcopies);
                 fprintf(stdout, "| %s | %zd  |   %.0lf | %.0lf |  %.1lf |  %.1lf\n", s, threadBlock[t], r.readIOPS,
@@ -1235,12 +1235,13 @@ int main(int argc, char *argv[]) {
         char commandstring[PATH_MAX];
         FILE *loadpos = NULL;
 
-        double exitTimeout = 0;
+        double exitTimeout = 3600; // 1 hour default for scripts?
+	size_t exitOnError = 1;    // any I/O errors then exit, until -E
 
         handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions,
                     &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring,
                     &filePrefix, &numaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes, &forever,
-                    &ramBytesForPositions, &tripleX, &showdate, &kcheckresults, &loadpos, &exitTimeout);
+                    &ramBytesForPositions, &tripleX, &showdate, &kcheckresults, &loadpos, &exitTimeout, &exitOnError);
 
         if (runseconds <= 1 && runseconds > 0 && timeperline == 1) {
             timeperline = runseconds / 10;
@@ -1289,7 +1290,7 @@ int main(int argc, char *argv[]) {
             jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, runseconds, dumpPositions,
                           benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify,
                           mysqloptions, mysqloptions2, commandstring, numaBinding, performPreDiscard, &r,
-                          ramBytesForPositions, tripleX == 3, showdate, loadpos, exitTimeout, 0);
+                          ramBytesForPositions, tripleX == 3, showdate, loadpos, exitTimeout, 0, exitOnError);
 
             resultDump(&r, kcheckresults, verbose);
 

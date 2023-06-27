@@ -1370,11 +1370,15 @@ int endsWith(const char *str, const char *suffix) {
 
 
 // if not suffix, multiple by defaultScale
-size_t stringToBytesDefault(const char *str, const size_t defaultScale) {
+// if o then ordinary number * defaultScale
+// if "per" then percent
+size_t stringToBytesDefault(const char *str, const size_t defaultScale, const size_t fullsize) {
     size_t ret = 0;
     assert(defaultScale > 0);
     if (str && (strlen(str) >= 1)) {
-        if (endsWith(str, "E")) {
+        if (endsWith(str, "per") || endsWith(str, "per")) { // return % of default scale
+	    ret = (atof(str) / 100.0) * fullsize;
+	} else if (endsWith(str, "E")) {
             fprintf(stderr, "*warning* '%s' assuming EB. Must be {K,M,G,T,P,E}[i*]B\n", str);
             ret = 1000L * atof(str) * 1000 * 1000 * 1000 * 1000 * 1000;
 	} else if (endsWith(str, "P")) {
@@ -1418,6 +1422,8 @@ size_t stringToBytesDefault(const char *str, const size_t defaultScale) {
             ret = 1000L * atof(str);
         } else if (endsWith(str, "B")) {
             ret = atof(str);
+        } else if (endsWith(str, "o") || endsWith(str, "O")) {
+	  ret = atof(str) * fullsize;
         } else {
 	    ret = atof(str) * defaultScale;
             /*if (assumePow2) {

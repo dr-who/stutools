@@ -995,7 +995,7 @@ void cmd_spit(const int tty, char *origstring) {
                         if (tty) printf("%s", END);
 
                         jobRunThreads(&j, j.count, NULL, 0, bdsize, 30, 0, NULL, 4, 42, 0, NULL, 1, 0, 0, NULL, NULL,
-                                      NULL, "all", 0, /*&r*/NULL, 15L * 1024 * 1024 * 1024, 0, 0, NULL, 0, 1);
+                                      NULL, "all", 0, /*&r*/NULL, 15L * 1024 * 1024 * 1024, 0, 0, NULL, 0, 1, 0);
                         jobFree(&j);
                     }
                 }

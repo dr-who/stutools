@@ -36,7 +36,7 @@ size_t aioMultiplePositions(positionContainer *p,
                             const size_t posStart,
                             const size_t posLimit,
                             size_t *posCompleted,
-                            const int dontExitOnErrors,
+                            const int exitOnErrors,
                             const int fd,
                             int flushEvery,
                             size_t *ioerrors,
@@ -47,16 +47,15 @@ size_t aioMultiplePositions(positionContainer *p,
                             int recordSamples,
                             size_t alternateEvery,
                             size_t stringcompare,
-                            double exitTimeout
+                            double noIOExitTimeout
 ) {
     size_t printCount = 0;
     if (stringcompare) {
         fprintf(stderr, "*info* strong byte comparison enabled.\n");
     }
 
-    if (exitTimeout) {
-        fprintf(stderr, "*info* exitTimeout set to %lf seconds, after 5 seconds of IO (%g ms)\n", exitTimeout,
-                exitTimeout * 1000.0);
+    if (verbose > 0) {
+      fprintf(stderr, "*info* exitOnErrors=%s, noIOTimeout=%.3lf sec (after 5 secs of valid IO)\n", exitOnErrors?"yes":"no", noIOExitTimeout);
     }
 
     if (sz == 0) {
@@ -100,11 +99,6 @@ size_t aioMultiplePositions(positionContainer *p,
     struct iocb **cbs;
     struct io_event *events;
 
-    /*  if (QDmax >= posLimit * rounds)  {
-      QDmax = posLimit ;
-      fprintf(stderr,"*info* QD reduced due to limited positions. Setting q=%zd (verbose %d)\n", QDmax, verbose);
-      //    exit(1);
-      }*/
     if (QDmax > sz) {
         QDmax = MIN(QDmax, sz);
         fprintf(stderr, "*warning* decreasing QDmax=%zd because sz=%zd\n", QDmax, sz);
@@ -458,9 +452,10 @@ size_t aioMultiplePositions(positionContainer *p,
 
                             } else {
                                 *ioerrors = (*ioerrors) + 1;
-                                fprintf(stderr, "io_submit() failed, ret = %d\n", ret);
+				fprintTimePrefix(stderr);
+                                fprintf(stderr, "*error* io_submit() failed, ret = %d\n", ret);
                                 perror("io_submit()");
-                                if (!dontExitOnErrors) exit(-1);
+                                if (exitOnErrors) exit(-1);
                             }
                         }
                     }
@@ -523,11 +518,12 @@ size_t aioMultiplePositions(positionContainer *p,
             //      }
         }
 
-        if (exitTimeout) {
+        if (noIOExitTimeout) {
             const double difft = thistime - lastsubmit;
-            if (difft > exitTimeout) {
+            if (difft > noIOExitTimeout) {
                 if (timeAsDouble() - start > 5) {
-                    fprintf(stderr, "*error* IO took too long, %lf seconds (timestamp %lf)\n", difft, timeAsDouble());
+		    fprintTimePrefix(stderr);
+                    fprintf(stderr, "*error* I/O took too long, %lf seconds (timestamp %lf)\n", difft, timeAsDouble());
                     exit(-1);
                 }
             }
@@ -574,9 +570,11 @@ size_t aioMultiplePositions(positionContainer *p,
                         //	    fprintf(stderr,"*error* further output supressed\n");
                     }
                     if (*ioerrors > 0) {
+		      if (exitOnErrors) {
 		        fprintTimePrefix(stderr);
-                        fprintf(stderr, "*error* over %zd IO errors. Exiting...\n", *ioerrors);
-                        exit(-1);
+                        fprintf(stderr, "*error* %zd IO errors.\n", *ioerrors);
+			exit(-1);
+		      }
                     }
 		    pp->submitTime = 0;
 		    pp->finishTime = 0;
@@ -626,8 +624,6 @@ size_t aioMultiplePositions(positionContainer *p,
                                     "*error* as the different threads will clobber data from other threads in real time\n");
                             fprintf(stderr,
                                     "*error* Potentially write to -P positions.txt and check after data is written\n");
-			    //                            exit(-1);
-                            //              abort();
                         }
                     }
                     pp->finishTime = lastreceive;
@@ -804,7 +800,7 @@ size_t aioMultiplePositions(positionContainer *p,
 
     for (size_t i = posStart; i < pos; i += posIncrement) {
         if (positions[i].action == 'R' || positions[i].action == 'W') {
-            assert(positions[i].submitTime > 0);
+	  if (exitOnErrors) assert(positions[i].submitTime > 0);
         }
     }
 

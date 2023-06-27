@@ -187,7 +187,8 @@ void syslogString(const char *prog, const char *message);
 void sysLogArgs(const char *prog, int argc, char *argv[]);
 
 
-size_t stringToBytesDefault(const char *str, const size_t defaultScale);
+size_t stringToBytesDefault(const char *str, const size_t defaultScale, const size_t fullsize);
+
 
 int openRunLock(const char *fn);
 

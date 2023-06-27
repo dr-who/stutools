@@ -200,6 +200,7 @@ typedef struct {
     double finishSeconds; // the overall thread finish time
     size_t ignoreResults;
     size_t exitIOPS;
+    size_t exitOnErrors;
     double timeperline;
     double ignorefirst;
     char *mysqloptions;
@@ -281,7 +282,7 @@ static void *runThread(void *arg) {
                                          threadContext->jumpK, threadContext->firstPPositions,
                                          threadContext->randomSubSample, threadContext->linearSubSample,
                                          threadContext->linearAlternate, threadContext->copyMode,
-                                         threadContext->runSeconds >= INF_SECONDS ? 1 : 0, threadContext->resetSizes);
+                                         (threadContext->runSeconds >= INF_SECONDS) && (threadContext->LBAtimes>0) ? 1 : 0, threadContext->resetSizes);
     }
 
     for (size_t e = 0; e < threadContext->pos.sz; e++) {
@@ -697,7 +698,7 @@ static void *runThread(void *arg) {
                                        roundByteLimit, threadContext->queueDepthMin, threadContext->queueDepthMax,
                                        -1 /* verbose */, 0, MIN(logbs, threadContext->blockSize), &ios,
                                        &shouldReadBytes, &shouldWriteBytes, numberOfRounds, posStart,
-                                       (roundPosLimit - (posStart % threadContext->pos.sz)), &posCompleted, 1, fd,
+                                       (roundPosLimit - (posStart % threadContext->pos.sz)), &posCompleted, threadContext->exitOnErrors, fd,
                                        threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp,
                                        threadContext->jobdevice, threadContext->posIncrement,
                                        (threadContext->fp == stdout) ? 0 : numSamples/* true if writing positions */,
@@ -781,8 +782,7 @@ static void *runThread(void *arg) {
     close(fd);
 
     if (ioerrors) {
-        fprintf(stderr, "*warning* there were %zd IO errors\n", ioerrors);
-        // exit(-1);
+        fprintf(stderr, "*error* there were %zd IO errors\n", ioerrors);
     }
 
     return NULL;
@@ -1285,7 +1285,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, char *numaBinding,
                    const int performPreDiscard,
                    resultType *result, size_t ramBytesForPositions, size_t notexclusive, const size_t showdate,
-                   FILE *loadpos, const double exitTimeout, const size_t showASCII) {
+                   FILE *loadpos, const double exitTimeout, const size_t showASCII, const size_t exitOnErrors) {
     pthread_t *pt;
     CALLOC(pt, num + 1, sizeof(pthread_t));
 
@@ -1348,6 +1348,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         threadContext[i].positionLimit = 0;
         threadContext[i].finishSeconds = runseconds;
         threadContext[i].exitIOPS = 0;
+        threadContext[i].exitOnErrors = exitOnErrors;
         if (i == num) {
             threadContext[i].benchmarkName = benchmarkName;
         } else {
@@ -2495,7 +2496,7 @@ jobRunPreconditions(jobType *preconditions, const size_t count, const size_t min
                     jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024,
                                   MIN(maxSizeBytes, (p + stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/,
                                   0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */,
-                                  0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0, 0);
+                                  0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0, 0, 0);
 
                     free(preconditions->strings[0]); // free 'f'
                     sprintf(s, "wx1zs1k4G%zd-%.1lfK%zd", p, MIN(TOGiB(maxSizeBytes), p + stepgb), fragmentLBA);
@@ -2504,14 +2505,14 @@ jobRunPreconditions(jobType *preconditions, const size_t count, const size_t min
                     jobRunThreads(preconditions, 1, NULL, p * 1024L * 1024 * 1024,
                                   MIN(maxSizeBytes, (p + stepgb) * 1024L * 1024L * 1024), -1, 0, NULL, 128, 0 /*seed*/,
                                   0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */,
-                                  0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0, 0);
+                                  0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0, 0, 0);
 
 
                 }
         } else {
             jobRunThreads(preconditions, count, NULL, 0 * minSizeBytes, gSize, -1, 0, NULL, 128, 0 /*seed*/,
                           0 /*save positions*/, NULL, 1, 0, 0 /*noverify*/, NULL, NULL, NULL, "all" /* NUMA */,
-                          0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0, 0);
+                          0 /* TRIM */, NULL /* results*/, 0, 0, 0, NULL, 0, 0, 0);
         }
         if (keepRunning) {
             fprintf(stderr, "*info* preconditioning complete... waiting for 10 seconds for I/O to stop...\n");
