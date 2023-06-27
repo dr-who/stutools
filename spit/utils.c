@@ -1365,7 +1365,7 @@ int endsWith(const char *str, const char *suffix) {
     if (lensuffix > lenstr) {
         return 0;
     }
-    return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
+    return strncasecmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
 }
 
 
