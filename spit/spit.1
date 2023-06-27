@@ -1014,6 +1014,27 @@ write bytes/s (MB/s)
 .\}
 device util
 .RE
+.SH "REMOVING DRIVES"
+.sp
+\f(CRspit\fP can write to a drive and then it can be dropped while I/O is being performed. e.g.
+.sp
+.if n .RS 4
+.nf
+.fam C
+echo 1 > /sys/class/block/{device}/device/delete
+.fam
+.fi
+.if n .RE
+.sp
+And to reinsert the drive:
+.sp
+.if n .RS 4
+.nf
+.fam C
+echo "\- \- \-" | tee /sys/class/scsi_host/host*/scan
+.fam
+.fi
+.if n .RE
 .SH "ERROR/EXIT CONDITIONS"
 .sp
 There are various types of error conditions. \f(CR\-T\fP defaults to 3600 seconds. So if there are no I/Os within 3600 seconds \f(CRspit\fP will exit. The option \f(CR\-E\fP will continue running when experiencing I/O errors.

@@ -394,6 +394,17 @@ The benchmark format is tab separated.
 . write bytes/s (MB/s)
 . device util 
 
+== Removing drives
+
+`spit` can write to a drive and then it can be dropped while I/O is being performed. e.g.
+
+ echo 1 > /sys/class/block/{device}/device/delete
+
+And to reinsert the drive:
+
+ echo "- - -" | tee /sys/class/scsi_host/host*/scan
+
+
 == Error/exit conditions
 
 There are various types of error conditions. `-T` defaults to 3600 seconds. So if there are no I/Os within 3600 seconds `spit` will exit. The option `-E` will continue running when experiencing I/O errors.
