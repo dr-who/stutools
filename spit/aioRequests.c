@@ -573,8 +573,9 @@ size_t aioMultiplePositions(positionContainer *p,
 
                         //	    fprintf(stderr,"*error* further output supressed\n");
                     }
-                    if (*ioerrors > 1000000) {
-                        fprintf(stderr, "*info* over %zd IO errors. Exiting...\n", *ioerrors);
+                    if (*ioerrors > 0) {
+		        fprintTimePrefix(stderr);
+                        fprintf(stderr, "*error* over %zd IO errors. Exiting...\n", *ioerrors);
                         exit(-1);
                     }
 		    pp->submitTime = 0;
