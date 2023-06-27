@@ -560,12 +560,13 @@ size_t aioMultiplePositions(positionContainer *p,
                 int rescode2 = events[j].res2;
 
                 if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read / IO error
+		    pp->success = 0;
                     *ioerrors = (*ioerrors) + 1;
                     if (printed++ < 10) {
                         fprintf(stderr,
-                                "*error* AIO failure codes[fd=%d, can seek?=%d]: res=%d (%s) and res2=%d, [%zd] = %zd, len %d, inFlight %zd, returned %d results\n",
-                                fd, canseekanywhere(fd), rescode, rescode < 0 ? strerror(-rescode) : "", rescode2, pos,
-                                positions[pos].pos, positions[pos].len, inFlight, ret);
+                                "*error* AIO failure codes[fd=%d, can seek?=%d]: res=%d (%s) and res2=%d, block %zd, len %d, inFlight %zd, returned %d results\n",
+                                fd, canseekanywhere(fd), rescode, rescode < 0 ? strerror(-rescode) : "", rescode2, pp->pos,
+                                pp->len, inFlight, ret);
                         //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timeAsDouble() - lastsubmit);
                         //	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timeAsDouble() - lastreceive);
                     } else {
@@ -576,6 +577,9 @@ size_t aioMultiplePositions(positionContainer *p,
                         fprintf(stderr, "*info* over %zd IO errors. Exiting...\n", *ioerrors);
                         exit(-1);
                     }
+		    pp->submitTime = 0;
+		    pp->finishTime = 0;
+		    //		    pp->action = 'X';
                     //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
                 } else { // good IO
                     //	  fprintf(stderr,"---> %d %d\n", rescode, rescode2);
@@ -634,7 +638,7 @@ size_t aioMultiplePositions(positionContainer *p,
                         pp->latencies[pppp] = pp->finishTime - pp->submitTime;
                     }
                 } // good IO
-                pp->success = 1; // the action has completed
+		pp->success = 1; // the action has completed
                 pp->inFlight = 0;
                 if (fp == stdout) {
                     positionDumpOne(fp, pp, p->maxbdSize, 0, jobdevice, printCount++);
@@ -700,7 +704,7 @@ size_t aioMultiplePositions(positionContainer *p,
                         *ioerrors = (*ioerrors) + 1;
 
                         fprintf(stderr,
-                                "*error* AIO failure codes[fd=%d]: res=%d and res2=%d, %zd, inFlight %zd, returned %d results\n",
+                                "*error* AIO2 failure codes[fd=%d]: res=%d and res2=%d, %zd, inFlight %zd, returned %d results\n",
                                 fd, rescode, rescode2, pp->pos, inFlight, ret);
 
                     }

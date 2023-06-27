@@ -459,7 +459,7 @@ positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeBytes, co
     //  ioctl(fileno(fp), FIONREAD, &nbytes);
     //  fprintf(stderr,"%d\n", nbytes);
 
-    if (p->success) {
+    if (p->success && p->finishTime>0) {
         const char action = p->action;
         double avgiotime;
         if (p->samples) {
@@ -1772,8 +1772,14 @@ size_t positionContainerAddLines(positionContainer *pc, jobType *job, FILE *fd, 
             //      fprintf(stderr,"%s %zd %c %zd %zd %lf %lf\n", path, pos, op, len, seed, starttime, fintime);
             //      deviceDetails *d2 = addDeviceDetails(path, devs, numDevs);
 
-            if (starttime == 0) {
+            if (starttime <= 0) {
                 fprintf(stderr, "*warning* no starttime (line %zd): %s", lineno, line);
+		continue;
+            }
+
+	    if (fintime <= 0) {
+	        fprintf(stderr, "*warning* no fintime (line %zd): %s", lineno, line);
+		continue;
             }
 
             int seenpathbefore = -1;
