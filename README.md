@@ -386,3 +386,16 @@ then
 
        apt install astyle
        ./utils/code-format
+
+## Errors in block device
+
+ root# modprobe brd rd_nr=1 rd_size=$[512*1024]
+ root# dmsetup create errdev0
+ 0 261144 linear /dev/ram0 0
+ 261144 5 error
+ 261149 524288 linear /dev/ram0 263139
+ root# ls -l /dev/mapper/errdev0 
+ lrwxrwxrwx 1 root root 7 Jun 27 14:03 /dev/mapper/errdev0 -> ../dm-6
+
+
+
