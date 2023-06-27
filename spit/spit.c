@@ -269,8 +269,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 fprintf(stderr, "*info* summary stats logged to file '%s'\n", logfile);
                 break;
             case 'L':
-	        *ramBytesForPositions = stringToBytesDefault(optarg, 1024L * 1024L * 1024L, sizeof(positionType));
-                fprintf(stderr, "*info* limit RAM use to %.2lf GiB or %zd objects\n", TOGiB(*ramBytesForPositions), (*ramBytesForPositions) / sizeof(positionType));
+	        *ramBytesForPositions = alignedNumber(stringToBytesDefault(optarg, 1024L * 1024L * 1024L, sizeof(positionType)), sizeof(positionType));
+                fprintf(stderr, "*info* limit RAM use to %.2lf GiB (%zd bytes), %zd objects\n", TOGiB(*ramBytesForPositions), *ramBytesForPositions, (*ramBytesForPositions) / sizeof(positionType));
                 break;
             case 'M':
                 *mysqloptions = strdup(optarg);
