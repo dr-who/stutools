@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 2.0.16
-.\"      Date: 2023-06-13
+.\"      Date: 2023-06-27
 .\"    Manual: spit manual
 .\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2023-06-13" "spit 1.2" "spit manual"
+.TH "SPIT" "1" "2023-06-27" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -1014,6 +1014,49 @@ write bytes/s (MB/s)
 .\}
 device util
 .RE
+.SH "ERROR/EXIT CONDITIONS"
+.sp
+There are various types of error conditions. \f(CR\-T\fP defaults to 3600 seconds. So if there are no I/Os within 3600 seconds \f(CRspit\fP will exit. The option \f(CR\-E\fP will continue running when experiencing I/O errors.
+.TS
+allbox tab(:);
+lt lt.
+T{
+.sp
+Condition
+T}:T{
+.sp
+Expectation
+T}
+T{
+.sp
+No errors
+T}:T{
+.sp
+Runs to completion
+T}
+T{
+.sp
+I/O errors
+T}:T{
+.sp
+Exits on any I/O errors
+T}
+T{
+.sp
+Ignore I/O errors (\-E)
+T}:T{
+.sp
+Runs to completion, ignoring I/O errors
+T}
+T{
+.sp
+No reply (\-T 30)
+T}:T{
+.sp
+Exits if there is 30s between I/O replies
+T}
+.TE
+.sp
 .SH "COMBINATIONS"
 .sp
 Using 1 GiB and 1 MiB blocks (e.g. \fBspit \-f device \-G 1GiB \-c rM1...\fP) the following options have the following behaviour:

@@ -394,6 +394,21 @@ The benchmark format is tab separated.
 . write bytes/s (MB/s)
 . device util 
 
+== Error/exit conditions
+
+There are various types of error conditions. `-T` defaults to 3600 seconds. So if there are no I/Os within 3600 seconds `spit` will exit. The option `-E` will continue running when experiencing I/O errors.
+
+[cols="2,4"]
+|===
+| Condition  |  Expectation
+
+| No errors  |   Runs to completion
+| I/O errors  |    Exits on any I/O errors
+| Ignore I/O errors (-E) |  Runs to completion, ignoring I/O errors
+| No reply (-T 30) |  Exits if there is 30s between I/O replies
+|===
+
+
 == Combinations
 
 Using 1 GiB and 1 MiB blocks (e.g. *spit -f device -G 1GiB -c rM1...*) the following options have the following behaviour:
