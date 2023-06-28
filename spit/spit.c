@@ -302,12 +302,24 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                     // backup first
                     backupExistingFile(optarg, keepversions);
 
-                    savePositions = fopen(optarg, "wt");
+		    if (fileExists(optarg) && (isBlockDevice(optarg)==0)) {
+		      int uret = unlink(optarg);
+		      if (uret != 0) {
+			perror(optarg);
+		      } else {
+			fprintf(stderr, "*info* deleted file (in case of early exit) '%s'\n", optarg);
+		      }
+		    }
+
+		    // now open
+		    savePositions = fopen(optarg, "wt");
                     if (!savePositions) {
                         perror(optarg);
                         exit(-1);
                     }
                     fprintf(stderr, "*info* savePositions set to '%s'\n", optarg);
+
+
                 }
                 break;
             case 'R':

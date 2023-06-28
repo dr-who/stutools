@@ -1803,34 +1803,31 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
         }
 
 
-        // use 1/4 of free RAM
-        size_t useRAM = MIN((size_t) 15L * 1024 * 1024 * 1024, freeRAM() / 2) / num; // 1L*1024*1024*1024;
-        if (ramBytesForPositions) {
-            useRAM = ramBytesForPositions / num;
+        // if RAM is not specified for positions
+        if (ramBytesForPositions == 0) { 
+	  ramBytesForPositions = MIN((size_t) 15L * 1024 * 1024 * 1024, freeRAM() / 2) / num; // 1L*1024*1024*1024;
         }
 
-        size_t aioSize = 2 * threadContext[i].queueDepthMax * (threadContext[i].highBlockSize); // 2* as read and write
+        size_t aioSizeRAM = 2 * threadContext[i].queueDepthMax * (threadContext[i].highBlockSize); // 2* as read and write
 
         //    fprintf(stderr,"*info* RAM to use: %zd bytes (%.3lf GiB), qd = %zd, maxK %zd\n", useRAM, TOGiB(useRAM), threadContext[i].queueDepth, threadContext[i].highBlockSize);
-        if (aioSize > useRAM / 2) {
-            if (i == 0) {
-                fprintf(stderr, "*warning* we can't enforce RAM limits with the qd and max block size\n");
-            }
-        } else {
-            useRAM -= aioSize;
-        }
 
-        size_t fitinram = (useRAM / sizeof(positionType));
-        if (verbose) {
-            fprintf(stderr, "*info* RAM required: %.1lf GiB for qd x bs, and %.1lf GiB for positions\n", TOGiB(aioSize),
-                    TOGiB(fitinram));
-        }
+	if (ramBytesForPositions + aioSizeRAM > freeRAM()) {
+	  if (i == 0) {
+	    fprintf(stderr, "*warning* with the amount of RAM, this may OOM or cause paging with the qd and max block size\n");
+	  }
+	}
+	  
+        size_t posThatFitInRam = (ramBytesForPositions / sizeof(positionType));
+	//        if (verbose) {
+	  fprintf(stderr, "*info* RAM required: %.3lf GiB for QD x BS, and available %.3lf GiB for %zd positions\n", TOGiB(aioSizeRAM), TOGiB(ramBytesForPositions), 
+                    posThatFitInRam);
+	  //        }
 
 
-        if ((ramBytesForPositions || verbose || (fitinram < mp)) && (i == 0)) {
-            fprintf(stderr, "*info* using %.3lf GiB RAM for positions (%d threads, %ld record size), we can store max ",
-                    TOGiB(useRAM), num, sizeof(positionType));
-            commaPrint0dp(stderr, fitinram);
+        if ((ramBytesForPositions || verbose || (posThatFitInRam < mp)) && (i == 0)) {
+            fprintf(stderr, "*info* using %zd GiB RAM for positions (%d threads, %ld record size), we can store max ", ramBytesForPositions, num, sizeof(positionType));
+            commaPrint0dp(stderr, posThatFitInRam);
             fprintf(stderr, " positions in RAM\n");
         }
 
@@ -1865,8 +1862,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
             }
         }
         if (verbose) {
-            fprintf(stderr, "*info* mp %zd, sizeLimit %zu, countin time %zd, mp %zd, fitinram %zd\n", mp,
-                    limit != (size_t) -1 ? sizeLimitCount : 0, countintime, mp, fitinram);
+            fprintf(stderr, "*info* mp %zd, sizeLimit %zu, countin time %zd, mp %zd, posThatFitInRam %zd\n", mp,
+                    limit != (size_t) -1 ? sizeLimitCount : 0, countintime, mp, posThatFitInRam);
         }
 
 
@@ -2147,7 +2144,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
             mp = MIN(mp, threadContext[i].linearSubSample); // min of calculated and specified
         }
 
-        mp = MIN(sizeLimitCount, MIN(countintime, MIN(mp, fitinram)));
+        mp = MIN(sizeLimitCount, MIN(countintime, MIN(mp, posThatFitInRam)));
 
         if (mp <= qDepthMax) { // check qd isn't too high
             qDepthMax = mp;

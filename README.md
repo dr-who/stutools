@@ -389,13 +389,33 @@ then
 
 ## Errors in block device
 
- root# modprobe brd rd_nr=1 rd_size=$[512*1024]
+To create a 256 MiB block device.
+
+ root# modprobe brd rd_nr=1 rd_size=$[256*1024]
  root# dmsetup create errdev0
  0 261144 linear /dev/ram0 0
  261144 5 error
- 261149 524288 linear /dev/ram0 263139
+ 261149 263139 linear /dev/ram0 261149
+
+ # lsblk -b /dev/mapper/errdev0 
+ NAME    MAJ:MIN RM      SIZE RO TYPE MOUNTPOINTS
+ errdev0 253:0    0 268435456  0 dm
+
  root# ls -l /dev/mapper/errdev0 
  lrwxrwxrwx 1 root root 7 Jun 27 14:03 /dev/mapper/errdev0 -> ../dm-6
+
+To test the device:
+
+ spit -f /dev/mapper/errdev0 -c wzs1 -P positions.txt
+
+This displays a error at position 133705728
+
+
+To remove the devices:
+
+ root# dmsetup remove errdev0
+ root# rmmod brd
+ 
 
 
 
