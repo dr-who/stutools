@@ -408,8 +408,17 @@ To test the device:
 
  spit -f /dev/mapper/errdev0 -c wzs1 -P positions.txt
 
-This displays a error at position 133705728
+This displays a error at position 133705728 and doesn't output the positions.txt file due to error.
 
+ spit -f /dev/mapper/errdev0 -c wzs1 -P positions.txt -E
+
+The -E option continues and writes the positions.txt file. spitchecker can now verify the positions.
+
+ spitchecker positions.txt
+
+To attempt to see the block contents, you'd try this but it'll fail with I/O error.
+
+ devcontents -f /dev/mapper/errdev0 -b 133705728
 
 To remove the devices:
 
