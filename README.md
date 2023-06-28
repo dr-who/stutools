@@ -405,6 +405,9 @@ To create a 256 MiB block device:
  root# ls -l /dev/mapper/errdev0 
  lrwxrwxrwx 1 root root 7 Jun 27 14:03 /dev/mapper/errdev0 -> ../dm-6
 
+The device mapper ranges are in 512 byte sectors. So the error range
+will start at 512 x 261144 = 133705728.
+
 To test the device:
 
  spit -f /dev/mapper/errdev0 -c wzs1 -P positions.txt
