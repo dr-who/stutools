@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 2.0.16
-.\"      Date: 2023-06-27
+.\"      Date: 2023-06-28
 .\"    Manual: spit manual
 .\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2023-06-27" "spit 1.2" "spit manual"
+.TH "SPIT" "1" "2023-06-28" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -347,7 +347,12 @@ Dump the first \fBn\fP positions to understand the IO profile.
 .sp
 \fB\-G size\fP
 .RS 4
-Limit the positions to a maximum of \fBsize\fP GB (e.g. \-G 32). Without a suffix the units are in GB. Optional suffixes include: GiB, TiB, TB, PiB, PB.
+Limit the positions to a maximum of \fBsize\fP, using a default unit of GiB (e.g. \-G 32 means 32 GiB). Without a suffix the units are in GB. Optional suffixes include: GiB, GB, TiB, TB, PiB, PB. It is also possible to use the string \f(CRper\fP to represent a percentage.
+.RE
+.sp
+\fB\-G start\-end\fP
+.RS 4
+Using a hyphen, the start/end positions of the block device can be specified. e.g. \f(CR\-G 1\-10\fP which is the [1 GiB, 10GiB) range. The range can also be specified as a percentage of the size of the smallest block device. e.g. \f(CR\-G 5per\-10per\fP. The percent sign is tricky on the command line, so we use this odd syntax.
 .RE
 .sp
 \fB\-B filename\fP
@@ -370,14 +375,19 @@ Specify the time between regular output. The default is \fB\-s 1\fP, which is on
 Limit the execution to \fBs\fP seconds (e.g. \-t 30)
 .RE
 .sp
+\fB\-E\fP
+.RS 4
+Ignore errors, by setting exitOnError to no.
+.RE
+.sp
 \fB\-T s\fP
 .RS 4
-Hard exit(\-1) execution if spit is still running after \fBs\fP seconds.
+Hard exit(\-1) execution if no I/O is received within \fBs\fP seconds.
 .RE
 .sp
 \fB\-L GiB\fP
 .RS 4
-Specify the amount of RAM to use for the position information. \f(CRspit\fP stores information about each position, so RAM scales up with the number of positions. Less RAM can be used by having larger block sizes. More positions can be obtained by using more RAM and/or larger block sizes.
+Specify the amount of RAM to use for the position information. \f(CRspit\fP stores information about each position, so RAM scales up with the number of positions. Less RAM can be used by having larger block sizes. More positions can be obtained by using more RAM and/or larger block sizes. Without a suffix the default unit will be in GiB. Memory units of K/M/G can be used along with \f(CRo\fP which represents objects. e.g. \f(CR\-L 1000o\fP is only enough RAM for 1,000 position objects.
 .RE
 .sp
 \fB\-M options\fP
@@ -450,7 +460,7 @@ Set the read/write ratio to \fBN\fP. (e.g. p0 is write only, p1 is read only, p0
 .sp
 \fBGlow\-high\fP
 .RS 4
-Limit the position range to \fBlow\fP to \fBhigh\fP GB. (e.g. G2\-3).
+Limit the position range to \fBlow\fP to \fBhigh\fP GiB. (e.g. G2\-3).
 .RE
 .sp
 \fBH\fP
@@ -674,7 +684,7 @@ Creates 32 threads, reads random 4KiB reads
 .if n .RS 4
 .nf
 .fam C
-Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GB.
+Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
 For devices with cache these operations should be cached.
 .fam
 .fi
@@ -727,7 +737,7 @@ Two threads, both random, one reading, one writing.
 .if n .RS 4
 .nf
 .fam C
-On a 200 GB device perform linear writes in the first half and
+On a 200 GiB device perform linear writes in the first half and
 random writes on the second half.
 .fam
 .fi
