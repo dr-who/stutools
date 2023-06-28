@@ -129,15 +129,24 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    fprintf(stderr, "*info* aligned start:  0x%lx (%zd, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt),
-            TOGiB(startAt));
-    fprintf(stderr, "*info* aligned finish: 0x%lx (%zd, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt),
-            TOGiB(finishAt));
+
+
+    size_t ioErrors = 0;
 
     int fd = open(device, O_RDONLY, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         perror(device);
     } else {
+        const size_t blockDevSize = blockDeviceSizeFromFD(fd);
+	if (blockDevSize < finishAt) finishAt = blockDevSize; // don't finish past the end of the device
+
+	fprintf(stderr, "*info* aligned start:  0x%lx (%zd, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt),
+		TOGiB(startAt));
+	fprintf(stderr, "*info* aligned finish: 0x%lx (%zd, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt),
+		TOGiB(finishAt));
+
+
+      
         unsigned char *buf = NULL;
         buf = malloc(blocksize);
         if (!buf) {
@@ -159,12 +168,16 @@ int main(int argc, char *argv[]) {
         char timestring[80];
         const double statictime = timeAsDouble();
         uint8_t hashresult[SIZE_OF_SHA_256_HASH];
+	
         for (size_t pos = startAt; pos < finishAt; pos += blocksize) {
             int min = 0, max = 0, range = 0;
             int r = pread(fd, buf, blocksize, pos);
-            if (r == 0) {
+            if (r <= 0) {
+	        fprintTimePrefix(stderr);
+	        fprintf(stderr,"*error* I/O error at position %zd\n", pos);
+		ioErrors++;
                 perror(device);
-                exit(1);
+		continue;
             }
             analyse(buf, 0, blocksize, &min, &max, &range);
 
@@ -218,9 +231,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
-    fprintf(stderr, "*info* exiting.\n");
-    fflush(stderr);
+    if (ioErrors) {
+      fprintTimePrefix(stderr);
+      fprintf(stderr,"*error* there were %zd I/O errors\n", ioErrors);
+    }
 
     exit(0);
 }

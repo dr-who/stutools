@@ -78,8 +78,8 @@ verifyPosition(const int fd, const positionType *p, const char *randomBuffer, ch
 
     if (ret == -1) {
         fprintTimePrefix(stderr);
-        fprintf(stderr, "*error* seeking to pos %zd: ", pos);
-        perror("pread");
+        fprintf(stderr, "*error* seeking to position %zd\n", pos);
+	//        perror("pread");
         return -1;
     }
 

@@ -560,7 +560,7 @@ size_t aioMultiplePositions(positionContainer *p,
                     *ioerrors = (*ioerrors) + 1;
                     if (printed++ < 10) {
                         fprintf(stderr,
-                                "*error* AIO failure codes[fd=%d, can seek?=%d]: res=%d (%s) and res2=%d, block %zd, len %d, inFlight %zd, returned %d results\n",
+                                "*error* I/O error. AIO failure codes[fd=%d, can seek?=%d]: res=%d (%s) and res2=%d, position %zd, len %d, inFlight %zd, returned %d results\n",
                                 fd, canseekanywhere(fd), rescode, rescode < 0 ? strerror(-rescode) : "", rescode2, pp->pos,
                                 pp->len, inFlight, ret);
                         //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timeAsDouble() - lastsubmit);
@@ -576,9 +576,11 @@ size_t aioMultiplePositions(positionContainer *p,
 			exit(-1);
 		      }
                     }
-		    pp->submitTime = 0;
-		    pp->finishTime = 0;
-		    //		    pp->action = 'X';
+		    //		    pp->submitTime = 0;
+		    //		    pp->finishTime = 0;
+		    //		    if (pp->action == 'R') pp->action = 'r';
+		    //		    else if (pp->action == 'W') pp->action = 'w';
+		    //		    pp->action = 'E';
                     //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
                 } else { // good IO
                     //	  fprintf(stderr,"---> %d %d\n", rescode, rescode2);
@@ -589,6 +591,8 @@ size_t aioMultiplePositions(positionContainer *p,
                     //	  }
 
                     //fprintf(stderr,"'%c' %d %u\n", pp->action, pp->q, pp->len);
+
+		    // if successful read or write
                     if (pp->action == 'R') {
                         rio++;
                         rlen += pp->len;
@@ -635,6 +639,7 @@ size_t aioMultiplePositions(positionContainer *p,
                         pp->latencies[pppp] = pp->finishTime - pp->submitTime;
                     }
                 } // good IO
+		pp->finishTime = lastreceive; // even with an error
 		pp->success = 1; // the action has completed
                 pp->inFlight = 0;
                 if (fp == stdout) {
