@@ -389,14 +389,15 @@ then
 
 ## Errors in block device
 
-To create a 256 MiB block device.
+To create a 256 MiB block device:
 
  root# modprobe brd rd_nr=1 rd_size=$[256*1024]
  root# dmsetup create errdev0
  0 261144 linear /dev/ram0 0
  261144 5 error
  261149 263139 linear /dev/ram0 261149
-
+ ^D
+ 
  # lsblk -b /dev/mapper/errdev0 
  NAME    MAJ:MIN RM      SIZE RO TYPE MOUNTPOINTS
  errdev0 253:0    0 268435456  0 dm
@@ -408,7 +409,9 @@ To test the device:
 
  spit -f /dev/mapper/errdev0 -c wzs1 -P positions.txt
 
-This displays a error at position 133705728 and doesn't output the positions.txt file due to error.
+This displays a error at position 133705728 and doesn't output the
+positions.txt file due to error and the positions.txt file will be 0
+bytes. To ignore the I/O errors:
 
  spit -f /dev/mapper/errdev0 -c wzs1 -P positions.txt -E
 
