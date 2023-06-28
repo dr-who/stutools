@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
   }
 
   if (origpc->sz == 0) {
-    fprintf(stderr,"*warning* no positions to verify\n");
+    fprintf(stderr,"*error* no positions to verify\n");
     exit(-1);
   }
 
