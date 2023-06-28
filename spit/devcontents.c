@@ -52,9 +52,10 @@ int main(int argc, char *argv[]) {
     int showsha256 = 0;
     float showentropy = 9e9;
     size_t oneposition = 0;
+    size_t showEmpty = 0;
 
     optind = 0;
-    while ((opt = getopt(argc, argv, "hG:g:w:b:f:se:p:")) != -1) {
+    while ((opt = getopt(argc, argv, "hG:g:w:b:f:se:p:z")) != -1) {
         switch (opt) {
 	    case 'h':
 	        device = NULL;
@@ -99,6 +100,9 @@ int main(int argc, char *argv[]) {
                 width = atoi(optarg);
                 fprintf(stderr, "*info* display contents width = %zd\n", width);
                 break;
+	    case 'z':
+	        showEmpty = 1;
+	        break;
             default:
                 exit(1);
                 break;
@@ -126,6 +130,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "   -s        show SHA-256 of each block\n");
         fprintf(stderr, "   -w n      first n bytes per block to display (defaults to %zd)\n", width);
         fprintf(stderr, "   -e val    only print lines when entropy < val\n");
+	fprintf(stderr,"    -z        Show entirely zero/empty blocks\n");
         exit(1);
     }
 
@@ -185,7 +190,7 @@ int main(int argc, char *argv[]) {
                 calc_sha_256(hashresult, (void *) buf, blocksize);
             }
 
-            if (showsha256 || (max > 1)) {
+            if (showsha256 || (max > 1) || showEmpty) {
                 size_t *codedpos = (size_t *) buf;
                 size_t *codedtime = (size_t *) (buf + sizeof(size_t));
                 size_t spit = 0;
