@@ -442,11 +442,7 @@ positionContainer positionContainerMerge(positionContainer *p, const size_t numF
     merged.maxbs = maxbs;
     merged.minbs = minbs;
 
-    for (size_t i = 0; i < p->sz; i++) {
-        p->positions[i].latencies = NULL; // as we have copied them
-    }
     positionContainerCollapse(&merged);
-
 
     return merged;
 }
@@ -1674,13 +1670,13 @@ void positionContainerFree(positionContainer *pc) {
     if (pc->positions) {
         for (size_t i = 0; i < pc->sz; i++) {
             if (pc->positions[i].latencies) {
-                free(pc->positions[i].latencies);
+	        free(pc->positions[i].latencies);
                 pc->positions[i].latencies = NULL;
             }
         }
         free(pc->positions);
     } else {
-        //    fprintf(stderr,"*warning* calling free and already free\n");
+          fprintf(stderr,"*warning* calling free and already free\n");
     }
     pc->positions = NULL;
 }

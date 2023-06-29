@@ -68,17 +68,6 @@ size_t aioMultiplePositions(positionContainer *p,
         fprintf(stderr, "*info* positions %zd, rounds %zd, posIncrement %zd\n", posLimit, rounds, posIncrement);
     }
 
-    if (recordSamples) {
-        fprintf(stderr, "*info* allocating latencies for %d samples at %zd positions\n", recordSamples, sz);
-        for (size_t i = 0; i < sz; i++) {
-            if (p->positions[i].latencies == NULL) {
-                p->positions[i].latencies = malloc(recordSamples * sizeof(float));
-                memset(&p->positions[i].latencies[0], 0, recordSamples * sizeof(float));
-                assert(p->positions[i].latencies);
-            }
-        }
-    }
-
     //  if (byteLimit) fprintf(stderr,"*info* maxbytes %zd\n", byteLimit);
     //  if (posLimit) fprintf(stderr,"*info* maxpositions %zd\n", posLimit);
 

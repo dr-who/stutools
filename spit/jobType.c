@@ -669,6 +669,28 @@ static void *runThread(void *arg) {
     }
 
 
+    int numSamples = 0;
+    if (threadContext->fp != NULL) { // if file is specified and we know the upper limit of samples
+      if (threadContext->POStimes) {
+	numSamples = threadContext->POStimes;
+      } else if (threadContext->LBAtimes) {
+	//	fprintf(stderr,"%zd  %zd ... %zd\n", outerrange, sumOfLens, threadContext->LBAtimes);
+	numSamples = ceil(outerrange * 1.0 / sumOfLens) * threadContext->LBAtimes;
+      }
+    }
+
+    const size_t recordSamples = (threadContext->fp == stdout) ? 0 : numSamples;
+    if (recordSamples) {
+        fprintf(stderr, "*info* allocating latencies for %zd samples at %zd positions\n", recordSamples, threadContext->pos.sz);
+        for (size_t i = 0; i < threadContext->pos.sz; i++) {
+            if (threadContext->pos.positions[i].latencies == NULL) {
+	        threadContext->pos.positions[i].latencies = calloc(recordSamples, sizeof(float));
+                assert(threadContext->pos.positions[i].latencies);
+            }
+        }
+    }
+
+					 
     size_t totalB = 0, ioerrors = 0;
     size_t posStart = 0, posCompleted = 0, posLoops = 0;
 
@@ -683,15 +705,6 @@ static void *runThread(void *arg) {
 
         if (verbose) fprintf(stderr, "*iteration* %zd\n", iteratorCount);
 
-        int numSamples = 0;
-        if (threadContext->fp != NULL) { // if file is specified and we know the upper limit of samples
-            if (threadContext->POStimes) {
-                numSamples = threadContext->POStimes;
-            } else if (threadContext->LBAtimes) {
-                //	fprintf(stderr,"%zd  %zd ... %zd\n", outerrange, sumOfLens, threadContext->LBAtimes);
-                numSamples = ceil(outerrange * 1.0 / sumOfLens) * threadContext->LBAtimes;
-            }
-        }
         // if fp == stdout then it's streaming so you don't need to accumulate
         //    fprintf(stderr,"**** %zd    , limit %zd, \n", posStart, (roundPosLimit - posStart));
         totalB += aioMultiplePositions(&threadContext->pos, threadContext->pos.sz, timeAsDouble() + timeLimit,
@@ -701,7 +714,7 @@ static void *runThread(void *arg) {
                                        (roundPosLimit - (posStart % threadContext->pos.sz)), &posCompleted, threadContext->exitOnErrors, fd,
                                        threadContext->flushEvery, &ioerrors, discard_max_bytes, threadContext->fp,
                                        threadContext->jobdevice, threadContext->posIncrement,
-                                       (threadContext->fp == stdout) ? 0 : numSamples/* true if writing positions */,
+                                       recordSamples/* true if writing positions */,
                                        threadContext->alternateEvery, 0, threadContext->exitTimeout);
 
         if (!externalLoops) break;
@@ -2346,7 +2359,7 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
     if ((savePositions && (savePositions != stdout)) || verify) {
-        positionContainer mergedpc = positionContainerMerge(origpc, num);
+        positionContainer mergedpc = positionContainerMerge(origpc, num); // shallow copies
 
         if (savePositions && (savePositions != stdout)) {
             positionContainerSave(&mergedpc, savePositions, mergedpc.maxbdSize, 0, job);
@@ -2368,17 +2381,19 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
                 exit(1);
             }
         }
-        positionContainerFree(&mergedpc);
+	free(mergedpc.positions); // that's all that was created
     } // if save or verify
 
-    free(origpc);
+    free(origpc); origpc = NULL;
 
     // free
     for (int i = 0; i < num; i++) {
-        positionContainerFree(&threadContext[i].pos);
-        free(threadContext[i].randomBuffer);
-        threadContext[i].randomBuffer = NULL;
+      positionContainerFree(&threadContext[i].pos);
+      free(threadContext[i].randomBuffer);
+      threadContext[i].randomBuffer = NULL;
     }
+
+    
     //    if (threadContext->randomBuffer) {
     //    }
 
