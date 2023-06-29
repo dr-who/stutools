@@ -186,7 +186,7 @@ void latencyFree(latencyType *lat) {
 
 
 void latencyReadGnuplot(latencyType *lat) {
-    double median, three9, four9, five9;
+    double median = 0, three9 = 0, four9 =0, five9=0;
     if (histCount(&lat->histRead)) {
         histSumPercentages(&lat->histRead, &median, &three9, &four9, &five9, 1);
     }

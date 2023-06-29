@@ -425,7 +425,7 @@ static void *runThread(void *arg) {
         char *model = getModel(suffix);
         if (model && threadContext->id == 0) {
             fprintf(stderr, "*info* device: '%s'\n", model);
-            free(model);
+            free(model); model = NULL;
         }
     }
     const int numRequests = getNumRequests(suffix);
@@ -445,7 +445,7 @@ static void *runThread(void *arg) {
     if (threadContext->id == 0) {
         char *sched = getScheduler(suffix);
         fprintf(stderr, "*info* /sys/block/%s/queue/scheduler is '%s'\n", suffix, sched);
-        free(sched);
+        free(sched); sched = NULL;
     }
 
     if (!threadContext->exec && (threadContext->finishSeconds < threadContext->runSeconds)) {
@@ -763,7 +763,9 @@ static void *runThread(void *arg) {
             break;
         }
     }
-    if (suffix) free(suffix);
+    if (suffix) {
+      free(suffix); suffix = NULL;
+    }
 
 
     if (verbose >= 2) {
@@ -1153,13 +1155,13 @@ static void *runThreadTimer(void *arg) {
         {
             char *os = getValue(threadContext->mysqloptions2, "os=");
             fprintf(fpmysql, ", os='%s'", os);
-            if (os) free(os);
+            if (os) {free(os); os = NULL;}
         }
 
         {
             char *version = getValue(threadContext->mysqloptions2, "version=");
             fprintf(fpmysql, ", version='%s'", version);
-            if (version) free(version);
+            if (version) {free(version); version = NULL;}
         }
 
         {
@@ -1168,58 +1170,58 @@ static void *runThreadTimer(void *arg) {
                 value = hostname();
             }
             fprintf(fpmysql, ", machine='%s'", value);
-            if (value) free(value);
+            if (value) {free(value); value = NULL;}
         }
 
         {
             char *value = getValue(threadContext->mysqloptions2, "blockdevice=");
             fprintf(fpmysql, ", blockdevice='%s'", value);
-            if (value) free(value);
+            if (value) {free(value); value = NULL;}
         }
 
         {
             char *value = getValue(threadContext->mysqloptions, "iotype=");
             fprintf(fpmysql, ", iotype='%s'", value);
-            if (value) free(value);
+            if (value) {free(value); value = NULL;}
         }
 
 
         {
             char *value = getValue(threadContext->mysqloptions, "precondition=");
             fprintf(fpmysql, ", precondition='%s'", value);
-            if (value) free(value);
+            if (value) {free(value); value = NULL;}
         }
 
 
         {
             char *value = getValue(threadContext->mysqloptions, "opsize=");
             fprintf(fpmysql, ", opsize='%s'", value);
-            if (value) free(value);
+            if (value) {free(value); value = NULL;}
         }
 
         {
             char *value = getValue(threadContext->mysqloptions, "iopattern=");
             fprintf(fpmysql, ", iopattern='%s'", value);
-            if (value) free(value);
+            if (value) {free(value); value = NULL;}
         }
 
 
         {
             char *value = getValue(threadContext->mysqloptions, "qd=");
             fprintf(fpmysql, ", qd='%s'", value);
-            if (value) free(value);
+            if (value) {free(value); value = NULL;}
         }
 
         {
             char *value = getValue(threadContext->mysqloptions, "devicestate=");
             fprintf(fpmysql, ", devicestate='%s'", value);
-            if (value) free(value);
+            if (value) {free(value); value = NULL;}
         }
 
         {
             char *value = getValue(threadContext->mysqloptions, "degraded=");
             fprintf(fpmysql, ", degraded='%s'", value);
-            if (value) free(value);
+            if (value) {free(value); value = NULL;}
         }
 
         {
@@ -2374,11 +2376,11 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     // free
     for (int i = 0; i < num; i++) {
         positionContainerFree(&threadContext[i].pos);
+        free(threadContext[i].randomBuffer);
+        threadContext[i].randomBuffer = NULL;
     }
-    if (threadContext->randomBuffer) {
-        free(threadContext->randomBuffer);
-        threadContext->randomBuffer = NULL;
-    }
+    //    if (threadContext->randomBuffer) {
+    //    }
 
 
     free(go);
