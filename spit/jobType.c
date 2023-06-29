@@ -880,6 +880,7 @@ static void *runThreadTimer(void *arg) {
             fprintf(fp, "set yrange [ymin:ymax]\n");
             fprintf(fp,
                     "plot for [i=10:2:-1] '<~/stutools/utils/dist -p 1 -c 3 <out' using 1:i with filledcurves x1 linestyle i title columnheader(i)\n");
+	    fclose(fp);
         }
 
         sprintf(s, "%s_w.gnu", threadContext->benchmarkName);
@@ -899,6 +900,7 @@ static void *runThreadTimer(void *arg) {
             fprintf(fp, "set yrange [ymin:ymax]\n");
             fprintf(fp,
                     "plot for [i=10:2:-1] '<~/stutools/utils/dist -p 1 -c 5 <out' using 1:i with filledcurves x1 linestyle i title columnheader(i)\n");
+	    fclose(fp);
         }
 
         // then mysql
@@ -1180,6 +1182,7 @@ static void *runThreadTimer(void *arg) {
         {
             char *value = getValue(threadContext->mysqloptions2, "machine=");
             if (strcmp(value, "NULL") == 0) {
+	       if(value) free(value);
                 value = hostname();
             }
             fprintf(fpmysql, ", machine='%s'", value);
