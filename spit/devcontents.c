@@ -53,9 +53,10 @@ int main(int argc, char *argv[]) {
     float showentropy = 9e9;
     size_t oneposition = 0;
     size_t showEmpty = 0;
+    size_t scale = 1;
 
     optind = 0;
-    while ((opt = getopt(argc, argv, "hG:g:w:b:f:se:p:z")) != -1) {
+    while ((opt = getopt(argc, argv, "hcG:g:w:b:f:s:e:p:z")) != -1) {
         switch (opt) {
 	    case 'h':
 	        device = NULL;
@@ -65,10 +66,24 @@ int main(int argc, char *argv[]) {
                 break;
 	    case 'p':
 	        oneposition = atol(optarg);
+		if (oneposition == 0) {
+		  if (strcmp(optarg, "0") == 0) {
+		    // actually zero
+		  } else {
+		    sscanf(optarg, "%lx", &oneposition);
+		  }
+		}
+		oneposition = oneposition * scale;
 		startAt = alignedNumber(oneposition, blocksize);
 		finishAt = alignedNumber(startAt + blocksize, blocksize);
-		fprintf(stderr,"*info* position %zd\n", oneposition);
+		fprintf(stderr,"*info* position %zd (%.3lf TB) (scale %zd)\n", oneposition, TOTB(oneposition), scale);
 	        break;
+	    case 's':
+	        scale = atol(optarg);
+		if (scale < 1) {
+		  scale = 1;
+		}
+		break;
             case 'e':
                 showentropy = atof(optarg);
                 break;
@@ -93,7 +108,7 @@ int main(int argc, char *argv[]) {
                 }
                 //      fprintf(stderr,"*info* start at %zd (%.4lf GiB, %.3lf MiB)\n", startAt, TOGiB(startAt), TOMiB(startAt));
                 break;
-            case 's':
+            case 'c':
                 showsha256 = 1;
                 break;
             case 'w':
@@ -122,14 +137,15 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "\nOptions:\n");
         fprintf(stderr, "   -f dev    specify the device\n");
         fprintf(stderr, "   -b n      the block size step (defaults to %zd bytes)\n", blocksize);
-        fprintf(stderr, "   -p pos    dump a single position\n");
+        fprintf(stderr, "   -c        show checksum/SHA-256 of each block\n");
+        fprintf(stderr, "   -e val    only print lines when entropy < val\n");
         fprintf(stderr, "   -g n      starting at n GiB (defaults byte 0)\n");
         fprintf(stderr, "   -g 16M    starting at 16 MiB\n");
         fprintf(stderr, "   -G n      finishing at n GiB (defaults to 1 GiB)\n");
         fprintf(stderr, "   -G 32M    finishing at 32 MiB\n");
-        fprintf(stderr, "   -s        show SHA-256 of each block\n");
+	fprintf(stderr, "   -s scale  scale up, e.g. -s 512 for sectors (use before -p)\n");
+        fprintf(stderr, "   -p pos    dump a single position (dec or 0x hex)\n");
         fprintf(stderr, "   -w n      first n bytes per block to display (defaults to %zd)\n", width);
-        fprintf(stderr, "   -e val    only print lines when entropy < val\n");
 	fprintf(stderr,"    -z        Show entirely zero/empty blocks\n");
         exit(1);
     }
