@@ -143,7 +143,9 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr, "   -s scale  scale up, e.g. -s 512 for sectors (use before -p)\n");
         fprintf(stderr, "   -p pos    dump a single position (dec or 0x hex)\n");
         fprintf(stderr, "   -w n      first n bytes per block to display (defaults to %zd)\n", width);
-	fprintf(stderr,"    -z        Show entirely zero/empty blocks\n");
+	fprintf(stderr, "    -z        Show entirely zero/empty blocks\n");
+	fprintf(stderr, "\nExamples:\n");
+	fprintf(stderr, "   devcontents -f /dev/device -s 512 -p 0x00192afe\n");
         exit(1);
     }
 
