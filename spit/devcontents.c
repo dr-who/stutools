@@ -67,15 +67,17 @@ int main(int argc, char *argv[]) {
 	    case 'p':
 	      {}
 	        char *endpr = NULL;
+		int hex = 0;
 	        oneposition = strtoul(optarg, &endpr, 10);
 		//		fprintf(stderr,"'%zd' '%s' '%c'\n", oneposition, endpr, *endpr);
 		if (*endpr != 0) { // if anything trailing
 		  oneposition = strtoul(optarg, &endpr, 16);
+		  hex = 1;
 		}
 		oneposition = oneposition * scale;
 		startAt = alignedNumber(oneposition, blocksize);
 		finishAt = alignedNumber(startAt + blocksize, blocksize);
-		fprintf(stderr,"*info* position %zd (%.3lf TB) (scale %zd)\n", oneposition, TOTB(oneposition), scale);
+		fprintf(stderr,"*info* %s position %zd (%.3lf TB) (scale %zd)\n", hex ? "hex" : "decimal", oneposition, TOTB(oneposition), scale);
 	        break;
 	    case 's':
 	        scale = atol(optarg);
