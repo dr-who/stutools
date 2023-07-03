@@ -127,9 +127,6 @@ int main(int argc, char *argv[]) {
     // align the numbers to the blocksize
     startAt = alignedNumber(startAt, blocksize);
     finishAt = alignedNumber(finishAt, blocksize);
-    if (finishAt < startAt) {
-        fprintf(stderr, "*error* finish is less than the start position\n");
-    }
 
     if (!device) {
         fprintf(stderr, "Usage:\n  devcontents -f /dev/device [options...)\n");
@@ -158,8 +155,14 @@ int main(int argc, char *argv[]) {
     if (fd < 0) {
         perror(device);
     } else {
-        const size_t blockDevSize = blockDeviceSizeFromFD(fd);
-	if (blockDevSize < finishAt) finishAt = blockDevSize; // don't finish past the end of the device
+      //        const size_t blockDevSize = blockDeviceSizeFromFD(fd);
+	//	if (blockDevSize < finishAt) finishAt = blockDevSize; // don't finish past the end of the device
+
+	if (finishAt < startAt) {
+	  fprintf(stderr, "*error* finish is less than the start position\n");
+	  exit(1);
+	}
+
 
 	fprintf(stderr, "*info* aligned start:  0x%lx (%zd, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt),
 		TOGiB(startAt));
