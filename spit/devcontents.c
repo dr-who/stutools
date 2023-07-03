@@ -229,8 +229,9 @@ int main(int argc, char *argv[]) {
                 memcpy(pbuf, buf, width);
                 pbuf[width] = 0;
                 for (size_t j = 0; j < width; j++) {
-                    if (pbuf[j] < 32) pbuf[j] = '_';
-                    if (pbuf[j] >= 127) pbuf[j] = ' ';
+                    if (pbuf[j] >= 128) pbuf[j] -= 128;
+                    if (pbuf[j] == 0) pbuf[j] = '_';
+                    if (pbuf[j] < 32) pbuf[j] = '^';
                 }
                 if (showsha256) {
                     for (size_t j = 0; j < SIZE_OF_SHA_256_HASH; j++) {
