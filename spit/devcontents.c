@@ -158,7 +158,7 @@ int main(int argc, char *argv[]) {
     if (fd < 0) {
         perror(device);
     } else {
-      //        const size_t blockDevSize = blockDeviceSizeFromFD(fd);
+      const size_t blockDevSize = blockDeviceSizeFromFD(fd);
 	//	if (blockDevSize < finishAt) finishAt = blockDevSize; // don't finish past the end of the device
 
 	if (finishAt < startAt) {
@@ -200,11 +200,16 @@ int main(int argc, char *argv[]) {
             int min = 0, max = 0, range = 0;
             int r = pread(fd, buf, blocksize, pos);
             if (r <= 0) {
-	        fprintTimePrefix(stderr);
-	        fprintf(stderr,"*error* I/O error at position %zd\n", pos);
-		ioErrors++;
-                perror(device);
-		continue;
+	      if (pos >= blockDevSize) {
+		fprintf(stderr,"*info* reached end of device\n");
+		break;
+	      }
+	      
+	      fprintTimePrefix(stderr);
+	      fprintf(stderr,"*error* I/O error at position %zd\n", pos);
+	      ioErrors++;
+	      perror(device);
+	      continue;
             }
             analyse(buf, 0, blocksize, &min, &max, &range);
 
