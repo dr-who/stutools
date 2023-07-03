@@ -65,13 +65,12 @@ int main(int argc, char *argv[]) {
                 blocksize = alignedNumber(atoi(optarg), 512);
                 break;
 	    case 'p':
-	        oneposition = atol(optarg);
-		if (oneposition == 0) {
-		  if (strcmp(optarg, "0") == 0) {
-		    // actually zero
-		  } else {
-		    sscanf(optarg, "%lx", &oneposition);
-		  }
+	      {}
+	        char *endpr = NULL;
+	        oneposition = strtoul(optarg, &endpr, 10);
+		//		fprintf(stderr,"'%zd' '%s' '%c'\n", oneposition, endpr, *endpr);
+		if (*endpr != 0) { // if anything trailing
+		  oneposition = strtoul(optarg, &endpr, 16);
 		}
 		oneposition = oneposition * scale;
 		startAt = alignedNumber(oneposition, blocksize);
