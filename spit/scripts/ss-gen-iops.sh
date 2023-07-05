@@ -5,7 +5,9 @@ DEV=$1
 if [ "$DEV" = "" ]; then echo missing device; exit 1; fi
 
 SPIT=../../spit
-TIME=2
+
+#ignores the first number
+TIME=6
 
 mkdir data-ss-iops
 cd data-ss-iops

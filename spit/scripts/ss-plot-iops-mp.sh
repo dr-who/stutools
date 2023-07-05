@@ -4,7 +4,7 @@ for a in r rwwwwwwwwwwwwwwwwwww rrrrrrrwwwwwwwwwwwww rw rrrrrrrrrrrrrwwwwwww rrr
 do
     for k in 4 8 16 32 64 1024
     do
-	cat data-ss-iops/bb-${a}-*-${k} | tail -n 60 | awk '{print $4 + $6}' | ../stat median | awk -v b=${k} '{print b, $1}' 
+	cat data-ss-iops/bb-${a}-*-${k} | tail -n +2 | awk '{print $4 + $6}' | ../stat median | awk -v b=${k} '{print b, $1}' 
     done > iops_mp_data.${a}
 done 
 

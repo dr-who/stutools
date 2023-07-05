@@ -61,25 +61,29 @@ int main(int argc, char *argv[]) {
         }
         fprintf(stderr, "*info* stat - N: %zd Mean: %.4lf\n", nlN(&first), nlMean(&first));
     } else {
-        if (strcmp(argv[1], "mean") == 0) fprintf(stdout, "%lf\n", nlMean(&first));
-        else if (strcmp(argv[1], "median") == 0) fprintf(stdout, "%lf\n", nlMedian(&first));
-        else if (strcmp(argv[1], "min") == 0) fprintf(stdout, "%lf\n", nlMin(&first));
-        else if (strcmp(argv[1], "max") == 0) fprintf(stdout, "%lf\n", nlMax(&first));
-        else if (strcmp(argv[1], "n") == 0) fprintf(stdout, "%zd\n", nlN(&first));
-        else if (strcmp(argv[1], "sd") == 0) fprintf(stdout, "%lf\n", nlSD(&first));
-        else if (strcmp(argv[1], "sem") == 0) fprintf(stdout, "%lf\n", nlSEM(&first));
-        else if (strcmp(argv[1], "q25") == 0) fprintf(stdout, "%lf\n", nlSortedPos(&first, 0.25));
-        else if (strcmp(argv[1], "q75") == 0) fprintf(stdout, "%lf\n", nlSortedPos(&first, 0.75));
-        else if (argv[1][0] == 'q') {
-            float qq = atof(argv[1] + 1) / 100;
+        for (int n = 1; n < argc; n++) {
+	  if (n > 1) fprintf(stdout,"\t");
+	  if (strcmp(argv[n], "mean") == 0) fprintf(stdout, "%lf", nlMean(&first));
+	  else if (strcmp(argv[n], "median") == 0) fprintf(stdout, "%lf", nlMedian(&first));
+	  else if (strcmp(argv[n], "min") == 0) fprintf(stdout, "%lf", nlMin(&first));
+	  else if (strcmp(argv[n], "max") == 0) fprintf(stdout, "%lf", nlMax(&first));
+	  else if (strcmp(argv[n], "n") == 0) fprintf(stdout, "%zd", nlN(&first));
+	  else if (strcmp(argv[n], "sd") == 0) fprintf(stdout, "%lf", nlSD(&first));
+	  else if (strcmp(argv[n], "sem") == 0) fprintf(stdout, "%lf", nlSEM(&first));
+	  else if (strcmp(argv[n], "q25") == 0) fprintf(stdout, "%lf", nlSortedPos(&first, 0.25));
+	  else if (strcmp(argv[n], "q75") == 0) fprintf(stdout, "%lf", nlSortedPos(&first, 0.75));
+	  else if (argv[n][0] == 'q') {
+            float qq = atof(argv[n] + 1) / 100;
             if (qq < 0) qq = -1;
             if (qq >= 1) qq = -1;
-            fprintf(stdout, "%lf\n", nlSortedPos(&first, qq));
-        }
-        else {
-            fprintf(stderr, "*error* unknown command '%s'\n", argv[1]);
+            fprintf(stdout, "%lf", nlSortedPos(&first, qq));
+	  }
+	  else {
+            fprintf(stderr, "*error* unknown command '%s'\n", argv[n]);
             exit(1);
-        }
+	  }
+	}
+	fprintf(stdout,"\n");
     }
 
     free(line);

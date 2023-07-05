@@ -28,7 +28,7 @@ echo == nr_requests ${MAXNR} ==
 
 export MAXIOPS=$(tail -n +3 maxspeed | gawk '{x+=$4} END {print int(1.5*x/NR)}')
 
-export STEPS=$(echo $MAXIOPS | awk '{print int($1*1.0/40)}')
+export STEPS=$(echo $MAXIOPS | awk '{print int($1*1.0/20)}')
 echo === $MODEL - processing block device $TESTDEVICE in steps of $STEPS to $MAXIOPS
 
 
@@ -44,7 +44,7 @@ echo === $START $STEPS ====
 while [ $START -le $MAXIOPS ]
 do
     echo === $START ====
-    ./spit -f /dev/${TESTDEVICE} -c rs0q${MAXNR}k${BLOCKSIZEK}S${START} -B ${TEMPDATA}/out.${START} -P ${TEMPDATA}/pos.${START}
+    ./spit -f /dev/${TESTDEVICE} -c rs0q${MAXNR}k${BLOCKSIZEK}S${START} -B ${TEMPDATA}/out.${START} -P ${TEMPDATA}/pos.${START} -t 10
 
     START=$(echo $START $STEPS | awk '{print $1+$2}')
 
@@ -55,20 +55,23 @@ START=$STEPS
 while [ $START -le $MAXIOPS ]
 do
     echo == generate $START ====
-    cat ${TEMPDATA}/pos.${START} | tail -n +2 | awk '{print 1000.0*$14}' | ./stat | awk -v s=${START} '{print s,$8,$6,$10}' | tail -n 1 >> IOPSvsLatency.txt
+    cat ${TEMPDATA}/pos.${START} | tail -n +2 | awk '{print 1000.0*$14}' | ./stat median q5 q95 | awk -v s=${START} '{print s,$1,$2,$3}' | tail -n 1 >> IOPSvsLatency.txt
     cat ${TEMPDATA}/out.${START} | awk -v s=${START} '{x+=$4} END {print s,1.0*x/NR}' >> IOPSvsLatency-qd.txt
 
     START=$(echo $START $STEPS | awk '{print $1+$2}')
 
 done
 
-MIN=$(cat IOPSvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat  | awk '{print $4}')
-MAX=$(cat IOPSvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat  | awk '{print $12}')
+MIN=$(cat IOPSvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat min)
+MAX=$(cat IOPSvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat max)
 
-echo "set xlabel 'Target I/O Operations per Second (IOPS)'" > IOPSvsLatency.gnu
+echo "set term svg" > IOPSvsLatency.gnu
+echo "set ytics nomirror" >> IOPSvsLatency.gnu
+echo "set output 'IOPSvsLatency.svg'" >> IOPSvsLatency.gnu
+echo "set xlabel 'Target IOPS'" >> IOPSvsLatency.gnu
 echo "set ylabel 'Average latency (ms)'" >> IOPSvsLatency.gnu
-echo "set y2label 'Achieved I/O Operations per Second (IOPS)'" >> IOPSvsLatency.gnu
-echo "set title 'Random read ${BLOCKSIZEK}KiB operations - ${MODEL}'" >> IOPSvsLatency.gnu
+echo "set y2label 'Achieved IOPS'" >> IOPSvsLatency.gnu
+echo "set title 'Random read ${BLOCKSIZEK}KiB operations'" >> IOPSvsLatency.gnu
 echo "set ytics out" >> IOPSvsLatency.gnu
 echo "set xtics out" >> IOPSvsLatency.gnu
 echo "set xrange [0:${MAXIOPS}]" >> IOPSvsLatency.gnu
@@ -77,5 +80,5 @@ echo "set grid" >> IOPSvsLatency.gnu
 echo "set y2tics out" >> IOPSvsLatency.gnu
 echo "set y2range [0:${MAXIOPS}]" >> IOPSvsLatency.gnu
 echo "set key outside top center horiz" >> IOPSvsLatency.gnu
-echo "plot  'IOPSvsLatency.txt' with yerror title 'Latency s.d. (ms)', 'IOPSvsLatency.txt' using 1:2 with lines title 'Mean latency (ms)', 'IOPSvsLatency-qd.txt' using 1:2 axes x1y2 with lines title 'Achieved IOPS'" >> IOPSvsLatency.gnu
+echo "plot  'IOPSvsLatency.txt' with yerror title 'Latency 5-95% (ms)', 'IOPSvsLatency.txt' using 1:2 with lines title 'Median latency (ms)', 'IOPSvsLatency-qd.txt' using 1:2 axes x1y2 with lines title 'Achieved IOPS'" >> IOPSvsLatency.gnu
 

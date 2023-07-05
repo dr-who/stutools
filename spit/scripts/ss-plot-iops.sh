@@ -7,7 +7,7 @@ do
     do
 	for r in data-ss-iops/bb-${a}-*-${k}
 	do
-	    cat $r | tail -n 60 | awk '{print $5}' | ../stat median
+	    cat $r | tail -n +2 | awk '{print $4+$6}' | ../stat median
 	done | awk '{print NR, $1}' > bs_${k}
     done 
 done

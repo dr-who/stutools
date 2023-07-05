@@ -28,27 +28,27 @@ export MAXNR=$(cat /sys/block/${TESTDEVICE}/queue/nr_requests)
 
 echo == nr_requests ${MAXNR} ==
 
-STEPS=2
+STEPS=5
 
 START=0
-NEXT=1
+GAP=1
 
 /bin/rm -f DiametervsSpeed.txt
 
 while [ $START -le 100 ]
 do
-    echo === $START $NEXT ===
-    
-    if [ $START -eq 100 ]; then START=99; NEXT=100; fi
-    
-    ./spit -c zrs1q4k1024 -f /dev/${TESTDEVICE} -B out.${START} -P pos.${START} -E -G ${START}-${NEXT} -t 20
+    echo === $START $GAP  step $STEPS ===
 
-    MEDIAN=$(cat out.${START} | tail -n +3 | awk '{print $4}' | ./stat | awk '{print $8, $6, $10;}')
+    if [ $START -eq 100 ]; then START=99; fi
+
+    NEXT=$(echo $START $GAP| awk '{n=$1+$2; if (n>100) n=100;} END {print n}')
+    
+    ./spit -c zrs1q4k1024 -f /dev/${TESTDEVICE} -B out.${START} -P pos.${START} -G ${START}per-${NEXT}per -t 5
+
+    MEDIAN=$(cat out.${START} | tail -n +2 | awk '{print $4}' | ./stat median min max)
     echo $START $MEDIAN >> DiametervsSpeed.txt
     
     START=$(echo $START $STEPS | awk '{print $1+$2}')
-    NEXT=$(echo $START $STEPS $NEXT| awk '{print $1+$2+$3}')
-
 done
 
 
