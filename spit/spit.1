@@ -2,12 +2,12 @@
 .\"     Title: spit
 .\"    Author: Stuart Inglis, Ph.D.
 .\" Generator: Asciidoctor 2.0.16
-.\"      Date: 2023-06-28
+.\"      Date: 2023-07-05
 .\"    Manual: spit manual
 .\"    Source: spit 1.2
 .\"  Language: English
 .\"
-.TH "SPIT" "1" "2023-06-28" "spit 1.2" "spit manual"
+.TH "SPIT" "1" "2023-07-05" "spit 1.2" "spit manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -624,124 +624,285 @@ Upper case \fBX\fP. Instead of time based, iterate until the positions have been
 .sp
 \fBrs1k64A4q1\fP sequential reads, 64 KiB size, resetting position every 4 MiB.
 .SH "BENCHMARKING"
-.SS "Sequential reads / writes"
 .sp
-In the following commands, replace \fBr\fP with \fBw\fP for writes.
+Benchmarking is a dark art and everything needs to be just right in
+order to replicate results and more importantly for them to be
+entirely believable and accurate.
+.sp
+Common performance characteristics of devices including a small burst
+performance, often due to caches. Followed by a period of first
+time/initial performance. Then finally what is usually considered the
+"steady state" performance, after a device has been fully written to.
+.sp
+Between tests it\(cqs important to restore the device to a known empty state.
+.sp
+To enable steady state tests to be replicable, the precondition \f(CR\-p\fP
+option is used to write a known pattern before any benchmarks/tests
+begin.
+.SH "BLOCK DEVICE BENCHMARKING"
+.sp
+For block devices the categories are often the following:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Throughput tests
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+IOPS tests
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Latency tests
+.RE
+.sp
+For each category they can be enumerated over
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Block size
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Queue depth/IO in flight
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Number of threads
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Block device same operation contention, or independent ranges
+.RE
+.sp
+For each of these categories the devices can be tested:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Locally/directly on the host
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Over a network via a network protocol: e.g. iSCSI, RoCE, NVMeoF
+.RE
+.sp
+\f(CRspit\fP has options for each of these use cases.
+.SS "Throughput tests: reads / writes"
+.sp
+In the following commands, replace \fBr\fP with \fBw\fP for writes. Performs a
+single thread/job that performs reads, with 64 KiB read:
 .sp
 \fBspit \-f /dev/device \-c rk64\fP
 .sp
-.if n .RS 4
-.nf
-.fam C
-Performs a single thread/job that performs reads, with 64 KiB reads
-.fam
-.fi
-.if n .RE
+Create 32 threads, with a single contigous read inside each thread:
 .sp
 \fBspit \-f /dev/device \-c rk64 \-j 32\fP
 .sp
-.if n .RS 4
-.nf
-.fam C
-Create 32 threads, with a single contigous read inside each thread
-.fam
-.fi
-.if n .RE
+Create a single threads, break the device into 32 contiguous regions:
 .sp
 \fBspit \-f /dev/device \-c r32k64\fP
+.SS "IOPS tests"
 .sp
-.if n .RS 4
-.nf
-.fam C
-Create a single threads, break the device into 32 contiguous regions
-.fam
-.fi
-.if n .RE
-.SS "Random read / writes"
+Performs a single thread/job, defaulting to 64 IOs in flight, random 4KiB reads:
 .sp
 \fBspit \-f /dev/device \-c rs0\fP
 .sp
-.if n .RS 4
-.nf
-.fam C
-Performs a single thread/job, random 4KiB reads
-.fam
-.fi
-.if n .RE
+Creates 32 threads, reads random 4KiB reads, each with 64 threads:
 .sp
-\fBspit \-f /dev/device \-c rs0 \-j 32\fP
+\fBspit \-f /dev/device \-c rs0q64 \-j 32\fP
 .sp
-.if n .RS 4
-.nf
-.fam C
-Creates 32 threads, reads random 4KiB reads
-.fam
-.fi
-.if n .RE
+Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
+For devices with cache these operations should be cached.
 .sp
 \fBspit \-f /dev/device \-c rs0 \-j 32 \-G1\fP
 .sp
-.if n .RS 4
-.nf
-.fam C
-Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
-For devices with cache these operations should be cached.
-.fam
-.fi
-.if n .RE
+Read from the first 10,000 positions (4 KiB) blocks in a device.
 .sp
 \fBspit \-f /dev/device \-c rP10000\fP
+.SS "Latency tests"
 .sp
-.if n .RS 4
-.nf
-.fam C
-Read from the first 10,000 positions (4 KiB) blocks in a device.
-.fam
-.fi
-.if n .RE
+Latency tests can be viewed as a special case of the IOPS tests, but with only a single I/O in flight.
+.sp
+\fBspit \-f /dev/device \-c ws0q1\fP
 .SS "Mixing reads/writes"
+.sp
+Two threads, one reading/write metadata to 10,000 positions. Another
+thread performing sequential reads.
 .sp
 \fBspit \-f /dev/device \-c mP10000 \-c rk64\fP
 .sp
-.if n .RS 4
-.nf
-.fam C
-Two threads, one reading/write metadata to 10,000 positions. Another
-thread performing sequential reads.
-.fam
-.fi
-.if n .RE
+Two threads, both sequential, one reading, one writing.
 .sp
 \fBspit \-f /dev/device \-c w \-c r\fP
 .sp
-.if n .RS 4
-.nf
-.fam C
-Two threads, both sequential, one reading, one writing.
-.fam
-.fi
-.if n .RE
+Two threads, both random, one reading, one writing.
 .sp
 \fBspit \-f /dev/device \-c ws0 \-c rs0\fP
 .sp
-.if n .RS 4
-.nf
-.fam C
-Two threads, both random, one reading, one writing.
-.fam
-.fi
-.if n .RE
-.sp
-\fBspit \-f /dev/device \-c ws1G0\-100 \-c "w s0 G100\-200"\fP
-.sp
-.if n .RS 4
-.nf
-.fam C
 On a 200 GiB device perform linear writes in the first half and
 random writes on the second half.
-.fam
-.fi
-.if n .RE
+.sp
+\fBspit \-f /dev/device \-c ws1G0\-100 \-c "w s0 G100\-200"\fP
+.SH "FILE SYSTEM BENCHMARKING"
+.sp
+For file systems the categories are a superset of the block devices tests:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Throughput tests
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+IOPS tests
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Latency tests
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Create/delete files
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Create/delete file systems
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Directory performance vs. number of files in a directory
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+Writing/reading with/without fallocate
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+O_DIRECT vs. page\-cache operations
+.RE
+.SS "Using mount points"
+.sp
+Use the \f(CR\-F\fP option instead of \f(CR\-f\fP to specify a mount point/file
+prefix instead of a block device. e.g. the following command creates
+100 threads, each writing a 1GiB file. prefix.0001... and upwards.
+.sp
+\fBspit \-F /mnt/dir/prefix \-c wzs1k1024j100 \-G 1GiB\fP
+.sp
+The directory specific commands are not supported by \f(CRspit\fP at this time.
 .SH "FILE FORMATS"
 .SS "Position format (\-P output)"
 .sp

@@ -306,62 +306,126 @@ The command options are described below:
 
 == Benchmarking
 
-=== Sequential reads / writes
+Benchmarking is a dark art and everything needs to be just right in
+order to replicate results and more importantly for them to be
+entirely believable and accurate.
 
-In the following commands, replace *r* with *w* for writes.
+Common performance characteristics of devices including a small burst
+performance, often due to caches. Followed by a period of first
+time/initial performance. Then finally what is usually considered the
+"steady state" performance, after a device has been fully written to.
+
+Between tests it's important to restore the device to a known empty state.
+
+To enable steady state tests to be replicable, the precondition `-p`
+option is used to write a known pattern before any benchmarks/tests
+begin.
+
+== Block device benchmarking
+
+For block devices the categories are often the following:
+
+* Throughput tests
+* IOPS tests
+* Latency tests
+
+For each category they can be enumerated over
+
+* Block size
+* Queue depth/IO in flight
+* Number of threads
+* Block device same operation contention, or independent ranges
+
+For each of these categories the devices can be tested:
+
+* Locally/directly on the host
+* Over a network via a network protocol: e.g. iSCSI, RoCE, NVMeoF
+
+`spit` has options for each of these use cases.
+
+=== Throughput tests: reads / writes
+
+In the following commands, replace *r* with *w* for writes. Performs a
+single thread/job that performs reads, with 64 KiB read:
 
 *spit -f /dev/device -c rk64*
 
-  Performs a single thread/job that performs reads, with 64 KiB reads
+Create 32 threads, with a single contigous read inside each thread:
 
 *spit -f /dev/device -c rk64 -j 32*
 
-  Create 32 threads, with a single contigous read inside each thread
+Create a single threads, break the device into 32 contiguous regions:
 
 *spit -f /dev/device -c r32k64*
 
-  Create a single threads, break the device into 32 contiguous regions
+=== IOPS tests
 
-
-=== Random read / writes
+Performs a single thread/job, defaulting to 64 IOs in flight, random 4KiB reads:
 
 *spit -f /dev/device -c rs0*
 
-  Performs a single thread/job, random 4KiB reads
+Creates 32 threads, reads random 4KiB reads, each with 64 threads:
 
-*spit -f /dev/device -c rs0 -j 32*
+*spit -f /dev/device -c rs0q64 -j 32*
 
-  Creates 32 threads, reads random 4KiB reads
+Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
+For devices with cache these operations should be cached.
 
 *spit -f /dev/device -c rs0 -j 32 -G1*
 
-  Creates 32 threads, reads randomly 4KiB reads, limited to first 1 GiB.
-  For devices with cache these operations should be cached.
+Read from the first 10,000 positions (4 KiB) blocks in a device.
 
 *spit -f /dev/device -c rP10000*
 
-  Read from the first 10,000 positions (4 KiB) blocks in a device.
+=== Latency tests
 
+Latency tests can be viewed as a special case of the IOPS tests, but with only a single I/O in flight.
+
+*spit -f /dev/device -c ws0q1*
 
 === Mixing reads/writes
 
+Two threads, one reading/write metadata to 10,000 positions. Another
+thread performing sequential reads.
+  
 *spit -f /dev/device -c mP10000 -c rk64*
 
-  Two threads, one reading/write metadata to 10,000 positions. Another
-  thread performing sequential reads.
+Two threads, both sequential, one reading, one writing.
 
 *spit -f /dev/device -c w -c r*
 
-  Two threads, both sequential, one reading, one writing.
+Two threads, both random, one reading, one writing.  
 
 *spit -f /dev/device -c ws0 -c rs0*
 
-  Two threads, both random, one reading, one writing.
-
+On a 200 GiB device perform linear writes in the first half and
+random writes on the second half.
+  
 *spit -f /dev/device -c ws1G0-100 -c "w s0 G100-200"*
 
-  On a 200 GiB device perform linear writes in the first half and
-  random writes on the second half.
+== File system benchmarking
+
+For file systems the categories are a superset of the block devices tests:
+
+* Throughput tests
+* IOPS tests
+* Latency tests
+
+* Create/delete files
+* Create/delete file systems
+* Directory performance vs. number of files in a directory
+* Writing/reading with/without fallocate
+* O_DIRECT vs. page-cache operations
+
+=== Using mount points 
+
+Use the `-F` option instead of `-f` to specify a mount point/file
+prefix instead of a block device. e.g. the following command creates
+100 threads, each writing a 1GiB file. prefix.0001... and upwards.
+
+*spit -F /mnt/dir/prefix -c wzs1k1024j100 -G 1GiB*
+
+The directory specific commands are not supported by `spit` at this time.
 
 == File Formats
 
