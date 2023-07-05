@@ -5,7 +5,7 @@ DEV=$1
 if [ "$DEV" = "" ]; then echo missing device; exit 1; fi
 
 SPIT=../../spit
-TIME=20
+TIME=2
 
 mkdir data-ss-iops
 cd data-ss-iops
@@ -25,7 +25,7 @@ do
 	do
 	    echo =============== $r $k
 	    sync
-	${SPIT} -f ${DEV} -c ${a}s0k${k}q16 -t${TIME} -B bb-$a-$r-$k
+	${SPIT} -f ${DEV} -c ${a}s0k${k}q128 -t${TIME} -B bb-$a-$r-$k
 	done
     done
 done
