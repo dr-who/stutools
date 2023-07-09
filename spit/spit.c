@@ -312,12 +312,27 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		    }
 
 		    // now open
-		    savePositions = fopen(optarg, "wt");
-                    if (!savePositions) {
+		    if (isBlockDevice(optarg) == 0) { // not a block device
+		      int uret = unlink(optarg);
+		      if (uret != 0) {
+			perror(optarg);
+			exit(1);
+		      }
+		    }
+		    
+		    int fd = open(optarg, O_WRONLY | O_EXCL | O_CREAT, S_IRUSR | S_IWUSR);
+		    if (fd > 0) {
+		      savePositions = fdopen(fd, "wt");
+		      //		      savePositions = fopen(optarg, "wtx");
+		      if (!savePositions) {
                         perror(optarg);
                         exit(-1);
-                    }
-                    fprintf(stderr, "*info* savePositions set to '%s'\n", optarg);
+		      }
+		      fprintf(stderr, "*info* savePositions set to '%s'\n", optarg);
+		    } else {
+		      perror(optarg);
+		      exit(1);
+		    }
 
 
                 }
