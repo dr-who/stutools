@@ -302,24 +302,19 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                     // backup first
                     backupExistingFile(optarg, keepversions);
 
-		    if (fileExists(optarg) && (isBlockDevice(optarg)==0)) {
-		      int uret = unlink(optarg);
-		      if (uret != 0) {
-			perror(optarg);
-		      } else {
-			fprintf(stderr, "*info* deleted file (in case of early exit) '%s'\n", optarg);
+		    if (fileExists(optarg)) {
+		      const int ibd = isBlockDevice(optarg)==1;
+		      if (ibd == 0) {
+			
+			int uret = unlink(optarg);
+			if (uret != 0) {
+			  perror(optarg);
+			} else {
+			  fprintf(stderr,"*info* deleting file '%s' (is block dev %d)\n", optarg, ibd);
+			}
 		      }
 		    }
 
-		    // now open
-		    if (isBlockDevice(optarg) == 0) { // not a block device
-		      int uret = unlink(optarg);
-		      if (uret != 0) {
-			perror(optarg);
-			exit(1);
-		      }
-		    }
-		    
 		    int fd = open(optarg, O_WRONLY | O_EXCL | O_CREAT, S_IRUSR | S_IWUSR);
 		    if (fd > 0) {
 		      savePositions = fdopen(fd, "wt");
@@ -329,7 +324,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                         exit(-1);
 		      }
 		      fprintf(stderr, "*info* savePositions set to '%s'\n", optarg);
-		    } else {
+		    } else { // the file shouldn't be there
 		      perror(optarg);
 		      exit(1);
 		    }
