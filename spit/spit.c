@@ -302,7 +302,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                     // backup first
                     backupExistingFile(optarg, keepversions);
 
-		    if (fileExists(optarg)) {
+		    if (access(optarg, F_OK) == 0) {
+		      // file exists
 		      const int ibd = isBlockDevice(optarg)==1;
 		      if (ibd == 0) {
 			
@@ -310,6 +311,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 			if (uret != 0) {
 			  fprintf(stderr,"*error* problem deleting the file '%s'\n", optarg);
 			  perror(optarg);
+			  exit(1);
 			} else {
 			  fprintf(stderr,"*info* deleting file '%s' (is block dev %d)\n", optarg, ibd);
 			}
@@ -327,7 +329,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		      }
 		      fprintf(stderr, "*info* savePositions set to '%s'\n", optarg);
 		    } else { // the file shouldn't be there
-		      fprintf(stderr, "*error* can't create the file '%s'\n", optarg);
+		      fprintf(stderr, "*error* can't create the file '%s' as user '%s'\n", optarg, getlogin());
 		      perror(optarg);
 		      exit(1);
 		    }
