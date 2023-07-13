@@ -308,6 +308,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 			
 			int uret = unlink(optarg);
 			if (uret != 0) {
+			  fprintf(stderr,"*error* problem deleting the file '%s'\n", optarg);
 			  perror(optarg);
 			} else {
 			  fprintf(stderr,"*info* deleting file '%s' (is block dev %d)\n", optarg, ibd);
@@ -320,11 +321,13 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 		      savePositions = fdopen(fd, "wt");
 		      //		      savePositions = fopen(optarg, "wtx");
 		      if (!savePositions) {
+			fprintf(stderr,"*error* can't make FILE* from fd\n");
                         perror(optarg);
                         exit(-1);
 		      }
 		      fprintf(stderr, "*info* savePositions set to '%s'\n", optarg);
 		    } else { // the file shouldn't be there
+		      fprintf(stderr, "*error* can't create the file '%s'\n", optarg);
 		      perror(optarg);
 		      exit(1);
 		    }
