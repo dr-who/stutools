@@ -446,7 +446,9 @@ size_t aioMultiplePositions(positionContainer *p,
                                 perror("io_submit()");
                                 if (exitOnErrors) {
 				  if (*ioerrors >= (size_t)exitOnErrors) {
-				    exit(-1);
+				    fprintTimePrefix(stderr);
+				    fprintf(stderr, "*error* %zd errors, exiting the submit loop\n", *ioerrors);
+				    goto endoffunction;
 				  }
 				}
                             }
@@ -619,11 +621,14 @@ size_t aioMultiplePositions(positionContainer *p,
                     if (printCount >= sz) printCount = 0;
                 }
 
+		inFlight -= ret;
+		received += ret;
+		
 		if (exitOnErrors) {
 		  if (*ioerrors >= (size_t) exitOnErrors) {
 		    fprintTimePrefix(stderr);
-		    fprintf(stderr, "*error* %zd IO errors.\n", *ioerrors);
-		    exit(-1);
+		    fprintf(stderr, "*error* %zd IO errors, exiting the testing loop\n", *ioerrors);
+		    goto endoffunction;
 		  }
 		}
 		
@@ -651,8 +656,6 @@ size_t aioMultiplePositions(positionContainer *p,
             p->writtenBytes += wlen;
             totalWriteBytes += wlen;
 
-            inFlight -= ret;
-            received += ret;
         }
 
 
