@@ -624,14 +624,6 @@ size_t aioMultiplePositions(positionContainer *p,
 		inFlight -= 1; // 1 of ret
 		received += 1; // 1 of ret
 		
-		if (exitOnErrors) {
-		  if (*ioerrors >= (size_t) exitOnErrors) {
-		    fprintTimePrefix(stderr);
-		    fprintf(stderr, "*error* %zd IO errors, exiting the testing loop\n", *ioerrors);
-		    goto endoffunction;
-		  }
-		}
-		
                 // log if slow
                 if (pp->finishTime - pp->submitTime > 30) {
                     slow++;
@@ -648,6 +640,8 @@ size_t aioMultiplePositions(positionContainer *p,
                 if (tailOfQueue == QD) tailOfQueue = 0;
             } // for j
 
+
+
             p->readIOs += rio;
             p->readBytes += rlen;
             totalReadBytes += rlen;
@@ -655,6 +649,15 @@ size_t aioMultiplePositions(positionContainer *p,
             p->writtenIOs += wio;
             p->writtenBytes += wlen;
             totalWriteBytes += wlen;
+
+	    if (exitOnErrors) {
+	      if (*ioerrors >= (size_t) exitOnErrors) {
+		fprintTimePrefix(stderr);
+		fprintf(stderr, "*error* %zd IO errors, exiting the testing loop\n", *ioerrors);
+		goto endoffunction;
+	      }
+	    }
+		
 
         }
 
