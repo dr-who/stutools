@@ -762,7 +762,7 @@ void usage(void) {
     fprintf(stdout, "  spit -f ... -c rws1M1 -K M100,100       # assert that both r/w IO is more than 200 MB/s\n");
     fprintf(stdout, "  spit -f ... -c rM1x1 -G 1GiB -K 1024,0  # assert that there are exactly 1024 read IOs\n");
     fprintf(stdout, "  spit -f ... -c ... -T 30     # set noIOExitTimeout to 30. Defaults is 3600.\n");
-    fprintf(stdout, "  spit -f ... -c ... -E n      # Exit after n errors. E0 means never exit\n");
+    fprintf(stdout, "  spit -f ... -c ... -E n      # Quit testing after n errors. E0 means never quit\n");
 
     fprintf(stdout, "\nMisc examples:\n");
     fprintf(stdout, "  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);
