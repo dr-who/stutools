@@ -237,6 +237,7 @@ typedef struct {
     double result_tm;
 
     double exitTimeout;
+    int ioerrors;
 } threadInfoType;
 
 
@@ -796,6 +797,8 @@ static void *runThread(void *arg) {
 
     close(fd);
 
+    
+    threadContext->ioerrors = ioerrors;
     if (ioerrors) {
         fprintf(stderr, "*error* there were %zd IO errors\n", ioerrors);
     }
@@ -1294,7 +1297,7 @@ static void *runThreadTimer(void *arg) {
 }
 
 
-void jobRunThreads(jobType *job, const int num, char *filePrefix,
+int jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const size_t minSizeInBytes,
                    const size_t maxSizeInBytes,
                    const double runseconds, const size_t dumpPos, char *benchmarkName, const size_t origqd,
@@ -2389,6 +2392,12 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
 
     free(origpc); origpc = NULL;
 
+    // errors
+    int retioerrors = 0;
+    for (int i = 0; i < num; i++) {
+      retioerrors += threadContext[i].ioerrors;
+    }
+
     // free
     for (int i = 0; i < num; i++) {
       positionContainerFree(&threadContext[i].pos);
@@ -2406,6 +2415,8 @@ void jobRunThreads(jobType *job, const int num, char *filePrefix,
     free(allThreadsPC);
     free(threadContext);
     free(pt);
+
+    return retioerrors;
 }
 
 

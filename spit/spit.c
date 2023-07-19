@@ -1314,10 +1314,14 @@ int main(int argc, char *argv[]) {
             resultType r;
             memset(&r, 0, sizeof(resultType));
 
-            jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, runseconds, dumpPositions,
+            int joberrors = jobRunThreads(j, j->count, filePrefix, minSizeInBytes, maxSizeInBytes, runseconds, dumpPositions,
                           benchmarkName, defaultQD, seed, savePositions, p, timeperline, ignoreFirst, verify,
                           mysqloptions, mysqloptions2, commandstring, numaBinding, performPreDiscard, &r,
                           ramBytesForPositions, tripleX == 3, showdate, loadpos, exitTimeout, 0, exitOnError);
+	    if (joberrors) {
+	      exitcode = joberrors;
+	    }
+		
 
             resultDump(&r, kcheckresults, verbose);
 

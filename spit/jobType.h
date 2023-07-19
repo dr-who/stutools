@@ -42,7 +42,7 @@ void jobFree(jobType *j);
 
 size_t jobCount(jobType *j);
 
-void jobRunThreads(jobType *job, const int num, char *filePrefix,
+int jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const size_t minSizeInBytes,
                    const size_t maxSizeInBytes,
                    const double runseconds, const size_t dumpPos, char *benchmarkName, const size_t origqd,

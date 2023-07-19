@@ -621,8 +621,8 @@ size_t aioMultiplePositions(positionContainer *p,
                     if (printCount >= sz) printCount = 0;
                 }
 
-		inFlight -= ret;
-		received += ret;
+		inFlight -= 1; // 1 of ret
+		received += 1; // 1 of ret
 		
 		if (exitOnErrors) {
 		  if (*ioerrors >= (size_t) exitOnErrors) {
