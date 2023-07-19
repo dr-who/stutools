@@ -685,8 +685,10 @@ size_t aioMultiplePositions(positionContainer *p,
                         fprintf(stderr,
                                 "*error* AIO2 failure codes[fd=%d]: res=%d and res2=%d, %zd, inFlight %zd, returned %d results\n",
                                 fd, rescode, rescode2, pp->pos, inFlight, ret);
-
-                    }
+			pp->success = 2;
+                    } else {
+		        pp->success = 1;
+		    }
                     pp->finishTime = timeAsDouble();
                     pp->sumLatency += (pp->finishTime - pp->submitTime);
                     if (recordSamples && pp->samples < recordSamples) {
@@ -713,7 +715,7 @@ size_t aioMultiplePositions(positionContainer *p,
 
 
                     pp->inFlight = 0;
-                    pp->success = 1; // the action has completed
+		    //                    pp->success = 1; // the action has completed
                     if (fp == stdout) {
                         positionDumpOne(fp, pp, p->maxbdSize, 0, jobdevice, printCount++);
                         if (printCount >= sz) printCount = 0;
