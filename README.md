@@ -431,6 +431,11 @@ To remove the devices:
  root# dmsetup remove errdev0
  root# rmmod brd
  
+### Dropping a drive
 
+ echo 1 | sudo tee /sys/block/sd{drive}/device/delete
 
+and to rescan...
+
+ echo "- - -" |tee /sys/class/scsi_host/*/scan
 
