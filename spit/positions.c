@@ -489,8 +489,8 @@ positionDumpOne(FILE *fp, const positionType *p, const size_t maxbdSizeBytes, co
         if (p->samples) max = p->latencies[p->samples - 1];
 
         fprintf(fp,
-                "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%u\t%zd\t%.2lf GB\t%u\t%.8lf\t%.8lf\t%.8lf\t%zd\t%u\t%.8lf\t%.8lf\n",
-                name, p->pos, TOGB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, p->len, maxbdSizeBytes,
+                "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c%s\t%u\t%zd\t%.2lf GB\t%u\t%.8lf\t%.8lf\t%.8lf\t%zd\t%u\t%.8lf\t%.8lf\n",
+                name, p->pos, TOGB(p->pos), p->pos * 100.0 / maxbdSizeBytes, action, (p->success==2)?"error":"", p->len, maxbdSizeBytes,
                 TOGB(maxbdSizeBytes), p->seed, p->submitTime, p->finishTime, avgiotime, index, p->samples, median, max);
         if (doflush) {
             fprintf(fp, "%s\t%10zd\t%.2lf GB\t%.1lf%%\t%c\t%zd\t%zd\t%.2lf GB\t%u\t%d\n", name, (size_t) 0, 0.0, 0.0,
@@ -1708,19 +1708,19 @@ void positionLatencyStats(positionContainer *pc, const int threadid)
 */
 
 
-jobType positionContainerLoad(positionContainer *pc, FILE *fd) {
-    return positionContainerLoadLines(pc, fd, 0);
+jobType positionContainerLoad(positionContainer *pc, FILE *fd, size_t *lineswitherrors) {
+  return positionContainerLoadLines(pc, fd, 0, lineswitherrors);
 }
 
-jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, const size_t maxLines) {
+jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, const size_t maxLines, size_t *lineswitherrors) {
     jobType job;
     jobInit(&job);
     positionContainerInit(pc, 0);
-    positionContainerAddLines(pc, &job, fd, maxLines);
+    positionContainerAddLines(pc, &job, fd, maxLines, lineswitherrors);
     return job;
 }
 
-size_t positionContainerAddLinesFilename(positionContainer *pc, jobType *job, const char *filename) {
+size_t positionContainerAddLinesFilename(positionContainer *pc, jobType *job, const char *filename, size_t *lineswitherrors) {
     FILE *fp = NULL;
 
     if (filename == NULL) {
@@ -1735,13 +1735,13 @@ size_t positionContainerAddLinesFilename(positionContainer *pc, jobType *job, co
         perror(filename);
         return 0;
     }
-    size_t added = positionContainerAddLines(pc, job, fp, 0);
+    size_t added = positionContainerAddLines(pc, job, fp, 0, lineswitherrors);
     if (fp != stdin) fclose(fp);
     return added;
 }
 
 
-size_t positionContainerAddLines(positionContainer *pc, jobType *job, FILE *fd, const size_t maxLines) {
+size_t positionContainerAddLines(positionContainer *pc, jobType *job, FILE *fd, const size_t maxLines, size_t *lineswitherrors) {
 
     size_t maxline = 1000;
     char *line = malloc(maxline);
@@ -1810,8 +1810,9 @@ size_t positionContainerAddLines(positionContainer *pc, jobType *job, FILE *fd, 
             }
             pc->sz++;
         } else {
-            fprintf(stderr, "*error* invalid line %zd: %s", lineno, line);
-            exit(1);
+            fprintf(stderr, "*error* invalid line (skipping)%zd:\n'%s'", lineno, line);
+	    *lineswitherrors = (*lineswitherrors) + 1;
+	    //            exit(1);
         }
 
         if (maxLines) {

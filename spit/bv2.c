@@ -112,10 +112,11 @@ static void *runInputThread(void *arg) {
   char *line = NULL;
   //  size_t len = 0;
   //  ssize_t nread;
-  
+
+  size_t lineswitherrors = 0;
   positionContainer pc;
   while (1) {
-    positionContainerLoadLines(&pc, stdin, 1);
+    positionContainerLoadLines(&pc, stdin, 1, &lineswitherrors);
     if (pc.sz == 0) break;
     //    fprintf(stderr,"*data* %zd\n", pc.positions[0].pos);
     addPosition(threadContext->b, &pc.positions[0]);
@@ -417,10 +418,11 @@ int main(int argc, char *argv[]) {
   }
   // add all the position data
   size_t added = 0;
+  size_t lineswitherrors = 0;
   for (int i = ind; i < argc; i++) {
     if (strcmp(argv[i], "-") == 0) {
       while (1) {
-	added = positionContainerAddLines(&pc, &j, stdin, 1); // add one line at a time
+	added = positionContainerAddLines(&pc, &j, stdin, 1, &lineswitherrors); // add one line at a time
 	addPosition(&b, &pc.positions[pc.sz-1]);
 	if (added == 0) break;
       }
@@ -430,7 +432,7 @@ int main(int argc, char *argv[]) {
 	exit(1);
       }
       //      fprintf(stderr,"*info* adding %s\n", argv[i]);
-      added = positionContainerAddLinesFilename(&pc, &j, argv[i]);
+      added = positionContainerAddLinesFilename(&pc, &j, argv[i], &lineswitherrors);
       //      fprintf(stderr,"... added %zd\n", added);
     }
   }

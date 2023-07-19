@@ -545,7 +545,6 @@ size_t aioMultiplePositions(positionContainer *p,
                 int rescode2 = events[j].res2;
 
                 if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read / IO error
-		    pp->success = 0;
                     *ioerrors = (*ioerrors) + 1;
                     if (printed++ < 10) {
                         fprintf(stderr,
@@ -558,29 +557,9 @@ size_t aioMultiplePositions(positionContainer *p,
 
                         //	    fprintf(stderr,"*error* further output supressed\n");
                     }
-                    if (*ioerrors > 0) {
-		      if (exitOnErrors) {
-		        fprintTimePrefix(stderr);
-                        fprintf(stderr, "*error* %zd IO errors.\n", *ioerrors);
-			exit(-1);
-		      }
-                    }
-		    //		    pp->submitTime = 0;
-		    //		    pp->finishTime = 0;
-		    //		    if (pp->action == 'R') pp->action = 'r';
-		    //		    else if (pp->action == 'W') pp->action = 'w';
-		    //		    pp->action = 'E';
-                    //	  fprintf(stderr,"%ld %s %s\n", events[j].res, strerror(events[j].res2), (char*) my_iocb->u.c.buf);
+
+		    pp->success = 2; // 2 means IO error
                 } else { // good IO
-                    //	  fprintf(stderr,"---> %d %d\n", rescode, rescode2);
-                    //successful result
-
-                    //	  if (pp->success) {
-                    //	    fprintf(stderr,"*warning* AIO duplicate result at position %zd\n", pp->pos);
-                    //	  }
-
-                    //fprintf(stderr,"'%c' %d %u\n", pp->action, pp->q, pp->len);
-
 		    // if successful read or write
                     if (pp->action == 'R') {
                         rio++;
@@ -627,14 +606,23 @@ size_t aioMultiplePositions(positionContainer *p,
                         //	    assert(pp->latencies);
                         pp->latencies[pppp] = pp->finishTime - pp->submitTime;
                     }
+		    pp->success = 1; // the action has completed
                 } // good IO
 		pp->finishTime = lastreceive; // even with an error
-		pp->success = 1; // the action has completed
                 pp->inFlight = 0;
                 if (fp == stdout) {
                     positionDumpOne(fp, pp, p->maxbdSize, 0, jobdevice, printCount++);
                     if (printCount >= sz) printCount = 0;
                 }
+
+		if (*ioerrors > 0) {
+		  if (exitOnErrors) {
+		    fprintTimePrefix(stderr);
+		    fprintf(stderr, "*error* %zd IO errors.\n", *ioerrors);
+		    exit(-1);
+		  }
+		}
+		
                 // log if slow
                 if (pp->finishTime - pp->submitTime > 30) {
                     slow++;

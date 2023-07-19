@@ -66,8 +66,7 @@ static int timeCompare(const void *p1, const void *p2) {
 }
 
 
-int
-verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff, const int seed,
+int verifyPosition(const int fd, const positionType *p, const char *randomBuffer, char *buf, size_t *diff, const int seed,
                int quiet, size_t overridesize) {
     const size_t pos = p->pos;
     const size_t len = overridesize ? overridesize : p->len;

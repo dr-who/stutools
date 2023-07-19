@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"   -t n  Specify the number of verification threads to run in parallel (%zd)\n", threads);
     fprintf(stderr,"   -b n  Batch size for streaming IOs (%zd)\n", batches);
     fprintf(stderr,"   -n    Don't sort positions\n");
-    fprintf(stderr,"   -E n  Exit after n errors in a thread (%zd). -E0 don't exit early.\n", exitearlyn);
+    fprintf(stderr,"   -E n  Exit after n errors in a thread (%zd). -E0 don't exit with errors.\n", exitearlyn);
     exit(1);
   }
 
@@ -106,10 +106,13 @@ int main(int argc, char *argv[])
     fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd, batch size %zd, exitearly %zd\n", numFiles, threads, sort, batches, exitearlyn);
   }
 
-  positionContainer *origpc = NULL;
-  CALLOC(origpc, numFiles, sizeof(positionContainer));
 
   jobType job;
+
+  size_t totallineerrors = 0;
+  size_t correct = 0, incorrect = 0, ioerrors = 0, errors = 0, jc = 0;
+  size_t tot_cor = 0;
+  
 
   for (int i= optind; i < argc; i++) {
     FILE *fp = NULL;
@@ -133,69 +136,78 @@ int main(int argc, char *argv[])
       fp = fopen(argv[i], "rt");
       if (!fp) {perror(argv[i]); exit(1);}
     }
+
     if (fp) {
       if (fp == stdin) {
-	size_t correct = 0, incorrect = 0, ioerrors = 0, errors = 0, jc = 0;
-	size_t tot_cor = 0;
 	do {
-	  job = positionContainerLoadLines(&origpc[0], fp, batches);
+	  positionContainer *origpc = NULL;
+	  CALLOC(origpc, numFiles, sizeof(positionContainer)); assert(origpc);
+	  size_t lineswitherrors = 0;
+	  job = positionContainerLoadLines(&origpc[0], fp, batches, &lineswitherrors);
 	  if (job.count) {
+	    if (lineswitherrors) {
+	      fprintf(stderr,"*error* %zd input errors\n", lineswitherrors);
+	      totallineerrors += lineswitherrors;
+	    }
 	    errors += verifyPositions(&origpc[0], origpc[0].sz < threads ? origpc[0].sz : threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize, exitearlyn);
 	    tot_cor += correct;
-	    fprintf(stderr,"*info* spitchecker totals: correct %zd, errors %zd\n", tot_cor, errors);
+	    fprintf(stderr,"*info* spitchecker totals: correct %zd, check errors %zd, io errors %zd, input line errors %zd\n", tot_cor, errors, ioerrors, totallineerrors);
 	    if (exitearlyn && (errors > exitearlyn)) {
 	      fprintf(stderr,"*error* too many errors\n");
 	      break;
 	    }
+	    positionContainerFree(&origpc[0]);
 	  }
-	  positionContainerFree(&origpc[0]);
 	  jc = job.count;
 	  jobFree(&job);
+	  free(origpc);
 	} while (jc != 0);
-	for (size_t i = 0; i < numFiles; i++) {
-	  positionContainerFree(&origpc[i]);
-	}
-	free(origpc);
-	origpc=NULL;
 	fclose(fp);
 	if (errors) {
 	  exit(1);
 	}
 	exit(0);
       } else {
-	job = positionContainerLoad(&origpc[i - optind], fp);
+	  positionContainer *origpc = NULL;
+	  CALLOC(origpc, numFiles, sizeof(positionContainer));
+	  size_t lineswitherrors = 0;
+	  job = positionContainerLoad(&origpc[i - optind], fp, &lineswitherrors);
+	  
+	  if (origpc->sz == 0) {
+	    fprintf(stderr,"*error* no positions to verify\n");
+	    exit(-1);
+	  }
+	  
+	  positionContainer pc = positionContainerMerge(origpc, numFiles);
+	  positionContainerCheckOverlap(&pc);
+	  
+	  
+	  if (lineswitherrors) {
+	    fprintf(stderr,"*error* note that the input contained %zd error lines\n", lineswitherrors);
+	  }
+	  fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
+	  
+	  // verify must be sorted
+	  size_t correct, incorrect, ioerrors;
+	  errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize, exitearlyn);
+	  jobFree(&job);
+	  
+	  if (!keepRunning) {
+	    fprintf(stderr,"*warning* early verification termination\n");
+	  }
+	  
+	  positionContainerFree(&pc);
+	  for (size_t i = 0; i < numFiles; i++) {
+	    positionContainerFree(&origpc[i]);
+	  }
+	  free(origpc);
+	  origpc=NULL;
+	  
       }
       //      positionContainerInfo(&origpc[i]);
       fclose(fp);
     }
   }
-
-  if (origpc->sz == 0) {
-    fprintf(stderr,"*error* no positions to verify\n");
-    exit(-1);
-  }
-
-  positionContainer pc = positionContainerMerge(origpc, numFiles);
-  positionContainerCheckOverlap(&pc);
-
-
-  fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
-
-  // verify must be sorted
-  size_t correct, incorrect, ioerrors;
-  int errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize, exitearlyn);
-  jobFree(&job);
-
-  if (!keepRunning) {
-    fprintf(stderr,"*warning* early verification termination\n");
-  }
-
-  positionContainerFree(&pc);
-  for (size_t i = 0; i < numFiles; i++) {
-    positionContainerFree(&origpc[i]);
-  }
-  free(origpc);
-  origpc=NULL;
 
   if (displayJSON) {
     fprintf(stdout,"{\n\t\"correct\": \"%zd\",\n\t\"incorrect\": \"%zd\",\n\t\"ioerrors\": \"%zd\"\n}\n", correct, incorrect, ioerrors);

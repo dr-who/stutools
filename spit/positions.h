@@ -105,13 +105,13 @@ void positionContainerSetupFromPC(positionContainer *pc, const positionContainer
 
 void positionContainerFree(positionContainer *pc);
 
-jobType positionContainerLoad(positionContainer *pc, FILE *fd);
+jobType positionContainerLoad(positionContainer *pc, FILE *fd, size_t *lineswitherrors);
 
-jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, const size_t linesMax);
+jobType positionContainerLoadLines(positionContainer *pc, FILE *fd, const size_t linesMax, size_t *lineswitherrors);
 
-size_t positionContainerAddLinesFilename(positionContainer *pc, jobType *job, const char *filename);
+size_t positionContainerAddLinesFilename(positionContainer *pc, jobType *job, const char *filename, size_t *lineswitherrors);
 
-size_t positionContainerAddLines(positionContainer *pc, jobType *job, FILE *fd, const size_t maxLines);
+size_t positionContainerAddLines(positionContainer *pc, jobType *job, FILE *fd, const size_t maxLines, size_t *lineswitherrors);
 
 void positionContainerInfo(const positionContainer *pc);
 

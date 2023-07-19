@@ -25,9 +25,10 @@ int main(int argc, char *argv[]) {
     positionContainer pc;
     positionContainerInit(&pc, (size_t) (timeAsDouble() * 1000));
 
+    size_t numberoflineerrors = 0;
     for (int i = 2; i < argc; i++) {
-        size_t added = positionContainerAddLinesFilename(&pc, &j, argv[i]);
-        fprintf(stderr, "loaded %zd lines from %s\n", added, argv[i]);
+        size_t added = positionContainerAddLinesFilename(&pc, &j, argv[i], &numberoflineerrors);
+        fprintf(stderr, "loaded %zd lines from %s (line errors %zd)\n", added, argv[i], numberoflineerrors);
     }
     positionContainerCollapse(&pc);
 
