@@ -70,7 +70,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     optind = 0;
     size_t keepversions = 0;
 
-    const char *getoptstring = "hEb:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:T:rC:1L:DK:l:S:3";
+    const char *getoptstring = "hE:b:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:T:rC:1L:DK:l:S:3";
 
     while ((opt = getopt(argc, argv, getoptstring)) != -1) {
         switch (opt) {
@@ -212,8 +212,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
             }
                 break;
             case 'E':
-	        *exitOnErrors = 0;
-                fprintf(stderr, "*info* turning off 'exitOnErrors'\n");
+	        *exitOnErrors = atoi(optarg);
+	        fprintf(stderr, "*info* setting exitOnErrors=%zd (0 means don't exit on errors)\n", *exitOnErrors);
                 break;
             case 'g':
                 GBpow2 = 0;
@@ -762,7 +762,7 @@ void usage(void) {
     fprintf(stdout, "  spit -f ... -c rws1M1 -K M100,100       # assert that both r/w IO is more than 200 MB/s\n");
     fprintf(stdout, "  spit -f ... -c rM1x1 -G 1GiB -K 1024,0  # assert that there are exactly 1024 read IOs\n");
     fprintf(stdout, "  spit -f ... -c ... -T 30     # set noIOExitTimeout to 30. Defaults is 3600.\n");
-    fprintf(stdout, "  spit -f ... -c ... -E        # set exitOnErrors to no. Defaults to yes.\n");
+    fprintf(stdout, "  spit -f ... -c ... -E n      # Exit after n errors. E0 means never exit\n");
 
     fprintf(stdout, "\nMisc examples:\n");
     fprintf(stdout, "  spit -f device -c ... -c ... -c ... # defaults to %d seconds\n", DEFAULTTIME);

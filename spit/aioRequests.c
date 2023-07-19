@@ -55,7 +55,7 @@ size_t aioMultiplePositions(positionContainer *p,
     }
 
     if (verbose > 0) {
-      fprintf(stderr, "*info* exitOnErrors=%s, noIOTimeout=%.3lf sec (after 5 secs of valid IO)\n", exitOnErrors?"yes":"no", noIOExitTimeout);
+      fprintf(stderr, "*info* exitOnErrors=%d, noIOTimeout=%.3lf sec (after 5 secs of valid IO)\n", exitOnErrors, noIOExitTimeout);
     }
 
     if (sz == 0) {
@@ -444,7 +444,11 @@ size_t aioMultiplePositions(positionContainer *p,
 				fprintTimePrefix(stderr);
                                 fprintf(stderr, "*error* io_submit() failed, ret = %d\n", ret);
                                 perror("io_submit()");
-                                if (exitOnErrors) exit(-1);
+                                if (exitOnErrors) {
+				  if (*ioerrors >= (size_t)exitOnErrors) {
+				    exit(-1);
+				  }
+				}
                             }
                         }
                     }
@@ -615,8 +619,8 @@ size_t aioMultiplePositions(positionContainer *p,
                     if (printCount >= sz) printCount = 0;
                 }
 
-		if (*ioerrors > 0) {
-		  if (exitOnErrors) {
+		if (exitOnErrors) {
+		  if (*ioerrors >= (size_t) exitOnErrors) {
 		    fprintTimePrefix(stderr);
 		    fprintf(stderr, "*error* %zd IO errors.\n", *ioerrors);
 		    exit(-1);
