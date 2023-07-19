@@ -124,8 +124,8 @@ position array. It has a variety of early exit conditions including:
  *-t s*::
    Limit the execution to *s* seconds (e.g. -t 30)
 
- *-E*::
-   Ignore errors, by setting exitOnError to no.
+ *-En*::
+   Quit after seeing *n* errors. *E0* means don't quit early.
    
  *-T s*::
    Hard exit(-1) execution if no I/O is received within *s* seconds.
