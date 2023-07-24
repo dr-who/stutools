@@ -53,7 +53,7 @@ target_link_libraries(pair spitlib m )
 add_executable(raidsimulation raidsimulationmain.c failureType.c deviceProbs.c numList.c )
 target_link_libraries(raidsimulation m )
 
-add_executable(stush stush.c snack.h snack.c failureType.c deviceProbs.c pciUtils.c dns.c qr/qrcodegen.c tpmtotp/base32.c TOTP-MCU/sha1.c TOTP-MCU/TOTP.c)
+add_executable(stush stush.c snack.h snack.c failureType.c deviceProbs.c pciUtils.c dns.c qr/qrcodegen.c tpmtotp/base32.c TOTP-MCU/sha1.c TOTP-MCU/TOTP.c auth.c qr.c)
 target_link_libraries(stush spitlib m pthread aio numa readline pci)
 
 

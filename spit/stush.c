@@ -44,6 +44,9 @@
 
 #include "pciUtils.h"
 
+#include "auth.h"
+#include "qr.h"
+
 int keepRunning = 1;
 int verbose = 0;
 int TeReo = 0;
@@ -359,36 +362,13 @@ void cmd_route() {
   dumpFile("/proc/net/route", "", 0);
 }
 
-#include "qr/qrcodegen.h"
-
-static void printQr(const uint8_t qrcode[]) {
-	int size = qrcodegen_getSize(qrcode);
-	int border = 4;
-	for (int y = -border; y < size + border; y++) {
-		for (int x = -border; x < size + border; x++) {
-			fputs((qrcodegen_getModule(qrcode, x, y) ? "\x1b[1;40m  \x1b[0;m" : "\x1b[1;107m  \x1b[0;m"), stdout);
-		}
-		//		fputs("\x1b[0;m", stdout);
-		fputs("\n", stdout);
-	}
-}
-
 void cmd_qr(int tty, const char *text) {
   if (text) {
     if (tty) printf("%s", BOLD);
     printf("qrcode: qr %s\n", text);
     if (tty) printf("%s", END);
-    
-    //	const char *text = "https://example.com";                // User-supplied text
-	enum qrcodegen_Ecc errCorLvl = qrcodegen_Ecc_LOW;  // Error correction level
-	
-	// Make and print the QR Code symbol
-	uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
-	uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
-	bool ok = qrcodegen_encodeText(text, tempBuffer, qrcode, errCorLvl,
-		qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true);
-	if (ok)
-		printQr(qrcode);
+
+    qrGenerate(stdout, text);
   } else {
     printf("usage: qr <encoded URI/text>\n");
   }
@@ -604,34 +584,13 @@ void cmd_wifiqr(const int tty, const char *rest) {
 unsigned char * hmacKey = NULL;
 size_t hmacKeyBytes = 10; // bytes
 
-void cmd_authClear();
-void cmd_authPrint(const int tty);
-
-void cmd_authSet(const int tty, const char *keyorig, const size_t quiet) {
-  if (tty) {}
-  
-  if (keyorig) {
-
-    char *key = strdup(keyorig);
-    for (size_t i = 0; i < strlen(key); i++) {
-      if (islower(key[i])) key[i] = toupper(key[i]);
-    }
-    
-    hmacKey = calloc(strlen(key), 1);
-    hmacKeyBytes = base32_decode((unsigned char*)key, hmacKey);
-    //    hmacKeyBytes = strlen((char*)hmacKey);
-    if (hmacKeyBytes < 10) {
-      cmd_authClear();
-    }
-    if (quiet == 0) cmd_authPrint(tty);
-    free(key);
-  } else {
-    printf("usage: authset <key>\n");
-  }
+void cmd_authClear() {
+  free(hmacKey);
+  hmacKey = NULL;
+  hmacKeyBytes = 10;
 }
 
-
-size_t cmd_authFromENV(const int tty, const char *username, const size_t quiet) { // returns adminMode
+size_t cmd_authFromENV(const char *username, const size_t quiet) { // returns adminMode
   cmd_authClear();
 
   size_t adminMode = 1;
@@ -648,86 +607,14 @@ size_t cmd_authFromENV(const int tty, const char *username, const size_t quiet) 
     //    printf("Admin/enable required for %s\n", username);
     adminMode = 0; // needs a TOTP to become admin
 
-    cmd_authSet(tty, getenv(s), quiet);
+    hmacKey = authSet(&hmacKeyBytes, getenv(s));
   }
-  if (quiet == 0) cmd_authPrint(tty);
+  if (quiet == 0) authPrint(stdout, hmacKey, hmacKeyBytes);
 
   return adminMode;
 }
 
 
-void cmd_authPrint(const int tty) {
-  if (tty) {}
-  if (hmacKey) {
-    printf("HMAC size: %zd bytes (%zd bits)\n", hmacKeyBytes, hmacKeyBytes * 8);
-    uint8_t *p = (uint8_t*)hmacKey;
-    printf("RAW random: ");
-    for (size_t i = 0; i < hmacKeyBytes; i++) {
-      printf("%02x ", *p);
-      p++;
-    }
-    printf("\n");
-    const size_t codedSize = (int)(ceil(hmacKeyBytes * 8.0 / 5));
-    printf("base32 size: %zd bytes\n", codedSize);
-    unsigned char coded[1+codedSize];
-    memset(coded, 0, 1+codedSize);
-    base32_encode((unsigned char*)hmacKey, hmacKeyBytes, coded);
-    coded[codedSize] = 0;
-    if (tty) printf("%s", BOLD);
-    printf("key: '%s'\n", coded);
-    if (tty) printf("%s", END);
-  } else {
-    printf("no auth setup\n");
-  }
-}
-
-void cmd_authClear() {
-  if (hmacKey) {
-    free(hmacKey);
-    hmacKey = NULL;
-  }
-}
-
-void cmd_calcEntropy(const int tty, unsigned char *second);
-
-
-void cmd_authGen(const int tty, const char *rest) {
-  cmd_authClear();
-
-  // the argument is in bits
-  int bits = 80; // default with no args is 80
-  if (rest) {
-    bits = MAX(80, atoi(rest));
-  }
-  
-  hmacKeyBytes = ceil (bits / 8.0); // 80 bits, 10 bytes by default
-
-  hmacKey = randomGenerate(hmacKeyBytes);
-  double entropy = entropyTotalBits(hmacKey, hmacKeyBytes, 1);
-  printf("Shannon entropy: %.0lf bits\n", entropy);
-  
-  cmd_authPrint(tty);
-}
-
-void cmd_authQR(const int tty, const char *username, const char *hostname) {
-  if (tty) {}
-
-  if(hmacKey) {
-    
-    const size_t codedSize = (int)(ceil(hmacKeyBytes * 8.0 / 5));
-    unsigned char coded[1+codedSize];
-    memset(coded, 0, codedSize);
-    base32_encode((unsigned char*)hmacKey, hmacKeyBytes, coded);
-    coded[codedSize] = 0;
-    
-    
-    char s[1024];
-    sprintf(s, "otpauth://totp/%s@%s-%zd-bits?secret=%s&issuer=stush", username, hostname, hmacKeyBytes * 8, coded);
-    cmd_qr(tty, s);
-  } else {
-    printf("no auth setup\n");
-  }
-}
 
 #include "TOTP-MCU/TOTP.h"
 
@@ -1790,17 +1677,23 @@ int run_command(const int tty, char *line, const char *username, const char *hos
             } else if (strcasecmp(commands[i].name, "wifiqr") == 0) {
 	      cmd_wifiqr(tty, rest);
             } else if (strcasecmp(commands[i].name, "authgen") == 0) {
-	      cmd_authGen(tty, rest);
+	      int bits = 80;
+	      if (rest) {
+		bits = atoi(rest);
+	      }
+	      hmacKey = authGenerate(&hmacKeyBytes, bits);
             } else if (strcasecmp(commands[i].name, "authls") == 0) {
-	      cmd_authPrint(tty);
+	      authPrint(stdout, hmacKey, hmacKeyBytes);
             } else if (strcasecmp(commands[i].name, "authclear") == 0) {
-	      cmd_authClear(tty);
+	      cmd_authClear();
 	    } else if (strcasecmp(commands[i].name, "authqr") == 0) {
-	      cmd_authQR(tty, username, hostname);
+	      char *str = authString(hmacKey, hmacKeyBytes);
+	      authPrintQR(stdout, str, username, hostname);
+	      free(str);
 	    } else if (strcasecmp(commands[i].name, "authset") == 0) {
-	      cmd_authSet(tty, rest, 0);
+	      hmacKey = authSet(&hmacKeyBytes, rest);
 	    } else if (strcasecmp(commands[i].name, "authenv") == 0) {
-	      cmd_authFromENV(tty, username, 0);
+	      cmd_authFromENV(username, 0);
             } else if (strcasecmp(commands[i].name, "authtok") == 0) {
 	      if (hmacKey) {
 		int n = 1;
@@ -1871,6 +1764,7 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 }
 
 int main(int argc, char *argv[]) {
+
     const double timeSinceStart = timeAsDouble();
   
     syslogString("stush", "Start session");
@@ -1889,7 +1783,7 @@ int main(int argc, char *argv[]) {
 
     //
     loadEnvVars("/etc/stush.cfg");
-    size_t adminMode = cmd_authFromENV(tty, username, 1);
+    size_t adminMode = cmd_authFromENV(username, 1);
 
     // DNS load
     dnsServersType dns;
