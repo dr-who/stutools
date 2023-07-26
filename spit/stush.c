@@ -41,6 +41,7 @@
 
 #include "snack.h"
 #include "dns.h"
+#include "status.h"
 
 #include "pciUtils.h"
 
@@ -1459,6 +1460,12 @@ void cmd_status(const char *hostname, const int tty) {
 
     cmd_date(tty);
 
+    printf("%-20s\t", T("Time/Space Status"));
+    int err;
+    char *st = genStatus(&err);
+    free(st);
+    colour_printString("OK", (err == 0), "\n", tty);
+    
     printf("%-20s\t", T("Location"));
     colour_printString(getenv("LOCATION"), 1, "\n", tty);
 

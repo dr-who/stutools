@@ -15,7 +15,7 @@ char *genStatus(int *error) {
   *error = 0;
 
   // first section is the time
-  struct timex timex_info = {};
+  struct timex timex_info;
   timex_info.modes = 0;
 
   int ntp_result = ntp_adjtime(&timex_info);
