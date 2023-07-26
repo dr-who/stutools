@@ -45,7 +45,7 @@ int main(void){
    int FLAGS = 0;
 
    int fd;
-   fd = initConnect("202.37.129.4");
+   fd = initConnect("127.0.0.1");
 
    if(fd == -1){
       printf("Error occured while connecting to the Server");
