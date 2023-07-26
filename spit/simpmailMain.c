@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
     char *from = argv[1];
     char *to = argv[2];
     char *subject = argv[3];
-    char body[] = "test email.";
+    char body[] = "test email\n";
     simpmailSend(fd, from, to, subject, body);
     simpmailClose(fd);
   }

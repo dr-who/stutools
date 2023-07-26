@@ -63,7 +63,7 @@ void simpmailSend(int fd, char *from, char *to, char *subject, char *body) {
    therec(fd, buffer, 1024, FLAGS);
 
    // get response from Server after HELO (program blocks here)
-   thesend(fd, "HELO 127.0.0.1\r\n", FLAGS);
+   thesend(fd, "HELO [127.0.0.1]\r\n", FLAGS);
    therec(fd, buffer, 1024, FLAGS);
 
    sprintf(buffer,"MAIL FROM: <%s>\r\n", from);
