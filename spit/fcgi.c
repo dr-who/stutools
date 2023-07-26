@@ -50,7 +50,7 @@ void orderURL(char *url, char *query, char *api) {
 }
   
 void getFile(const char *fn) {
-  FILE *fp = fopen(fn, "r");
+  FILE *fp = fopen(fn, "rt");
   if (fp) {
     printf("\r\n"); // header finished
     char *line = NULL;
