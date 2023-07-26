@@ -8,6 +8,9 @@
 #include <time.h>
 
 #include <sys/sendfile.h>
+#include <syslog.h>
+
+#include "status.h"
 
 int startsWith(const char *pre, const char *str) {
     size_t lenpre = strlen(pre), lenstr = strlen(str);
@@ -53,9 +56,6 @@ void getFile(const char *fn) {
   FILE *fp = fopen(fn, "rt");
   if (fp) {
     printf("\r\n"); // header finished
-    char *line = NULL;
-    size_t len = 0;
-    ssize_t nread;
     const size_t size = 100*1024;
     char *buffer = malloc(size); 
     int r = 0;
@@ -81,6 +81,8 @@ int main(int argc, char *argv[])
 /* Response loop. */
   while (FCGI_Accept() >= 0)   {
 
+    syslog(LOG_NOTICE, "%s %s", getenv("REMOTE_ADDR"), getenv("REQUEST_URI"));
+
     char *cookie = getenv("HTTP_COOKIE");
 
     if (cookie == NULL) {
@@ -95,6 +97,16 @@ int main(int argc, char *argv[])
       continue;
     } else if (startsWith("/api/geo", r_url)) {
       getFile("/var/www/html/nz.json");
+      continue;
+    } else if (startsWith("/status", r_url)) {
+      int httpcode;
+      char *s = genStatus(&httpcode);
+      printf("Status: %d\r\n", (httpcode == 0) ? 200 : 410);
+      printf("Content-type: text/plain; charset=utf-8\r\n");
+      printf("\r\n");
+
+      if (s) printf("%s\n", s);
+      free(s);
       continue;
     }
     
