@@ -6,6 +6,7 @@
 #include <time.h>
 #include <malloc.h>
 #include <sys/timex.h>
+#include <sys/vfs.h>
 
 // returns the ASCII output, and error==0 means ok. error > 0 means error.
 
@@ -45,25 +46,49 @@ char *genStatus(int *error) {
   }
 
   if (s) {
-    struct sysinfo info;
-    sysinfo(&info);
-    s += sprintf(s, "Uptime:     %.1lf days\n", (info.uptime / 3600.0 / 24));
-    s += sprintf(s, "\n");
-    s += sprintf(s, "Shared RAM: %.1lf GiB\n", (info.sharedram / 1024.0 / 1024.0 / 1024.0));
-    const float freeram_gib = (info.freeram / 1024.0 / 1024.0 / 1024.0);
-    if (freeram_gib < 0.2) {
-      *error = 1;
-    }
-    s += sprintf(s, "Free RAM:   %.1lf GiB (%s)\n", freeram_gib, (freeram_gib < 0.2) ? "ERROR/NO" : "OK/YES");
-    s += sprintf(s, "Used RAM:   %.1lf GiB\n", (info.totalram - info.freeram) / 1024.0 / 1024.0 / 1024.0);
-    s += sprintf(s, "Total RAM:  %.1lf GiB\n", (info.totalram / 1024.0 / 1024.0 / 1024.0));
-    s += sprintf(s, "\n");
-    s += sprintf(s, "Free Swap: %.1lf GB\n", (info.freeswap / 1000.0 / 1000.0 / 1000.0));
-    s += sprintf(s, "Total Swap: %.1lf GB\n", (info.totalswap / 1000.0 / 1000.0 / 1000.0));
-    s += sprintf(s, "\n");
+    {
+      struct sysinfo info;
+      sysinfo(&info);
+      s += sprintf(s, "Uptime:     %.1lf days\n", (info.uptime / 3600.0 / 24));
+      s += sprintf(s, "\n");
+      s += sprintf(s, "Shared RAM: %.1lf GiB\n", (info.sharedram / 1024.0 / 1024.0 / 1024.0));
+      const float freeram_gib = (info.freeram / 1024.0 / 1024.0 / 1024.0);
+      if (freeram_gib < 0.2) {
+	*error = 1;
+      }
+      s += sprintf(s, "Free RAM:   %.1lf GiB (%s)\n", freeram_gib, (freeram_gib < 0.2) ? "ERROR/NO" : "OK/YES");
+      s += sprintf(s, "Used RAM:   %.1lf GiB\n", (info.totalram - info.freeram) / 1024.0 / 1024.0 / 1024.0);
+      s += sprintf(s, "Total RAM:  %.1lf GiB\n", (info.totalram / 1024.0 / 1024.0 / 1024.0));
+      s += sprintf(s, "\n");
+      s += sprintf(s, "Free Swap: %.1lf GB\n", (info.freeswap / 1000.0 / 1000.0 / 1000.0));
+      s += sprintf(s, "Total Swap: %.1lf GB\n", (info.totalswap / 1000.0 / 1000.0 / 1000.0));
+      s += sprintf(s, "\n");
 
-    const float f_load = 1.f / (1 << SI_LOAD_SHIFT);
-    s += sprintf(s, "Load average (1, 5, 15 mins): %.2f, %.2f %.2f\n",  info.loads[0] * f_load, info.loads[1] * f_load, info.loads[2] * f_load);
+      const float f_load = 1.f / (1 << SI_LOAD_SHIFT);
+      s += sprintf(s, "Load average (1, 5, 15 mins): %.2f, %.2f %.2f\n",  info.loads[0] * f_load, info.loads[1] * f_load, info.loads[2] * f_load);
+    }
+
+    {
+      struct statfs info;
+      int ret = statfs("/var/log/", &info);
+      
+      if (ret == 0) {
+        double total = info.f_bsize * info.f_blocks / 1024.0 / 1024 / 1024;
+        double free = info.f_bsize * info.f_bavail / 1024.0 / 1024 / 1024;
+        double per = (total - free) * 100.0 / total;
+	
+	s += sprintf(s, "\n");
+        s += sprintf(s, "%-20s\t%10s\t%10s\t%s\n", "Mount", "TotalGB", "FreeGB", "Used %");
+        s += sprintf(s, "%-20s\t%10.2lf\t%10.2lf\t%.1lf%% (%s)\n", "/var/log/", total, free, per, (per > 90) ? "ERROR/NO" : "OK/YES");
+	if (per > 90) {
+	  *error = 1;
+	}
+      } else {
+        perror("/var/log/");
+      }
+    }
+
+    
   }
   
   return rets;
