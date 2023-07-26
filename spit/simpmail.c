@@ -17,9 +17,14 @@ int simpmailConnect(const char *IPADDRESS){
    serv_addr.sin_family = AF_INET;
 
    if(inet_pton(AF_INET, IPADDRESS, &serv_addr.sin_addr) > 0){
-      connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+     int ret = connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+     if (ret != 0) {
+       perror(IPADDRESS);
+     }
    } else{
-      return -1;
+     perror(IPADDRESS);
+     //     fprintf(stderr,"*error* problem connecting to %s port 25\n", IPADDRESS);
+     return -1;
    }
    return sock;
 }
@@ -44,7 +49,7 @@ void therec(int fd, char *buffer, int len, int flags) {
 
 void simpmailSend(int fd, char *from, char *to, char *subject, char *body) {
   if (fd < 0) {
-    perror("error");
+    fprintf(stderr,"*error* no fd, not sending email\n");
     return;
   }
 
