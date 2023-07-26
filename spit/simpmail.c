@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <time.h>
 #include <arpa/inet.h>
 
 int simpmailConnect(const char *IPADDRESS){
@@ -65,22 +66,32 @@ void simpmailSend(int fd, char *from, char *to, char *subject, char *body) {
    thesend(fd, "HELO 127.0.0.1\r\n", FLAGS);
    therec(fd, buffer, 1024, FLAGS);
 
-   sprintf(buffer,"MAIL FROM: %s\r\n", from);
+   sprintf(buffer,"MAIL FROM: <%s>\r\n", from);
    thesend(fd, buffer, FLAGS);
    therec(fd, buffer, 1024, FLAGS);
 
-   sprintf(buffer,"RCPT TO: %s\r\n", to);
+   sprintf(buffer,"RCPT TO: <%s>\r\n", to);
    thesend(fd, buffer, FLAGS);
    therec(fd, buffer, 1024, FLAGS);
 
    thesend(fd, "DATA\r\n", FLAGS);
    therec(fd, buffer, 1024, FLAGS);
 
-   thesend(fd, "Date: Tue, 25 July 2023 12:01:00\r\n", FLAGS);
-   sprintf(buffer, "From: %s\r\n", from);
+   long ll = time(NULL);
+   char timestring[1000];
+   struct tm tm = *localtime(&ll);
+   strftime(timestring, 999, "%a, %d %b %Y %H:%M:%S %z (%Z)", &tm);
+
+   sprintf(buffer,"Date: %s\r\n", timestring);
    thesend(fd, buffer, FLAGS);
 
-   sprintf(buffer, "To: %s\r\n", to);
+   sprintf(buffer,"Return-Path: <%s>\r\n", from);
+   thesend(fd, buffer, FLAGS);
+   
+   sprintf(buffer, "From: <%s>\r\n", from);
+   thesend(fd, buffer, FLAGS);
+
+   sprintf(buffer, "To: <%s>\r\n", to);
    thesend(fd, buffer, FLAGS);
 
    sprintf(buffer, "Subject: %s\r\n", subject);
