@@ -103,7 +103,8 @@ void simpmailSend(int fd, char *from, char *to, char *subject, char *body) {
    thesend(fd, body, FLAGS);
    thesend(fd, "\r\n", FLAGS);
    thesend(fd, ".\r\n", FLAGS);
-   thesend(fd, "QUIT", FLAGS);
-
+   therec(fd, buffer, 1024, FLAGS);
+   
+   thesend(fd, "QUIT\r\n", FLAGS);
    therec(fd, buffer, 1024, FLAGS);
 }
