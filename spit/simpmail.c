@@ -38,7 +38,7 @@ void simpmailClose(int fd) {
 
 void thesend(int fd, char *s, int flags) {
   send(fd, s, strlen(s), flags);
-  fprintf(stderr,"C: %s\n", s);
+  fprintf(stderr,"C: %s", s);
 }
 
 void therec(int fd, char *buffer, int len, int flags) {
