@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[]) {
   if (argc < 4) {
-    printf("usage: ./simpmail from to subject\n");
+    printf("usage: simpmail <from> <to> <subject>\n");
     return 1;
   }
 
