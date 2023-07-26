@@ -1460,7 +1460,7 @@ void cmd_status(const char *hostname, const int tty) {
 
     cmd_date(tty);
 
-    printf("%-20s\t", T("Time/Space Status"));
+    printf("%-20s\t", T("Time sync/Space Status"));
     int err;
     char *st = genStatus(&err);
     free(st);
