@@ -8,19 +8,18 @@
 #include "histogram.h"
 #include "numList.h"
 
-void histSetup(histogramType *h, const double min, const double max, const double binscale) {
-    if (binscale > 1) {
-        fprintf(stderr, "*warning* ignoring binScale > 1\n");
-    }
+void histSetup(histogramType *h, const double min, const double max, const double binsize) {
     h->min = min; // 0 s
     h->max = max; // 10 s
-    if (binscale == 0) {
-        h->binScale = 10;
+    if (binsize == 0) {
+      h->binSize = 0.1;
     } else {
-        h->binScale = pow(10, (ceil(log10(1.0 / binscale)))); // 0.01ms for 1 seconds is 100,000 bins
+      //     h->binSize = pow(10, ceil(log10(binsize))); // 0.01ms for 1 seconds is 100,000 bins
+      h->binSize = binsize;
     }
+    assert(h->binSize > 0);
     assert(h->max >= h->min);
-    h->arraySize = (h->max - h->min) * h->binScale;
+    h->arraySize = ceil( (h->max - h->min) / h->binSize );
     CALLOC(h->bin, h->arraySize + 1, sizeof(size_t));
     CALLOC(h->binSum, h->arraySize + 1, sizeof(size_t));
     h->maxSeen = min;
@@ -30,7 +29,7 @@ void histSetup(histogramType *h, const double min, const double max, const doubl
     h->dataCount = 0;
     h->dataSummed = 0;
     nlInit(&h->nl, 1000000); // keep 1 million positions
-    //  fprintf(stderr,"*info* [%lf,%lf], binscale %zd, numBins %zd\n", h->min, h->max, h->binScale, h->arraySize);
+    //  fprintf(stderr,"*info* [%lf,%lf], binSize %zd, numBins %zd\n", h->min, h->max, h->binSize, h->arraySize);
 }
 
 
@@ -51,7 +50,8 @@ double getIndexToYValueScale(histogramType *h, const size_t index, const size_t 
 
 double getIndexToXValue(histogramType *h, const size_t index) {
     assert(index <= h->arraySize);
-    double val = h->min + (index * 1.0 / h->binScale);
+    double val = h->min + (index * 1.0 * h->binSize);
+    //    fprintf(stderr,"*val is %lf*, range is %lf   %lf, index %zd, binSize %lf\n", val, h->min, h->max, index, h->binSize);
     assert(val >= h->min);
     assert(val <= h->max);
     return val;
@@ -69,7 +69,7 @@ size_t getXIndexFromValue(histogramType *h, const double val) {
     }
     assert(val >= h->min);
     assert(val <= h->max);
-    size_t ind = (val - h->min) * h->binScale;
+    size_t ind = (val - h->min) / h->binSize;
     assert(ind <= h->arraySize);
     return ind;
 }
@@ -142,7 +142,6 @@ void histLoad(histogramType *h, const char *fn) {
 
     // read to find min, max and binSize
     double *values = histScanInternal(fn, &min, &max, &bin, &n);
-    fprintf(stderr, "*info* '%s': N %zd, min %lf, max %lf, binsize %lf\n", fn, n, min, max, bin);
 
     histSetup(h, min, max, bin);
     for (size_t i = 0; i < n; i++) {
@@ -151,6 +150,9 @@ void histLoad(histogramType *h, const char *fn) {
     free(values);
 
     histSum(h); // calc ranges
+
+    fprintf(stderr, "*info* '%s': sum counts %zd, min %lf, max %lf, binsize %lf, elements[] %zd\n", fn, n, min, max, bin, h->arraySize);
+    
 }
 
 void histAdd(histogramType *h, double value) {
@@ -226,18 +228,25 @@ double histConsistency(histogramType *h) {
     }
 
     size_t valueCount = h->bin[0];
-    size_t maxPos = 0;
 
     for (size_t i = 0; i < h->arraySize; i++) {
         if (h->bin[i] > valueCount) {
             valueCount = h->bin[i];
-            maxPos = i;
         }
     }
-    const double value = maxPos * 1.0 / h->binScale;
-    const double consistency = 100.0 * (valueCount * 1.0 / h->dataCount);
-    fprintf(stderr, "*info* most consistent range [%g-%g) (n=%zd), representing %.1lf%% (n=%zd)\n", value,
-            value + 1.0 / h->binScale, valueCount, consistency, h->dataCount);
+
+    double consistency = NAN;
+    for (size_t i = 0; i < h->arraySize; i++) {
+      if (h->bin[i] == valueCount) {
+	// max
+	
+	const double value = getIndexToXValue(h, i);
+	consistency = 100.0 * (valueCount * 1.0 / h->dataCount);
+    
+	fprintf(stderr, "*info* range [%g-%g) (n=%zd), representing %.1lf%%\n", value,
+		value + 1.0 * h->binSize, valueCount, consistency);
+      }
+    }
     return consistency;
 }
 
@@ -313,7 +322,7 @@ void histWriteGnuplot(histogramType *hist, const char *datafile, const char *gnu
         fprintf(fp, "set y2label 'Confidence level'\n");
         fprintf(fp,
                 "plot '%s' using ($1+%lf):2 with boxes title 'Latency', '%s' using 1:3 with lines title '%% Confidence' axes x1y2,'<echo %lf 100000' with imp title 'ART=%.3lf' axes x1y2, '<echo %lf 100000' with imp title '99.9%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.99%%=%.2lf' axes x1y2, '<echo %lf 100000' with imp title '99.999%%=%.2lf' axes x1y2\n",
-                datafile, (1.0 / hist->binScale) / 2.0, datafile, median, median, three9, three9, four9, four9, five9,
+                datafile, (1.0 * hist->binSize) / 2.0, datafile, median, median, three9, three9, four9, four9, five9,
                 five9);
     } else {
         perror("filename");
@@ -341,6 +350,27 @@ double histSample(histogramType *h) {
 
     return value;
 }
+
+
+double binarySample(histogramType *h) {
+    double value = 0;
+
+    for (size_t i = 0; i <= h->arraySize; i++) {
+      if (h->bin[i] > 0) {
+	const double dr = drand48();
+	const double v = getIndexToXValue(h, i);
+	if (dr < (1.0 * h->bin[i] / 100.0)) {
+	  //	  fprintf(stdout,"yes for %lf\n", v);
+	  value += v;
+	} else {
+	  //	  fprintf(stdout,"no for %lf\n", v);
+	}
+      }
+    }
+    
+    return value;
+}
+  
 
 
 void asciiField(histogramType *h, const size_t x, const size_t y, const char *title) {

@@ -8,7 +8,7 @@ typedef struct {
     double max;
     double minSeen;
     double maxSeen;
-    size_t binScale;
+    double binSize;
     size_t arraySize;
     size_t *bin;
     size_t *binSum;
@@ -19,7 +19,7 @@ typedef struct {
     numListType nl;
 } histogramType;
 
-void histSetup(histogramType *h, const double min, const double max, const double binscale);
+void histSetup(histogramType *h, const double min, const double max, const double binsize);
 
 double histMean(const histogramType *h);
 
@@ -62,5 +62,7 @@ double getIndexToXValueScale(histogramType *h, const size_t index, const size_t 
 double getIndexToYValueScale(histogramType *h, const size_t index, const size_t y);
 
 void asciiField(histogramType *h, const size_t x, const size_t y, const char *title);
+
+double binarySample(histogramType *h);
 
 #endif

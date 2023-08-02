@@ -16,6 +16,7 @@ void usage() {
   fprintf(stdout,"\n");
   fprintf(stdout,"Options:\n");
   fprintf(stdout,"  -a            # print as atomic 'double' or 'size_t' types\n");
+  fprintf(stdout,"  -b            # binary sample, using second hist column as percentage\n");
   fprintf(stdout,"  -i hist.txt   # load distribution from a histogram file\n"); 
   fprintf(stdout,"  -l l,h,a      # linear distribution between [l, h), alignment 'a'\n");
   fprintf(stdout,"  -n n          # specify the number of samples\n");
@@ -31,20 +32,25 @@ void usage() {
 int main(int argc, char *argv[])
 {
   char *histfile = NULL;
-  size_t samples = 10;
+  size_t samples = 1;
   size_t rows = 0;
   double scale = 1.0;
   size_t rollingsum = 0;
   size_t linear = 0; // if not linear then load from histogram file
   size_t low = 0, high = 0, alignment = 0;
   size_t atomic = 0;
+  size_t binarySamp = 0;
   
   int opt;
-  const char *getoptstring = "ai:s:S:Rr:hn:l:";
+  const char *getoptstring = "abi:s:S:Rr:hn:l:";
   while ((opt = getopt(argc, argv, getoptstring)) != -1) {
     switch (opt) {
     case 'a':
       atomic = 1;
+      break;
+    case 'b':
+      fprintf(stderr,"*info* binary mode: enabled\n");
+      binarySamp = 1;
       break;
     case 'h':
       usage();
@@ -101,7 +107,7 @@ int main(int argc, char *argv[])
   if (linear == 0) {
     histLoad(&h, histfile);
     const double consistency = histConsistency(&h);
-    fprintf(stderr,"*info* consistency score %.1lf%% using binSize of %zd\n", consistency, h.binScale);
+    fprintf(stderr,"*info* consistency score %.1lf%% using binSize of %lf\n", consistency, h.binSize); 
   }
 
   if (samples) fprintf(stderr,"*info* samples = %zd\n", samples);
@@ -122,7 +128,9 @@ int main(int argc, char *argv[])
 
     for (size_t i = 0; i < samples; i++) {
       double value = NAN;
-      if (linear == 0) {
+      if (binarySamp) {
+	value = binarySample(&h);
+      } else if (linear == 0) {
 	value = histSample(&h);
       } else {
 	//	fprintf(stderr,"%zd\n", (high - low));
@@ -165,6 +173,8 @@ int main(int argc, char *argv[])
       fprintf(stderr, "*info* mean value %lf\n", nlMean(&nl));
       fprintf(stderr, "*info* max value %lf\n", nlMax(&nl));
       fprintf(stderr, "*info* SD value %lf\n", nlSD(&nl));
+      fprintf(stderr, "*info* 25%% value %lf\n", nlSortedPos(&nl, 0.25));
+      fprintf(stderr, "*info* 75%% value %lf\n", nlSortedPos(&nl, 0.75));
     } else {
       fprintf(stdout, "%zd\t%lf\t%lf\t%lf\t%lf\n", r, nlMin(&nl), nlMean(&nl), nlMax(&nl), nlSD(&nl));
     }
