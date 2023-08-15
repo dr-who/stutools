@@ -218,6 +218,7 @@ int main(int argc, char *argv[]) {
             }
 
             if (showsha256 || (max > 1) || showEmpty) {
+ 	        // decode position and time at the start of the region
                 size_t *codedpos = (size_t *) buf;
                 size_t *codedtime = (size_t *) (buf + sizeof(size_t));
                 size_t spit = 0;

@@ -368,6 +368,7 @@ size_t aioMultiplePositions(positionContainer *p,
                                     dataseed[qdIndex] = positions[pos].seed;
                                 }
 
+				// encode position and time at the start of the region
                                 size_t *posdest = (size_t *) data[qdIndex];
                                 *posdest = newpos;
 

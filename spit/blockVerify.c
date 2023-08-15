@@ -82,7 +82,9 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
         return -1;
     }
 
-    int dataok = strncmp(buf + 16, randomBuffer + 16, len - 16) == 0;
+    // compare the data, ignoring the first encodings of position and uuid
+    const int headersize = 2 * sizeof(size_t);
+    int dataok = strncmp(buf + headersize, randomBuffer + headersize, len - headersize) == 0;
 
     if (ret != (int) len) {
         fprintTimePrefix(stderr);
@@ -98,6 +100,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
             fprintf(stderr, "[%zd] block is empty (all 0x00)\n", pos);
 	    return -3;
 	} else { // same len, not blank, check encoded positions
+  	    // check encoded position on disk is what we expect 
 	    size_t *p1 = (size_t *) buf;
 	    size_t *p2 = (size_t *) randomBuffer;
 	    if (*p1 != *p2) {
@@ -114,7 +117,7 @@ int verifyPosition(const int fd, const positionType *p, const char *randomBuffer
 
         if (*diff < 3) {
             size_t lines = 0, starterror = 0;
-            for (size_t i = 16; i < len; i++) {
+            for (size_t i = headersize; i < len; i++) {
                 if (buf[i] != randomBuffer[i]) {
 		  if (lines < 10) {
 		      fprintTimePrefix(stderr);
