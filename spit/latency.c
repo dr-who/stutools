@@ -56,6 +56,7 @@ void latencyOverTime(positionContainer *origpc) {
             exit(1);
         }
         //plot '<sort -k 12n bob' using ($13-$12) with lines
+        fprintf(fp, "set term dumb 100,40\n");
         fprintf(fp, "set title 'Time vs. Latency (n=%zd)\n", origpc->sz);
         fprintf(fp, "set xlabel 'Time (seconds)'\n");
         fprintf(fp, "set ylabel 'Latency (seconds)'\n");
@@ -136,7 +137,6 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
         fprintf(fp, "set xtics auto\n");
         fprintf(fp, "set yrange []\n");
         fprintf(fp, "set ytics 2\n");
-        fprintf(fp, "set logscale x 2\n");
         fprintf(fp, "set format x '2^{%%L}'\n");
         fprintf(fp, "set grid\n");
         fprintf(fp, "set xlabel 'Block size (bytes)'\n");
