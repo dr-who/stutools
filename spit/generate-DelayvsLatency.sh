@@ -51,6 +51,7 @@ XMAX=$(cat DelayvsLatency.txt | awk '{print $1}' | ./stat max | awk '{print $1*1
 YMIN=$(cat DelayvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat  | awk '{print $4*0.95}')
 YMAX=$(cat DelayvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat  | awk '{print $12*1.05}')
 
+echo "set term dumb 100,40" > DelayvsLatency.gnu
 echo "set xlabel 'Seconds between IOs'" > DelayvsLatency.gnu
 echo "set ylabel 'Average latency (ms)'" >> DelayvsLatency.gnu
 echo "set title 'Random read ${BLOCKSIZEK}KiB operations - ${MODEL} - ${SIZETB}TB'" >> DelayvsLatency.gnu
