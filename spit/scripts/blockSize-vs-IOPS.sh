@@ -12,6 +12,7 @@ done
 #echo "set yrange auto" >> blockSize-vs-IOPS.gnu
 echo "set term dumb 100,40" > blockSize-vs-IOPS.gnu
 echo "set key outside" >> blockSize-vs-IOPS.gnu
+echo "set yrange []" >> blockSize-vs-IOPS.gnu
 echo "set key tmargin center horiz" >> blockSize-vs-IOPS.gnu
 echo "set grid" >> blockSize-vs-IOPS.gnu
 echo "set xlabel 'Block Size (KiB)'" >> blockSize-vs-IOPS.gnu
@@ -19,6 +20,7 @@ echo "set ylabel 'IOPS'" >> blockSize-vs-IOPS.gnu
 echo "set title 'spit: IOPS Test'" >> blockSize-vs-IOPS.gnu
 echo "set log x" >> blockSize-vs-IOPS.gnu
 echo "set xtics 2" >> blockSize-vs-IOPS.gnu
+echo "set ytics 2" >> blockSize-vs-IOPS.gnu
 echo "set log y" >> blockSize-vs-IOPS.gnu
 echo "set style line 1 pt 2" >> blockSize-vs-IOPS.gnu
 #echo "set term svg" >> blockSize-vs-IOPS.gnu
