@@ -57,7 +57,8 @@ exit 0
 
 awk '{print NR,$14,$17,$18}' pos > TimevsLatency.txt
 
-echo "set xlabel 'Time (x)'" > TimevsLatency.gnu
+echo "set term dumb 100,40" > TimevsLatency.gnu
+echo "set xlabel 'Time (x)'" >> TimevsLatency.gnu
 echo "set ylabel 'Latency (ms)'" >> TimevsLatency.gnu
 echo "set title 'Seq read ${BLOCKSIZEK}KiB operations - ${MODEL} - ${SIZETB} TB'" >> TimevsLatency.gnu
 echo "set ytics out" >> TimevsLatency.gnu
