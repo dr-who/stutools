@@ -396,7 +396,7 @@ There are a large number of scripts that generate various gnuplot output files. 
 Normal usage generates read and write latency files:
 
 [literal]
-gnuplot> load 'size_vs_latency.gnu'
+$ gnuplot 'size_vs_latency.gnu'
                        Block size vs Latency (10% horiz jitter, n=2655)                             
           +-------------------------------------------------------------------------+ +-++ 8        
           |+            +              +              +             +             AA| |XX|          
@@ -435,7 +435,7 @@ gnuplot> load 'size_vs_latency.gnu'
                                       Block size (bytes)                                            
 
 [literal]
-gnuplot> load 'spit-latency-histogram-read.gnu'
+$ gnuplot 'spit-latency-histogram-read.gnu'
                 Read Latency *******   ART=3.870 $$$$$$$  99.99%=nan @@@@@@@                        
                 % Confidence #######   99.9%=nan %%%%%%% 99.999%=nan &&&&&&&                        
          +        Response Time Histogram - Confidence Level Plot (n=2600)    +                     
@@ -478,7 +478,7 @@ gnuplot> load 'spit-latency-histogram-read.gnu'
 * export TESTDEVICE=sdd;  ./generate-IOPSvsLatency.sh
 
 [literal]
-gnuplot> load 'IOPSvsLatency.gnu'
+$ gnuplot 'IOPSvsLatency.gnu'
                            *     *                                                                  
         Latency 5-95% (ms) ***A***Median latency (ms) #######      Achieved IOPS $$$$$$$            
                            *     *                                                                  

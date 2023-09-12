@@ -838,7 +838,7 @@ Normal usage generates read and write latency files:
 .if n .RS 4
 .nf
 .fam C
-gnuplot> load \*(Aqsize_vs_latency.gnu\*(Aq
+$ gnuplot \*(Aqsize_vs_latency.gnu\*(Aq
                        Block size vs Latency (10% horiz jitter, n=2655)
           +\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+ +\-++ 8
           |+            +              +              +             +             AA| |XX|
@@ -882,7 +882,7 @@ gnuplot> load \*(Aqsize_vs_latency.gnu\*(Aq
 .if n .RS 4
 .nf
 .fam C
-gnuplot> load \*(Aqspit\-latency\-histogram\-read.gnu\*(Aq
+$ gnuplot \*(Aqspit\-latency\-histogram\-read.gnu\*(Aq
                 Read Latency *******   ART=3.870 $$$$$$$  99.99%=nan @@@@@@@
                 % Confidence #######   99.9%=nan %%%%%%% 99.999%=nan &&&&&&&
          +        Response Time Histogram \- Confidence Level Plot (n=2600)    +
@@ -938,7 +938,7 @@ export TESTDEVICE=sdd;  ./generate\-IOPSvsLatency.sh
 .if n .RS 4
 .nf
 .fam C
-gnuplot> load \*(AqIOPSvsLatency.gnu\*(Aq
+$ gnuplot \*(AqIOPSvsLatency.gnu\*(Aq
                            *     *
         Latency 5\-95% (ms) ***A***Median latency (ms) #######      Achieved IOPS $$$$$$$
                            *     *
