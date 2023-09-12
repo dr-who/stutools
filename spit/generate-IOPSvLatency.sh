@@ -65,9 +65,8 @@ done
 MIN=$(cat IOPSvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat min)
 MAX=$(cat IOPSvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat max)
 
-echo "set term svg" > IOPSvsLatency.gnu
+echo "set term dumb 100,40" > IOPSvsLatency.gnu
 echo "set ytics nomirror" >> IOPSvsLatency.gnu
-echo "set output 'IOPSvsLatency.svg'" >> IOPSvsLatency.gnu
 echo "set xlabel 'Target IOPS'" >> IOPSvsLatency.gnu
 echo "set ylabel 'Average latency (ms)'" >> IOPSvsLatency.gnu
 echo "set y2label 'Achieved IOPS'" >> IOPSvsLatency.gnu
@@ -75,7 +74,10 @@ echo "set title 'Random read ${BLOCKSIZEK}KiB operations'" >> IOPSvsLatency.gnu
 echo "set ytics out" >> IOPSvsLatency.gnu
 echo "set xtics out" >> IOPSvsLatency.gnu
 echo "set xrange [0:${MAXIOPS}]" >> IOPSvsLatency.gnu
-echo "set yrange [${MIN}:${MAX}]" >> IOPSvsLatency.gnu
+echo "set yrange [1:${MAX}]" >> IOPSvsLatency.gnu
+echo "set mytics 10" >> IOPSvsLatency.gnu
+echo "set ytics 2" >> IOPSvsLatency.gnu
+echo "set log y" >> IOPSvsLatency.gnu
 echo "set grid" >> IOPSvsLatency.gnu
 echo "set y2tics out" >> IOPSvsLatency.gnu
 echo "set y2range [0:${MAXIOPS}]" >> IOPSvsLatency.gnu
