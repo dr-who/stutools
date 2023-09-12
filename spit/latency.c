@@ -112,12 +112,12 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
                     count++;
                     double v = 1 + (drand48() * 2 * jitter) - jitter;
                     fprintf(fp_r, "%.6lf\t%.6lf\n", origpc[n].positions[i].len * v,
-                            origpc[n].positions[i].finishTime - origpc[n].positions[i].submitTime);
+                            1000.0 * (origpc[n].positions[i].finishTime - origpc[n].positions[i].submitTime));
                 } else if (origpc[n].positions[i].action == 'W') {
                     count++;
                     double v = 1 + (drand48() * 2 * jitter) - jitter;
                     fprintf(fp_w, "%.6lf\t%.6lf\n", origpc[n].positions[i].len * v,
-                            origpc[n].positions[i].finishTime - origpc[n].positions[i].submitTime);
+                            1000.0 * (origpc[n].positions[i].finishTime - origpc[n].positions[i].submitTime));
                 }
             }
     }
@@ -128,16 +128,19 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
     if (fp) {
         const char *type = count < 100000 ? "points" : "dots";
 
+        fprintf(fp, "set term dumb 100,40\n");
         fprintf(fp, "set key above\n");
         fprintf(fp, "set title 'Block size vs Latency (%.0lf%% horiz jitter, n=%zd)\n", jitter * 100.0, count);
         fprintf(fp, "set log x\n");
         fprintf(fp, "set log y\n");
         fprintf(fp, "set xtics auto\n");
+        fprintf(fp, "set yrange []\n");
+        fprintf(fp, "set ytics 2\n");
         fprintf(fp, "set logscale x 2\n");
         fprintf(fp, "set format x '2^{%%L}'\n");
         fprintf(fp, "set grid\n");
         fprintf(fp, "set xlabel 'Block size (bytes)'\n");
-        fprintf(fp, "set ylabel 'Latency (s)'\n");
+        fprintf(fp, "set ylabel 'Latency (ms)'\n");
         fprintf(fp,
                 "plot 'size_vs_latency_r.txt' using 1:2:2 with %s palette title 'Block reads', 'size_vs_latency_w.txt' using 1:2:2 with %s palette title 'Block writes'\n",
                 type, type);
@@ -192,6 +195,7 @@ void latencyReadGnuplot(latencyType *lat) {
     }
     FILE *fp = fopen("spit-latency-histogram-read.gnu", "wt");
     if (fp) {
+        fprintf(fp, "set term dumb 100,40\n");
         fprintf(fp, "set key above\n");
         fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)'\n", lat->histRead.dataCount);
         fprintf(fp, "set nonlinear x via log10(x)/log10(2) inverse 2**x\n"); // xtics like 1, 2, 4, 8 ms
@@ -227,6 +231,7 @@ void latencyWriteGnuplot(latencyType *lat) {
     }
     FILE *fp = fopen("spit-latency-histogram-write.gnu", "wt");
     if (fp) {
+        fprintf(fp, "set term dumb 100,40\n");
         fprintf(fp, "set key above\n");
         fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)'\n", lat->histWrite.dataCount);
         fprintf(fp, "set nonlinear x via log10(x)/log10(2) inverse 2**x\n"); // xtics like 1, 2, 4, 8 ms
