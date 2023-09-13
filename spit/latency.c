@@ -199,7 +199,8 @@ void latencyReadGnuplot(latencyType *lat) {
         fprintf(fp, "set key above\n");
         fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)'\n", lat->histRead.dataCount);
         fprintf(fp, "set nonlinear x via log10(x)/log10(2) inverse 2**x\n"); // xtics like 1, 2, 4, 8 ms
-        fprintf(fp, "set xtics 2 logscale out\n");
+        fprintf(fp, "set xtics 2 out\n");
+        fprintf(fp, "set mxtics 10\n");
         fprintf(fp, "set log x\n");
         fprintf(fp, "set log y\n");
         fprintf(fp, "set yrange [0.9:%lf]\n", histMaxCount(&lat->histRead) * 1.1);
@@ -235,7 +236,8 @@ void latencyWriteGnuplot(latencyType *lat) {
         fprintf(fp, "set key above\n");
         fprintf(fp, "set title 'Response Time Histogram - Confidence Level Plot (n=%zd)'\n", lat->histWrite.dataCount);
         fprintf(fp, "set nonlinear x via log10(x)/log10(2) inverse 2**x\n"); // xtics like 1, 2, 4, 8 ms
-        fprintf(fp, "set xtics 2 logscale out\n");
+        fprintf(fp, "set xtics 2 out\n");
+        fprintf(fp, "set mxtics 10\n");
         fprintf(fp, "set log x\n");
         fprintf(fp, "set log y\n");
         fprintf(fp, "set yrange [0.9:%lf]\n", histMaxCount(&lat->histWrite) * 1.1);
