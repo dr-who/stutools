@@ -1,10 +1,52 @@
 #include <stdio.h>
+#include <malloc.h>
+#include <string.h>
 
 #include "simpmail.h"
 
+// returns the number of lines
+char *readFile(FILE *stream) {
+
+  char *ret = NULL;
+  
+    if (stream) {
+        char *line = NULL;
+        size_t len = 0;
+        ssize_t nread;
+
+        while ((nread = getline(&line, &len, stream)) != -1) {
+            //      printf("Retrieved line of length %zu:\n", nread);
+
+	  len = len + (nread + 1);
+	  
+	  ret = realloc(ret, len * sizeof(char));
+	  
+	  strcat(ret, line);
+	  strcat(ret, "\r\n");
+        }
+
+        free(line);
+        fclose(stream);
+    } else {
+        perror("problem");
+    }
+
+    return ret;
+}
+
+
+
 int main(int argc, char *argv[]) {
   if (argc < 4) {
-    printf("usage: simpmail <from> <to> <subject>\n");
+    printf("usage: simpmail <from> <to> <cc> <subject>   < file.html \n");
+    printf("\nExample:\n");
+    printf("  simpmail bob@example.com test@example.com cc@example.com \"Test subject in quotes\" < file.html \n");
+    printf("\nHTML example\n");
+    printf("  file.html:\n");
+    printf("\n");
+    printf("  <h1>Header</h1>\n");
+    printf("  Welcome. <p>\n");
+    
     return 1;
   }
 
@@ -13,9 +55,10 @@ int main(int argc, char *argv[]) {
   if (fd > 0) {
     char *from = argv[1];
     char *to = argv[2];
-    char *subject = argv[3];
-    char body[] = "test email\n";
-    simpmailSend(fd, from, to, subject, body);
+    char *cc = argv[3];
+    char *subject = argv[4];
+    char *body = readFile(stdin);
+    simpmailSend(fd, from, to, cc, subject, body);
     simpmailClose(fd);
   }
 

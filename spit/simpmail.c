@@ -48,7 +48,7 @@ void therec(int fd, char *buffer, int len, int flags) {
 }
 
 
-void simpmailSend(int fd, char *from, char *to, char *subject, char *body) {
+void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *body) {
   if (fd < 0) {
     fprintf(stderr,"*error* no fd, not sending email\n");
     return;
@@ -92,6 +92,9 @@ void simpmailSend(int fd, char *from, char *to, char *subject, char *body) {
    thesend(fd, buffer, FLAGS);
 
    sprintf(buffer, "To: <%s>\r\n", to);
+   thesend(fd, buffer, FLAGS);
+
+   sprintf(buffer, "CC: <%s>\r\n", cc);
    thesend(fd, buffer, FLAGS);
 
    sprintf(buffer, "Subject: %s\r\n", subject);
