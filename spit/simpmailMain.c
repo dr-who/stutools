@@ -26,7 +26,6 @@ char *readFile(FILE *stream) {
         }
 
         free(line);
-        fclose(stream);
     } else {
         perror("problem");
     }

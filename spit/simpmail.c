@@ -54,9 +54,9 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
     return;
   }
 
-   char buffer[1024];
+  char *buffer = malloc(128*1024);
 
-   memset(buffer, 0, sizeof(buffer));
+   memset(buffer, 0, 128*1024);
    int FLAGS = 0;
 
    // get response from Server after connection
@@ -110,4 +110,6 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
    
    thesend(fd, "QUIT\r\n", FLAGS);
    therec(fd, buffer, 1024, FLAGS);
+
+   free(buffer);
 }
