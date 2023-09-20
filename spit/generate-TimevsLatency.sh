@@ -17,14 +17,14 @@ mkdir -p ${TEMPDATA}
 
 if [ "${RWMODE}" = "" ]; then export RWMODE=r; fi
 if [ "${IOPS}" = "" ]; then export IOPS=100; fi
-if [ "${GBSIZE}" = "" ]; then export GBSIZE=100; fi
+if [ "${GBSIZE}" = "" ]; then export GBSIZE=1; fi
 if [ "${SAMPLES}" = "" ]; then export SAMPLES=5; fi
 if [ "${BLOCKSIZEK}" = "" ]; then export BLOCKSIZEK=1024; fi
 
 
 
-export MODEL=$(smartctl -a /dev/${TESTDEVICE} | egrep "Model:|Product:" | head -n 1 | sed 's/.*: *//g')
-export REV=$(smartctl -a /dev/${TESTDEVICE} | egrep "Revision" | head -n 1 | sed 's/.*: *//g')
+export MODEL=$(smartctl -a /dev/${TESTDEVICE} | egrep "Model:|Product:" | head -n 1 | sed 's/.*: *//g' | tr ' ' '_')
+export REV=$(smartctl -a /dev/${TESTDEVICE} | egrep "Revision" | head -n 1 | sed 's/.*: *//g' | tr ' ' '_')
 export SIZETB=$(lsblk -b /dev/${TESTDEVICE} | tail -n 1 | gawk '{printf "%.0lf\n",$4/1000000000000.0}')
 
 echo === ${MODEL} ${BLOCKSIZEK} ${SIZETB} ${REV} ${RWMODE} ${IOPS} ${SAMPLES}
@@ -44,7 +44,8 @@ dd if=/dev/${TESTDEVICE} bs=4k of=/dev/null count=1 2>/dev/null
 
 gawk '{print $2,$14,$17,$18}' pos-${FILEOUT} > TimevsLatency-${FILEOUT}.txt
 
-echo "set xlabel 'Disk position (MiB)'" > TimevsLatency-${FILEOUT}.gnu
+echo "set term dumb 100,40" > TimevsLatency-${FILEOUT}.gnu
+echo "set xlabel 'Disk position (MiB)'" >> TimevsLatency-${FILEOUT}.gnu
 echo "set ylabel 'Latency (ms)'" >> TimevsLatency-${FILEOUT}.gnu
 echo "set title 'Seq ${RWMODE} - ${BLOCKSIZEK}KiB operations - ${FILEOUT} - ${SIZETB} TB'" >> TimevsLatency-${FILEOUT}.gnu
 echo "set ytics out" >> TimevsLatency-${FILEOUT}.gnu

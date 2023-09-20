@@ -32,7 +32,8 @@ echo == nr_requests ${MAXNR} ==
 #MIN=$(cat IOPSvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat  | awk '{print $4}')
 #MAX=$(cat IOPSvsLatency.txt | awk '{for (i=2;i<=NF;i++) print $i}' | ./stat  | awk '{print $12}')
 
-echo "set xlabel 'Time (s)'" > RandomIOovertime.gnu
+echo "set term dumb 100,40" > RandomIOovertime.gnu
+echo "set xlabel 'Time (s)'" >> RandomIOovertime.gnu
 echo "set ylabel 'Average latency (ms)'" >> RandomIOovertime.gnu
 echo "set title 'Random read ${BLOCKSIZEK} KiB operations - ${MODEL}'" >> RandomIOovertime.gnu
 echo "set ytics out" >> RandomIOovertime.gnu
