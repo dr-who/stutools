@@ -22,7 +22,7 @@ char *readFile(FILE *stream) {
 	  ret = realloc(ret, len * sizeof(char));
 	  
 	  strcat(ret, line);
-	  strcat(ret, "\r\n");
+	  strcat(ret, "\n");
         }
 
         free(line);

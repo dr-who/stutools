@@ -7,6 +7,21 @@
 #include <time.h>
 #include <arpa/inet.h>
 
+unsigned long getDevRandomLong(void) {
+    FILE *fp = fopen("/dev/random", "rb");
+    unsigned long c = 0;
+    if (fread(&c, sizeof(unsigned long), 1, fp) == 0) {
+        //      perror("random");
+        c = time(NULL);
+        fprintf(stderr, "*info* random seed from clock\n");
+    }
+    fclose(fp);
+    if (c == 0) {
+        fprintf(stderr, "*warning* the random number was 0. That doesn't happen often.\n");
+    }
+    return c;
+}
+
 int simpmailConnect(const char *IPADDRESS){
    int sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -94,9 +109,12 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
    sprintf(buffer, "To: <%s>\r\n", to);
    thesend(fd, buffer, FLAGS);
 
-   sprintf(buffer, "CC: <%s>\r\n", cc);
+   sprintf(buffer, "Cc: <%s>\r\n", cc);
    thesend(fd, buffer, FLAGS);
 
+   sprintf(buffer,"Message-ID: %lu%s\r\n", getDevRandomLong(), from);
+   thesend(fd, buffer, FLAGS);
+   
    sprintf(buffer, "Subject: %s\r\n", subject);
    thesend(fd, buffer, FLAGS);
 
