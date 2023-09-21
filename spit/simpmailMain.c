@@ -34,7 +34,7 @@ char *readFile(FILE *stream) {
         perror("problem");
     }
 
-    return strdup(ret);
+    return ret;
 }
 
 void usage() {
@@ -192,6 +192,12 @@ int main(int argc, char *argv[]) {
   }
 
   if (payload) free(payload);
+  if (fromemail) free(fromemail);
+  if (fromname) free(fromname);
+  if (toemail) free(toemail);
+  if (ccemail) free(ccemail);
+  if (bccemail) free(bccemail);
+  if (subject) free(subject);
 
 
   return 0;
