@@ -157,7 +157,7 @@ int main(int argc, char *argv[]) {
 	  
       // send the email
       if (dryRun) {
-	printf("From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, Payload %ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, e->addr[i], ccemail, bccemail, strlen(payload), subject);
+	printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, Payload %ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, e->addr[i], ccemail, bccemail, strlen(payload), subject);
       } else {
 	int fd = simpmailConnect("127.0.0.1");
 	
@@ -180,18 +180,20 @@ int main(int argc, char *argv[]) {
   } else {
 
     if (dryRun) {
-      printf("From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, Payload %ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, toemail, ccemail, bccemail, strlen(payload), subject);
+      printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, Payload %ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, toemail, ccemail, bccemail, strlen(payload), subject);
     } else {
       int fd = simpmailConnect("127.0.0.1");
       
       if (fd > 0) {
-	char *body = readFile(stdin);
-	simpmailSend(fd, 0, fromemail, fromname, toemail, ccemail, bccemail, subject, body);
+	simpmailSend(fd, 0, fromemail, fromname, toemail, ccemail, bccemail, subject, payload);
 	simpmailClose(fd);
       }
     }
-    
   }
+
+  if (payload) free(payload);
+
 
   return 0;
 }
+
