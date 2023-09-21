@@ -49,6 +49,7 @@ void usage() {
   printf("  -s subject    # subject (use \"'s)\n");
   printf("  -p payload/body # body filename\n");
   printf("  -r rate/sec   # defaults to 20 (sleep 1/20 after each)\n");
+  printf("  -d            # dry run, don't send emails\n");
   printf("\nExamples:\n");
 
   printf("  simpmail -f bob@example.com -F \"Bob Bob\" -t test@example.com -c cc@example.com -s \"Test subject in quotes\" -p file.html \n");
@@ -59,12 +60,16 @@ void usage() {
 int main(int argc, char *argv[]) {
 
   int opt;
+  int dryRun = 0;
   char *fromemail = NULL, *fromname = NULL, *toemail = NULL, *ccemail = NULL, *bccemail = NULL, *subject = NULL, *payload = NULL;
   emaildbType *e = NULL;
   double ratepersecond = 20;
   
-  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:l:p:r:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:l:p:r:d")) != -1) {
     switch (opt) {
+    case 'd':
+      dryRun = 1;
+      break;
     case 'r':
       ratepersecond = atof(optarg);
       break;
@@ -107,7 +112,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
-
+  if (dryRun) {
+    fprintf(stderr,"*warning* DRY RUN ONLY. NO EMAILS SENT\n");
+  }
   fprintf(stderr,"*info* rate per second = %.1lf\n", ratepersecond);
 
   if (fromemail && subject && payload && e) {
@@ -146,16 +153,20 @@ int main(int argc, char *argv[]) {
       } // i>= next
 	  
       // send the email
-      int fd = simpmailConnect("127.0.0.1");
-      
-      if (fd > 0) {
-	simpmailSend(fd, i >= 10, fromemail, fromname, e->addr[i], ccemail, bccemail, subject, payload);
-	simpmailClose(fd);
+      if (dryRun) {
+	printf("From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, Payload %ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, e->addr[i], ccemail, bccemail, strlen(payload), subject);
+      } else {
+	int fd = simpmailConnect("127.0.0.1");
+	
+	if (fd > 0) {
+	  simpmailSend(fd, i >= 10, fromemail, fromname, e->addr[i], ccemail, bccemail, subject, payload);
+	  simpmailClose(fd);
+	}
       }
-
+      
       fprintf(stderr,"[%zd of %zd] %s\n", i+1, e->len, e->addr[i]);
       
-      if (ratepersecond) {
+      if (ratepersecond && (dryRun == 0)) {
 	usleep(1000 * 1000 / ratepersecond); // a bit of a pause
       }
 
@@ -164,14 +175,19 @@ int main(int argc, char *argv[]) {
   } else if (!fromemail || !toemail || !subject || !payload) {
     usage();
   } else {
-    
-    int fd = simpmailConnect("127.0.0.1");
-    
-    if (fd > 0) {
-      char *body = readFile(stdin);
-      simpmailSend(fd, 0, fromemail, fromname, toemail, ccemail, bccemail, subject, body);
-      simpmailClose(fd);
+
+    if (dryRun) {
+      printf("From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, Payload %ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, toemail, ccemail, bccemail, strlen(payload), subject);
+    } else {
+      int fd = simpmailConnect("127.0.0.1");
+      
+      if (fd > 0) {
+	char *body = readFile(stdin);
+	simpmailSend(fd, 0, fromemail, fromname, toemail, ccemail, bccemail, subject, body);
+	simpmailClose(fd);
+      }
     }
+    
   }
 
   return 0;
