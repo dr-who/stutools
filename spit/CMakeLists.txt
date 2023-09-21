@@ -38,7 +38,7 @@ target_link_libraries(spit spitlib m aio pthread numa)
 add_executable(modcat modcat.c)
 #target_link_libraries()
 
-add_executable(simpmail simpmail.c simpmailMain.c)
+add_executable(simpmail simpmail.c simpmailMain.c emaildb.c)
 
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
