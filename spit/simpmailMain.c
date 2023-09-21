@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <unistd.h>
 
 #include "simpmail.h"
 #include "emaildb.h"
@@ -47,6 +48,7 @@ void usage() {
   printf("  -b email      # bcc email address (singular)\n");
   printf("  -s subject    # subject (use \"'s)\n");
   printf("  -p payload/body # body filename\n");
+  printf("  -r rate/sec   # defaults to 20 (sleep 1/20 after each)\n");
   printf("\nExamples:\n");
 
   printf("  simpmail -f bob@example.com -F \"Bob Bob\" -t test@example.com -c cc@example.com -s \"Test subject in quotes\" -p file.html \n");
@@ -62,9 +64,13 @@ int main(int argc, char *argv[]) {
   int opt;
   char *fromemail = NULL, *fromname = NULL, *toemail = NULL, *ccemail = NULL, *bccemail = NULL, *subject = NULL, *payload = NULL;
   emaildbType *e = NULL;
+  double ratepersecond = 20;
   
-  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:l:p:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:l:p:r:")) != -1) {
     switch (opt) {
+    case 'r':
+      ratepersecond = atof(optarg);
+      break;
     case 'f':
       fromemail = strdup(optarg); break;
     case 'F':
@@ -104,12 +110,16 @@ int main(int argc, char *argv[]) {
     }
   }
 
+
+  fprintf(stderr,"*info* rate per second = %.1lf\n", ratepersecond);
+
   if (fromemail && subject && payload && e) {
     // iterate
+    printf("*info* There are %zd unique email addresses\n", e->len);
     size_t next = 0;
     for (size_t i = 0; i < e->len; i++) {
       if (i >= next) {
-	printf("Send how many? [1,2,3... all] (%s)", e->addr[i]); fflush(stdout);
+	printf("Send how many [1,2 ... all] (%s)? ", e->addr[i]); fflush(stdout);
 	char input[100];
 	char buf[100];
 
@@ -138,14 +148,18 @@ int main(int argc, char *argv[]) {
 	}
       } // i>= next
 	  
-      fprintf(stderr,"[%zd of %zd] %s\n", i+1, e->len, e->addr[i]);
-
       // send the email
       int fd = simpmailConnect("127.0.0.1");
       
       if (fd > 0) {
 	simpmailSend(fd, i >= 10, fromemail, fromname, e->addr[i], ccemail, bccemail, subject, payload);
 	simpmailClose(fd);
+      }
+
+      fprintf(stderr,"[%zd of %zd] %s\n", i+1, e->len, e->addr[i]);
+      
+      if (ratepersecond) {
+	usleep(1000 * 1000 / ratepersecond); // a bit of a pause
       }
 
     } // iterate over all email addresses
