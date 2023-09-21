@@ -64,7 +64,7 @@ void therec(int fd, char *buffer, int len, int flags) {
 }
 
 
-void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *body) {
+void simpmailSend(int fd, char *from, char *fromname, char *to, char *cc, char *bcc, char *subject, char *body) {
   if (fd < 0) {
     fprintf(stderr,"*error* no fd, not sending email\n");
     return;
@@ -89,9 +89,17 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
    thesend(fd, buffer, FLAGS);
    therec(fd, buffer, 1024, FLAGS);
 
-   sprintf(buffer,"RCPT TO: <%s>\r\n", cc);
-   thesend(fd, buffer, FLAGS);
-   therec(fd, buffer, 1024, FLAGS);
+   if (cc) {
+     sprintf(buffer,"RCPT TO: <%s>\r\n", cc);
+     thesend(fd, buffer, FLAGS);
+     therec(fd, buffer, 1024, FLAGS);
+   }
+
+   if (bcc) {
+     sprintf(buffer,"RCPT TO: <%s>\r\n", bcc);
+     thesend(fd, buffer, FLAGS);
+     therec(fd, buffer, 1024, FLAGS);
+   }
 
    thesend(fd, "DATA\r\n", FLAGS);
    therec(fd, buffer, 1024, FLAGS);
@@ -110,14 +118,27 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
    sprintf(buffer,"Message-ID: <%lu%s>\r\n", getDevRandomLong(), from);
    thesend(fd, buffer, FLAGS);
    
-   sprintf(buffer, "From: \"NetValue Hosting\" <%s>\r\n", from);
-   thesend(fd, buffer, FLAGS);
+   if (fromname) {
+     sprintf(buffer, "From: \"%s\" <%s>\r\n", fromname, from);
+     thesend(fd, buffer, FLAGS);
+   } else {
+     sprintf(buffer, "From: <%s>\r\n", from);
+     thesend(fd, buffer, FLAGS);
+   }
+     
 
    sprintf(buffer, "To: <%s>\r\n", to);
    thesend(fd, buffer, FLAGS);
 
-   sprintf(buffer, "Cc: <%s>\r\n", cc);
-   thesend(fd, buffer, FLAGS);
+   if (cc) {
+     sprintf(buffer, "Cc: <%s>\r\n", cc);
+     thesend(fd, buffer, FLAGS);
+   }
+
+   if (bcc) {
+     sprintf(buffer, "Bcc: <%s>\r\n", bcc);
+     thesend(fd, buffer, FLAGS);
+   }
 
    sprintf(buffer, "Subject: %s\r\n", subject);
    thesend(fd, buffer, FLAGS);

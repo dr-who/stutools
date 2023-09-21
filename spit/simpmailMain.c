@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <stdlib.h>
+#include <getopt.h>
 
 #include "simpmail.h"
 
@@ -34,32 +35,53 @@ char *readFile(FILE *stream) {
     return strdup(ret);
 }
 
-
+void usage() {
+  printf("usage: simpmail <from> <to> <cc> <subject>   < file.html \n");
+  printf("\nExample:\n");
+  printf("  simpmail bob@example.com test@example.com cc@example.com \"Test subject in quotes\" < file.html \n");
+  printf("\nHTML example\n");
+  printf("  file.html:\n");
+  printf("\n");
+  printf("  <h1>Header</h1>\n");
+  printf("  Welcome. <p>\n");
+}
 
 int main(int argc, char *argv[]) {
-  if (argc < 4) {
-    printf("usage: simpmail <from> <to> <cc> <subject>   < file.html \n");
-    printf("\nExample:\n");
-    printf("  simpmail bob@example.com test@example.com cc@example.com \"Test subject in quotes\" < file.html \n");
-    printf("\nHTML example\n");
-    printf("  file.html:\n");
-    printf("\n");
-    printf("  <h1>Header</h1>\n");
-    printf("  Welcome. <p>\n");
-    
-    return 1;
+
+  int opt;
+  char *fromemail = NULL, *fromname = NULL, *toemail = NULL, *ccemail = NULL, *bccemail = NULL, *subject = NULL;
+  
+  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:")) != -1) {
+    switch (opt) {
+    case 'f':
+      fromemail = strdup(optarg); break;
+    case 'F':
+      fromname = strdup(optarg); break;
+    case 't':
+      toemail = strdup(optarg); break;
+    case 'c':
+      ccemail = strdup(optarg); break;
+    case 'b':
+      bccemail = strdup(optarg); break;
+    case 's':
+      subject = strdup(optarg); break;
+    default:
+      fprintf(stderr,"unknown command\n");
+      exit(EXIT_FAILURE);
+    }
   }
 
-  int fd = simpmailConnect("127.0.0.1");
-
-  if (fd > 0) {
-    char *from = argv[1];
-    char *to = argv[2];
-    char *cc = argv[3];
-    char *subject = argv[4];
-    char *body = readFile(stdin);
-    simpmailSend(fd, from, to, cc, subject, body);
-    simpmailClose(fd);
+  if (!fromemail || !toemail || !subject) {
+    usage();
+  } else {
+    
+    int fd = simpmailConnect("127.0.0.1");
+    
+    if (fd > 0) {
+      char *body = readFile(stdin);
+      simpmailSend(fd, fromemail, fromname, toemail, ccemail, bccemail, subject, body);
+      simpmailClose(fd);
+    }
   }
 
   return 0;
