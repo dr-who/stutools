@@ -1,28 +1,29 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "simpmail.h"
 
 // returns the number of lines
 char *readFile(FILE *stream) {
 
-  char *ret = NULL;
+  char *ret = calloc(1024*1024, 1);
   
     if (stream) {
         char *line = NULL;
-        size_t len = 0;
+        size_t linelen = 0;
         ssize_t nread;
 
-        while ((nread = getline(&line, &len, stream)) != -1) {
+        while ((nread = getline(&line, &linelen, stream)) != -1) {
             //      printf("Retrieved line of length %zu:\n", nread);
 
-	  len = len + (nread + 1);
+	  //	  len = len + (nread + 1);
 	  
-	  ret = realloc(ret, len * sizeof(char));
+	  //	  ret = realloc(ret, len * sizeof(char));
 	  
 	  strcat(ret, line);
-	  strcat(ret, "\n");
+	  //	  strcat(ret, "\n");
         }
 
         free(line);
@@ -30,7 +31,7 @@ char *readFile(FILE *stream) {
         perror("problem");
     }
 
-    return ret;
+    return strdup(ret);
 }
 
 

@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <arpa/inet.h>
+#include <assert.h>
 
 unsigned long getDevRandomLong(void) {
     FILE *fp = fopen("/dev/random", "rb");
@@ -57,7 +58,7 @@ void thesend(int fd, char *s, int flags) {
 }
 
 void therec(int fd, char *buffer, int len, int flags) {
-  memset(buffer, 0, 1024);
+  memset(buffer, 0, 1024*10);
  recv(fd, buffer, len, flags);
   printf("S: %s", buffer);
 }
@@ -69,9 +70,8 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
     return;
   }
 
-  char *buffer = malloc(128*1024);
+  char *buffer = calloc(10*1024, 1); assert(buffer);
 
-   memset(buffer, 0, 128*1024);
    int FLAGS = 0;
 
    // get response from Server after connection
@@ -107,10 +107,10 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
    sprintf(buffer,"Return-Path: <%s>\r\n", from);
    thesend(fd, buffer, FLAGS);
    
-   sprintf(buffer,"Message-ID: %lu%s\r\n", getDevRandomLong(), from);
+   sprintf(buffer,"Message-ID: <%lu%s>\r\n", getDevRandomLong(), from);
    thesend(fd, buffer, FLAGS);
    
-   sprintf(buffer, "From: \"NetValue Support\" <%s>\r\n", from);
+   sprintf(buffer, "From: \"NetValue Hosting\" <%s>\r\n", from);
    thesend(fd, buffer, FLAGS);
 
    sprintf(buffer, "To: <%s>\r\n", to);
@@ -122,7 +122,7 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
    sprintf(buffer, "Subject: %s\r\n", subject);
    thesend(fd, buffer, FLAGS);
 
-   thesend(fd, "Content-Type: text/html\r\n", FLAGS);
+   thesend(fd, "Content-Type: text/html; charset=UTF-8\r\n", FLAGS);
    
    thesend(fd, "\r\n", FLAGS);
    thesend(fd, body, FLAGS);
