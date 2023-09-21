@@ -164,15 +164,13 @@ void simpmailSend(int fd, const int quiet, char *from, char *fromname, char *to,
      thesend(fd, "\r\n", FLAGS, quiet);
      thesend(fd, plainbody, FLAGS, quiet);
      thesend(fd, "\r\n", FLAGS, quiet);
-     thesend(fd, "\r\n", FLAGS, quiet);
 
      thesend(fd, "--boundary\r\n", FLAGS, quiet);
      thesend(fd, "Content-Type: text/html; charset=UTF-8\r\n", FLAGS, quiet);
      thesend(fd, "\r\n", FLAGS, quiet);
      thesend(fd, htmlbody, FLAGS, quiet);
      thesend(fd, "\r\n", FLAGS, quiet);
-     thesend(fd, "\r\n", FLAGS, quiet);
-     thesend(fd, "--boundary\r\n", FLAGS, quiet);
+     thesend(fd, "--boundary--\r\n", FLAGS, quiet);
    }
    
    thesend(fd, "\r\n", FLAGS, quiet);
