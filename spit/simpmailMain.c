@@ -36,9 +36,18 @@ char *readFile(FILE *stream) {
 }
 
 void usage() {
-  printf("usage: simpmail <from> <to> <cc> <subject>   < file.html \n");
-  printf("\nExample:\n");
-  printf("  simpmail bob@example.com test@example.com cc@example.com \"Test subject in quotes\" < file.html \n");
+  printf("usage: simpmail -f <from> -s <subject> [ -t toemail | -l list.txt ]   < file.html \n");
+  printf("\nOptions:\n");
+  printf("  -t email      # to email address (singular)\n");
+  printf("  -l list.txt   # to email address (singular)\n");
+  printf("  -f email      # from email address\n");
+  printf("  -F name       # plain name (use \"'s)\n");
+  printf("  -c email      # cc email address (singular)\n");
+  printf("  -b email      # bcc email address (singular)\n");
+  printf("  -s subject    # subject (use \"'s)\n");
+  printf("\nExamples:\n");
+
+  printf("  simpmail -f bob@example.com -F \"Bob Bob\" -t test@example.com -c cc@example.com -s \"Test subject in quotes\" < file.html \n");
   printf("\nHTML example\n");
   printf("  file.html:\n");
   printf("\n");
