@@ -55,8 +55,11 @@ void usage() {
   printf("  -r rate/sec      # defaults to 20 (sleep 1/20 after each)\n");
   printf("\nExamples:\n");
 
-  printf("  simpmail -f bob@example.com -F \"Bob Bob\" -t test@example.com -c cc@example.com -s \"Test subject in quotes\" -p file.html \n");
-  printf("\nHTML example:\n");
+  printf("  simpmail -t test@example.com -f bob@example.com -F \"Bob Hope\" -c cc@example.com -s \"Test subject in quotes\" -p file.html -d # -d dryrun\n");
+  printf("\n");
+  printf("  simpmail -l big-ema-list.txt -f bob@example.com -F \"Bob Hope\" -c cc@example.com -s \"Test subject in quotes\" -p file.html -d # -d dryrun\n");
+
+    printf("\nHTML example:\n");
   printf("  Look in 'simpmail-template.html'\n");
 }
 
@@ -115,13 +118,23 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (!fromemail || !subject || !payload) {
+    usage();
+    exit(1);
+  }
+  if (!toemail && !e) {
+    usage();
+    exit(1);
+  }
+    
+
   if (dryRun) {
     fprintf(stderr,"*warning* DRY RUN ONLY. NO EMAILS SENT\n");
   }
   fprintf(stderr,"*info* rate per second = %.1lf\n", ratepersecond);
-
-  if (fromemail && subject && payload && e) {
-    // iterate
+  
+  
+  if (e) { // if an email database
     printf("*info* There are %zd unique email addresses\n", e->len);
     size_t next = 0;
     for (size_t i = 0; i < e->len; i++) {
@@ -175,9 +188,8 @@ int main(int argc, char *argv[]) {
 
     } // iterate over all email addresses
     emaildbFree(e);
-  } else if (!fromemail || !toemail || !subject || !payload) {
-    usage();
-  } else {
+    
+  } else { // a one-off
 
     if (dryRun) {
       printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, Payload %ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, toemail, ccemail, bccemail, strlen(payload), subject);
@@ -189,8 +201,10 @@ int main(int argc, char *argv[]) {
 	simpmailClose(fd);
       }
     }
-  }
+  } // one-off
 
+  // cleanup
+  
   if (payload) free(payload);
   if (fromemail) free(fromemail);
   if (fromname) free(fromname);
