@@ -52,11 +52,8 @@ void usage() {
   printf("\nExamples:\n");
 
   printf("  simpmail -f bob@example.com -F \"Bob Bob\" -t test@example.com -c cc@example.com -s \"Test subject in quotes\" -p file.html \n");
-  printf("\nHTML example\n");
-  printf("  file.html:\n");
-  printf("\n");
-  printf("  <h1>Header</h1>\n");
-  printf("  Welcome. <p>\n");
+  printf("\nHTML example:\n");
+  printf("  Look in 'simpmail-template.html'\n");
 }
 
 int main(int argc, char *argv[]) {
