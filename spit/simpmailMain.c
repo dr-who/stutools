@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "simpmail.h"
 #include "emaildb.h"
@@ -11,7 +12,9 @@
 // returns the number of lines
 char *readFile(FILE *stream) {
 
-  char *ret = calloc(1024*1024, 1);
+  char *ret = NULL;
+  size_t retlen = 0;
+  size_t pos = 0;
   
     if (stream) {
         char *line = NULL;
@@ -21,11 +24,12 @@ char *readFile(FILE *stream) {
         while ((nread = getline(&line, &linelen, stream)) != -1) {
             //      printf("Retrieved line of length %zu:\n", nread);
 
-	  //	  len = len + (nread + 1);
+	  retlen += (nread);
+	  ret = realloc(ret, (retlen+1) * sizeof(char));
 	  
-	  //	  ret = realloc(ret, len * sizeof(char));
-	  
-	  strcat(ret, line);
+	  strncpy(ret + pos, line, nread);
+	  ret[pos + nread] = 0;
+	  pos += nread;
 	  //	  strcat(ret, "\n");
         }
 
@@ -38,14 +42,15 @@ char *readFile(FILE *stream) {
 }
 
 void usage() {
-  printf("usage: simpmail -f <from> -s <subject> [ -t toemail | -l list.txt ]   -p file.html \n");
+  printf("usage: simpmail -f <from> -s <subject> [ -t toemail | -l list.txt ]   -p/-h file.html \n");
   printf("\nOptions:\n");
   printf("  -t email         # to email address (singular)\n");
   printf("  -l list.txt      # to a list of email addresses (one per line)\n");
   printf("\n");
   printf("  -d               # dry run, don't send emails\n");
   printf("\n");
-  printf("  -p payload/body  # body filename\n");
+  printf("  -p plain body    # plain text filename\n");
+  printf("  -h HTML body     # HTML filename\n");
   printf("  -s subject       # subject (use \"'s)\n");
   printf("  -f email         # from email address\n");
   printf("  -F name          # plain name (use \"'s)\n");
@@ -67,11 +72,11 @@ int main(int argc, char *argv[]) {
 
   int opt;
   int dryRun = 0;
-  char *fromemail = NULL, *fromname = NULL, *toemail = NULL, *ccemail = NULL, *bccemail = NULL, *subject = NULL, *payload = NULL;
+  char *fromemail = NULL, *fromname = NULL, *toemail = NULL, *ccemail = NULL, *bccemail = NULL, *subject = NULL, *htmlbody = NULL, *plainbody = NULL;
   emaildbType *e = NULL;
   double ratepersecond = 20;
   
-  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:l:p:r:d")) != -1) {
+  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:l:p:r:dh:")) != -1) {
     switch (opt) {
     case 'd':
       dryRun = 1;
@@ -91,12 +96,22 @@ int main(int argc, char *argv[]) {
       bccemail = strdup(optarg); break;
     case 's':
       subject = strdup(optarg); break;
-    case 'p':
+    case 'h':
       {
-	fprintf(stderr,"*info* body/payload is '%s'\n", optarg);
+	fprintf(stderr,"*info* HTML body is '%s'\n", optarg);
 	FILE *fp = fopen(optarg, "rt");
 	if (fp) {
-	  payload = readFile(fp);
+	  htmlbody = readFile(fp);
+	  fclose(fp);
+	}
+      }
+      break;
+    case 'p':
+      {
+	fprintf(stderr,"*info* plain body is '%s'\n", optarg);
+	FILE *fp = fopen(optarg, "rt");
+	if (fp) {
+	  plainbody = readFile(fp);
 	  fclose(fp);
 	}
       }
@@ -118,27 +133,33 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (!fromemail || !subject || !payload) {
+
+  if (!e && toemail) {
+    e = emaildbInit();
+    emaildbAdd(e, toemail);
+  }
+  
+  if (!fromemail || !subject || !e) {
     usage();
     exit(1);
   }
-  if (!toemail && !e) {
+  
+  if (!htmlbody && !plainbody) {
     usage();
     exit(1);
   }
-    
 
   if (dryRun) {
     fprintf(stderr,"*warning* DRY RUN ONLY. NO EMAILS SENT\n");
   }
   fprintf(stderr,"*info* rate per second = %.1lf\n", ratepersecond);
-  
-  
+
+  assert(e);
   if (e) { // if an email database
     printf("*info* There are %zd unique email addresses\n", e->len);
     size_t next = 0;
     for (size_t i = 0; i < e->len; i++) {
-      if (i >= next) {
+      if ((e->len > 1) && (i >= next)) {
 	printf("Send how many [1,2 ... all] (%s)? ", e->addr[i]); fflush(stdout);
 	char input[100];
 	char buf[100];
@@ -170,12 +191,12 @@ int main(int argc, char *argv[]) {
 	  
       // send the email
       if (dryRun) {
-	printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, Payload %ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, e->addr[i], ccemail, bccemail, strlen(payload), subject);
+	printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, body %ld/%ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, e->addr[i], ccemail, bccemail, strlen(plainbody), strlen(htmlbody), subject);
       } else {
 	int fd = simpmailConnect("127.0.0.1");
 	
 	if (fd > 0) {
-	  simpmailSend(fd, i >= 10, fromemail, fromname, e->addr[i], ccemail, bccemail, subject, payload);
+	  simpmailSend(fd, i >= 10, fromemail, fromname, e->addr[i], ccemail, bccemail, subject, htmlbody, plainbody);
 	  simpmailClose(fd);
 	}
       }
@@ -188,24 +209,12 @@ int main(int argc, char *argv[]) {
 
     } // iterate over all email addresses
     emaildbFree(e);
-    
-  } else { // a one-off
-
-    if (dryRun) {
-      printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, Payload %ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, toemail, ccemail, bccemail, strlen(payload), subject);
-    } else {
-      int fd = simpmailConnect("127.0.0.1");
-      
-      if (fd > 0) {
-	simpmailSend(fd, 0, fromemail, fromname, toemail, ccemail, bccemail, subject, payload);
-	simpmailClose(fd);
-      }
-    }
-  } // one-off
+  }
 
   // cleanup
   
-  if (payload) free(payload);
+  if (htmlbody) free(htmlbody);
+  if (plainbody) free(plainbody);
   if (fromemail) free(fromemail);
   if (fromname) free(fromname);
   if (toemail) free(toemail);

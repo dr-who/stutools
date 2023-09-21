@@ -58,19 +58,19 @@ void thesend(int fd, char *s, int flags, const int quiet) {
 }
 
 void therec(int fd, char *buffer, int len, int flags, const int quiet) {
-  memset(buffer, 0, 1024*10);
-  recv(fd, buffer, len, flags);
+  ssize_t ret = recv(fd, buffer, len, flags);
+  buffer[ret] = 0; // make string zero terminated
   if (quiet == 0) printf("S: %s", buffer);
 }
 
 
-void simpmailSend(int fd, const int quiet, char *from, char *fromname, char *to, char *cc, char *bcc, char *subject, char *body) {
+void simpmailSend(int fd, const int quiet, char *from, char *fromname, char *to, char *cc, char *bcc, char *subject, char *htmlbody, char *plainbody) {
   if (fd < 0) {
     fprintf(stderr,"*error* no fd, not sending email\n");
     return;
   }
 
-  char *buffer = calloc(10*1024, 1); assert(buffer);
+  char *buffer = calloc(25*1024*1024, 1); assert(buffer);
 
    int FLAGS = 0;
 
@@ -143,10 +143,38 @@ void simpmailSend(int fd, const int quiet, char *from, char *fromname, char *to,
    sprintf(buffer, "Subject: %s\r\n", subject);
    thesend(fd, buffer, FLAGS, quiet);
 
-   thesend(fd, "Content-Type: text/html; charset=UTF-8\r\n", FLAGS, quiet);
+   if (htmlbody && (plainbody == NULL)) {
+     thesend(fd, "Content-Type: text/html; charset=UTF-8\r\n", FLAGS, quiet);
+     
+     thesend(fd, "\r\n", FLAGS, quiet);
+     thesend(fd, htmlbody, FLAGS, quiet);
+   } else if (plainbody && (htmlbody == NULL)) {
+     thesend(fd, "Content-Type: text/plain; charset=UTF-8\r\n", FLAGS, quiet);
+     
+     thesend(fd, "\r\n", FLAGS, quiet);
+     thesend(fd, plainbody, FLAGS, quiet);
+   } else {
+     thesend(fd, "MIME-Version: 1.0\r\n", FLAGS, quiet);
+     thesend(fd, "Content-Type: multipart/alternative;boundary=boundary\r\n", FLAGS, quiet);
+     thesend(fd, "\r\n", FLAGS, quiet);
+     thesend(fd, "This is a MIME encoded message.\r\n", FLAGS, quiet);
+     thesend(fd, "\r\n", FLAGS, quiet);
+     thesend(fd, "--boundary\r\n", FLAGS, quiet);
+     thesend(fd, "Content-Type: text/plain; charset=UTF-8\r\n", FLAGS, quiet);
+     thesend(fd, "\r\n", FLAGS, quiet);
+     thesend(fd, plainbody, FLAGS, quiet);
+     thesend(fd, "\r\n", FLAGS, quiet);
+     thesend(fd, "\r\n", FLAGS, quiet);
+
+     thesend(fd, "--boundary\r\n", FLAGS, quiet);
+     thesend(fd, "Content-Type: text/html; charset=UTF-8\r\n", FLAGS, quiet);
+     thesend(fd, "\r\n", FLAGS, quiet);
+     thesend(fd, htmlbody, FLAGS, quiet);
+     thesend(fd, "\r\n", FLAGS, quiet);
+     thesend(fd, "\r\n", FLAGS, quiet);
+     thesend(fd, "--boundary\r\n", FLAGS, quiet);
+   }
    
-   thesend(fd, "\r\n", FLAGS, quiet);
-   thesend(fd, body, FLAGS, quiet);
    thesend(fd, "\r\n", FLAGS, quiet);
    thesend(fd, ".\r\n", FLAGS, quiet);
    therec(fd, buffer, 1024, FLAGS, quiet);
