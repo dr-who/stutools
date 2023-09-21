@@ -58,7 +58,7 @@ void thesend(int fd, char *s, int flags) {
 
 void therec(int fd, char *buffer, int len, int flags) {
   memset(buffer, 0, 1024);
-  recv(fd, buffer, len, flags);
+ recv(fd, buffer, len, flags);
   printf("S: %s", buffer);
 }
 
@@ -89,6 +89,10 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
    thesend(fd, buffer, FLAGS);
    therec(fd, buffer, 1024, FLAGS);
 
+   sprintf(buffer,"RCPT TO: <%s>\r\n", cc);
+   thesend(fd, buffer, FLAGS);
+   therec(fd, buffer, 1024, FLAGS);
+
    thesend(fd, "DATA\r\n", FLAGS);
    therec(fd, buffer, 1024, FLAGS);
 
@@ -103,7 +107,10 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
    sprintf(buffer,"Return-Path: <%s>\r\n", from);
    thesend(fd, buffer, FLAGS);
    
-   sprintf(buffer, "From: <%s>\r\n", from);
+   sprintf(buffer,"Message-ID: %lu%s\r\n", getDevRandomLong(), from);
+   thesend(fd, buffer, FLAGS);
+   
+   sprintf(buffer, "From: \"NetValue Support\" <%s>\r\n", from);
    thesend(fd, buffer, FLAGS);
 
    sprintf(buffer, "To: <%s>\r\n", to);
@@ -112,9 +119,6 @@ void simpmailSend(int fd, char *from, char *to, char *cc, char *subject, char *b
    sprintf(buffer, "Cc: <%s>\r\n", cc);
    thesend(fd, buffer, FLAGS);
 
-   sprintf(buffer,"Message-ID: %lu%s\r\n", getDevRandomLong(), from);
-   thesend(fd, buffer, FLAGS);
-   
    sprintf(buffer, "Subject: %s\r\n", subject);
    thesend(fd, buffer, FLAGS);
 
