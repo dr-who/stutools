@@ -5,7 +5,7 @@
 int simpmailConnect(const char *IPADDRESS);
 void simpmailClose(int fd);
 
-void simpmailSend(int fd, char *fromemail, char *fromname, char *to, char *cc, char *bcc, char *subject, char *body);
+void simpmailSend(int fd, const int quiet, char *fromemail, char *fromname, char *to, char *cc, char *bcc, char *subject, char *body);
 
 
 #endif

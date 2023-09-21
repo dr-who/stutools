@@ -5,6 +5,7 @@
 #include <getopt.h>
 
 #include "simpmail.h"
+#include "emaildb.h"
 
 // returns the number of lines
 char *readFile(FILE *stream) {
@@ -36,7 +37,7 @@ char *readFile(FILE *stream) {
 }
 
 void usage() {
-  printf("usage: simpmail -f <from> -s <subject> [ -t toemail | -l list.txt ]   < file.html \n");
+  printf("usage: simpmail -f <from> -s <subject> [ -t toemail | -l list.txt ]   -p file.html \n");
   printf("\nOptions:\n");
   printf("  -t email      # to email address (singular)\n");
   printf("  -l list.txt   # to email address (singular)\n");
@@ -45,9 +46,10 @@ void usage() {
   printf("  -c email      # cc email address (singular)\n");
   printf("  -b email      # bcc email address (singular)\n");
   printf("  -s subject    # subject (use \"'s)\n");
+  printf("  -p payload/body # body filename\n");
   printf("\nExamples:\n");
 
-  printf("  simpmail -f bob@example.com -F \"Bob Bob\" -t test@example.com -c cc@example.com -s \"Test subject in quotes\" < file.html \n");
+  printf("  simpmail -f bob@example.com -F \"Bob Bob\" -t test@example.com -c cc@example.com -s \"Test subject in quotes\" -p file.html \n");
   printf("\nHTML example\n");
   printf("  file.html:\n");
   printf("\n");
@@ -58,9 +60,10 @@ void usage() {
 int main(int argc, char *argv[]) {
 
   int opt;
-  char *fromemail = NULL, *fromname = NULL, *toemail = NULL, *ccemail = NULL, *bccemail = NULL, *subject = NULL;
+  char *fromemail = NULL, *fromname = NULL, *toemail = NULL, *ccemail = NULL, *bccemail = NULL, *subject = NULL, *payload = NULL;
+  emaildbType *e = NULL;
   
-  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:l:p:")) != -1) {
     switch (opt) {
     case 'f':
       fromemail = strdup(optarg); break;
@@ -74,13 +77,80 @@ int main(int argc, char *argv[]) {
       bccemail = strdup(optarg); break;
     case 's':
       subject = strdup(optarg); break;
+    case 'p':
+      {
+	fprintf(stderr,"*info* body/payload is '%s'\n", optarg);
+	FILE *fp = fopen(optarg, "rt");
+	if (fp) {
+	  payload = readFile(fp);
+	  fclose(fp);
+	}
+      }
+      break;
+    case 'l':
+      {
+      FILE *fp = fopen(optarg, "rt");
+      if (fp) {
+	e = emaildbLoad(fp);
+      }
+      fclose(fp);
+      //      emaildbDump(e);
+      //      emaildbFree(e);
+      break;
+      }
     default:
       fprintf(stderr,"unknown command\n");
       exit(EXIT_FAILURE);
     }
   }
 
-  if (!fromemail || !toemail || !subject) {
+  if (fromemail && subject && payload && e) {
+    // iterate
+    size_t next = 0;
+    for (size_t i = 0; i < e->len; i++) {
+      if (i >= next) {
+	printf("Send how many? [1,2,3... all] (%s)", e->addr[i]); fflush(stdout);
+	char input[100];
+	char buf[100];
+
+	
+	if (fgets(buf, sizeof buf, stdin) != NULL) {
+	  int ss = sscanf(buf, "%s", input);
+	  if (ss) {
+	    if (strcmp(input, "all")==0) {
+	      next = e->len;
+	    } else {
+	      char *ptr = NULL;
+	      unsigned long gap = strtoul(input, &ptr, 10);
+	      if (ptr != NULL) {
+		next = i+ gap;
+	      } else {
+		next = i;
+	      }
+	    }
+	  } else {
+	    next=i;
+	  }
+	} else {
+	  // eof
+	  printf("*terminated\n");
+	  break;
+	}
+      } // i>= next
+	  
+      fprintf(stderr,"[%zd of %zd] %s\n", i+1, e->len, e->addr[i]);
+
+      // send the email
+      int fd = simpmailConnect("127.0.0.1");
+      
+      if (fd > 0) {
+	simpmailSend(fd, i >= 10, fromemail, fromname, e->addr[i], ccemail, bccemail, subject, payload);
+	simpmailClose(fd);
+      }
+
+    } // iterate over all email addresses
+    emaildbFree(e);
+  } else if (!fromemail || !toemail || !subject || !payload) {
     usage();
   } else {
     
@@ -88,7 +158,7 @@ int main(int argc, char *argv[]) {
     
     if (fd > 0) {
       char *body = readFile(stdin);
-      simpmailSend(fd, fromemail, fromname, toemail, ccemail, bccemail, subject, body);
+      simpmailSend(fd, 0, fromemail, fromname, toemail, ccemail, bccemail, subject, body);
       simpmailClose(fd);
     }
   }
