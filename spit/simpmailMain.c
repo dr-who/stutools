@@ -60,9 +60,9 @@ void usage() {
   printf("  -r rate/sec      # defaults to 20 (sleep 1/20 after each)\n");
   printf("\nExamples:\n");
 
-  printf("  simpmail -t test@example.com -f bob@example.com -F \"Bob Hope\" -c cc@example.com -s \"Test subject in quotes\" -p file.html -d # -d dryrun\n");
+  printf("  simpmail -t test@example.com -f bob@example.com -F \"Bob Hope\" -c cc@example.com -s \"Test subject in quotes\" -h file.html -d # -d dryrun\n");
   printf("\n");
-  printf("  simpmail -l big-ema-list.txt -f bob@example.com -F \"Bob Hope\" -c cc@example.com -s \"Test subject in quotes\" -p file.html -d # -d dryrun\n");
+  printf("  simpmail -l big-ema-list.txt -f bob@example.com -F \"Bob Hope\" -c cc@example.com -s \"Test subject in quotes\" -p plain.txt -h email.html -d # -d dryrun, both\n");
 
     printf("\nHTML example:\n");
   printf("  Look in 'simpmail-template.html'\n");
