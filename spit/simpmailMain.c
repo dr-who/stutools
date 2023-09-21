@@ -40,16 +40,19 @@ char *readFile(FILE *stream) {
 void usage() {
   printf("usage: simpmail -f <from> -s <subject> [ -t toemail | -l list.txt ]   -p file.html \n");
   printf("\nOptions:\n");
-  printf("  -t email      # to email address (singular)\n");
-  printf("  -l list.txt   # to email address (singular)\n");
-  printf("  -f email      # from email address\n");
-  printf("  -F name       # plain name (use \"'s)\n");
-  printf("  -c email      # cc email address (singular)\n");
-  printf("  -b email      # bcc email address (singular)\n");
-  printf("  -s subject    # subject (use \"'s)\n");
-  printf("  -p payload/body # body filename\n");
-  printf("  -r rate/sec   # defaults to 20 (sleep 1/20 after each)\n");
-  printf("  -d            # dry run, don't send emails\n");
+  printf("  -t email         # to email address (singular)\n");
+  printf("  -l list.txt      # to a list of email addresses (one per line)\n");
+  printf("\n");
+  printf("  -d               # dry run, don't send emails\n");
+  printf("\n");
+  printf("  -p payload/body  # body filename\n");
+  printf("  -s subject       # subject (use \"'s)\n");
+  printf("  -f email         # from email address\n");
+  printf("  -F name          # plain name (use \"'s)\n");
+  printf("\n");
+  printf("  -c email         # cc email address (singular)\n");
+  printf("  -b email         # bcc email address (singular)\n");
+  printf("  -r rate/sec      # defaults to 20 (sleep 1/20 after each)\n");
   printf("\nExamples:\n");
 
   printf("  simpmail -f bob@example.com -F \"Bob Bob\" -t test@example.com -c cc@example.com -s \"Test subject in quotes\" -p file.html \n");
