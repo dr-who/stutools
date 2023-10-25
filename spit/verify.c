@@ -32,6 +32,17 @@ void intHandler(int d)
   keepRunning = 0;
 }
 
+void usage(size_t threads, size_t batches, size_t exitearlyn) {
+    fprintf(stdout,"Usage:\n  cat positions* | ./spitchecker [ options] -\n");
+    fprintf(stdout,"\nOptions:\n");
+    fprintf(stdout,"   -4    Limit block verifications to first 4 KiB\n");
+    fprintf(stdout,"   -D    turn off O_DIRECT\n");
+    fprintf(stdout,"   -t n  Specify the number of verification threads to run in parallel (%zd)\n", threads);
+    fprintf(stdout,"   -b n  Batch size for streaming IOs (%zd)\n", batches);
+    fprintf(stdout,"   -n    Don't sort positions\n");
+    fprintf(stdout,"   -E n  Exit after n errors in a thread (%zd). -E0 don't exit with errors.\n", exitearlyn);
+}
+  
 /**
  * main
  *
@@ -46,15 +57,8 @@ int main(int argc, char *argv[])
   size_t exitearlyn = 1;
 
   if (argc <= 1) {
-    fprintf(stdout,"Usage:\n   ./spitchecker [ options] filename* or -\n");
-    fprintf(stdout,"\nOptions:\n");
-    fprintf(stdout,"   -4    Limit block verifications to first 4 KiB\n");
-    fprintf(stdout,"   -D    turn off O_DIRECT\n");
-    fprintf(stderr,"   -t n  Specify the number of verification threads to run in parallel (%zd)\n", threads);
-    fprintf(stderr,"   -b n  Batch size for streaming IOs (%zd)\n", batches);
-    fprintf(stderr,"   -n    Don't sort positions\n");
-    fprintf(stderr,"   -E n  Exit after n errors in a thread (%zd). -E0 don't exit with errors.\n", exitearlyn);
-    exit(1);
+    usage(threads, batches, exitearlyn);
+    exit(-1);
   }
 
 
@@ -66,8 +70,12 @@ int main(int argc, char *argv[])
   int process = 1; // by default collapse and sort
   size_t overridesize = 0;
 
-  while ((opt = getopt(argc, argv, "Dt:njb:q4E:")) != -1) {
+  while ((opt = getopt(argc, argv, "Dt:njb:q4E:h")) != -1) {
     switch (opt) {
+    case 'h':
+      usage(threads, batches, exitearlyn);
+      exit(-1);
+      break;
     case 'E':
       exitearlyn = atoi(optarg);
       break;
