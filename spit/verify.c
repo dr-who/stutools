@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
   signal(SIGINT, intHandler);
 
   size_t threads = 256;
-  size_t batches = 5000;
+  size_t batches = 1000000;
   size_t exitearlyn = 1;
 
   if (argc <= 1) {
