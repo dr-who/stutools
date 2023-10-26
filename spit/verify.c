@@ -140,6 +140,9 @@ int main(int argc, char *argv[])
       }
 
     } else {
+      fprintf(stderr,"*error* too many args, only - is supported\n");
+      exit(-1);
+      //      abort();
       if (!quiet) fprintf(stderr,"*info* position file: %s\n", argv[i]);
       fp = fopen(argv[i], "rt");
       if (!fp) {perror(argv[i]); exit(1);}
@@ -176,6 +179,10 @@ int main(int argc, char *argv[])
 	}
 	exit(0);
       } else {
+      fprintf(stderr,"*error* too many args\n");
+      usage(threads, batches, exitearlyn);
+      exit(-1);
+      //	abort();
 	  positionContainer *origpc = NULL;
 	  CALLOC(origpc, numFiles, sizeof(positionContainer));
 	  size_t lineswitherrors = 0;
