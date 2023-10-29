@@ -33,7 +33,9 @@ void intHandler(int d)
 }
 
 void usage(size_t threads, size_t batches, size_t exitearlyn) {
-    fprintf(stdout,"Usage:\n  cat positions* | ./spitchecker [ options] -\n");
+    fprintf(stdout,"Usage:\n  cat positions* | ./spitchecker [ options ] -\n");
+    fprintf(stdout,"      or\n");
+    fprintf(stdout,"          spitchecker [ options ] singlefile.pos\n");
     fprintf(stdout,"\nOptions:\n");
     fprintf(stdout,"   -4    Limit block verifications to first 4 KiB\n");
     fprintf(stdout,"   -D    turn off O_DIRECT\n");
@@ -109,6 +111,10 @@ int main(int argc, char *argv[])
   }
 
   size_t numFiles = argc -optind;
+  if (numFiles >=2) {
+    usage(threads, batches, exitearlyn);   
+    exit(1);
+  }
   if (!quiet) {
     fprintf(stderr,"*info* spitchecker\n");
     fprintf(stderr,"*info* number of files %zd, threads set to %zd, sort %zd, batch size %zd, exitearly %zd\n", numFiles, threads, sort, batches, exitearlyn);
@@ -140,9 +146,6 @@ int main(int argc, char *argv[])
       }
 
     } else {
-      fprintf(stderr,"*error* too many args, only - is supported\n");
-      exit(-1);
-      //      abort();
       if (!quiet) fprintf(stderr,"*info* position file: %s\n", argv[i]);
       fp = fopen(argv[i], "rt");
       if (!fp) {perror(argv[i]); exit(1);}
@@ -179,10 +182,6 @@ int main(int argc, char *argv[])
 	}
 	exit(0);
       } else {
-      fprintf(stderr,"*error* too many args\n");
-      usage(threads, batches, exitearlyn);
-      exit(-1);
-      //	abort();
 	  positionContainer *origpc = NULL;
 	  CALLOC(origpc, numFiles, sizeof(positionContainer));
 	  size_t lineswitherrors = 0;
