@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <sys/time.h>
 
 typedef struct {
   size_t id;
@@ -17,6 +18,13 @@ typedef struct {
   size_t fileSize;
 } threadInfoType;
 
+double timeAsDouble(void) {
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    double tm = ((double) now.tv_sec * 1000000.0) + now.tv_usec;
+    assert(tm > 0);
+    return tm / 1000000.0;
+}
 
 
 static void *runThread(void *x) {
@@ -70,34 +78,59 @@ void usage() {
 
 int main(int argc, char *argv[]) {
 
-  size_t start = time(NULL);
-  
-  if (argc!= 3) {
+  size_t num = 32;
+  size_t verify = 0;
+
+  const char *getoptstring = "t:hv";
+  int opt;
+  while ((opt = getopt(argc, argv, getoptstring)) != -1) {
+    switch(opt) {
+    case 't':
+      num = atoi(optarg);
+      if (num < 1) {
+	num=1;
+	fprintf(stderr,"*warning* only 1 thread? slow...\n");
+      }
+      break;
+    case 'h':
+      usage();
+      exit(1);
+    case 'v':
+      verify = 1;
+      break;
+    default:
+      usage();
+      exit(1);
+    }
+  }
+
+  if (argc - optind != 2) {
     usage();
     exit(1);
   }
-
-  if (strcmp(argv[1], argv[2]) == 0) {
+  char *inf = argv[optind++];
+  char *ouf = argv[optind++];
+  
+  if (strcmp(inf, ouf) == 0) {
     fprintf(stderr,"*error* in and out files can't be the same\n");
     exit(1);
   }
-  int infile = open(argv[1], O_RDONLY);
+  int infile = open(inf, O_RDONLY);
   
   if (infile < 0) {
     perror(argv[1]);
     exit(1);
   }
   size_t infileSize = lseek(infile, 0L, SEEK_END);
-  fprintf(stderr,"*info* infile size: %zd\n", infileSize);
+  fprintf(stderr,"*info* infile size: %zd, threads %zd\n", infileSize, num);
   
-  int outfile = open(argv[2], O_RDWR | O_CREAT | O_TRUNC,  S_IRUSR  |  S_IWUSR );
+  int outfile = open(ouf, O_RDWR | O_CREAT | O_TRUNC,  S_IRUSR  |  S_IWUSR );
   if (outfile < 0) {
     perror(argv[1]);
     exit(1);
   }
   fallocate(outfile, 0, 0, infileSize);
 
-  size_t num = 32;
   
   pthread_t *pt = calloc(num, sizeof(pthread_t));
   assert(pt);
@@ -128,6 +161,8 @@ int main(int argc, char *argv[]) {
     //    fprintf(stderr,"*info* %zd, slice %zd, i*slice %zd, start %zd, end %zd\n", i, slice, i * slice, threadContext[i].start, threadContext[i].start + threadContext[i].len);
   }
 
+  double start = timeAsDouble();
+
   for (size_t tid = 0; tid < num; tid++) {
     pthread_create(&(pt[tid]), NULL, runThread, &(threadContext[tid]));
   }
@@ -140,8 +175,12 @@ int main(int argc, char *argv[]) {
   close(infile);
   close(outfile);
 
-  size_t finish = time(NULL);
-  fprintf(stderr,"*info* %zd bytes written in %zd seconds = %.3lf GB/s\n", origsize, finish - start, origsize / (finish - start) / 1000.0/1000/1000);
+  double finish = timeAsDouble();
+  fprintf(stderr,"*info* %zd bytes written in %.1lf seconds = %.3lf Gbits/s\n", origsize, finish - start, origsize / (finish - start) * 8/ 1000.0/1000/1000);
+
+  if (verify) {
+    // verifyFiles(inf, ouf);
+  }
   
   return 0;
 }
