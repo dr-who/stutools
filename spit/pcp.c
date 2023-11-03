@@ -27,6 +27,44 @@ double timeAsDouble(void) {
 }
 
 
+void verifyFiles(char *file1, char *file2, const size_t fs) {
+  fprintf(stderr,"*info* verifying '%s' and '%s', size %zd\n", file1, file2, fs);
+  int in1 = open(file1, O_RDONLY);
+  if (in1 < 0) {
+    perror(file1);
+    exit(1);
+  }
+  int in2 = open(file2, O_RDONLY);
+  if (in2 < 0) {
+    perror(file2);
+    exit(1);
+  }
+  char *buffer1=calloc(10*1024*1024, 1); assert(buffer1);
+  char *buffer2=calloc(10*1024*1024, 1); assert(buffer2);
+  
+  for (size_t i = 0; i < fs; i += 10*1024*1024) {
+    int ret1 = pread(in1, buffer1, 10*1024*1024, i);
+    int ret2 = pread(in2, buffer2, 10*1024*1024, i);
+    if (ret1 == ret2) {
+      if (strncmp(buffer1, buffer2, ret1) != 0) {
+	fprintf(stderr,"*error* file different at range starting %zd\n", i);
+	exit(3);
+      }
+    } else {
+      fprintf(stderr,"*warning* uneven reads\n");
+    }
+  }
+
+  free(buffer1);
+  free(buffer2);
+  fprintf(stderr,"*info* files are identical\n");
+}
+    
+
+
+
+  
+
 static void *runThread(void *x) {
   threadInfoType *tc = (threadInfoType*)x;
   assert(tc);
@@ -179,7 +217,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr,"*info* %zd bytes written in %.1lf seconds = %.3lf Gbits/s\n", origsize, finish - start, origsize / (finish - start) * 8/ 1000.0/1000/1000);
 
   if (verify) {
-    // verifyFiles(inf, ouf);
+    verifyFiles(inf, ouf, origsize);
   }
   
   return 0;
