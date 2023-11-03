@@ -38,6 +38,9 @@ target_link_libraries(spit spitlib m aio pthread numa)
 add_executable(modcat modcat.c)
 #target_link_libraries()
 
+add_executable(pcp pcp.c)
+target_link_libraries(pcp pthread)
+
 add_executable(simpmail simpmail.c simpmailMain.c emaildb.c)
 
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
@@ -142,7 +145,7 @@ target_link_libraries(testDiskStats spitlib m numa pthread)
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/spit.1 DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man1)
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/spitchecker.1 DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man1)
 
-install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist snack modcat simpmail DESTINATION bin)
+install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist snack modcat simpmail pcp DESTINATION bin)
 
 install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
 
