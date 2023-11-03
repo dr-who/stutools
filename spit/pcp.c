@@ -109,7 +109,11 @@ static void *runThread(void *x) {
 
 
 void usage() {
-  printf("usage: pcp <infile> <outfile>\n");
+  printf("usage: pcp [options] <infile> <outfile>\n");
+  printf("\n");
+  printf("options:\n");
+  printf("  -t n    # set the number of threads\n");
+  printf("  -v      # verify the two files afterwards\n");
   printf("\n");
   printf("description:\n  stu's parallel file copier (32 threads)\n");
 }
