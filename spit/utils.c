@@ -1755,7 +1755,9 @@ int dumpFile(const char *fn, const char *regexstring, const int quiet) {
         free(line);
         fclose(stream);
     } else {
-        perror(fn);
+      if (quiet == 0) {
+	perror(fn);
+      }
     }
 
     regfree(&regex);
