@@ -12,6 +12,10 @@ Stu's Powerful I/O Tester (spit)
 
       apt install libaio-dev libnuma-dev libpci-dev libreadline-dev
 
+      or
+
+      yum install cmake libaio-devel pciutils-devel numactl-devel readline-devel git gcc gcc-c++ make 
+
 ## Install
 
       cmake .
