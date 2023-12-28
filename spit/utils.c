@@ -276,12 +276,12 @@ void printPowerMode(void) {
 void dropCaches(void) {
     FILE *fp = fopen("/proc/sys/vm/drop_caches", "wt");
     if (fp == NULL) {
-        fprintf(stderr, "error: you need sudo/root permission to drop caches\n");
-        exit(-1);
+        fprintf(stderr, "**error** you need sudo/root permission to drop caches\n");
+	return;
     }
     if (fprintf(fp, "3\n") < 1) {
-        fprintf(stderr, "error: you need sudo/root permission to drop caches\n");
-        exit(-1);
+        fprintf(stderr, "**error** you need sudo/root permission to drop caches\n");
+	return;
     }
     fflush(fp);
     fclose(fp);
