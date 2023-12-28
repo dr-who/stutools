@@ -1498,7 +1498,7 @@ void cmd_status(const char *hostname, const int tty) {
 
     char *cpu = getCPUModel();
     printf("%-20s\t", T("CPU Model"));
-    printf("%s\n", cpu);
+    printf("%s\n", cpu ? cpu : "");
     if (cpu) free(cpu);
 
     printf("%-20s\t", T("CPU Cores"));
