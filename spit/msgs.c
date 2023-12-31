@@ -24,10 +24,10 @@ int tty = 0;
 #include "snack.h"
 
 static void *display(void *arg) {
-  threadMsgType *d = (threadMsgType*)arg;
+  //  threadMsgType *d = (threadMsgType*)arg;
   while (keepRunning) {
     if (arg) {
-      fprintf(stderr,"*display %d\n", d->id);
+      fprintf(stderr,"*display*\n");
       sleep(1);
     }
   }
@@ -36,8 +36,44 @@ static void *display(void *arg) {
 
 
 static void *tryConnect(void *arg) {
-  if (arg) {
-    fprintf(stderr,"*try connect ip *\n");
+  threadMsgType *d = (threadMsgType*)arg;
+  while (keepRunning) {
+    if (arg) {
+      fprintf(stderr,"*try connect ip: %s, port %d\n", d->tryhost, d->serverport);
+      sleep(1);
+    }
+
+    char *ipaddress = d->tryhost;
+
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Can't allocate sockfd");
+	sleep(10);
+	continue;
+    }
+
+    struct sockaddr_in serveraddr;
+    memset(&serveraddr, 0, sizeof(serveraddr));
+
+    int port = d->serverport;
+    serveraddr.sin_family = AF_INET;
+    serveraddr.sin_port = htons(port);
+    
+    if (inet_aton(ipaddress, &serveraddr.sin_addr) < 0) {
+      perror("IPaddress Convert Error");
+      sleep(10);
+      continue;
+    }
+    
+    if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
+      perror("Listening port not available");
+      sleep(10);
+      continue;
+    }
+
+    fprintf(stderr,"*info* connected to %s on port %d\n", ipaddress, port);
+
+    close(sockfd);
     sleep(1);
   }
   return NULL;
@@ -112,7 +148,6 @@ static void *receiver(void *arg) {
 	    //        }
         char addr[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
-        tc->ips[tc->id] = strdup(addr);
         shutdown(sockfd, SHUT_RDWR);
         close(sockfd);
 
@@ -166,19 +201,17 @@ static void *receiver(void *arg) {
 }
 
 
-void msgStartServer(const int serverport) {
-  fprintf(stderr,"*msgstartserver %d\n", serverport);
+void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, const int serverport) {
+  fprintf(stderr,"*msgstartserver %d.%d.%d.%d   ->  port %d\n", ip1,ip2,ip3,ip4,serverport);
   
     pthread_t *pt;
     threadMsgType *tc;
     double *lasttime;
-    char **ips;
     numListType *nl;
-    size_t num = 258;
+    size_t num = 6;
     // 1..254 is the subnet, 256 is the server, 257 is the display
 
     //  CALLOC(gbps, num, sizeof(double));
-    CALLOC(ips, num, sizeof(char *));
     CALLOC(lasttime, num, sizeof(double));
 
     CALLOC(nl, num, sizeof(numListType));
@@ -194,7 +227,9 @@ void msgStartServer(const int serverport) {
         tc[i].num = num;
         tc[i].serverport = serverport;
         //    tc[i].gbps = gbps;
-        tc[i].ips = ips;
+	char s[20];
+	sprintf(s, "%d.%d.%d.%zd", ip1, ip2, ip3, i);
+        tc[i].tryhost = strdup(s);
         tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
         tc[i].nl = nl;
@@ -221,93 +256,18 @@ void msgStartServer(const int serverport) {
 
 ///sending
 
-void msgClient(const char *ipaddress, size_t bufSizeToUse, const int serverport, const size_t threads) {
-  assert(ipaddress);
-  assert(bufSizeToUse);
-  assert(threads >= 1);
-  
-#ifdef __WIN32
-    WSADATA wsaData;
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
-#endif
-
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        perror("Can't allocate sockfd");
-        return;
-    }
-
-    struct sockaddr_in serveraddr;
-    memset(&serveraddr, 0, sizeof(serveraddr));
-    long c = getDevRandomLong();
-    srand(c);
-    
-    int tries = 0, port = 0;
-    do {
-        port = serverport + rand() % threads;
-        serveraddr.sin_family = AF_INET;
-        serveraddr.sin_port = htons(port);
-
-        if (inet_aton(ipaddress, &serveraddr.sin_addr) < 0)
-            //      if (inet_pton(AF_INET, argv[1], &serveraddr.sin_addr) < 0)
-        {
-            perror("IPaddress Convert Error");
-            return;
-        }
-
-        if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
-            //	  perror("Listening port not available");
-            tries++;
-            if (tries > 1000) {
-                fprintf(stderr, "*error* couldn't find any ports. exiting\n");
-		return;
-            }
-            continue;
-        } else {
-            break;
-        }
-        usleep(1);
-    } while (keepRunning);
-
-    fprintf(stderr,"*info* connected to %s on port %d, size = %zd\n", ipaddress, port, bufSizeToUse);
-
-    char *buff = aligned_alloc(4096, bufSizeToUse);
-    assert(buff);
-
-    ssize_t n;
-    clock_t lastclock = clock();
-    double lasttime = time(NULL);
-    size_t lastcount = 0, thiscount = 0;
-    
-    while (keepRunning && ((n = send(sockfd, buff, bufSizeToUse, 0)) > 0)) {
-      if ((size_t)n==bufSizeToUse) {
-	thiscount++;
-      }
-      clock_t thistime = time(NULL);
-      if (thistime - lasttime > 1) {
-	const clock_t thisclock = clock();
-	fprintf(stdout, "*info* [port %d] CPU %.1lf %% (100%% is one core), %zd IOPS, %.1lf µs latency\n", port,
-		(thisclock - lastclock) * 100.0 / (thistime - lasttime) / CLOCKS_PER_SEC, (thiscount - lastcount), 1000000.0/(thiscount - lastcount));
-	lasttime = thistime;
-	lastclock = thisclock;
-	lastcount = thiscount;
-      }
-    }
-
-    free(buff);
-
-    close(sockfd);
-    return;
-}
 
 
 int main() {
-  size_t numDevices;
+  /*  size_t numDevices;
   stringType *devs = listDevices(&numDevices);
   for (size_t i = 0; i < numDevices; i++) {
     fprintf(stderr,"*%zd*:  %s\n", i, devs->path);
     getEthStats(devs, numDevices);
-  }
+    }*/
+
+
+  int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
 
 
     struct ifaddrs *ifaddr;
@@ -346,7 +306,11 @@ int main() {
                 printf("getnameinfo() failed: %s\n", gai_strerror(s));
                 exit(EXIT_FAILURE);
             }
-	    
+
+	    ip1=ifa->ifa_addr->sa_data[2];
+	    ip2=ifa->ifa_addr->sa_data[3];
+	    ip3=ifa->ifa_addr->sa_data[4];
+	    ip4=ifa->ifa_addr->sa_data[5];
             printf("%s\t", host);
             cmd_printHWAddr(ifa->ifa_name); printf("\t");
 
@@ -373,9 +337,7 @@ int main() {
 
     freeifaddrs(ifaddr);
   
-  exit(0);
-  
-  msgStartServer(9200);
+    msgStartServer(ip1, ip2, ip3, ip4, 9200);
 
   return 0;
 }

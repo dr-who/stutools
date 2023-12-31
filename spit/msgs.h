@@ -10,11 +10,11 @@ typedef struct {
     //  double *gbps;
     double *lasttime;
     numListType *nl;
-    char **ips;
+  char *tryhost;
     double starttime;
 } threadMsgType;
 
-void msgStartServer(const int serverport);
-void msgClient(const char *ipaddress, size_t bufSizeToUse, const int serverport, const size_t threads);
+//void msgStartServer(const int serverport);
+//void msgClient(const char *ipaddress, size_t bufSizeToUse, const int serverport, const size_t threads);
 
 #endif
