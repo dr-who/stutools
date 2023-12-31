@@ -46,6 +46,9 @@ add_executable(simpmail simpmail.c simpmailMain.c emaildb.c)
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
+add_executable(msgs msgs.c snack.c)
+target_link_libraries(msgs spitlib m aio pthread numa pci)
+
 add_executable(dns dnsmain.c dns.c)
 target_link_libraries(dns spitlib m aio pthread numa pci)
 

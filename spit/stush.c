@@ -921,33 +921,6 @@ void cmd_env(int tty) {
 }
 
 
-void cmd_printHWAddr(char *nic) {
-
-    int s;
-    struct ifreq buffer;
-
-    s = socket(PF_INET, SOCK_DGRAM, 0);
-    memset(&buffer, 0x00, sizeof(buffer));
-    strcpy(buffer.ifr_name, nic);
-    ioctl(s, SIOCGIFHWADDR, &buffer);
-    close(s);
-
-    for (s = 0; s < 6; s++) {
-        if (s > 0) printf(":");
-        printf("%.2x", (unsigned char) buffer.ifr_hwaddr.sa_data[s]);
-    }
-
-    //  printf("\n");
-
-    /*  s = socket(PF_INET, SOCK_DGRAM, 0);
-    memset(&buffer, 0x00, sizeof(buffer));
-    strcpy(buffer.ifr_name, nic);
-    ioctl(s, SIOCGIFADDR, &buffer);
-    close(s);
-
-    printf("%s\n", inet_ntoa(((struct sockaddr_in *)&buffer.ifr_addr)->sin_addr));*/
-
-}
 
 #include "failureType.h"
 
@@ -1821,7 +1794,7 @@ int main(int argc, char *argv[]) {
     setvbuf(stderr, NULL, _IONBF, 0);  // turn off buffering
 
 
-    char hostname[NAME_MAX - 10], prefix[NAME_MAX];
+    char hostname[NAME_MAX - 10], prefix[NAME_MAX + 10];
     if (gethostname(hostname, NAME_MAX - 11)) {
         sprintf(hostname, "stush");
     }
