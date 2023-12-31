@@ -27,7 +27,7 @@ static void *display(void *arg) {
   //  threadMsgType *d = (threadMsgType*)arg;
   while (keepRunning) {
     if (arg) {
-      fprintf(stderr,"*display*\n");
+      //      fprintf(stderr,"*display %d*\n", d->id);
       sleep(1);
     }
   }
@@ -39,7 +39,7 @@ static void *tryConnect(void *arg) {
   threadMsgType *d = (threadMsgType*)arg;
   while (keepRunning) {
     if (arg) {
-      fprintf(stderr,"*try connect ip: %s, port %d\n", d->tryhost, d->serverport);
+      //      fprintf(stderr,"*try connect ip: %s, port %d\n", d->tryhost, d->serverport);
       sleep(1);
     }
 
@@ -66,15 +66,15 @@ static void *tryConnect(void *arg) {
     }
     
     if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
-      perror("Listening port not available");
+      //      perror("Listening port not available");
       sleep(10);
       continue;
     }
 
-    fprintf(stderr,"*info* connected to %s on port %d\n", ipaddress, port);
+    //    fprintf(stderr,"*info* connected to %s on port %d\n", ipaddress, port);
 
     close(sockfd);
-    sleep(1);
+    sleep(5);
   }
   return NULL;
 }
@@ -82,8 +82,8 @@ static void *tryConnect(void *arg) {
 
 
 static void *receiver(void *arg) {
-  fprintf(stderr,"*receiver!\n");
     threadMsgType *tc = (threadMsgType *) arg;
+  fprintf(stderr,"*receiver port %d\n", tc->serverport);
     while (keepRunning) {
         int serverport = tc->serverport;
 
@@ -130,7 +130,7 @@ static void *receiver(void *arg) {
 	    //            exit(1);
         }
 
-        if (listen(sockfd, 7788 + tc->id) == -1) {
+        if (listen(sockfd, serverport) == -1) {
             perror("Listen Error");
 	  close(sockfd);
 	  continue;
@@ -208,7 +208,7 @@ void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, 
     threadMsgType *tc;
     double *lasttime;
     numListType *nl;
-    size_t num = 6;
+    size_t num = 256 + 2;
     // 1..254 is the subnet, 256 is the server, 257 is the display
 
     //  CALLOC(gbps, num, sizeof(double));
