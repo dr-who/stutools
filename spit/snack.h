@@ -1,8 +1,9 @@
-#ifndef _SNACK_H
-#define _SNACK_H
+#ifndef __SNACK_H
+#define __SNACK_H
 
 #include <string.h>
 #include "numList.h"
+
 
 typedef struct {
     int id;
@@ -29,6 +30,9 @@ typedef struct {
 void snackServer(size_t threads, const int serverport);
 void snackClient(const char *ipaddress, size_t bufSizeToUse, const int serverport, const size_t threads);
 
+void getEthStats(stringType *devs, size_t num);
+stringType *listDevices(size_t *retcount);
 void dumpEthernet(void);
+void cmd_printHWAddr(char *nic);
 
 #endif
