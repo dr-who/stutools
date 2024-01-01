@@ -13,7 +13,6 @@
 #include <signal.h>
 #include <sys/utsname.h>
 
-
 #include "transfer.h"
 
 #include "utils.h"
@@ -113,6 +112,14 @@ static void *tryConnect(void *arg) {
       perror("IPaddress Convert Error");
       close(sockfd);
       continue;
+    }
+
+    int true = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(int)) == -1) {
+      //            perror("Setsockopt");
+      close(sockfd);
+      continue;
+      //            exit(1);
     }
 
     if (socksetup(sockfd, 20) < 0) {
