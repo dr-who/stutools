@@ -30,12 +30,15 @@ void intHandler(int d) {
     exit(-1);
 }
 
-char *clusterIPs;
 
 #include "sat.h"
 #include "snack.h"
 #include "simpmail.h"
 #include "interfaces.h"
+#include "cluster.h"
+
+clusterType *cluster;
+
 
 
 char * stringListToJSON(char *inc) {
@@ -73,7 +76,10 @@ static void *display(void *arg) {
       char s[PATH_MAX];
       sprintf(s, "/proc/%d/fd/", getpid());
       const size_t np = numberOfDirectories(s);
-      fprintf(stderr,"*info* openfiles=%zd, cluster: %s\n", np, clusterIPs);
+      fprintf(stderr,"*info* openfiles=%zd, cluster: %zd\n", np, cluster->id);
+      char *json = clusterDumpJSONString(cluster);
+      printf("%s", json);
+      free(json);
       //      fprintf(stderr,"*display %d*\n", d->id);
       sleep(5);
     }
@@ -87,7 +93,7 @@ static void *client(void *arg) {
   while (keepRunning) {
 
     char *ipaddress = d->tryhost;
-    if (strstr(clusterIPs, ipaddress) == 0) {
+    if (clusterFindNode(cluster, ipaddress) < 0) {
       sleep(2);
       //      fprintf(stderr,"*info* can't find it, going for it...\n");
     } else {
@@ -139,20 +145,14 @@ static void *client(void *arg) {
     struct utsname buf;
     uname(&buf);
 
-    sprintf(buff, "Hello %s I'm %s\n", ipaddress, buf.nodename);
+    sprintf(buff, "Hello %s I'm %s", ipaddress, buf.nodename);
 
     socksend(sockfd, buff, 0, 0);
 
     sockrec(sockfd, buff, 1024, 0, 1);
     if (strncmp(buff, "World!",6)==0) {
       fprintf(stderr,"*info* client says it's a valid server = %s (%s)\n", ipaddress, buff);
-      if (strstr(clusterIPs, ipaddress) == NULL) {
-	if (clusterIPs[0] != 0) {
-	  strcat(clusterIPs, ", ");
-	}
-	strcat(clusterIPs, ipaddress);
-	strcat(clusterIPs, buff + 8);
-      }
+      clusterAddNodesIP(cluster, buff+11, ipaddress);
     }
 
     //    fprintf(stderr,"*info* close and loop\n");
@@ -230,7 +230,7 @@ static void *receiver(void *arg) {
 	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
 	  struct utsname buf;
 	  uname(&buf);
-	  sprintf(buffer,"World! I'm %s\n", buf.nodename);
+	  sprintf(buffer,"World! I'm %s", buf.nodename);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
@@ -239,7 +239,7 @@ static void *receiver(void *arg) {
 	  free(json);
 	  if (err < 0) goto end;
 	} else if (strncmp(buffer,"cluster",7)==0) {
-	  char *json = stringListToJSON(clusterIPs);
+	  char *json = clusterDumpJSONString(cluster);
 	  socksend(connfd, json, 0, 1);
 	  socksend(connfd, "\n", 0, 1);
 	  free(json);
@@ -336,15 +336,13 @@ int main() {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
-  clusterIPs = calloc(100000, 1); assert(clusterIPs);
-  memset(clusterIPs, 0, 100000);
+  int port = 1600;
+  cluster = clusterInit(port);
 
   interfacesIntType *n = interfacesInit();
   interfacesScan(n);
 
-  msgStartServer(n, 1600);
-
-  free(clusterIPs);
+  msgStartServer(n, port);
 
   return 0;
 }

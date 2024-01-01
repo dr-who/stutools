@@ -47,11 +47,14 @@ target_link_libraries(simpmail spitlib m aio pthread numa pci)
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
-add_executable(sat sat.c snack.c simpmail.c utils.c)
+add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c )
 target_link_libraries(sat spitlib m aio pthread numa pci)
 
 add_executable(interfaces interfacesMain.c interfaces.c interfaces.h)
 target_link_libraries(interfaces spitlib m aio pthread numa pci)
+
+add_executable(cluster clusterMain.c cluster.c cluster.h)
+target_link_libraries(cluster spitlib m aio pthread numa pci)
 
 add_executable(devices devicesMain.c devices.c devices.h)
 target_link_libraries(devices spitlib m aio pthread numa pci)
