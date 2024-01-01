@@ -53,6 +53,9 @@ target_link_libraries(sat spitlib m aio pthread numa pci)
 add_executable(interfaces interfacesMain.c interfaces.c interfaces.h)
 target_link_libraries(interfaces spitlib m aio pthread numa pci)
 
+add_executable(devices devicesMain.c devices.c devices.h)
+target_link_libraries(devices spitlib m aio pthread numa pci)
+
 add_executable(dns dnsmain.c dns.c)
 target_link_libraries(dns spitlib m aio pthread numa pci)
 
