@@ -104,38 +104,51 @@ void networkAddIP(networkIntType *d, const char *nic, const char *ip, const char
   }
 }
 
-void networkDumpJSON(FILE *fd, const networkIntType *d) {
-    fprintf(fd, "[\n");
+char * networkDumpJSONString(const networkIntType *d) {
+  char *buf = calloc(1, 1000000); assert(buf);
+  char *ret = buf;
+
+  buf += sprintf(buf, "[\n");
   for (size_t i = 0; i < d->id; i++) {
     if (i > 0) {
-      fprintf(fd, ",\n");
+      buf += sprintf(buf,  ",\n");
     }
-    fprintf(fd, "\t{\n");
-    fprintf(fd,"\t\t\"device\": \"%s\",\n", d->devicename[i]);
-    fprintf(fd,"\t\t\"lastUpdate\": \"%lf\",\n", d->lastUpdate[i]);
-    fprintf(fd,"\t\t\"hw\": \"%s\",\n", d->hw[i]);
-    fprintf(fd,"\t\t\"link\": %d,\n", d->link[i]);
-    fprintf(fd,"\t\t\"speed\": %d,\n", d->speed[i]);
-    fprintf(fd,"\t\t\"mtu\": %d,\n", d->mtu[i]);
-    fprintf(fd,"\t\t\"carrier_changes\": %d,\n", d->carrier_changes[i]);
-    fprintf(fd,"\t\t\"num\": %zd,\n", d->num[i]);
-    fprintf(fd,"\t\t\"addresses\": [\n");
+    buf += sprintf(buf,  "\t{\n");
+    buf += sprintf(buf, "\t\t\"device\": \"%s\",\n", d->devicename[i]);
+    buf += sprintf(buf, "\t\t\"lastUpdate\": \"%lf\",\n", d->lastUpdate[i]);
+    buf += sprintf(buf, "\t\t\"hw\": \"%s\",\n", d->hw[i]);
+    buf += sprintf(buf, "\t\t\"link\": %d,\n", d->link[i]);
+    buf += sprintf(buf, "\t\t\"speed\": %d,\n", d->speed[i]);
+    buf += sprintf(buf, "\t\t\"mtu\": %d,\n", d->mtu[i]);
+    buf += sprintf(buf, "\t\t\"carrier_changes\": %d,\n", d->carrier_changes[i]);
+    buf += sprintf(buf, "\t\t\"num\": %zd,\n", d->num[i]);
+    buf += sprintf(buf, "\t\t\"addresses\": [\n");
     for (size_t j = 0; j < d->num[i]; j++) {
       if (j>0) {
-	fprintf(fd,"\t\t\t,\n");
+	buf += sprintf(buf, "\t\t\t,\n");
       }
-      fprintf(fd,"\t\t\t{\n");
-      fprintf(fd,"\t\t\t   \"address\": \"%s\",\n", d->addr[j]->addr);
-      fprintf(fd,"\t\t\t   \"netmask\": \"%s\",\n", d->addr[j]->netmask);
-      fprintf(fd,"\t\t\t   \"cidrMask\": \"%d\"\n", d->addr[j]->cidrMask);
-      fprintf(fd,"\t\t\t}\n");
+      buf += sprintf(buf, "\t\t\t{\n");
+      buf += sprintf(buf, "\t\t\t   \"address\": \"%s\",\n", d->addr[j]->addr);
+      buf += sprintf(buf, "\t\t\t   \"netmask\": \"%s\",\n", d->addr[j]->netmask);
+      buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\"\n", d->addr[j]->cidrMask);
+      buf += sprintf(buf, "\t\t\t}\n");
     }
-    fprintf(fd,"\t\t]\n");
-    fprintf(fd,"\t}\n");
+    buf += sprintf(buf, "\t\t]\n");
+    buf += sprintf(buf, "\t}\n");
   }
-  fprintf(fd,"]\n");
+  buf += sprintf(buf, "]\n");
+
+  char *retv = strdup(ret);
+  free(ret);
+  return retv;
+  
 }
 
+
+void networkDumpJSON(FILE *fd, const networkIntType *d) {
+  char *s = networkDumpJSONString(d);
+  fprintf(fd, "%s", s);
+}
 
 
 

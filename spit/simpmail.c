@@ -54,19 +54,19 @@ int socksetup(int fd, const int timeout_seconds) {
 }
 
 
-void socksend(int fd, char *s, int flags, const int quiet) {
+int socksend(int fd, char *s, int flags, const int quiet) {
   int ret = send(fd, s, strlen(s), flags);
   if (quiet == 0) fprintf(stderr,"C[%d]: %s", ret, s);
+  return ret;
 }
 
-void sockrec(int fd, char *buffer, int len, int flags, const int quiet) {
+int sockrec(int fd, char *buffer, int len, int flags, const int quiet) {
   int ret = recv(fd, buffer, len, flags);
-  if (ret < 0) {
-    //    perror("sockrec");
-  } else {
+  if (ret >= 0) {
     buffer[ret] = 0; // make string zero terminated
     if (quiet == 0) printf("S[%d]: %s", ret, buffer);
   }
+  return ret;
 }
 
 

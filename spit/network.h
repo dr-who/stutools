@@ -33,6 +33,7 @@ void networkAddIP(networkIntType *d, const char *nic, const char *ip, const char
 
 void networkScan(networkIntType *n);
 
+char * networkDumpJSONString(const networkIntType *d);
 void networkDumpJSON(FILE *fd, const networkIntType *d);
 
 void networkFree(networkIntType *n);

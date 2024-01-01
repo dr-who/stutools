@@ -35,12 +35,43 @@ char *clusterIPs;
 #include "simpmail.h"
 #include "network.h"
 
+
+char * stringListToJSON(char *inc) {
+  if (inc == NULL) return NULL;
+  
+  char *buf = calloc(1,1000000); assert(buf);
+  char *ret = buf;
+
+  buf += sprintf(buf, "{\n\t\"servers\": [");
+  
+  char *s = strdup(inc);
+  char *first = NULL, *second = NULL;
+  first = strtok(s, " ");
+
+  buf += sprintf(buf, "\"%s\"", first);
+
+  while ((second = strtok(NULL, " "))) {
+    buf += sprintf(buf, ", \"%s\"", second);
+  }
+
+  buf += sprintf(buf, "] }\n");
+  char *ret2 = strdup(ret);
+  free(ret);
+  return ret2;
+}
+
+  
+    
+  
+
 static void *display(void *arg) {
   //  threadMsgType *d = (threadMsgType*)arg;
   while (keepRunning) {
     if (arg) {
-      fprintf(stderr,"*info* display: %s\n", clusterIPs);
-      
+      char s[PATH_MAX];
+      sprintf(s, "/proc/%d/fd/", getpid());
+      const size_t np = numberOfDirectories(s);
+      fprintf(stderr,"*info* openfiles=%zd, cluster: %sn", np, clusterIPs);
       //      fprintf(stderr,"*display %d*\n", d->id);
       sleep(5);
     }
@@ -55,7 +86,7 @@ static void *tryConnect(void *arg) {
 
     char *ipaddress = d->tryhost;
     if (strstr(clusterIPs, ipaddress) == 0) {
-      sleep(1);
+      sleep(2);
       //      fprintf(stderr,"*info* can't find it, going for it...\n");
     } else {
       fprintf(stderr,"*info* already found %s, sleeping for 30\n", ipaddress);
@@ -77,6 +108,7 @@ static void *tryConnect(void *arg) {
     
     if (inet_aton(ipaddress, &serveraddr.sin_addr) < 0) {
       perror("IPaddress Convert Error");
+      close(sockfd);
       continue;
     }
 
@@ -89,18 +121,17 @@ static void *tryConnect(void *arg) {
     
     if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
       //      perror("Listening port not available");
+      close(sockfd);
       continue;
     }
 
     char buff[1024];
-    sprintf(buff, "%s", "HELLO WORLD\n");
+    sprintf(buff, "%s", "Hello\n");
 
     socksend(sockfd, buff, 0, 0);
 
-    fprintf(stderr,"*info* waiting for reply\n");
-
     sockrec(sockfd, buff, 1024, 0, 0);
-    if (strcmp(buff, "!\n")==0) {
+    if (strcmp(buff, "World!\n")==0) {
       fprintf(stderr,"*info* client says it's a valid server = %s\n", ipaddress);
       if (strstr(clusterIPs, ipaddress) == NULL) {
 	if (clusterIPs[0] != 0) {
@@ -176,27 +207,37 @@ static void *receiver(void *arg) {
         char addr[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
 
-	int validclient = 0;
 	char buffer[1024];
-	sockrec(connfd, buffer, 1024, 0, 0);
-
-	if (strcmp(buffer,"HELLO WORLD\n")==0) {
-	  validclient = 1;
-	}
-
-	if (validclient) {
+	if (sockrec(connfd, buffer, 1024, 0, 1) < 0)
+	  break;
+	
+	if (strcmp(buffer,"Hello\n")==0) {
 	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
+	  sprintf(buffer,"World!\n");
+	  if (socksend(connfd, buffer, 0, 0) < 0)
+	    break;
+	} else if (strncmp(buffer,"interfaces",10)==0) {
+	  char *json = networkDumpJSONString(tc->n);
+	  if (socksend(connfd, json, 0, 1) < 0)
+	    break;
+	  free(json);
+	} else if (strncmp(buffer,"cluster",7)==0) {
+	  char *json = stringListToJSON(clusterIPs);
+	  socksend(connfd, json, 0, 1);
+	  socksend(connfd, "\n", 0, 1);
+	  free(json);
 	} else {
-	  fprintf(stderr,"*no handshake, invalid client\n");
+	  sleep(1);
+	  //	    fprintf(stderr,"*unknown handshake, invalid client\n");
 	}
-
-	sprintf(buffer,"!\n");
-	socksend(connfd, buffer, 0, 0);
-
-        shutdown(sockfd, SHUT_RDWR);
-        close(sockfd);
-
-        close(connfd);
+	
+	//	fprintf(stderr,"end of server loop\n");
+	
+	
+	shutdown(sockfd, SHUT_RDWR);
+	close(sockfd);
+	
+	close(connfd);
     }
     return NULL;
 }
@@ -221,7 +262,7 @@ void msgStartServer(networkIntType *n, const int serverport) {
     threadMsgType *tc;
     double *lasttime;
     numListType *nl;
-    size_t num = 256 + 3;
+    size_t num = 256 + 2;
     // 1..254 is the subnet, 256 is the server, 257 is the display
 
     //  CALLOC(gbps, num, sizeof(double));
@@ -239,6 +280,7 @@ void msgStartServer(networkIntType *n, const int serverport) {
         tc[i].id = i;
         tc[i].num = num;
         tc[i].serverport = serverport;
+	tc[i].n = n;
         //    tc[i].gbps = gbps;
 	char s[20];
 	sprintf(s, "%d.%d.%d.%zd", ip1, ip2, ip3, i);
@@ -249,11 +291,10 @@ void msgStartServer(networkIntType *n, const int serverport) {
         tc[i].nl = nl;
         if (i==0) { // display
 	  pthread_create(&(pt[i]), NULL, display, &(tc[i]));
+	} else if (i ==1) {
+	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
 	} else if (i < 256) {
 	  pthread_create(&(pt[i]), NULL, tryConnect, &(tc[i]));
-	} else {
-	  // iterate through the arrays of interface info
-	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
 	}
     }
 

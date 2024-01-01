@@ -2,17 +2,20 @@
 #define __SAT_H
 
 #include "numList.h"
+#include "network.h"
 
 typedef struct {
-    int id;
-    int num;
-    int serverport;
-    //  double *gbps;
-    double *lasttime;
-    numListType *nl;
+  int id;
+  int num;
+  int serverport;
+  //  double *gbps;
+  double *lasttime;
+  numListType *nl;
   char *localhost;
   char *tryhost;
-    double starttime;
+  double starttime;
+  networkIntType *n;
+  
 } threadMsgType;
 
 //void msgStartServer(const int serverport);

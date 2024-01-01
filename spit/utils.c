@@ -1852,16 +1852,16 @@ size_t numberOfDirectories(char *dir) {
      
    sprintf(filename_qfd, "%s/%s",dir,dp->d_name) ;
    if(stat(filename_qfd, &stbuf ) == -1 ) {
-       perror(filename_qfd);
+     //       perror(filename_qfd);
        //       printf("Unable to stat file: %s\n",filename_qfd) ;
        continue ;
   }
 
   if ( ( stbuf.st_mode & S_IFMT ) == S_IFDIR ) {
     count++;
-    continue;
    // Skip directories
   } else {
+    count++;
     // not a dir
     //    char* new_name = get_new_name( dp->d_name ) ;// returns the new string
     // after removing reqd part
