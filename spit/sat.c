@@ -128,9 +128,9 @@ static void *tryConnect(void *arg) {
     char buff[1024];
     sprintf(buff, "%s", "Hello\n");
 
-    socksend(sockfd, buff, 0, 0);
+    socksend(sockfd, buff, 0, 1);
 
-    sockrec(sockfd, buff, 1024, 0, 0);
+    sockrec(sockfd, buff, 1024, 0, 1);
     if (strcmp(buff, "World!\n")==0) {
       fprintf(stderr,"*info* client says it's a valid server = %s\n", ipaddress);
       if (strstr(clusterIPs, ipaddress) == NULL) {
@@ -214,7 +214,7 @@ static void *receiver(void *arg) {
 	if (strcmp(buffer,"Hello\n")==0) {
 	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
 	  sprintf(buffer,"World!\n");
-	  if (socksend(connfd, buffer, 0, 0) < 0)
+	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    break;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
 	  char *json = interfacesDumpJSONString(tc->n);
@@ -248,10 +248,12 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 
     int ip1,ip2,ip3,ip4;
     char *localhost = NULL;
+    // for each NIC
     for (size_t ii = 0; ii < n->id; ii++) {
-      if (strcmp(n->nics[ii]->devicename, "lo") == 0) {
+      if (strcmp(n->nics[ii]->devicename, "lo") != 0) {
 	phyType *p = n->nics[ii];
 	addrType ad = p->addr[0];
+	fprintf(stderr,"*got %s\n", ad.addr);
 	sscanf(ad.addr,"%d.%d.%d.%d", &ip1,&ip2,&ip3,&ip4);
 	localhost = strdup(ad.addr);
       }
