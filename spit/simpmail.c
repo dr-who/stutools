@@ -43,11 +43,11 @@ int socksetup(int fd, const int timeout_seconds) {
   timeout.tv_sec = timeout_seconds;
   timeout.tv_usec = 0;
   if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
-    perror("Setsockopt");
+    //    perror("Setsockopt");
     return -1;
   }
   if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
-    perror("Setsockopt");
+    //    perror("Setsockopt");
     return -1;
   }
   return 0;
@@ -62,7 +62,7 @@ void socksend(int fd, char *s, int flags, const int quiet) {
 void sockrec(int fd, char *buffer, int len, int flags, const int quiet) {
   int ret = recv(fd, buffer, len, flags);
   if (ret < 0) {
-    perror("sockrec");
+    //    perror("sockrec");
   } else {
     buffer[ret] = 0; // make string zero terminated
     if (quiet == 0) printf("S[%d]: %s", ret, buffer);

@@ -89,10 +89,10 @@ static void *tryConnect(void *arg) {
 
     sockrec(sockfd, buff, 1024, 0, 0);
     if (strcmp(buff, "!\n")==0) {
-      fprintf(stderr,"*info* client says it's a valid server\n");
+      fprintf(stderr,"*info* client says it's a valid server = %s\n", ipaddress);
     }
 
-    fprintf(stderr,"*info* close and loop\n");
+    //    fprintf(stderr,"*info* close and loop\n");
     close(sockfd);
     // all is good, we've connected to something
     sleep(1);
@@ -110,18 +110,19 @@ static void *receiver(void *arg) {
 
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd == -1) {
-            perror("Can't allocate sockfd");
+	  //            perror("Can't allocate sockfd");
 	    continue;
         }
 
         int true = 1;
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(int)) == -1) {
-            perror("Setsockopt");
+	  //            perror("Setsockopt");
 	  close(sockfd);
 	  continue;
 	    //            exit(1);
         }
 	if (socksetup(sockfd, 5) < 0) {
+	  //
 	  close(sockfd);
 	  continue;
 	}
@@ -133,14 +134,14 @@ static void *receiver(void *arg) {
         serveraddr.sin_port = htons(serverport);
 
         if (bind(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) == -1) {
-            perror("Bind Error");
+	  //            perror("Bind Error");
 	  close(sockfd);
 	  continue;
 	    //            exit(1);
         }
 
         if (listen(sockfd, serverport) == -1) {
-            perror("Listen Error");
+	  //            perror("Listen Error");
 	  close(sockfd);
 	  continue;
 	    //            exit(1);
@@ -157,8 +158,6 @@ static void *receiver(void *arg) {
 	    //        }
         char addr[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
-        printf("New connection from %s\n", addr);
-
 
 	int validclient = 0;
 	char buffer[1024];
@@ -169,7 +168,7 @@ static void *receiver(void *arg) {
 	}
 
 	if (validclient) {
-	  fprintf(stderr,"*server says it's a welcome/valid client\n");
+	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
 	} else {
 	  fprintf(stderr,"*no handshake, invalid client\n");
 	}
