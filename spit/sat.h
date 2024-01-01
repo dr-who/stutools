@@ -10,6 +10,7 @@ typedef struct {
     //  double *gbps;
     double *lasttime;
     numListType *nl;
+  char *localhost;
   char *tryhost;
     double starttime;
 } threadMsgType;

@@ -51,17 +51,19 @@ static void *display(void *arg) {
 static void *tryConnect(void *arg) {
   threadMsgType *d = (threadMsgType*)arg;
   while (keepRunning) {
-    if (arg) {
-      //      fprintf(stderr,"*try connect ip: %s, port %d\n", d->tryhost, d->serverport);
-      sleep(1);
-    }
 
     char *ipaddress = d->tryhost;
+    if (strstr(clusterIPs, ipaddress) == 0) {
+      sleep(1);
+      //      fprintf(stderr,"*info* can't find it, going for it...\n");
+    } else {
+      fprintf(stderr,"*info* already found %s, sleeping for 30\n", ipaddress);
+      sleep(30);
+    }
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("Can't allocate sockfd");
-	sleep(10);
 	continue;
     }
 
@@ -74,21 +76,18 @@ static void *tryConnect(void *arg) {
     
     if (inet_aton(ipaddress, &serveraddr.sin_addr) < 0) {
       perror("IPaddress Convert Error");
-      sleep(10);
       continue;
     }
 
     if (socksetup(sockfd, 20) < 0) {
       perror("sock setup");
       close(sockfd);
-      sleep(10);
       continue;
     }
 
     
     if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
       //      perror("Listening port not available");
-      sleep(10);
       continue;
     }
 
@@ -113,7 +112,6 @@ static void *tryConnect(void *arg) {
     //    fprintf(stderr,"*info* close and loop\n");
     close(sockfd);
     // all is good, we've connected to something
-    sleep(1);
   }
   return NULL;
 }
@@ -139,7 +137,7 @@ static void *receiver(void *arg) {
 	  continue;
 	    //            exit(1);
         }
-	if (socksetup(sockfd, 5) < 0) {
+	if (socksetup(sockfd, 30) < 0) {
 	  //
 	  close(sockfd);
 	  continue;
@@ -193,8 +191,6 @@ static void *receiver(void *arg) {
 
 	sprintf(buffer,"!\n");
 	socksend(connfd, buffer, 0, 0);
-	    
-	sleep(10);
 
         shutdown(sockfd, SHUT_RDWR);
         close(sockfd);
@@ -205,8 +201,8 @@ static void *receiver(void *arg) {
 }
 
 
-void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, const int serverport) {
-  fprintf(stderr,"**start** Stu's Autodiscover Tool (sat) %d.%d.%d.%d   ->  port %d\n", ip1,ip2,ip3,ip4,serverport);
+void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, const char *localserver, const int serverport) {
+  fprintf(stderr,"**start** Stu's Autodiscover Tool (sat) %d.%d.%d.%d/%s   ->  port %d\n", ip1,ip2,ip3,ip4,localserver, serverport);
   
     pthread_t *pt;
     threadMsgType *tc;
@@ -234,6 +230,7 @@ void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, 
 	char s[20];
 	sprintf(s, "%d.%d.%d.%zd", ip1, ip2, ip3, i);
         tc[i].tryhost = strdup(s);
+        tc[i].localhost = strdup(localserver);
         tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
         tc[i].nl = nl;
@@ -343,7 +340,7 @@ int main() {
 
     freeifaddrs(ifaddr);
   
-    msgStartServer(ip1, ip2, ip3, ip4, 9200);
+    msgStartServer(ip1, ip2, ip3, ip4, host, 9200);
 
   return 0;
 }
