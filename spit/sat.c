@@ -137,13 +137,14 @@ static void *tryConnect(void *arg) {
     socksend(sockfd, buff, 0, 0);
 
     sockrec(sockfd, buff, 1024, 0, 1);
-    if (strcmp(buff, "World!\n")==0) {
-      fprintf(stderr,"*info* client says it's a valid server = %s\n", ipaddress);
+    if (strncmp(buff, "World!",6)==0) {
+      fprintf(stderr,"*info* client says it's a valid server = %s (%s)\n", ipaddress, buff);
       if (strstr(clusterIPs, ipaddress) == NULL) {
 	if (clusterIPs[0] != 0) {
 	  strcat(clusterIPs, ", ");
 	}
 	strcat(clusterIPs, ipaddress);
+	strcat(clusterIPs, buff + 8);
       }
     }
 
@@ -219,7 +220,9 @@ static void *receiver(void *arg) {
 	
 	if (strncmp(buffer,"Hello",5)==0) {
 	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
-	  sprintf(buffer,"World!\n");
+	  struct utsname buf;
+	  uname(&buf);
+	  sprintf(buffer,"World! I'm %s\n", buf.nodename);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    break;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
