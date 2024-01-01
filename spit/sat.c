@@ -66,7 +66,8 @@ static void *tryConnect(void *arg) {
       continue;
     }
 
-    if (socksetup(sockfd, 5) < 0) {
+    if (socksetup(sockfd, 20) < 0) {
+      perror("sock setup");
       close(sockfd);
       sleep(10);
       continue;
@@ -91,10 +92,10 @@ static void *tryConnect(void *arg) {
       fprintf(stderr,"*info* client says it's a valid server\n");
     }
 
-    sleep(5); // send and wait
-    
     fprintf(stderr,"*info* close and loop\n");
     close(sockfd);
+    // all is good, we've connected to something
+    sleep(1);
   }
   return NULL;
 }
