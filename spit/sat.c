@@ -28,7 +28,7 @@ void intHandler(int d) {
     exit(-1);
 }
 
-char clusterIPs[10000];
+char *clusterIPs;
 
 #include "sat.h"
 #include "snack.h"
@@ -103,7 +103,7 @@ static void *tryConnect(void *arg) {
       fprintf(stderr,"*info* client says it's a valid server = %s\n", ipaddress);
       if (strstr(clusterIPs, ipaddress) == NULL) {
 	if (clusterIPs[0] != 0) {
-	  strcat(clusterIPs, ",");
+	  strcat(clusterIPs, ", ");
 	}
 	strcat(clusterIPs, ipaddress);
       }
@@ -261,6 +261,7 @@ int main() {
   signal(SIGINT, intHandler);
 
   memset(clusterIPs, 0, 10000);
+  clusterIPs = calloc(100000, 1); assert(clusterIPs);
 
 		/*  size_t numDevices;
   stringType *devs = listDevices(&numDevices);
@@ -341,6 +342,8 @@ int main() {
     freeifaddrs(ifaddr);
   
     msgStartServer(ip1, ip2, ip3, ip4, host, 9200);
+
+    free(clusterIPs);
 
   return 0;
 }
