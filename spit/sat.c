@@ -260,8 +260,8 @@ int main() {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
-  memset(clusterIPs, 0, 10000);
   clusterIPs = calloc(100000, 1); assert(clusterIPs);
+  memset(clusterIPs, 0, 100000);
 
 		/*  size_t numDevices;
   stringType *devs = listDevices(&numDevices);
