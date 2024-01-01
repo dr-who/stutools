@@ -265,16 +265,21 @@ static void *receiver(void *arg) {
 void msgStartServer(interfacesIntType *n, const int serverport) {
   fprintf(stderr,"**start** Stu's Autodiscover Tool (sat)  ->  port %d\n", serverport);
 
+  int fastest = 0;
     int ip1,ip2,ip3,ip4;
     char *localhost = NULL;
     // for each NIC
     for (size_t ii = 0; ii < n->id; ii++) {
       if (strcmp(n->nics[ii]->devicename, "lo") != 0) {
 	phyType *p = n->nics[ii];
-	addrType ad = p->addr[0];
-	fprintf(stderr,"*got %s\n", ad.addr);
-	sscanf(ad.addr,"%d.%d.%d.%d", &ip1,&ip2,&ip3,&ip4);
-	localhost = strdup(ad.addr);
+	for (size_t j = 0; j < p->num; j++) {
+	  if (p->speed > fastest) {
+	    addrType ad = p->addr[j];
+	    fprintf(stderr,"*got %s, speed = %d\n", ad.addr, p->speed);
+	    sscanf(ad.addr,"%d.%d.%d.%d", &ip1,&ip2,&ip3,&ip4);
+	    localhost = strdup(ad.addr);
+	  }
+	}
       }
     }
   
