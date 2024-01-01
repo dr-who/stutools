@@ -82,7 +82,7 @@ static void *display(void *arg) {
 }
 
 
-static void *tryConnect(void *arg) {
+static void *client(void *arg) {
   threadMsgType *d = (threadMsgType*)arg;
   while (keepRunning) {
 
@@ -122,11 +122,11 @@ static void *tryConnect(void *arg) {
       //            exit(1);
     }
 
-    if (socksetup(sockfd, 20) < 0) {
-      perror("sock setup");
-      close(sockfd);
-      continue;
-    }
+    //    if (socksetup(sockfd, 20) < 0) {
+    //      perror("sock setup");
+    //      close(sockfd);
+    //      continue;
+    //    }
 
     
     if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
@@ -183,11 +183,11 @@ static void *receiver(void *arg) {
 	  continue;
 	    //            exit(1);
         }
-	if (socksetup(sockfd, 30) < 0) {
+	//	if (socksetup(sockfd, 30) < 0) {
 	  //
-	  close(sockfd);
-	  continue;
-	}
+	//	  close(sockfd);
+	//	  continue;
+	//	}
 
         struct sockaddr_in clientaddr, serveraddr;
         memset(&serveraddr, 0, sizeof(serveraddr));
@@ -222,8 +222,9 @@ static void *receiver(void *arg) {
         inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
 
 	char buffer[1024];
-	if (sockrec(connfd, buffer, 1024, 0, 1) < 0)
-	  break;
+	if (sockrec(connfd, buffer, 1024, 0, 1) < 0) {
+	  goto end;
+	}
 	
 	if (strncmp(buffer,"Hello",5)==0) {
 	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
@@ -231,12 +232,12 @@ static void *receiver(void *arg) {
 	  uname(&buf);
 	  sprintf(buffer,"World! I'm %s\n", buf.nodename);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
-	    break;
+	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
 	  char *json = interfacesDumpJSONString(tc->n);
-	  if (socksend(connfd, json, 0, 1) < 0)
-	    break;
+	  int err = socksend(connfd, json, 0, 1);
 	  free(json);
+	  if (err < 0) goto end;
 	} else if (strncmp(buffer,"cluster",7)==0) {
 	  char *json = stringListToJSON(clusterIPs);
 	  socksend(connfd, json, 0, 1);
@@ -249,7 +250,9 @@ static void *receiver(void *arg) {
 	
 	//	fprintf(stderr,"end of server loop\n");
 	
-	
+
+    end:
+	  
 	shutdown(sockfd, SHUT_RDWR);
 	close(sockfd);
 	
@@ -309,7 +312,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
         if (i==0) { // display
 	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
 	} else if (i < 256) {
-	  pthread_create(&(pt[i]), NULL, tryConnect, &(tc[i]));
+	  pthread_create(&(pt[i]), NULL, client, &(tc[i]));
  	} else {
 	  pthread_create(&(pt[i]), NULL, display, &(tc[i]));
 	}
