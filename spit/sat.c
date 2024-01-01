@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <netdb.h>
 #include <ifaddrs.h>
+#include <signal.h>
 #include "transfer.h"
 
 #include "utils.h"
@@ -20,6 +21,15 @@
 int keepRunning = 1;
 int tty = 0;
 
+void intHandler(int d) {
+    if (d) {}
+    fprintf(stderr, "got signal\n");
+    keepRunning = 0;
+    exit(-1);
+}
+
+char clusterIPs[10000];
+
 #include "sat.h"
 #include "snack.h"
 #include "simpmail.h"
@@ -28,8 +38,10 @@ static void *display(void *arg) {
   //  threadMsgType *d = (threadMsgType*)arg;
   while (keepRunning) {
     if (arg) {
+      fprintf(stderr,"*info* display: %s\n", clusterIPs);
+      
       //      fprintf(stderr,"*display %d*\n", d->id);
-      sleep(1);
+      sleep(5);
     }
   }
   return NULL;
@@ -90,6 +102,12 @@ static void *tryConnect(void *arg) {
     sockrec(sockfd, buff, 1024, 0, 0);
     if (strcmp(buff, "!\n")==0) {
       fprintf(stderr,"*info* client says it's a valid server = %s\n", ipaddress);
+      if (strstr(clusterIPs, ipaddress) == NULL) {
+	if (clusterIPs[0] != 0) {
+	  strcat(clusterIPs, ",");
+	}
+	strcat(clusterIPs, ipaddress);
+      }
     }
 
     //    fprintf(stderr,"*info* close and loop\n");
@@ -104,7 +122,7 @@ static void *tryConnect(void *arg) {
 
 static void *receiver(void *arg) {
     threadMsgType *tc = (threadMsgType *) arg;
-  fprintf(stderr,"*info* receiver port %d\n", tc->serverport);
+
     while (keepRunning) {
         int serverport = tc->serverport;
 
@@ -242,7 +260,12 @@ void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, 
 
 
 int main() {
-  /*  size_t numDevices;
+  signal(SIGTERM, intHandler);
+  signal(SIGINT, intHandler);
+
+  memset(clusterIPs, 0, 10000);
+
+		/*  size_t numDevices;
   stringType *devs = listDevices(&numDevices);
   for (size_t i = 0; i < numDevices; i++) {
     fprintf(stderr,"*%zd*:  %s\n", i, devs->path);
