@@ -151,6 +151,7 @@ char * interfacesDumpJSONString(const interfacesIntType *d) {
 void interfacesDumpJSON(FILE *fd, const interfacesIntType *d) {
   char *s = interfacesDumpJSONString(d);
   fprintf(fd, "%s", s);
+  free(s);
 }
 
 
@@ -234,8 +235,17 @@ void interfacesScan(interfacesIntType *n) {
 
 
 void interfacesFree(interfacesIntType *n) {
-  if (n) {
-    assert(n);
+  for (size_t i = 0; i < n->id; i++) {
+    phyType *p = n->nics[i];
+    for (size_t j = 0; j < p->num; j++) {
+      free(p->addr->addr);
+      free(p->addr->netmask);
+    }
+    free(p->addr);
+    free(p->devicename);
+    free(p->hw);
+    free(p);
   }
-
+  free(n->nics);
+  free(n);
 }  
