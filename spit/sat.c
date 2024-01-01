@@ -11,6 +11,9 @@
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <signal.h>
+#include <sys/utsname.h>
+
+
 #include "transfer.h"
 
 #include "utils.h"
@@ -126,9 +129,12 @@ static void *tryConnect(void *arg) {
     }
 
     char buff[1024];
-    sprintf(buff, "%s", "Hello\n");
+    struct utsname buf;
+    uname(&buf);
 
-    socksend(sockfd, buff, 0, 1);
+    sprintf(buff, "Hello %s I'm %s\n", ipaddress, buf.nodename);
+
+    socksend(sockfd, buff, 0, 0);
 
     sockrec(sockfd, buff, 1024, 0, 1);
     if (strcmp(buff, "World!\n")==0) {
@@ -211,7 +217,7 @@ static void *receiver(void *arg) {
 	if (sockrec(connfd, buffer, 1024, 0, 1) < 0)
 	  break;
 	
-	if (strcmp(buffer,"Hello\n")==0) {
+	if (strncmp(buffer,"Hello",5)==0) {
 	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
 	  sprintf(buffer,"World!\n");
 	  if (socksend(connfd, buffer, 0, 1) < 0)
