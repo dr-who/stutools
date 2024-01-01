@@ -263,7 +263,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
     threadMsgType *tc;
     double *lasttime;
     numListType *nl;
-    size_t num = 256 + 2;
+    size_t num = 256 + 1;
     // 1..254 is the subnet, 256 is the server, 257 is the display
 
     //  CALLOC(gbps, num, sizeof(double));
@@ -291,12 +291,13 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
         tc[i].starttime = timeAsDouble();
         tc[i].nl = nl;
         if (i==0) { // display
-	  pthread_create(&(pt[i]), NULL, display, &(tc[i]));
-	} else if (i ==1) {
 	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
 	} else if (i < 256) {
 	  pthread_create(&(pt[i]), NULL, tryConnect, &(tc[i]));
+ 	} else {
+	  pthread_create(&(pt[i]), NULL, display, &(tc[i]));
 	}
+
     }
 
     for (size_t i = 0; i < num; i++) {
