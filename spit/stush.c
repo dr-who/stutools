@@ -47,7 +47,7 @@
 
 #include "auth.h"
 #include "qr.h"
-#include "network.h"
+#include "interfaces.h"
 
 int keepRunning = 1;
 int verbose = 0;

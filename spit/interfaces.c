@@ -16,7 +16,7 @@
 #include <ifaddrs.h>
 #include <signal.h>
 
-#include "network.h"
+#include "interfaces.h"
 #include "utils.h"
 
 
@@ -43,13 +43,13 @@ char *getHWAddr(const char *nic) {
 }
 
 
-networkIntType * networkInit() {
-  networkIntType *n = calloc(1, sizeof(networkIntType)); assert(n);
+interfacesIntType * interfacesInit() {
+  interfacesIntType *n = calloc(1, sizeof(interfacesIntType)); assert(n);
   return n;
 }
 
 
-void networkAddDevice(networkIntType *d, const char *nic) {
+void interfacesAddDevice(interfacesIntType *d, const char *nic) {
   // first look
   // then add
   d->id++;
@@ -85,7 +85,7 @@ void networkAddDevice(networkIntType *d, const char *nic) {
 
 }
 
-void networkAddIP(networkIntType *d, const char *nic, const char *ip, const char *netmask, const unsigned int cidrMask) {
+void interfacesAddIP(interfacesIntType *d, const char *nic, const char *ip, const char *netmask, const unsigned int cidrMask) {
   assert(d);
   assert(d->id);
   for (size_t i = 0; i < d->id; i++) {
@@ -106,7 +106,7 @@ void networkAddIP(networkIntType *d, const char *nic, const char *ip, const char
   }
 }
 
-char * networkDumpJSONString(const networkIntType *d) {
+char * interfacesDumpJSONString(const interfacesIntType *d) {
   char *buf = calloc(1, 1000000); assert(buf);
   char *ret = buf;
 
@@ -148,8 +148,8 @@ char * networkDumpJSONString(const networkIntType *d) {
 }
 
 
-void networkDumpJSON(FILE *fd, const networkIntType *d) {
-  char *s = networkDumpJSONString(d);
+void interfacesDumpJSON(FILE *fd, const interfacesIntType *d) {
+  char *s = interfacesDumpJSONString(d);
   fprintf(fd, "%s", s);
 }
 
@@ -166,7 +166,7 @@ unsigned int cidrMask(unsigned int n) {
 
 
 
-void networkScan(networkIntType *n) {
+void interfacesScan(interfacesIntType *n) {
 
   assert(n);
   
@@ -195,7 +195,7 @@ void networkScan(networkIntType *n) {
 	  
 	  //	  printf("%s\t", ifa->ifa_name);
 
-	  networkAddDevice(n, ifa->ifa_name);
+	  interfacesAddDevice(n, ifa->ifa_name);
 
 	  int s = getnameinfo(ifa->ifa_addr,
                             (family == AF_INET) ? sizeof(struct sockaddr_in) :
@@ -224,8 +224,7 @@ void networkScan(networkIntType *n) {
 	    
 	    //            printf("%s\t", host);
 
-	    networkAddIP(n, ifa->ifa_name, host, maskBuffer, cidrMask(tmpMask));
-	    //	    networkAddIP(n, ifa->ifa_name, host, maskBuffer, cidrMask(tmpMask));
+	    interfacesAddIP(n, ifa->ifa_name, host, maskBuffer, cidrMask(tmpMask));
         }
     }
 
@@ -234,7 +233,7 @@ void networkScan(networkIntType *n) {
 }
 
 
-void networkFree(networkIntType *n) {
+void interfacesFree(interfacesIntType *n) {
   if (n) {
     assert(n);
   }

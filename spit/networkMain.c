@@ -7,8 +7,9 @@ int keepRunning = 1;
 
 int main() {
   networkIntType *n = networkInit();
-  networkScan(n);
-  networkDumpJSON(stdout, n);
+
+  interfaceScan(n);
+  interfaceDumpJSON(stdout, n);
   
 
 

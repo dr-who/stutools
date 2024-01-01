@@ -2,7 +2,7 @@
 #define __SAT_H
 
 #include "numList.h"
-#include "network.h"
+#include "interfaces.h"
 
 typedef struct {
   int id;
@@ -14,7 +14,7 @@ typedef struct {
   char *localhost;
   char *tryhost;
   double starttime;
-  networkIntType *n;
+  interfacesIntType *n;
   
 } threadMsgType;
 

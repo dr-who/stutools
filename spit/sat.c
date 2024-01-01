@@ -33,7 +33,7 @@ char *clusterIPs;
 #include "sat.h"
 #include "snack.h"
 #include "simpmail.h"
-#include "network.h"
+#include "interfaces.h"
 
 
 char * stringListToJSON(char *inc) {
@@ -217,7 +217,7 @@ static void *receiver(void *arg) {
 	  if (socksend(connfd, buffer, 0, 0) < 0)
 	    break;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
-	  char *json = networkDumpJSONString(tc->n);
+	  char *json = interfacesDumpJSONString(tc->n);
 	  if (socksend(connfd, json, 0, 1) < 0)
 	    break;
 	  free(json);
@@ -243,10 +243,8 @@ static void *receiver(void *arg) {
 }
 
 
-void msgStartServer(networkIntType *n, const int serverport) {
+void msgStartServer(interfacesIntType *n, const int serverport) {
   fprintf(stderr,"**start** Stu's Autodiscover Tool (sat)  ->  port %d\n", serverport);
-
-  networkDumpJSON(stdout, n);
 
     int ip1,ip2,ip3,ip4;
     char *localhost = NULL;
@@ -319,8 +317,8 @@ int main() {
   clusterIPs = calloc(100000, 1); assert(clusterIPs);
   memset(clusterIPs, 0, 100000);
 
-  networkIntType *n = networkInit();
-  networkScan(n);
+  interfacesIntType *n = interfacesInit();
+  interfacesScan(n);
 
   msgStartServer(n, 1600);
 
