@@ -71,7 +71,7 @@ static void *display(void *arg) {
       char s[PATH_MAX];
       sprintf(s, "/proc/%d/fd/", getpid());
       const size_t np = numberOfDirectories(s);
-      fprintf(stderr,"*info* openfiles=%zd, cluster: %sn", np, clusterIPs);
+      fprintf(stderr,"*info* openfiles=%zd, cluster: %s\n", np, clusterIPs);
       //      fprintf(stderr,"*display %d*\n", d->id);
       sleep(5);
     }
