@@ -10,16 +10,22 @@ typedef struct {
 } addrType;
 
 typedef struct {
+  // physical device (addDevice)
+  char *devicename;
+  char *hw;
+  double lastUpdate;
+  int link;
+  int mtu;
+  int speed;
+  int carrier_changes;
+  // array of devices
+  size_t num;
+  addrType *addr;
+} phyType;
+
+typedef struct {
   size_t id;
-  char **devicename;
-  char **hw;
-  double *lastUpdate;
-  int *link;
-  int *mtu;
-  int *speed;
-  int *carrier_changes;
-  size_t *num;
-  addrType **addr;
+  phyType **nics;
 } networkIntType;
 
 

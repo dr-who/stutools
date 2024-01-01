@@ -251,10 +251,11 @@ void msgStartServer(networkIntType *n, const int serverport) {
     int ip1,ip2,ip3,ip4;
     char *localhost = NULL;
     for (size_t ii = 0; ii < n->id; ii++) {
-      if (strcmp(n->devicename[ii], "lo") == 0) {
-	addrType *ad = n->addr[ii];
-	sscanf(ad[0].addr,"%d.%d.%d.%d", &ip1,&ip2,&ip3,&ip4);
-	localhost = strdup(ad[0].addr);
+      if (strcmp(n->nics[ii]->devicename, "lo") == 0) {
+	phyType *p = n->nics[ii];
+	addrType ad = p->addr[0];
+	sscanf(ad.addr,"%d.%d.%d.%d", &ip1,&ip2,&ip3,&ip4);
+	localhost = strdup(ad.addr);
       }
     }
   

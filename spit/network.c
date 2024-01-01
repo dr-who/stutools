@@ -53,53 +53,55 @@ void networkAddDevice(networkIntType *d, const char *nic) {
   // first look
   // then add
   d->id++;
-  d->devicename = realloc(d->devicename, d->id * sizeof(char*));
-  d->devicename[d->id-1] = strdup(nic?nic:"");
-  
-  d->num = realloc(d->num, d->id * sizeof(size_t));
-  d->num[d->id-1] = 0; // if added there are no known IPs
+  d->nics = realloc(d->nics, d->id * sizeof(phyType*));
 
-  d->lastUpdate = realloc(d->lastUpdate, d->id * sizeof(double));
-  d->lastUpdate[d->id-1] = timeAsDouble();
-
-  d->hw = realloc(d->hw, d->id * sizeof(char*));
-  d->hw[d->id-1] = getHWAddr(nic);
+  phyType *p = calloc(1, sizeof(phyType));
+  p->devicename = strdup(nic?nic:"");
+  p->hw = getHWAddr(nic);
+  p->lastUpdate = timeAsDouble();
 
   char ss[PATH_MAX];
   sprintf(ss, "/sys/class/net/%s/carrier", nic);
   double linkup = getValueFromFile(ss, 1);
-  d->link = realloc(d->link, d->id * sizeof(int*));
-  d->link[d->id - 1] = linkup;
+  p->link = linkup;
 
   sprintf(ss, "/sys/class/net/%s/speed", nic);  
   double speed = getValueFromFile(ss, 1);
-  d->speed = realloc(d->speed, d->id * sizeof(int*));
-  d->speed[d->id - 1] = speed;
+  p->speed = speed;
  
 
-    sprintf(ss, "/sys/class/net/%s/mtu", nic);  
+  sprintf(ss, "/sys/class/net/%s/mtu", nic);  
   double mtu = getValueFromFile(ss, 1);
-  d->mtu = realloc(d->mtu, d->id * sizeof(int*));
-  d->mtu[d->id - 1] = mtu;
+  p->mtu = mtu;
 
   sprintf(ss, "/sys/class/net/%s/carrier_changes", nic);  
   double carrier_changes = getValueFromFile(ss, 1);
-  d->carrier_changes = realloc(d->carrier_changes, d->id * sizeof(int*));
-  d->carrier_changes[d->id - 1] = carrier_changes;
+  p->carrier_changes = carrier_changes;
+
+  p->num = 0;
+  p->addr = NULL;
+
+  d->nics[d->id - 1] = p;
 
 }
 
 void networkAddIP(networkIntType *d, const char *nic, const char *ip, const char *netmask, const unsigned int cidrMask) {
+  assert(d);
+  assert(d->id);
   for (size_t i = 0; i < d->id; i++) {
-    if (strcmp(d->devicename[i], nic) == 0) {
-      d->num[i]++;
-      d->addr = realloc(d->addr, d->num[i] * sizeof(addrType*));
-      d->addr[d->num[i]-1]= calloc(1, sizeof(addrType));
-      d->addr[d->num[i]-1]->addr = strdup(ip?ip:"");
-      d->addr[d->num[i]-1]->netmask = strdup(netmask?netmask:"");
-      d->addr[d->num[i]-1]->cidrMask = cidrMask;
+    if (strcmp(d->nics[i]->devicename, nic) == 0) {
+      fprintf(stderr,"call: adding to %s, ip %s\n", nic, ip);
+      phyType *p = d->nics[i];
+      
+      int index = p->num;
+      p->num++;
+      p->addr = realloc(p->addr, p->num * sizeof(addrType));
+     
+      p->addr[index].addr = strdup(ip?ip:"");
+      p->addr[index].netmask = strdup(netmask?netmask:"");
+      p->addr[index].cidrMask = cidrMask;
 
-      d->lastUpdate[i] = timeAsDouble();
+      d->nics[i]->lastUpdate = timeAsDouble();
     }
   }
 }
@@ -114,23 +116,24 @@ char * networkDumpJSONString(const networkIntType *d) {
       buf += sprintf(buf,  ",\n");
     }
     buf += sprintf(buf,  "\t{\n");
-    buf += sprintf(buf, "\t\t\"device\": \"%s\",\n", d->devicename[i]);
-    buf += sprintf(buf, "\t\t\"lastUpdate\": \"%lf\",\n", d->lastUpdate[i]);
-    buf += sprintf(buf, "\t\t\"hw\": \"%s\",\n", d->hw[i]);
-    buf += sprintf(buf, "\t\t\"link\": %d,\n", d->link[i]);
-    buf += sprintf(buf, "\t\t\"speed\": %d,\n", d->speed[i]);
-    buf += sprintf(buf, "\t\t\"mtu\": %d,\n", d->mtu[i]);
-    buf += sprintf(buf, "\t\t\"carrier_changes\": %d,\n", d->carrier_changes[i]);
-    buf += sprintf(buf, "\t\t\"num\": %zd,\n", d->num[i]);
+    phyType *p = d->nics[i];
+    buf += sprintf(buf, "\t\t\"device\": \"%s\",\n", p->devicename);
+    buf += sprintf(buf, "\t\t\"lastUpdate\": \"%lf\",\n", p->lastUpdate);
+    buf += sprintf(buf, "\t\t\"hw\": \"%s\",\n", p->hw);
+    buf += sprintf(buf, "\t\t\"link\": %d,\n", p->link);
+    buf += sprintf(buf, "\t\t\"speed\": %d,\n", p->speed);
+    buf += sprintf(buf, "\t\t\"mtu\": %d,\n", p->mtu);
+    buf += sprintf(buf, "\t\t\"carrier_changes\": %d,\n", p->carrier_changes);
+    buf += sprintf(buf, "\t\t\"num\": %zd,\n", p->num);
     buf += sprintf(buf, "\t\t\"addresses\": [\n");
-    for (size_t j = 0; j < d->num[i]; j++) {
+    for (size_t j = 0; j < p->num; j++) {
       if (j>0) {
 	buf += sprintf(buf, "\t\t\t,\n");
       }
       buf += sprintf(buf, "\t\t\t{\n");
-      buf += sprintf(buf, "\t\t\t   \"address\": \"%s\",\n", d->addr[j]->addr);
-      buf += sprintf(buf, "\t\t\t   \"netmask\": \"%s\",\n", d->addr[j]->netmask);
-      buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\"\n", d->addr[j]->cidrMask);
+      buf += sprintf(buf, "\t\t\t   \"address\": \"%s\",\n", p->addr[j].addr);
+      buf += sprintf(buf, "\t\t\t   \"netmask\": \"%s\",\n", p->addr[j].netmask);
+      buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\"\n", p->addr[j].cidrMask);
       buf += sprintf(buf, "\t\t\t}\n");
     }
     buf += sprintf(buf, "\t\t]\n");
@@ -220,7 +223,7 @@ void networkScan(networkIntType *n) {
 	    //	    printf("tmpmask=%u\n", tmpMask);
 	    
 	    //            printf("%s\t", host);
-	    
+
 	    networkAddIP(n, ifa->ifa_name, host, maskBuffer, cidrMask(tmpMask));
 	    //	    networkAddIP(n, ifa->ifa_name, host, maskBuffer, cidrMask(tmpMask));
         }
@@ -232,26 +235,8 @@ void networkScan(networkIntType *n) {
 
 
 void networkFree(networkIntType *n) {
-  return ;
-  for (size_t i = 0; i < n->id; i++) {
-      addrType **a = &n->addr[i];
-      for (size_t j = 0; j < n->num[i]; j++) {
-	free(a[j]->addr);
-	free(a[j]->netmask);
-      }
-      free(a);
+  if (n) {
+    assert(n);
   }
-  
-  for (size_t i = 0; i < n->id; i++) {
-    free(n->devicename[i]);
-    free(n->hw[i]);
-  }
-  free(n->devicename); 
-  free(n->hw); 
-  free(n->addr);
-  free(n->lastUpdate); 
-  free(n->link); 
-  free(n->mtu); 
-  free(n->speed); 
-  free(n->carrier_changes); 
+
 }  
