@@ -20,8 +20,9 @@
 int keepRunning = 1;
 int tty = 0;
 
-#include "msgs.h"
+#include "sat.h"
 #include "snack.h"
+#include "simpmail.h"
 
 static void *display(void *arg) {
   //  threadMsgType *d = (threadMsgType*)arg;
@@ -64,6 +65,13 @@ static void *tryConnect(void *arg) {
       sleep(10);
       continue;
     }
+
+    if (socksetup(sockfd, 5) < 0) {
+      close(sockfd);
+      sleep(10);
+      continue;
+    }
+
     
     if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
       //      perror("Listening port not available");
@@ -71,10 +79,22 @@ static void *tryConnect(void *arg) {
       continue;
     }
 
-    //    fprintf(stderr,"*info* connected to %s on port %d\n", ipaddress, port);
+    char buff[1024];
+    sprintf(buff, "%s", "HELLO WORLD\n");
 
+    socksend(sockfd, buff, 0, 0);
+
+    fprintf(stderr,"*info* waiting for reply\n");
+
+    sockrec(sockfd, buff, 1024, 0, 0);
+    if (strcmp(buff, "!\n")==0) {
+      fprintf(stderr,"*info* client says it's a valid server\n");
+    }
+
+    sleep(5); // send and wait
+    
+    fprintf(stderr,"*info* close and loop\n");
     close(sockfd);
-    sleep(5);
   }
   return NULL;
 }
@@ -83,7 +103,7 @@ static void *tryConnect(void *arg) {
 
 static void *receiver(void *arg) {
     threadMsgType *tc = (threadMsgType *) arg;
-  fprintf(stderr,"*receiver port %d\n", tc->serverport);
+  fprintf(stderr,"*info* receiver port %d\n", tc->serverport);
     while (keepRunning) {
         int serverport = tc->serverport;
 
@@ -100,22 +120,10 @@ static void *receiver(void *arg) {
 	  continue;
 	    //            exit(1);
         }
-	struct timeval timeout;
-	timeout.tv_sec = 5;
-	timeout.tv_usec = 0;
-        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
-            perror("Setsockopt");
+	if (socksetup(sockfd, 5) < 0) {
 	  close(sockfd);
 	  continue;
-	    //            exit(1);
-        }
-        if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
-            perror("Setsockopt");
-	  close(sockfd);
-	  continue;
-	    //            exit(1);
-        }
-	
+	}
 
         struct sockaddr_in clientaddr, serveraddr;
         memset(&serveraddr, 0, sizeof(serveraddr));
@@ -148,52 +156,30 @@ static void *receiver(void *arg) {
 	    //        }
         char addr[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
+        printf("New connection from %s\n", addr);
+
+
+	int validclient = 0;
+	char buffer[1024];
+	sockrec(connfd, buffer, 1024, 0, 0);
+
+	if (strcmp(buffer,"HELLO WORLD\n")==0) {
+	  validclient = 1;
+	}
+
+	if (validclient) {
+	  fprintf(stderr,"*server says it's a welcome/valid client\n");
+	} else {
+	  fprintf(stderr,"*no handshake, invalid client\n");
+	}
+
+	sprintf(buffer,"!\n");
+	socksend(connfd, buffer, 0, 0);
+	    
+	sleep(10);
+
         shutdown(sockfd, SHUT_RDWR);
         close(sockfd);
-
-        printf("New connection from %s\n", addr);
-        // reset stats
-        for (int i = 0; i < tc->num; i++) {
-            nlShrink(&tc->nl[i], 10);
-            if (i == tc->id) {
-                nlClear(&tc->nl[i]); // this one is zero
-            }
-        }
-        //    printf("Cleared\n");
-
-        char *buff = malloc(BUFFSIZE);
-        assert(buff);
-        ssize_t n;
-
-        double lasttime = timeAsDouble();
-
-        double sumTime = 0;
-        size_t sumBytes = 0;
-	
-        while (keepRunning && (n = recv(connfd, buff, BUFFSIZE, 0)) > 0) {
-            const double thistime = timeAsDouble();
-            tc->lasttime[tc->id] = thistime;
-            const double gaptime = thistime - lasttime;
-            lasttime = thistime;
-
-            sumTime += gaptime;
-            sumBytes += n;
-
-            if (sumTime > 0.01) { // every 1/100 sec then add a data point
-                const double gbps = TOGB(sumBytes) * 8 / (sumTime);
-                //	tc->gbps[tc->id] = gbps;
-                nlAdd(&tc->nl[tc->id], gbps);
-
-                sumTime = 0;
-                sumBytes = 0;
-            }
-
-            if (n == -1) {
-                perror("Receive File Error");
-		continue;
-		//                exit(1);
-            }
-        }
 
         close(connfd);
     }
@@ -202,7 +188,7 @@ static void *receiver(void *arg) {
 
 
 void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, const int serverport) {
-  fprintf(stderr,"*msgstartserver %d.%d.%d.%d   ->  port %d\n", ip1,ip2,ip3,ip4,serverport);
+  fprintf(stderr,"**start** Stu's Autodiscover Tool (sat) %d.%d.%d.%d   ->  port %d\n", ip1,ip2,ip3,ip4,serverport);
   
     pthread_t *pt;
     threadMsgType *tc;
@@ -252,9 +238,6 @@ void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, 
 
 
 
-
-
-///sending
 
 
 

@@ -41,13 +41,14 @@ add_executable(modcat modcat.c)
 add_executable(pcp pcp.c)
 target_link_libraries(pcp pthread)
 
-add_executable(simpmail simpmail.c simpmailMain.c emaildb.c)
+add_executable(simpmail simpmail.c simpmailMain.c emaildb.c utils.h)
+target_link_libraries(simpmail spitlib m aio pthread numa pci)
 
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
-add_executable(msgs msgs.c snack.c)
-target_link_libraries(msgs spitlib m aio pthread numa pci)
+add_executable(sat sat.c snack.c simpmail.c utils.c)
+target_link_libraries(sat spitlib m aio pthread numa pci)
 
 add_executable(dns dnsmain.c dns.c)
 target_link_libraries(dns spitlib m aio pthread numa pci)

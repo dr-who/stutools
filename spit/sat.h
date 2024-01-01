@@ -1,5 +1,5 @@
-#ifndef __MSGS_H
-#define __MSGS_H
+#ifndef __SAT_H
+#define __SAT_H
 
 #include "numList.h"
 

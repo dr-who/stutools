@@ -7,6 +7,11 @@ void simpmailClose(int fd);
 
 void simpmailSend(int fd, const int quiet, char *fromemail, char *fromname, char *to, char *cc, char *bcc, char *subject, char *htmlbody, char *plainbody);
 
+int sockconnect(const char *ipaddress);
+int socksetup(int fd, const int timeout_seconds);
+void socksend(int fd, char *s, int flags, const int quiet);
+void sockrec(int fd, char *buffer, int len, int flags, const int quiet);
+
 
 #endif
 
