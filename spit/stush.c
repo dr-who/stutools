@@ -47,6 +47,7 @@
 
 #include "auth.h"
 #include "qr.h"
+#include "network.h"
 
 int keepRunning = 1;
 int verbose = 0;
@@ -1013,7 +1014,7 @@ void cmd_listNICs(int tty) {
             }
 
             printf("   HW address: ");
-            cmd_printHWAddr(ifa->ifa_name);
+            char *hw = getHWAddr(ifa->ifa_name); printf("%s\n", hw); free(hw);
             printf(", IP address: %s\n", host);
             printf("   Link: ");
             char ss[PATH_MAX];
@@ -1099,7 +1100,8 @@ void cmd_listNICs2(int tty) {
             }
 	    
             printf("%s\t", host);
-            cmd_printHWAddr(ifa->ifa_name); printf("\t");
+            char *hw = getHWAddr(ifa->ifa_name); printf("%s\n", hw); free(hw);
+            printf("\t");
 
             char ss[PATH_MAX];
             sprintf(ss, "/sys/class/net/%s/carrier", ifa->ifa_name);

@@ -30,7 +30,7 @@ set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wall -pedantic --std=gn
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
 
-add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c procDiskStats.c mapVoid.c)
+add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c procDiskStats.c mapVoid.c network.c)
 
 add_executable(spit spit.c spit-version.h)
 target_link_libraries(spit spitlib m aio pthread numa)
@@ -49,6 +49,9 @@ target_link_libraries(snack spitlib m aio pthread numa pci)
 
 add_executable(sat sat.c snack.c simpmail.c utils.c)
 target_link_libraries(sat spitlib m aio pthread numa pci)
+
+add_executable(network networkMain.c network.c network.h)
+target_link_libraries(network spitlib m aio pthread numa pci)
 
 add_executable(dns dnsmain.c dns.c)
 target_link_libraries(dns spitlib m aio pthread numa pci)

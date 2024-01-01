@@ -33,6 +33,7 @@ char *clusterIPs;
 #include "sat.h"
 #include "snack.h"
 #include "simpmail.h"
+#include "network.h"
 
 static void *display(void *arg) {
   //  threadMsgType *d = (threadMsgType*)arg;
@@ -201,14 +202,26 @@ static void *receiver(void *arg) {
 }
 
 
-void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, const char *localserver, const int serverport) {
-  fprintf(stderr,"**start** Stu's Autodiscover Tool (sat) %d.%d.%d.%d/%s   ->  port %d\n", ip1,ip2,ip3,ip4,localserver, serverport);
+void msgStartServer(networkIntType *n, const int serverport) {
+  fprintf(stderr,"**start** Stu's Autodiscover Tool (sat)  ->  port %d\n", serverport);
+
+  networkDumpJSON(stdout, n);
+
+    int ip1,ip2,ip3,ip4;
+    char *localhost = NULL;
+    for (size_t ii = 0; ii < n->id; ii++) {
+      if (strcmp(n->devicename[ii], "lo") == 0) {
+	addrType *ad = n->addr[ii];
+	sscanf(ad[0].addr,"%d.%d.%d.%d", &ip1,&ip2,&ip3,&ip4);
+	localhost = strdup(ad[0].addr);
+      }
+    }
   
     pthread_t *pt;
     threadMsgType *tc;
     double *lasttime;
     numListType *nl;
-    size_t num = 256 + 2;
+    size_t num = 256 + 3;
     // 1..254 is the subnet, 256 is the server, 257 is the display
 
     //  CALLOC(gbps, num, sizeof(double));
@@ -230,16 +243,17 @@ void msgStartServer(const int ip1, const int ip2, const int ip3, const int ip4, 
 	char s[20];
 	sprintf(s, "%d.%d.%d.%zd", ip1, ip2, ip3, i);
         tc[i].tryhost = strdup(s);
-        tc[i].localhost = strdup(localserver);
+        tc[i].localhost = localhost;
         tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
         tc[i].nl = nl;
-	if (i < 256) {
-	  pthread_create(&(pt[i]), NULL, tryConnect, &(tc[i]));
-	} else if (i == 257) {
-	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
-	} else {
+        if (i==0) { // display
 	  pthread_create(&(pt[i]), NULL, display, &(tc[i]));
+	} else if (i < 256) {
+	  pthread_create(&(pt[i]), NULL, tryConnect, &(tc[i]));
+	} else {
+	  // iterate through the arrays of interface info
+	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
 	}
     }
 
@@ -263,87 +277,12 @@ int main() {
   clusterIPs = calloc(100000, 1); assert(clusterIPs);
   memset(clusterIPs, 0, 100000);
 
-		/*  size_t numDevices;
-  stringType *devs = listDevices(&numDevices);
-  for (size_t i = 0; i < numDevices; i++) {
-    fprintf(stderr,"*%zd*:  %s\n", i, devs->path);
-    getEthStats(devs, numDevices);
-    }*/
+  networkIntType *n = networkInit();
+  networkScan(n);
 
+  msgStartServer(n, 1600);
 
-  int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
-
-
-    struct ifaddrs *ifaddr;
-    int family;
-    char host[NI_MAXHOST];
-
-    if (getifaddrs(&ifaddr) == -1) {
-        perror("getifaddrs");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("if    \tIPv4         \tHW/MAC           \tLINK  \tSPEED\tMTU\tChanges\n");
-
-    for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == NULL)
-            continue;
-
-        family = ifa->ifa_addr->sa_family;
-
-        /* Display interface name and family (including symbolic
-           form of the latter for the common families). */
-
-        if (family == AF_INET/* || family == AF_INET6*/) {
-	  if (strcmp(ifa->ifa_name, "lo")==0) {
-	    continue; // don't print info on localhost
-	  }
-	  
-	  printf("%s\t", ifa->ifa_name);
-
-	  int s = getnameinfo(ifa->ifa_addr,
-                            (family == AF_INET) ? sizeof(struct sockaddr_in) :
-                            sizeof(struct sockaddr_in6),
-                            host, NI_MAXHOST,
-                            NULL, 0, NI_NUMERICHOST);
-            if (s != 0) {
-                printf("getnameinfo() failed: %s\n", gai_strerror(s));
-                exit(EXIT_FAILURE);
-            }
-
-	    ip1=ifa->ifa_addr->sa_data[2];
-	    ip2=ifa->ifa_addr->sa_data[3];
-	    ip3=ifa->ifa_addr->sa_data[4];
-	    ip4=ifa->ifa_addr->sa_data[5];
-            printf("%s\t", host);
-            cmd_printHWAddr(ifa->ifa_name); printf("\t");
-
-            char ss[PATH_MAX];
-            sprintf(ss, "/sys/class/net/%s/carrier", ifa->ifa_name);
-	    //            dumpFile(ss, "", 0);
-	    double linkup = getValueFromFile(ss, 1);
-	    printf("%-6s", linkup>=1 ? "UP" : "DOWN");
-	    printf("\t");
-
-            sprintf(ss, "/sys/class/net/%s/speed", ifa->ifa_name);
-	    double speed = getValueFromFile(ss, 1);
-	    printf("%.0lf\t", speed);
-
-            sprintf(ss, "/sys/class/net/%s/mtu", ifa->ifa_name);
-	    double mtu = getValueFromFile(ss, 1);
-	    printf("%.0lf\t", mtu);
-
-            sprintf(ss, "/sys/class/net/%s/carrier_changes", ifa->ifa_name);
-	    double cc = getValueFromFile(ss, 1);
-	    printf("%.0lf\n", cc);
-        }
-    }
-
-    freeifaddrs(ifaddr);
-  
-    msgStartServer(ip1, ip2, ip3, ip4, host, 9200);
-
-    free(clusterIPs);
+  free(clusterIPs);
 
   return 0;
 }

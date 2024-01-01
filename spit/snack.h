@@ -33,6 +33,5 @@ void snackClient(const char *ipaddress, size_t bufSizeToUse, const int serverpor
 void getEthStats(stringType *devs, size_t num);
 stringType *listDevices(size_t *retcount);
 void dumpEthernet(void);
-void cmd_printHWAddr(char *nic);
 
 #endif
