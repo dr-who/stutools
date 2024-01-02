@@ -40,6 +40,8 @@ void interfacesAddIP(interfacesIntType *d, const char *nic, const char *ip, cons
 
 void interfacesScan(interfacesIntType *n);
 
+size_t interfaceSpeed(const char *nic);
+
 char * interfacesDumpJSONString(const interfacesIntType *d);
 void interfacesDumpJSON(FILE *fd, const interfacesIntType *d);
 

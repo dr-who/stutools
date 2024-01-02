@@ -48,6 +48,12 @@ interfacesIntType * interfacesInit() {
   return n;
 }
 
+size_t interfaceSpeed(const char *nic) {
+  char ss[PATH_MAX];
+  sprintf(ss, "/sys/class/net/%s/speed", nic);  
+  size_t speed = getValueFromFile(ss, 1);
+  return speed;
+}
 
 void interfacesAddDevice(interfacesIntType *d, const char *nic) {
   // first look
@@ -65,9 +71,9 @@ void interfacesAddDevice(interfacesIntType *d, const char *nic) {
   double linkup = getValueFromFile(ss, 1);
   p->link = linkup;
 
-  sprintf(ss, "/sys/class/net/%s/speed", nic);  
-  double speed = getValueFromFile(ss, 1);
-  p->speed = speed;
+  //  sprintf(ss, "/sys/class/net/%s/speed", nic);  
+  //  double speed = getValueFromFile(ss, 1);
+  p->speed = interfaceSpeed(nic);
  
 
   sprintf(ss, "/sys/class/net/%s/mtu", nic);  

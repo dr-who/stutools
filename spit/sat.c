@@ -99,8 +99,8 @@ static void *client(void *arg) {
   while (keepRunning) {
 
     char *ipaddress = d->tryhost;
-    if (clusterFindNode(cluster, ipaddress) < 0) {
-      sleep(2);
+    if (clusterFindNode(cluster, d->fqn) < 0) {
+      sleep(10);
       //      fprintf(stderr,"*info* can't find it, going for it...\n");
     } else {
       fprintf(stderr,"*info* already found %s, sleeping for 30\n", ipaddress);
@@ -321,7 +321,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	  tc[i].tryhost = strdup(s);
 	  struct utsname buf;
 	  uname(&buf);
-	  sprintf(s, "%s-%s-%s", buf.nodename, tc[i].tryhost, tc[i].eth);
+	  sprintf(s, "%s-%s-%s-%zd", buf.nodename, tc[i].tryhost, tc[i].eth, interfaceSpeed(tc[i].eth));
 	  tc[i].fqn = strdup(s);
 	  pthread_create(&(pt[i]), NULL, client, &(tc[i]));
 	} else if (i == ipcheck->num) {
