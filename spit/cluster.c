@@ -61,9 +61,13 @@ int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip) {
     find = clusterAddNode(c, nodename);
     assert(find >= 0);
   }
-  c->node[find]->ipaddress = strdup(ip);
-  c->node[find]->updated = timeAsDouble();
-  c->latestchange = c->node[find]->updated;
+  if ((c->node[find]->ipaddress==NULL) || (strcmp(c->node[find]->ipaddress, ip) != 0)) {
+    //different
+    free(c->node[find]->ipaddress);
+    c->node[find]->ipaddress = strdup(ip);
+    c->node[find]->updated = timeAsDouble();
+    c->latestchange = c->node[find]->updated;
+  }
   return find;
 }
 
