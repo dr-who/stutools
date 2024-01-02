@@ -8,6 +8,8 @@ typedef struct {
   int id;
   int num;
   int serverport;
+  char *eth;
+  size_t speed;
   //  double *gbps;
   double *lasttime;
   numListType *nl;

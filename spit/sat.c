@@ -230,7 +230,7 @@ static void *receiver(void *arg) {
 	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
 	  struct utsname buf;
 	  uname(&buf);
-	  sprintf(buffer,"World! I'm %s", buf.nodename);
+	  sprintf(buffer,"World! I'm %s %s %zd", buf.nodename, tc->eth, tc->speed);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
@@ -267,7 +267,8 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 
   int fastest = 0;
     int ip1,ip2,ip3,ip4;
-    char *localhost = NULL;
+    char *localhost = NULL, *eth = NULL;
+    int speed = 0;
     // for each NIC
     for (size_t ii = 0; ii < n->id; ii++) {
       if (strcmp(n->nics[ii]->devicename, "lo") != 0) {
@@ -278,6 +279,8 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	    fprintf(stderr,"*got %s, speed = %d\n", ad.addr, p->speed);
 	    sscanf(ad.addr,"%d.%d.%d.%d", &ip1,&ip2,&ip3,&ip4);
 	    localhost = strdup(ad.addr);
+	    eth = n->nics[ii]->devicename;
+	    speed = n->nics[ii]->speed;
 	  }
 	}
       }
@@ -305,6 +308,8 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
         tc[i].id = i;
         tc[i].num = num;
         tc[i].serverport = serverport;
+	tc[i].eth = strdup(eth);
+	tc[i].speed = speed;
 	tc[i].n = n;
         //    tc[i].gbps = gbps;
 	char s[20];
