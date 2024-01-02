@@ -21,9 +21,15 @@ clusterType * clusterInit(const size_t port) {
 
 // returns -1 for can't find it
 int clusterFindNode(clusterType *c, const char *nodename) {
-  for (size_t i = 0; i < c->id; i++) {
-    if (strcasecmp(c->node[i]->name, nodename)==0) {
-      return i;
+  if (c) {
+    for (size_t i = 0; i < c->id; i++) {
+      if (c->node) {
+	if (c->node[i]) {
+	  if (strcasecmp(c->node[i]->name, nodename)==0) {
+	    return i;
+	  }
+	}
+      }
     }
   }
   return -1;
