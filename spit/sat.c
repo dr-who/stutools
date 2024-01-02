@@ -151,14 +151,16 @@ static void *client(void *arg) {
     struct utsname buf;
     uname(&buf);
 
-    sprintf(buff, "Hello %s I'm %s-%s", ipaddress, buf.nodename, ipaddress);
+    sprintf(buff, "Hello %s I'm %s-%s", ipaddress, buf.nodename);
 
     socksend(sockfd, buff, 0, 0);
 
     sockrec(sockfd, buff, 1024, 0, 1);
     if (strncmp(buff, "World!",6)==0) {
-      fprintf(stderr,"*info* client says it's a valid server = %s (%s)\n", ipaddress, buff+11);
-      clusterAddNodesIP(cluster, buff+11, ipaddress);
+      char s1[100],s2[100],s3[100],s4[100];
+      sscanf(buff, "%s %s %s %s",s1, s2, s3, s4);
+      fprintf(stderr,"*info* client says it's a valid server = %s (%s)\n", s3, s4);
+      clusterAddNodesIP(cluster, s3, s4);
     }
 
     //    fprintf(stderr,"*info* close and loop\n");
@@ -233,10 +235,12 @@ static void *receiver(void *arg) {
 	}
 	
 	if (strncmp(buffer,"Hello",5)==0) {
-	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
+	  char s1[100],s2[100];
+	  sscanf(buffer,"%s %s", s1,s2);
+	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", s2);
 	  struct utsname buf;
 	  uname(&buf);
-	  sprintf(buffer,"World! I'm %s-%s", buf.nodename, addr);
+	  sprintf(buffer,"World! I'm %s-%s %s", buf.nodename, s2, s2);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
