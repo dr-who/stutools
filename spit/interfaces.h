@@ -6,6 +6,7 @@
 typedef struct {
   char *addr;
   char *netmask;
+  char *broadcast;
   unsigned int cidrMask;
 } addrType;
 
@@ -35,7 +36,7 @@ char *getHWAddr(const char *nic);
 interfacesIntType *interfacesInit();
 
 void interfacesAddDevice(interfacesIntType *d, const char *nic);
-void interfacesAddIP(interfacesIntType *d, const char *nic, const char *ip, const char *netmask, const unsigned int cidrMask);
+void interfacesAddIP(interfacesIntType *d, const char *nic, const char *ip, const char *netmask, const char *broadcast, const unsigned int cidrMask);
 
 void interfacesScan(interfacesIntType *n);
 

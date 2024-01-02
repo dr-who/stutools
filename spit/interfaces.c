@@ -85,7 +85,7 @@ void interfacesAddDevice(interfacesIntType *d, const char *nic) {
 
 }
 
-void interfacesAddIP(interfacesIntType *d, const char *nic, const char *ip, const char *netmask, const unsigned int cidrMask) {
+void interfacesAddIP(interfacesIntType *d, const char *nic, const char *ip, const char *netmask, const char *broadcast, const unsigned int cidrMask) {
   assert(d);
   assert(d->id);
   for (size_t i = 0; i < d->id; i++) {
@@ -99,6 +99,7 @@ void interfacesAddIP(interfacesIntType *d, const char *nic, const char *ip, cons
      
       p->addr[index].addr = strdup(ip?ip:"");
       p->addr[index].netmask = strdup(netmask?netmask:"");
+      p->addr[index].broadcast = strdup(broadcast?broadcast:"");
       p->addr[index].cidrMask = cidrMask;
 
       d->nics[i]->lastUpdate = timeAsDouble();
@@ -133,6 +134,7 @@ char * interfacesDumpJSONString(const interfacesIntType *d) {
       buf += sprintf(buf, "\t\t\t{\n");
       buf += sprintf(buf, "\t\t\t   \"address\": \"%s\",\n", p->addr[j].addr);
       buf += sprintf(buf, "\t\t\t   \"netmask\": \"%s\",\n", p->addr[j].netmask);
+      buf += sprintf(buf, "\t\t\t   \"broadcast\": \"%s\",\n", p->addr[j].broadcast);
       buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\"\n", p->addr[j].cidrMask);
       buf += sprintf(buf, "\t\t\t}\n");
     }
@@ -211,12 +213,17 @@ void interfacesScan(interfacesIntType *n) {
 
 	    char addressBuffer[INET_ADDRSTRLEN];
 	    char maskBuffer[INET_ADDRSTRLEN];
+	    char broadcastBuffer[INET_ADDRSTRLEN];
 	    
 	    void *tmpAddrPtr = &((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr;
 	    inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
 	    
 	    tmpAddrPtr = &((struct sockaddr_in *)(ifa->ifa_netmask))->sin_addr;
 	    inet_ntop(AF_INET, tmpAddrPtr, maskBuffer, INET_ADDRSTRLEN);
+	    
+
+	    tmpAddrPtr = &((struct sockaddr_in *)(ifa->ifa_broadaddr))->sin_addr;
+	    inet_ntop(AF_INET, tmpAddrPtr, broadcastBuffer, INET_ADDRSTRLEN);
 	    
 	    unsigned int tmpMask = ((struct sockaddr_in *)(ifa->ifa_netmask))->sin_addr.s_addr;
 	    
@@ -225,7 +232,7 @@ void interfacesScan(interfacesIntType *n) {
 	    
 	    //            printf("%s\t", host);
 
-	    interfacesAddIP(n, ifa->ifa_name, host, maskBuffer, cidrMask(tmpMask));
+	    interfacesAddIP(n, ifa->ifa_name, host, maskBuffer, broadcastBuffer, cidrMask(tmpMask));
         }
     }
 

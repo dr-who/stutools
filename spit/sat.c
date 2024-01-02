@@ -36,6 +36,9 @@ void intHandler(int d) {
 #include "simpmail.h"
 #include "interfaces.h"
 #include "cluster.h"
+#include "iprange.h"
+#include "ipcheck.h"
+
 
 clusterType *cluster;
 
@@ -230,7 +233,7 @@ static void *receiver(void *arg) {
 	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
 	  struct utsname buf;
 	  uname(&buf);
-	  sprintf(buffer,"World! I'm %s %s %zd", buf.nodename, tc->eth, tc->speed);
+	  sprintf(buffer,"World! I'm %s", buf.nodename);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
@@ -265,68 +268,62 @@ static void *receiver(void *arg) {
 void msgStartServer(interfacesIntType *n, const int serverport) {
   fprintf(stderr,"**start** Stu's Autodiscover Tool (sat)  ->  port %d\n", serverport);
 
-  int fastest = 0;
-    int ip1,ip2,ip3,ip4;
-    char *localhost = NULL, *eth = NULL;
-    int speed = 0;
+  // for each interface add all network ranges
+  char *localhost = NULL;
+    ipCheckType *ipcheck = ipCheckInit();
+
     // for each NIC
     for (size_t ii = 0; ii < n->id; ii++) {
       if (strcmp(n->nics[ii]->devicename, "lo") != 0) {
 	phyType *p = n->nics[ii];
 	for (size_t j = 0; j < p->num; j++) {
-	  if (p->speed > fastest) {
-	    addrType ad = p->addr[j];
-	    fprintf(stderr,"*got %s, speed = %d\n", ad.addr, p->speed);
-	    sscanf(ad.addr,"%d.%d.%d.%d", &ip1,&ip2,&ip3,&ip4);
-	    localhost = strdup(ad.addr);
-	    eth = n->nics[ii]->devicename;
-	    speed = n->nics[ii]->speed;
-	  }
+	  addrType ad = p->addr[j];
+	  char cidr[30];
+	  sprintf(cidr, "%s/%d", ad.broadcast, ad.cidrMask);
+
+	  ipRangeType *ipr = ipRangeInit(cidr);
+	  ipCheckAdd(ipcheck, ipr->firstIP+1, ipr->lastIP-1);
+	  ipRangeFree(ipr);
 	}
       }
     }
-  
+
+    fprintf(stderr,"ips to examine: %zd\n", ipcheck->num);
+    
     pthread_t *pt;
     threadMsgType *tc;
     double *lasttime;
-    numListType *nl;
-    size_t num = 256 + 1;
-    // 1..254 is the subnet, 256 is the server, 257 is the display
+    size_t num = ipcheck->num + 2;
+    // 0 is server, 1 is display, 2 onwards are the IPs.
 
     //  CALLOC(gbps, num, sizeof(double));
     CALLOC(lasttime, num, sizeof(double));
 
-    CALLOC(nl, num, sizeof(numListType));
     CALLOC(pt, num, sizeof(pthread_t));
     CALLOC(tc, num, sizeof(threadMsgType));
 
-    for (size_t i = 0; i < num; i++) {
-        nlInit(&nl[i], 1000);
-    }
 
     for (size_t i = 0; i < num; i++) {
         tc[i].id = i;
         tc[i].num = num;
         tc[i].serverport = serverport;
-	tc[i].eth = strdup(eth);
-	tc[i].speed = speed;
 	tc[i].n = n;
-        //    tc[i].gbps = gbps;
-	char s[20];
-	sprintf(s, "%d.%d.%d.%zd", ip1, ip2, ip3, i);
-        tc[i].tryhost = strdup(s);
         tc[i].localhost = localhost;
         tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
-        tc[i].nl = nl;
-        if (i==0) { // display
-	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
-	} else if (i < 256) {
+	if (i < ipcheck->num) {
+	  char s[20];
+	  unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
+	  ipRangeNtoA(ipcheck->ip[i], &ip1, &ip2, &ip3, &ip4);
+	  sprintf(s, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
+	  printf("adding %s\n", s);
+	  tc[i].tryhost = strdup(s);
 	  pthread_create(&(pt[i]), NULL, client, &(tc[i]));
- 	} else {
+	} else if (i == ipcheck->num) {
+	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
+	} else {
 	  pthread_create(&(pt[i]), NULL, display, &(tc[i]));
 	}
-
     }
 
     for (size_t i = 0; i < num; i++) {
