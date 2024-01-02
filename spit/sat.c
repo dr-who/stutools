@@ -80,6 +80,9 @@ static void *display(void *arg) {
       sprintf(s, "/proc/%d/fd/", getpid());
       const size_t np = numberOfDirectories(s);
       fprintf(stderr,"*info* openfiles=%zd, cluster: %zd\n", np, cluster->id);
+      if (np > 1000) {
+	exit(-2);
+      }
       char *json = clusterDumpJSONString(cluster);
       printf("%s", json);
       free(json);
