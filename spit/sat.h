@@ -7,6 +7,8 @@ typedef struct {
   int id;
   int num;
   int serverport;
+  char *eth;
+  char *fqn;
   double *lasttime;
   char *localhost;
   char *tryhost;

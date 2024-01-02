@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
       ipRangeType *i = ipRangeInit(argv[v]);
       if (i) {
 
-	ipCheckAdd(ipcheck, i->firstIP+1, i->lastIP-1); // remove network and broadcast
+	ipCheckAdd(ipcheck, "", i->firstIP+1, i->lastIP-1); // remove network and broadcast
 	
 	fprintf(stderr, "cidr:  %s\n", argv[v]);
 	

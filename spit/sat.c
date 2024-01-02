@@ -148,18 +148,16 @@ static void *client(void *arg) {
     }
 
     char buff[1024];
-    struct utsname buf;
-    uname(&buf);
-
-    sprintf(buff, "Hello %s I'm %s-%s", ipaddress, buf.nodename, ipaddress);
+    memset(buff, 0, 1024);
+    sprintf(buff, "Hello %s I'm %s\n", ipaddress, d->fqn);
 
     socksend(sockfd, buff, 0, 0);
 
     sockrec(sockfd, buff, 1024, 0, 1);
     if (strncmp(buff, "World!",6)==0) {
       char s1[100],s2[100],s3[100],s4[100];
-      sscanf(buff, "%s %s %s %s",s1, s2, s3, s4);
-      fprintf(stderr,"*info* client says it's a valid server = %s (%s)\n", s3, s4);
+      sscanf(buff, "%s %s %s %s",s1, s2, s3, s4); // world i'
+      fprintf(stderr,"*info* client says it's a valid server = %s %s %s %s\n", s1,s2,s3,s4);
       clusterAddNodesIP(cluster, s3, s4);
     }
 
@@ -235,12 +233,10 @@ static void *receiver(void *arg) {
 	}
 	
 	if (strncmp(buffer,"Hello",5)==0) {
-	  char s1[100],s2[100];
-	  sscanf(buffer,"%s %s", s1,s2);
-	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", s2);
-	  struct utsname buf;
-	  uname(&buf);
-	  sprintf(buffer,"World! I'm %s-%s %s", buf.nodename, s2, s2);
+	  char s1[100],s2[100],s3[100],s4[100];
+	  sscanf(buffer,"%s %s %s %s", s1,s2,s3,s4);
+	  fprintf(stderr,"*server says it's a welcome/valid client = %s (%s)\n", s2, s4);
+	  sprintf(buffer,"World! I'm %s %s", s4, s2);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
@@ -276,7 +272,6 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
   fprintf(stderr,"**start** Stu's Autodiscover Tool (sat)  ->  port %d\n", serverport);
 
   // for each interface add all network ranges
-  char *localhost = NULL;
     ipCheckType *ipcheck = ipCheckInit();
 
     // for each NIC
@@ -289,7 +284,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	  sprintf(cidr, "%s/%d", ad.broadcast, ad.cidrMask);
 
 	  ipRangeType *ipr = ipRangeInit(cidr);
-	  ipCheckAdd(ipcheck, ipr->firstIP+1, ipr->lastIP-1);
+	  ipCheckAdd(ipcheck, n->nics[ii]->devicename, ipr->firstIP+1, ipr->lastIP-1);
 	  ipRangeFree(ipr);
 	}
       }
@@ -315,16 +310,19 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
         tc[i].num = num;
         tc[i].serverport = serverport;
 	tc[i].n = n;
-        tc[i].localhost = localhost;
         tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
-	char s[20];
-	unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
-	ipRangeNtoA(ipcheck->ip[i], &ip1, &ip2, &ip3, &ip4);
-	sprintf(s, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
-	printf("adding %s\n", s);
-	tc[i].tryhost = strdup(s);
 	if (i < ipcheck->num) {
+	  tc[i].eth = ipcheck->interface[i];
+	  char s[200];
+	  unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
+	  ipRangeNtoA(ipcheck->ip[i], &ip1, &ip2, &ip3, &ip4);
+	  sprintf(s, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
+	  tc[i].tryhost = strdup(s);
+	  struct utsname buf;
+	  uname(&buf);
+	  sprintf(s, "%s-%s-%s", buf.nodename, tc[i].tryhost, tc[i].eth);
+	  tc[i].fqn = strdup(s);
 	  pthread_create(&(pt[i]), NULL, client, &(tc[i]));
 	} else if (i == ipcheck->num) {
 	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));

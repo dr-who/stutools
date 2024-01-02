@@ -10,16 +10,18 @@ ipCheckType *ipCheckInit() {
 }
 			  
   
-void ipCheckAdd(ipCheckType *i, unsigned int low, unsigned int high) {
+void ipCheckAdd(ipCheckType *i, char *interface, unsigned int low, unsigned int high) {
 
   size_t startcheck = i->num;
   
   i->num += (high - low + 1);
   i->ip= realloc(i->ip, i->num * sizeof(unsigned int)); assert(i->ip);
   i->checked = realloc(i->checked, i->num * sizeof(unsigned char)); assert(i->checked);
+  i->interface = realloc(i->interface, i->num * sizeof(char*)); assert(i->interface);
   for (size_t j = low; j <= high; j++) {
     i->ip[startcheck] = j;
     i->checked[startcheck] = 0;
+    i->interface[startcheck] = interface;
     startcheck++;
   }
 }
