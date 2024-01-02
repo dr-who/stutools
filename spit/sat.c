@@ -151,7 +151,7 @@ static void *client(void *arg) {
     struct utsname buf;
     uname(&buf);
 
-    sprintf(buff, "Hello %s I'm %s-%s", ipaddress, buf.nodename);
+    sprintf(buff, "Hello %s I'm %s-%s", ipaddress, buf.nodename, ipaddress);
 
     socksend(sockfd, buff, 0, 0);
 
