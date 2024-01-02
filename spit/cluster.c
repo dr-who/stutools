@@ -64,23 +64,25 @@ int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip) {
 char *clusterDumpJSONString(clusterType *c) {
   char *buf = calloc(1,1000000);
   char *ret = buf;
-  
-  buf += sprintf(buf, "{ \"clusterport\": %zd,\n", c->port);
-  buf += sprintf(buf, "  \"latestchange\": %lf,\n", c->latestchange);
-  buf += sprintf(buf, "  \"latestchangesecondsago\": %lf,\n", timeAsDouble() - c->latestchange);
-  buf += sprintf(buf, "  \"nodes\": [\n");
-  for (size_t i = 0; i < c->id; i++) {
-    buf += sprintf(buf, "    {\n");
-    buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
-    buf += sprintf(buf, "       \"created\": %lf,\n", c->node[i]->created);
-    buf += sprintf(buf, "       \"updated\": %lf,\n", c->node[i]->updated);
-    buf += sprintf(buf, "       \"ipaddress\": \"%s\"\n", c->node[i]->ipaddress ? c->node[i]->ipaddress : "n/a");
-    buf += sprintf(buf, "    }");
-    if (i < c->id-1) buf += sprintf(buf, ",");
-    buf += sprintf(buf, "\n");
+
+  if (c) {
+    buf += sprintf(buf, "{ \"clusterport\": %zd,\n", c->port);
+    buf += sprintf(buf, "  \"latestchange\": %lf,\n", c->latestchange);
+    buf += sprintf(buf, "  \"latestchangesecondsago\": %lf,\n", timeAsDouble() - c->latestchange);
+    buf += sprintf(buf, "  \"nodes\": [\n");
+    for (size_t i = 0; i < c->id; i++) {
+      buf += sprintf(buf, "    {\n");
+      buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
+      buf += sprintf(buf, "       \"created\": %lf,\n", c->node[i]->created);
+      buf += sprintf(buf, "       \"updated\": %lf,\n", c->node[i]->updated);
+      buf += sprintf(buf, "       \"ipaddress\": \"%s\"\n", c->node[i]->ipaddress ? c->node[i]->ipaddress : "n/a");
+      buf += sprintf(buf, "    }");
+      if (i < c->id-1) buf += sprintf(buf, ",");
+      buf += sprintf(buf, "\n");
+    }
+    buf += sprintf(buf, "  ]\n");
+    buf += sprintf(buf, "}\n");
   }
-  buf += sprintf(buf, "  ]\n");
-  buf += sprintf(buf, "}\n");
 
   char *ret2 = strdup(ret);
   free(ret);
