@@ -151,13 +151,13 @@ static void *client(void *arg) {
     struct utsname buf;
     uname(&buf);
 
-    sprintf(buff, "Hello %s I'm %s", ipaddress, buf.nodename);
+    sprintf(buff, "Hello %s I'm %s-%s", ipaddress, buf.nodename, ipaddress);
 
     socksend(sockfd, buff, 0, 0);
 
     sockrec(sockfd, buff, 1024, 0, 1);
     if (strncmp(buff, "World!",6)==0) {
-      fprintf(stderr,"*info* client says it's a valid server = %s (%s)\n", ipaddress, buff);
+      fprintf(stderr,"*info* client says it's a valid server = %s (%s)\n", ipaddress, buff+11);
       clusterAddNodesIP(cluster, buff+11, ipaddress);
     }
 
@@ -236,7 +236,7 @@ static void *receiver(void *arg) {
 	  fprintf(stderr,"*server says it's a welcome/valid client = %s\n", addr);
 	  struct utsname buf;
 	  uname(&buf);
-	  sprintf(buffer,"World! I'm %s", buf.nodename);
+	  sprintf(buffer,"World! I'm %s-%s", buf.nodename, addr);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
@@ -314,13 +314,13 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
         tc[i].localhost = localhost;
         tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
+	char s[20];
+	unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
+	ipRangeNtoA(ipcheck->ip[i], &ip1, &ip2, &ip3, &ip4);
+	sprintf(s, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
+	printf("adding %s\n", s);
+	tc[i].tryhost = strdup(s);
 	if (i < ipcheck->num) {
-	  char s[20];
-	  unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
-	  ipRangeNtoA(ipcheck->ip[i], &ip1, &ip2, &ip3, &ip4);
-	  sprintf(s, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
-	  printf("adding %s\n", s);
-	  tc[i].tryhost = strdup(s);
 	  pthread_create(&(pt[i]), NULL, client, &(tc[i]));
 	} else if (i == ipcheck->num) {
 	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
