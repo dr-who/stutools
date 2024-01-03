@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <unistd.h>
@@ -48,6 +47,12 @@
 #include "auth.h"
 #include "qr.h"
 #include "interfaces.h"
+
+#include "simpmail.h"
+#include "iprange.h"
+
+extern char **environ;
+
 
 int keepRunning = 1;
 int verbose = 0;
@@ -202,6 +207,8 @@ COMMAND commands[] = {
 	{"authqr",    "Show the TOTP QR code", "admin"},
 	{"authset",   "Set the TOTP key", "admin"},
 	{"authtok",   "Show the current TOTP token", "admin"},
+	{"booking",   "Manage bookings", "admin"},
+	{"cidr",      "Handy CIDR calc", ""},
         {"cpu",       "Show CPU info", "admin"},
         {"date",      "Show the current date/time", ""},
 	{"d2b",       "Decimal to binary", ""},
@@ -227,6 +234,7 @@ COMMAND commands[] = {
         {"lsblk",     "List drive block devices", "admin"},
         {"lsnic",     "List IP/HW addresses", "admin"},
         {"lspci",     "List PCI devices", "admin"},
+	{"mail",      "Send email", "admin"},
         {"mem",      "Show memory usage", "admin"},
         {"mounts",    "Show mounts info", "admin"},
         {"netserver", "Starts server for network tests", ""},
@@ -512,6 +520,65 @@ void cmd_hexset(const int tty, const char *rest) {
   }
 }
 
+
+// booking
+void cmd_booking(const int tty, char *second) {
+  if (tty) {}
+  if (second) {}
+
+  long i = time(NULL);
+
+  char timestring[PATH_MAX];
+  struct tm tm = *localtime(&i);
+  strftime(timestring, PATH_MAX, "%Y-%m-%d %H:%M:%S %Z", &tm);
+
+  printf("Today's date is: %s\n", timestring);
+}
+  
+// cidr calc
+void cmd_cidr(const int tty, char *second) {
+  if (tty) {}
+  
+  if (second == NULL) {
+    printf("usage: e.g. cidr 192.168.4.128/25\n");
+  } else {
+    ipRangeType *i = ipRangeInit(second);
+    if (i) {
+      fprintf(stderr, "cidr:  %s\n", second);
+
+      unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
+      ipRangeNtoA(i->firstIP, &ip1, &ip2, &ip3, &ip4);
+      fprintf(stderr, "address start: %d.%d.%d.%d (network address)\n", ip1, ip2, ip3, ip4);
+      ipRangeNtoA(i->lastIP, &ip1, &ip2, &ip3, &ip4);
+      fprintf(stderr, "address end:   %d.%d.%d.%d (broadcast address)\n", ip1, ip2, ip3, ip4);
+      
+      ipRangeFree(i);
+    } else {
+      printf("Input is not CIDR syntax\n");
+    }
+  }
+}
+
+
+      
+// send email
+void cmd_mail(const int tty, char *second) {
+  if (tty) {}
+  
+  if (second == NULL) {
+    printf("usage: mail <emailaddress@domain>\n");
+  } else {
+    int fd = simpmailConnect("127.0.0.1");
+    if (fd > 0) {
+      simpmailSend(fd, 0, "test@ingcap.co.nz", "Dr Tester", second, NULL, "stuart.inglis@gmail.com", "Welcome", NULL, "plain body\nneat eh!\n");
+      simpmailClose(fd);
+    } else {
+      perror("mail");
+    }
+  }
+}  
+
+  
 // salt variable string
 void cmd_addSalt(const int tty, const char *rest) {
   if (tty) {}
@@ -794,7 +861,7 @@ void cmd_uptime(const int tty) {
 
 void cmd_devSpeed(const int tty, const char *second, int showspeedorlatency) {
     if (second) {
-      int fd = open(second, O_RDONLY | O_DIRECT);
+      int fd = open(second, O_RDONLY);
       if (fd < 0) {
 	perror(second);
       } else {
@@ -1265,7 +1332,7 @@ void cmd_listDriveBlockDevices(int tty, const char *second) {
             assert(buffer);
             memset(buffer, 0, bufsize);
 
-            int fd = open(path, O_RDONLY | O_DIRECT);
+            int fd = open(path, O_RDONLY);
             char *serial = NULL;
             if (fd) {
                 int didread = read(fd, buffer, bufsize);
@@ -1425,7 +1492,7 @@ void cmd_date(const int tty) {
     struct tm tm = *localtime(&t);
 
     char timestring[PATH_MAX];
-    strftime(timestring, 999, "%c", &tm);
+    strftime(timestring, 999, "%c %Z", &tm);
 
     printf("%s\n", timestring);
 }
@@ -1606,6 +1673,12 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	        cmd_devSpeed(tty, rest, 1);
             } else if (strcasecmp(commands[i].name, "who") == 0) {
 	      cmd_who(tty); 
+            } else if (strcasecmp(commands[i].name, "booking") == 0) {
+	      cmd_booking(tty, rest); 
+            } else if (strcasecmp(commands[i].name, "cidr") == 0) {
+	      cmd_cidr(tty, rest); 
+            } else if (strcasecmp(commands[i].name, "mail") == 0) {
+	      cmd_mail(tty, rest); 
             } else if (strcasecmp(commands[i].name, "mem") == 0) {
 	      cmd_memUsage(tty); 
             } else if (strcasecmp(commands[i].name, "swap") == 0) {

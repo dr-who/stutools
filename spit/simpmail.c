@@ -33,6 +33,12 @@ int sockconnect(const char *ipaddress){
    return sock;
 }
 
+// stub
+int simpmailConnect(const char *ipaddress) {
+  return sockconnect(ipaddress);
+}
+
+
 void simpmailClose(int fd) {
   shutdown(fd, 0);
 }
