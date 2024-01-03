@@ -38,7 +38,7 @@ void ipCheckOpenPort(ipCheckType *ips, size_t port) {
     ipRangeNtoA(ip, &ip1, &ip2, &ip3, &ip4);
     char s[20];
     sprintf(s,"%u.%u.%u.%u", ip1, ip2, ip3, ip4);
-    int fd = sockconnect(s, port);
+    int fd = sockconnect(s, port, 0.05);
     if (fd >= 0) {
       printf("found open port %zd on server %s\n", port, s);
     } else {

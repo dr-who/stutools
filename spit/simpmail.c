@@ -11,10 +11,25 @@
 
 #include "utils.h"
 
-int sockconnect(const char *ipaddress, const size_t port){
+int sockconnect(const char *ipaddress, const size_t port, const double time_out){
    int sock = socket(AF_INET, SOCK_STREAM, 0);
 
    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, NULL, 0);
+
+   
+   struct timeval timeout;      
+   timeout.tv_sec = (int)time_out;
+   timeout.tv_usec = (time_out - (int)time_out) * 1000000;
+   
+   if (setsockopt (sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof (timeout)) < 0) {
+     //     perror("setsockopt failed\n");
+     return -1;
+   }
+   
+   if (setsockopt (sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof (timeout)) < 0) {
+     //     perror("setsockopt failed\n");
+     return -1;
+   }
 
    struct sockaddr_in serv_addr;
    memset(&serv_addr, 0, sizeof(serv_addr));
@@ -24,10 +39,11 @@ int sockconnect(const char *ipaddress, const size_t port){
    if(inet_pton(AF_INET, ipaddress, &serv_addr.sin_addr) > 0){
      int ret = connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
      if (ret != 0) {
-       perror(ipaddress);
+       //   perror(ipaddress);
+       return -1;
      }
    } else{
-     perror(ipaddress);
+     //     perror(ipaddress);
      //     fprintf(stderr,"*error* problem connecting to %s port 25\n", ipaddress);
      return -1;
    }
@@ -36,7 +52,7 @@ int sockconnect(const char *ipaddress, const size_t port){
 
 // stub
 int simpmailConnect(const char *ipaddress) { // SMTP is 25
-  return sockconnect(ipaddress, 25);
+  return sockconnect(ipaddress, 25, 5);
 }
 
 
