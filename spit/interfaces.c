@@ -19,6 +19,8 @@
 #include "interfaces.h"
 #include "utils.h"
 
+#include "iprange.h"
+
 
 char *getHWAddr(const char *nic) {
 
@@ -141,7 +143,21 @@ char * interfacesDumpJSONString(const interfacesIntType *d) {
       buf += sprintf(buf, "\t\t\t   \"address\": \"%s\",\n", p->addr[j].addr);
       buf += sprintf(buf, "\t\t\t   \"netmask\": \"%s\",\n", p->addr[j].netmask);
       buf += sprintf(buf, "\t\t\t   \"broadcast\": \"%s\",\n", p->addr[j].broadcast);
-      buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\"\n", p->addr[j].cidrMask);
+      buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\"\n,", p->addr[j].cidrMask);
+      char s[100];
+      sprintf(s, "%s/%d", p->addr[j].broadcast, p->addr[j].cidrMask);
+
+      
+      ipRangeType *ipr = ipRangeInit(s);
+      unsigned int ip1, ip2, ip3, ip4;
+      int gap = 1;
+      if (ipr->lastIP - ipr->firstIP < 3) gap = 0;
+      
+      ipRangeNtoA(ipr->firstIP+gap, &ip1, &ip2, &ip3, &ip4);
+      buf += sprintf(buf, "\t\t\t   \"addressFirst\": \"%u.%u.%u.%u\",\n", ip1, ip2, ip3, ip4);
+      ipRangeNtoA(ipr->lastIP-gap, &ip1, &ip2, &ip3, &ip4);
+      buf += sprintf(buf, "\t\t\t   \"addressLast\": \"%u.%u.%u.%u\"\n", ip1, ip2, ip3, ip4);
+      ipRangeFree(ipr);
       buf += sprintf(buf, "\t\t\t}\n");
     }
     buf += sprintf(buf, "\t\t]\n");

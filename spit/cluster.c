@@ -56,6 +56,7 @@ int clusterAddNode(clusterType *c, const char *nodename) {
 }
 
 int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip) {
+  fprintf(stderr,"addnodesip %s %s\n",nodename, ip);
   int find = clusterFindNode(c, nodename);
   if (find < 0) {
     find = clusterAddNode(c, nodename);

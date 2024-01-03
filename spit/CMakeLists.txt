@@ -50,7 +50,7 @@ target_link_libraries(snack spitlib m aio pthread numa pci)
 add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h )
 target_link_libraries(sat spitlib m aio pthread numa pci)
 
-add_executable(interfaces interfacesMain.c interfaces.c interfaces.h)
+add_executable(interfaces interfacesMain.c interfaces.c interfaces.h iprange.c iprange.h)
 target_link_libraries(interfaces spitlib m aio pthread numa pci)
 
 add_executable(cluster clusterMain.c cluster.c cluster.h)
@@ -74,7 +74,7 @@ target_link_libraries(pair spitlib m )
 add_executable(raidsimulation raidsimulationmain.c failureType.c deviceProbs.c numList.c )
 target_link_libraries(raidsimulation m )
 
-add_executable(stush stush.c snack.h snack.c failureType.c deviceProbs.c pciUtils.c dns.c qr/qrcodegen.c tpmtotp/base32.c TOTP-MCU/sha1.c TOTP-MCU/TOTP.c auth.c qr.c status.c)
+add_executable(stush stush.c snack.h snack.c failureType.c deviceProbs.c pciUtils.c dns.c qr/qrcodegen.c tpmtotp/base32.c TOTP-MCU/sha1.c TOTP-MCU/TOTP.c auth.c qr.c status.c iprange.c)
 target_link_libraries(stush spitlib m pthread aio numa readline pci)
 
 

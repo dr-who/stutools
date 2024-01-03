@@ -100,7 +100,7 @@ static void *client(void *arg) {
 
     char *ipaddress = d->tryhost;
     if (clusterFindNode(cluster, d->fqn) < 0) {
-      sleep(10);
+      sleep(1);
       //      fprintf(stderr,"*info* can't find it, going for it...\n");
     } else {
       fprintf(stderr,"*info* already found %s, sleeping for 30\n", ipaddress);
@@ -149,16 +149,16 @@ static void *client(void *arg) {
 
     char buff[1024];
     memset(buff, 0, 1024);
-    sprintf(buff, "Hello %s I'm %s\n", ipaddress, d->fqn);
+    sprintf(buff, "Hello %s %s\n", ipaddress, d->fqn);
 
     socksend(sockfd, buff, 0, 0);
 
     sockrec(sockfd, buff, 1024, 0, 1);
     if (strncmp(buff, "World!",6)==0) {
-      char s1[100],s2[100],s3[100],s4[100];
-      sscanf(buff, "%s %s %s %s",s1, s2, s3, s4); // world i'
-      fprintf(stderr,"*info* client says it's a valid server = %s %s %s %s\n", s1,s2,s3,s4);
-      clusterAddNodesIP(cluster, s3, s4);
+      char s1[100],ipa[100],fqn[100];
+      sscanf(buff, "%s %s %s",s1, ipa, fqn); // world i'
+      fprintf(stderr,"*info* client says it's a valid server = %s %s %s\n", s1,ipa,fqn);
+      clusterAddNodesIP(cluster, d->fqn, ipaddress);
     }
 
     //    fprintf(stderr,"*info* close and loop\n");
@@ -233,10 +233,11 @@ static void *receiver(void *arg) {
 	}
 	
 	if (strncmp(buffer,"Hello",5)==0) {
-	  char s1[100],s2[100],s3[100],s4[100];
-	  sscanf(buffer,"%s %s %s %s", s1,s2,s3,s4);
-	  fprintf(stderr,"*server says it's a welcome/valid client = %s (%s)\n", s2, s4);
-	  sprintf(buffer,"World! I'm %s %s", s4, s2);
+	  char s1[100],ipa[100],fqn[100];
+	  printf("buffer: %s\n", buffer);
+	  sscanf(buffer,"%s %s %s", s1,ipa,fqn);
+	  fprintf(stderr,"*server says it's a welcome/valid client ... %s %s %s\n", s1, ipa, fqn);
+	  sprintf(buffer,"World! %s %s", ipa, fqn);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
