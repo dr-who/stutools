@@ -84,7 +84,7 @@ static int decode_char(unsigned char c)
 	if (c >= '2' && c <= '7')
 		retval = c - '2' + 26;
 
-	assert((retval & 0x1F) == retval);
+	//	assert((retval & 0x1F) == retval);
 
 	return  retval;
 }

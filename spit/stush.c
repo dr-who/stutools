@@ -314,7 +314,7 @@ void header(const int tty) {
     if (tty) {
         printf("%s", BOLD);
     }
-    printf("stush: (%s: v0.85)\n\n", T("secure sandpit"));
+    printf("stush: (%s: v0.91)\n\n", T("secure sandpit"));
     if (tty) {
         printf("%s", END);
     }

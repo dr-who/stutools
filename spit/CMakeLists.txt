@@ -58,6 +58,8 @@ target_link_libraries(cluster spitlib m aio pthread numa pci)
 
 add_executable(cidr cidr.c iprange.c iprange.h ipcheck.c ipcheck.h)
 
+add_executable(keyvalue keyvalue.c keyvalue.h)
+
 
 add_executable(devices devicesMain.c devices.c devices.h)
 target_link_libraries(devices spitlib m aio pthread numa pci)
