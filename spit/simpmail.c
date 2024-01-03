@@ -7,17 +7,18 @@
 #include <time.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <uuid/uuid.h>
 
 #include "utils.h"
 
-int sockconnect(const char *ipaddress){
+int sockconnect(const char *ipaddress, const size_t port){
    int sock = socket(AF_INET, SOCK_STREAM, 0);
 
    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, NULL, 0);
 
    struct sockaddr_in serv_addr;
    memset(&serv_addr, 0, sizeof(serv_addr));
-   serv_addr.sin_port = htons(25);
+   serv_addr.sin_port = htons(port);
    serv_addr.sin_family = AF_INET;
 
    if(inet_pton(AF_INET, ipaddress, &serv_addr.sin_addr) > 0){
@@ -34,13 +35,14 @@ int sockconnect(const char *ipaddress){
 }
 
 // stub
-int simpmailConnect(const char *ipaddress) {
-  return sockconnect(ipaddress);
+int simpmailConnect(const char *ipaddress) { // SMTP is 25
+  return sockconnect(ipaddress, 25);
 }
 
 
 void simpmailClose(int fd) {
   shutdown(fd, 0);
+  close(fd);
 }
 
 
@@ -126,8 +128,18 @@ void simpmailSend(int fd, const int quiet, char *from, char *fromname, char *to,
 
    sprintf(buffer,"Return-Path: <%s>\r\n", from);
    socksend(fd, buffer, FLAGS, quiet);
+
+
+   uuid_t uuid;
    
-   sprintf(buffer,"Message-ID: <%lu%s>\r\n", getDevRandomLong(), from);
+   // generate
+   uuid_generate_time_safe(uuid);
+   
+   // unparse (to string)
+   char uuid_str[37];      // ex. "1b4e28ba-2fa1-11d2-883f-0016d3cca427" + "\0"
+   uuid_unparse_lower(uuid, uuid_str);
+   
+   sprintf(buffer,"Message-ID: <%s%s>\r\n", uuid_str, from);
    socksend(fd, buffer, FLAGS, quiet);
    
    if (fromname) {

@@ -16,10 +16,7 @@ typedef struct {
   size_t byteLen; //includes \0s
 } keyvalueType;
 
-keyvalueType *keyvalueInit() {
-  keyvalueType *p = calloc(1, sizeof(keyvalueType)); assert(p);
-  return p;
-}
+keyvalueType *keyvalueInit();
 
 size_t keyvalueAdd(keyvalueType *kv, char *key, char *value);
 

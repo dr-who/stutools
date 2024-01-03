@@ -42,13 +42,13 @@ add_executable(pcp pcp.c)
 target_link_libraries(pcp pthread)
 
 add_executable(simpmail simpmail.c simpmailMain.c emaildb.c utils.h)
-target_link_libraries(simpmail spitlib m aio pthread numa pci)
+target_link_libraries(simpmail spitlib m aio pthread numa pci uuid)
 
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
 add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h )
-target_link_libraries(sat spitlib m aio pthread numa pci)
+target_link_libraries(sat spitlib m aio pthread numa pci uuid)
 
 add_executable(interfaces interfacesMain.c interfaces.c interfaces.h iprange.c iprange.h)
 target_link_libraries(interfaces spitlib m aio pthread numa pci)
@@ -56,9 +56,13 @@ target_link_libraries(interfaces spitlib m aio pthread numa pci)
 add_executable(cluster clusterMain.c cluster.c cluster.h)
 target_link_libraries(cluster spitlib m aio pthread numa pci)
 
-add_executable(cidr cidr.c iprange.c iprange.h ipcheck.c ipcheck.h)
+add_executable(cidr cidr.c iprange.c iprange.h ipcheck.c ipcheck.h simpmail.c )
+target_link_libraries(cidr uuid)
 
-add_executable(keyvalue keyvalue.c keyvalue.h)
+add_executable(keyvalue keyvalueMain.c keyvalue.c keyvalue.h)
+
+add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h simpmail.c iprange.c)
+target_link_libraries(ipcheck uuid)
 
 
 add_executable(devices devicesMain.c devices.c devices.h)
@@ -77,7 +81,7 @@ add_executable(raidsimulation raidsimulationmain.c failureType.c deviceProbs.c n
 target_link_libraries(raidsimulation m )
 
 add_executable(stush stush.c snack.h snack.c failureType.c deviceProbs.c pciUtils.c dns.c qr/qrcodegen.c tpmtotp/base32.c TOTP-MCU/sha1.c TOTP-MCU/TOTP.c auth.c qr.c status.c iprange.c simpmail.c simpmail.h)
-target_link_libraries(stush spitlib m pthread aio numa readline pci)
+target_link_libraries(stush spitlib m pthread aio numa readline pci uuid)
 
 
 add_executable(stat stat.c )

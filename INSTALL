@@ -2,11 +2,11 @@ You need to install the development libraries for aio
 
 Under Ubuntu
 
-# apt install libaio-dev
+# apt install -y libaio-dev libpci-dev libnuma-dev libreadline-dev cmake build-essential git
 
 or CentOS
 
-# yum install libaio-devel
+# yum install libaio-devel pciutils-devel numactl-devel readline-devel gcc gcc-c++ make git
 
 Then simply build
 

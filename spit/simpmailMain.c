@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
       if (dryRun) {
 	printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, body %ld/%ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, e->addr[i], ccemail, bccemail, strlen(plainbody), strlen(htmlbody), subject);
       } else {
-	int fd = sockconnect("127.0.0.1");
+	int fd = simpmailConnect("127.0.0.1");
 	
 	if (fd > 0) {
 	  simpmailSend(fd, i >= 10, fromemail, fromname, e->addr[i], ccemail, bccemail, subject, htmlbody, plainbody);
