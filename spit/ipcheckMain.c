@@ -29,6 +29,8 @@ int main() {
 
   ipCheckOpenPort(ipc, 1600, 0.1);
 
+  ipShowFound(ipc);
+  
   return 0;
 }
 		  

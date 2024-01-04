@@ -6,6 +6,7 @@
 typedef struct {
   unsigned int ip;
   unsigned short bat;
+  unsigned char found;
 } ipType;
 
 typedef struct {
@@ -23,6 +24,9 @@ void ipCheckAdd(ipCheckType *i, char *eth, unsigned int low, unsigned int high);
 void ipCheckOpenPort(ipCheckType *ips, size_t port, const double timeout);
 
 void ipCheckFree(ipCheckType *i);
+
+void ipShowFound(ipCheckType *ips);
+
 
 #endif
   

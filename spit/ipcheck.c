@@ -26,6 +26,7 @@ void ipCheckAdd(ipCheckType *i, char *interface, unsigned int low, unsigned int 
   for (unsigned int j = low; j <= high; j++) {
     i->ips[startcheck].ip = j;
     i->ips[startcheck].bat= count++;
+    i->ips[startcheck].found = 0;
     i->interface[startcheck] = interface;
     startcheck++;
   }
@@ -52,10 +53,24 @@ void ipCheckOpenPort(ipCheckType *ips, size_t port, const double timeout) {
     int fd = sockconnect(s, port, timeout);
     if (fd >= 0) {
       printf("found open port %zd on server %s\n", port, s);
+      ips->ips[i].found = 1;
     } else {
-      printf("nope %s\n", s);
+      printf("nope %s (%zd of %zd)\n", s, i, ips->num-1);
     }
       
+  }
+}
+
+void ipShowFound(ipCheckType *ips) {
+  for (size_t i = 0; i < ips->num; i++) {
+    if (ips->ips[i].found) {
+      unsigned int ip = ips->ips[i].ip;
+      unsigned int ip1,ip2,ip3,ip4;
+      ipRangeNtoA(ip, &ip1, &ip2, &ip3, &ip4);
+      char s[20];
+      sprintf(s,"%u.%u.%u.%u", ip1, ip2, ip3, ip4);
+      printf("%s\n", s);
+    }
   }
 }
 
