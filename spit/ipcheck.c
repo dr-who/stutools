@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
 
 
 #include "ipcheck.h"
@@ -43,31 +45,37 @@ static int  cmpstringp(const void *p1, const void *p2) {
 }
 
 
-void ipCheckOpenPort(ipCheckType *ips, size_t port, const double timeout, const int quiet) {
+unsigned int ipCheckOpenPort(ipCheckType *ips, size_t port, const double timeout, const int quiet) {
   qsort(ips->ips, ips->num, sizeof(ipType), cmpstringp);
 
   size_t limitval = ips->num;
   if (ips->num > 1024) {
-    fprintf(stderr,"*warning* the IP range/subnet is so large, limiting to 1024 addresses\n");
+    //    fprintf(stderr,"*warning* the IP range/subnet is so large, limiting to 1024 addresses\n");
     limitval = 1024;
   }
-  
-  for (size_t i = 0; i < limitval; i++) {
-    unsigned int ip = ips->ips[i].ip;
+
+  unsigned int ip = 0;
+
+  for (size_t i = 0; i < limitval; i++) if (ips->ips[i].checked == 0) {
+    ip = ips->ips[i].ip;
     unsigned int ip1, ip2, ip3, ip4;
     ipRangeNtoA(ip, &ip1, &ip2, &ip3, &ip4);
     char s[20];
     sprintf(s,"%u.%u.%u.%u", ip1, ip2, ip3, ip4);
-    int fd = sockconnect(s, port, timeout);
     if (quiet == 0) printf("[%lf] ", timeAsDouble());
+    ips->ips[i].checked = 1;
+    int fd = sockconnect(s, port, timeout);
     if (fd >= 0) {
-      if (quiet == 0) printf("found open port %zd on server %s\n", port, s);
+      printf("found open port %zd on server %s\n", port, s);
       ips->ips[i].found = 1;
+      shutdown(fd,  SHUT_RDWR);
+      close(fd);
+      break; // stop after 1
     } else {
       if (quiet == 0) printf("nope %s (%zd of %zd)\n", s, i, limitval-1);
     }
-      
   }
+  return ip;
 }
 
 void ipCheckShowFound(ipCheckType *ips) {
@@ -92,7 +100,7 @@ void ipCheckFree(ipCheckType *ipc) {
   free(ipc);
 }
 
-void ipCheckAllInterfaceRanges(ipCheckType *ipc, const size_t port, const double timeout, const int quiet) {
+void ipCheckAllInterfaceRanges(ipCheckType *ipc) {
   interfacesIntType *n = interfacesInit();
 
   interfacesScan(n);
@@ -112,8 +120,5 @@ void ipCheckAllInterfaceRanges(ipCheckType *ipc, const size_t port, const double
       }
     }
   }
-
-  ipCheckOpenPort(ipc, port, timeout, quiet);
-
   interfacesFree(n);
 }  

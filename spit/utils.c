@@ -283,7 +283,7 @@ void dropCaches(void) {
 }
 
 
-char *queueType(const char *path) {
+char *devQueueType(const char *path) {
     if (path) {
     }
     FILE *fp = fopen("/sys/block/sda/device/queue_type", "rt");

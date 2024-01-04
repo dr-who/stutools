@@ -15,8 +15,9 @@
 #define FALSE 0 
 #define PORT 1600
 	
-int main(int argc , char *argv[]) 
-{ 
+void *echo(void *arg) {
+  if (arg) {}
+
 	int opt = TRUE; 
 	int master_socket , addrlen , new_socket , client_socket[30] , 
 		max_clients = 30 , activity, i , valread , sd; 
@@ -29,7 +30,7 @@ int main(int argc , char *argv[])
 	fd_set readfds; 
 		
 	//a message 
-	char *message = "ECHO Daemon v1.0 \r\n"; 
+	//	char *message = "ECHO Daemon v1.0 \r\n"; 
 	
 	//initialise all client_socket[] to 0 so not checked 
 	for (i = 0; i < max_clients; i++) 
@@ -126,10 +127,10 @@ int main(int argc , char *argv[])
 				(address.sin_port)); 
 		
 			//send new connection greeting message 
-			if( send(new_socket, message, strlen(message), 0) != strlen(message) ) 
-			{ 
-				perror("send"); 
-			} 
+			//			if( send(new_socket, message, strlen(message), 0) != (ssize_t)strlen(message) ) 
+			//			{ 
+			//				perror("send"); 
+			//			} 
 				
 			puts("Welcome message sent successfully"); 
 				
@@ -179,7 +180,9 @@ int main(int argc , char *argv[])
 			} 
 		} 
 	} 
-		
+
+	fprintf(stderr,"exiting echo!\n");
+	exit(1);
 	return 0; 
 } 
 

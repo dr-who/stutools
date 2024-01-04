@@ -20,8 +20,13 @@
 
 #include <glob.h>
 
+#include "echo.h"
+#include "queue.h"
+
 int keepRunning = 1;
 int tty = 0;
+
+volatile queueType *hostsToMonitor;
 
 void intHandler(int d) {
     if (d) {}
@@ -72,6 +77,33 @@ char * stringListToJSON(char *inc) {
     
   
 
+
+static void *scanner(void *arg) {
+  if (arg) {}
+  fprintf(stderr,"*scanner*\n");
+  while (keepRunning) {
+    ipCheckType *ipc = ipCheckInit();
+    ipCheckAllInterfaceRanges(ipc);
+
+    unsigned int ip = 0;
+    while ((ip = ipCheckOpenPort(ipc, 1600, 0.05, 1)) != 0) {
+      unsigned int ip1, ip2, ip3, ip4;
+      ipRangeNtoA(ip, &ip1, &ip2, &ip3, &ip4);
+      char s[20];
+      sprintf(s,"%u.%u.%u.%u", ip1, ip2, ip3, ip4);
+      queueAdd(hostsToMonitor, s);
+      printf("adding to queue %s\n", s);
+      sleep(10);
+    }      
+    
+    //    ipCheckShowFound(ipc);
+    ipCheckFree(ipc);
+    sleep(60);
+  }
+  return NULL;
+}
+
+
 static void *display(void *arg) {
   //  threadMsgType *d = (threadMsgType*)arg;
   while (keepRunning) {
@@ -95,12 +127,27 @@ static void *display(void *arg) {
 
 
 static void *client(void *arg) {
-  threadMsgType *d = (threadMsgType*)arg;
-  while (keepRunning) {
+  volatile threadMsgType *d = (threadMsgType*)arg;
 
-    char *ipaddress = d->tryhost;
-    if (clusterFindNode(cluster, d->fqn) < 0) {
-      sleep(1);
+  printf("NEW THREAD\n");
+  char *ipaddress = NULL;
+  while (keepRunning) {
+    if (queueCanPop(hostsToMonitor)) {
+      ipaddress = queuePop(hostsToMonitor);
+      fprintf(stderr,"client popped off %s   thread %ds\n", ipaddress, d->id);
+      break;
+    }
+    sleep(1);
+  }
+
+  d->tryhost = ipaddress;
+
+  int count = 0;
+  while (keepRunning) {
+    if (clusterFindNode(cluster, d->tryhost) < 0) {
+      if (++count >= 1) {
+	sleep(10);
+      }
       //      fprintf(stderr,"*info* can't find it, going for it...\n");
     } else {
       fprintf(stderr,"*info* already found %s, sleeping for 30\n", ipaddress);
@@ -149,16 +196,16 @@ static void *client(void *arg) {
 
     char buff[1024];
     memset(buff, 0, 1024);
-    sprintf(buff, "Hello %s %s\n", ipaddress, d->fqn);
+    sprintf(buff, "Hello %s\n", ipaddress);
 
     socksend(sockfd, buff, 0, 0);
 
-    sockrec(sockfd, buff, 1024, 0, 1);
-    if (strncmp(buff, "World!",6)==0) {
-      char s1[100],ipa[100],fqn[100];
-      sscanf(buff, "%s %s %s",s1, ipa, fqn); // world i'
-      fprintf(stderr,"*info* client says it's a valid server = %s %s %s\n", s1,ipa,fqn);
-      clusterAddNodesIP(cluster, d->fqn, ipaddress);
+    sockrec(sockfd, buff, 1024, 0, 0);
+    if (strncmp(buff, "Hello",5)==0) {
+      char s1[100],ipa[100];
+      sscanf(buff, "%s %s", s1, ipa); 
+      fprintf(stderr,"*info* client says it's a valid server = %s %s\n", s1,ipa);
+      clusterAddNodesIP(cluster, d->tryhost, ipaddress);
     }
 
     //    fprintf(stderr,"*info* close and loop\n");
@@ -170,7 +217,7 @@ static void *client(void *arg) {
 
 
 
-static void *receiver(void *arg) {
+void *receiver(void *arg) {
     threadMsgType *tc = (threadMsgType *) arg;
 
     while (keepRunning) {
@@ -233,11 +280,11 @@ static void *receiver(void *arg) {
 	}
 	
 	if (strncmp(buffer,"Hello",5)==0) {
-	  char s1[100],ipa[100],fqn[100];
+	  char s1[100],ipa[100];
 	  printf("buffer: %s\n", buffer);
-	  sscanf(buffer,"%s %s %s", s1,ipa,fqn);
-	  fprintf(stderr,"*server says it's a welcome/valid client ... %s %s %s\n", s1, ipa, fqn);
-	  sprintf(buffer,"World! %s %s", ipa, fqn);
+	  sscanf(buffer,"%s %s", s1,ipa);
+	  fprintf(stderr,"*server says it's a welcome/valid client ... %s %s\n", s1, ipa);
+	  sprintf(buffer,"Hello %s", ipa);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
@@ -272,34 +319,12 @@ static void *receiver(void *arg) {
 void msgStartServer(interfacesIntType *n, const int serverport) {
   fprintf(stderr,"**start** Stu's Autodiscover Tool (sat)  ->  port %d\n", serverport);
 
-  // for each interface add all network ranges
-    ipCheckType *ipcheck = ipCheckInit();
-
-    // for each NIC
-    for (size_t ii = 0; ii < n->id; ii++) {
-      if (strcmp(n->nics[ii]->devicename, "lo") != 0) {
-	phyType *p = n->nics[ii];
-	for (size_t j = 0; j < p->num; j++) {
-	  addrType ad = p->addr[j];
-	  char cidr[30];
-	  sprintf(cidr, "%s/%d", ad.broadcast, ad.cidrMask);
-
-	  ipRangeType *ipr = ipRangeInit(cidr);
-	  ipCheckAdd(ipcheck, n->nics[ii]->devicename, ipr->firstIP+1, ipr->lastIP-1);
-	  ipRangeFree(ipr);
-	}
-      }
-    }
-
-    fprintf(stderr,"ips to examine: %zd\n", ipcheck->num);
-    
     pthread_t *pt;
     threadMsgType *tc;
     double *lasttime;
-    size_t num = ipcheck->num + 2;
-    // 0 is server, 1 is display, 2 onwards are the IPs.
+    // 3 extras. scanner, receiver, display
 
-    //  CALLOC(gbps, num, sizeof(double));
+    size_t num = 30; // threads
     CALLOC(lasttime, num, sizeof(double));
 
     CALLOC(pt, num, sizeof(pthread_t));
@@ -313,21 +338,27 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	tc[i].n = n;
         tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
-	if (i < ipcheck->num) {
-	  tc[i].eth = ipcheck->interface[i];
-	  char s[200];
+	if (i < num -3) {
+	  tc[i].eth = NULL; //ipcheck->interface[i];
+	  /*
 	  unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
 	  ipRangeNtoA(ipcheck->ips[i].ip, &ip1, &ip2, &ip3, &ip4);
 	  sprintf(s, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
 	  tc[i].tryhost = strdup(s);
+	  */
+
 	  struct utsname buf;
 	  uname(&buf);
+	  char s[200];
 	  sprintf(s, "%s-%s-%s-%zd", buf.nodename, tc[i].tryhost, tc[i].eth, interfaceSpeed(tc[i].eth));
 	  tc[i].fqn = strdup(s);
+	  tc[i].tryhost = NULL;
 	  pthread_create(&(pt[i]), NULL, client, &(tc[i]));
-	} else if (i == ipcheck->num) {
-	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
-	} else {
+	} else if (i == num-3) {
+	  pthread_create(&(pt[i]), NULL, echo, &(tc[i]));
+	} else if (i == num-2) {
+	  pthread_create(&(pt[i]), NULL, scanner, &(tc[i]));
+	} else if (i == num-1) {
 	  pthread_create(&(pt[i]), NULL, display, &(tc[i]));
 	}
     }
@@ -348,6 +379,8 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 int main() {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
+
+  hostsToMonitor = queueInit();
 
   int port = 1600;
   cluster = clusterInit(port);

@@ -73,7 +73,7 @@ char *username();
 
 void usernameinit();
 
-char *queueType(const char *path);
+char *devQueueType(const char *path);
 
 void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage,
                    size_t stopatbytes);
