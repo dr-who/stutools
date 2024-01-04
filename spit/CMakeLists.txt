@@ -61,8 +61,8 @@ target_link_libraries(cidr uuid)
 
 add_executable(keyvalue keyvalueMain.c keyvalue.c keyvalue.h)
 
-add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h simpmail.c iprange.c)
-target_link_libraries(ipcheck uuid)
+add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h simpmail.c iprange.c interfaces.c interfaces.h)
+target_link_libraries(ipcheck uuid spitlib m aio pthread numa pci)
 
 
 add_executable(devices devicesMain.c devices.c devices.h)

@@ -42,6 +42,15 @@ ipRangeType *ipRangeInit(const char *cidr) {
   return p;
 }
 
+
+ipRangeType *ipRangeInit2(const char *broadcast, const size_t cidrMask) {
+  char s[1000];
+  sprintf(s, "%s/%zd", broadcast, cidrMask);
+  return ipRangeInit(s);
+}
+
+
+
 void ipRangeNtoA(unsigned int n, unsigned int *ip1, unsigned int *ip2, unsigned int *ip3, unsigned int *ip4) {
   *ip1 = (n >> 24) & 0xff;
   *ip2 = (n >> 16) & 0xff;

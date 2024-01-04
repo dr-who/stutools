@@ -317,7 +317,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	  tc[i].eth = ipcheck->interface[i];
 	  char s[200];
 	  unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
-	  ipRangeNtoA(ipcheck->ip[i], &ip1, &ip2, &ip3, &ip4);
+	  ipRangeNtoA(ipcheck->ips[i].ip, &ip1, &ip2, &ip3, &ip4);
 	  sprintf(s, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
 	  tc[i].tryhost = strdup(s);
 	  struct utsname buf;
