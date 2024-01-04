@@ -142,9 +142,9 @@ static void *client(void *arg) {
 
   d->tryhost = ipaddress;
 
-  int count = 0;
+  //  int count = 0;
   while (keepRunning) {
-    if (clusterFindNode(cluster, d->tryhost) < 0) {
+    /*    if (clusterFindNode(cluster, d->tryhost) < 0) {
       if (++count >= 1) {
 	sleep(10);
       }
@@ -152,7 +152,9 @@ static void *client(void *arg) {
     } else {
       fprintf(stderr,"*info* already found %s, sleeping for 30\n", ipaddress);
       sleep(30);
-    }
+      }*/
+    sleep(30);
+    
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
@@ -196,7 +198,11 @@ static void *client(void *arg) {
 
     char buff[1024];
     memset(buff, 0, 1024);
-    sprintf(buff, "Hello %s\n", ipaddress);
+
+    struct utsname buf;
+    uname(&buf);
+
+    sprintf(buff, "Hello %s-%s\n", buf.nodename, ipaddress);
 
     socksend(sockfd, buff, 0, 0);
 
@@ -205,7 +211,7 @@ static void *client(void *arg) {
       char s1[100],ipa[100];
       sscanf(buff, "%s %s", s1, ipa); 
       fprintf(stderr,"*info* client says it's a valid server = %s %s\n", s1,ipa);
-      clusterAddNodesIP(cluster, d->tryhost, ipaddress);
+      clusterAddNodesIP(cluster, ipa, ipaddress);
     }
 
     //    fprintf(stderr,"*info* close and loop\n");
@@ -284,7 +290,10 @@ void *receiver(void *arg) {
 	  printf("buffer: %s\n", buffer);
 	  sscanf(buffer,"%s %s", s1,ipa);
 	  fprintf(stderr,"*server says it's a welcome/valid client ... %s %s\n", s1, ipa);
-	  sprintf(buffer,"Hello %s", ipa);
+
+	  struct utsname buf;
+	  uname(&buf);
+	  sprintf(buffer,"Hello %s-%s", buf.nodename,ipa);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
