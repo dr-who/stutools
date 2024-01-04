@@ -212,7 +212,9 @@ static void *client(void *arg) {
       sscanf(buff, "%*s %s %s", s1, ipa); 
       fprintf(stderr,"*info* client says it's a valid server = %s %s\n", s1,ipa);
 
-      clusterAddNodesIP(cluster, s1, ipa);
+      char tmp[1000];
+      sprintf(tmp,"%s-%s", s1,ipaddress);
+      clusterAddNodesIP(cluster, tmp, ipaddress);
     }
 
     //    fprintf(stderr,"*info* close and loop\n");
