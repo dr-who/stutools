@@ -180,7 +180,7 @@ void *echo(void *arg) {
 					buffer[valread] = '\0';
 					struct utsname buf;
 					uname(&buf);
-					sprintf(buffer, "%s", buf.nodename);
+					sprintf(buffer, "Hello %s\n", buf.nodename);
 					send(sd , buffer , strlen(buffer) , 0 ); 
 				} 
 			} 
