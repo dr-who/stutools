@@ -27,7 +27,7 @@ void ipCheckFree(ipCheckType *i);
 
 void ipCheckShowFound(ipCheckType *ips);
 
-void ipCheckAllInterfaceRanges(ipCheckType *ipc, const size_t port, const double timeout);
+void ipCheckAllInterfaceRanges(ipCheckType *ipc, const size_t port, const double timeout, const int quiet);
 
 #endif
   

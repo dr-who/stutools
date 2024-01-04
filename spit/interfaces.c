@@ -269,6 +269,7 @@ void interfacesFree(interfacesIntType *n) {
     for (size_t j = 0; j < p->num; j++) {
       free(p->addr->addr);
       free(p->addr->netmask);
+      free(p->addr->broadcast);
     }
     free(p->addr);
     free(p->devicename);

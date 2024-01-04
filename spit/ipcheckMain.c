@@ -1,4 +1,5 @@
 #include <string.h>
+#include <malloc.h>
 
 #include "interfaces.h"
 #include "ipcheck.h"
@@ -8,10 +9,10 @@ int keepRunning = 1;
 
 int main() {
   ipCheckType *ipc = ipCheckInit();
-  ipCheckAllInterfaceRanges(ipc, 1600, 0.1);
+  ipCheckAllInterfaceRanges(ipc, 1600, 0.1, 0);
   ipCheckShowFound(ipc);
   ipCheckFree(ipc);
-  
+
   return 0;
 }
 		  

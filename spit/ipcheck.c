@@ -30,7 +30,7 @@ void ipCheckAdd(ipCheckType *i, char *interface, unsigned int low, unsigned int 
     i->ips[startcheck].ip = j;
     i->ips[startcheck].bat= count++;
     i->ips[startcheck].found = 0;
-    i->interface[startcheck] = interface;
+    i->interface[startcheck] = strdup(interface);
     startcheck++;
   }
   i->batch++;
@@ -92,7 +92,7 @@ void ipCheckFree(ipCheckType *ipc) {
   free(ipc);
 }
 
-void ipCheckAllInterfaceRanges(ipCheckType *ipc, const size_t port, const double timeout) {
+void ipCheckAllInterfaceRanges(ipCheckType *ipc, const size_t port, const double timeout, const int quiet) {
   interfacesIntType *n = interfacesInit();
 
   interfacesScan(n);
@@ -108,9 +108,12 @@ void ipCheckAllInterfaceRanges(ipCheckType *ipc, const size_t port, const double
   
 	//  ipRangeType *r = ipRangeInit("192.168.9.255/24");
 	ipCheckAdd(ipc, p->devicename, r->firstIP, r->lastIP);
+	free(r);
       }
     }
   }
 
-  ipCheckOpenPort(ipc, port, timeout, 1);
+  ipCheckOpenPort(ipc, port, timeout, quiet);
+
+  interfacesFree(n);
 }  
