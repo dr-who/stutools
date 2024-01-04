@@ -9,7 +9,10 @@
 #include <sys/types.h> 
 #include <sys/socket.h> 
 #include <netinet/in.h> 
-#include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros 
+#include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros
+
+#include <sys/utsname.h>
+
 	
 #define TRUE 1 
 #define FALSE 0 
@@ -174,7 +177,10 @@ void *echo(void *arg) {
 				{ 
 					//set the string terminating NULL byte on the end 
 					//of the data read 
-					buffer[valread] = '\0'; 
+					buffer[valread] = '\0';
+					struct utsname buf;
+					uname(&buf);
+					sprintf(buffer, "%s", buf.nodename);
 					send(sd , buffer , strlen(buffer) , 0 ); 
 				} 
 			} 
