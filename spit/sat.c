@@ -209,7 +209,7 @@ static void *client(void *arg) {
     sockrec(sockfd, buff, 1024, 0, 0);
     if (strncmp(buff, "Hello",5)==0) {
       char s1[100],ipa[100];
-      sscanf(buff, "%s %s", s1, ipa); 
+      sscanf(buff, "%*s %s %s", s1, ipa); 
       fprintf(stderr,"*info* client says it's a valid server = %s %s\n", s1,ipa);
 
       clusterAddNodesIP(cluster, s1, ipa);
@@ -289,7 +289,7 @@ void *receiver(void *arg) {
 	if (strncmp(buffer,"Hello",5)==0) {
 	  char s1[100],ipa[100];
 	  printf("buffer: %s\n", buffer);
-	  sscanf(buffer,"%s %s", s1,ipa);
+	  sscanf(buffer,"%*s %s %s", s1,ipa);
 	  fprintf(stderr,"*server says it's a welcome/valid client ... %s %s\n", s1, ipa);
 
 	  struct utsname buf;
