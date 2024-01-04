@@ -58,6 +58,12 @@ size_t interfaceSpeed(const char *nic) {
 }
 
 void interfacesAddDevice(interfacesIntType *d, const char *nic) {
+  for (size_t i = 0; i < d->id; i++) {
+    if(strcmp(nic, d->nics[i]->devicename)==0) {
+      // hit
+      return;
+    }
+  }
   // first look
   // then add
   d->id++;
@@ -98,7 +104,7 @@ void interfacesAddIP(interfacesIntType *d, const char *nic, const char *ip, cons
   assert(d->id);
   for (size_t i = 0; i < d->id; i++) {
     if (strcmp(d->nics[i]->devicename, nic) == 0) {
-      //      fprintf(stderr,"call: adding to %s, ip %s\n", nic, ip);
+            fprintf(stderr,"call: adding to %s, ip %s\n", nic, ip);
       phyType *p = d->nics[i];
       
       int index = p->num;
@@ -249,10 +255,9 @@ void interfacesScan(interfacesIntType *n) {
 	    
 	    unsigned int tmpMask = ((struct sockaddr_in *)(ifa->ifa_netmask))->sin_addr.s_addr;
 	    
-	    //	    printf("%s IP Address %s, Mask %s, %u\n", ifa->ifa_name, addressBuffer, maskBuffer, cidrMask(tmpMask));
-	    //	    printf("tmpmask=%u\n", tmpMask);
-	    
-	    //            printf("%s\t", host);
+	    //	    	    printf("%s IP Address %s, Mask %s, %u\n", ifa->ifa_name, addressBuffer, maskBuffer, cidrMask(tmpMask));
+	    //	    	    printf("tmpmask=%u\n", tmpMask);
+	    //	                printf("%s\t", host);
 
 	    interfacesAddIP(n, ifa->ifa_name, host, maskBuffer, broadcastBuffer, cidrMask(tmpMask));
         }
@@ -267,15 +272,15 @@ void interfacesFree(interfacesIntType *n) {
   for (size_t i = 0; i < n->id; i++) {
     phyType *p = n->nics[i];
     for (size_t j = 0; j < p->num; j++) {
-      free(p->addr->addr);
-      free(p->addr->netmask);
-      free(p->addr->broadcast);
+      free(p->addr->addr); p->addr->addr = NULL;
+      free(p->addr->netmask); p->addr->netmask = NULL;
+      free(p->addr->broadcast); p->addr->broadcast = NULL;
     }
-    free(p->addr);
-    free(p->devicename);
-    free(p->hw);
-    free(p);
+    free(p->addr); p->addr = NULL;
+    free(p->devicename); p->devicename = NULL;
+    free(p->hw); p->hw = NULL;
+    free(p); p = NULL;
   }
-  free(n->nics);
+  free(n->nics); n->nics = NULL;
   free(n);
 }  

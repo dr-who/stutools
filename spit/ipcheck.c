@@ -21,18 +21,21 @@ ipCheckType *ipCheckInit() {
 			  
   
 void ipCheckAdd(ipCheckType *i, char *interface, unsigned int low, unsigned int high) {
+  if (interface) {}
 
   size_t startcheck = i->num;
   
   i->num += (high - low + 1);
   i->ips= realloc(i->ips, i->num * sizeof(ipType)); assert(i->ips);
-  i->interface = realloc(i->interface, i->num * sizeof(char*)); assert(i->interface);
+  //  i->interface = realloc(i->interface, i->num * sizeof(char*)); assert(i->interface);
+  
   unsigned int count = 0;
   for (unsigned int j = low; j <= high; j++) {
     i->ips[startcheck].ip = j;
     i->ips[startcheck].bat= count++;
     i->ips[startcheck].found = 0;
-    i->interface[startcheck] = strdup(interface);
+    i->ips[startcheck].checked = 0;
+    //    i->interface[startcheck] = strdup(interface);
     startcheck++;
   }
   i->batch++;
@@ -93,9 +96,9 @@ void ipCheckShowFound(ipCheckType *ips) {
 
 void ipCheckFree(ipCheckType *ipc) {
   for (size_t i =0; i < ipc->num; i++) {
-    free(ipc->interface[i]);
+    //    free(ipc->interface[i]);
   }
-  free(ipc->interface);
+  //  free(ipc->interface);
   free(ipc->ips);
   free(ipc);
 }

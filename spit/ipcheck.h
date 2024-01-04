@@ -14,7 +14,7 @@ typedef struct {
   size_t num;
   ipType *ips;
   size_t batch;
-  char **interface;
+  //  char **interface;
 } ipCheckType;
 
 
