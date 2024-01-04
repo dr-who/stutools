@@ -202,16 +202,18 @@ static void *client(void *arg) {
     struct utsname buf;
     uname(&buf);
 
-    sprintf(buff, "Hello %s-%s\n", buf.nodename, ipaddress);
+    sprintf(buff, "Hello %s\n", ipaddress);
 
     socksend(sockfd, buff, 0, 0);
 
     sockrec(sockfd, buff, 1024, 0, 0);
     if (strncmp(buff, "Hello",5)==0) {
-      char s1[100],ipa[100];
+      char s1[100],ipa[100],tmp[100];
       sscanf(buff, "%s %s", s1, ipa); 
       fprintf(stderr,"*info* client says it's a valid server = %s %s\n", s1,ipa);
-      clusterAddNodesIP(cluster, ipa, ipaddress);
+
+      sprintf(tmp,"%s-%s", buf.nodename, ipaddress);
+      clusterAddNodesIP(cluster, tmp, ipaddress);
     }
 
     //    fprintf(stderr,"*info* close and loop\n");
@@ -293,7 +295,7 @@ void *receiver(void *arg) {
 
 	  struct utsname buf;
 	  uname(&buf);
-	  sprintf(buffer,"Hello %s-%s", buf.nodename,ipa);
+	  sprintf(buffer,"Hello %s", ipa);
 	  if (socksend(connfd, buffer, 0, 1) < 0)
 	    goto end;
 	} else if (strncmp(buffer,"interfaces",10)==0) {
