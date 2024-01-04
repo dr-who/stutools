@@ -1,0 +1,8 @@
+FROM drstuinglis/stutools
+MAINTAINER Stu
+ENTRYPOINT /usr/local/bin/sat
+
+
+
+
+

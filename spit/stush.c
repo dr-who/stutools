@@ -53,7 +53,7 @@
 
 extern char **environ;
 
-
+size_t warningsBeforeExit = 3;
 int keepRunning = 1;
 int verbose = 0;
 int TeReo = 0;
@@ -61,13 +61,25 @@ int German = 0;
 
 void intHandler(int d) {
     if (d==SIGALRM) {
-      syslogString("stush", "Timeout alarm");
-      syslogString("stush", "Close session");
-      fprintf(stderr,"Inactivity timeout\n");
-      exit(1);
+      if (warningsBeforeExit > 0) {
+	size_t tt = 60; // default with no ENV
+	if (getenv("SSH_TIMEOUTSTEPS")) {
+	  tt = atoi(getenv("SSH_TIMEOUTSTEPS"));
+	}
+	alarm(tt);
+	fprintf(stderr,"\n*info* you have %zd alerts (%zd seconds each) left before exit.\n", warningsBeforeExit--, tt);
+      } else {
+	syslogString("stush", "Timeout alarm");
+	syslogString("stush", "Close session");
+	fprintf(stderr,"\nGoodbye");
+	rl_callback_sigcleanup();
+	rl_callback_handler_remove();
+	exit(1);
+      }
+    } {
+      //    fprintf(stderr,"got signal\n");
+      keepRunning = 0;
     }
-    //  fprintf(stderr,"got signal\n");
-    keepRunning = 0;
 }
 
 
@@ -1517,6 +1529,21 @@ void cmd_status(const char *hostname, const int tty) {
     printf("%-20s\t", T("Hardware Type"));
     colour_printString(getenv("HARDWARE_TYPE"), 1, "\n", tty);
 
+    printf("%-20s\t", T("Cluster Type"));
+    colour_printString(getenv("CLUSTER_TYPE"), 1, "\n", tty);
+
+    printf("%-20s\t", T("Cluster Nodes"));
+    colour_printString("230", 1, "\n", tty);
+
+    printf("%-20s\t", T("Cluster Cores"));
+    colour_printString("17,506", 1, "\n", tty);
+
+    printf("%-20s\t", T("Cluster Storage Devices"));
+    colour_printString("2,103", 1, "\n", tty);
+
+    printf("%-20s\t", T("Cluster Total Storage"));
+    colour_printString("183.45 PB (0.183) Exabytes", 1, "\n", tty);
+
     char *os = OSRelease();
     printf("%-20s\t", T("Host"));
     colour_printString(hostname, 1, "\n", tty);
@@ -1587,7 +1614,8 @@ size_t ssh_timeout = 0;
 
 void setSSHTimeout(const size_t t, const size_t quiet) {
   ssh_timeout = t;
-  if (quiet == 0) printf("timeout: %zd\n", ssh_timeout);
+  if(quiet) {}
+  /*if (quiet == 0)*/ printf("timeout: %zd\n", ssh_timeout);
 }
 
 size_t getSSHTimeout() {
@@ -1820,6 +1848,14 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 
 int main(int argc, char *argv[]) {
 
+  signal(SIGTERM, intHandler);
+    signal(SIGINT, intHandler);
+    signal(SIGALRM, intHandler);
+    //    setvbuf(stdout, NULL, _IONBF, 0);  // turn off buffering
+    //    setvbuf(stderr, NULL, _IONBF, 0);  // turn off buffering
+
+
+
     const double timeSinceStart = timeAsDouble();
   
     syslogString("stush", "Start session");
@@ -1836,9 +1872,6 @@ int main(int argc, char *argv[]) {
     //
     int tty = isatty(1);
 
-    //
-    loadEnvVars("/etc/stush.cfg");
-    size_t adminMode = cmd_authFromENV(username, 1);
 
     // DNS load
     dnsServersType dns;
@@ -1846,8 +1879,18 @@ int main(int argc, char *argv[]) {
     dnsServersAddFile(&dns, "/etc/resolv.conf", "nameserver");
 
 
-
     const size_t ssh_login = isSSHLogin();
+    if (ssh_login == 0) {
+      // get local ssh_timeout not from config file first
+      if (getenv("SSH_TIMEOUT")) {
+	setSSHTimeout(atoi(getenv("SSH_TIMEOUT")), 1);
+	syslogString("stush", getenv("SSH_TIMEOUT"));
+      }
+    }
+
+    // now load in the env from config file
+    loadEnvVars("/etc/stush.cfg");
+    size_t adminMode = cmd_authFromENV(username, 1);
 
     if (ssh_login) {
       syslogString("stush", getenv("SSH_CLIENT"));
@@ -1855,18 +1898,12 @@ int main(int argc, char *argv[]) {
       if (getenv("SSH_TIMEOUT")) {
 	setSSHTimeout(atoi(getenv("SSH_TIMEOUT")), 1);
 	syslogString("stush", getenv("SSH_TIMEOUT"));
-      } else {
+    } else {
 	setSSHTimeout(180, 1);
-	syslogString("stush", "180"); // default is 180
+	syslogString("stush", "180"); // default is 180 if it's not a variable
       }
     }
 
-
-    signal(SIGTERM, intHandler);
-    signal(SIGINT, intHandler);
-    signal(SIGALRM, intHandler);
-    setvbuf(stdout, NULL, _IONBF, 0);  // turn off buffering
-    setvbuf(stderr, NULL, _IONBF, 0);  // turn off buffering
 
 
     char hostname[NAME_MAX - 10], prefix[NAME_MAX + 10];
@@ -1913,13 +1950,13 @@ int main(int argc, char *argv[]) {
     char *line = NULL;
     rl_bind_key('\t', rl_insert);
 
+    alarm(getSSHTimeout());
+
     while (1) {
       sprintf(prefix, "%s%s@%s%c%s ", tty?BOLD:"", username ? username : "root", hostname, adminMode ? '#' : '$', tty?END:"");
         keepRunning = 1;
 
-	if (ssh_login) {alarm(getSSHTimeout());}
         line = readline(prefix);
-	if (ssh_login) {alarm(0);}
 
 	if (line && strlen(line)>=100) {
 	  free(line);
