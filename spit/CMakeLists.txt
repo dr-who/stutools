@@ -30,7 +30,7 @@ set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wall -pedantic --std=gn
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
 
-add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c procDiskStats.c mapVoid.c interfaces.c)
+add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c procDiskStats.c mapVoid.c interfaces.c utilstime.c)
 
 add_executable(spit spit.c spit-version.h)
 target_link_libraries(spit spitlib m aio pthread numa)
@@ -56,12 +56,12 @@ target_link_libraries(interfaces spitlib m aio pthread numa pci)
 add_executable(cluster clusterMain.c cluster.c cluster.h)
 target_link_libraries(cluster spitlib m aio pthread numa pci)
 
-add_executable(cidr cidr.c iprange.c iprange.h ipcheck.c ipcheck.h simpmail.c )
-target_link_libraries(cidr uuid)
+add_executable(cidr cidr.c iprange.c iprange.h ipcheck.c ipcheck.h simpmail.c utilstime.c interfaces.c utils.c )
+target_link_libraries(cidr uuid spitlib m aio pthread numa pci)
 
 add_executable(keyvalue keyvalueMain.c keyvalue.c keyvalue.h)
 
-add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h simpmail.c iprange.c interfaces.c interfaces.h)
+add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h simpmail.c iprange.c interfaces.c interfaces.h )
 target_link_libraries(ipcheck uuid spitlib m aio pthread numa pci)
 
 

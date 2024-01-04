@@ -21,12 +21,13 @@ ipCheckType *ipCheckInit();
 
 void ipCheckAdd(ipCheckType *i, char *eth, unsigned int low, unsigned int high);
 
-void ipCheckOpenPort(ipCheckType *ips, size_t port, const double timeout);
+void ipCheckOpenPort(ipCheckType *ips, size_t port, const double timeout, const int quiet);
 
 void ipCheckFree(ipCheckType *i);
 
-void ipShowFound(ipCheckType *ips);
+void ipCheckShowFound(ipCheckType *ips);
 
+void ipCheckAllInterfaceRanges(ipCheckType *ipc, const size_t port, const double timeout);
 
 #endif
   

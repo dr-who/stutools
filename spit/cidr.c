@@ -8,6 +8,8 @@
 #include "iprange.h"
 #include "ipcheck.h"
 
+int keepRunning = 1;
+
 void usage() {
   printf("usage: ./cidr <cidr> ... <cidr>\n\n");
   printf("examples:\n");

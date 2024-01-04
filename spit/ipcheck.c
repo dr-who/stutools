@@ -2,12 +2,15 @@
 #include <malloc.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 #include "ipcheck.h"
-
+#include "utilstime.h"
 #include "iprange.h"
 #include "simpmail.h"
+
+#include "interfaces.h"
 
 ipCheckType *ipCheckInit() {
   ipCheckType *p = calloc(1, sizeof(ipCheckType));
@@ -40,28 +43,34 @@ static int  cmpstringp(const void *p1, const void *p2) {
 }
 
 
-void ipCheckOpenPort(ipCheckType *ips, size_t port, const double timeout) {
+void ipCheckOpenPort(ipCheckType *ips, size_t port, const double timeout, const int quiet) {
   qsort(ips->ips, ips->num, sizeof(ipType), cmpstringp);
 
+  size_t limitval = ips->num;
+  if (ips->num > 1024) {
+    fprintf(stderr,"*warning* the IP range/subnet is so large, limiting to 1024 addresses\n");
+    limitval = 1024;
+  }
   
-  for (size_t i = 0; i < ips->num; i++) {
+  for (size_t i = 0; i < limitval; i++) {
     unsigned int ip = ips->ips[i].ip;
     unsigned int ip1, ip2, ip3, ip4;
     ipRangeNtoA(ip, &ip1, &ip2, &ip3, &ip4);
     char s[20];
     sprintf(s,"%u.%u.%u.%u", ip1, ip2, ip3, ip4);
     int fd = sockconnect(s, port, timeout);
+    if (quiet == 0) printf("[%lf] ", timeAsDouble());
     if (fd >= 0) {
-      printf("found open port %zd on server %s\n", port, s);
+      if (quiet == 0) printf("found open port %zd on server %s\n", port, s);
       ips->ips[i].found = 1;
     } else {
-      printf("nope %s (%zd of %zd)\n", s, i, ips->num-1);
+      if (quiet == 0) printf("nope %s (%zd of %zd)\n", s, i, limitval-1);
     }
       
   }
 }
 
-void ipShowFound(ipCheckType *ips) {
+void ipCheckShowFound(ipCheckType *ips) {
   for (size_t i = 0; i < ips->num; i++) {
     if (ips->ips[i].found) {
       unsigned int ip = ips->ips[i].ip;
@@ -74,7 +83,34 @@ void ipShowFound(ipCheckType *ips) {
   }
 }
 
-void ipCheckFree(ipCheckType *i) {
-  free(i->ips);
-  free(i);
+void ipCheckFree(ipCheckType *ipc) {
+  for (size_t i =0; i < ipc->num; i++) {
+    free(ipc->interface[i]);
+  }
+  free(ipc->interface);
+  free(ipc->ips);
+  free(ipc);
 }
+
+void ipCheckAllInterfaceRanges(ipCheckType *ipc, const size_t port, const double timeout) {
+  interfacesIntType *n = interfacesInit();
+
+  interfacesScan(n);
+
+  for (size_t i = 0; i < n->id; i++) {
+    phyType *p = n->nics[i];
+    if (strcmp(p->devicename, "lo") != 0) {
+      //printf("%s\n", p->devicename);
+      for (size_t j = 0; j < p->num; j++) {
+	addrType *a = &p->addr[j];
+	fprintf(stderr, "*info* examining %s: %s/%d\n", p->devicename, a->broadcast, a->cidrMask);
+	ipRangeType *r = ipRangeInit2(a->broadcast, a->cidrMask);
+  
+	//  ipRangeType *r = ipRangeInit("192.168.9.255/24");
+	ipCheckAdd(ipc, p->devicename, r->firstIP, r->lastIP);
+      }
+    }
+  }
+
+  ipCheckOpenPort(ipc, port, timeout, 1);
+}  
