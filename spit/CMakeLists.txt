@@ -38,6 +38,9 @@ target_link_libraries(spit spitlib m aio pthread numa)
 add_executable(modcat modcat.c)
 #target_link_libraries()
 
+add_executable(helloWorldService helloWorldService.c httpd.c httpd.h)
+#target_link_libraries()
+
 add_executable(pcp pcp.c)
 target_link_libraries(pcp pthread)
 
@@ -52,6 +55,9 @@ target_link_libraries(sat spitlib m aio pthread numa pci uuid)
 
 add_executable(interfaces interfacesMain.c interfaces.c interfaces.h iprange.c iprange.h)
 target_link_libraries(interfaces spitlib m aio pthread numa pci)
+
+add_executable(interfacesService interfacesService.c interfaces.c interfaces.h iprange.c iprange.h httpd.c httpd.h)
+target_link_libraries(interfacesService spitlib m aio pthread numa pci)
 
 add_executable(cluster clusterMain.c cluster.c cluster.h)
 target_link_libraries(cluster spitlib m aio pthread numa pci)
