@@ -9,6 +9,8 @@ typedef struct {
   char *ipaddress;
   double created;
   double updated;
+  double age;
+  double expires;
 
   char *osrelease;
   size_t cores;
@@ -38,5 +40,8 @@ char *clusterDumpJSONString(clusterType *c);
 
 void clusterDumpJSON(FILE *fp, clusterType *c);
 
+void clusterSetNodeAge(clusterType *c, size_t nodeid, double age);
+void clusterSetNodeExpires(clusterType *c, size_t nodeid, double expires);
+void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address);
 
 #endif
