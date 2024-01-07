@@ -25,7 +25,7 @@ main(int argc)
    struct sockaddr_in addr;
    int addrlen, sock, cnt;
    struct ip_mreq mreq;
-   char message[50];
+   char message[100];
 
    /* set up socket */
    sock = socket(AF_INET, SOCK_DGRAM, 0);
