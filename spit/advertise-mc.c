@@ -23,6 +23,8 @@ extern int keepRunning;
 #include <strings.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include "utilstime.h"
+
 
 #include "advertise-mc.h"
 #include "multicast.h"
@@ -31,8 +33,10 @@ void *advertiseMC(void *arg) {
   if (arg) {}
   
   struct sockaddr_in addr;
+  int count = 0;
   int addrlen, sock, cnt;
   char message[100];
+  double startTime = timeAsDouble();
 
   /* set up socket */
   sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -57,15 +61,18 @@ void *advertiseMC(void *arg) {
   /* send */
   addr.sin_addr.s_addr = inet_addr(EXAMPLE_GROUP);
   while (keepRunning) {
-    time_t t = time(0);
-    sprintf(message, "serveravail 1600 %-24.24s stush", ctime(&t));
+    const double now = timeAsDouble();
+    
+    sprintf(message, "time:%.0lf uptime:%.0lf port:1600 stush", now, now - startTime);
     cnt = sendto(sock, message, sizeof(message), 0,
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {
       perror("sendto");
       //      exit(1);
     }
-    sleep(5);
+
+    count++;
+    sleep(count > 10?10:count);
   }
   return NULL;
 }
