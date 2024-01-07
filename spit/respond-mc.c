@@ -86,17 +86,30 @@ void *respondMC(void *arg) {
 
      printf("**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
 
-     if (clusterFindNode(cluster, inet_ntoa(addr.sin_addr)) < 0) {
+     double age = 0, expires = 0;
+     char *node = inet_ntoa(addr.sin_addr);
+     int nodeid = 0;
+
+     if ((nodeid = clusterFindNode(cluster, node)) < 0) {
        // add and say hi
-       clusterAddNode(cluster, inet_ntoa(addr.sin_addr));
-       clusterDumpJSON(stderr, cluster);
-       
-       int sock = sockconnect(inet_ntoa(addr.sin_addr), 1600, 5);
-       if (sock > 0) {
-	 socksend(sock, "Hello\n", 0, 0);
-       }
-       close(sock);
+       nodeid = clusterAddNode(cluster, node);
      }
+
+     if (sscanf(message, "%*s %*s %lf %lf", &age,  &expires) == 2) {
+       printf("updating nodeid %d\n", nodeid);
+       clusterSetNodeAge(cluster, nodeid, age);
+       clusterSetNodeExpires(cluster, nodeid, expires);
+       clusterSetNodeIP(cluster, nodeid, node);
+     }
+       
+     
+     clusterDumpJSON(stderr, cluster);
+     
+     int sock = sockconnect(node, 1600, 5);
+     if (sock > 0) {
+       socksend(sock, "Hello\n", 0, 0);
+     }
+     close(sock);
    }
  return NULL;
 }

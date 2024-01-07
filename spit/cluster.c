@@ -86,6 +86,8 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
       buf += sprintf(buf, "       \"created\": %lf,\n", c->node[i]->created);
       buf += sprintf(buf, "       \"updated\": %lf,\n", c->node[i]->updated);
+      buf += sprintf(buf, "       \"age\": %lf,\n", c->node[i]->age);
+      buf += sprintf(buf, "       \"expires\": %lf,\n", c->node[i]->expires);
       buf += sprintf(buf, "       \"ipaddress\": \"%s\"\n", c->node[i]->ipaddress ? c->node[i]->ipaddress : "n/a");
       buf += sprintf(buf, "    }");
       if (i < c->id-1) buf += sprintf(buf, ",");
@@ -105,4 +107,18 @@ void clusterDumpJSON(FILE *fp, clusterType *c) {
   char * s = clusterDumpJSONString(c);
   fprintf(fp, "%s", s);
   free(s);
+}
+
+void clusterSetNodeAge(clusterType *c, size_t nodeid, double age) {
+  c->node[nodeid]->age = age;
+}
+
+void clusterSetNodeExpires(clusterType *c, size_t nodeid, double expires) {
+  c->node[nodeid]->expires = expires;
+}
+
+void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address) {
+  if (c->node[nodeid]->ipaddress) free(c->node[nodeid]->ipaddress);
+  
+  c->node[nodeid]->ipaddress = strdup(address);
 }

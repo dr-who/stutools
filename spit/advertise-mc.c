@@ -65,7 +65,7 @@ void *advertiseMC(void *arg) {
     double now = timeAsDouble();
     double age = now - starttime;
      
-    sprintf(message, "serveravail now:%.0lf uptime:%.0lf expires:%.0f port:1600 stush", now, age, age > 10 ? 10 : age);
+    sprintf(message, "serveravail %.0lf %.0lf %.0f port:1600 stush", now, age, now + (age > 10 ? 10 : age));
     cnt = sendto(sock, message, strlen(message), 0,
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {
