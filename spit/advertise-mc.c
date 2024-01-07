@@ -6,7 +6,7 @@ multicast.c
 
 The following program sends or receives multicast packets. If invoked
 with one argument, it sends a packet containing the current time to an
-arbitrarily chosen multicast group and UDP port. If invoked with no
+1arbitrarily chosen multicast group and UDP port. If invoked with no
 arguments, it receives and prints these packets. Start it as a sender on
 just one host and as a receiver on all the other hosts
 
@@ -24,6 +24,7 @@ extern int keepRunning;
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "utilstime.h"
 
 #include "utilstime.h"
 #include "advertise-mc.h"
@@ -33,6 +34,7 @@ void *advertiseMC(void *arg) {
   if (arg) {}
   
   struct sockaddr_in addr;
+  int count = 0;
   int addrlen, sock, cnt;
   double starttime = timeAsDouble();
   char *message = calloc(100, 1); assert(message);
@@ -70,7 +72,9 @@ void *advertiseMC(void *arg) {
       perror("sendto");
       //      exit(1);
     }
-    sleep(5);
+
+    count++;
+    sleep(count > 10?10:count);
   }
   return NULL;
 }
