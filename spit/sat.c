@@ -20,6 +20,8 @@
 
 #include <glob.h>
 
+#include "advertise-mc.h"
+#include "respond-mc.h"
 #include "echo.h"
 #include "queue.h"
 
@@ -73,12 +75,22 @@ char * stringListToJSON(char *inc) {
   return ret2;
 }
 
-  
+ 
+static void *client(void *arg) {
+  if (arg) {};
+
+  while (1) {
+    sleep(1);
+  }
+  return NULL;
+}
+
+
     
   
 
 
-static void *scanner(void *arg) {
+/*static void *scanner(void *arg) {
   if (arg) {}
   fprintf(stderr,"*scanner*\n");
   while (keepRunning) {
@@ -103,6 +115,7 @@ static void *scanner(void *arg) {
   return NULL;
 }
 
+*/
 
 static void *display(void *arg) {
   //  threadMsgType *d = (threadMsgType*)arg;
@@ -124,107 +137,6 @@ static void *display(void *arg) {
   }
   return NULL;
 }
-
-
-static void *client(void *arg) {
-  volatile threadMsgType *d = (threadMsgType*)arg;
-
-  printf("NEW THREAD\n");
-  char *ipaddress = NULL;
-  while (keepRunning) {
-    if (queueCanPop(hostsToMonitor)) {
-      ipaddress = queuePop(hostsToMonitor);
-      fprintf(stderr,"client popped off %s   thread %ds\n", ipaddress, d->id);
-      break;
-    }
-    sleep(1);
-  }
-
-  d->tryhost = ipaddress;
-
-  //  int count = 0;
-  while (keepRunning) {
-    /*    if (clusterFindNode(cluster, d->tryhost) < 0) {
-      if (++count >= 1) {
-	sleep(10);
-      }
-      //      fprintf(stderr,"*info* can't find it, going for it...\n");
-    } else {
-      fprintf(stderr,"*info* already found %s, sleeping for 30\n", ipaddress);
-      sleep(30);
-      }*/
-    sleep(30);
-    
-
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        perror("Can't allocate sockfd");
-	continue;
-    }
-
-    struct sockaddr_in serveraddr;
-    memset(&serveraddr, 0, sizeof(serveraddr));
-
-    int port = d->serverport;
-    serveraddr.sin_family = AF_INET;
-    serveraddr.sin_port = htons(port);
-    
-    if (inet_aton(ipaddress, &serveraddr.sin_addr) < 0) {
-      perror("IPaddress Convert Error");
-      close(sockfd);
-      continue;
-    }
-
-    int true = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(int)) == -1) {
-      //            perror("Setsockopt");
-      close(sockfd);
-      continue;
-      //            exit(1);
-    }
-
-    //    if (socksetup(sockfd, 20) < 0) {
-    //      perror("sock setup");
-    //      close(sockfd);
-    //      continue;
-    //    }
-
-    
-    if (connect(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
-      //      perror("Listening port not available");
-      close(sockfd);
-      continue;
-    }
-
-    char buff[1024];
-    memset(buff, 0, 1024);
-
-    struct utsname buf;
-    uname(&buf);
-
-    sprintf(buff, "Hello %s %s\n", buf.nodename, ipaddress);
-
-    socksend(sockfd, buff, 0, 0);
-
-    sockrec(sockfd, buff, 1024, 0, 0);
-    if (strncmp(buff, "Hello",5)==0) {
-      char s1[100],ipa[100];
-      sscanf(buff, "%*s %s %s", s1, ipa); 
-      fprintf(stderr,"*info* client says it's a valid server = %s %s\n", s1,ipa);
-
-      char tmp[1000];
-      sprintf(tmp,"%s-%s", s1,ipaddress);
-      clusterAddNodesIP(cluster, tmp, ipaddress);
-    }
-
-    //    fprintf(stderr,"*info* close and loop\n");
-    close(sockfd);
-    // all is good, we've connected to something
-  }
-  return NULL;
-}
-
-
 
 void *receiver(void *arg) {
     threadMsgType *tc = (threadMsgType *) arg;
@@ -366,10 +278,12 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	  tc[i].fqn = strdup(s);
 	  tc[i].tryhost = NULL;
 	  pthread_create(&(pt[i]), NULL, client, &(tc[i]));
+	} else if (i == num-4) {
+	  pthread_create(&(pt[i]), NULL, respondMC, &(tc[i]));
 	} else if (i == num-3) {
 	  pthread_create(&(pt[i]), NULL, echo, &(tc[i]));
 	} else if (i == num-2) {
-	  pthread_create(&(pt[i]), NULL, scanner, &(tc[i]));
+	  pthread_create(&(pt[i]), NULL, advertiseMC, &(tc[i]));
 	} else if (i == num-1) {
 	  pthread_create(&(pt[i]), NULL, display, &(tc[i]));
 	}

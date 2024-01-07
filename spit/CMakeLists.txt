@@ -50,7 +50,7 @@ target_link_libraries(simpmail spitlib m aio pthread numa pci uuid)
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
-add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c queue.c)
+add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c)
 target_link_libraries(sat spitlib m aio pthread numa pci uuid)
 
 add_executable(interfaces interfacesMain.c interfaces.c interfaces.h iprange.c iprange.h)
