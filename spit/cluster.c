@@ -101,7 +101,8 @@ char *clusterDumpJSONString(clusterType *c) {
 }
 
       
-char * clusterDumpJSON(clusterType *c) {
+void clusterDumpJSON(FILE *fp, clusterType *c) {
   char * s = clusterDumpJSONString(c);
-  return s;
+  fprintf(fp, "%s", s);
+  free(s);
 }

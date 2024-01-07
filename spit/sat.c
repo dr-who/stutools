@@ -118,9 +118,11 @@ static void *client(void *arg) {
 */
 
 static void *display(void *arg) {
+  if (arg) {}
   //  threadMsgType *d = (threadMsgType*)arg;
   while (keepRunning) {
-    if (arg) {
+    sleep(1);
+    /*    if (arg) {
       char s[PATH_MAX];
       sprintf(s, "/proc/%d/fd/", getpid());
       const size_t np = numberOfDirectories(s);
@@ -133,7 +135,7 @@ static void *display(void *arg) {
       free(json);
       //      fprintf(stderr,"*display %d*\n", d->id);
       sleep(5);
-    }
+      }*/
   }
   return NULL;
 }
@@ -246,7 +248,8 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
     pthread_t *pt;
     threadMsgType *tc;
     double *lasttime;
-    // 3 extras. scanner, receiver, display
+    const int extras = 4;
+    // 4 extras. MC adv. MC watch. display and receive requests
 
     size_t num = 30; // threads
     CALLOC(lasttime, num, sizeof(double));
@@ -262,7 +265,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	tc[i].n = n;
         tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
-	if (i < num -3) {
+	if (i < num -extras) {
 	  tc[i].eth = NULL; //ipcheck->interface[i];
 	  /*
 	  unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
@@ -278,7 +281,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	  tc[i].fqn = strdup(s);
 	  tc[i].tryhost = NULL;
 	  pthread_create(&(pt[i]), NULL, client, &(tc[i]));
-	} else if (i == num-4) {
+	} else if (i == num-extras) {
 	  pthread_create(&(pt[i]), NULL, respondMC, &(tc[i]));
 	} else if (i == num-3) {
 	  pthread_create(&(pt[i]), NULL, echo, &(tc[i]));

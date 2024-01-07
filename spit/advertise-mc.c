@@ -20,10 +20,12 @@ extern int keepRunning;
 #include <arpa/inet.h>
 #include <time.h>
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <assert.h>
 
+#include "utilstime.h"
 #include "advertise-mc.h"
 #include "multicast.h"
 
@@ -32,8 +34,9 @@ void *advertiseMC(void *arg) {
   
   struct sockaddr_in addr;
   int addrlen, sock, cnt;
-  char message[100];
-
+  double starttime = timeAsDouble();
+  char *message = calloc(100, 1); assert(message);
+  
   /* set up socket */
   sock = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock < 0) {
@@ -57,9 +60,11 @@ void *advertiseMC(void *arg) {
   /* send */
   addr.sin_addr.s_addr = inet_addr(EXAMPLE_GROUP);
   while (keepRunning) {
-    time_t t = time(0);
-    sprintf(message, "serveravail 1600 %-24.24s stush", ctime(&t));
-    cnt = sendto(sock, message, sizeof(message), 0,
+    double now = timeAsDouble();
+    double age = now - starttime;
+     
+    sprintf(message, "serveravail now:%.0lf uptime:%.0lf expires:%.0f port:1600 stush", now, age, age > 10 ? 10 : age);
+    cnt = sendto(sock, message, strlen(message), 0,
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {
       perror("sendto");

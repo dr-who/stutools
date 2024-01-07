@@ -6,13 +6,13 @@
 int keepRunning = 1;
 
 int main() {
-  char * s=clusterDumpJSON(NULL);
+  char * s=clusterDumpJSONString(NULL);
   printf("%s", s);
   free(s);
 
   clusterType *c = clusterInit(1600);
 
-  s=clusterDumpJSON(c);
+  s=clusterDumpJSONString(c);
   printf("%s", s);
   free(s);
   
@@ -22,7 +22,7 @@ int main() {
 
   clusterAddNodesIP(c, "stu", "172.17.0.2");
   clusterAddNodesIP(c, "stu", "172.17.3.2");
-  s=clusterDumpJSON(c);
+  s=clusterDumpJSONString(c);
   printf("%s", s);
   free(s);
 

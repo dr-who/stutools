@@ -2,6 +2,7 @@
 #define __CLUSTER_H
 
 #include <stddef.h>
+#include <stdio.h>
 
 typedef struct {
   char *name; // uuid
@@ -32,8 +33,10 @@ clusterType * clusterInit(const size_t port);
 int clusterAddNode(clusterType *c, const char *nodename);
 int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip);
 int clusterFindNode(clusterType *c, const char *nodename);
+
 char *clusterDumpJSONString(clusterType *c);
-char *clusterDumpJSON(clusterType *c);
+
+void clusterDumpJSON(FILE *fp, clusterType *c);
 
 
 #endif

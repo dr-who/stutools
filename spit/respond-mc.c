@@ -20,20 +20,27 @@ just one host and as a receiver on all the other hosts
 #include <strings.h>
 #include <unistd.h>
 #include <stdlib.h>
-
+#include <assert.h>
 
 #include "respond-mc.h"
 #include "multicast.h"
 
 
+#include "cluster.h"
+#include "simpmail.h"
+
+
 void *respondMC(void *arg) {
+  printf("*** RESPOND MC\n");
   if (arg) {}
+
+  clusterType *cluster = clusterInit(1600);
 
   struct sockaddr_in addr;
    int sock, cnt;
    socklen_t addrlen;
    struct ip_mreq mreq;
-   char message[100];
+   char *message = calloc(100, 1); assert(message);
 
    /* set up socket */
    sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -68,7 +75,7 @@ void *respondMC(void *arg) {
      exit(1);
    }         
    while (1) {
-     cnt = recvfrom(sock, message, sizeof(message), 0, 
+     cnt = recvfrom(sock, message, 100, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {
        perror("recvfrom");
@@ -76,7 +83,20 @@ void *respondMC(void *arg) {
      } else if (cnt == 0) {
        break;
      }
-     printf("I should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
+
+     printf("**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
+
+     if (clusterFindNode(cluster, inet_ntoa(addr.sin_addr)) < 0) {
+       // add and say hi
+       clusterAddNode(cluster, inet_ntoa(addr.sin_addr));
+       clusterDumpJSON(stderr, cluster);
+       
+       int sock = sockconnect(inet_ntoa(addr.sin_addr), 1600, 5);
+       if (sock > 0) {
+	 socksend(sock, "Hello\n", 0, 0);
+       }
+       close(sock);
+     }
    }
  return NULL;
 }
