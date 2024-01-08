@@ -2,6 +2,7 @@
 #include <malloc.h>
 
 #include "cluster.h"
+#include "utilstime.h"
 
 int keepRunning = 1;
 
@@ -16,9 +17,9 @@ int main() {
   printf("%s", s);
   free(s);
   
-  clusterAddNode(c, "stu");
-  clusterAddNode(c, "nic");
-  clusterAddNode(c, "nic");
+  clusterAddNode(c, "stu", timeAsDouble());
+  clusterAddNode(c, "nic", timeAsDouble());
+  clusterAddNode(c, "nic", timeAsDouble());
 
   clusterAddNodesIP(c, "stu", "172.17.0.2");
   clusterAddNodesIP(c, "stu", "172.17.3.2");

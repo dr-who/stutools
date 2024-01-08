@@ -46,7 +46,7 @@ void *respondMC(void *arg) {
    sock = socket(AF_INET, SOCK_DGRAM, 0);
    if (sock < 0) {
      perror("socket");
-     exit(1);
+     //     exit(1);
    }
 
    const int enable = 1;
@@ -65,42 +65,43 @@ void *respondMC(void *arg) {
    /* receive */
    if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {        
      perror("bind");
-     exit(1);
+     //     exit(1);
    }    
    mreq.imr_multiaddr.s_addr = inet_addr(EXAMPLE_GROUP);         
    mreq.imr_interface.s_addr = htonl(INADDR_ANY);         
    if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 		  &mreq, sizeof(mreq)) < 0) {
      perror("setsockopt mreq");
-     exit(1);
+     //     exit(1);
    }         
    while (1) {
      cnt = recvfrom(sock, message, 100, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {
        perror("recvfrom");
-       exit(1);
+       //       exit(1);
      } else if (cnt == 0) {
        break;
      }
 
      printf("**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
 
-     double age = 0, expires = 0;
+     double startedtime = 0, expires = 0, senttime = 0;
      char *node = inet_ntoa(addr.sin_addr);
      int nodeid = 0;
 
+     if (sscanf(message, "%*s %lf %lf %lf", &senttime, &startedtime,  &expires) == 3) {
+       // got good info
+     }
+     
      if ((nodeid = clusterFindNode(cluster, node)) < 0) {
        // add and say hi
-       nodeid = clusterAddNode(cluster, node);
+       nodeid = clusterAddNode(cluster, node, startedtime);
      }
 
-     if (sscanf(message, "%*s %*s %lf %lf", &age,  &expires) == 2) {
-       printf("updating nodeid %d\n", nodeid);
-       clusterSetNodeAge(cluster, nodeid, age);
-       clusterSetNodeExpires(cluster, nodeid, expires);
-       clusterSetNodeIP(cluster, nodeid, node);
-     }
+     printf("updating nodeid %d\n", nodeid);
+     clusterSetNodeExpires(cluster, nodeid, expires);
+     clusterSetNodeIP(cluster, nodeid, node);
        
      
      clusterDumpJSON(stderr, cluster);

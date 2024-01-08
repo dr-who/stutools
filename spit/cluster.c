@@ -36,7 +36,7 @@ int clusterFindNode(clusterType *c, const char *nodename) {
 }
 
 
-int clusterAddNode(clusterType *c, const char *nodename) {
+int clusterAddNode(clusterType *c, const char *nodename, const double createdtime) {
   for (size_t i = 0; i < c->id; i++) {
     if (strcasecmp(c->node[i]->name, nodename)==0) {
       fprintf(stderr,"*warning* node already there, ignoring\n");
@@ -47,7 +47,8 @@ int clusterAddNode(clusterType *c, const char *nodename) {
   c->node = realloc(c->node, c->id * sizeof(clusterNodeType *));
   c->node[c->id - 1] = calloc(1, sizeof(clusterNodeType)); // create cluster node
   c->node[c->id - 1]->name = strdup(nodename);
-  c->node[c->id - 1]->created = timeAsDouble();
+  c->node[c->id - 1]->created = createdtime;
+  c->node[c->id - 1]->discovered = timeAsDouble();
   c->node[c->id - 1]->updated = c->node[c->id - 1]->created;
 
   c->latestchange = c->node[c->id - 1]->created;
@@ -59,8 +60,10 @@ int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip) {
   fprintf(stderr,"addnodesip %s %s\n",nodename, ip);
   int find = clusterFindNode(c, nodename);
   if (find < 0) {
-    find = clusterAddNode(c, nodename);
-    assert(find >= 0);
+    printf("*error* can't find node. add it first\n");
+    //    find = clusterAddNode(c, nodename);
+    //    assert(find >= 0);
+    return -1;
   }
   if ((c->node[find]->ipaddress==NULL) || (strcmp(c->node[find]->ipaddress, ip) != 0)) {
     //different
@@ -76,17 +79,19 @@ char *clusterDumpJSONString(clusterType *c) {
   char *buf = calloc(1,1000000);
   char *ret = buf;
 
+  const double now = timeAsDouble();
   if (c) {
     buf += sprintf(buf, "{ \"clusterport\": %zd,\n", c->port);
     buf += sprintf(buf, "  \"latestchange\": %lf,\n", c->latestchange);
-    buf += sprintf(buf, "  \"latestchangesecondsago\": %lf,\n", timeAsDouble() - c->latestchange);
+    buf += sprintf(buf, "  \"latestchangesecondsago\": %lf,\n", now - c->latestchange);
     buf += sprintf(buf, "  \"nodes\": [\n");
     for (size_t i = 0; i < c->id; i++) {
       buf += sprintf(buf, "    {\n");
       buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
       buf += sprintf(buf, "       \"created\": %lf,\n", c->node[i]->created);
+      buf += sprintf(buf, "       \"age\": %lf,\n", now - c->node[i]->created);
+      buf += sprintf(buf, "       \"discovered\": %lf,\n", c->node[i]->discovered);
       buf += sprintf(buf, "       \"updated\": %lf,\n", c->node[i]->updated);
-      buf += sprintf(buf, "       \"age\": %lf,\n", c->node[i]->age);
       buf += sprintf(buf, "       \"expires\": %lf,\n", c->node[i]->expires);
       buf += sprintf(buf, "       \"ipaddress\": \"%s\"\n", c->node[i]->ipaddress ? c->node[i]->ipaddress : "n/a");
       buf += sprintf(buf, "    }");
@@ -109,16 +114,14 @@ void clusterDumpJSON(FILE *fp, clusterType *c) {
   free(s);
 }
 
-void clusterSetNodeAge(clusterType *c, size_t nodeid, double age) {
-  c->node[nodeid]->age = age;
-}
-
 void clusterSetNodeExpires(clusterType *c, size_t nodeid, double expires) {
   c->node[nodeid]->expires = expires;
+  c->node[nodeid]->updated = timeAsDouble();
 }
 
 void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address) {
   if (c->node[nodeid]->ipaddress) free(c->node[nodeid]->ipaddress);
   
   c->node[nodeid]->ipaddress = strdup(address);
+  c->node[nodeid]->updated = timeAsDouble();
 }

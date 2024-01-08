@@ -43,7 +43,7 @@ void *advertiseMC(void *arg) {
   sock = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock < 0) {
     perror("socket");
-    exit(1);
+    //    exit(1);
   }
 
   const int enable = 1;
@@ -65,7 +65,7 @@ void *advertiseMC(void *arg) {
     double now = timeAsDouble();
     double age = now - starttime;
      
-    sprintf(message, "serveravail %.0lf %.0lf %.0f port:1600 stush", now, age, now + (age > 10 ? 10 : age));
+    sprintf(message, "serveravail %.0lf %.0lf %.0f port:1600 stush", now, starttime, now + (age > 10 ? 10 : age));
     cnt = sendto(sock, message, strlen(message), 0,
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {

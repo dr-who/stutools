@@ -284,7 +284,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	} else if (i == num-extras) {
 	  pthread_create(&(pt[i]), NULL, respondMC, &(tc[i]));
 	} else if (i == num-3) {
-	  pthread_create(&(pt[i]), NULL, echo, &(tc[i]));
+	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
 	} else if (i == num-2) {
 	  pthread_create(&(pt[i]), NULL, advertiseMC, &(tc[i]));
 	} else if (i == num-1) {
