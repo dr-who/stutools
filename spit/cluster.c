@@ -92,6 +92,7 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "       \"age\": %lf,\n", now - c->node[i]->created);
       buf += sprintf(buf, "       \"discovered\": %lf,\n", c->node[i]->discovered);
       buf += sprintf(buf, "       \"updated\": %lf,\n", c->node[i]->updated);
+      buf += sprintf(buf, "       \"sinceupdated\": %lf,\n", now - c->node[i]->updated);
       buf += sprintf(buf, "       \"expires\": %lf,\n", c->node[i]->expires);
       buf += sprintf(buf, "       \"ipaddress\": \"%s\"\n", c->node[i]->ipaddress ? c->node[i]->ipaddress : "n/a");
       buf += sprintf(buf, "    }");
