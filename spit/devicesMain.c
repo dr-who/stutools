@@ -28,7 +28,7 @@ int main() {
 	      if (st.st_mode | S_IFBLK) {
 		int fd = open(path, O_RDONLY | O_EXCL);
 		if (fd) {
-		  unsigned int major,minor;
+		  unsigned int major = 0,minor = 0;
 		  majorAndMinor(fd, &major, &minor);
 		  if (major == 8) { // HDD
 		    
