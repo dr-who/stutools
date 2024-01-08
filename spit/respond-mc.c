@@ -83,7 +83,7 @@ void *respondMC(void *arg) {
        break;
      }
 
-     printf("**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
+     fprintf(stderr, "**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
 
      double startedtime = 0, senttime = 0;
      char *node = inet_ntoa(addr.sin_addr);
@@ -100,7 +100,7 @@ void *respondMC(void *arg) {
      }
 
      if (strcmp(clusterGetNodeIP(cluster, nodeid), node) != 0) {
-       printf("updating node's IP %d\n", nodeid);
+       fprintf(stderr, "updating node's IP %d\n", nodeid);
        clusterSetNodeIP(cluster, nodeid, node);
      }
        

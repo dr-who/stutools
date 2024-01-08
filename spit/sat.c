@@ -198,7 +198,7 @@ void *receiver(void *arg) {
 	  goto end;
 	}
 
-	printf("received a string: %s\n", buffer);
+	fprintf(stderr, "received a string: %s\n", buffer);
 	
 	if (strncmp(buffer,"Hello",5)==0) {
 	  char s1[100],ipa[100];
@@ -217,7 +217,7 @@ void *receiver(void *arg) {
 	  free(json);
 	  if (err < 0) goto end;
 	} else if (strncmp(buffer,"cluster",7)==0) {
-	  printf("sending cluster info back: %zd nodes\n", tc->cluster->id);
+	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
 	  char *json = clusterDumpJSONString(tc->cluster);
 	  socksend(connfd, json, 0, 0);
 	  socksend(connfd, "\n", 0, 0);
