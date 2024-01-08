@@ -105,7 +105,9 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
       buf += sprintf(buf, "       \"created\": %lf,\n", c->node[i]->created);
       buf += sprintf(buf, "       \"age\": %lf,\n", now - c->node[i]->created);
-      buf += sprintf(buf, "       \"discovereddelay\": %lf,\n", c->node[i]->discovered - c->node[i]->created);
+      double delay = c->node[i]->discovered - c->node[i]->created;
+      if (delay < 0) delay = 0;
+      buf += sprintf(buf, "       \"discovereddelay\": %lf,\n", delay);
       buf += sprintf(buf, "       \"updated\": %lf,\n", c->node[i]->updated);
       buf += sprintf(buf, "       \"sinceupdated\": %lf,\n", now - c->node[i]->updated);
       buf += sprintf(buf, "       \"expires\": %lf,\n", c->node[i]->expires);

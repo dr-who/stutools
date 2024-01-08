@@ -89,14 +89,15 @@ void *respondMC(void *arg) {
      double startedtime = 0, expires = 0, senttime = 0;
      char *node = inet_ntoa(addr.sin_addr);
      int nodeid = 0;
+     char nodename[100];
 
-     if (sscanf(message, "%*s %lf %lf %lf", &senttime, &startedtime,  &expires) == 3) {
+     if (sscanf(message, "%s %lf %lf %lf", nodename, &senttime, &startedtime,  &expires) == 3) {
        // got good info
      }
      
-     if ((nodeid = clusterFindNode(cluster, node)) < 0) {
+     if ((nodeid = clusterFindNode(cluster, nodename)) < 0) {
        // add and say hi
-       nodeid = clusterAddNode(cluster, node, startedtime);
+       nodeid = clusterAddNode(cluster, nodename, startedtime);
      }
 
      printf("updating nodeid %d\n", nodeid);
@@ -108,7 +109,7 @@ void *respondMC(void *arg) {
      
      int sock = sockconnect(node, 1600, 5);
      if (sock > 0) {
-       socksend(sock, "Hello\n", 0, 0);
+       socksend(sock, "Hello\n", 0, 1);
      }
      close(sock);
    }

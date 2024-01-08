@@ -24,7 +24,7 @@ extern int keepRunning;
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "utilstime.h"
+#include <sys/utsname.h>
 
 #include "utilstime.h"
 #include "advertise-mc.h"
@@ -61,11 +61,15 @@ void *advertiseMC(void *arg) {
 
   /* send */
   addr.sin_addr.s_addr = inet_addr(EXAMPLE_GROUP);
+
+  struct utsname buf;
+  uname(&buf);
+
   while (keepRunning) {
     double now = timeAsDouble();
     double age = now - starttime;
      
-    sprintf(message, "serveravail %.0lf %.0lf %.0f port:1600 stush", now, starttime, now + (age > 10 ? 10 : age));
+    sprintf(message, "%s %.0lf %.0lf %.0f port:1600 stush", buf.nodename, now, starttime, now + (age > 10 ? 10 : age));
     cnt = sendto(sock, message, strlen(message), 0,
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {
