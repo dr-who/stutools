@@ -19,14 +19,14 @@ int main() {
     struct stat st;
     char path[1024];
 
-    d = opendir("/sys/class/block/");
+    d = opendir("/sys/block/");
     if (d) {
         while ((dir = readdir(d)) != NULL) {
             snprintf(path, sizeof(path), "/dev/%s", dir->d_name);
 
             if (stat(path, &st) == 0) {
 	      if (st.st_mode | S_IFBLK) {
-		int fd = open(path, O_RDONLY);
+		int fd = open(path, O_RDONLY | O_EXCL);
 		if (fd) {
 		  unsigned int major,minor;
 		  majorAndMinor(fd, &major, &minor);
@@ -36,7 +36,7 @@ int main() {
 		    char *serial = serialFromFD(fd);
 		    char *model = modelFromFD(fd);
 		    printf("%-20s: ", path);
-		    printf("\t %u:%u\t%zd\t%-20s\t%-20s\n", major, minor, s, model, serial);
+		    printf("\t %u:%u\t%zd (%.0lf GB)\t%-20s\t%-20s\n", major, minor, s, TOGB(s), model, serial);
 		    free(serial);
 		    free(model);
 		  }
