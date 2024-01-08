@@ -103,6 +103,8 @@ void *respondMC(void *arg) {
        fprintf(stderr, "updating node's IP %d\n", nodeid);
        clusterSetNodeIP(cluster, nodeid, node);
      }
+
+     clusterUpdateSeen(cluster, nodeid);
        
      
      clusterDumpJSON(stderr, cluster);

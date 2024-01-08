@@ -8,8 +8,9 @@ typedef struct {
   char *name; // uuid
   char *ipaddress;
   double created;
-  double updated;
+  double changed;
   double discovered;
+  double seen;
 
   char *osrelease;
   size_t cores;
@@ -34,6 +35,7 @@ clusterType * clusterInit(const size_t port);
 int clusterAddNode(clusterType *c, const char *nodename, const double createdtime);
 int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip);
 int clusterFindNode(clusterType *c, const char *nodename);
+void clusterUpdateSeen(clusterType *c, size_t nodeid);
 
 char *clusterDumpJSONString(clusterType *c);
 
@@ -41,5 +43,6 @@ void clusterDumpJSON(FILE *fp, clusterType *c);
 
 void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address);
 char *clusterGetNodeIP(clusterType *c, size_t nodeid);
+void clusterUpdateSeen(clusterType *c, const size_t nodeid);
 
 #endif
