@@ -36,24 +36,39 @@ int clusterFindNode(clusterType *c, const char *nodename) {
 }
 
 
+
 int clusterAddNode(clusterType *c, const char *nodename, const double createdtime) {
-  for (size_t i = 0; i < c->id; i++) {
+  const size_t index = c->id;
+  for (size_t i = 0; i < index; i++) {
     if (strcasecmp(c->node[i]->name, nodename)==0) {
       fprintf(stderr,"*warning* node already there, ignoring\n");
       return i;
     }
   }
+
   c->id++;
   c->node = realloc(c->node, c->id * sizeof(clusterNodeType *));
-  c->node[c->id - 1] = calloc(1, sizeof(clusterNodeType)); // create cluster node
-  c->node[c->id - 1]->name = strdup(nodename);
-  c->node[c->id - 1]->created = createdtime;
-  c->node[c->id - 1]->discovered = timeAsDouble();
-  c->node[c->id - 1]->updated = c->node[c->id - 1]->created;
+  c->node[index] = calloc(1, sizeof(clusterNodeType)); // create cluster node
+  c->node[index]->name = strdup(nodename);
+  c->node[index]->ipaddress = strdup(nodename);
+  c->node[index]->created = createdtime;
+  c->node[index]->discovered = timeAsDouble();
+  c->node[index]->updated = c->node[index]->created;
 
-  c->latestchange = c->node[c->id - 1]->created;
+  c->latestchange = c->node[index]->created;
+
+  for (size_t i = 0; i < c->id - 1 ; i++) {
+    for (size_t j = i+1; j < c->id; j++) {
+      if (strcmp(c->node[i]->name, c->node[j]->name) > 0) {
+	// swap
+	clusterNodeType t = *c->node[i];
+	*c->node[i] = *c->node[j];
+	*c->node[j] = t;
+      }
+    }
+  }
   
-  return c->id - 1;
+  return index;
 }
 
 int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip) {
