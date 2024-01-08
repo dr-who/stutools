@@ -3,6 +3,13 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#include "diskStats.h"
+#include "utils.h"
 
 int keepRunning = 1;
 
@@ -16,21 +23,26 @@ int main() {
     if (d) {
         while ((dir = readdir(d)) != NULL) {
             snprintf(path, sizeof(path), "/dev/%s", dir->d_name);
-	    printf("path: %s\n", path);
 
             if (stat(path, &st) == 0) {
-	      switch (st.st_mode) {
-	      case S_IFBLK:  printf("block device\n");            break;
-	      case S_IFCHR:  printf("character device\n");        break;
-	      case S_IFDIR:  printf("directory\n");               break;
-	      case S_IFIFO:  printf("FIFO/pipe\n");               break;
-	      case S_IFLNK:  printf("symlink\n");                 break;
-	      case S_IFREG:  printf("regular file\n");            break;
-	      case S_IFSOCK: printf("socket\n");                  break;
-	      default:       printf("unknown?\n");                break;
+	      if (st.st_mode | S_IFBLK) {
+		int fd = open(path, O_RDONLY);
+		if (fd) {
+		  unsigned int major,minor;
+		  majorAndMinor(fd, &major, &minor);
+		  if (major == 8) { // HDD
+		    
+		    size_t s = blockDeviceSizeFromFD(fd);
+		    char *serial = serialFromFD(fd);
+		    char *model = modelFromFD(fd);
+		    printf("%-20s: ", path);
+		    printf("\t %u:%u\t%zd\t%-20s\t%-20s\n", major, minor, s, model, serial);
+		    free(serial);
+		    free(model);
+		  }
+		}
+		close(fd);
 	      }
-
-                printf("reg: %s\n", dir->d_name);
 	    }
 	}
         closedir(d);

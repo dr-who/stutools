@@ -77,7 +77,7 @@ void *advertiseMC(void *arg) {
     }
 
     count++;
-    sleep(count > 20 ? 20 : count);
+    sleep(count < 3600 ? 1 : 20);
   }
   return NULL;
 }

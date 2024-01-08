@@ -17,8 +17,7 @@ just one host and as a receiver on all the other hosts
 #include <time.h>
 #include <stdio.h>
 
-#define EXAMPLE_PORT 6000
-#define EXAMPLE_GROUP "239.0.0.1"
+#include "multicast.h"
 
 main(int argc)
 {
@@ -33,6 +32,14 @@ main(int argc)
      perror("socket");
      exit(1);
    }
+
+   const int enable = 1;
+   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+     perror("setsockopt(SO_REUSEADDR) failed");
+   if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0)
+     perror("setsockopt(SO_REUSEADDR) failed");
+
+
    bzero((char *)&addr, sizeof(addr));
    addr.sin_family = AF_INET;
    addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -77,7 +84,7 @@ main(int argc)
 	 } else if (cnt == 0) {
  	    break;
 	 }
-	 printf("%s: message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
+	 printf("%s: %s\n", inet_ntoa(addr.sin_addr), message);
         }
     }
 }

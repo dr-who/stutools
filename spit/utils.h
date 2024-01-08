@@ -223,6 +223,7 @@ void diskSpaceFromMount(const char *FSPATH, const char *s1, const char *total1, 
 void loadEnvVars(char *filename);
 
 char *serialFromFD(int fd);
+char *modelFromFD(int fd);
 
 size_t numberOfDirectories(char *dir);
 

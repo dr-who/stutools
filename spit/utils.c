@@ -1809,7 +1809,18 @@ char *serialFromFD(int fd) {
     char *serial = NULL;
 
     if (majorAndMinor(fd, &major, &minor) == 0) {
-        serial = getFieldFromUdev(major, minor, "E:ID_SERIAL=");
+        serial = getFieldFromUdev(major, minor, "E:ID_SERIAL_SHORT=");
+    }
+    return serial;
+}
+
+
+char *modelFromFD(int fd) {
+    unsigned int major, minor;
+    char *serial = NULL;
+
+    if (majorAndMinor(fd, &major, &minor) == 0) {
+        serial = getFieldFromUdev(major, minor, "E:ID_MODEL=");
     }
     return serial;
 }
