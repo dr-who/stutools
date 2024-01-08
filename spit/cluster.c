@@ -56,17 +56,6 @@ int clusterAddNode(clusterType *c, const char *nodename, const double createdtim
   c->node[index]->updated = c->node[index]->created;
 
   c->latestchange = c->node[index]->created;
-
-  for (size_t i = 0; i < c->id - 1 ; i++) {
-    for (size_t j = i+1; j < c->id; j++) {
-      if (strcmp(c->node[i]->name, c->node[j]->name) > 0) {
-	// swap
-	clusterNodeType t = *c->node[i];
-	*c->node[i] = *c->node[j];
-	*c->node[j] = t;
-      }
-    }
-  }
   
   return index;
 }
@@ -94,6 +83,18 @@ char *clusterDumpJSONString(clusterType *c) {
   char *buf = calloc(1,1000000);
   char *ret = buf;
 
+  // sort
+  for (size_t i = 0; i < c->id-1; i++) {
+    for (size_t j = i+1; j < c->id; j++) {
+      if (strcmp(c->node[i]->ipaddress, c->node[j]->ipaddress) > 0) {
+	// swap
+	clusterNodeType t = *c->node[i];
+	*c->node[i] = *c->node[j];
+	*c->node[j] = t;
+      }
+    }
+  }
+
   const double now = timeAsDouble();
   if (c) {
     buf += sprintf(buf, "{ \"clusterport\": %zd,\n", c->port);
@@ -107,10 +108,9 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "       \"age\": %lf,\n", now - c->node[i]->created);
       double delay = c->node[i]->discovered - c->node[i]->created;
       if (delay < 0) delay = 0;
-      buf += sprintf(buf, "       \"discovereddelay\": %lf,\n", delay);
+      buf += sprintf(buf, "       \"discoveredafter\": %lf,\n", delay);
       buf += sprintf(buf, "       \"updated\": %lf,\n", c->node[i]->updated);
       buf += sprintf(buf, "       \"sinceupdated\": %lf,\n", now - c->node[i]->updated);
-      buf += sprintf(buf, "       \"expires\": %lf,\n", c->node[i]->expires);
       buf += sprintf(buf, "       \"ipaddress\": \"%s\"\n", c->node[i]->ipaddress ? c->node[i]->ipaddress : "n/a");
       buf += sprintf(buf, "    }");
       if (i < c->id-1) buf += sprintf(buf, ",");
@@ -132,14 +132,15 @@ void clusterDumpJSON(FILE *fp, clusterType *c) {
   free(s);
 }
 
-void clusterSetNodeExpires(clusterType *c, size_t nodeid, double expires) {
-  c->node[nodeid]->expires = expires;
-  c->node[nodeid]->updated = timeAsDouble();
-}
 
 void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address) {
   if (c->node[nodeid]->ipaddress) free(c->node[nodeid]->ipaddress);
   
   c->node[nodeid]->ipaddress = strdup(address);
   c->node[nodeid]->updated = timeAsDouble();
+  c->latestchange = timeAsDouble();
+}
+
+char *clusterGetNodeIP(clusterType *c, size_t nodeid) {
+  return c->node[nodeid]->ipaddress;
 }

@@ -17,7 +17,7 @@ just one host and as a receiver on all the other hosts
 #include <time.h>
 #include <stdio.h>
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -86,12 +86,12 @@ void *respondMC(void *arg) {
 
      printf("**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
 
-     double startedtime = 0, expires = 0, senttime = 0;
+     double startedtime = 0, senttime = 0;
      char *node = inet_ntoa(addr.sin_addr);
-     int nodeid = 0;
+     int nodeid = 0, port = 0;
      char nodename[100];
 
-     if (sscanf(message, "%s %lf %lf %lf", nodename, &senttime, &startedtime,  &expires) == 3) {
+     if (sscanf(message, "%s %lf %lf %d", nodename, &senttime, &startedtime,  &port) == 3) {
        // got good info
      }
      
@@ -100,14 +100,15 @@ void *respondMC(void *arg) {
        nodeid = clusterAddNode(cluster, nodename, startedtime);
      }
 
-     printf("updating nodeid %d\n", nodeid);
-     clusterSetNodeExpires(cluster, nodeid, expires);
-     clusterSetNodeIP(cluster, nodeid, node);
+     if (strcmp(clusterGetNodeIP(cluster, nodeid), node) != 0) {
+       printf("updating node's IP %d\n", nodeid);
+       clusterSetNodeIP(cluster, nodeid, node);
+     }
        
      
      clusterDumpJSON(stderr, cluster);
      
-     int sock = sockconnect(node, 1600, 5);
+     int sock = sockconnect(node, port, 5);
      if (sock > 0) {
        socksend(sock, "Hello\n", 0, 1);
      }

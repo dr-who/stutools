@@ -67,9 +67,8 @@ void *advertiseMC(void *arg) {
 
   while (keepRunning) {
     double now = timeAsDouble();
-    double age = now - starttime;
      
-    sprintf(message, "%s %.0lf %.0lf %.0f port:1600 stush", buf.nodename, now, starttime, now + (age > 10 ? 10 : age));
+    sprintf(message, "%s %.0lf %.0lf 1600 stush", buf.nodename, now, starttime);
     cnt = sendto(sock, message, strlen(message), 0,
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {
@@ -78,7 +77,7 @@ void *advertiseMC(void *arg) {
     }
 
     count++;
-    sleep(count > 5 ? 5 : count);
+    sleep(count > 20 ? 20 : count);
   }
   return NULL;
 }
