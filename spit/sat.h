@@ -2,6 +2,7 @@
 #define __SAT_H
 
 #include "interfaces.h"
+#include "cluster.h"
 
 typedef struct {
   int id;
@@ -14,7 +15,7 @@ typedef struct {
   char *tryhost;
   double starttime;
   interfacesIntType *n;
-  
+  clusterType *cluster;
 } threadMsgType;
 
 //void msgStartServer(const int serverport);

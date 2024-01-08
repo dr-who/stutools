@@ -28,13 +28,12 @@ just one host and as a receiver on all the other hosts
 
 #include "cluster.h"
 #include "simpmail.h"
-
+#include "sat.h"
 
 void *respondMC(void *arg) {
-  printf("*** RESPOND MC\n");
-  if (arg) {}
+    threadMsgType *tc = (threadMsgType *) arg;
 
-  clusterType *cluster = clusterInit(1600);
+    clusterType *cluster = tc->cluster;
 
   struct sockaddr_in addr;
    int sock, cnt;

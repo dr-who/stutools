@@ -47,10 +47,6 @@ void intHandler(int d) {
 #include "ipcheck.h"
 
 
-clusterType *cluster;
-
-
-
 char * stringListToJSON(char *inc) {
   if (inc == NULL) return NULL;
   
@@ -201,6 +197,8 @@ void *receiver(void *arg) {
 	if (sockrec(connfd, buffer, 1024, 0, 1) < 0) {
 	  goto end;
 	}
+
+	printf("received a string: %s\n", buffer);
 	
 	if (strncmp(buffer,"Hello",5)==0) {
 	  char s1[100],ipa[100];
@@ -219,9 +217,10 @@ void *receiver(void *arg) {
 	  free(json);
 	  if (err < 0) goto end;
 	} else if (strncmp(buffer,"cluster",7)==0) {
-	  char *json = clusterDumpJSONString(cluster);
-	  socksend(connfd, json, 0, 1);
-	  socksend(connfd, "\n", 0, 1);
+	  printf("sending cluster info back: %zd nodes\n", tc->cluster->id);
+	  char *json = clusterDumpJSONString(tc->cluster);
+	  socksend(connfd, json, 0, 0);
+	  socksend(connfd, "\n", 0, 0);
 	  free(json);
 	} else {
 	  sleep(1);
@@ -257,6 +256,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
     CALLOC(pt, num, sizeof(pthread_t));
     CALLOC(tc, num, sizeof(threadMsgType));
 
+    clusterType *cluster = clusterInit(serverport);
 
     for (size_t i = 0; i < num; i++) {
         tc[i].id = i;
@@ -265,6 +265,7 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
 	tc[i].n = n;
         tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
+	tc[i].cluster = cluster;
 	if (i < num -extras) {
 	  tc[i].eth = NULL; //ipcheck->interface[i];
 	  /*
@@ -311,12 +312,11 @@ int main() {
 
   hostsToMonitor = queueInit();
 
-  int port = 1600;
-  cluster = clusterInit(port);
 
   interfacesIntType *n = interfacesInit();
   interfacesScan(n);
 
+  const int port = 1600;
   msgStartServer(n, port);
 
   return 0;
