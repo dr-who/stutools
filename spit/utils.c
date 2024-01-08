@@ -1814,7 +1814,18 @@ char *serialFromFD(int fd) {
     return serial;
 }
 
+// new string
+char *SCSISerialFromFD(int fd) {
+    unsigned int major, minor;
+    char *serial = NULL;
 
+    if (majorAndMinor(fd, &major, &minor) == 0) {
+        serial = getFieldFromUdev(major, minor, "E:ID_SCSI_SERIAL=");
+    }
+    return serial;
+}
+
+  
 char *modelFromFD(int fd) {
     unsigned int major, minor;
     char *serial = NULL;

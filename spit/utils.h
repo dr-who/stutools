@@ -224,6 +224,7 @@ void loadEnvVars(char *filename);
 
 char *serialFromFD(int fd);
 char *modelFromFD(int fd);
+char *SCSISerialFromFD(int fd);
 
 size_t numberOfDirectories(char *dir);
 

@@ -6,13 +6,17 @@
 int main() {
   keyvalueType *kv = keyvalueInit();
 
-  keyvalueAdd(kv, "stu", "nic");
-  keyvalueAdd(kv, "stu2", "stu");
-  keyvalueAdd(kv, "stu2", "sni");
-  keyvalueAdd(kv, "a", "b");
-  keyvalueAdd(kv, "zz", "b");
+  keyvalueSetString(kv, "stu", "nic");
+  keyvalueSetString(kv, "stu2", "stu");
+  keyvalueSetString(kv, "stu2", "sni");
+  keyvalueSetLong(kv, "a", 8213);
+  keyvalueSetLong(kv, "zz", -3489);
 
-  char * s = keyvalueAsString(kv);
+  char * s = keyvalueDumpAsString(kv);
+  fprintf(stderr, "%s\n", s);
+  free(s);
+
+  s = keyvalueDumpAsJSON(kv);
   printf("%s\n", s);
   free(s);
 

@@ -74,7 +74,7 @@ add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h simpmail.c iprange.c in
 target_link_libraries(ipcheck uuid spitlib m aio pthread numa pci)
 
 
-add_executable(devices devicesMain.c devices.c devices.h)
+add_executable(devices devicesMain.c devices.c devices.h keyvalue.c keyvalue.h)
 target_link_libraries(devices spitlib m aio pthread numa pci)
 
 add_executable(dns dnsmain.c dns.c)
