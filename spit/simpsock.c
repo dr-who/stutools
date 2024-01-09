@@ -71,8 +71,9 @@ int socksetup(int fd, const int timeout_seconds) {
 int socksend(int fd, char *s, int flags, const int quiet) {
   int sent = 0;
   int len = strlen(s);
+  int pos = 0;
   while (sent < len) {
-    int ret = send(fd, s, strlen(s), flags);
+    int ret = send(fd, s + pos, len - pos, flags);
     if (ret < 0) {
       perror("socksend");
     } else {
