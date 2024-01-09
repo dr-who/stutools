@@ -211,7 +211,7 @@ char *keyvalueDumpAsString(keyvalueType *kv) {
       strncat(s, str, maxbytes);
     }
   }
-  strncat(s, "\0", maxbytes); // end with a 0?
+  strncat(s, "\n", maxbytes); // end with a 0?
   return s;
 }
 

@@ -74,6 +74,7 @@ void *advertiseMC(void *arg) {
 
 
     keyvalueType *kv = keyvalueInit();
+    keyvalueSetString(kv, "action", "hello");
     keyvalueSetString(kv, "node", buf.nodename);
     keyvalueSetLong(kv, "time", (long)now);
     keyvalueSetLong(kv, "cluster", cluster->id);

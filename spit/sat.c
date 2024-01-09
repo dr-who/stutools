@@ -21,6 +21,7 @@
 
 #include "advertise-mc.h"
 #include "respond-mc.h"
+#include "blockdevices.h"
 
 int keepRunning = 1;
 int tty = 0;
@@ -129,6 +130,16 @@ void *receiver(void *arg) {
 	  socksend(connfd, json, 0, 1);
 	  socksend(connfd, "\n", 0, 1);
 	  free(json);
+	} else if (strncmp(buffer,"block", 5)==0) {
+	  blockDevicesType *bd = blockDevicesInit();
+	  
+	  blockDevicesScan(bd);
+
+	  char *s = blockDevicesAllJSON(bd);
+	  socksend(connfd, s, 0, 0);
+	  free(s);
+	  
+	  blockDevicesFree(bd);
 	} else {
 	  //	    fprintf(stderr,"*unknown handshake, invalid client\n");
 	  sleep(1);

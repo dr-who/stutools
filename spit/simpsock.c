@@ -69,9 +69,18 @@ int socksetup(int fd, const int timeout_seconds) {
 
 
 int socksend(int fd, char *s, int flags, const int quiet) {
-  int ret = send(fd, s, strlen(s), flags);
-  if (quiet == 0) fprintf(stderr,"C[%d]: %s", ret, s);
-  return ret;
+  int sent = 0;
+  int len = strlen(s);
+  while (sent < len) {
+    int ret = send(fd, s, strlen(s), flags);
+    if (ret < 0) {
+      perror("socksend");
+    } else {
+      sent += ret;
+    }
+  }
+  if (quiet == 0) fprintf(stderr,"C[%d]: %s", sent, s);
+  return sent;
 }
 
 int sockrec(int fd, char *buffer, int len, int flags, const int quiet) {

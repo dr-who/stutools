@@ -12,18 +12,32 @@
 #include "utils.h"
 #include "keyvalue.h"
 
-int keepRunning = 1;
+#include "keyvalue.h"
+#include "blockdevices.h"
 
-int main() {
+
+
+blockDevicesType * blockDevicesInit() {
+  blockDevicesType *p = calloc(1, sizeof(blockDevicesType)); assert(p);
+
+  return p;
+}
+
+
+void blockDevicesAddKV(blockDevicesType *bd, keyvalueType *kv) {
+  bd->num++;
+  bd->devices = realloc(bd->devices, bd->num * sizeof(blockDevicesType)); assert(bd->devices);
+  bd->devices[bd->num - 1].kv = kv;
+}
+
+void blockDevicesScan(blockDevicesType *bd) {
     DIR *d;
     struct dirent *dir;
     struct stat st;
     char path[1024];
-    int count = 0;
 
     d = opendir("/sys/block/");
     if (d) {
-      printf("[\n");
         while ((dir = readdir(d)) != NULL) {
             snprintf(path, sizeof(path), "/dev/%s", dir->d_name);
 
@@ -44,9 +58,9 @@ int main() {
 		  }
 
 		  if (getWriteCache(suf) == 0) {
-		    keyvalueSetString(k, "writeCache", "write back");
+		    keyvalueSetString(k, "writeCache", "write-back");
 		  } else {
-		    keyvalueSetString(k, "writeCache", "write thru");
+		    keyvalueSetString(k, "writeCache", "write-thru");
 		  }
 		  
 		  //
@@ -69,9 +83,9 @@ int main() {
 		    char *scsi= SCSISerialFromFD(fd);
 		    keyvalueSetString(k, "scsi", scsi);
 
-		    if (count++ >= 1) printf(",");
-		    printf("%s", keyvalueDumpAsJSON(k));
-		    fprintf(stderr,"%s\n", keyvalueDumpAsString(k));
+
+		    blockDevicesAddKV(bd, k);
+
 		    free(serial);
 		    free(model);
 		    free(scsi);
@@ -82,9 +96,27 @@ int main() {
 	    }
 	}
         closedir(d);
-	printf("]\n");
     }
+}  
 
-    return 0;
+
+char * blockDevicesAllJSON(blockDevicesType *bd) {
+  char *ret = calloc(1000000+1,1); assert(ret);
+  for (size_t i = 0; i < bd->num; i++) {
+    char *s = keyvalueDumpAsJSON(bd->devices[i].kv);
+    strncat(ret, s, 1000000);
+  }
+  char *toret=strdup(ret);
+  free(ret);
+  return toret;
 }
+  
 
+
+void blockDevicesFree(blockDevicesType *bd) {
+  for (size_t i = 0 ; i < bd->num; i++) {
+    keyvalueFree(bd->devices[i].kv);
+  }
+  free(bd->devices);
+  free(bd);
+}

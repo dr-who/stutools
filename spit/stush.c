@@ -242,7 +242,6 @@ COMMAND commands[] = {
         {"h2d",        "Hex to decimal", ""},
         {"host",      "Convert hostname to IP", ""},
         {"id",        "Shows process IDs", "admin"},
-        {"ip",        "List IPv4 information", ""},
         {"lang",      "Set locale language", ""},
         {"last",      "Show previous users", "admin"},
         {"lsblk",     "List drive block devices", "admin"},
@@ -1066,94 +1065,21 @@ void cmd_listPCI(int tty, size_t filterclass, char *label) {
 
 // from getifaddrs man page
 void cmd_listNICs(int tty) {
-    if (tty) {}
-
-    struct ifaddrs *ifaddr;
-    int family, s;
-    char host[NI_MAXHOST];
-
-    if (getifaddrs(&ifaddr) == -1) {
-        perror("getifaddrs");
-        exit(EXIT_FAILURE);
+  if (tty) {}
+  int fd = sockconnect("127.0.0.1", 1600, 0);
+  if (fd) {
+    socksend(fd, "interfaces\n", 10, 1);
+    char *buffer = calloc(1024, 1); assert(buffer);
+    int ret = sockrec(fd, buffer, 1024, 0, 1);
+    if (ret >= 0) {
+      printf("%s", buffer);
+    } else {
+      perror("recv");
     }
-
-    /* Walk through linked list, maintaining head pointer so we
-       can free list later. */
-
-    for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == NULL)
-            continue;
-
-        family = ifa->ifa_addr->sa_family;
-
-        /* Display interface name and family (including symbolic
-           form of the latter for the common families). */
-
-        if (family != AF_PACKET) {
-            if (tty) printf("%s", BOLD);
-            printf("%-8s %s (%d)\n",
-                   ifa->ifa_name,
-                   (family == AF_PACKET) ? "AF_PACKET" :
-                   (family == AF_INET) ? "AF_INET" :
-                   (family == AF_INET6) ? "AF_INET6" : "???",
-                   family);
-            if (tty) printf("%s", END);
-        }
-
-
-        /* For an AF_INET* interface address, display the address. */
-
-        if (family == AF_INET || family == AF_INET6) {
-            s = getnameinfo(ifa->ifa_addr,
-                            (family == AF_INET) ? sizeof(struct sockaddr_in) :
-                            sizeof(struct sockaddr_in6),
-                            host, NI_MAXHOST,
-                            NULL, 0, NI_NUMERICHOST);
-            if (s != 0) {
-                printf("getnameinfo() failed: %s\n", gai_strerror(s));
-                exit(EXIT_FAILURE);
-            }
-
-            printf("   HW address: ");
-            char *hw = getHWAddr(ifa->ifa_name); printf("%s\n", hw); free(hw);
-            printf(", IP address: %s\n", host);
-            printf("   Link: ");
-            char ss[PATH_MAX];
-            sprintf(ss, "/sys/class/net/%s/carrier", ifa->ifa_name);
-	    //            dumpFile(ss, "", 0);
-	    double linkup = getValueFromFile(ss, 1);
-	    printf("%s\n", linkup>=1 ? "UP" : "DOWN");
-
-            printf("   Speed: ");
-            sprintf(ss, "/sys/class/net/%s/speed", ifa->ifa_name);
-	    double speed = getValueFromFile(ss, 1);
-	    printf("%.0lf\n", speed);
-
-            printf("   MTU: ");
-            sprintf(ss, "/sys/class/net/%s/mtu", ifa->ifa_name);
-	    double mtu = getValueFromFile(ss, 1);
-	    printf("%.0lf\n", mtu);
-	    //            dumpFile(ss, "", 0);
-
-            printf("   Carrier changes: ");
-            sprintf(ss, "/sys/class/net/%s/carrier_changes", ifa->ifa_name);
-	    double cc = getValueFromFile(ss, 1);
-	    printf("%.0lf\n", cc);
-	    //            dumpFile(ss, "", 0);
-
-
-        }
-        /*else if (family == AF_PACKET && ifa->ifa_data != NULL) {
-          struct rtnl_link_stats *stats = ifa->ifa_data;
-
-          printf("\t\ttx_packets = %10u; rx_packets = %10u\n"
-             "\t\ttx_bytes   = %10u; rx_bytes   = %10u\n",
-             stats->tx_packets, stats->rx_packets,
-             stats->tx_bytes, stats->rx_bytes);
-             }*/
-    }
-
-    freeifaddrs(ifaddr);
+  } else {
+    perror("connect");
+  }
+  sockclose(fd);
 }
 
 
@@ -1392,6 +1318,24 @@ void cmd_listDriveBlockDevices(int tty, const char *second) {
     }
 
     procDiskStatsFree(&d);
+
+
+
+  if (tty) {}
+  int fd = sockconnect("127.0.0.1", 1600, 0);
+  if (fd) {
+    socksend(fd, "block\n", 7, 1);
+    char *buffer = calloc(1024000, 1); assert(buffer);
+    int ret = sockrec(fd, buffer, 1024000, 0, 1);
+    if (ret >= 0) {
+      printf("%s", buffer);
+    } else {
+      perror("recv");
+    }
+  } else {
+    perror("connect");
+  }
+  sockclose(fd);    
 }
 
 void cmd_cpu(const int tty) {
@@ -1713,8 +1657,6 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 		cmd_setenv(tty, rest);
             } else if (strcasecmp(commands[i].name, "lsnic") == 0) {
                 cmd_listNICs(tty);
-            } else if (strcasecmp(commands[i].name, "ip") == 0) {
-                cmd_listNICs2(tty);
             } else if (strcasecmp(commands[i].name, "lspci") == 0) {
 	      cmd_listPCI(tty, 0x0200, "Networking");
 	      cmd_listPCI(tty, 0x0100, "Storage");
