@@ -78,7 +78,7 @@ void *respondMC(void *arg) {
      } else if (cnt == 0) {
        break;
      }
-     message[cnt] = 0; // make it terminated nicely
+     if (cnt < 200) message[cnt] = 0; // make it terminated nicely
 
      //          fprintf(stderr, "**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
 

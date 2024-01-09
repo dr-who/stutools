@@ -135,9 +135,12 @@ void *receiver(void *arg) {
 	  
 	  blockDevicesScan(bd);
 
-	  char *s = blockDevicesAllJSON(bd);
-	  socksend(connfd, s, 0, 0);
-	  free(s);
+	  for (size_t q = 0; q < bd->num; q++) {
+	    //	  char *s = blockDevicesAllJSON(bd);
+	    char *s = keyvalueDumpAsJSON(bd->devices[q].kv);
+	    socksend(connfd, s, 0, 0);
+	    free(s);
+	  }
 	  
 	  blockDevicesFree(bd);
 	} else {

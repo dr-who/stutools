@@ -555,12 +555,11 @@ void cmd_cluster(const int tty) {
   if (fd) {
     socksend(fd, "cluster\n", 7, 1);
     char *buffer = calloc(1024, 1); assert(buffer);
-    int ret = sockrec(fd, buffer, 1024, 0, 1);
-    if (ret >= 0) {
+    int ret;
+    while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
       printf("%s", buffer);
-    } else {
-      perror("recv");
     }
+    free(buffer);
   } else {
     perror("connect");
   }
@@ -1070,12 +1069,11 @@ void cmd_listNICs(int tty) {
   if (fd) {
     socksend(fd, "interfaces\n", 10, 1);
     char *buffer = calloc(1024, 1); assert(buffer);
-    int ret = sockrec(fd, buffer, 1024, 0, 1);
-    if (ret >= 0) {
+    int ret = 0;
+    while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
       printf("%s", buffer);
-    } else {
-      perror("recv");
     }
+    free(buffer);
   } else {
     perror("connect");
   }
@@ -1264,74 +1262,17 @@ size_t countDriveBlockDevices() {
 }
 
 
-void cmd_listDriveBlockDevices(int tty, const char *second) {
-    if (tty) {}
-    size_t major = 0;
-
-    if (second) {
-      major = atoi(second);
-    }
-
-    procDiskStatsType d;
-    procDiskStatsInit(&d);
-    procDiskStatsSample(&d);
-
-    if (tty) printf("%s", BOLD);
-    printf("device   \tencrypt\t bits\t majmin\tGB\tvendor\t%-18s\t%-10s\n", "model", "serial");
-    if (tty) printf("%s", END);
-
-    for (size_t i = 0; i < d.num && keepRunning; i++) {
-        if ((major == 0) || (d.devices[i].majorNumber == major)) {
-            char path[PATH_MAX];
-            sprintf(path, "/dev/%s", d.devices[i].deviceName);
-            size_t bdsize = blockDeviceSize(path);
-            double entropy = NAN;
-
-            const int bufsize = 80 * 20 * 4096;
-            unsigned char *buffer = memalign(4096, bufsize);
-            assert(buffer);
-            memset(buffer, 0, bufsize);
-
-            int fd = open(path, O_RDONLY);
-            char *serial = NULL;
-            if (fd) {
-                int didread = read(fd, buffer, bufsize);
-                if (didread) {
-                    entropy = entropyTotalBytes(buffer, bufsize);
-                    serial = serialFromFD(fd);
-                    //	  	  fprintf(stderr,"%s read %d, entropy %lf\n", path, didread, entropy / bufsize);
-                }
-                close(fd);
-            } else {
-                perror(path);
-            }
-            free(buffer);
-            int encrypted = 0;
-            if (entropy / bufsize > 7.9) {
-                encrypted = 1;
-            }
-            printf("/dev/%s\t%s\t %.1lf\t %zd:%zd\t%.0lf\t%s\t%-18s\t%-10s\n", d.devices[i].deviceName,
-                   encrypted ? "Encrypt" : "No", entropy / bufsize, d.devices[i].majorNumber, d.devices[i].minorNumber,
-                   TOGB(bdsize), d.devices[i].idVendor, d.devices[i].idModel, serial ? serial : "can't open");
-            free(serial);
-        }
-    }
-
-    procDiskStatsFree(&d);
-
-
-
+void cmd_listDriveBlockDevices(int tty) {
   if (tty) {}
   int fd = sockconnect("127.0.0.1", 1600, 0);
   if (fd) {
     socksend(fd, "block\n", 7, 1);
-    char *buffer = calloc(1024000, 1); assert(buffer);
-    int ret = sockrec(fd, buffer, 1024000, 0, 1);
-    if (ret >= 0) {
+    char *buffer = calloc(1024, 1); assert(buffer);
+    int ret = 0;
+    while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
       printf("%s", buffer);
-    } else {
-      perror("recv");
     }
+    free(buffer);
   } else {
     perror("connect");
   }
@@ -1619,7 +1560,7 @@ int run_command(const int tty, char *line, const char *username, const char *hos
             } else if (strcasecmp(commands[i].name, "pwgen") == 0) {
                 cmd_pwgen(tty, rest);
             } else if (strcasecmp(commands[i].name, "lsblk") == 0) {
-                cmd_listDriveBlockDevices(tty, rest);
+                cmd_listDriveBlockDevices(tty);
             } else if (strcasecmp(commands[i].name, "raidsim") == 0) {
 	        cmd_raidsim(tty, line); // needs the whole line
             } else if (strcasecmp(commands[i].name, "entropy") == 0) {
