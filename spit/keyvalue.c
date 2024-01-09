@@ -45,7 +45,7 @@ keyvalueType *keyvalueInitFromString(char *par) {
     }
   }
   free(parse);
-  fprintf(stderr,"bytes to use %zd\n", p->byteLen);
+  //  fprintf(stderr,"bytes to use %zd\n", p->byteLen);
   return p;
 }
 		

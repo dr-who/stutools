@@ -30,9 +30,13 @@ extern int keepRunning;
 #include "advertise-mc.h"
 #include "multicast.h"
 #include "keyvalue.h"
+#include "sat.h"
+#include "cluster.h"
 
 void *advertiseMC(void *arg) {
-  if (arg) {}
+  threadMsgType *tc = (threadMsgType *) arg;
+
+    clusterType *cluster = tc->cluster;
   
   struct sockaddr_in addr;
   int count = 0;
@@ -72,11 +76,12 @@ void *advertiseMC(void *arg) {
     keyvalueType *kv = keyvalueInit();
     keyvalueSetString(kv, "node", buf.nodename);
     keyvalueSetLong(kv, "time", (long)now);
+    keyvalueSetLong(kv, "cluster", cluster->id);
     keyvalueSetLong(kv, "port", 1600);
     //    keyvalueSetString(kv, "shell", "stush");
     keyvalueSetLong(kv, "started", (long)starttime);
     char *message = keyvalueDumpAsString(kv);
-    fprintf(stderr,"mc:%s\n", message);
+    //    fprintf(stderr,"mc:%s\n", message);
     cnt = sendto(sock, message, strlen(message), 0,
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {
