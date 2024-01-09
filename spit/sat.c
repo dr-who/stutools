@@ -59,6 +59,7 @@ void *receiver(void *arg) {
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(int)) == -1) {
 	  //            perror("Setsockopt");
 	  close(sockfd);
+	  shutdown(sockfd, SHUT_RDWR);
 	  continue;
 	    //            exit(1);
         }
@@ -77,6 +78,7 @@ void *receiver(void *arg) {
         if (bind(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) == -1) {
 	  //            perror("Bind Error");
 	  close(sockfd);
+ 	  shutdown(sockfd, SHUT_RDWR);
 	  continue;
 	    //            exit(1);
         }
@@ -84,6 +86,7 @@ void *receiver(void *arg) {
         if (listen(sockfd, serverport) == -1) {
 	  //            perror("Listen Error");
 	  close(sockfd);
+ 	  shutdown(sockfd, SHUT_RDWR);
 	  continue;
 	    //            exit(1);
         }
@@ -152,10 +155,11 @@ void *receiver(void *arg) {
 
     end:
 	  
-	shutdown(sockfd, SHUT_RDWR);
 	close(sockfd);
 	
 	close(connfd);
+	shutdown(sockfd, SHUT_RDWR);
+	shutdown(connfd, SHUT_RDWR);
     }
     return NULL;
 }

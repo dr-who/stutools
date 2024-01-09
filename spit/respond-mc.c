@@ -19,7 +19,7 @@ multicast.c
 
 #include "respond-mc.h"
 #include "multicast.h"
-
+#include "utilstime.h"
 
 #include "cluster.h"
 #include "simpsock.h"
@@ -70,7 +70,8 @@ void *respondMC(void *arg) {
 		  &mreq, sizeof(mreq)) < 0) {
      perror("setsockopt mreq");
      //     exit(1);
-   }         
+   }
+   //   double last = timeAsDouble();
    while (1) {
      cnt = recvfrom(sock, message, 200, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
@@ -95,7 +96,7 @@ void *respondMC(void *arg) {
        //              fprintf(stderr,"%s\n", ss);
        //	             free(ss);
        
-       int nodeid = 0, port = 1600;
+       int nodeid = 0; // port = 1600;
        
        char *nodename = keyvalueGetString(kv, "node");
        if (nodename) {
@@ -116,13 +117,20 @@ void *respondMC(void *arg) {
 	 }
 	 
 	 clusterUpdateSeen(cluster, nodeid);
-	 
-	 int sock = sockconnect(node, port, 5);
-	 if (sock > 0) {
-	   socksend(sock, "Hello\n", 0, 1);
-	   close(sock);
-	   shutdown(sock, SHUT_RDWR);
-	 }
+
+	 /*	 if (timeAsDouble() - last >= 1) {
+	   // hello every 10 seconds
+	   last = timeAsDouble();
+	   int sock = sockconnect(node, port, 5);
+	   if (sock > 0) {
+	     char buff[100000];
+	     socksend(sock, "Hello\n", 0, 1);
+	     sockrec(sock, buff, 100000, 0, 1);
+	     printf("res:%s\n", buff);
+	     close(sock);
+	     shutdown(sock, SHUT_RDWR);
+	   }
+	   }*/
        }
      } else {
        fprintf(stderr,"problem parsing: %s\n", message);
