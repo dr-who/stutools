@@ -45,6 +45,7 @@ keyvalueType *keyvalueInitFromString(char *par) {
     }
   }
   free(parse);
+  fprintf(stderr,"bytes to use %zd\n", p->byteLen);
   return p;
 }
 		
@@ -192,23 +193,25 @@ char *keyvalueGetString(keyvalueType *kv, const char *key) {
   
 char *keyvalueDumpAsString(keyvalueType *kv) {
   keyvalueSort(kv);
-  char *s = calloc(3*kv->byteLen, 3);
+  int maxbytes = 3*kv->byteLen;
+  
+  char *s = calloc(maxbytes, 1); assert(s);
   for (size_t i = 0; i < kv->num; i++) {
     if (i > 0) {
-      strcat(s, " ");
+      strncat(s, " ", maxbytes);
     }
-    strcat(s, kv->pairs[i].key);
+    strncat(s, kv->pairs[i].key, maxbytes);
     if (kv->pairs[i].type == 0 || kv->pairs[i].type==2) { // 0 == string
-      strcat(s, ":");
-      strcat(s, kv->pairs[i].value);
+      strncat(s, ":", maxbytes);
+      strncat(s, kv->pairs[i].value, maxbytes);
     } else {
       char str[1000];
       sprintf(str, "%ld", kv->pairs[i].longvalue);
-      strcat(s, ";");
-      strcat(s, str);
+      strncat(s, ";", maxbytes);
+      strncat(s, str, maxbytes);
     }
   }
-  strcat(s, "  !");
+  strncat(s, "\0", maxbytes); // end with a 0?
   return s;
 }
 

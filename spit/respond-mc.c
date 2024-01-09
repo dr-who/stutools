@@ -89,6 +89,9 @@ void *respondMC(void *arg) {
      long startedtime = 0;//
      char *node = inet_ntoa(addr.sin_addr);
 
+
+     fprintf(stderr,"rec:%s\n", message);
+     
      keyvalueType *kv = keyvalueInitFromString(message);
      if (kv->num >= 2) {
        char *ss = keyvalueDumpAsJSON(kv);
