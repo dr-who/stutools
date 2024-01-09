@@ -29,6 +29,7 @@ extern int keepRunning;
 #include "utilstime.h"
 #include "advertise-mc.h"
 #include "multicast.h"
+#include "keyvalue.h"
 
 void *advertiseMC(void *arg) {
   if (arg) {}
@@ -37,7 +38,6 @@ void *advertiseMC(void *arg) {
   int count = 0;
   int addrlen, sock, cnt;
   double starttime = timeAsDouble();
-  char *message = calloc(100, 1); assert(message);
   
   /* set up socket */
   sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -67,14 +67,26 @@ void *advertiseMC(void *arg) {
 
   while (keepRunning) {
     double now = timeAsDouble();
-     
-    sprintf(message, "%s %.0lf %.0lf 1600 stush", buf.nodename, now, starttime);
+
+
+    keyvalueType *kv = keyvalueInit();
+    keyvalueSetString(kv, "node", buf.nodename);
+    keyvalueSetLong(kv, "time", now);
+    keyvalueSetLong(kv, "port", 1600);
+    keyvalueSetString(kv, "shell", "stush");
+    keyvalueSetLong(kv, "started", starttime);
+    char *message = keyvalueDumpAsString(kv);
+    //    fprintf(stderr,"%s\n", ss);
     cnt = sendto(sock, message, strlen(message), 0,
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {
       perror("sendto");
       //      exit(1);
     }
+    free(message);
+    keyvalueFree(kv);
+    
+
 
     count++;
     sleep(count < 3600 ? 1 : 20);

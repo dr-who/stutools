@@ -21,6 +21,7 @@ typedef struct {
 } keyvalueType;
 
 keyvalueType *keyvalueInit();
+keyvalueType *keyvalueInitFromString(char *parse);
 
 size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value);
 size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value);
@@ -32,7 +33,7 @@ size_t keyvalueDeleteWithKey(keyvalueType *kv, char *key);
 int keyvalueFindKey(keyvalueType *kv, const char *key);
 int keyvalueGetType(keyvalueType *kv, const char *key);
 long keyvalueGetLong(keyvalueType *kv, const char *key);
-char *keyvalueGetValue(keyvalueType *kv, const char *key);
+char *keyvalueGetString(keyvalueType *kv, const char *key);
 
 char *keyvalueDumpAsString(keyvalueType *kv);
 char *keyvalueDumpAsJSON(keyvalueType *kv);
