@@ -96,7 +96,7 @@ int sockrec(int fd, char *buffer, int len, int flags, const int quiet) {
 
 
 int sockclose(int fd) {
-  shutdown(fd, SHUT_RDWR);
   int r = close(fd);
+  shutdown(fd, SHUT_RDWR);
   return r;
 }

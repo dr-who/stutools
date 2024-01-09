@@ -39,6 +39,7 @@ void *respondMC(void *arg) {
 
    /* set up socket */
    sock = socket(AF_INET, SOCK_DGRAM, 0);
+   fprintf(stderr,"opening socket %d\n", sock);
    if (sock < 0) {
      perror("socket");
      //     exit(1);
@@ -61,7 +62,8 @@ void *respondMC(void *arg) {
    if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {        
      perror("bind");
      //     exit(1);
-   }    
+   }
+   printf("binding\n");
    mreq.imr_multiaddr.s_addr = inet_addr(EXAMPLE_GROUP);         
    mreq.imr_interface.s_addr = htonl(INADDR_ANY);         
    if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
@@ -93,7 +95,7 @@ void *respondMC(void *arg) {
        //              fprintf(stderr,"%s\n", ss);
        //	             free(ss);
        
-       int nodeid = 0, port = 0;
+       int nodeid = 0, port = 1600;
        
        char *nodename = keyvalueGetString(kv, "node");
        if (nodename) {
@@ -118,8 +120,9 @@ void *respondMC(void *arg) {
 	 int sock = sockconnect(node, port, 5);
 	 if (sock > 0) {
 	   socksend(sock, "Hello\n", 0, 1);
+	   close(sock);
+	   shutdown(sock, SHUT_RDWR);
 	 }
-	 close(sock);
        }
      } else {
        fprintf(stderr,"problem parsing: %s\n", message);

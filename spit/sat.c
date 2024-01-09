@@ -153,7 +153,7 @@ void *receiver(void *arg) {
 
     end:
 	  
-	//	shutdown(sockfd, SHUT_RDWR);
+	shutdown(sockfd, SHUT_RDWR);
 	close(sockfd);
 	
 	close(connfd);
@@ -190,6 +190,8 @@ void startThreads(interfacesIntType *n, const int serverport) {
 	  pthread_create(&(pt[i]), NULL, advertiseMC, &(tc[i]));
 	}
     }
+
+    sleep(100);
 
     for (size_t i = 0; i < num; i++) {
       pthread_join(pt[i], NULL);
