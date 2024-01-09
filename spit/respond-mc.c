@@ -96,8 +96,9 @@ void *respondMC(void *arg) {
        //              fprintf(stderr,"%s\n", ss);
        //	             free(ss);
        
-       int nodeid = 0; // port = 1600;
-       
+       int nodeid = 0; 
+
+       int port = keyvalueGetLong(kv, "port");
        char *nodename = keyvalueGetString(kv, "node");
        if (nodename) {
 	 //     senttime = keyvalueGetLong(kv, "time");
@@ -118,19 +119,17 @@ void *respondMC(void *arg) {
 	 
 	 clusterUpdateSeen(cluster, nodeid);
 
-	 /*	 if (timeAsDouble() - last >= 1) {
 	   // hello every 10 seconds
-	   last = timeAsDouble();
-	   int sock = sockconnect(node, port, 5);
-	   if (sock > 0) {
+	 //	   last = timeAsDouble();
+	   int nsock = sockconnect(node, port, 5);
+	   if (nsock > 0) {
 	     char buff[100000];
-	     socksend(sock, "Hello\n", 0, 1);
-	     sockrec(sock, buff, 100000, 0, 1);
-	     printf("res:%s\n", buff);
-	     close(sock);
-	     shutdown(sock, SHUT_RDWR);
+	     socksend(nsock, "Hello\n", 0, 1);
+	     sockrec(nsock, buff, 100000, 0, 1);
+	     //	     printf("res:%s\n", buff);
+	     close(nsock);
+	     shutdown(nsock, SHUT_RDWR);
 	   }
-	   }*/
        }
      } else {
        fprintf(stderr,"problem parsing: %s\n", message);
