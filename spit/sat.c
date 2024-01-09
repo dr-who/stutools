@@ -16,19 +16,14 @@
 #include "transfer.h"
 
 #include "utils.h"
-#include "numList.h"
 
 #include <glob.h>
 
 #include "advertise-mc.h"
 #include "respond-mc.h"
-#include "echo.h"
-#include "queue.h"
 
 int keepRunning = 1;
 int tty = 0;
-
-volatile queueType *hostsToMonitor;
 
 void intHandler(int d) {
     if (d) {}
@@ -46,95 +41,7 @@ void intHandler(int d) {
 #include "ipcheck.h"
 #include "simpsock.h"
 
-char * stringListToJSON(char *inc) {
-  if (inc == NULL) return NULL;
-  
-  char *buf = calloc(1,1000000); assert(buf);
-  char *ret = buf;
-
-  buf += sprintf(buf, "{\n\t\"servers\": [");
-  
-  char *s = strdup(inc);
-  char *first = NULL, *second = NULL;
-  first = strtok(s, " ");
-
-  buf += sprintf(buf, "\"%s\"", first);
-
-  while ((second = strtok(NULL, " "))) {
-    buf += sprintf(buf, ", \"%s\"", second);
-  }
-
-  buf += sprintf(buf, "] }\n");
-  char *ret2 = strdup(ret);
-  free(ret);
-  return ret2;
-}
-
  
-static void *client(void *arg) {
-  if (arg) {};
-
-  while (1) {
-    sleep(1);
-  }
-  return NULL;
-}
-
-
-    
-  
-
-
-/*static void *scanner(void *arg) {
-  if (arg) {}
-  fprintf(stderr,"*scanner*\n");
-  while (keepRunning) {
-    ipCheckType *ipc = ipCheckInit();
-    ipCheckAllInterfaceRanges(ipc);
-
-    unsigned int ip = 0;
-    while ((ip = ipCheckOpenPort(ipc, 1600, 0.05, 1)) != 0) {
-      unsigned int ip1, ip2, ip3, ip4;
-      ipRangeNtoA(ip, &ip1, &ip2, &ip3, &ip4);
-      char s[20];
-      sprintf(s,"%u.%u.%u.%u", ip1, ip2, ip3, ip4);
-      queueAdd(hostsToMonitor, s);
-      printf("adding to queue %s\n", s);
-      sleep(10);
-    }      
-    
-    //    ipCheckShowFound(ipc);
-    ipCheckFree(ipc);
-    sleep(60);
-  }
-  return NULL;
-}
-
-*/
-
-static void *display(void *arg) {
-  if (arg) {}
-  //  threadMsgType *d = (threadMsgType*)arg;
-  while (keepRunning) {
-    sleep(1);
-    /*    if (arg) {
-      char s[PATH_MAX];
-      sprintf(s, "/proc/%d/fd/", getpid());
-      const size_t np = numberOfDirectories(s);
-      fprintf(stderr,"*info* openfiles=%zd, cluster: %zd\n", np, cluster->id);
-      if (np > 1000) {
-	exit(-2);
-      }
-      char *json = clusterDumpJSONString(cluster);
-      printf("%s", json);
-      free(json);
-      //      fprintf(stderr,"*display %d*\n", d->id);
-      sleep(5);
-      }*/
-  }
-  return NULL;
-}
-
 void *receiver(void *arg) {
     threadMsgType *tc = (threadMsgType *) arg;
 
@@ -197,13 +104,13 @@ void *receiver(void *arg) {
 	  goto end;
 	}
 
-	fprintf(stderr, "received a string: %s\n", buffer);
+	//	fprintf(stderr, "received a string: %s\n", buffer);
 	
 	if (strncmp(buffer,"Hello",5)==0) {
 	  char s1[100],ipa[100];
 	  printf("buffer: %s\n", buffer);
 	  sscanf(buffer,"%*s %s %s", s1,ipa);
-	  fprintf(stderr,"*server says it's a welcome/valid client ... %s %s\n", s1, ipa);
+	  //	  fprintf(stderr,"*server says it's a welcome/valid client ... %s %s\n", s1, ipa);
 
 	  struct utsname buf;
 	  uname(&buf);
@@ -240,17 +147,12 @@ void *receiver(void *arg) {
 }
 
 
-void msgStartServer(interfacesIntType *n, const int serverport) {
+void startThreads(interfacesIntType *n, const int serverport) {
   fprintf(stderr,"**start** Stu's Autodiscover Tool (sat)  ->  port %d\n", serverport);
 
     pthread_t *pt;
     threadMsgType *tc;
-    double *lasttime;
-    const int extras = 4;
-    // 4 extras. MC adv. MC watch. display and receive requests
-
-    size_t num = 30; // threads
-    CALLOC(lasttime, num, sizeof(double));
+    size_t num = 3; // threads
 
     CALLOC(pt, num, sizeof(pthread_t));
     CALLOC(tc, num, sizeof(threadMsgType));
@@ -262,33 +164,15 @@ void msgStartServer(interfacesIntType *n, const int serverport) {
         tc[i].num = num;
         tc[i].serverport = serverport;
 	tc[i].n = n;
-        tc[i].lasttime = lasttime;
         tc[i].starttime = timeAsDouble();
 	tc[i].cluster = cluster;
-	if (i < num -extras) {
-	  tc[i].eth = NULL; //ipcheck->interface[i];
-	  /*
-	  unsigned int ip1 = 0, ip2 = 0, ip3 = 0, ip4 = 0;
-	  ipRangeNtoA(ipcheck->ips[i].ip, &ip1, &ip2, &ip3, &ip4);
-	  sprintf(s, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
-	  tc[i].tryhost = strdup(s);
-	  */
-
-	  struct utsname buf;
-	  uname(&buf);
-	  char s[200];
-	  sprintf(s, "%s-%s-%s-%zd", buf.nodename, tc[i].tryhost, tc[i].eth, interfaceSpeed(tc[i].eth));
-	  tc[i].fqn = strdup(s);
-	  tc[i].tryhost = NULL;
-	  pthread_create(&(pt[i]), NULL, client, &(tc[i]));
-	} else if (i == num-extras) {
+	tc[i].eth = NULL; 
+	if (i == 0) {
 	  pthread_create(&(pt[i]), NULL, respondMC, &(tc[i]));
-	} else if (i == num-3) {
+	} else if (i == 1) {
 	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
-	} else if (i == num-2) {
+	} else if (i == 2) {
 	  pthread_create(&(pt[i]), NULL, advertiseMC, &(tc[i]));
-	} else if (i == num-1) {
-	  pthread_create(&(pt[i]), NULL, display, &(tc[i]));
 	}
     }
 
@@ -309,14 +193,17 @@ int main() {
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 
-  hostsToMonitor = queueInit();
-
-
   interfacesIntType *n = interfacesInit();
   interfacesScan(n);
 
-  const int port = 1600;
-  msgStartServer(n, port);
+  int port = 1600;
+  if (getenv("SAT_PORT")) {
+    port = atoi(getenv("SAT_PORT"));
+    fprintf(stderr,"systemd environment SAT_PORT is %d\n", port);
+    if (port < 1) port = 1600;
+  }
+
+  startThreads(n, port);
 
   return 0;
 }

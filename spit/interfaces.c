@@ -104,7 +104,7 @@ void interfacesAddIP(interfacesIntType *d, const char *nic, const char *ip, cons
   assert(d->id);
   for (size_t i = 0; i < d->id; i++) {
     if (strcmp(d->nics[i]->devicename, nic) == 0) {
-            fprintf(stderr,"call: adding to %s, ip %s\n", nic, ip);
+      //            fprintf(stderr,"call: adding to %s, ip %s\n", nic, ip);
       phyType *p = d->nics[i];
       
       int index = p->num;

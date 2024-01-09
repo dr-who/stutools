@@ -13,6 +13,7 @@
 
 // a cluster all has the same port
 clusterType * clusterInit(const size_t port) {
+  fprintf(stderr,"clusterInit on port %zd\n", port);
   clusterType *p = calloc(1, sizeof(clusterType)); assert(p);
   p->port = port;
 

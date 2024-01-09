@@ -2,7 +2,9 @@
 Description=Stu's automatic topology
 After=network.target
 StartLimitIntervalSec=0
+
 [Service]
+Environment=SAT_PORT=1600
 Type=simple
 Restart=always
 RestartSec=1

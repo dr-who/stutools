@@ -32,6 +32,27 @@ int main() {
 		int fd = open(path, O_RDONLY | O_EXCL);
 		if (fd) {
 		  keyvalueType *k = keyvalueInit();
+
+		  char *suf = getSuffix(path);
+		  char isr[100];
+		  sprintf(isr,"/sys/block/%s/queue/rotational", suf);
+		  int rot = getValueFromFile(isr, 1);
+		  if (rot) {
+		    keyvalueSetString(k, "type", "HDD");
+		  } else {
+		    keyvalueSetString(k, "type", "SSD");
+		  }
+
+		  if (getWriteCache(suf) == 0) {
+		    keyvalueSetString(k, "writeCache", "write back");
+		  } else {
+		    keyvalueSetString(k, "writeCache", "write thru");
+		  }
+		  
+		  //
+		  free(suf);
+
+		  
 		  unsigned int major = 0,minor = 0;
 		  majorAndMinor(fd, &major, &minor);
 		  keyvalueAddString(k, "paths", path);
