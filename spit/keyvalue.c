@@ -192,7 +192,7 @@ char *keyvalueGetString(keyvalueType *kv, const char *key) {
   
 char *keyvalueDumpAsString(keyvalueType *kv) {
   keyvalueSort(kv);
-  char *s = calloc(1, 3*kv->byteLen);
+  char *s = calloc(3*kv->byteLen, 3);
   for (size_t i = 0; i < kv->num; i++) {
     if (i > 0) {
       strcat(s, " ");
@@ -202,18 +202,19 @@ char *keyvalueDumpAsString(keyvalueType *kv) {
       strcat(s, ":");
       strcat(s, kv->pairs[i].value);
     } else {
-      char str[100];
+      char str[1000];
       sprintf(str, "%ld", kv->pairs[i].longvalue);
       strcat(s, ";");
       strcat(s, str);
     }
   }
+  strcat(s, "  !");
   return s;
 }
 
 char *keyvalueDumpAsJSON(keyvalueType *kv) {
   keyvalueSort(kv);
-  char *s = calloc(1, 3*kv->byteLen);
+  char *s = calloc(3*kv->byteLen, 1);
   size_t level = 0;
 
   strcat(s, "{\n");
@@ -236,7 +237,7 @@ char *keyvalueDumpAsJSON(keyvalueType *kv) {
       strcat(s, "\" } ]");
       level--;
     } else {
-      char str[100];
+      char str[1000];
       sprintf(str, "%ld", kv->pairs[i].longvalue);
       strcat(s, str);
     }

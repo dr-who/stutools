@@ -73,7 +73,7 @@ void *advertiseMC(void *arg) {
     keyvalueSetString(kv, "node", buf.nodename);
     keyvalueSetLong(kv, "time", (long)now);
     keyvalueSetLong(kv, "port", 1600);
-    keyvalueSetString(kv, "shell", "stush");
+    //    keyvalueSetString(kv, "shell", "stush");
     keyvalueSetLong(kv, "started", (long)starttime);
     char *message = keyvalueDumpAsString(kv);
     fprintf(stderr,"mc:%s\n", message);

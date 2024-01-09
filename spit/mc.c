@@ -76,6 +76,7 @@ main(int argc)
 	 exit(1);
       }         
       while (1) {
+	memset(message, 0, 200);
  	 cnt = recvfrom(sock, message, 200, 0, 
 			(struct sockaddr *) &addr, &addrlen);
 	 if (cnt < 0) {
@@ -84,6 +85,7 @@ main(int argc)
 	 } else if (cnt == 0) {
  	    break;
 	 }
+
 	 printf("%s: %s\n", inet_ntoa(addr.sin_addr), message);
         }
     }

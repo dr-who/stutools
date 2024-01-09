@@ -86,7 +86,7 @@ void *respondMC(void *arg) {
 
      //          fprintf(stderr, "**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
 
-     double startedtime = 0;//
+     long startedtime = 0;//
      char *node = inet_ntoa(addr.sin_addr);
 
      keyvalueType *kv = keyvalueInitFromString(message);
