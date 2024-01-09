@@ -50,12 +50,27 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  char *suf = getSuffix(path);
 		  char isr[100];
 		  sprintf(isr,"/sys/block/%s/queue/rotational", suf);
+
 		  int rot = getValueFromFile(isr, 1);
 		  if (rot) {
 		    keyvalueSetString(k, "type", "HDD");
 		  } else {
 		    keyvalueSetString(k, "type", "SSD");
 		  }
+
+		  //		  /sys/block/dev name/queue/chunk_sectors
+		  sprintf(isr,"/sys/block/%s/queue/zoned", suf);
+		  char *zoned = getStringFromFile(isr, 1);
+		  if (zoned) keyvalueSetString(k, "zoned", zoned);
+		  free(zoned);
+
+		  if (zoned && (strcmp(zoned, "none")!=0)) {
+		    sprintf(isr,"/sys/block/%s/queue/chunk_sectors", suf);
+		    int chunk  = getValueFromFile(isr, 1);
+		    if (chunk) 
+		      keyvalueSetLong(k, "zonesize", chunk);
+		  }
+
 
 		  if (getWriteCache(suf) == 0) {
 		    keyvalueSetString(k, "writeCache", "write-back");
