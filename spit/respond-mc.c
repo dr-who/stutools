@@ -38,7 +38,7 @@ void *respondMC(void *arg) {
 
   struct sockaddr_in addr;
    int sock, cnt;
-   socklen_t addrlen;
+   //   socklen_t addrlen;
    struct ip_mreq mreq;
    char *message = calloc(200, 1); assert(message);
 
@@ -49,17 +49,17 @@ void *respondMC(void *arg) {
      //     exit(1);
    }
 
-   const int enable = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
-    perror("setsockopt(SO_REUSEADDR) failed");
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0)
-    perror("setsockopt(SO_REUSEADDR) failed");
+   //   const int enable = 1;
+   //  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+   //    perror("setsockopt(SO_REUSEADDR) failed");
+   //  if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0)
+   //    perror("setsockopt(SO_REUSEADDR) failed");
 
   bzero((char *)&addr, sizeof(addr));
    addr.sin_family = AF_INET;
    addr.sin_addr.s_addr = htonl(INADDR_ANY);
    addr.sin_port = htons(EXAMPLE_PORT);
-   addrlen = sizeof(addr);
+   //   addrlen = sizeof(addr);
 
    
    /* receive */
@@ -75,14 +75,16 @@ void *respondMC(void *arg) {
      //     exit(1);
    }         
    while (1) {
-     cnt = recvfrom(sock, message, 200, 0, 
+     cnt = sockrec(sock, message, 200, 0, 0);
+     /*     cnt = recvfrom(sock, message, 200, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {
        perror("recvfrom");
        //       exit(1);
      } else if (cnt == 0) {
        break;
-     }
+       }*/
+     message[cnt] = 0;
 
      //          fprintf(stderr, "**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
 

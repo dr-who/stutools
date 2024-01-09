@@ -53,7 +53,7 @@ main(int argc)
 	 time_t t = time(0);
 	 sprintf(message, "time is %-24.24s", ctime(&t));
 	 printf("sending: %s\n", message);
-	 cnt = sendto(sock, message, sizeof(message), 0,
+	 cnt = sendto(sock, message, strlen(message), 0,
 		      (struct sockaddr *) &addr, addrlen);
 	 if (cnt < 0) {
  	    perror("sendto");
@@ -76,8 +76,7 @@ main(int argc)
 	 exit(1);
       }         
       while (1) {
-	memset(message, 0, 200);
- 	 cnt = recvfrom(sock, message, 200, 0, 
+	cnt = recvfrom(sock, message, 200, 0, 
 			(struct sockaddr *) &addr, &addrlen);
 	 if (cnt < 0) {
 	    perror("recvfrom");
@@ -85,8 +84,9 @@ main(int argc)
 	 } else if (cnt == 0) {
  	    break;
 	 }
+	 message[cnt] = '\0';
 
-	 printf("%s: %s\n", inet_ntoa(addr.sin_addr), message);
+	 printf("%s: '%s' %d\n", inet_ntoa(addr.sin_addr), message, cnt);
         }
     }
 }
