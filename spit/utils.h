@@ -241,6 +241,7 @@ void timeToDHS(time_t t, time_t *d, time_t *h, time_t *s);
 size_t isSSHLogin();
 
 double getValueFromFile(const char *filename, const int quiet);
+char * getStringFromFile(const char *filename, const int quiet);
 
 void printBinary(const unsigned long value, const size_t bits);
 

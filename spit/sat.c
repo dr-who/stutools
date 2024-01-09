@@ -128,7 +128,6 @@ void *receiver(void *arg) {
 	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
 	  char *json = clusterDumpJSONString(tc->cluster);
 	  socksend(connfd, json, 0, 1);
-	  socksend(connfd, "\n", 0, 1);
 	  free(json);
 	} else if (strncmp(buffer,"block", 5)==0) {
 	  blockDevicesType *bd = blockDevicesInit();

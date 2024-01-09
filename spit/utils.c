@@ -2135,6 +2135,24 @@ double getValueFromFile(const char *filename, const int quiet) {
   return value;
 }
 
+char * getStringFromFile(const char *filename, const int quiet) {
+  FILE *fp = fopen (filename, "rt");
+  char result[1024];
+  if (fp) {
+    int ret = fscanf(fp, "%s", result);
+    if (ret != 1) {
+      return NULL;
+    }
+    fclose(fp);
+  } else {
+    if (quiet == 0) { 
+      perror(filename);
+    }
+    return NULL;
+  }
+  return strdup(result);
+}
+
   
 void printBinary(const unsigned long value, const size_t bits) {
   for (int i = bits-1; i >= 0; i--) {
