@@ -87,7 +87,6 @@ void *advertiseMC(void *arg) {
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {
       perror("sendto");
-      //      exit(1);
     }
     free(message);
     keyvalueFree(kv);
@@ -95,7 +94,7 @@ void *advertiseMC(void *arg) {
 
 
     count++;
-    sleep(count < 3600 ? 1 : 20);
+    sleep (2);
   }
   return NULL;
 }

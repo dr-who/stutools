@@ -85,7 +85,6 @@ void *respondMC(void *arg) {
      long startedtime = 0;//
      char *node = inet_ntoa(addr.sin_addr);
 
-
      //fprintf(stderr,"rec:%s\n", message);
      
      keyvalueType *kv = keyvalueInitFromString(message);
@@ -125,9 +124,7 @@ void *respondMC(void *arg) {
      } else {
        fprintf(stderr,"problem parsing: %s\n", message);
      }
-     
-     sleep(1);
-   }
+   } // while 1
  return NULL;
 }
 
