@@ -101,6 +101,7 @@ void *receiver(void *arg) {
 
 	char buffer[1024];
 	if (sockrec(connfd, buffer, 1024, 0, 1) < 0) {
+	  fprintf(stderr, "din'yt get a string\n");
 	  goto end;
 	}
 
@@ -125,12 +126,12 @@ void *receiver(void *arg) {
 	} else if (strncmp(buffer,"cluster",7)==0) {
 	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
 	  char *json = clusterDumpJSONString(tc->cluster);
-	  socksend(connfd, json, 0, 0);
-	  socksend(connfd, "\n", 0, 0);
+	  socksend(connfd, json, 0, 1);
+	  socksend(connfd, "\n", 0, 1);
 	  free(json);
 	} else {
-	  sleep(1);
 	  //	    fprintf(stderr,"*unknown handshake, invalid client\n");
+	  sleep(1);
 	}
 	
 	//	fprintf(stderr,"end of server loop\n");
@@ -138,7 +139,7 @@ void *receiver(void *arg) {
 
     end:
 	  
-	shutdown(sockfd, SHUT_RDWR);
+	//	shutdown(sockfd, SHUT_RDWR);
 	close(sockfd);
 	
 	close(connfd);

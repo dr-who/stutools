@@ -12,7 +12,11 @@
 int sockconnect(const char *ipaddress, const size_t port, const double time_out){
    int sock = socket(AF_INET, SOCK_STREAM, 0);
 
-   setsockopt(sock, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, NULL, 0);
+   const int enable = 1;
+   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+     perror("setsockopt(SO_REUSEADDR) failed");
+   if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0)
+     perror("setsockopt(SO_REUSEADDR) failed");
 
    
    struct timeval timeout;      

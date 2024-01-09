@@ -49,6 +49,7 @@
 #include "interfaces.h"
 
 #include "simpmail.h"
+#include "simpsock.h"
 #include "iprange.h"
 
 extern char **environ;
@@ -221,6 +222,7 @@ COMMAND commands[] = {
 	{"authtok",   "Show the current TOTP token", "admin"},
 	{"booking",   "Manage bookings", "admin"},
 	{"cidr",      "Handy CIDR calc", ""},
+        {"cluster",   "Show Cluster info", ""},
         {"cpu",       "Show CPU info", "admin"},
         {"date",      "Show the current date/time", ""},
 	{"d2b",       "Decimal to binary", ""},
@@ -546,7 +548,27 @@ void cmd_booking(const int tty, char *second) {
 
   printf("Today's date is: %s\n", timestring);
 }
-  
+
+
+void cmd_cluster(const int tty) {
+  if (tty) {}
+  int fd = sockconnect("127.0.0.1", 1600, 0);
+  if (fd) {
+    socksend(fd, "cluster\n", 7, 1);
+    char *buffer = calloc(1024, 1); assert(buffer);
+    int ret = sockrec(fd, buffer, 1024, 0, 1);
+    if (ret >= 0) {
+      printf("%s", buffer);
+    } else {
+      perror("recv");
+    }
+  } else {
+    perror("connect");
+  }
+  sockclose(fd);
+}
+    
+
 // cidr calc
 void cmd_cidr(const int tty, char *second) {
   if (tty) {}
@@ -1705,6 +1727,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_booking(tty, rest); 
             } else if (strcasecmp(commands[i].name, "cidr") == 0) {
 	      cmd_cidr(tty, rest); 
+            } else if (strcasecmp(commands[i].name, "cluster") == 0) {
+	      cmd_cluster(tty); 
             } else if (strcasecmp(commands[i].name, "mail") == 0) {
 	      cmd_mail(tty, rest); 
             } else if (strcasecmp(commands[i].name, "mem") == 0) {
