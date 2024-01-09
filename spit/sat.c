@@ -55,19 +55,18 @@ void *receiver(void *arg) {
 	    continue;
         }
 
-        int true = 1;
+	//	socksetup(sockfd, 10);
+	int true = 1;
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(int)) == -1) {
-	  //            perror("Setsockopt");
+	  perror("so_reuseaddr");
 	  close(sockfd);
-	  shutdown(sockfd, SHUT_RDWR);
-	  continue;
-	    //            exit(1);
+	  exit(1);
         }
-	//	if (socksetup(sockfd, 30) < 0) {
-	  //
-	//	  close(sockfd);
-	//	  continue;
-	//	}
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &true, sizeof(int)) == -1) {
+	  perror("so_reuseport");
+	  close(sockfd);
+	  exit(1);
+	  }
 
         struct sockaddr_in clientaddr, serveraddr;
         memset(&serveraddr, 0, sizeof(serveraddr));
@@ -76,37 +75,37 @@ void *receiver(void *arg) {
         serveraddr.sin_port = htons(serverport);
 
         if (bind(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) == -1) {
-	  //            perror("Bind Error");
+	  perror("Bind Error");
 	  close(sockfd);
- 	  shutdown(sockfd, SHUT_RDWR);
+	  exit(1);
 	  continue;
-	    //            exit(1);
         }
 
         if (listen(sockfd, serverport) == -1) {
-	  //            perror("Listen Error");
+	  perror("Listen Error");
 	  close(sockfd);
- 	  shutdown(sockfd, SHUT_RDWR);
+	  exit(1);
 	  continue;
-	    //            exit(1);
         }
 
         socklen_t addrlen = sizeof(clientaddr);
         int connfd = accept(sockfd, (struct sockaddr *) &clientaddr, &addrlen);
 	if (connfd == -1) {
-	  //	  perror("Connect Error");
+	  perror("Connect Error");
+	  exit(1);
 	  close(sockfd);
 	  continue;
 	}
-	    //            exit(1);
+
+	//	socksetup(connfd, 10);
 	    //        }
         char addr[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
 
 	char buffer[1024];
 	if (sockrec(connfd, buffer, 1024, 0, 1) < 0) {
-	  fprintf(stderr, "din'yt get a string\n");
-	  goto end;
+	  perror("sockrec connfd");
+	  //	  fprintf(stderr, "din'yt get a string\n");
 	}
 
 	//	fprintf(stderr, "received a string: %s\n", buffer);
@@ -120,17 +119,22 @@ void *receiver(void *arg) {
 	  struct utsname buf;
 	  uname(&buf);
 	  sprintf(buffer,"Hello %s %s\n", buf.nodename, ipa);
-	  if (socksend(connfd, buffer, 0, 1) < 0)
-	    goto end;
+	  if (socksend(connfd, buffer, 0, 1) < 0) {
+	    perror("socksendhello");
+	  }
 	} else if (strncmp(buffer,"interfaces",10)==0) {
 	  char *json = interfacesDumpJSONString(tc->n);
 	  int err = socksend(connfd, json, 0, 1);
+	  if (err < 0) {
+	    perror("socksendinterfaces");
+	  }
 	  free(json);
-	  if (err < 0) goto end;
 	} else if (strncmp(buffer,"cluster",7)==0) {
-	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
+	  //	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
 	  char *json = clusterDumpJSONString(tc->cluster);
-	  socksend(connfd, json, 0, 1);
+	  if (socksend(connfd, json, 0, 1)) {
+	    perror("socksendcluster");
+	  }
 	  free(json);
 	} else if (strncmp(buffer,"block", 5)==0) {
 	  blockDevicesType *bd = blockDevicesInit();
@@ -140,26 +144,19 @@ void *receiver(void *arg) {
 	  for (size_t q = 0; q < bd->num; q++) {
 	    //	  char *s = blockDevicesAllJSON(bd);
 	    char *s = keyvalueDumpAsJSON(bd->devices[q].kv);
-	    socksend(connfd, s, 0, 0);
+	    if (socksend(connfd, s, 0, 0) < 0) {
+	      perror("socksendblock");
+	    }
 	    free(s);
 	  }
 	  
 	  blockDevicesFree(bd);
 	} else {
-	  //	    fprintf(stderr,"*unknown handshake, invalid client\n");
-	  sleep(1);
+	  printf("?? %s\n", buffer);
 	}
 	
-	//	fprintf(stderr,"end of server loop\n");
-	
-
-    end:
-	  
 	close(sockfd);
-	
 	close(connfd);
-	shutdown(sockfd, SHUT_RDWR);
-	shutdown(connfd, SHUT_RDWR);
     }
     return NULL;
 }
@@ -190,7 +187,7 @@ void startThreads(interfacesIntType *n, const int serverport) {
 	} else if (i == 1) {
 	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
 	} else if (i == 2) {
-	  pthread_create(&(pt[i]), NULL, advertiseMC, &(tc[i]));
+	  	  pthread_create(&(pt[i]), NULL, advertiseMC, &(tc[i]));
 	}
     }
 

@@ -24,12 +24,12 @@ int sockconnect(const char *ipaddress, const size_t port, const double time_out)
    timeout.tv_usec = (time_out - (int)time_out) * 1000000;
    
    if (setsockopt (sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof (timeout)) < 0) {
-     //     perror("setsockopt failed\n");
+     perror("setsockopt failed\n");
      return -1;
    }
    
    if (setsockopt (sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof (timeout)) < 0) {
-     //     perror("setsockopt failed\n");
+     perror("setsockopt failed\n");
      return -1;
    }
 

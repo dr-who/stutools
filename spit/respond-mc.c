@@ -42,7 +42,7 @@ void *respondMC(void *arg) {
    fprintf(stderr,"opening socket %d\n", sock);
    if (sock < 0) {
      perror("socket");
-     //     exit(1);
+     exit(1);
    }
    
    const int enable = 1;
@@ -61,7 +61,7 @@ void *respondMC(void *arg) {
    /* receive */
    if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {        
      perror("bind");
-     //     exit(1);
+          exit(1);
    }
    printf("binding\n");
    mreq.imr_multiaddr.s_addr = inet_addr(EXAMPLE_GROUP);         
@@ -69,7 +69,7 @@ void *respondMC(void *arg) {
    if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 		  &mreq, sizeof(mreq)) < 0) {
      perror("setsockopt mreq");
-     //     exit(1);
+          exit(1);
    }
    //   double last = timeAsDouble();
    while (1) {
@@ -98,7 +98,7 @@ void *respondMC(void *arg) {
        
        int nodeid = 0; 
 
-       int port = keyvalueGetLong(kv, "port");
+       //       int port = keyvalueGetLong(kv, "port");
        char *nodename = keyvalueGetString(kv, "node");
        if (nodename) {
 	 //     senttime = keyvalueGetLong(kv, "time");
@@ -121,15 +121,15 @@ void *respondMC(void *arg) {
 
 	   // hello every 10 seconds
 	 //	   last = timeAsDouble();
-	   int nsock = sockconnect(node, port, 5);
+	 /*	   int nsock = sockconnect(node, port, 30);
 	   if (nsock > 0) {
+	     socksetup(nsock, 10);
 	     char buff[100000];
 	     socksend(nsock, "Hello\n", 0, 1);
 	     sockrec(nsock, buff, 100000, 0, 1);
 	     //	     printf("res:%s\n", buff);
 	     close(nsock);
-	     shutdown(nsock, SHUT_RDWR);
-	   }
+	     }*/
        }
      } else {
        fprintf(stderr,"problem parsing: %s\n", message);

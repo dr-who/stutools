@@ -47,7 +47,7 @@ void *advertiseMC(void *arg) {
   sock = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock < 0) {
     perror("socket");
-    //    exit(1);
+    exit(1);
   }
 
   const int enable = 1;
