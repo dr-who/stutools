@@ -192,7 +192,7 @@ char *keyvalueGetString(keyvalueType *kv, const char *key) {
   
 char *keyvalueDumpAsString(keyvalueType *kv) {
   keyvalueSort(kv);
-  char *s = calloc(1, kv->byteLen);
+  char *s = calloc(1, 3*kv->byteLen);
   for (size_t i = 0; i < kv->num; i++) {
     if (i > 0) {
       strcat(s, " ");
@@ -213,7 +213,7 @@ char *keyvalueDumpAsString(keyvalueType *kv) {
 
 char *keyvalueDumpAsJSON(keyvalueType *kv) {
   keyvalueSort(kv);
-  char *s = calloc(1, 2*kv->byteLen);
+  char *s = calloc(1, 3*kv->byteLen);
   size_t level = 0;
 
   strcat(s, "{\n");

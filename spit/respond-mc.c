@@ -91,9 +91,9 @@ void *respondMC(void *arg) {
 
      keyvalueType *kv = keyvalueInitFromString(message);
      if (kv->num >= 2) {
-       //       char *ss = keyvalueDumpAsJSON(kv);
-       //       fprintf(stderr,"%s\n", ss);
-       //       free(ss);
+       char *ss = keyvalueDumpAsJSON(kv);
+              fprintf(stderr,"%s\n", ss);
+	             free(ss);
        
        int nodeid = 0, port = 0;
        

@@ -24,7 +24,7 @@ main(int argc)
    struct sockaddr_in addr;
    int addrlen, sock, cnt;
    struct ip_mreq mreq;
-   char message[100];
+   char message[200];
 
    /* set up socket */
    sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -76,7 +76,7 @@ main(int argc)
 	 exit(1);
       }         
       while (1) {
- 	 cnt = recvfrom(sock, message, sizeof(message), 0, 
+ 	 cnt = recvfrom(sock, message, 200, 0, 
 			(struct sockaddr *) &addr, &addrlen);
 	 if (cnt < 0) {
 	    perror("recvfrom");
