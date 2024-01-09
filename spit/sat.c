@@ -40,12 +40,11 @@ void intHandler(int d) {
 
 #include "sat.h"
 #include "snack.h"
-#include "simpmail.h"
 #include "interfaces.h"
 #include "cluster.h"
 #include "iprange.h"
 #include "ipcheck.h"
-
+#include "simpsock.h"
 
 char * stringListToJSON(char *inc) {
   if (inc == NULL) return NULL;

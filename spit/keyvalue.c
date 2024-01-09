@@ -171,9 +171,12 @@ char *keyvalueDumpAsString(keyvalueType *kv) {
 char *keyvalueDumpAsJSON(keyvalueType *kv) {
   keyvalueSort(kv);
   char *s = calloc(1, 2*kv->byteLen);
+  size_t level = 0;
 
   strcat(s, "{\n");
   for (size_t i = 0; i < kv->num; i++) {
+    // tabs
+    level++; for (size_t l = 0; l < level; l++) strcat(s, "\t");
     strcat(s, "\"");
     strcat(s, kv->pairs[i].key);
     strcat(s, "\"");
@@ -183,19 +186,23 @@ char *keyvalueDumpAsJSON(keyvalueType *kv) {
       strcat(s, kv->pairs[i].value);
       strcat(s, "\"");
     } else if (kv->pairs[i].type == 2) { //list
+      //tabs
+      level++; for (size_t l = 0; l < level; l++) strcat(s, "\t");
       strcat(s, "[ { \"device\": \"");
       strcat(s, kv->pairs[i].value);
       strcat(s, "\" } ]");
+      level--;
     } else {
       char str[100];
       sprintf(str, "%ld", kv->pairs[i].longvalue);
       strcat(s, str);
     }
-    strcat(s, "\n");
     
     if (i < kv->num-1) {
       strcat(s, ",");
     }
+    strcat(s, "\n");
+    level--;
   }
   
   strcat(s, "}\n");

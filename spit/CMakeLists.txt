@@ -44,13 +44,13 @@ add_executable(helloWorldService helloWorldService.c httpd.c httpd.h)
 add_executable(pcp pcp.c)
 target_link_libraries(pcp pthread)
 
-add_executable(simpmail simpmail.c simpmailMain.c emaildb.c utils.h)
+add_executable(simpmail simpmail.c simpmailMain.c emaildb.c utils.h simpsock.c simpsock.h)
 target_link_libraries(simpmail spitlib m aio pthread numa pci uuid)
 
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
-add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c)
+add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c simpsock.c simpsock.h)
 target_link_libraries(sat spitlib m aio pthread numa pci uuid)
 
 add_executable(interfaces interfacesMain.c interfaces.c interfaces.h iprange.c iprange.h)
@@ -65,12 +65,12 @@ target_link_libraries(cluster spitlib m aio pthread numa pci)
 add_executable(queue queueMain.c queue.c queue.h)
 
 
-add_executable(cidr cidr.c iprange.c iprange.h ipcheck.c ipcheck.h simpmail.c utilstime.c interfaces.c utils.c )
+add_executable(cidr cidr.c iprange.c iprange.h ipcheck.c ipcheck.h utilstime.c interfaces.c utils.c simpsock.c )
 target_link_libraries(cidr uuid spitlib m aio pthread numa pci)
 
 add_executable(keyvalue keyvalueMain.c keyvalue.c keyvalue.h)
 
-add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h simpmail.c iprange.c interfaces.c interfaces.h )
+add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h iprange.c interfaces.c interfaces.h simpsock.c )
 target_link_libraries(ipcheck uuid spitlib m aio pthread numa pci)
 
 
@@ -89,7 +89,7 @@ target_link_libraries(pair spitlib m )
 add_executable(raidsimulation raidsimulationmain.c failureType.c deviceProbs.c numList.c )
 target_link_libraries(raidsimulation m )
 
-add_executable(stush stush.c snack.h snack.c failureType.c deviceProbs.c pciUtils.c dns.c qr/qrcodegen.c tpmtotp/base32.c TOTP-MCU/sha1.c TOTP-MCU/TOTP.c auth.c qr.c status.c iprange.c simpmail.c simpmail.h)
+add_executable(stush stush.c snack.h snack.c failureType.c deviceProbs.c pciUtils.c dns.c qr/qrcodegen.c tpmtotp/base32.c TOTP-MCU/sha1.c TOTP-MCU/TOTP.c auth.c qr.c status.c iprange.c simpmail.c simpmail.h simpsock.c simpsock.h)
 target_link_libraries(stush spitlib m pthread aio numa readline pci uuid)
 
 

@@ -10,7 +10,7 @@
 #include "ipcheck.h"
 #include "utilstime.h"
 #include "iprange.h"
-#include "simpmail.h"
+#include "simpsock.h"
 
 #include "interfaces.h"
 

@@ -27,7 +27,7 @@ just one host and as a receiver on all the other hosts
 
 
 #include "cluster.h"
-#include "simpmail.h"
+#include "simpsock.h"
 #include "sat.h"
 
 void *respondMC(void *arg) {
