@@ -85,6 +85,7 @@ char *clusterDumpJSONString(clusterType *c) {
   char *ret = buf;
 
   // sort
+  if (c) 
   for (size_t i = 0; i < c->id-1; i++) {
     for (size_t j = i+1; j < c->id; j++) {
       if (strcmp(c->node[i]->ipaddress, c->node[j]->ipaddress) > 0) {
