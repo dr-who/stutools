@@ -45,7 +45,7 @@ int sockconnect(const char *ipaddress, const size_t port, const double time_out)
        return -1;
      }
    } else{
-     //     perror(ipaddress);
+     perror("connect");
      //     fprintf(stderr,"*error* problem connecting to %s port 25\n", ipaddress);
      return -1;
    }
