@@ -41,11 +41,11 @@ int sockconnect(const char *ipaddress, const size_t port, const double time_out)
    if(inet_pton(AF_INET, ipaddress, &serv_addr.sin_addr) > 0){
      int ret = connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
      if (ret != 0) {
-       //   perror(ipaddress);
+       perror("connect1");
        return -1;
      }
    } else{
-     perror("connect");
+     perror("connect2");
      //     fprintf(stderr,"*error* problem connecting to %s port 25\n", ipaddress);
      return -1;
    }

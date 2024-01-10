@@ -572,15 +572,20 @@ void cmd_sum(const int tty) {
 
 void cmd_cluster(const int tty) {
   if (tty) {}
-  int fd = sockconnect("127.0.0.1", 1600, 10);
+  int fd = sockconnect("127.0.0.1", 1600, 5);
   if (fd > 0) {
     if (socksend(fd, "cluster\n", 0, 1)) {
       char *buffer = calloc(1024, 1); assert(buffer);
       int ret;
+      size_t printed = 0;
       while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
 	printf("%s", buffer);
+	printed++;
       }
       free(buffer);
+      if (printed == 0) {
+	fprintf(stderr,"*error* server 127.0.0.1:1600 not responding\n");
+      }
     } else {
       perror("socksend2");
     }
