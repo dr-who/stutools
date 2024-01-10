@@ -134,7 +134,7 @@ void *receiver(void *arg) {
 	  size_t HDDcount = 0, SSDcount= 0, SSDsizeGB = 0, HDDsizeGB = 0;
 	  size_t nodesGood = 0, nodesBad = 0;
 	  for (size_t cc = 0; cc < tc->cluster->id; cc++) {
-	    if (tc->cluster->node[cc]->seen < 5) {
+	    if (timeAsDouble() - tc->cluster->node[cc]->seen < 5) {
 	      nodesGood++;
 	    } else {
 	      nodesBad++;
