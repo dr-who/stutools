@@ -222,7 +222,6 @@ COMMAND commands[] = {
 	{"authtok",   "Show the current TOTP token", "admin"},
 	{"booking",   "Manage bookings", "admin"},
 	{"cidr",      "Handy CIDR calc", ""},
-        {"sum",       "Show summary Cluster info", ""},
         {"cluster",   "Show Cluster info", ""},
         {"cpu",       "Show CPU info", "admin"},
         {"date",      "Show the current date/time", ""},
@@ -270,6 +269,7 @@ COMMAND commands[] = {
         {"sleep",     "Sleep for a few seconds", ""},
         {"spit",      "Stu's powerful I/O tester", "admin"},
         {"status",    "Show system status", ""},
+        {"sum",       "Show summary Cluster info", ""},
         {"swap",      "Show swap status", "admin"},
         {"timeaudit", "Accept external time", ""},
         {"timeout",   "Show the auto logout timeout", ""},
@@ -551,10 +551,11 @@ void cmd_booking(const int tty, char *second) {
 
 
 void cmd_clust(const int tty) {
+  printf("sum\n");
   if (tty) {}
   int fd = sockconnect("127.0.0.1", 1600, 0);
   if (fd > 0) {
-    if (socksend(fd, "status\n", 0, 1)) {
+    if (socksend(fd, "sum\n", 0, 1)) {
       char *buffer = calloc(1024, 1); assert(buffer);
       int ret;
       while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
