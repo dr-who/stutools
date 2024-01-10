@@ -26,6 +26,7 @@ multicast.c
 #include "keyvalue.h"
 #include "sat.h"
 
+
 void *respondMC(void *arg) {
     threadMsgType *tc = (threadMsgType *) arg;
 
@@ -72,6 +73,10 @@ void *respondMC(void *arg) {
           exit(1);
    }
    //   double last = timeAsDouble();
+
+   // initial block device scan
+
+   
    while (1) {
      cnt = recvfrom(sock, message, 200, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
@@ -91,6 +96,7 @@ void *respondMC(void *arg) {
      //fprintf(stderr,"rec:%s\n", message);
      
      keyvalueType *kv = keyvalueInitFromString(message);
+     
      if (kv->num >= 2) {
        //       char *ss = keyvalueDumpAsJSON(kv);
        //              fprintf(stderr,"%s\n", ss);
@@ -108,6 +114,10 @@ void *respondMC(void *arg) {
 	   // add and say hi
 	   fprintf(stderr, "adding node %s\n", nodename);
 	   nodeid = clusterAddNode(cluster, nodename, startedtime);
+	   cluster->node[nodeid]->HDDcount = keyvalueGetLong(kv, "HDDcount");
+	   cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
+	   cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");
+	   cluster->node[nodeid]->SSDsizeGB = keyvalueGetLong(kv, "SSDsizeGB");
 	 }
 	 
 	 keyvalueFree(kv);

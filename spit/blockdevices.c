@@ -12,9 +12,7 @@
 #include "utils.h"
 #include "keyvalue.h"
 
-#include "keyvalue.h"
 #include "blockdevices.h"
-
 
 
 blockDevicesType * blockDevicesInit() {
@@ -23,11 +21,21 @@ blockDevicesType * blockDevicesInit() {
   return p;
 }
 
-
+// clobber based on serial
 void blockDevicesAddKV(blockDevicesType *bd, keyvalueType *kv) {
-  bd->num++;
-  bd->devices = realloc(bd->devices, bd->num * sizeof(blockDevicesType)); assert(bd->devices);
-  bd->devices[bd->num - 1].kv = kv;
+  // first search
+  size_t match = bd->num;
+  for (size_t i = 0; i < bd->num; i++) {
+    if (strcmp(keyvalueGetString(bd->devices[i].kv, "serial"), keyvalueGetString(kv, "serial")) == 0) {
+      match = i;
+    }
+  }
+  if (match >= bd->num) {
+    // not there
+    bd->num++;
+    bd->devices = realloc(bd->devices, bd->num * sizeof(blockDevicesType)); assert(bd->devices);
+  }
+  bd->devices[match].kv = kv;
 }
 
 void blockDevicesScan(blockDevicesType *bd) {
@@ -135,3 +143,20 @@ void blockDevicesFree(blockDevicesType *bd) {
   free(bd->devices);
   free(bd);
 }
+
+ // SSD, HDD type
+size_t blockDevicesCount(blockDevicesType *bd, const char *devtype, size_t *sumbytes) {
+  size_t matched = 0;
+  (*sumbytes) = 0;
+  for (size_t i = 0; i < bd->num; i++) {
+    char *v = keyvalueGetString(bd->devices[i].kv, "type");
+    if (v) {
+      if (strcmp(v, devtype) == 0) {
+	matched++;
+	*sumbytes = (*sumbytes) + keyvalueGetLong(bd->devices[i].kv, "size");
+      }
+    }
+  }
+  return matched;
+}
+	

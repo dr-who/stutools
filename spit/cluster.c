@@ -115,6 +115,11 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "       \"changed\": %lf,\n", c->node[i]->changed);
       buf += sprintf(buf, "       \"sincechanged\": %lf,\n", now - c->node[i]->changed);
       buf += sprintf(buf, "       \"ipaddress\": \"%s\"\n", c->node[i]->ipaddress ? c->node[i]->ipaddress : "n/a");
+      buf += sprintf(buf, "       \"HDDcount\": %ld\n", c->node[i]->HDDcount);
+      buf += sprintf(buf, "       \"HDDsizeGB\": %ld\n", c->node[i]->HDDsizeGB);
+      buf += sprintf(buf, "       \"SSDcount\": %ld\n", c->node[i]->SSDcount);
+      buf += sprintf(buf, "       \"SSDsizeGB\": %ld\n", c->node[i]->SSDsizeGB);
+      
       buf += sprintf(buf, "    }");
       if (i < c->id-1) buf += sprintf(buf, ",");
       buf += sprintf(buf, "\n");

@@ -32,6 +32,7 @@ extern int keepRunning;
 #include "keyvalue.h"
 #include "sat.h"
 #include "cluster.h"
+#include "blockdevices.h"
 
 void *advertiseMC(void *arg) {
   threadMsgType *tc = (threadMsgType *) arg;
@@ -69,6 +70,11 @@ void *advertiseMC(void *arg) {
   struct utsname buf;
   uname(&buf);
 
+
+  blockDevicesType *bd = blockDevicesInit();
+
+  blockDevicesScan(bd);
+
   while (keepRunning) {
     double now = timeAsDouble();
 
@@ -79,6 +85,18 @@ void *advertiseMC(void *arg) {
     keyvalueSetLong(kv, "time", (long)now);
     keyvalueSetLong(kv, "cluster", cluster->id);
     keyvalueSetLong(kv, "port", 1600);
+
+     size_t hddsize = 0;
+     size_t hddnum = blockDevicesCount(bd, "HDD", &hddsize);
+     size_t ssdsize = 0;
+     size_t ssdnum = blockDevicesCount(bd, "SSD", &ssdsize);
+
+     keyvalueSetLong(kv, "HDDcount", hddnum);
+     keyvalueSetLong(kv, "HDDsizeGB", hddsize / 1000.0 / 1000 / 1000);;
+     keyvalueSetLong(kv, "SSDcount", ssdnum);
+     keyvalueSetLong(kv, "SSDsizeGB", ssdsize / 1000.0 / 1000 / 1000);;
+
+    
     //    keyvalueSetString(kv, "shell", "stush");
     keyvalueSetLong(kv, "started", (long)starttime);
     char *message = keyvalueDumpAsString(kv);

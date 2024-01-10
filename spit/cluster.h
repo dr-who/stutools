@@ -15,10 +15,10 @@ typedef struct {
   char *osrelease;
   size_t cores;
   size_t ram;
-  size_t hdds;
-  size_t hddsTB;
-  size_t ssds;
-  size_t ssdsTB;
+  size_t HDDcount;
+  size_t HDDsizeGB;
+  size_t SSDcount;
+  size_t SSDsizeGB;
 } clusterNodeType;
 
 
