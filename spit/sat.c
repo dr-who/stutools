@@ -124,15 +124,14 @@ void *receiver(void *arg) {
 	  }
 	} else if (strncmp(buffer,"interfaces",10)==0) {
 	  char *json = interfacesDumpJSONString(tc->n);
-	  int err = socksend(connfd, json, 0, 1);
-	  if (err < 0) {
+	  if (socksend(connfd, json, 0, 1) < 0) {
 	    perror("socksendinterfaces");
 	  }
 	  free(json);
 	} else if (strncmp(buffer,"cluster",7)==0) {
 	  //	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
 	  char *json = clusterDumpJSONString(tc->cluster);
-	  if (socksend(connfd, json, 0, 1)) {
+	  if (socksend(connfd, json, 0, 1) < 0) {
 	    perror("socksendcluster");
 	  }
 	  free(json);
