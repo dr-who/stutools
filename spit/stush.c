@@ -552,14 +552,18 @@ void cmd_booking(const int tty, char *second) {
 void cmd_cluster(const int tty) {
   if (tty) {}
   int fd = sockconnect("127.0.0.1", 1600, 0);
-  if (fd) {
-    socksend(fd, "cluster\n", 7, 1);
-    char *buffer = calloc(1024, 1); assert(buffer);
-    int ret;
-    while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
-      printf("%s", buffer);
+  if (fd > 0) {
+    if (socksend(fd, "cluster\n", 0, 1)) {
+      char *buffer = calloc(1024, 1); assert(buffer);
+      int ret;
+      while ((ret = sockrec(fd, buffer, 1024, 0, 1)) >= 0) {
+	printf("%d", ret);
+	printf("%s", buffer);
+      }
+      free(buffer);
+    } else {
+      perror("socksend2");
     }
-    free(buffer);
   } else {
     perror("connect");
   }
@@ -1066,8 +1070,8 @@ void cmd_listPCI(int tty, size_t filterclass, char *label) {
 void cmd_listNICs(int tty) {
   if (tty) {}
   int fd = sockconnect("127.0.0.1", 1600, 0);
-  if (fd) {
-    socksend(fd, "interfaces\n", 10, 1);
+  if (fd > 0) {
+    socksend(fd, "interfaces\n", 0, 1);
     char *buffer = calloc(1024, 1); assert(buffer);
     int ret = 0;
     while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
@@ -1265,8 +1269,8 @@ size_t countDriveBlockDevices() {
 void cmd_listDriveBlockDevices(int tty) {
   if (tty) {}
   int fd = sockconnect("127.0.0.1", 1600, 0);
-  if (fd) {
-    socksend(fd, "block\n", 7, 1);
+  if (fd > 0) {
+    socksend(fd, "block\n", 0, 1);
     char *buffer = calloc(1024, 1); assert(buffer);
     int ret = 0;
     while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
