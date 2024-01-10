@@ -76,6 +76,7 @@ int socksend(int fd, char *s, int flags, const int quiet) {
     int ret = send(fd, s + pos, len - pos, flags);
     if (ret < 0) {
       perror("socksend");
+      return -1;
     } else {
       sent += ret;
     }
