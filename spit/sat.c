@@ -131,23 +131,28 @@ void *receiver(void *arg) {
 	  free(json);
 	} else if (strncmp(buffer,"sum",3)==0) {
 	  keyvalueType *kv = keyvalueInit();
-	  size_t HDDcount = 0, SSDcount= 0, SSDsizeGB = 0, HDDsizeGB = 0;
+	  size_t HDDsum = 0, SSDsum= 0, SSDsumGB = 0, HDDsumGB = 0;
 	  size_t nodesGood = 0, nodesBad = 0;
+	  size_t RAMsumGB = 0, Coressum = 0;
 	  for (size_t cc = 0; cc < tc->cluster->id; cc++) {
 	    if (timeAsDouble() - tc->cluster->node[cc]->seen < 5) {
 	      nodesGood++;
 	    } else {
 	      nodesBad++;
 	    }
-	    HDDcount += tc->cluster->node[cc]->HDDcount;
-	    SSDcount += tc->cluster->node[cc]->SSDcount;
-	    HDDsizeGB += tc->cluster->node[cc]->HDDsizeGB;
-	    SSDsizeGB += tc->cluster->node[cc]->SSDsizeGB;
+	    HDDsum += tc->cluster->node[cc]->HDDcount;
+	    SSDsum += tc->cluster->node[cc]->SSDcount;
+	    HDDsumGB += tc->cluster->node[cc]->HDDsizeGB;
+	    SSDsumGB += tc->cluster->node[cc]->SSDsizeGB;
+	    RAMsumGB += tc->cluster->node[cc]->RAMGB;
+	    Coressum += tc->cluster->node[cc]->Cores;
 	  }
-	  keyvalueSetLong(kv, "HDDcount", HDDcount);
-	  keyvalueSetLong(kv, "SSDcount", SSDcount);
-	  keyvalueSetLong(kv, "HDDsizeGB", HDDsizeGB);
-	  keyvalueSetLong(kv, "SSDsizeGB", SSDsizeGB);
+	  keyvalueSetLong(kv, "Coressum", Coressum);
+	  keyvalueSetLong(kv, "RAMsumGB", RAMsumGB);
+	  keyvalueSetLong(kv, "HDDsum", HDDsum);
+	  keyvalueSetLong(kv, "SSDsum", SSDsum);
+	  keyvalueSetLong(kv, "HDDsumGB", HDDsumGB);
+	  keyvalueSetLong(kv, "SSDsumGB", SSDsumGB);
 	  keyvalueSetLong(kv, "NodesGood", nodesGood);
 	  keyvalueSetLong(kv, "NodesBad", nodesBad);
 	    

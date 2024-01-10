@@ -550,8 +550,7 @@ void cmd_booking(const int tty, char *second) {
 }
 
 
-void cmd_clust(const int tty) {
-  printf("sum\n");
+void cmd_sum(const int tty) {
   if (tty) {}
   int fd = sockconnect("127.0.0.1", 1600, 0);
   if (fd > 0) {
@@ -1636,7 +1635,7 @@ int run_command(const int tty, char *line, const char *username, const char *hos
             } else if (strcasecmp(commands[i].name, "cidr") == 0) {
 	      cmd_cidr(tty, rest); 
             } else if (strcasecmp(commands[i].name, "sum") == 0) {
-	      cmd_clust(tty); 
+	      cmd_sum(tty); 
             } else if (strcasecmp(commands[i].name, "cluster") == 0) {
 	      cmd_cluster(tty); 
             } else if (strcasecmp(commands[i].name, "mail") == 0) {

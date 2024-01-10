@@ -13,8 +13,6 @@ typedef struct {
   double seen;
 
   char *osrelease;
-  size_t cores;
-  size_t ram;
   size_t HDDcount;
   size_t HDDsizeGB;
   size_t SSDcount;
