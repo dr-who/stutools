@@ -552,7 +552,7 @@ void cmd_booking(const int tty, char *second) {
 
 void cmd_sum(const int tty) {
   if (tty) {}
-  int fd = sockconnect("127.0.0.1", 1600, 0);
+  int fd = sockconnect("127.0.0.1", 1600, 10);
   if (fd > 0) {
     if (socksend(fd, "sum\n", 0, 1)) {
       char *buffer = calloc(1024, 1); assert(buffer);
@@ -572,7 +572,7 @@ void cmd_sum(const int tty) {
 
 void cmd_cluster(const int tty) {
   if (tty) {}
-  int fd = sockconnect("127.0.0.1", 1600, 0);
+  int fd = sockconnect("127.0.0.1", 1600, 10);
   if (fd > 0) {
     if (socksend(fd, "cluster\n", 0, 1)) {
       char *buffer = calloc(1024, 1); assert(buffer);
@@ -1089,7 +1089,7 @@ void cmd_listPCI(int tty, size_t filterclass, char *label) {
 // from getifaddrs man page
 void cmd_listNICs(int tty) {
   if (tty) {}
-  int fd = sockconnect("127.0.0.1", 1600, 0);
+  int fd = sockconnect("127.0.0.1", 1600, 10);
   if (fd > 0) {
     socksend(fd, "interfaces\n", 0, 1);
     char *buffer = calloc(1024, 1); assert(buffer);
@@ -1288,7 +1288,7 @@ size_t countDriveBlockDevices() {
 
 void cmd_listDriveBlockDevices(int tty) {
   if (tty) {}
-  int fd = sockconnect("127.0.0.1", 1600, 0);
+  int fd = sockconnect("127.0.0.1", 1600, 10);
   if (fd > 0) {
     socksend(fd, "block\n", 0, 1);
     char *buffer = calloc(1024, 1); assert(buffer);
