@@ -116,7 +116,7 @@ void *advertiseMC(void *arg) {
 
 
     count++;
-    sleep (2);
+    sleep (cluster->id < 1 ? 1 : cluster->id);
   }
   return NULL;
 }
