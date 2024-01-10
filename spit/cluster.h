@@ -19,6 +19,8 @@ typedef struct {
   size_t HDDsizeGB;
   size_t SSDcount;
   size_t SSDsizeGB;
+  size_t RAMGB;
+  size_t Cores;
 } clusterNodeType;
 
 

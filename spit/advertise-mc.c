@@ -33,6 +33,7 @@ extern int keepRunning;
 #include "sat.h"
 #include "cluster.h"
 #include "blockdevices.h"
+#include "utils.h"
 
 void *advertiseMC(void *arg) {
   threadMsgType *tc = (threadMsgType *) arg;
@@ -95,6 +96,9 @@ void *advertiseMC(void *arg) {
      keyvalueSetLong(kv, "HDDsizeGB", hddsize / 1000.0 / 1000 / 1000);;
      keyvalueSetLong(kv, "SSDcount", ssdnum);
      keyvalueSetLong(kv, "SSDsizeGB", ssdsize / 1000.0 / 1000 / 1000);;
+
+     keyvalueSetLong(kv, "Cores", getNumHardwareThreads());
+     keyvalueSetLong(kv, "RAMGB", totalRAM()/1024/1024/1024);
 
     
     //    keyvalueSetString(kv, "shell", "stush");

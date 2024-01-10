@@ -53,7 +53,7 @@ keyvalueType *keyvalueInitFromString(char *par) {
 
 int keyvalueFindKey(keyvalueType *kv, const char *key) {
   for (size_t i = 0; i < kv->num; i++) {
-    if (strcmp(key, kv->pairs[i].key)==0) {
+    if (strcasecmp(key, kv->pairs[i].key)==0) {
       return i;
       break;
     }
@@ -87,7 +87,7 @@ size_t keyvalueAddString(keyvalueType *kv, const char *key, char *value) {
 size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value) {
   int index = -1;
   for (size_t i = 0; i < kv->num; i++) {
-    if (strcmp(key, kv->pairs[i].key)==0) {
+    if (strcasecmp(key, kv->pairs[i].key)==0) {
       index = i;
       break;
     }
@@ -116,7 +116,7 @@ size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value) {
 size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
   int index = -1;
   for (size_t i = 0; i < kv->num; i++) {
-    if (strcmp(key, kv->pairs[i].key)==0) {
+    if (strcasecmp(key, kv->pairs[i].key)==0) {
       index = i;
       break;
     }
@@ -149,7 +149,7 @@ size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
 void keyvalueSort(keyvalueType *kv) {
   for (size_t i = 0; i < kv->num - 1; i++) {
     for (size_t j = i+1; j < kv->num; j++) {
-      int t = strcmp(kv->pairs[i].key, kv->pairs[j].key);
+      int t = strcasecmp(kv->pairs[i].key, kv->pairs[j].key);
       if (t > 0) {
 	keyvaluePair tmp = kv->pairs[i];
 	kv->pairs[i] = kv->pairs[j];

@@ -118,6 +118,9 @@ void *respondMC(void *arg) {
 	   cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
 	   cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");
 	   cluster->node[nodeid]->SSDsizeGB = keyvalueGetLong(kv, "SSDsizeGB");
+	   
+	   cluster->node[nodeid]->RAMGB = keyvalueGetLong(kv, "RAMGB");
+	   cluster->node[nodeid]->Cores = keyvalueGetLong(kv, "Cores");
 	 }
 	 
 	 keyvalueFree(kv);

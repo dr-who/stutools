@@ -41,6 +41,7 @@ void intHandler(int d) {
 #include "iprange.h"
 #include "ipcheck.h"
 #include "simpsock.h"
+#include "keyvalue.h"
 
  
 void *receiver(void *arg) {
@@ -128,6 +129,34 @@ void *receiver(void *arg) {
 	    perror("socksendinterfaces");
 	  }
 	  free(json);
+	} else if (strncmp(buffer,"status",6)==0) {
+	  keyvalueType *kv = keyvalueInit();
+	  size_t HDDcount = 0, SSDcount= 0, SSDsizeGB = 0, HDDsizeGB = 0;
+	  size_t nodesGood = 0, nodesBad = 0;
+	  for (size_t cc = 0; cc < tc->cluster->id; cc++) {
+	    if (tc->cluster->node[cc]->seen < 5) {
+	      nodesGood++;
+	    } else {
+	      nodesBad++;
+	    }
+	    HDDcount += tc->cluster->node[cc]->HDDcount;
+	    SSDcount += tc->cluster->node[cc]->SSDcount;
+	    HDDsizeGB += tc->cluster->node[cc]->HDDsizeGB;
+	    SSDsizeGB += tc->cluster->node[cc]->SSDsizeGB;
+	  }
+	  keyvalueSetLong(kv, "HDDcount", HDDcount);
+	  keyvalueSetLong(kv, "SSDcount", SSDcount);
+	  keyvalueSetLong(kv, "HDDsizeGB", HDDsizeGB);
+	  keyvalueSetLong(kv, "SSDsizeGB", SSDsizeGB);
+	  keyvalueSetLong(kv, "NodesGood", nodesGood);
+	  keyvalueSetLong(kv, "NodesBad", nodesBad);
+	    
+	  char *json = keyvalueDumpAsJSON(kv);
+	  if (socksend(connfd, json, 0, 1) < 0) {
+	    perror("socksendcluster");
+	  }
+	  free(json);
+	  keyvalueFree(kv);
 	} else if (strncmp(buffer,"cluster",7)==0) {
 	  //	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
 	  char *json = clusterDumpJSONString(tc->cluster);
