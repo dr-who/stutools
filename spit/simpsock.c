@@ -87,7 +87,7 @@ int socksend(int fd, char *s, int flags, const int quiet) {
 
 int sockrec(int fd, char *buffer, int len, int flags, const int quiet) {
   int ret = recv(fd, buffer, len, flags);
-  if (ret >= 0) {
+  if (ret > 0) {
     if (ret < len) buffer[ret] = 0; // make string zero terminated
     if (quiet == 0) printf("S[%d]: %s", ret, buffer);
   }

@@ -222,6 +222,7 @@ COMMAND commands[] = {
 	{"authtok",   "Show the current TOTP token", "admin"},
 	{"booking",   "Manage bookings", "admin"},
 	{"cidr",      "Handy CIDR calc", ""},
+        {"sum",       "Show summary Cluster info", ""},
         {"cluster",   "Show Cluster info", ""},
         {"cpu",       "Show CPU info", "admin"},
         {"date",      "Show the current date/time", ""},
@@ -549,15 +550,14 @@ void cmd_booking(const int tty, char *second) {
 }
 
 
-void cmd_cluster(const int tty) {
+void cmd_clust(const int tty) {
   if (tty) {}
   int fd = sockconnect("127.0.0.1", 1600, 0);
   if (fd > 0) {
-    if (socksend(fd, "cluster\n", 0, 1)) {
+    if (socksend(fd, "status\n", 0, 1)) {
       char *buffer = calloc(1024, 1); assert(buffer);
       int ret;
-      while ((ret = sockrec(fd, buffer, 1024, 0, 1)) >= 0) {
-	printf("%d", ret);
+      while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
 	printf("%s", buffer);
       }
       free(buffer);
@@ -569,7 +569,27 @@ void cmd_cluster(const int tty) {
   }
   sockclose(fd);
 }
-    
+
+void cmd_cluster(const int tty) {
+  if (tty) {}
+  int fd = sockconnect("127.0.0.1", 1600, 0);
+  if (fd > 0) {
+    if (socksend(fd, "cluster\n", 0, 1)) {
+      char *buffer = calloc(1024, 1); assert(buffer);
+      int ret;
+      while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
+	printf("%s", buffer);
+      }
+      free(buffer);
+    } else {
+      perror("socksend2");
+    }
+  } else {
+    perror("connect");
+  }
+  sockclose(fd);
+}
+
 
 // cidr calc
 void cmd_cidr(const int tty, char *second) {
@@ -1614,6 +1634,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_booking(tty, rest); 
             } else if (strcasecmp(commands[i].name, "cidr") == 0) {
 	      cmd_cidr(tty, rest); 
+            } else if (strcasecmp(commands[i].name, "sum") == 0) {
+	      cmd_clust(tty); 
             } else if (strcasecmp(commands[i].name, "cluster") == 0) {
 	      cmd_cluster(tty); 
             } else if (strcasecmp(commands[i].name, "mail") == 0) {

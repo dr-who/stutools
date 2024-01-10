@@ -129,7 +129,7 @@ void *receiver(void *arg) {
 	    perror("socksendinterfaces");
 	  }
 	  free(json);
-	} else if (strncmp(buffer,"status",6)==0) {
+	} else if (strncmp(buffer,"sum",3)==0) {
 	  keyvalueType *kv = keyvalueInit();
 	  size_t HDDcount = 0, SSDcount= 0, SSDsizeGB = 0, HDDsizeGB = 0;
 	  size_t nodesGood = 0, nodesBad = 0;
