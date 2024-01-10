@@ -172,10 +172,15 @@ int keyvalueGetType(keyvalueType *kv, const char *key) {
 
 long keyvalueGetLong(keyvalueType *kv, const char *key) {
   int index = keyvalueFindKey(kv, key);
-  assert(kv->pairs[index].type == 1);
   if (index >= 0) {
-    return kv->pairs[index].longvalue;
+    assert(kv->pairs[index].type == 1);
+    if (index >= 0) {
+      return kv->pairs[index].longvalue;
+    } else {
+      return 0;
+    }
   } else {
+    // not found
     return 0;
   }
 }
