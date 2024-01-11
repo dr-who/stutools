@@ -1369,6 +1369,7 @@ int endsWith(const char *str, const char *suffix) {
 size_t stringToBytesDefault(const char *str, const size_t defaultScale, const size_t fullsize) {
     size_t ret = 0;
     assert(defaultScale > 0);
+    //    fprintf(stderr,"string in %s\n", str);
     if (str && (strlen(str) >= 1)) {
         if (endsWith(str, "per") || endsWith(str, "per")) { // return % of default scale
 	    ret = (atof(str) / 100.0) * fullsize;
@@ -1416,8 +1417,14 @@ size_t stringToBytesDefault(const char *str, const size_t defaultScale, const si
             ret = 1000L * atof(str);
         } else if (endsWith(str, "B")) {
             ret = atof(str);
+        } else if (endsWith(str,"s") || endsWith(str, "S")) { // s for 512 byte sectors
+	  char *end;
+	  ret = strtol(str, &end, 10);
+	  ret = ret * 512;
         } else if (endsWith(str, "o") || endsWith(str, "O")) {
-	  ret = atof(str) * fullsize;
+	  char *end;
+	  ret = strtol(str, &end, 10);
+	  ret = ret * defaultScale;
         } else {
 	    ret = atof(str) * defaultScale;
             /*if (assumePow2) {
