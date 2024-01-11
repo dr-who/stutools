@@ -222,8 +222,8 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
             }
                 const size_t smallbdsize = smallestBDSize(deviceList, deviceCount);
                 GBpow2 = 0;
-                if (strchr(optarg, '-') == NULL) {
-                    // no range
+                if ((strchr(optarg, '-') == NULL) && (strchr(optarg, '+') == NULL)) {
+                    // no range and no delta
                     size_t num = 0;
 		    num = alignedNumber(stringToBytesDefault(optarg, pow(GBpow2?1024:1000, 3.0), smallbdsize), 4096);
 		    *minSizeInBytes = num;
@@ -233,26 +233,39 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                     highg = atof(optarg);
                     fprintf(stderr, "*info* -G option %zd bytes, power2=%d, (%.3lf TiB, %.3lf GiB, %.3lf GB)\n", num,
                             GBpow2, TOTiB(num), TOGiB(num), TOGB(num));
-                } else { // range
+                } else if (strchr(optarg, '-') != NULL) { // low-high
 		  char *copy = strdup(optarg);
 		  char *first = strtok(copy, "-");
 		  if (first) {
 		    char *second = strtok(NULL, "-");
 		    if (second) {
 		      char *rest = optarg + (second - copy);
-		      fprintf(stderr," -G options %s and %s\n", first, rest);
-
 		      *minSizeInBytes = alignedNumber(stringToBytesDefault(first, pow(GBpow2?1024:1000, 3.0), smallbdsize), 4096);
 		      *maxSizeInBytes = alignedNumber(stringToBytesDefault(rest, pow(GBpow2?1024:1000, 3.0), smallbdsize), 4096);
 		    } else {
 		      fprintf(stderr,"*error* needs a range low-high\n");
 		      exit(-1);
 		    }
-		  } else {
-		      fprintf(stderr,"*error* needs a range low-high\n");
 		  }
 		  free(copy);
-                }
+		} else if (strchr(optarg, '+') != NULL) { // low+delta
+		  char *copy = strdup(optarg);
+		  char *first = strtok(copy, "+");
+		  if (first) {
+		    char *second = strtok(NULL, "+");
+		    if (second) {
+		      char *rest = optarg + (second - copy);
+		      *minSizeInBytes = alignedNumber(stringToBytesDefault(first, pow(GBpow2?1024:1000, 3.0), smallbdsize), 4096);
+		      *maxSizeInBytes = *minSizeInBytes + alignedNumber(stringToBytesDefault(rest, pow(GBpow2?1024:1000, 3.0), smallbdsize), 4096);
+		    } else {
+		      fprintf(stderr,"*error* needs a range low+delta\n");
+		      exit(-1);
+		    }
+		  } else {
+		    fprintf(stderr,"*error* needs a range low-high or low+delta\n");
+		  }
+		  free(copy);
+		}
                 if (*minSizeInBytes == *maxSizeInBytes) {
                     *minSizeInBytes = 0;
                 }

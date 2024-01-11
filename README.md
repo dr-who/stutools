@@ -61,6 +61,12 @@ then
 
       spit -f /dev/md0 -c ... -O rawdevices.txt  # perform actions on a meta device and show amplification
 
+## Zoned devices
+
+     blkzone reset -o 39015415808 -c 4096 /dev/sdg        #reset the zone for writing. Offset in 512 byte sectors.
+     
+     /spit -f /dev/sdg -c zws1k64x1 -G 39015415808s+1GiB  # spit s suffix is 512 byte sectors
+
 ## Dump out the commands
 
       spit -f .... -c ... -d 100     # dumps out the first 100 commands, to see what's happening
