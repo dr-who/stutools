@@ -16,15 +16,23 @@ just one host and as a receiver on all the other hosts
 #include <arpa/inet.h>
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 
 #include "multicast.h"
 
-main(int argc)
-{
+#define MESSAGELEN 1024
+
+int main(int argc, char *argv[]) {
    struct sockaddr_in addr;
-   int addrlen, sock, cnt;
+   socklen_t addrlen;
+   int sock, cnt;
    struct ip_mreq mreq;
-   char message[200];
+   char message[MESSAGELEN+1]; // add one for \0
+
+   if (argv) {}
 
    /* set up socket */
    sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -76,18 +84,21 @@ main(int argc)
 	 exit(1);
       }         
       while (1) {
-	cnt = recvfrom(sock, message, 200, 0, 
+	cnt = recvfrom(sock, message, MESSAGELEN, 0, 
 			(struct sockaddr *) &addr, &addrlen);
 	 if (cnt < 0) {
 	    perror("recvfrom");
 	    exit(1);
 	 } else if (cnt == 0) {
  	    break;
+	 } else {
+	   message[cnt] = '\0';
 	 }
-	 message[cnt] = '\0';
 
 	 printf("%s: '%s' %d\n", inet_ntoa(addr.sin_addr), message, cnt);
         }
     }
+
+   return 0;
 }
 

@@ -59,6 +59,8 @@ target_link_libraries(interfaces spitlib m aio pthread numa pci)
 add_executable(blockdevices blockdevicesMain.c blockdevices.c blockdevices.h keyvalue.c keyvalue.h)
 target_link_libraries(blockdevices spitlib m aio pthread numa pci)
 
+add_executable(broadcastwatch broadcastwatch.c multicast.h)
+
 add_executable(interfacesService interfacesService.c interfaces.c interfaces.h iprange.c iprange.h httpd.c httpd.h)
 target_link_libraries(interfacesService spitlib m aio pthread numa pci)
 
