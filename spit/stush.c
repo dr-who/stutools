@@ -247,6 +247,7 @@ COMMAND commands[] = {
         {"lsblk",     "List drive block devices", "admin"},
         {"lsnic",     "List IP/HW addresses", "admin"},
         {"lspci",     "List PCI devices", "admin"},
+	{"mailserver",  "set SMTP server", "admin"},
 	{"mail",      "Send email", "admin"},
         {"mem",      "Show memory usage", "admin"},
         {"mounts",    "Show mounts info", "admin"},
@@ -621,21 +622,60 @@ void cmd_cidr(const int tty, char *second) {
 }
 
 
-      
+char *MAILSERVER = NULL;
+
+
 // send email
-void cmd_mail(const int tty, char *second) {
+void cmd_mailserver(const int tty, char *second) {
   if (tty) {}
   
+  printf("mailserver: %s\n", MAILSERVER ? MAILSERVER : "127.0.0.1");
   if (second == NULL) {
-    printf("usage: mail <emailaddress@domain>\n");
-  } else {
-    int fd = simpmailConnect("127.0.0.1");
-    if (fd > 0) {
-      simpmailSend(fd, 0, "test@ingcap.co.nz", "Dr Tester", second, NULL, "stuart.inglis@gmail.com", "Welcome", NULL, "plain body\nneat eh!\n");
-      simpmailClose(fd);
+    if (MAILSERVER == NULL) {
+      printf("usage: mailserver <mailserverIP>\n");
     } else {
-      perror("mail");
     }
+      
+  } else {
+    MAILSERVER = strdup(second);
+    int fd = simpmailConnect(MAILSERVER);
+    if (fd) {
+      fprintf(stderr,"[success] mailserver = %s\n", MAILSERVER);
+      close (fd);
+    } else {
+      fprintf(stderr,"[success] failure for '%s', ignoring command\n", MAILSERVER);
+      MAILSERVER = NULL;
+    }
+  }
+}
+
+// send email
+void cmd_mail(const int tty, char *rest) {
+  if (tty) {}
+
+  if (rest == NULL) {
+    printf("usage: mail <toaddress@domain> <fromaddress@domain>\n");
+  } else {
+    char *copy = strdup(rest);
+    char *toemail = strtok(copy, " ");
+    if (toemail == NULL) {
+      printf("usage: mail <toaddress@domain> <fromaddress@domain>\n");
+    } else {
+      char *fromemail = strtok(NULL, " ");
+      if (fromemail) {
+	fprintf(stderr,"to: %s\n", toemail);
+	fprintf(stderr,"from: %s\n", fromemail);
+	
+	int fd = simpmailConnect(MAILSERVER ? MAILSERVER : "127.0.0.1");
+	if (fd > 0) {
+	  simpmailSend(fd, 0, fromemail, "from name", toemail, NULL, NULL, "Welcome", NULL, "plain body\ntest email!\n");
+	  simpmailClose(fd);
+	} else {
+	  perror("mail");
+	}
+      }
+    }
+  free(copy);
   }
 }  
 
@@ -1643,6 +1683,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_sum(tty); 
             } else if (strcasecmp(commands[i].name, "cluster") == 0) {
 	      cmd_cluster(tty); 
+            } else if (strcasecmp(commands[i].name, "mailserver") == 0) {
+	      cmd_mailserver(tty, rest); 
             } else if (strcasecmp(commands[i].name, "mail") == 0) {
 	      cmd_mail(tty, rest); 
             } else if (strcasecmp(commands[i].name, "mem") == 0) {
