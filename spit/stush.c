@@ -629,21 +629,20 @@ char *MAILSERVER = NULL;
 void cmd_mailserver(const int tty, char *second) {
   if (tty) {}
   
-  printf("mailserver: %s\n", MAILSERVER ? MAILSERVER : "127.0.0.1");
   if (second == NULL) {
-    if (MAILSERVER == NULL) {
-      printf("usage: mailserver <mailserverIP>\n");
-    } else {
+    printf("usage: mailserver <mailserverIP>\n");
+    if (MAILSERVER) {
+      printf("mailserver: %s [current]\n", MAILSERVER);
     }
-      
+    
   } else {
     MAILSERVER = strdup(second);
     int fd = simpmailConnect(MAILSERVER);
-    if (fd) {
+    if (fd > 0) {
       fprintf(stderr,"[success] mailserver = %s\n", MAILSERVER);
       close (fd);
     } else {
-      fprintf(stderr,"[success] failure for '%s', ignoring command\n", MAILSERVER);
+      fprintf(stderr,"[failure] connecting to for '%s', ignoring command\n", MAILSERVER);
       MAILSERVER = NULL;
     }
   }
@@ -658,24 +657,24 @@ void cmd_mail(const int tty, char *rest) {
   } else {
     char *copy = strdup(rest);
     char *toemail = strtok(copy, " ");
-    if (toemail == NULL) {
+    char *fromemail = NULL;
+    if (toemail) fromemail = strtok(NULL, " ");
+
+    if (fromemail == NULL) {
       printf("usage: mail <toaddress@domain> <fromaddress@domain>\n");
     } else {
-      char *fromemail = strtok(NULL, " ");
-      if (fromemail) {
-	fprintf(stderr,"to: %s\n", toemail);
-	fprintf(stderr,"from: %s\n", fromemail);
-	
-	int fd = simpmailConnect(MAILSERVER ? MAILSERVER : "127.0.0.1");
-	if (fd > 0) {
-	  simpmailSend(fd, 0, fromemail, "from name", toemail, NULL, NULL, "Welcome", NULL, "plain body\ntest email!\n");
-	  simpmailClose(fd);
-	} else {
-	  perror("mail");
-	}
+      fprintf(stderr,"to: %s\n", toemail);
+      fprintf(stderr,"from: %s\n", fromemail);
+      
+      int fd = simpmailConnect(MAILSERVER ? MAILSERVER : "127.0.0.1");
+      if (fd > 0) {
+	simpmailSend(fd, 0, fromemail, "from name", toemail, NULL, NULL, "Welcome", NULL, "plain body\ntest email!\n");
+	simpmailClose(fd);
+      } else {
+	perror("mail");
       }
     }
-  free(copy);
+    free(copy);
   }
 }  
 
