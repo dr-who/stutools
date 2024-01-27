@@ -149,6 +149,7 @@ void usage() {
   printf("  edrive rm -n test/5 -p 1600\n");
   printf("  edrive work -n test/5 -p 1600 -s 127.0.0.1\n");
   printf("  edrive dd -n test/5 -p 1600\n");
+  printf("  edrive sb -n test/5 -p 1600\n");
   printf("  edrive size -n test/5 -p 1600   # data size, excluding superblock\n");
   printf("  edrive fullsize -n test/5 -p 1600   # data size, include superblock\n");
   printf("\n");
@@ -228,6 +229,31 @@ int main(int argc, char *argv[]) {
     key_t shmid = shared_open(name, port);
     fprintf(stderr, "shmid: %d\n", shmid);
     shared_delete(shmid, name, port);
+  } else if (strcmp(command, "sb") == 0) {
+    key_t shmid = shared_open(name, port);
+    if (shmid != (key_t)-1) {
+      fprintf(stderr, "shmid: %d\n", shmid);
+      char *shm = shared_mem(shmid);
+      if (!shm) {
+	fprintf(stderr, "no shared memory exists\n");
+	exit(EXIT_FAILURE);
+      }
+      char *sb = strdup(shm);
+      keyvalueType *kv = keyvalueInitFromString(sb);
+      size_t cs = kv->checksum;
+      size_t newcs = keyvalueChecksum(kv);
+      
+      if (cs != newcs) {
+	fprintf(stderr,"not a valid sb %zd %zd\n", cs, newcs);
+      } else {
+	char *dump = keyvalueDumpAsJSON(kv);
+	printf("%s", dump);
+	free(dump);
+      }
+      keyvalueFree(kv);
+    } else {
+      exit(EXIT_FAILURE);
+    }
   } else if (strcmp(command, "size") == 0) {
     key_t shmid = shared_open(name, port);
     if (shmid != (key_t)-1) {
