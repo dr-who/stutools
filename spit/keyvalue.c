@@ -246,7 +246,7 @@ size_t keyvalueChecksum(keyvalueType *kv) {
   
 char *keyvalueDumpAsString(keyvalueType *kv) {
   keyvalueSort(kv);
-  int maxbytes = 3*kv->byteLen;
+  int maxbytes = 5*kv->byteLen;
   
   char *s = calloc(maxbytes, 1); assert(s);
   for (size_t i = 0; i < kv->num; i++) {
@@ -270,7 +270,7 @@ char *keyvalueDumpAsString(keyvalueType *kv) {
 
 char *keyvalueDumpAsJSON(keyvalueType *kv) {
   keyvalueSort(kv);
-  char *s = calloc(3*kv->byteLen, 1);
+  char *s = calloc(5*kv->byteLen, 1);
   size_t level = 0;
 
   strcat(s, "{\n");
@@ -324,15 +324,22 @@ void keyvalueFree(keyvalueType *kv) {
 }
 
 void keyvalueDumpAtStartRAM(keyvalueType *kv, void *ram) {
+  kv->checksum = keyvalueChecksum(kv);
   char *s = keyvalueDumpAsString(kv);
-  strcpy((char*)ram, s);
+  size_t len = strlen(s);
+  strncpy((char*)ram, s, len);
+  sprintf((char*)ram + len, " checksum;%zd", kv->checksum);
   free(s);
 }
 
 void keyvalueDumpAtStartFD(keyvalueType *kv, int fd) {
   lseek(fd, 0, SEEK_CUR);
+  kv->checksum = keyvalueChecksum(kv);
   char *s = keyvalueDumpAsString(kv);
-  write(fd, s, strlen(s)+1);
+  pwrite(fd, s, strlen(s)+1, 0);
+  char s2[100];
+  sprintf(s2," checksum;%zd", kv->checksum);
+  pwrite(fd, s2, strlen(s2)+1, strlen(s));
   free(s);
 }
   

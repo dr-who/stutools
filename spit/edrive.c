@@ -46,7 +46,7 @@ key_t shared_create(char *name, int port, long size) {
     fprintf(stderr, "created: %s\n", s);
     // successfully created the
     // now create a shmem
-    if ((shmid = shmget(IPC_PRIVATE, size + dataoffset, IPC_CREAT | IPC_EXCL | 0666)) < 0) {
+    if ((shmid = shmget(IPC_PRIVATE, size + dataoffset, IPC_CREAT | IPC_EXCL | 0600)) < 0) {
       // failed, delete shm too
       if (shm_unlink(s) < 0) {
 	perror(s);
@@ -298,6 +298,7 @@ int main(int argc, char *argv[]) {
   } else if (strcmp(command, "work") == 0) {
     key_t shmid = shared_open(name, port);
     if (shmid != (key_t)-1) {
+      // get the ram disk
       fprintf(stderr, "shmid: %d\n", shmid);
       volatile char *shm = shared_mem(shmid);
       if (!shm) {
@@ -305,6 +306,25 @@ int main(int argc, char *argv[]) {
 	exit(EXIT_FAILURE);
       }
 
+      // check the superblock
+      char *sb = strdup((char*)shm);
+      keyvalueType *kv = keyvalueInitFromString(sb);
+      size_t cs = kv->checksum;
+      size_t newcs = keyvalueChecksum(kv);
+      
+      if (cs != newcs) {
+	fprintf(stderr,"not a valid sb %zd %zd\n", cs, newcs);
+	exit(EXIT_FAILURE);
+      } 
+
+      // grab the data offset
+      dataoffset = keyvalueGetLong(kv, "dataoffset"); // start at the data place
+      printf("dataoffset: %zd\n", dataoffset);
+      assert(dataoffset >= 16*1024*1024);
+      
+      shm = shm + dataoffset;
+      // go for it!
+      
       size_t t = 0;
       //      sem_t *sem = (sem_t*)shm;
       volatile int *vp = (int*)(shm + sizeof(sem_t));
