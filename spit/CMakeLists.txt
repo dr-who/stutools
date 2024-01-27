@@ -73,7 +73,11 @@ add_executable(queue queueMain.c queue.c queue.h)
 add_executable(cidr cidr.c iprange.c iprange.h ipcheck.c ipcheck.h utilstime.c interfaces.c utils.c simpsock.c )
 target_link_libraries(cidr uuid spitlib m aio pthread numa pci)
 
-add_executable(keyvalue keyvalueMain.c keyvalue.c keyvalue.h)
+add_executable(keyvalue keyvalueMain.c keyvalue.c keyvalue.h utils.c utils.h )
+target_link_libraries(keyvalue uuid spitlib m aio pthread numa pci)
+
+add_executable(edrive edrive.c keyvalue.c keyvalue.h utilstime.c utilstime.h utils.c)
+target_link_libraries(edrive uuid spitlib m aio pthread numa pci)
 
 add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h iprange.c interfaces.c interfaces.h simpsock.c )
 target_link_libraries(ipcheck uuid spitlib m aio pthread numa pci)
@@ -139,9 +143,6 @@ target_link_libraries(fsfiller spitlib m aio pthread numa)
 
 add_executable(spitchecker verify.c)
 target_link_libraries(spitchecker spitlib m aio pthread numa)
-
-add_executable(spitchecker2 bv2.c)
-target_link_libraries(spitchecker2 spitlib m aio pthread numa )
 
 add_executable(positionLoader positionLoader.c)
 target_link_libraries(positionLoader spitlib m aio pthread numa)

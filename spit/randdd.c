@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
 
 
     if (!verify) {
-        int fd = open(device, O_DIRECT | O_WRONLY | O_TRUNC | O_EXCL, S_IRUSR | S_IWUSR);
+        fd = open(device, O_DIRECT | O_WRONLY | O_TRUNC | O_EXCL, S_IRUSR | S_IWUSR);
         if (fd >= 0) {
 
             for (double offset = startpos; offset <= (double) endpos - (double) size; offset += gap) {

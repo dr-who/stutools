@@ -202,8 +202,8 @@ int main(int argc, char *argv[])
 	  fprintf(stderr,"*info* starting verify, %zd threads\n", threads);
 	  
 	  // verify must be sorted
-	  size_t correct, incorrect, ioerrors;
-	  errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct, &incorrect, &ioerrors, quiet, process, overridesize, exitearlyn);
+	  size_t correct2, incorrect2, ioerrors2;
+	  errors = verifyPositions(&pc, threads, &job, o_direct, 0, 0 /*runtime*/, &correct2, &incorrect2, &ioerrors2, quiet, process, overridesize, exitearlyn);
 	  jobFree(&job);
 	  
 	  if (!keepRunning) {
@@ -211,8 +211,8 @@ int main(int argc, char *argv[])
 	  }
 	  
 	  positionContainerFree(&pc);
-	  for (size_t i = 0; i < numFiles; i++) {
-	    positionContainerFree(&origpc[i]);
+	  for (size_t ii = 0; ii < numFiles; ii++) {
+	    positionContainerFree(&origpc[ii]);
 	  }
 	  free(origpc);
 	  origpc=NULL;

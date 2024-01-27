@@ -70,7 +70,6 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  sprintf(isr,"/sys/block/%s/queue/zoned", suf);
 		  char *zoned = getStringFromFile(isr, 1);
 		  if (zoned) keyvalueSetString(k, "zoned", zoned);
-		  free(zoned);
 
 		  if (zoned && (strcmp(zoned, "none")!=0)) {
 		    sprintf(isr,"/sys/block/%s/queue/chunk_sectors", suf);
@@ -78,6 +77,7 @@ void blockDevicesScan(blockDevicesType *bd) {
 		    if (chunk) 
 		      keyvalueSetLong(k, "zonesize", chunk);
 		  }
+		  free(zoned);
 
 
 		  if (getWriteCache(suf) == 0) {

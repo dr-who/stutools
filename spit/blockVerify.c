@@ -235,10 +235,10 @@ static void *runThread(void *arg) {
         }
         if (threadContext->id == threadContext->numThreads - 1) {
             // print progress
-            size_t gap = threadContext->endExc - threadContext->startInc - 1;
+	  size_t gap2 = threadContext->endExc - threadContext->startInc - 1;
             if (isatty(fileno(stderr))) {
                 if (!threadContext->quiet) {
-                    fprintf(stderr, "*progress* %.1lf %%\r", (gap == 0) ? 100 : (curPositions * 100.0) / maxPositions);
+                    fprintf(stderr, "*progress* %.1lf %%\r", (gap2 == 0) ? 100 : (curPositions * 100.0) / maxPositions);
                     fflush(stderr);
                 }
             }

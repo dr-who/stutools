@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 
   char *suffix = NULL, *dev = NULL;
   
-  int opt = 0, command = 0, verbose = 0;
+  int opt = 0, command = 0;
   const char *getoptstring = "4kaf:v";
 
   while ((opt = getopt(argc, argv, getoptstring )) != -1) {

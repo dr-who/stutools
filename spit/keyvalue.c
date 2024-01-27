@@ -1,13 +1,32 @@
 #include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
+#include <stdio.h>
 
 #include "keyvalue.h"
 #include "string.h"
+#include "utils.h"
 
 
 keyvalueType *keyvalueInit() {
   keyvalueType *p = calloc(1, sizeof(keyvalueType)); assert(p);
   return p;
 }
+
+
+void keyvalueAddUUID(keyvalueType *kv) {
+  FILE *fp = fopen("/dev/random", "rb");
+  unsigned long c = 0;
+  if (fread(&c, sizeof(unsigned long), 1, fp) == 0) {
+    //      perror("random");
+    c = time(NULL);
+    fprintf(stderr, "*info* random seed from clock\n");
+  }
+  c/=2;
+  fclose(fp);
+  keyvalueSetLong(kv, "uuid", c);
+}
+
 
 
 void keyvalueParsePair(keyvalueType *kv, char *pp) {
@@ -41,6 +60,7 @@ keyvalueType *keyvalueInitFromString(char *par) {
     keyvalueParsePair(p, tok);
     
     while ((tok = strtok(NULL, " "))) {
+
       keyvalueParsePair(p, tok);
     }
   }
@@ -63,6 +83,11 @@ int keyvalueFindKey(keyvalueType *kv, const char *key) {
 
 
 size_t keyvalueAddString(keyvalueType *kv, const char *key, char *value) {
+  for (size_t i = 0; i < strlen(value); i++) {
+    if ((value[i] == ' ') || (value[i] == ':') || (value[i] == ';') || (value[i] == '\n'))
+      value[i] = '_';
+  }
+     
   int index = keyvalueFindKey(kv, key);
 
   if (index >= 0) {
@@ -85,6 +110,11 @@ size_t keyvalueAddString(keyvalueType *kv, const char *key, char *value) {
 }
 
 size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value) {
+  for (size_t i = 0; i < strlen(value); i++) {
+    if ((value[i] == ' ') || (value[i] == ':') || (value[i] == ';') || (value[i] == '\n'))
+      value[i] = '_';
+  }
+  
   int index = -1;
   for (size_t i = 0; i < kv->num; i++) {
     if (strcasecmp(key, kv->pairs[i].key)==0) {
@@ -114,6 +144,14 @@ size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value) {
 
 
 size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
+
+  //  printf("%s -> %ld\n", key, value);
+  
+  if (strcmp(key, "checksum")==0) {
+    kv->checksum = value;
+    return -1;
+  }
+
   int index = -1;
   for (size_t i = 0; i < kv->num; i++) {
     if (strcasecmp(key, kv->pairs[i].key)==0) {
@@ -123,6 +161,7 @@ size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
   }
 
   if (index >= 0) {
+
     //found
     free(kv->pairs[index].key);
     if (kv->pairs[index].type == 0 || kv->pairs[index].type == 2) {
@@ -147,14 +186,16 @@ size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
 
 
 void keyvalueSort(keyvalueType *kv) {
-  for (size_t i = 0; i < kv->num - 1; i++) {
-    for (size_t j = i+1; j < kv->num; j++) {
-      int t = strcasecmp(kv->pairs[i].key, kv->pairs[j].key);
-      if (t > 0) {
-	keyvaluePair tmp = kv->pairs[i];
-	kv->pairs[i] = kv->pairs[j];
-	kv->pairs[j] = tmp;
-	//swap
+  if (kv->num > 1) {
+    for (size_t i = 0; i < kv->num - 1; i++) {
+      for (size_t j = i+1; j < kv->num; j++) {
+	int t = strcasecmp(kv->pairs[i].key, kv->pairs[j].key);
+	if (t > 0) {
+	  keyvaluePair tmp = kv->pairs[i];
+	  kv->pairs[i] = kv->pairs[j];
+	  kv->pairs[j] = tmp;
+	  //swap
+	}
       }
     }
   }
@@ -195,6 +236,13 @@ char *keyvalueGetString(keyvalueType *kv, const char *key) {
   }
 }
 
+
+size_t keyvalueChecksum(keyvalueType *kv) {
+  char *s = keyvalueDumpAsString(kv);
+  size_t checksum = checksumBuffer(s, strlen(s));
+  return checksum;
+}
+  
   
 char *keyvalueDumpAsString(keyvalueType *kv) {
   keyvalueSort(kv);
@@ -226,6 +274,11 @@ char *keyvalueDumpAsJSON(keyvalueType *kv) {
   size_t level = 0;
 
   strcat(s, "{\n");
+
+  //  char str[1000];
+  //  sprintf(str, "\t\"checksum\": %zd,\n", kv->checksum);
+  //  strcat(s, str);
+
   for (size_t i = 0; i < kv->num; i++) {
     // tabs
     level++; for (size_t l = 0; l < level; l++) strcat(s, "\t");
@@ -270,3 +323,16 @@ void keyvalueFree(keyvalueType *kv) {
   free(kv);
 }
 
+void keyvalueDumpAtStartRAM(keyvalueType *kv, void *ram) {
+  char *s = keyvalueDumpAsString(kv);
+  strcpy((char*)ram, s);
+  free(s);
+}
+
+void keyvalueDumpAtStartFD(keyvalueType *kv, int fd) {
+  lseek(fd, 0, SEEK_CUR);
+  char *s = keyvalueDumpAsString(kv);
+  write(fd, s, strlen(s)+1);
+  free(s);
+}
+  

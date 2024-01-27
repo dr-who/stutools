@@ -22,7 +22,7 @@ int verbose = 0;
 
 int main(int argc, char *argv[]) {
 
-    int opt, verbose = 0;
+  int opt;
     size_t num = 100;
     char *device = NULL;
     size_t blockLow = 4096, blockHigh = 4096;

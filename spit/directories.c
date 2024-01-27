@@ -66,10 +66,10 @@ void makeDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
     if (ls) logSpeedReset(ls);
 
     for (size_t i = 0; i < count; i++) {
-        char s[PATH_MAX];
-        sprintf(s, "%s/testdir/file-%05zd", prefix, i);
-        //    fprintf(stderr,"%s\n", s);
-        makeFile(s, buffer, size, chunk);
+        char ss[PATH_MAX];
+        sprintf(ss, "%s/testdir/file-%05zd", prefix, i);
+        //    fprintf(stderr,"%s\n", ss);
+        makeFile(ss, buffer, size, chunk);
         if (ls) logSpeedAdd2(ls, TOMiB(size), 1);
     }
 
@@ -92,10 +92,10 @@ void readDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
     if (ls) logSpeedReset(ls);
 
     for (size_t i = 0; i < count; i++) {
-        char s[PATH_MAX];
-        sprintf(s, "%s/testdir/file-%05zd", prefix, i);
-        //    fprintf(stderr,"%s\n", s);
-        readFile(s, buffer, size, chunk);
+        char ss[PATH_MAX];
+        sprintf(ss, "%s/testdir/file-%05zd", prefix, i);
+        //    fprintf(stderr,"%s\n", ss);
+        readFile(ss, buffer, size, chunk);
         if (ls) logSpeedAdd2(ls, TOMiB(size), 1);
     }
 

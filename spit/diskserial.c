@@ -18,9 +18,9 @@ int main() {
         s[strlen(s) - 1] = 0;
         int fd = open(s, O_RDONLY);
         if (fd > 0) {
-            char *s = serialFromFD(fd);
-            printf("%s\n", s);
-            free(s);
+            char *ser = serialFromFD(fd);
+            printf("%s\n", ser);
+            free(ser);
             close(fd);
         } else {
             perror(s);

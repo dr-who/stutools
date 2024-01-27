@@ -1,36 +1,40 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 
 #include "keyvalue.h"
 #include "string.h"
 
+int keepRunning = 1;
 
 int main() {
-  keyvalueType *kv = keyvalueInit();
 
-  keyvalueSetString(kv, "stu", "nic");
-  keyvalueSetString(kv, "stu2", "stu");
-  keyvalueSetString(kv, "stu2", "sni");
-  keyvalueSetLong(kv, "a", 8213);
-  keyvalueSetLong(kv, "zz", -3489);
-  keyvalueSetLong(kv, "stu", 42);
-  keyvalueSetString(kv, "stu", "nic");
-  keyvalueSetLong(kv, "bob", 12);
-  keyvalueAddString(kv, "stu", "df");
-  keyvalueSetLong(kv, "stu", 42);
+  char *line = NULL;
+  size_t len = 1000;
+  
+  getline(&line, &len, stdin);
+  
+  keyvalueType *kv = keyvalueInitFromString(line);
+  //  printf("loaded checksum %zd\n", kv->checksum);
 
-  char * s = keyvalueDumpAsString(kv);
-  fprintf(stderr, "%s\n", s);
-  free(s);
+  size_t ch = keyvalueChecksum(kv);
 
-  s = keyvalueDumpAsJSON(kv);
-  printf("%s\n", s);
+  if (kv->checksum && (kv->checksum != ch)) {
+    printf("bad checksum\n");
+    exit(1);
+  }
+  
+  //  printf("calc checksum %zd\n", ch);
+       
+  char *s = keyvalueDumpAsString(kv);
+  kv->checksum = keyvalueChecksum(kv);
+  printf("%s checksum;%zd\n", s, kv->checksum);
+  fflush(stdout);
   free(s);
 
   keyvalueFree(kv);
 
-  kv = keyvalueInitFromString("stu:nic bob;12 a;83 z:qq");
-  char *sss = keyvalueDumpAsJSON(kv);
-  fprintf(stderr,"%s", sss);
-  keyvalueFree(kv);
+    free(line);
 
   return 0;
 }

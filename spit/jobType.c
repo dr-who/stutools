@@ -2304,18 +2304,18 @@ int jobRunThreads(jobType *job, const int num, char *filePrefix,
     }
 
     if (do_numa) {
-        int verify = 0;
+        int verifyn = 0;
         fprintf(stderr, "*info* NUMA allocation for %d threads {", num);
         for (int numa = 0; numa < numa_count; numa++) {
             const char *delim = numa > 0 ? ", " : "";
             fprintf(stderr, "%s%d", delim, numa_thread_counter[numa]);
-            verify += numa_thread_counter[numa]; // check all threads are allocated
+            verifyn += numa_thread_counter[numa]; // check all threads are allocated
             free(numa_threads[numa]);
         }
         fprintf(stderr, "}\n");
         free(numa_threads);
         free(numa_thread_counter);
-        assert(verify == num);
+        assert(verifyn == num);
     }
     listDestroy(&numaList);
 

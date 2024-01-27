@@ -152,16 +152,16 @@ void *worker(void *arg) {
 
             {
                 if (threadContext->threadid == 0) {
-                    const double thistime = timeAsDouble();
-                    const double tm = thistime - lasttime;
+                    double thistime = timeAsDouble();
+                    double tm = thistime - lasttime;
 
 
                     if (tm > 1) {
                         const size_t fin = wqfin - lastfin;
                         lastfin = wqfin;
-
-                        const double thistime = timeAsDouble();
-                        const double tm = thistime - lasttime;
+			
+			thistime = timeAsDouble();
+			tm = thistime - lasttime;
                         lasttime = thistime;
 
                         sprintf(logstring,
