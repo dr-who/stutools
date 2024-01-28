@@ -323,11 +323,11 @@ void keyvalueFree(keyvalueType *kv) {
   free(kv);
 }
 
-void keyvalueDumpAtStartRAM(keyvalueType *kv, void *ram) {
+void keyvalueDumpAtStartRAM(keyvalueType *kv, volatile void *ram) {
   kv->checksum = keyvalueChecksum(kv);
   char *s = keyvalueDumpAsString(kv);
   size_t len = strlen(s);
-  strncpy((char*)ram, s, len);
+  memcpy((char*)ram, s, len);
   sprintf((char*)ram + len, " checksum;%zd", kv->checksum);
   free(s);
 }

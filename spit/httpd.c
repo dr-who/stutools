@@ -1,234 +1,215 @@
-#include "httpd.h"
-
-#include <arpa/inet.h>
-#include <ctype.h>
-#include <netdb.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/socket.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
+#include <time.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <assert.h>
+#include <netdb.h>
+#include <ifaddrs.h>
+#include <signal.h>
+#include <sys/utsname.h>
 
-#define MAX_CONNECTIONS 1000
-#define BUF_SIZE 65535
-#define QUEUE_SIZE 1000000
+#include "transfer.h"
 
-static int listenfd;
-int *clients;
-static void start_server(const char *);
-static void respond(int);
+#include "utils.h"
 
-static char *buf;
+#include <glob.h>
 
-// Client request
-char *method, // "GET" or "POST"
-    *uri,     // "/index.html" things before '?'
-    *qs,      // "a=1&b=2" things after  '?'
-    *prot,    // "HTTP/1.1"
-    *payload; // for POST
+#include "advertise-mc.h"
+#include "respond-mc.h"
+#include "blockdevices.h"
 
-int payload_size;
+int keepRunning = 1;
+int tty = 0;
 
-static header_t reqhdr[17] = {{"\0", "\0"}};
+void intHandler(int d) {
+    if (d) {}
+    fprintf(stderr, "got signal\n");
+    keepRunning = 0;
+    exit(-1);
+}
 
-void serve_forever(const char *PORT) {
-  struct sockaddr_in clientaddr;
-  socklen_t addrlen;
 
-  int slot = 0;
+#include "sat.h"
+#include "snack.h"
+#include "interfaces.h"
+#include "cluster.h"
+#include "iprange.h"
+#include "ipcheck.h"
+#include "simpsock.h"
+#include "keyvalue.h"
 
-  printf("Server started %shttp://127.0.0.1:%s%s\n", "\033[92m", PORT,
-         "\033[0m");
+ 
+void *receiver(void *arg) {
+  threadMsgType *tc = (threadMsgType *) arg;
 
-  // create shared memory for client slot array
-  clients = mmap(NULL, sizeof(*clients) * MAX_CONNECTIONS,
-                 PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
 
-  // Setting all elements to -1: signifies there is no client connected
-  int i;
-  for (i = 0; i < MAX_CONNECTIONS; i++)
-    clients[i] = -1;
-  start_server(PORT);
+  int serverport = tc->serverport;
 
-  // Ignore SIGCHLD to avoid zombie threads
-  signal(SIGCHLD, SIG_IGN);
+  int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd == -1) {
+    perror("Can't allocate sockfd");
+    //	  continue;
+  }
 
-  // ACCEPT connections
-  while (1) {
-    addrlen = sizeof(clientaddr);
-    clients[slot] = accept(listenfd, (struct sockaddr *)&clientaddr, &addrlen);
+  //	socksetup(sockfd, 10);
+  int true = 1;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(int)) == -1) {
+    perror("so_reuseaddr");
+    close(sockfd);
+    exit(1);
+  }
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &true, sizeof(int)) == -1) {
+    perror("so_reuseport");
+    close(sockfd);
+    exit(1);
+  }
 
-    if (clients[slot] < 0) {
-      perror("accept() error");
+  struct sockaddr_in clientaddr, serveraddr;
+  memset(&serveraddr, 0, sizeof(serveraddr));
+  serveraddr.sin_family = AF_INET;
+  serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  serveraddr.sin_port = htons(serverport);
+
+  if (bind(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) == -1) {
+    perror("Bind Error");
+    close(sockfd);
+    exit(1);
+    //	  continue;
+  }
+
+  if (listen(sockfd, 200) == -1) {
+    perror("Listen Error");
+    close(sockfd);
+    exit(1);
+    //	  continue;
+  }
+
+  srand(time(NULL));
+
+  int connections = 0;
+  size_t bytes = 0;
+  double start =timeAsDouble();
+
+#define THESZ (1024*1024)
+      
+  char *databuf = calloc(THESZ,1);
+  char ch = 'A';
+  
+  for (size_t ii = 0; ii < THESZ; ii++) {
+    databuf[ii] = ch++;
+  }
+  
+  while (keepRunning) {
+    socklen_t addrlen = sizeof(clientaddr);
+    int connfd = accept(sockfd, (struct sockaddr *) &clientaddr, &addrlen);
+    if (connfd == -1) {
+      perror("Connect Error");
       exit(1);
-    } else {
-      if (fork() == 0) {
-        close(listenfd);
-        respond(slot);
-        close(clients[slot]);
-        clients[slot] = -1;
-        exit(0);
-      } else {
-        close(clients[slot]);
-      }
     }
 
-    while (clients[slot] != -1)
-      slot = (slot + 1) % MAX_CONNECTIONS;
-  }
-}
+    //    char addr[INET_ADDRSTRLEN];
+    //    inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
 
-// start server
-void start_server(const char *port) {
-  struct addrinfo hints, *res, *p;
+      char buffer[1024];
+      if (sockrec(connfd, buffer, 1024, 0, 1) < 0) {
+	perror("sockrec connfd");
+	break;
+	//	continue;
+	//	  fprintf(stderr, "din'yt get a string\n");
+      }
 
-  // getaddrinfo for host
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE;
-  if (getaddrinfo(NULL, port, &hints, &res) != 0) {
-    perror("getaddrinfo() error");
-    exit(1);
-  }
-  // socket and bind
-  for (p = res; p != NULL; p = p->ai_next) {
-    int option = 1;
-    listenfd = socket(p->ai_family, p->ai_socktype, 0);
-    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
-    if (listenfd == -1)
-      continue;
-    if (bind(listenfd, p->ai_addr, p->ai_addrlen) == 0)
-      break;
-  }
-  if (p == NULL) {
-    perror("socket() or bind()");
-    exit(1);
-  }
+      /*      char print[100];
+      memset(print, 0, 100);
+      strncpy(print, buffer, 99);
+      fprintf(stderr,"-->%s\n", print);
+      */
 
-  freeaddrinfo(res);
+      char *sendbuffer = calloc(THESZ+200,1);
+      
+      sprintf(sendbuffer, "HTTP/1.1 200 OK\nDate: Sun, 28 Jan 2024 04:57:01 GMT\nConnection: close\nCache-Control: no-store, no-cache, must-revalidate\nContent-Length: %d\n", THESZ);
+      char s[100];
+      sprintf(s, "X-Position: %zd\n", rand());
+      strcat(sendbuffer, s);
+      strcat(sendbuffer, "\n");
+      const size_t pos = strlen(sendbuffer);      
+      memcpy(sendbuffer+pos, databuf, THESZ);
+      
+      const int contentLen = pos + THESZ;
 
-  // listen for incoming connections
-  if (listen(listenfd, QUEUE_SIZE) != 0) {
-    perror("listen() error");
-    exit(1);
+      connections++;
+      bytes += contentLen;
+      fprintf(stderr,"%d  %zd  %.1lf/s\n", connections, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start));
+      
+      if (fcntl(connfd, F_GETFD) == -1) break;
+      if (socksendWithLen(connfd, sendbuffer, contentLen, 0, 1) < 0) {
+	perror("sock send\n");
+	break;
+      }
+      free(sendbuffer);
+    
+    close(connfd);
   }
-}
-
-// get request header by name
-char *request_header(const char *name) {
-  header_t *h = reqhdr;
-  while (h->name) {
-    if (strcmp(h->name, name) == 0)
-      return h->value;
-    h++;
-  }
+  close(sockfd);
   return NULL;
 }
 
-// get all request headers
-header_t *request_headers(void) { return reqhdr; }
 
-// Handle escape characters (%xx)
-static void uri_unescape(char *uri) {
-  char chr = 0;
-  char *src = uri;
-  char *dst = uri;
+void startThreads(interfacesIntType *n, const int serverport) {
+  fprintf(stderr,"**start** httpd on  ->  port %d\n", serverport);
 
-  // Skip inital non encoded character
-  while (*src && !isspace((int)(*src)) && (*src != '%'))
-    src++;
+    pthread_t *pt;
+    threadMsgType *tc;
+    size_t num = 1; // threads
 
-  // Replace encoded characters with corresponding code.
-  dst = src;
-  while (*src && !isspace((int)(*src))) {
-    if (*src == '+')
-      chr = ' ';
-    else if ((*src == '%') && src[1] && src[2]) {
-      src++;
-      chr = ((*src & 0x0F) + 9 * (*src > '9')) * 16;
-      src++;
-      chr += ((*src & 0x0F) + 9 * (*src > '9'));
-    } else
-      chr = *src;
-    *dst++ = chr;
-    src++;
-  }
-  *dst = '\0';
-}
+    CALLOC(pt, num, sizeof(pthread_t));
+    CALLOC(tc, num, sizeof(threadMsgType));
 
-// client connection
-void respond(int slot) {
-  int rcvd;
+    clusterType *cluster = clusterInit(serverport);
 
-  buf = malloc(BUF_SIZE);
-  rcvd = recv(clients[slot], buf, BUF_SIZE, 0);
-
-  if (rcvd < 0) // receive error
-    fprintf(stderr, ("recv() error\n"));
-  else if (rcvd == 0) { // receive socket closed 
-    //    fprintf(stderr, "Client disconnected upexpectedly.\n");
-}
-  else // message received
-  {
-    buf[rcvd] = '\0';
-
-    method = strtok(buf, " \t\r\n");
-    uri = strtok(NULL, " \t");
-    prot = strtok(NULL, " \t\r\n");
-
-    uri_unescape(uri);
-
-    fprintf(stderr, "\x1b[32m + [%s] %s\x1b[0m\n", method, uri);
-
-    qs = strchr(uri, '?');
-
-    if (qs)
-      *qs++ = '\0'; // split URI
-    else
-      qs = uri - 1; // use an empty string
-
-    header_t *h = reqhdr;
-    char *t, *t2;
-    while (h < reqhdr + 16) {
-      char *key, *val;
-
-      key = strtok(NULL, "\r\n: \t");
-      if (!key)
-        break;
-
-      val = strtok(NULL, "\r\n");
-      while (*val && *val == ' ')
-        val++;
-
-      h->name = key;
-      h->value = val;
-      h++;
-      fprintf(stderr, "[H] %s: %s\n", key, val);
-      t = val + 1 + strlen(val);
-      if (t[1] == '\r' && t[2] == '\n')
-        break;
+    for (size_t i = 0; i < num; i++) {
+        tc[i].id = i;
+        tc[i].num = num;
+        tc[i].serverport = serverport;
+	tc[i].n = n;
+        tc[i].starttime = timeAsDouble();
+	tc[i].cluster = cluster;
+	tc[i].eth = NULL; 
+	pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
     }
-    t = strtok(NULL, "\r\n");
-    t2 = request_header("Content-Length"); // and the related header if there is
-    payload = t;
-    payload_size = t2 ? atol(t2) : (rcvd - (t - buf));
 
-    // bind clientfd to stdout, making it easier to write
-    int clientfd = clients[slot];
-    dup2(clientfd, STDOUT_FILENO);
-    close(clientfd);
+    for (size_t i = 0; i < num; i++) {
+      pthread_join(pt[i], NULL);
+      printf("thread %zd finished %d\n", i, keepRunning);
+    }
+    free(tc);
+    free(pt);
+}
 
-    // call router
-    route();
 
-    // tidy up
-    fflush(stdout);
-    shutdown(STDOUT_FILENO, SHUT_WR);
-    close(STDOUT_FILENO);
+
+
+
+
+int main() {
+  signal(SIGTERM, intHandler);
+  signal(SIGINT, intHandler);
+
+  interfacesIntType *n = interfacesInit();
+  interfacesScan(n);
+
+  int port = 8080;
+  if (getenv("SAT_PORT")) {
+    port = atoi(getenv("SAT_PORT"));
+    fprintf(stderr,"systemd environment SAT_PORT is %d\n", port);
+    if (port < 1) port = 8080;
   }
 
-  free(buf);
+  startThreads(n, port);
+
+  return 0;
 }

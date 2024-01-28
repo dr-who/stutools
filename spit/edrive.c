@@ -15,6 +15,7 @@
 #include "keyvalue.h"
 #include "utilstime.h"
 #include "utils.h"
+#include "simpsock.h"
 
 int keepRunning = 1;
 
@@ -73,7 +74,9 @@ key_t shared_create(char *name, int port, long size) {
       keyvalueType *kv = keyvalueInit();
       keyvalueAddUUID(kv);
       keyvalueSetLong(kv, "port", port);
-      keyvalueAddString(kv, "namespace", name);
+      char *sname = shared_name(name, port);
+      keyvalueAddString(kv, "deviceName", sname);
+      free(sname);
       keyvalueAddString(kv, "deviceType", "RAM");
       keyvalueSetLong(kv, "sizeB", size);
       keyvalueSetLong(kv, "sizeGB", size*1.0/1024/1024/1024);
@@ -93,7 +96,7 @@ key_t shared_create(char *name, int port, long size) {
       keyvalueSetLong(kv, "hostUptimeDays", uptime);
       
       keyvalueDumpAtStartRAM(kv, shm);
-      //      sem_t *sem = (sem_t*)shm;
+      //      sem_t *sem = (sem_t*)(shm + dataoffset - sizeof(sem_t));
       //      sem_init(sem, 1, 1);
     }
   }
@@ -120,6 +123,7 @@ char *shared_mem(key_t shmid) {
   char *shm = NULL;
   if ((shm = shmat(shmid, NULL, 0)) == (char *) -1) {
     perror("shared_mem");
+    return NULL;
   }
   return shm;
 }
@@ -166,9 +170,9 @@ int main(int argc, char *argv[]) {
 
   int opt = 0;
   int port = 1600;
-  char *namespace = NULL, *nic = NULL;
+  char *namespace = NULL, *nic = NULL, *server = NULL;
 
-  while ((opt = getopt(argc, argv, "n:p:e:")) != -1) {
+  while ((opt = getopt(argc, argv, "n:p:e:s:")) != -1) {
     switch (opt) {
     case 'n':
       namespace = strdup(optarg);
@@ -178,6 +182,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'e':
       nic = strdup(optarg);
+      break;
+    case 's':
+      server = strdup(optarg);
       break;
     default:
       usage();
@@ -196,6 +203,7 @@ int main(int argc, char *argv[]) {
   }
 
     
+  char *command = argv[optind];
 
 
   char *name = strtok(namespace, "/");
@@ -207,15 +215,17 @@ int main(int argc, char *argv[]) {
     ramgb = atoi(second);
     if (ramgb < 1) ramgb = 1;
   } else {
-    usage();
-    exit(EXIT_FAILURE);
+    if (strcmp(command, "register") == 0) {
+      printf("need ram size\n");
+      usage();
+      exit(EXIT_FAILURE);
+    }
   }
 
   fprintf(stderr, "namespace: %s, RAM: %zd GB, port %d, nic: %s\n", name, ramgb, port, nic);
 
   // do the commands
 
-  char *command = argv[optind];
 
   size_t dataoffset = 16*1024*1024;
   
@@ -321,29 +331,51 @@ int main(int argc, char *argv[]) {
       dataoffset = keyvalueGetLong(kv, "dataoffset"); // start at the data place
       printf("dataoffset: %zd\n", dataoffset);
       assert(dataoffset >= 16*1024*1024);
+
+      keyvalueSetLong(kv, "lastOpened", timeAsDouble());
+      keyvalueDumpAtStartRAM(kv, shm);
       
-      shm = shm + dataoffset;
+      volatile char *data = shm + dataoffset;
       // go for it!
+      // start working
       
-      size_t t = 0;
-      //      sem_t *sem = (sem_t*)shm;
-      volatile int *vp = (int*)(shm + sizeof(sem_t));
+      //      sem_t *sem = (sem_t*)(data - sizeof(sem_t));
+      //	sem_wait(sem);
+      ///  sem_post(sem);
+
+
+      char header[1000];
+      sprintf(header, "GET / HTTP/1.1\nHost: %s:%d\nUser-Agent: edrive-%s/0.0\nAccept */*\n", server, port, keyvalueGetString(kv, "deviceName"));
       
-      while ( 1 ) {
-	//	sem_wait(sem);
-	
-	const int v = *vp;
-	*vp = v+1;
-	assert(*vp == (v+1));
-
-	//	sem_post(sem);
-
-	t++;
-	if ((t%1000)==0) {
-	  printf("[%zd] %d %d\n", t++, shmid, (int)(*vp));
+      char *buffer = calloc(1024*1024,1);
+      
+      while (1) {
+	int fd = sockconnect(server, port, 0);
+	if (fd == -1) {
+	  perror("sockconnect");
+	  sleep(1);
+	  continue;
+	  //	  exit(1);
 	}
-	//	sleep(1);
+
+	if (socksend(fd, header, 0, 1) < 0)
+	  perror("socksend");
+	
+	int rz =0, pos = 0;
+	while ((rz = sockrec(fd, buffer, 1024*1024-1, 0, 1)) > 0) {
+	  memcpy(data + pos, buffer, rz);
+	  pos+=rz;
+	  
+	  //	  printf("size: %d\n", rz);
+	}
+	
+	if (rz < 0) {
+	  perror("sockrec");
+	} else {
+	}
+	sockclose(fd);
       }
+      
     }
   }
   

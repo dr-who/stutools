@@ -67,10 +67,8 @@ int socksetup(int fd, const int timeout_seconds) {
   return 0;
 }
 
-
-int socksend(int fd, char *s, int flags, const int quiet) {
+int socksendWithLen(int fd, char *s, const int len, int flags, const int quiet) {
   int sent = 0;
-  int len = strlen(s);
   int pos = 0;
   while (sent < len) {
     int ret = send(fd, s + pos, len - pos, flags);
@@ -85,11 +83,17 @@ int socksend(int fd, char *s, int flags, const int quiet) {
   return sent;
 }
 
+int socksend(int fd, char *s, int flags, const int quiet) {
+  int len = strlen(s);
+  return socksendWithLen(fd, s, len, flags, quiet);
+}
+
 int sockrec(int fd, char *buffer, int len, int flags, const int quiet) {
+  
   int ret = recv(fd, buffer, len, flags);
   if (ret > 0) {
     if (ret < len) buffer[ret] = 0; // make string zero terminated
-    if (quiet == 0) printf("S[%d]: %s", ret, buffer);
+    if (quiet == 0) fprintf(stderr, "S[%d]: %s", ret, buffer);
   }
   return ret;
 }
@@ -98,6 +102,6 @@ int sockrec(int fd, char *buffer, int len, int flags, const int quiet) {
 
 int sockclose(int fd) {
   int r = close(fd);
-  shutdown(fd, SHUT_RDWR);
+  //  shutdown(fd, SHUT_RDWR);
   return r;
 }

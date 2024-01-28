@@ -26,7 +26,7 @@ include (CTest)
 
 #enable_testing()
 
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wshadow -Wextra -Wall -pedantic --std=gnu11 -O2" )
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wshadow -Wextra -Wall -pedantic --std=gnu11 -O2 -msse4.2" )
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
 
@@ -36,9 +36,6 @@ add_executable(spit spit.c spit-version.h)
 target_link_libraries(spit spitlib m aio pthread numa)
 
 add_executable(modcat modcat.c)
-#target_link_libraries()
-
-add_executable(helloWorldService helloWorldService.c httpd.c httpd.h)
 #target_link_libraries()
 
 add_executable(pcp pcp.c)
@@ -53,6 +50,9 @@ target_link_libraries(snack spitlib m aio pthread numa pci)
 add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c simpsock.c simpsock.h keyvalue.c keyvalue.h blockdevices.c blockdevices.h)
 target_link_libraries(sat spitlib m aio pthread numa pci uuid)
 
+add_executable(httpd httpd.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c simpsock.c simpsock.h keyvalue.c keyvalue.h blockdevices.c blockdevices.h)
+target_link_libraries(httpd spitlib m aio pthread numa pci uuid)
+
 add_executable(interfaces interfacesMain.c interfaces.c interfaces.h iprange.c iprange.h)
 target_link_libraries(interfaces spitlib m aio pthread numa pci)
 
@@ -60,9 +60,6 @@ add_executable(blockdevices blockdevicesMain.c blockdevices.c blockdevices.h key
 target_link_libraries(blockdevices spitlib m aio pthread numa pci)
 
 add_executable(broadcastwatch broadcastwatch.c multicast.h)
-
-add_executable(interfacesService interfacesService.c interfaces.c interfaces.h iprange.c iprange.h httpd.c httpd.h)
-target_link_libraries(interfacesService spitlib m aio pthread numa pci)
 
 add_executable(cluster clusterMain.c cluster.c cluster.h)
 target_link_libraries(cluster spitlib m aio pthread numa pci)
@@ -76,7 +73,7 @@ target_link_libraries(cidr uuid spitlib m aio pthread numa pci)
 add_executable(keyvalue keyvalueMain.c keyvalue.c keyvalue.h utils.c utils.h )
 target_link_libraries(keyvalue uuid spitlib m aio pthread numa pci)
 
-add_executable(edrive edrive.c keyvalue.c keyvalue.h utilstime.c utilstime.h utils.c)
+add_executable(edrive edrive.c keyvalue.c keyvalue.h utilstime.c utilstime.h utils.c simpsock.c)
 target_link_libraries(edrive uuid spitlib m aio pthread numa pci)
 
 add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h iprange.c interfaces.c interfaces.h simpsock.c )

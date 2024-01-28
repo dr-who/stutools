@@ -26,15 +26,13 @@ int main() {
   
   //  printf("calc checksum %zd\n", ch);
        
-  char *s = keyvalueDumpAsString(kv);
-  kv->checksum = keyvalueChecksum(kv);
-  printf("%s checksum;%zd\n", s, kv->checksum);
-  fflush(stdout);
+  char *s = keyvalueDumpAsJSON(kv);
+  printf("%s\n", s);
   free(s);
-
+  
   keyvalueFree(kv);
-
-    free(line);
+  
+  free(line);
 
   return 0;
 }

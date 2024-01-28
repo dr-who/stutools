@@ -42,7 +42,7 @@ char *keyvalueDumpAsString(keyvalueType *kv);
 char *keyvalueDumpAsJSON(keyvalueType *kv);
 void keyvalueFree(keyvalueType *kv);
 
-void keyvalueDumpAtStartRAM(keyvalueType *kv, void *ram);
+void keyvalueDumpAtStartRAM(keyvalueType *kv, volatile void *ram);
 void keyvalueDumpAtStartFD(keyvalueType *kv, int fd);
 
 size_t keyvalueChecksum(keyvalueType *kv);
