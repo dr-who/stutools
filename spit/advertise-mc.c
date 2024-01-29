@@ -40,7 +40,6 @@ void *advertiseMC(void *arg) {
 
     clusterType *cluster = tc->cluster;
   
-  struct sockaddr_in addr;
   int count = 0;
   int addrlen, sock, cnt;
   double starttime = timeAsDouble();
@@ -58,7 +57,7 @@ void *advertiseMC(void *arg) {
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0)
     perror("setsockopt(SO_REUSEADDR) failed");
 
-
+  struct sockaddr_in addr;
   bzero((char *)&addr, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -66,7 +65,7 @@ void *advertiseMC(void *arg) {
   addrlen = sizeof(addr);
 
   /* send */
-  addr.sin_addr.s_addr = inet_addr(EXAMPLE_GROUP);
+  addr.sin_addr.s_addr = inet_addr("192.168.5.121");
 
   struct utsname buf;
   uname(&buf);

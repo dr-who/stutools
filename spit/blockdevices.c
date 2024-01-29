@@ -51,7 +51,7 @@ void blockDevicesScan(blockDevicesType *bd) {
 
             if (stat(path, &st) == 0) {
 	      if (st.st_mode | S_IFBLK) {
-		int fd = open(path, O_RDONLY | O_EXCL);
+		int fd = open(path, O_RDONLY);
 		if (fd) {
 		  keyvalueType *k = keyvalueInit();
 
@@ -60,10 +60,20 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  sprintf(isr,"/sys/block/%s/queue/rotational", suf);
 
 		  int rot = getValueFromFile(isr, 1);
-		  if (rot) {
-		    keyvalueSetString(k, "type", "HDD");
+
+		  char isremove[100];
+		  sprintf(isremove,"/sys/block/%s/removable", suf);
+
+		  int canremove = getValueFromFile(isremove, 1);
+
+		  if (canremove) {
+		    keyvalueSetString(k, "type", "Removable");
 		  } else {
-		    keyvalueSetString(k, "type", "SSD");
+		    if (rot) {
+		      keyvalueSetString(k, "type", "HDD");
+		    } else {
+		      keyvalueSetString(k, "type", "SSD");
+		    }
 		  }
 
 		  //		  /sys/block/dev name/queue/chunk_sectors

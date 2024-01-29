@@ -246,9 +246,10 @@ size_t keyvalueChecksum(keyvalueType *kv) {
   
 char *keyvalueDumpAsString(keyvalueType *kv) {
   keyvalueSort(kv);
-  int maxbytes = 5*kv->byteLen;
+  int maxbytes = 5*kv->byteLen + 100; // for checksum
   
-  char *s = calloc(maxbytes, 1); assert(s);
+  char *s = aligned_alloc(4096, maxbytes); assert(s);
+  memset(s, 0, maxbytes);
   for (size_t i = 0; i < kv->num; i++) {
     if (i > 0) {
       strncat(s, " ", maxbytes);
@@ -328,18 +329,25 @@ void keyvalueDumpAtStartRAM(keyvalueType *kv, volatile void *ram) {
   char *s = keyvalueDumpAsString(kv);
   size_t len = strlen(s);
   memcpy((char*)ram, s, len);
-  sprintf((char*)ram + len, " checksum;%zd", kv->checksum);
+  sprintf((char*)ram + len, " checksum;%zd\n", kv->checksum);
   free(s);
 }
 
 void keyvalueDumpAtStartFD(keyvalueType *kv, int fd) {
-  lseek(fd, 0, SEEK_CUR);
   kv->checksum = keyvalueChecksum(kv);
-  char *s = keyvalueDumpAsString(kv);
-  pwrite(fd, s, strlen(s)+1, 0);
+  char *s = keyvalueDumpAsString(kv); // aligned
+
   char s2[100];
-  sprintf(s2," checksum;%zd", kv->checksum);
-  pwrite(fd, s2, strlen(s2)+1, strlen(s));
+  sprintf(s2," checksum;%zd\n", kv->checksum);
+
+  strcat(s, s2);
+  //  fprintf(stderr,"storing: '%s'\n", (char*)buf);
+
+  int len = strlen(s);
+  len = 4096 * (len/ 4096 + 1);
+  if (pwrite(fd, s, len, 0) < 0) {
+    perror("dumpSB");
+  }
   free(s);
 }
   

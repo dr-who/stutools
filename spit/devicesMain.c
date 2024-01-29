@@ -29,7 +29,7 @@ int main() {
 
             if (stat(path, &st) == 0) {
 	      if (st.st_mode | S_IFBLK) {
-		int fd = open(path, O_RDONLY | O_EXCL);
+		int fd = open(path, O_RDONLY);
 		if (fd) {
 		  keyvalueType *k = keyvalueInit();
 
@@ -44,9 +44,9 @@ int main() {
 		  }
 
 		  if (getWriteCache(suf) == 0) {
-		    keyvalueSetString(k, "writeCache", "write back");
+		    keyvalueSetString(k, "writeCache", "write-back");
 		  } else {
-		    keyvalueSetString(k, "writeCache", "write thru");
+		    keyvalueSetString(k, "writeCache", "write-thru");
 		  }
 		  
 		  //

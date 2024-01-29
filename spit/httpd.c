@@ -143,7 +143,7 @@ void *receiver(void *arg) {
 
       connections++;
       bytes += contentLen;
-      fprintf(stderr,"%d  %zd  %.1lf/s\n", connections, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start));
+      if ((connections %10 )==0 )fprintf(stderr,"#%d  %zd MB  %.1lf MB/s\n", connections, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start));
       
       if (fcntl(connfd, F_GETFD) == -1) break;
       if (socksendWithLen(connfd, sendbuffer, contentLen, 0, 1) < 0) {
