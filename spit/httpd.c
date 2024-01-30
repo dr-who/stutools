@@ -107,7 +107,7 @@ void *receiver(void *arg) {
   }
 
   numListType nl;
-  nlInit(&nl, 250);
+  nlInit(&nl, 2000);
 
   size_t iteration = 0;
 
@@ -156,7 +156,7 @@ void *receiver(void *arg) {
       connections++;
       bytes += contentLen;
       if ((connections %10 )==0 ) {
-	fprintf(stderr,"#%d  %zd MB  %.1lf MB/s (latency %.3lf ms, sd %.3lf ms, max %.3lf ms)\n", connections, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start), nlMean(&nl), nlSD(&nl), nlMax(&nl));
+	fprintf(stderr,"#%d  %zd MB  %.1lf MB/s (99%% %.3lf ms, sd %.3lf ms, max %.3lf ms)\n", connections, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start), nlSortedPos(&nl,0.99), nlSD(&nl), nlMax(&nl));
       }
       
       if (fcntl(connfd, F_GETFD) == -1) break;

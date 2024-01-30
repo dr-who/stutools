@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
       bd_shmid = atoi(optarg);
       break;
     case 'l':
-      delayus = atoi(optarg) * 1000;
+      delayus = atof(optarg) * 1000;
       break;
     case 'n':
       namespace = strdup(optarg);
@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  fprintf(stderr, "namespace: %s, RAM: %zd GB, port %d, latency %.1lf ms (1:1000 10s), nic: %s\n", name, ramgb, port, delayus/1000.0, nic);
+  fprintf(stderr, "namespace: %s, RAM: %zd GB, port %d, latency %.1lf ms (1:10,000 10x), nic: %s\n", name, ramgb, port, delayus/1000.0, nic);
 
   // do the commands
 
@@ -323,9 +323,10 @@ int main(int argc, char *argv[]) {
     const unsigned long randTime = 100 + (getDevRandomLong() % 100);
     
     size_t writtenBytes = keyvalueGetLong(kv, "writtenBytes");
+    const size_t loadedWrittenBytes = writtenBytes;
     size_t lastWrittenBytes = writtenBytes;
 
-    size_t everyNIOs = 1000;
+    double starttime = timeAsDouble();
     while (1) {
       const double thistime = timeAsDouble();
       iterations++;
@@ -338,8 +339,8 @@ int main(int argc, char *argv[]) {
       }
       sprintf(header, "GET / HTTP/1.1\nHost: %s:%d\nX-WriteAtPosition: %zd\nUser-Agent: edrive-%s/0.0\nAccept */*\n", server, port, writeHead, keyvalueGetString(kv, "deviceName"));
 
-      if ((iterations % 10) == 0) {
-	fprintf(stderr,"pos: %zd / %zd / %.2lf (SB to go %.1lf)%%\n", writeHead - 16*1024*1024, maxBytes, 100.0 * (writeHead-16*1024*1024) / maxBytes, randTime - (thistime - lastUpdateSB));
+      if ((iterations % 100) == 0) {
+	fprintf(stderr,"pos: %zd / %zd / %.2lf (SB to go %.1lf)%%\n", writeHead - 16*1024*1024, maxBytes, ((writtenBytes - loadedWrittenBytes) / 1024.0 / 1024.0) / (thistime - starttime), randTime - (thistime - lastUpdateSB));
       }
 
       if (socksend(fd, header, 0, 1) < 0)
@@ -360,15 +361,15 @@ int main(int argc, char *argv[]) {
 	  } else {
 	    // if not a real device, add fake
 	    if (first++ == 0) {
-	      if ((iterations % everyNIOs)==0) {
+	      if (delayus) {
 		// 1 in 1,000 sleep 10s
-		const size_t sl = 1000 + (getDevRandomLong() % 10000);
-		fprintf(stderr,"fake IO retries...%zd ms\n", sl);
-		usleep(sl * 1000);
-		everyNIOs = sl; // use the ms as the next time too
-	      } else {
+		if ((getDevRandomLong() % 10000) == 0) {
+		  fprintf(stderr,"fake IO retries...%.1lf ms\n", delayus * 20 /1000.0);
+		}
+		// always
 		usleep(delayus); // 4ms fake delay
 	      }
+
 	    }
 	    //shm mem
 	    memcpy(shm + writeHead, buffer, rz);
