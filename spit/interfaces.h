@@ -2,6 +2,7 @@
 #define __INTERFACES_H
 
 #include <stdio.h>
+#include <strings.h>
 
 typedef struct {
   char *addr;
@@ -13,6 +14,7 @@ typedef struct {
 typedef struct {
   // physical device (addDevice)
   char *devicename;
+  char *label;
   char *hw;
   double lastUpdate;
   int link;
@@ -46,6 +48,8 @@ char * interfacesDumpJSONString(const interfacesIntType *d);
 void interfacesDumpJSON(FILE *fd, const interfacesIntType *d);
 
 void interfacesFree(interfacesIntType *n);
+
+char *interfacesOnboardMac(interfacesIntType *n);
 
 #endif
 

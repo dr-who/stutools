@@ -5,7 +5,8 @@
 #include <stdio.h>
 
 typedef struct {
-  char *name; // uuid
+  char *name; // grabbed from onboard mac, immutable
+  char *hostname; // can be dynamic
   char *ipaddress;
   double created;
   double changed;

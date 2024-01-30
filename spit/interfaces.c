@@ -1,3 +1,5 @@
+#define _GNU_SOURCE         /* See feature_test_macros(7) */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,6 +94,10 @@ void interfacesAddDevice(interfacesIntType *d, const char *nic) {
   double carrier_changes = getValueFromFile(ss, 1);
   p->carrier_changes = carrier_changes;
 
+  sprintf(ss, "/sys/class/net/%s/device/label", nic);
+  char *label = getStringFromFile(ss, 1);
+  p->label = label;
+
   p->num = 0;
   p->addr = NULL;
 
@@ -133,6 +139,7 @@ char * interfacesDumpJSONString(const interfacesIntType *d) {
     buf += sprintf(buf,  "\t{\n");
     phyType *p = d->nics[i];
     buf += sprintf(buf, "\t\t\"device\": \"%s\",\n", p->devicename);
+    buf += sprintf(buf, "\t\t\"label\": \"%s\",\n", p->label ? p->label : "");
     buf += sprintf(buf, "\t\t\"lastUpdate\": \"%lf\",\n", p->lastUpdate);
     buf += sprintf(buf, "\t\t\"hw\": \"%s\",\n", p->hw);
     buf += sprintf(buf, "\t\t\"link\": %d,\n", p->link);
@@ -284,3 +291,18 @@ void interfacesFree(interfacesIntType *n) {
   free(n->nics); n->nics = NULL;
   free(n);
 }  
+
+char *interfacesOnboardMac(interfacesIntType *n) {
+  char *res = NULL;
+  for (size_t i = 0; i < n->id; i++) {
+    phyType *p = n->nics[i];
+    if (p->label) {
+      if ((strcasestr(p->label, "onboard") != 0)) {
+	res = strdup(p->hw);
+	break;
+      }
+    }
+  }
+  return res;
+}
+  

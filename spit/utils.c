@@ -2146,9 +2146,13 @@ char * getStringFromFile(const char *filename, const int quiet) {
   FILE *fp = fopen (filename, "rt");
   char result[1024];
   if (fp) {
-    int ret = fscanf(fp, "%s", result);
-    if (ret != 1) {
+    char *ret = fgets(result, 1024, fp);
+    //    int ret = fscanf(fp, "%s", result);
+    if (ret == NULL) {
       return NULL;
+    }
+    if (strlen(ret) > 0) {
+      ret[strlen(ret)-1] = 0; // remove the last \n
     }
     fclose(fp);
   } else {

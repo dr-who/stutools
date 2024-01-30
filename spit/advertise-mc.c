@@ -72,13 +72,21 @@ void *advertiseMC(void *arg) {
 
   blockDevicesScan(bd);
 
+  // find unique hw.mac
+  interfacesIntType *n = interfacesInit();
+  interfacesScan(n);
+  char *uniquemac = interfacesOnboardMac(n);
+  interfacesFree(n);
+
+  
   while (keepRunning) {
     double now = timeAsDouble();
 
 
     keyvalueType *kv = keyvalueInit();
     keyvalueSetString(kv, "action", "hello");
-    keyvalueSetString(kv, "node", buf.nodename);
+    keyvalueSetString(kv, "node", uniquemac);
+    keyvalueSetString(kv, "hostname", buf.nodename);
     keyvalueSetLong(kv, "time", (long)now);
     keyvalueSetLong(kv, "cluster", cluster->id);
     keyvalueSetLong(kv, "port", 1600);
