@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 	 exit(1);
       }    
       mreq.imr_multiaddr.s_addr = inet_addr(EXAMPLE_GROUP);         
-      mreq.imr_interface.s_addr = inet_addr("192.168.5.100");         
+      mreq.imr_interface.s_addr = htonl(INADDR_ANY);
       if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 		     &mreq, sizeof(mreq)) < 0) {
 	 perror("setsockopt mreq");
