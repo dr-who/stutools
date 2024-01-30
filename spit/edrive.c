@@ -108,7 +108,7 @@ void shared_init(char *shm, char *name, int port, long size) {
 
 
 void usage() {
-  printf("usage: edrive <command> -n space/RAMGB -p <port> -e <nic> -s <serverip>\n");
+  printf("usage: edrive <command> -n space/RAMGB -p <port> -e <nic> -s <serverip> -l <lat_ms>\n");
   printf("\n");
   printf("  edrive init -b <device> -n test/5 -p 1600 -e eth0 -s 127.0.0.1\n");
   printf("  edrive init -B <RAM shmid> -n test/5 -p 1600 -e eth0 -s 127.0.0.1\n");
@@ -136,15 +136,19 @@ int main(int argc, char *argv[]) {
   int port = 1600;
   char *namespace = NULL, *nic = NULL, *server = NULL, *bdname = NULL;
   key_t bd_shmid = 0;
-    
+  size_t delayus = 4000;
+  
 
-  while ((opt = getopt(argc, argv, "n:p:e:s:b:B:")) != -1) {
+  while ((opt = getopt(argc, argv, "n:p:e:s:b:B:l:")) != -1) {
     switch (opt) {
     case 'b':
       bdname = strdup(optarg);
       break;
     case 'B':
       bd_shmid = atoi(optarg);
+      break;
+    case 'l':
+      delayus = atoi(optarg) * 1000;
       break;
     case 'n':
       namespace = strdup(optarg);
@@ -164,7 +168,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (!namespace || !nic) {
+  if (!namespace) {
     usage();
     exit(EXIT_FAILURE);
   }
@@ -194,7 +198,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  fprintf(stderr, "namespace: %s, RAM: %zd GB, port %d, nic: %s\n", name, ramgb, port, nic);
+  fprintf(stderr, "namespace: %s, RAM: %zd GB, port %d, latency %.1lf ms (1:1000 10s), nic: %s\n", name, ramgb, port, delayus/1000.0, nic);
 
   // do the commands
 
@@ -320,7 +324,8 @@ int main(int argc, char *argv[]) {
     
     size_t writtenBytes = keyvalueGetLong(kv, "writtenBytes");
     size_t lastWrittenBytes = writtenBytes;
-    
+
+    size_t everyNIOs = 1000;
     while (1) {
       const double thistime = timeAsDouble();
       iterations++;
@@ -336,13 +341,15 @@ int main(int argc, char *argv[]) {
       if ((iterations % 10) == 0) {
 	fprintf(stderr,"pos: %zd / %zd / %.2lf (SB to go %.1lf)%%\n", writeHead - 16*1024*1024, maxBytes, 100.0 * (writeHead-16*1024*1024) / maxBytes, randTime - (thistime - lastUpdateSB));
       }
-      
+
       if (socksend(fd, header, 0, 1) < 0)
 	perror("socksend");
       
-      int rz =0;
-      
+      int rz =0, first = 0;
+
       while ((rz = sockrec(fd, buffer, 1024*1024-1, 0, 1)) > 0) {
+
+		
 	
 	if (writeHead + rz <= maxBytes) {
 
@@ -351,6 +358,18 @@ int main(int argc, char *argv[]) {
 	      perror("pwrite");
 	    }
 	  } else {
+	    // if not a real device, add fake
+	    if (first++ == 0) {
+	      if ((iterations % everyNIOs)==0) {
+		// 1 in 1,000 sleep 10s
+		const size_t sl = 1000 + (getDevRandomLong() % 10000);
+		fprintf(stderr,"fake IO retries...%zd ms\n", sl);
+		usleep(sl * 1000);
+		everyNIOs = sl; // use the ms as the next time too
+	      } else {
+		usleep(delayus); // 4ms fake delay
+	      }
+	    }
 	    //shm mem
 	    memcpy(shm + writeHead, buffer, rz);
 	    //	    msync(shm +writeHead, rz, MS_SYNC);
@@ -366,8 +385,15 @@ int main(int argc, char *argv[]) {
 	//	  printf("size: %d\n", rz);
       }
 
+      
+
+
       if (thistime - lastUpdateSB > randTime) { // every 10 mins
 	keyvalueSetLong(kv, "writtenByteTime", thistime);
+	char flst[20];
+	sprintf(flst, "%.2lf", writtenBytes * 1.0 / maxBytes);
+	
+	keyvalueSetString(kv, "writtenByteTDRatio", flst);
 	keyvalueSetLong(kv, "writtenBytes", writtenBytes);
 	keyvalueSetLong(kv, "writtenByteSpeedMBps", ((writtenBytes - lastWrittenBytes * 1.0) / randTime) / 1024.0 / 1024);
 	if (bdname) {

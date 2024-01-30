@@ -23,6 +23,8 @@
 #include "respond-mc.h"
 #include "blockdevices.h"
 
+#include "histogram.h"
+
 int keepRunning = 1;
 int tty = 0;
 
@@ -97,15 +99,26 @@ void *receiver(void *arg) {
 
 #define THESZ (1024*1024)
       
-  char *databuf = calloc(THESZ,1);
+  char *databuf = aligned_alloc(4096, THESZ); assert(databuf);
   char ch = 'A';
   
   for (size_t ii = 0; ii < THESZ; ii++) {
     databuf[ii] = ch++;
   }
+
+  numListType nl;
+  nlInit(&nl, 250);
+
+  size_t iteration = 0;
+
+  char *sendbuffer = aligned_alloc(4096, THESZ+200); assert(sendbuffer);
+  
   
   while (keepRunning) {
+    iteration++;
     socklen_t addrlen = sizeof(clientaddr);
+
+    const double latstart = timeAsDouble(); // i have work
     int connfd = accept(sockfd, (struct sockaddr *) &clientaddr, &addrlen);
     if (connfd == -1) {
       perror("Connect Error");
@@ -123,14 +136,13 @@ void *receiver(void *arg) {
 	//	  fprintf(stderr, "din'yt get a string\n");
       }
 
-      /*      char print[100];
+
+    /*      char print[100];
       memset(print, 0, 100);
       strncpy(print, buffer, 99);
       fprintf(stderr,"-->%s\n", print);
       */
 
-      char *sendbuffer = calloc(THESZ+200,1);
-      
       sprintf(sendbuffer, "HTTP/1.1 200 OK\nDate: Sun, 28 Jan 2024 04:57:01 GMT\nConnection: close\nCache-Control: no-store, no-cache, must-revalidate\nContent-Length: %d\n", THESZ);
       char s[100];
       sprintf(s, "X-Position: %zd\n", rand());
@@ -143,17 +155,25 @@ void *receiver(void *arg) {
 
       connections++;
       bytes += contentLen;
-      if ((connections %10 )==0 )fprintf(stderr,"#%d  %zd MB  %.1lf MB/s\n", connections, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start));
+      if ((connections %10 )==0 ) {
+	fprintf(stderr,"#%d  %zd MB  %.1lf MB/s (latency %.3lf ms, sd %.3lf ms, max %.3lf ms)\n", connections, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start), nlMean(&nl), nlSD(&nl), nlMax(&nl));
+      }
       
       if (fcntl(connfd, F_GETFD) == -1) break;
       if (socksendWithLen(connfd, sendbuffer, contentLen, 0, 1) < 0) {
 	perror("sock send\n");
 	break;
       }
-      free(sendbuffer);
+      
+      if (iteration > 10) {
+	const double latdelay = (timeAsDouble() - latstart) * 1000.0;
+	nlAdd(&nl, latdelay);
+      }
+      
     
     close(connfd);
   }
+      free(sendbuffer);
   close(sockfd);
   return NULL;
 }
