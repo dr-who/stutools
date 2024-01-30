@@ -296,13 +296,15 @@ char *interfacesOnboardMac(interfacesIntType *n) {
   char *res = NULL;
   for (size_t i = 0; i < n->id; i++) {
     phyType *p = n->nics[i];
-    if (p->label) {
-      if ((strcasestr(p->label, "onboard") != 0)) {
-	res = strdup(p->hw);
-	break;
-      }
+    res = p->hw; // always return at least 1 HW
+    if (p->label && (strcasestr(p->label, "onboard") != 0)) {
+      break;
     }
   }
-  return res;
+  if (res) {
+    return strdup(res);
+  } else {
+    return NULL;
+  }
 }
   
