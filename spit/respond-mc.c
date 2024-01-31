@@ -109,10 +109,10 @@ void *respondMC(void *arg) {
        if (nodename) {
 	 //     senttime = keyvalueGetLong(kv, "time");
 	 startedtime = keyvalueGetLong(kv, "started");
+	 char *hostname = keyvalueGetString(kv, "hostname");
 	 
 	 if ((nodeid = clusterFindNode(cluster, nodename)) < 0) {
 	   // add and say hi
-	   char *hostname = keyvalueGetString(kv, "hostname");
 	   fprintf(stderr, "adding node %s (%s)\n", nodename, hostname);
 	   nodeid = clusterAddNode(cluster, nodename, startedtime);
 	   cluster->node[nodeid]->hostname= strdup(hostname); // manually added so strdup
@@ -129,6 +129,8 @@ void *respondMC(void *arg) {
 	 if (strcmp(clusterGetNodeIP(cluster, nodeid), node) != 0) {
 	   //	   fprintf(stderr, "updating nodeid %d, %s IP %s: '^%s'\n", nodeid, cluster->node[nodeid]->name, node, message);
 	   clusterSetNodeIP(cluster, nodeid, node);
+	   cluster->node[nodeid]->hostname= strdup(hostname); // manually added so strdup
+	   
 	 }
 
 	 keyvalueFree(kv);
