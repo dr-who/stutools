@@ -135,7 +135,7 @@ void *receiver(void *arg) {
 	  size_t nodesGood = 0, nodesBad = 0;
 	  size_t RAMsumGB = 0, Coressum = 0;
 	  for (size_t cc = 0; cc < tc->cluster->id; cc++) {
-	    if (timeAsDouble() - tc->cluster->node[cc]->seen < 5) {
+	    if (timeAsDouble() - tc->cluster->node[cc]->seen <= 10) {
 	      nodesGood++;
 	    } else {
 	      nodesBad++;
