@@ -6,7 +6,8 @@
 
 typedef struct {
   char *name; // grabbed from onboard mac, immutable
-  char *hostname; // can be dynamic
+  char *nodename; // can be dynamic
+  char *nodeOS; // can be dynamic
   char *ipaddress;
   double created;
   double changed;
@@ -45,5 +46,5 @@ void clusterDumpJSON(FILE *fp, clusterType *c);
 void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address);
 char *clusterGetNodeIP(clusterType *c, size_t nodeid);
 void clusterUpdateSeen(clusterType *c, const size_t nodeid);
-
+void clusterFree(clusterType *c);
 #endif

@@ -23,7 +23,7 @@ clusterType * clusterInit(const size_t port) {
 // returns -1 for can't find it
 int clusterFindNode(clusterType *c, const char *nodename) {
   if (c) {
-    for (size_t i = 0; i < c->id; i++) {
+    for (int i = 0; i < c->id; i++) {
       if (c->node) {
 	if (c->node[i]) {
 	  if (strcasecmp(c->node[i]->name, nodename)==0) {
@@ -39,8 +39,8 @@ int clusterFindNode(clusterType *c, const char *nodename) {
 
 
 int clusterAddNode(clusterType *c, const char *nodename, const double createdtime) {
-  const size_t index = c->id;
-  for (size_t i = 0; i < index; i++) {
+  const int index = c->id;
+  for (int i = 0; i < index; i++) {
     if (strcasecmp(c->node[i]->name, nodename)==0) {
       fprintf(stderr,"*warning* node already there, ignoring\n");
       return i;
@@ -103,10 +103,11 @@ char *clusterDumpJSONString(clusterType *c) {
     buf += sprintf(buf, "  \"latestchange\": %lf,\n", c->latestchange);
     buf += sprintf(buf, "  \"latestchangesecondsago\": %lf,\n", now - c->latestchange);
     buf += sprintf(buf, "  \"nodes\": [\n");
-    for (size_t i = 0; i < c->id; i++) {
+    for (int i = 0; i < c->id; i++) {
       buf += sprintf(buf, "    {\n");
       buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
-      buf += sprintf(buf, "       \"hostname\": \"%s\",\n", c->node[i]->hostname);
+      buf += sprintf(buf, "       \"nodename\": \"%s\",\n", c->node[i]->nodename);
+      buf += sprintf(buf, "       \"nodeOS\": \"%s\",\n", c->node[i]->nodeOS);
       buf += sprintf(buf, "       \"lastseen\": %.0lf,\n", now - c->node[i]->seen);
       buf += sprintf(buf, "       \"created\": %lf,\n", c->node[i]->created);
       buf += sprintf(buf, "       \"age\": %lf,\n", now - c->node[i]->created);
@@ -161,10 +162,11 @@ void clusterUpdateSeen(clusterType *c, const size_t nodeid) {
 }
 
 void clusterFree(clusterType *c) {
-  const size_t index = c->id;
+  const int index = c->id;
   for (int i = 0; i <index; i++) {
     free(c->node[i]->name);
-    free(c->node[i]->hostname);
+    free(c->node[i]->nodename);
+    free(c->node[i]->nodeOS);
     free(c->node[i]->ipaddress);
     free(c->node[i]->osrelease);
     free(c->node[i]);

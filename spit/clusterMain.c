@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <malloc.h>
+#include <string.h>
 
 #include "cluster.h"
 #include "utilstime.h"
@@ -19,7 +20,7 @@ int main() {
   free(s);
   
   clusterAddNode(c, "stu", timeAsDouble());
-  c->node[0]->hostname = strdup("cool");
+  c->node[0]->nodename = strdup("cool");
   clusterAddNode(c, "nic", timeAsDouble());
   clusterAddNode(c, "nic", timeAsDouble());
 

@@ -87,6 +87,11 @@ void *advertiseMC(void *arg) {
     keyvalueSetString(kv, "action", "hello");
     keyvalueSetString(kv, "node", uniquemac);
     keyvalueSetString(kv, "hostname", buf.nodename);
+    keyvalueSetString(kv, "nodename", buf.nodename);
+    char *nodeos = OSRelease();
+    //    fprintf(stderr,"OS :%s\n", nodeos);
+    keyvalueSetString(kv, "nodeOS", nodeos);
+    free(nodeos);
     keyvalueSetLong(kv, "time", (long)now);
     keyvalueSetLong(kv, "cluster", cluster->id);
     keyvalueSetLong(kv, "port", 1600);

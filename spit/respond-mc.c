@@ -109,13 +109,17 @@ void *respondMC(void *arg) {
        if (nodename) {
 	 //     senttime = keyvalueGetLong(kv, "time");
 	 startedtime = keyvalueGetLong(kv, "started");
-	 char *hostname = keyvalueGetString(kv, "hostname");
+	 char *hostname = keyvalueGetString(kv, "nodename");
+	 if (hostname == NULL) {
+	   hostname = keyvalueGetString(kv, "hostname");
+	 }
 	 
 	 if ((nodeid = clusterFindNode(cluster, nodename)) < 0) {
 	   // add and say hi
 	   fprintf(stderr, "adding node %s (%s)\n", nodename, hostname);
 	   nodeid = clusterAddNode(cluster, nodename, startedtime);
-	   cluster->node[nodeid]->hostname= strdup(hostname); // manually added so strdup
+	   cluster->node[nodeid]->nodename= strdup(hostname); // manually added so strdup
+	   cluster->node[nodeid]->nodeOS = keyvalueGetLong(kv, "nodeOS");
 	   cluster->node[nodeid]->HDDcount = keyvalueGetLong(kv, "HDDcount");
 	   cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
 	   cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");
@@ -129,7 +133,7 @@ void *respondMC(void *arg) {
 	 if (strcmp(clusterGetNodeIP(cluster, nodeid), node) != 0) {
 	   //	   fprintf(stderr, "updating nodeid %d, %s IP %s: '^%s'\n", nodeid, cluster->node[nodeid]->name, node, message);
 	   clusterSetNodeIP(cluster, nodeid, node);
-	   cluster->node[nodeid]->hostname= strdup(hostname); // manually added so strdup
+	   cluster->node[nodeid]->nodename= strdup(hostname); // manually added so strdup
 	   
 	 }
 
