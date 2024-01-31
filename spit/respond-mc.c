@@ -115,7 +115,7 @@ void *respondMC(void *arg) {
 	   char *hostname = keyvalueGetString(kv, "hostname");
 	   fprintf(stderr, "adding node %s (%s)\n", nodename, hostname);
 	   nodeid = clusterAddNode(cluster, nodename, startedtime);
-	   cluster->node[nodeid]->hostname= hostname;
+	   cluster->node[nodeid]->hostname= strdup(hostname); // manually added so strdup
 	   cluster->node[nodeid]->HDDcount = keyvalueGetLong(kv, "HDDcount");
 	   cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
 	   cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");
@@ -129,13 +129,14 @@ void *respondMC(void *arg) {
 	 if (strcmp(clusterGetNodeIP(cluster, nodeid), node) != 0) {
 	   //	   fprintf(stderr, "updating nodeid %d, %s IP %s: '^%s'\n", nodeid, cluster->node[nodeid]->name, node, message);
 	   clusterSetNodeIP(cluster, nodeid, node);
-	   cluster->node[nodeid]->hostname= keyvalueGetString(kv, "hostname");
 	 }
 
 	 keyvalueFree(kv);
 
 	 
 	 clusterUpdateSeen(cluster, nodeid);
+
+	 //	 clusterDumpJSON(stdout, cluster);
 
 	   // hello every 10 seconds
 	 //	   last = timeAsDouble();
