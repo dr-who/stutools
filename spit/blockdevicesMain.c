@@ -17,7 +17,7 @@ int main() {
   }
 
   size_t hddsize = 0;
-  size_t numHDD = blockDevicesCount(bd, "HDD", &hddsize);
+  size_t numHDD = blockDevicesCount(bd, "SSD", &hddsize);
   printf("numHDD: %zd, size = %.1lf GB\n", numHDD, hddsize / (double)1000.0 / 1000.0 / 1000.0);
   
   blockDevicesFree(bd);
