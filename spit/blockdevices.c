@@ -69,7 +69,7 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  if (canremove) {
 		    keyvalueSetString(k, "type", "Removable");
 		  } else {
-		    if (rot) {
+		    if (rot && 0) {
 		      keyvalueSetString(k, "type", "HDD");
 		    } else {
 		      keyvalueSetString(k, "type", "SSD");
@@ -161,7 +161,7 @@ size_t blockDevicesCount(blockDevicesType *bd, const char *devtype, size_t *sumb
   for (size_t i = 0; i < bd->num; i++) {
     char *v = keyvalueGetString(bd->devices[i].kv, "type");
     if (v) {
-      if (strcmp(v, devtype) == 0) {
+      if ((devtype == NULL) || (strcmp(v, devtype) == 0)) {
 	matched++;
 	*sumbytes = (*sumbytes) + keyvalueGetLong(bd->devices[i].kv, "size");
       }
