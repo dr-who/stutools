@@ -36,14 +36,14 @@ void keyvalueParsePair(keyvalueType *kv, char *pp) {
     char *key = pp;
     char *value = ch+1;
     
-    keyvalueSetString(kv, strdup(key), strdup(value));
+    keyvalueSetString(kv, key, value);
   } else {
     ch = strchr(pp, ';'); // longs
     if (ch) {
       *ch = 0;
       char *key = pp;
       char *value = ch+1;
-      keyvalueSetLong(kv, strdup(key), atol(value));
+      keyvalueSetLong(kv, key, atol(value));
     } else {
       fprintf(stderr,"pair with '%s' has no value\n", pp);
     }
@@ -60,6 +60,7 @@ keyvalueType *keyvalueInitFromString(char *par) {
     keyvalueParsePair(p, tok);
     
     while ((tok = strtok(NULL, " "))) {
+      //      fprintf(stderr,"storing: %s\n", tok);
 
       keyvalueParsePair(p, tok);
     }
@@ -228,6 +229,10 @@ long keyvalueGetLong(keyvalueType *kv, const char *key) {
 
 char *keyvalueGetString(keyvalueType *kv, const char *key) {
   int index = keyvalueFindKey(kv, key);
+  if (index < 0) {
+    fprintf(stderr,"can't find: %s\n", key);
+    return NULL;
+  }
   assert(kv->pairs[index].type != 1);
   if (index >= 0) {
     return kv->pairs[index].value;

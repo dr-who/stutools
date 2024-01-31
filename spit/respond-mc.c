@@ -36,7 +36,7 @@ void *respondMC(void *arg) {
    int sock, cnt;
    socklen_t addrlen;
    struct ip_mreq mreq;
-   char *message = calloc(200, 1); assert(message);
+   char *message = calloc(300, 1); assert(message);
 
    /* set up socket */
    sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -78,7 +78,7 @@ void *respondMC(void *arg) {
 
    
    while (1) {
-     cnt = recvfrom(sock, message, 200, 0, 
+     cnt = recvfrom(sock, message, 300, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {
        perror("recvfrom");
@@ -86,7 +86,7 @@ void *respondMC(void *arg) {
      } else if (cnt == 0) {
        break;
      }
-     if (cnt < 200) message[cnt] = 0; // make it terminated nicely
+     if (cnt < 300) message[cnt] = 0; // make it terminated nicely
 
      //          fprintf(stderr, "**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
 
@@ -112,8 +112,10 @@ void *respondMC(void *arg) {
 	 
 	 if ((nodeid = clusterFindNode(cluster, nodename)) < 0) {
 	   // add and say hi
-	   fprintf(stderr, "adding node %s\n", nodename);
+	   char *hostname = keyvalueGetString(kv, "hostname");
+	   fprintf(stderr, "adding node %s (%s)\n", nodename, hostname);
 	   nodeid = clusterAddNode(cluster, nodename, startedtime);
+	   cluster->node[nodeid]->hostname= hostname;
 	   cluster->node[nodeid]->HDDcount = keyvalueGetLong(kv, "HDDcount");
 	   cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
 	   cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");
@@ -123,12 +125,15 @@ void *respondMC(void *arg) {
 	   cluster->node[nodeid]->Cores = keyvalueGetLong(kv, "Cores");
 	 }
 	 
-	 keyvalueFree(kv);
 	 
 	 if (strcmp(clusterGetNodeIP(cluster, nodeid), node) != 0) {
-	   fprintf(stderr, "updating node %s IP %s\n", cluster->node[nodeid]->name, node);
+	   //	   fprintf(stderr, "updating nodeid %d, %s IP %s: '^%s'\n", nodeid, cluster->node[nodeid]->name, node, message);
 	   clusterSetNodeIP(cluster, nodeid, node);
+	   cluster->node[nodeid]->hostname= keyvalueGetString(kv, "hostname");
 	 }
+
+	 keyvalueFree(kv);
+
 	 
 	 clusterUpdateSeen(cluster, nodeid);
 

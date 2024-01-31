@@ -24,7 +24,7 @@ typedef struct {
 
 
 typedef struct {
-  size_t id; // count
+  int id; // count
   size_t port;
   double latestchange;
 

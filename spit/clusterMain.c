@@ -11,13 +11,15 @@ int main() {
   printf("%s", s);
   free(s);
 
+  
   clusterType *c = clusterInit(1600);
-
+  printf("\n");
   s=clusterDumpJSONString(c);
   printf("%s", s);
   free(s);
   
   clusterAddNode(c, "stu", timeAsDouble());
+  c->node[0]->hostname = strdup("cool");
   clusterAddNode(c, "nic", timeAsDouble());
   clusterAddNode(c, "nic", timeAsDouble());
 
@@ -26,6 +28,8 @@ int main() {
   s=clusterDumpJSONString(c);
   printf("%s", s);
   free(s);
+
+  clusterFree(c);
 
   return 0;
 }

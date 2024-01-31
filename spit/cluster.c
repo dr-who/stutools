@@ -14,7 +14,7 @@
 // a cluster all has the same port
 clusterType * clusterInit(const size_t port) {
   fprintf(stderr,"clusterInit on port %zd\n", port);
-  clusterType *p = calloc(1, sizeof(clusterType)); assert(p);
+  clusterType *p = calloc(sizeof(clusterType), 1); assert(p);
   p->port = port;
 
   return p;
@@ -49,7 +49,7 @@ int clusterAddNode(clusterType *c, const char *nodename, const double createdtim
 
   c->id++;
   c->node = realloc(c->node, c->id * sizeof(clusterNodeType *));
-  c->node[index] = calloc(1, sizeof(clusterNodeType)); // create cluster node
+  c->node[index] = calloc(sizeof(clusterNodeType), 1); // create cluster node
   c->node[index]->name = strdup(nodename);
   c->node[index]->ipaddress = strdup(nodename);
   c->node[index]->created = createdtime;
@@ -86,8 +86,8 @@ char *clusterDumpJSONString(clusterType *c) {
 
   // sort
   if (c) 
-  for (size_t i = 0; i < c->id-1; i++) {
-    for (size_t j = i+1; j < c->id; j++) {
+    for (int i = 0; i < c->id-1; i++) {
+      for (int j = i+1; j < c->id; j++) {
       if (strcmp(c->node[i]->ipaddress, c->node[j]->ipaddress) > 0) {
 	// swap
 	clusterNodeType t = *c->node[i];
@@ -106,6 +106,7 @@ char *clusterDumpJSONString(clusterType *c) {
     for (size_t i = 0; i < c->id; i++) {
       buf += sprintf(buf, "    {\n");
       buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
+      buf += sprintf(buf, "       \"hostname\": \"%s\",\n", c->node[i]->hostname);
       buf += sprintf(buf, "       \"lastseen\": %.0lf,\n", now - c->node[i]->seen);
       buf += sprintf(buf, "       \"created\": %lf,\n", c->node[i]->created);
       buf += sprintf(buf, "       \"age\": %lf,\n", now - c->node[i]->created);
@@ -158,3 +159,17 @@ char *clusterGetNodeIP(clusterType *c, size_t nodeid) {
 void clusterUpdateSeen(clusterType *c, const size_t nodeid) {
   c->node[nodeid]->seen = timeAsDouble();
 }
+
+void clusterFree(clusterType *c) {
+  const size_t index = c->id;
+  for (int i = 0; i <index; i++) {
+    free(c->node[i]->name);
+    free(c->node[i]->hostname);
+    free(c->node[i]->ipaddress);
+    free(c->node[i]->osrelease);
+    free(c->node[i]);
+  }
+  free(c->node);
+  free(c);
+}
+   

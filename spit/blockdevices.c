@@ -52,7 +52,7 @@ void blockDevicesScan(blockDevicesType *bd) {
             if (stat(path, &st) == 0) {
 	      if (st.st_mode | S_IFBLK) {
 		int fd = open(path, O_RDONLY);
-		if (fd) {
+		if (fd >= 0) {
 		  keyvalueType *k = keyvalueInit();
 
 		  char *suf = getSuffix(path);
@@ -123,7 +123,7 @@ void blockDevicesScan(blockDevicesType *bd) {
 		    free(model);
 		    free(scsi);
 		  }
-		}
+		} // fd
 		close(fd);
 	      }
 	    }

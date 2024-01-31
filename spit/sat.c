@@ -224,12 +224,11 @@ void startThreads(interfacesIntType *n, const int serverport) {
 	}
     }
 
-    sleep(100);
-
     for (size_t i = 0; i < num; i++) {
       pthread_join(pt[i], NULL);
       //	printf("thread %zd finished %d\n", i, keepRunning);
     }
+    clusterFree(cluster);
     free(tc);
     free(pt);
 }

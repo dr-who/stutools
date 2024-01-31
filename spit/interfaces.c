@@ -285,6 +285,7 @@ void interfacesFree(interfacesIntType *n) {
     }
     free(p->addr); p->addr = NULL;
     free(p->devicename); p->devicename = NULL;
+    free(p->label); p->label = NULL;
     free(p->hw); p->hw = NULL;
     free(p); p = NULL;
   }

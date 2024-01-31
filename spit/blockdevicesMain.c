@@ -7,8 +7,8 @@ int main() {
   blockDevicesType *bd = blockDevicesInit();
 
   blockDevicesScan(bd);
-  blockDevicesScan(bd);
-  blockDevicesScan(bd);
+  //  blockDevicesScan(bd);
+  //  blockDevicesScan(bd);
 
   for (size_t i = 0; i < bd->num; i++) {
     char *s = keyvalueDumpAsString(bd->devices[i].kv);
