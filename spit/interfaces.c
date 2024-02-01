@@ -82,7 +82,7 @@ void interfacesAddDevice(interfacesIntType *d, const char *nic) {
   sprintf(devicefile, "/sys/class/net/%s/device/uevent", nic);
   char *pcislot = getFieldFromFile(devicefile, "PCI_SLOT_NAME");
   if (pcislot == NULL) {
-    perror(devicefile);
+    //    perror(devicefile);
   }
   p->pcislot = pcislot;
   
