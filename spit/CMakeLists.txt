@@ -56,6 +56,9 @@ target_link_libraries(httpd spitlib m aio pthread numa pci uuid)
 add_executable(interfaces interfacesMain.c interfaces.c interfaces.h iprange.c iprange.h)
 target_link_libraries(interfaces spitlib m aio pthread numa pci)
 
+add_executable(hwserial hwserial.c interfaces.c interfaces.h iprange.c iprange.h utilstime.c devices.c utils.c)
+target_link_libraries(hwserial spitlib m aio pthread numa pci)
+
 add_executable(blockdevices blockdevicesMain.c blockdevices.c blockdevices.h keyvalue.c keyvalue.h)
 target_link_libraries(blockdevices spitlib m aio pthread numa pci)
 

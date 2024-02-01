@@ -297,13 +297,18 @@ char *interfacesOnboardMac(interfacesIntType *n) {
   char *res = NULL;
   for (size_t i = 0; i < n->id; i++) {
     phyType *p = n->nics[i];
-    res = p->hw; // always return at least 1 HW
+    if (res == NULL) res = p->hw; // always return at least 1 HW the first one
     if (p->label && (strcasestr(p->label, "onboard") != 0)) {
+      res = p->hw; // if contains onboard then grab that one
       break;
     }
   }
   if (res) {
-    return strdup(res);
+    res = strdup(res); // replace : with _
+    for (size_t i = 0; i < strlen(res); i++) {
+      if (res[i] == ':') res[i]='_';
+    }
+    return res;
   } else {
     return NULL;
   }
