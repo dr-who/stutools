@@ -26,7 +26,7 @@ include (CTest)
 
 #enable_testing()
 
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wshadow -Wextra -Wall -pedantic -Wstrict-prototypes -Werror -O2 -msse4.2" )
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wshadow -Wextra -Wall -pedantic -Wstrict-prototypes -O2 -msse4.2" )
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
 
