@@ -1,4 +1,6 @@
+#ifdef __linux
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +19,7 @@
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <signal.h>
+#include <ctype.h>
 
 #include "interfaces.h"
 #include "utils.h"
@@ -297,7 +300,14 @@ char *interfacesOnboardMac(interfacesIntType *n) {
   char *res = NULL;
   for (size_t i = 0; i < n->id; i++) {
     phyType *p = n->nics[i];
+
+    if (p->hw && (strcmp(p->hw, "00:00:00:00:00:00")==0)) {
+      // ignore localhost 00:00:00:00:00:00
+      continue;
+    }
+
     if (res == NULL) res = p->hw; // always return at least 1 HW the first one
+    
     if (p->label && (strcasestr(p->label, "onboard") != 0)) {
       res = p->hw; // if contains onboard then grab that one
       break;
@@ -307,6 +317,7 @@ char *interfacesOnboardMac(interfacesIntType *n) {
     res = strdup(res); // replace : with _
     for (size_t i = 0; i < strlen(res); i++) {
       if (res[i] == ':') res[i]='_';
+      else res[i] = toupper(res[i]);
     }
     return res;
   } else {
