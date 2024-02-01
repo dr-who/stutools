@@ -1,6 +1,9 @@
+#define _POSIX_C_SOURCE 1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #include <assert.h>
 #include <math.h>
@@ -105,7 +108,7 @@ int analyseAsBits(int bytes) {
 }
 
 
-int analyse1B() {
+int analyse1B(void) {
     unsigned char *buffer = NULL;
     int ret = 0;
     size_t counts[256];
@@ -151,7 +154,7 @@ int analyse1B() {
 }
 
 
-void usage() {
+void usage(void) {
     fprintf(stderr, "Usage:\n   entropy [options] < stdin\n");
     fprintf(stderr, "\nDescription:\n   Calculates the number of bits per symbol (bps) of entropy\n");
     fprintf(stderr, "   with a 0th order model.\n");

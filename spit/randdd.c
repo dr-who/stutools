@@ -95,7 +95,7 @@ void verifyDevice(char *device, unsigned char *buf, size_t size, const size_t of
     free(readbuf);
 }
 
-void usage() {
+void usage(void) {
     fprintf(stdout, "Usage: randdd -f /dev/device [-R seed] -G size (GiB) -v (verify) -n gaps (number of locations)\n");
     fprintf(stdout, "\nWrite random/patterned data. Instant hard reboot after writing to test persistence.\n");
     fprintf(stdout, "\nExample:\n");

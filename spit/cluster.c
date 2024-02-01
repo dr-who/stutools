@@ -50,6 +50,7 @@ int clusterAddNode(clusterType *c, const char *nodename, const double createdtim
   c->id++;
   c->node = realloc(c->node, c->id * sizeof(clusterNodeType *));
   c->node[index] = calloc(sizeof(clusterNodeType), 1); // create cluster node
+  memset(c->node[index], 0, sizeof(clusterNodeType));
   c->node[index]->name = strdup(nodename);
   c->node[index]->ipaddress = strdup(nodename);
   c->node[index]->created = createdtime;

@@ -1,4 +1,5 @@
-
+#define _POSIX_C_SOURCE  200809L
+  
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +8,9 @@
 #include "numList.h"
 
 
-int main() {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
 
   fprintf(stderr,"*info* pair - reads two tab separated columns of numbers. With a header line\n");
   

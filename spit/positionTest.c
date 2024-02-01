@@ -7,7 +7,9 @@
 int keepRunning = 1;
 int verbose = 0;
 
-int main() {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
 
   const size_t bdSize = 1024 * 1024;
   probType rorw;
@@ -83,11 +85,11 @@ int main() {
     positionContainerSetup(&pc, i);
     //    pc.sz = i;
     positionContainerCreatePositions(&pc, 0, 0, 0, rorw, &len, 4096, 0, 0, bdSize, 0, 1, 0, 0, 0, 0, 0, i /*linear ss*/, 0, 0, 0, resetSizes);
-    for (size_t i = 0; i <pc.sz-1; i++) {
-      for (size_t j = i+1; j <pc.sz; j++) {
+    //    for (size_t i = 0; i <pc.sz-1; i++) {
+    //      for (size_t j = i+1; j <pc.sz; j++) {
 	//	assert(pc.positions[i].pos != pc.positions[j].pos);
-      }
-    }
+    //      }
+    //    }
     positionContainerDump(&pc, 10);
     positionContainerFree(&pc);
   }
@@ -98,9 +100,9 @@ int main() {
     positionContainerSetup(&pc, i);
     //    pc.sz = i;
     positionContainerCreatePositions(&pc, 0, 1, 0, rorw, &len, 4096, 0, 0, bdSize, 0, 1, 0, 0, 0, 0, 0, i, 1 /*linear alter*/, 0, 0, resetSizes);
-    for (size_t i = 0; i <pc.sz-1; i++) {
+    for (size_t ii = 0; ii <pc.sz-1; ii++) {
       for (size_t j = i+1; j <pc.sz; j++) {
-	assert(pc.positions[i].pos != pc.positions[j].pos);
+	assert(pc.positions[ii].pos != pc.positions[j].pos);
       }
     }
     positionContainerDump(&pc, 10);
@@ -115,9 +117,9 @@ int main() {
     //    pc.sz = i;
     positionContainerCreatePositions(&pc, 0, s, 0, rorw, &len, 4096, i/2, 0, bdSize, i+s, 1, 0, 0, 0, i /*P100*/, 0, 0, 0, 0, 0, resetSizes);
     positionContainerDump(&pc, 10);
-    for (size_t i = 0; i <pc.sz-1; i++) {
+    for (size_t ii = 0; ii <pc.sz-1; ii++) {
       for (size_t j = i+1; j <pc.sz; j++) {
-	assert(pc.positions[i].pos != pc.positions[j].pos);
+	assert(pc.positions[ii].pos != pc.positions[j].pos);
       }
     }
     positionContainerFree(&pc);

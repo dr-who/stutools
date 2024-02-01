@@ -8,7 +8,7 @@
 #include "utils.h"
 
 
-keyvalueType *keyvalueInit() {
+keyvalueType *keyvalueInit(void) {
   keyvalueType *p = calloc(1, sizeof(keyvalueType)); assert(p);
   return p;
 }

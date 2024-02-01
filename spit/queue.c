@@ -5,7 +5,7 @@
 
 #include "queue.h"
 
-queueType * queueInit() {
+queueType * queueInit(void) {
   queueType *p = calloc(1, sizeof(queueType));
   return p;
 }

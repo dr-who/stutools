@@ -43,7 +43,7 @@ char *readFile(FILE *stream) {
     return ret;
 }
 
-void usage() {
+void usage(void) {
   printf("usage: simpmail -f <from> -s <subject> [ -t toemail | -l list.txt ]   -p/-h file.html \n");
   printf("\nOptions:\n");
   printf("  -t email         # to email address (singular)\n");

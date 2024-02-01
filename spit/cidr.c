@@ -10,7 +10,7 @@
 
 int keepRunning = 1;
 
-void usage() {
+void usage(void) {
   printf("usage: ./cidr <cidr> ... <cidr>\n\n");
   printf("examples:\n");
   printf("  192.168.5.0/24  # ...\n");

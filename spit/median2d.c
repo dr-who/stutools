@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE  200809L
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -47,7 +49,7 @@ pairType *addValues(double key, pairType *numbers, size_t *numcount, double val)
     return numbers;
 }
 
-void usage() {
+void usage(void) {
     fprintf(stdout, "Usage:\n  median2d [-m modulo]\n");
     fprintf(stdout, "\nDescription:\n");
     fprintf(stdout, "  Takes pairs of values (key value) per line. Groups the values per\n");

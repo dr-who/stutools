@@ -9,7 +9,7 @@ typedef struct {
   char *elements[1024];
 } queueType;
 
-queueType * queueInit();
+queueType * queueInit(void);
 void queueAdd(volatile queueType *q, char *s);
 char * queuePop(volatile queueType *q);
 int queueCanPop(volatile queueType *q);

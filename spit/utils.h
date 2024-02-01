@@ -6,7 +6,6 @@
 #include <stdio.h> // FILE
 #include <pthread.h>
 #include <assert.h>
-#include <linux/limits.h>
 
 #include "logSpeed.h"
 #include "numList.h"
@@ -45,8 +44,8 @@
 
 #define DIFF(x, y) ((x) > (y)) ? ((x)-(y)) : ((y) - (x))
 
-double timeAsDouble();
-double timeOnPPS();
+double timeAsDouble(void);
+double timeOnPPS(void);
 void fprintTimePrefix(FILE *fp);
 
 void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l,
@@ -63,35 +62,35 @@ int isBlockDevice(const char *name);
 size_t blockDeviceSizeFromFD(const int fd);
 
 
-void dropCaches();
+void dropCaches(void);
 
-char *getPowerMode();
+char *getPowerMode(void);
 
-void printPowerMode();
+void printPowerMode(void);
 
-char *username();
+char *username(void);
 
-void usernameinit();
+void usernameinit(void);
 
 char *devQueueType(const char *path);
 
 void checkContents(char *label, char *charbuf, size_t size, const size_t checksum, float checkpercentage,
                    size_t stopatbytes);
 
-void shmemUnlink();
+void shmemUnlink(void);
 
-double loadAverage();
+double loadAverage(void);
 void loadAverage3(double *d1, double *d2, double *d3);
 
-size_t numThreads();
+size_t numThreads(void);
 
-size_t totalRAM();
+size_t totalRAM(void);
 
-size_t totalShared();
+size_t totalShared(void);
 
-size_t totalBuffer();
+size_t totalBuffer(void);
 
-char *OSRelease();
+char *OSRelease(void);
 
 double swapTotal(size_t *t, size_t *u);
 
@@ -144,29 +143,29 @@ int splitRange(const char *charBS, double *low, double *high);
 
 int splitRangeChar(const char *charBS, double *low, double *high, char *retch);
 
-char *getCPUModel();
+char *getCPUModel(void);
 
 char *getModel(const char *suffix);
 
-size_t freeRAM();
+size_t freeRAM(void);
 
 size_t canCreateFile(const char *filename, const size_t sz);
 
-char *hostname();
+char *hostname(void);
 
-size_t getUptime();
+size_t getUptime(void);
 
 int getRotational(const char *suf);
 
-size_t dirtyPagesBytes();
+size_t dirtyPagesBytes(void);
 
-size_t getCachedBytes();
+size_t getCachedBytes(void);
 
 int runCommand(char *program, char *argv_list[]);
 
-int getNumaCount();
+int getNumaCount(void);
 
-int getNumHardwareThreads();
+int getNumHardwareThreads(void);
 
 int cpuCountPerNuma(int numa);
 
@@ -201,11 +200,11 @@ double entropyTotalBytes(unsigned char *buffer, size_t size);
 unsigned long getRandomLong(const unsigned long max);
 double getRandomDouble(const double max);
 
-unsigned long getDevRandomLong();
+unsigned long getDevRandomLong(void);
 
-unsigned char getDevRandom();
+unsigned char getDevRandom(void);
 
-int entropyAvailable();
+int entropyAvailable(void);
 
 unsigned long *randomGenerateLong(size_t len);
 
@@ -233,12 +232,12 @@ char *getcmdline(const size_t pid);
 size_t who(const int quiet);
 size_t last(const int quiet);
 
-size_t listRunningProcessses();
+size_t listRunningProcessses(void);
 
-void printUptime();
+void printUptime(void);
 void timeToDHS(time_t t, time_t *d, time_t *h, time_t *s);
 
-size_t isSSHLogin();
+size_t isSSHLogin(void);
 
 double getValueFromFile(const char *filename, const int quiet);
 char * getStringFromFile(const char *filename, const int quiet);

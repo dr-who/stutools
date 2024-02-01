@@ -15,7 +15,7 @@
 #include "blockdevices.h"
 
 
-blockDevicesType * blockDevicesInit() {
+blockDevicesType * blockDevicesInit(void) {
   blockDevicesType *p = calloc(1, sizeof(blockDevicesType)); assert(p);
 
   return p;

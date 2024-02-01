@@ -44,7 +44,7 @@ void addToPositions(size_t pos)
   maxPositions++;
 }
 
-void freePositions()
+void freePositions(void)
 {
   if (positions) free(positions);
   positions = NULL;
@@ -56,7 +56,7 @@ void freePositions()
 
 
 
-void storeBytes()
+void storeBytes(void)
 {
   for (size_t i = 0; i < maxPositions; i++) {
     size_t pos = positions[i];
@@ -103,7 +103,7 @@ void perturbBytes(double prob)
 }
 
 
-void restoreBytes()
+void restoreBytes(void)
 {
   for (size_t i = 0; i < maxPositions; i++) {
     size_t pos = positions[i];

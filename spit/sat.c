@@ -134,7 +134,7 @@ void *receiver(void *arg) {
 	  size_t HDDsum = 0, SSDsum= 0, SSDsumGB = 0, HDDsumGB = 0;
 	  size_t nodesGood = 0, nodesBad = 0;
 	  size_t RAMsumGB = 0, Coressum = 0;
-	  for (size_t cc = 0; cc < tc->cluster->id; cc++) {
+	  for (int cc = 0; cc < tc->cluster->id; cc++) {
 	    if (timeAsDouble() - tc->cluster->node[cc]->seen <= 10) {
 	      nodesGood++;
 	    } else {
@@ -238,7 +238,9 @@ void startThreads(interfacesIntType *n, const int serverport) {
 
 
 
-int main() {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 

@@ -3,7 +3,9 @@
 
 #include "queue.h"
 
-int main() {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
   queueType *q = queueInit();
 
 

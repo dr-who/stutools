@@ -14,7 +14,7 @@
 
 #include "interfaces.h"
 
-ipCheckType *ipCheckInit() {
+ipCheckType *ipCheckInit(void) {
   ipCheckType *p = calloc(1, sizeof(ipCheckType));
   return p;
 }

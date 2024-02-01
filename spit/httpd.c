@@ -7,11 +7,13 @@
 #include <time.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <assert.h>
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <signal.h>
 #include <sys/utsname.h>
+#include <linux/socket.h>
 
 #include "transfer.h"
 
@@ -145,7 +147,7 @@ void *receiver(void *arg) {
 
       sprintf(sendbuffer, "HTTP/1.1 200 OK\nDate: Sun, 28 Jan 2024 04:57:01 GMT\nConnection: close\nCache-Control: no-store, no-cache, must-revalidate\nContent-Length: %d\n", THESZ);
       char s[100];
-      sprintf(s, "X-Position: %zd\n", rand());
+      sprintf(s, "X-Position: %d\n", rand());
       strcat(sendbuffer, s);
       strcat(sendbuffer, "\n");
       const size_t pos = strlen(sendbuffer);      
@@ -215,7 +217,10 @@ void startThreads(interfacesIntType *n, const int serverport) {
 
 
 
-int main() {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
+  
   signal(SIGTERM, intHandler);
   signal(SIGINT, intHandler);
 

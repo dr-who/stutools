@@ -7,7 +7,7 @@ typedef struct {
   char **addr;
 } emaildbType;
 
-emaildbType * emaildbInit();
+emaildbType * emaildbInit(void);
 
 void emaildbAdd(emaildbType *e, char *emailaddress);
 

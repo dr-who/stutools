@@ -1,3 +1,6 @@
+#define _XOPEN_SOURCE 1
+#define _POSIX_C_SOURCE  200809L
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -9,7 +12,7 @@
 
 int keepRunning = 1;
 
-void usage() {
+void usage(void) {
   fprintf(stdout,"Usage:\n");
 
   fprintf(stdout,"  montehist -i hist [-s n] [-m -M -a] [-r n] [options]\n");

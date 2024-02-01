@@ -136,16 +136,19 @@ void testSD(numListType *nl) {
 }
 
 
-int main() {
-    numListType nl;
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
+  
+  numListType nl;
 
-    test1(&nl);
-    test2(&nl);
-    test3(&nl);
-    test4even(&nl);
-    testSD(&nl);
+  test1(&nl);
+  test2(&nl);
+  test3(&nl);
+  test4even(&nl);
+  testSD(&nl);
 
-    return 0;
+  return 0;
 }
 
   

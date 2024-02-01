@@ -38,7 +38,7 @@ uint32_t rol32(uint32_t number, uint8_t bits) {
   return ((number << bits) | (uint32_t)(number >> (32-bits)));
 }
 
-void hashBlock() {
+void hashBlock(void) {
   uint8_t i;
   uint32_t a,b,c,d,e,t;
 
@@ -91,13 +91,13 @@ void write(uint8_t data) {
   return;
 }
 
-void writeArray(uint8_t *buffer, uint8_t size){
+void writeArray(uint8_t *buffers, uint8_t size){
     while (size--) {
-        write(*buffer++);
+        write(*buffers++);
     }
 }
 
-void pad() {
+void pad(void) {
   // Implement SHA-1 padding (fips180-2 Åò5.1.1)
 
   // Pad with 0x80 followed by 0x00 until the end of the block

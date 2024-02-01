@@ -7,6 +7,7 @@
 #include <linux/hdreg.h>
 #include <numa.h>
 #include <numaif.h>
+#include <linux/limits.h>
 
 #endif
 

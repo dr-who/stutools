@@ -5,7 +5,7 @@
 
 #include "emaildb.h"
 
-emaildbType* emaildbInit() {
+emaildbType* emaildbInit(void) {
   emaildbType *d = calloc(sizeof(emaildbType), 1);
   return d;
 }

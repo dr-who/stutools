@@ -6,7 +6,7 @@
 #include "histogram.h"
 #include "numList.h"
 
-void usage() {
+void usage(void) {
   fprintf(stdout,"Usage:\n");
   fprintf(stdout,"  hist [options] < data    # writes 'histogram.gnu':\n");
   fprintf(stdout,"\n");

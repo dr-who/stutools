@@ -113,13 +113,14 @@ void *respondMC(void *arg) {
 	 if (hostname == NULL) {
 	   hostname = keyvalueGetString(kv, "hostname");
 	 }
+	 assert(hostname);
 	 
 	 if ((nodeid = clusterFindNode(cluster, nodename)) < 0) {
 	   // add and say hi
 	   fprintf(stderr, "adding node %s (%s)\n", nodename, hostname);
 	   nodeid = clusterAddNode(cluster, nodename, startedtime);
 	   cluster->node[nodeid]->nodename= strdup(hostname); // manually added so strdup
-	   cluster->node[nodeid]->nodeOS = keyvalueGetLong(kv, "nodeOS");
+	   cluster->node[nodeid]->nodeOS = keyvalueGetString(kv, "nodeOS");
 	   cluster->node[nodeid]->HDDcount = keyvalueGetLong(kv, "HDDcount");
 	   cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
 	   cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");

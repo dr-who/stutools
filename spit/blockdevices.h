@@ -17,7 +17,7 @@ typedef struct {
 
 
 
-blockDevicesType * blockDevicesInit();
+blockDevicesType * blockDevicesInit(void);
 
 void blockDevicesScan(blockDevicesType *bd);
 

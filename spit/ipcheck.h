@@ -18,7 +18,7 @@ typedef struct {
 } ipCheckType;
 
 
-ipCheckType *ipCheckInit();
+ipCheckType *ipCheckInit(void);
 
 void ipCheckAdd(ipCheckType *i, char *eth, unsigned int low, unsigned int high);
 

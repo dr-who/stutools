@@ -107,7 +107,7 @@ void shared_init(char *shm, char *name, int port, long size) {
 }
 
 
-void usage() {
+void usage(void) {
   printf("usage: edrive <command> -n space/RAMGB -p <port> -e <nic> -s <serverip> -l <lat_ms>\n");
   printf("\n");
   printf("  edrive init -b <device> -n test/5 -p 1600 -e eth0 -s 127.0.0.1\n");
@@ -330,8 +330,8 @@ int main(int argc, char *argv[]) {
     while (1) {
       const double thistime = timeAsDouble();
       iterations++;
-      int fd = sockconnect(server, port, 0);
-      if (fd == -1) {
+      int sockfd = sockconnect(server, port, 0);
+      if (sockfd == -1) {
 	perror("sockconnect");
 	sleep(1);
 	continue;
@@ -343,12 +343,12 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr,"pos: %zd / %zd / %.2lf (SB to go %.1lf)%%\n", writeHead - 16*1024*1024, maxBytes, ((writtenBytes - loadedWrittenBytes) / 1024.0 / 1024.0) / (thistime - starttime), randTime - (thistime - lastUpdateSB));
       }
 
-      if (socksend(fd, header, 0, 1) < 0)
+      if (socksend(sockfd, header, 0, 1) < 0)
 	perror("socksend");
       
       int rz =0, first = 0;
 
-      while ((rz = sockrec(fd, buffer, 1024*1024-1, 0, 1)) > 0) {
+      while ((rz = sockrec(sockfd, buffer, 1024*1024-1, 0, 1)) > 0) {
 
 		
 	
@@ -412,7 +412,7 @@ int main(int argc, char *argv[]) {
       if (rz < 0) {
 	perror("sockrec");
       }
-      sockclose(fd);
+      sockclose(sockfd);
     } // while 1
     
   } // work

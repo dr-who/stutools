@@ -206,11 +206,11 @@ int failureType(int argc, char *argv[]) {
       
       
       int thisonebad = 0;
-      for (size_t i = 0; i < 365 * years; i++) {
+      for (size_t ii = 0; ii < 365 * years; ii++) {
 	int age = failureGroupIterate(&g);
 	if (age != 0) {
 	  nlAdd(&failAge, age * 24); // failure
-
+	  
 	  thisonebad = 1;
 	  break;
 	}
@@ -219,8 +219,8 @@ int failureType(int argc, char *argv[]) {
 
       // count drives that have failed in this array
       size_t drivesF = 0;
-      for (size_t k = 0; k < g.len; k++) {
-	drivesF += g.f[k].drivesFailed;
+      for (size_t kk = 0; kk < g.len; kk++) {
+	drivesF += g.f[kk].drivesFailed;
       }
       nlAdd(&sparesRequired, drivesF);
       

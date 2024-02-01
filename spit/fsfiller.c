@@ -262,7 +262,7 @@ int threads = 32;
 size_t filesize = 360 * 1024;
 size_t writesize = 1024 * 1024;
 
-void usage() {
+void usage(void) {
 
     fprintf(stdout, "Usage:\n");
     fprintf(stdout,

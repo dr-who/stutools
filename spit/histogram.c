@@ -1,5 +1,8 @@
-#include <stdlib.h>
+#define _POSIX_C_SOURCE  200809L
+#define  _XOPEN_SOURCE 1
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include <unistd.h>
 #include <assert.h>

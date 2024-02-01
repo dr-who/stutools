@@ -108,7 +108,7 @@ static void *runThread(void *x) {
 }
 
 
-void usage() {
+void usage(void) {
   printf("usage: pcp [options] <infile> <outfile>\n");
   printf("\n");
   printf("options:\n");

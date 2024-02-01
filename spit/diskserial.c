@@ -11,23 +11,26 @@
 
 int keepRunning = 1;
 
-int main() {
-    char s[PATH_MAX];
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
+  
+  char s[PATH_MAX];
 
-    while (fgets(s, PATH_MAX - 1, stdin) != NULL) {
-        s[strlen(s) - 1] = 0;
-        int fd = open(s, O_RDONLY);
-        if (fd > 0) {
-            char *ser = serialFromFD(fd);
-            printf("%s\n", ser);
-            free(ser);
-            close(fd);
-        } else {
-            perror(s);
-        }
+  while (fgets(s, PATH_MAX - 1, stdin) != NULL) {
+    s[strlen(s) - 1] = 0;
+    int fd = open(s, O_RDONLY);
+    if (fd > 0) {
+      char *ser = serialFromFD(fd);
+      printf("%s\n", ser);
+      free(ser);
+      close(fd);
+    } else {
+      perror(s);
     }
+  }
 
-    exit(0);
+  exit(0);
 }
 
   

@@ -21,7 +21,7 @@ typedef struct {
   size_t byteLen; //includes \0s
 } keyvalueType;
 
-keyvalueType *keyvalueInit();
+keyvalueType *keyvalueInit(void);
 keyvalueType *keyvalueInitFromString(char *parse);
 
 size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value);

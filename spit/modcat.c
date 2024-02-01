@@ -5,7 +5,7 @@
 #include <time.h>
 
 
-void usage() {
+void usage(void) {
   printf("usage: modcat [options] < stdin > stdout\n");
   printf("\n");
   printf("  -m num   # print the line if (line_no %% num) == 1\n");

@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE 500
+
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -8,6 +10,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
+#include <getopt.h>
+
 #include "utils.h"
 
 #include <regex.h>
@@ -16,7 +20,7 @@ int keepRunning = 1;
 int verbose = 0;
 
 
-void help() {
+void help(void) {
   fprintf(stdout,"Usage: ./pmemwreck [options] /dev/dax0.0\n");
   fprintf(stdout,"\nDescription:\n   utilities for changed pmem contents\n");
   fprintf(stdout,"\nOptions\n");

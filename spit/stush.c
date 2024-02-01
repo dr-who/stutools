@@ -84,7 +84,7 @@ void intHandler(int d) {
 }
 
 
-void funHeader() {
+void funHeader(void) {
   printf("     _             _     \n");
   printf(" ___| |_ _   _ ___| |__  \n");
   printf("/ __| __| | | / __| '_ \\ \n");
@@ -94,7 +94,7 @@ void funHeader() {
 
   
 
-int com_status();
+int com_status(void);
 
 typedef struct {
     char *name;            /* User printable name of the function. */
@@ -373,7 +373,7 @@ void colour_printString(const char *string, const unsigned int good, const char 
     }
 }
 
-void usage_spit() {
+void usage_spit(void) {
     printf("%s: spit <device> <command> ... <command>\n", T("Usage"));
     printf("\n%s: \n", T("Examples"));
     printf("  spit <device> rs0           --- random 4KiB read \n");
@@ -383,7 +383,7 @@ void usage_spit() {
 
 
 
-void cmd_route() {
+void cmd_route(void) {
   dumpFile("/proc/net/route", "", 0);
 }
 
@@ -753,7 +753,7 @@ void cmd_wifiqr(const int tty, const char *rest) {
 unsigned char * hmacKey = NULL;
 size_t hmacKeyBytes = 10; // bytes
 
-void cmd_authClear() {
+void cmd_authClear(void) {
   free(hmacKey);
   hmacKey = NULL;
   hmacKeyBytes = 10;
@@ -844,7 +844,7 @@ void cmd_who(const int tty) {
 }
 
 
-double usedMemoryPercent() {
+double usedMemoryPercent(void) {
   size_t total = totalRAM();
   size_t free = freeRAM();
   size_t used = total - free;
@@ -1293,7 +1293,7 @@ void cmd_pwgen(int tty, const char *second) {
 }
 
 
-size_t countDriveBlockDevices() {
+size_t countDriveBlockDevices(void) {
     procDiskStatsType d;
     procDiskStatsInit(&d);
     procDiskStatsSample(&d);
@@ -1580,7 +1580,7 @@ void cmd_status(const char *hostname, const int tty) {
 }
 
 
-void help_prompt() {
+void help_prompt(void) {
   printf("%s\n", T("Type ? or help to list commands"));
 }
 
@@ -1593,7 +1593,7 @@ void setSSHTimeout(const size_t t, const size_t quiet) {
   /*if (quiet == 0)*/ printf("timeout: %zd\n", ssh_timeout);
 }
 
-size_t getSSHTimeout() {
+size_t getSSHTimeout(void) {
   return ssh_timeout;
 }
 

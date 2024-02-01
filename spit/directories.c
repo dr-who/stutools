@@ -103,37 +103,39 @@ void readDirectories(const char *prefix, size_t KiB, size_t count, size_t chunk,
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
 
-    const size_t KB = 360;
-    fprintf(stderr, "Starting test: %.1lf MB\n", KB / 1000.0);
-    const size_t count = 10000;
-    const char *directory = "test";
+  const size_t KB = 360;
+  fprintf(stderr, "Starting test: %.1lf MB\n", KB / 1000.0);
+  const size_t count = 10000;
+  const char *directory = "test";
 
-    struct stat st = {0};
-    if (stat(directory, &st) == -1) {
-        fprintf(stderr, "*error* please create a directory called '%s'\n", directory);
-        exit(-1);
-    }
+  struct stat st = {0};
+  if (stat(directory, &st) == -1) {
+    fprintf(stderr, "*error* please create a directory called '%s'\n", directory);
+    exit(-1);
+  }
 
-    for (size_t r = 0; r < 10; r++) {
-        const double start = timeAsDouble();
-        makeDirectories(directory, KB, count, 16384, NULL);
-        const double elapsed = timeAsDouble() - start;
-        fprintf(stderr, "create/write: %zd in %.3lf seconds, %.2lf files per second (%zd MB, %.0lf MB/s)\n", count,
-                elapsed, count / elapsed, count * KB / 1000, count * KB / 1000.0 / elapsed);
-    }
+  for (size_t r = 0; r < 10; r++) {
+    const double start = timeAsDouble();
+    makeDirectories(directory, KB, count, 16384, NULL);
+    const double elapsed = timeAsDouble() - start;
+    fprintf(stderr, "create/write: %zd in %.3lf seconds, %.2lf files per second (%zd MB, %.0lf MB/s)\n", count,
+	    elapsed, count / elapsed, count * KB / 1000, count * KB / 1000.0 / elapsed);
+  }
 
-    for (size_t r = 0; r < 10; r++) {
-        const double start = timeAsDouble();
-        readDirectories(directory, KB, count, 16384, NULL);
-        const double elapsed = timeAsDouble() - start;
-        fprintf(stderr, "read: %zd in %.3lf seconds, %.2lf files per second (%zd MB, %.0lf MB/s)\n", count, elapsed,
-                count / elapsed, count * KB / 1000, count * KB / 1000.0 / elapsed);
-    }
+  for (size_t r = 0; r < 10; r++) {
+    const double start = timeAsDouble();
+    readDirectories(directory, KB, count, 16384, NULL);
+    const double elapsed = timeAsDouble() - start;
+    fprintf(stderr, "read: %zd in %.3lf seconds, %.2lf files per second (%zd MB, %.0lf MB/s)\n", count, elapsed,
+	    count / elapsed, count * KB / 1000, count * KB / 1000.0 / elapsed);
+  }
 
 
-    return 0;
+  return 0;
 }
 
 
