@@ -134,7 +134,23 @@ void *respondMC(void *arg) {
 	 if (strcmp(clusterGetNodeIP(cluster, nodeid), node) != 0) {
 	   //	   fprintf(stderr, "updating nodeid %d, %s IP %s: '^%s'\n", nodeid, cluster->node[nodeid]->name, node, message);
 	   clusterSetNodeIP(cluster, nodeid, node);
+	   if (cluster->node[nodeid]->nodename) {
+	     free(cluster->node[nodeid]->nodename);
+	   }
 	   cluster->node[nodeid]->nodename= strdup(hostname); // manually added so strdup
+
+	   // check OS upgrade
+	   if (cluster->node[nodeid]->nodeOS) {
+	     char *broad_os = keyvalueGetString(kv, "nodeOS");
+	     if (broad_os)  { // if we have a broadcast value
+	       if (strcmp(broad_os, cluster->node[nodeid]->nodeOS) != 0) {
+		 // if different
+		 free(cluster->node[nodeid]->nodeOS);
+		 cluster->node[nodeid]->nodeOS = broad_os;
+	       }
+	     }
+	   }
+		      
 	   
 	 }
 
