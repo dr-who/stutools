@@ -90,14 +90,19 @@ void shared_init(char *shm, char *name, int port, long size) {
   keyvalueSetLong(kv, "createdTime", timeAsDouble());
   char *cpu = getCPUModel();
   keyvalueSetString(kv, "hostCPU", cpu);
+  free(cpu);
+
   char *osr = OSRelease();
   keyvalueSetString(kv, "hostOSrelease", osr);
   free(osr);
+
   size_t ram = totalRAM();
   keyvalueSetLong(kv, "hostRAMGB", ram/1024.0/1024/1024);
+
   char *host = hostname();
   keyvalueSetString(kv, "hostname", host);
   free(host);
+  
   size_t uptime = getUptime() / 24 / 3600;
   keyvalueSetLong(kv, "hostUptimeDays", uptime);
   
