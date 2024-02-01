@@ -77,6 +77,15 @@ void interfacesAddDevice(interfacesIntType *d, const char *nic) {
   phyType *p = calloc(1, sizeof(phyType));
   p->devicename = strdup(nic?nic:"");
   p->hw = getHWAddr(nic);
+
+  char devicefile[200];
+  sprintf(devicefile, "/sys/class/net/%s/device/uevent", nic);
+  char *pcislot = getFieldFromFile(devicefile, "PCI_SLOT_NAME");
+  if (pcislot == NULL) {
+    perror(devicefile);
+  }
+  p->pcislot = pcislot;
+  
   p->lastUpdate = timeAsDouble();
 
   char ss[PATH_MAX];
@@ -145,6 +154,7 @@ char * interfacesDumpJSONString(const interfacesIntType *d) {
     buf += sprintf(buf, "\t\t\"label\": \"%s\",\n", p->label ? p->label : "");
     buf += sprintf(buf, "\t\t\"lastUpdate\": \"%lf\",\n", p->lastUpdate);
     buf += sprintf(buf, "\t\t\"hw\": \"%s\",\n", p->hw);
+    buf += sprintf(buf, "\t\t\"pcislot\": \"%s\",\n", p->pcislot ? p->pcislot : "");
     buf += sprintf(buf, "\t\t\"link\": %d,\n", p->link);
     buf += sprintf(buf, "\t\t\"speed\": %d,\n", p->speed);
     buf += sprintf(buf, "\t\t\"mtu\": %d,\n", p->mtu);
@@ -159,7 +169,7 @@ char * interfacesDumpJSONString(const interfacesIntType *d) {
       buf += sprintf(buf, "\t\t\t   \"address\": \"%s\",\n", p->addr[j].addr);
       buf += sprintf(buf, "\t\t\t   \"netmask\": \"%s\",\n", p->addr[j].netmask);
       buf += sprintf(buf, "\t\t\t   \"broadcast\": \"%s\",\n", p->addr[j].broadcast);
-      buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\"\n,", p->addr[j].cidrMask);
+      buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\",\n", p->addr[j].cidrMask);
       char s[100];
       sprintf(s, "%s/%d", p->addr[j].broadcast, p->addr[j].cidrMask);
 
@@ -289,6 +299,7 @@ void interfacesFree(interfacesIntType *n) {
     free(p->addr); p->addr = NULL;
     free(p->devicename); p->devicename = NULL;
     free(p->label); p->label = NULL;
+    free(p->pcislot); p->pcislot  = NULL;
     free(p->hw); p->hw = NULL;
     free(p); p = NULL;
   }
@@ -296,32 +307,70 @@ void interfacesFree(interfacesIntType *n) {
   free(n);
 }  
 
-char *interfacesOnboardMac(interfacesIntType *n) {
-  char *res = NULL;
-  for (size_t i = 0; i < n->id; i++) {
-    phyType *p = n->nics[i];
+char *interfacesOnboardHW(const int quiet) {
+  struct ifaddrs *ifaddr;
+  if (getifaddrs(&ifaddr) == -1) {
+    perror("getifaddrs");
+    exit(EXIT_FAILURE);
+  }
+  char *pickedhw = NULL, *pickedpci = NULL;
+  for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+    char fname[200];
+    sprintf(fname, "/sys/class/net/%s/address", ifa->ifa_name);
+    char *hw = getStringFromFile(fname, 1);
+      
+    sprintf(fname, "/sys/class/net/%s/device/uevent", ifa->ifa_name);
+    char *pci = getFieldFromFile(fname, "PCI_SLOT_NAME");
 
-    if (p->hw && (strcmp(p->hw, "00:00:00:00:00:00")==0)) {
+
+    //    fprintf(stderr,"[%s] %s %s\n", ifa->ifa_name, hw, pci);
+    
+    if (hw && (strcmp(hw, "00:00:00:00:00:00")==0)) {
       // ignore localhost 00:00:00:00:00:00
       continue;
     }
-
-    if (res == NULL) res = p->hw; // always return at least 1 HW the first one
-    
-    if (p->label && (strcasestr(p->label, "onboard") != 0)) {
-      res = p->hw; // if contains onboard then grab that one
-      break;
+      
+    if (pickedhw == NULL) {
+      pickedhw = hw; // always return at least 1 HW the first one
+      pickedpci = pci;
+      //      fprintf(stderr,"PICKED\n");
+    } else {
+      // already had one, pick the lowest PCI ordering
+      if (pickedpci && pci && (strcasecmp(pci, pickedpci) < 0)) {
+	// lower PCI SLOT
+	free(pickedhw);
+	free(pickedpci);
+	pickedhw = hw;
+	pickedpci = pci;
+	//	fprintf(stderr,"PICKED\n");
+      }
     }
   }
-  if (res) {
-    res = strdup(res); // replace : with _
-    for (size_t i = 0; i < strlen(res); i++) {
-      if (res[i] == ':') res[i]='_';
-      else res[i] = toupper(res[i]);
-    }
-    return res;
-  } else {
-    return NULL;
+  if (quiet == 0) fprintf(stderr,"%s %s\n", pickedhw, pickedpci);
+  for (size_t i = 0; i < strlen(pickedhw); i++) {
+    if (pickedhw[i] == ':') pickedhw[i]='_';
+    else pickedhw[i] = toupper(pickedhw[i]);
   }
+  free(ifaddr);
+  return pickedhw;
 }
   
+char *getFieldFromFile(char *filename, char *match) {
+    FILE *fp = fopen(filename, "rt");
+    if (!fp) {
+      return NULL;
+    }
+
+    char *line = calloc(PATH_MAX, 1);
+    char *result = calloc(PATH_MAX, 1);
+    while (fgets(line, PATH_MAX - 1, fp) != NULL) {
+        if (strstr(line, match)) {
+            sscanf(strstr(line, "=") + 1, "%s", result);
+            //      fprintf(stderr,"matched: %s\n", result);                                                          
+        }
+    }
+    fclose(fp);
+    free(line);
+
+    return result;
+}

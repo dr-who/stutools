@@ -75,7 +75,7 @@ void *advertiseMC(void *arg) {
   // find unique hw.mac
   interfacesIntType *n = interfacesInit();
   interfacesScan(n);
-  char *uniquemac = interfacesOnboardMac(n);
+  char *uniquemac = interfacesOnboardHW(1);
   interfacesFree(n);
 
   

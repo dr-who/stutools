@@ -16,6 +16,7 @@ typedef struct {
   char *devicename;
   char *label;
   char *hw;
+  char *pcislot;
   double lastUpdate;
   int link;
   int mtu;
@@ -49,7 +50,9 @@ void interfacesDumpJSON(FILE *fd, const interfacesIntType *d);
 
 void interfacesFree(interfacesIntType *n);
 
-char *interfacesOnboardMac(interfacesIntType *n);
+char *interfacesOnboardHW(const int quiet);
+
+char *getFieldFromFile(char *filename, char *match);
 
 #endif
 

@@ -10,18 +10,13 @@ int keepRunning = 1;
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
-  interfacesIntType *n = interfacesInit();
-
-  interfacesScan(n);
-  char *hwserial = interfacesOnboardMac(n);
+  char *hwserial = interfacesOnboardHW(argc < 2);
   if (hwserial) {
     printf("%s\n", hwserial);
   } else {
     printf("n/a (problem)\n");
   }
   free(hwserial);
-  
-  interfacesFree(n);
 
   return 0;
 }
