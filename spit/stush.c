@@ -241,6 +241,7 @@ COMMAND commands[] = {
         {"env",       "List environment variables", "admin"},
         {"h2d",        "Hex to decimal", ""},
         {"host",      "Convert hostname to IP", ""},
+        {"hwserial",   "Unique HW serial", "admin"},
         {"id",        "Shows process IDs", "admin"},
         {"lang",      "Set locale language", ""},
         {"last",      "Show previous users", "admin"},
@@ -817,6 +818,11 @@ uint32_t cmd_generateTOTP(const int tty, const int N, const int quiet) {
 }
   
 
+void cmd_hwserial(void) {
+  char *hw = interfacesOnboardHW(1); // don't print the pcislot
+  printf("serial: %s\n", hw);
+  free(hw);
+}
 
 void cmd_sleep(const int tty, const char *second) {
   if (tty) {}
@@ -1724,6 +1730,8 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_sleep(tty, rest);
             } else if (strcasecmp(commands[i].name, "host") == 0) {
 	      dnsLookupAll(dns, rest); 
+            } else if (strcasecmp(commands[i].name, "hwserial") == 0) {
+	      cmd_hwserial(); 
             } else if (strcasecmp(commands[i].name, "uptime") == 0) {
 	      cmd_uptime(tty);
             } else if (strcasecmp(commands[i].name, "qr") == 0) {
