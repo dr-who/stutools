@@ -140,16 +140,20 @@ void *respondMC(void *arg) {
 	   cluster->node[nodeid]->nodename= strdup(hostname); // manually added so strdup
 
 	   // check OS upgrade
-	   if (cluster->node[nodeid]->nodeOS) {
-	     char *broad_os = keyvalueGetString(kv, "nodeOS");
-	     if (broad_os)  { // if we have a broadcast value
-	       if (strcmp(broad_os, cluster->node[nodeid]->nodeOS) != 0) {
-		 // if different
-		 free(cluster->node[nodeid]->nodeOS);
-		 cluster->node[nodeid]->nodeOS = broad_os;
+	   char *broad_os = keyvalueGetString(kv, "nodeOS"); // get creates
+	   int doupdate = 0;
+	   if (broad_os)  { // if we have a broadcast value
+	     doupdate = 1;
+	     if (cluster->node[nodeid]->nodeOS) {
+	       if (strcmp(broad_os, cluster->node[nodeid]->nodeOS) == 0) { // if same don't update
+		 doupdate = 0;
 	       }
 	     }
-	   }
+	     if (doupdate) {
+	       free(cluster->node[nodeid]->nodeOS);
+	       cluster->node[nodeid]->nodeOS = broad_os;
+	     }
+	   } // got a broadcast
 		      
 	   
 	 }
