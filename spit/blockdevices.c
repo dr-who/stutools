@@ -126,7 +126,6 @@ void blockDevicesScan(blockDevicesType *bd) {
 		    free(serial);
 		    free(model);
 		    free(scsi);
-		    break;
 		  } else {
 		    keyvalueFree(k);
 		  }
@@ -134,7 +133,6 @@ void blockDevicesScan(blockDevicesType *bd) {
 		close(fd);
 	      }
 	    }
-	    break; // xx
 	}
         closedir(d);
     }
