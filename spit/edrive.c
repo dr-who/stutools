@@ -82,8 +82,8 @@ void shared_init(char *shm, char *name, int port, long size) {
   keyvalueType *kv = keyvalueInit();
   keyvalueAddUUID(kv);
   keyvalueSetLong(kv, "port", port);
-  keyvalueAddString(kv, "deviceName", name);
-  keyvalueAddString(kv, "deviceType", "RAM");
+  keyvalueSetString(kv, "deviceName", name);
+  keyvalueSetString(kv, "deviceType", "RAM");
   keyvalueSetLong(kv, "sizeB", size);
   keyvalueSetLong(kv, "sizeGB", size*1.0/1024/1024/1024);
   keyvalueSetLong(kv, "dataoffset", dataoffset);

@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
 		  
 	    unsigned int major = 0,minor = 0;
 	    majorAndMinor(fd, &major, &minor);
-	    keyvalueAddString(k, "paths", path);
+	    keyvalueSetString(k, "paths", path);
 	    keyvalueSetLong(k, "major", major);
 	    keyvalueSetLong(k, "minor", minor);
 	    if (major == 8) { // HDD

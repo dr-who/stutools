@@ -65,6 +65,7 @@ keyvalueType *keyvalueInitFromString(char *par) {
       keyvalueParsePair(p, tok);
     }
   }
+  free(tok);
   free(parse);
   //  fprintf(stderr,"bytes to use %zd\n", p->byteLen);
   return p;
@@ -83,7 +84,7 @@ int keyvalueFindKey(keyvalueType *kv, const char *key) {
 }
 
 
-size_t keyvalueAddString(keyvalueType *kv, const char *key, char *value) {
+/*size_t keyvalueAddString(keyvalueType *kv, const char *key, char *value) {
   for (size_t i = 0; i < strlen(value); i++) {
     if ((value[i] == ' ') || (value[i] == ':') || (value[i] == ';') || (value[i] == '\n'))
       value[i] = '_';
@@ -93,15 +94,15 @@ size_t keyvalueAddString(keyvalueType *kv, const char *key, char *value) {
 
   if (index >= 0) {
     //found
-    free(kv->pairs[index].key);
-   if (kv->pairs[index].type == 0 || kv->pairs[index].type==2) free(kv->pairs[index].value);
+    if (kv->pairs[index].type == 0 || kv->pairs[index].type==2)
+      free(kv->pairs[index].value);
   } else {
     index = kv->num;
     kv->num++;
     // add
     kv->pairs = realloc(kv->pairs, kv->num * sizeof(keyvaluePair));
+    kv->pairs[index].key = strdup(key);
   }
-  kv->pairs[index].key = strdup(key);
   kv->pairs[index].value = strdup(value);
   kv->pairs[index].type = 2;
 
@@ -109,6 +110,9 @@ size_t keyvalueAddString(keyvalueType *kv, const char *key, char *value) {
   kv->byteLen += (strlen(value)+2);
   return index;
 }
+
+*/
+
 
 size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value) {
   if (value) {
@@ -128,15 +132,15 @@ size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value) {
 
   if (index >= 0) {
     //found
-    free(kv->pairs[index].key);
-    if (kv->pairs[index].type == 0 || kv->pairs[index].type==2) free(kv->pairs[index].value);
+    if (kv->pairs[index].type == 0 || kv->pairs[index].type==2)
+      free(kv->pairs[index].value);
   } else {
     index = kv->num;
     kv->num++;
     // add
-    kv->pairs = realloc(kv->pairs, kv->num * sizeof(keyvaluePair));
+    kv->pairs = realloc(kv->pairs, kv->num * sizeof(keyvaluePair)); assert(kv->pairs);
+    kv->pairs[index].key = strdup(key);
   }
-  kv->pairs[index].key = strdup(key);
   if (value) {
     kv->pairs[index].value = strdup(value);
   } else {
@@ -171,7 +175,6 @@ size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
   if (index >= 0) {
 
     //found
-    free(kv->pairs[index].key);
     if (kv->pairs[index].type == 0 || kv->pairs[index].type == 2) {
       // string
       free(kv->pairs[index].value);
@@ -181,8 +184,8 @@ size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
     kv->num++;
     // add
     kv->pairs = realloc(kv->pairs, kv->num * sizeof(keyvaluePair));
+    kv->pairs[index].key = strdup(key);
   }
-  kv->pairs[index].key = strdup(key);
   kv->pairs[index].longvalue = value;
   kv->pairs[index].type = 1; // 1 long
 
@@ -252,6 +255,7 @@ char *keyvalueGetString(keyvalueType *kv, const char *key) {
 size_t keyvalueChecksum(keyvalueType *kv) {
   char *s = keyvalueDumpAsString(kv);
   size_t checksum = checksumBuffer(s, strlen(s));
+  free(s);
   return checksum;
 }
   
@@ -283,7 +287,7 @@ char *keyvalueDumpAsString(keyvalueType *kv) {
 
 char *keyvalueDumpAsJSON(keyvalueType *kv) {
   keyvalueSort(kv);
-  char *s = calloc(5*kv->byteLen, 1);
+  char *s = calloc(1024*1024, 1);
   size_t level = 0;
 
   strcat(s, "{\n");
@@ -324,13 +328,15 @@ char *keyvalueDumpAsJSON(keyvalueType *kv) {
   }
   
   strcat(s, "}\n");
-  return s;
+  char *rea = strdup(s);
+  free(s);
+  return rea;
 }
 
 void keyvalueFree(keyvalueType *kv) {
   for (size_t i = 0 ; i < kv->num; i++) {
     free(kv->pairs[i].key);
-    if (kv->pairs[i].type == 0 || kv->pairs[i].type==2) free(kv->pairs[i].value);
+    if ((kv->pairs[i].type == 0) || (kv->pairs[i].type==2)) free(kv->pairs[i].value);
   }
   free(kv->pairs);
   free(kv);

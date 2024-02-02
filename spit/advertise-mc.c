@@ -70,17 +70,21 @@ void *advertiseMC(void *arg) {
 
   blockDevicesType *bd = blockDevicesInit();
 
-  blockDevicesScan(bd);
-
   // find unique hw.mac
   interfacesIntType *n = interfacesInit();
   interfacesScan(n);
   char *uniquemac = interfacesOnboardHW(1);
   interfacesFree(n);
 
-  
+
+  double last = 0;
   while (keepRunning) {
     double now = timeAsDouble();
+
+    if (now - last > 60) {
+      // every 60s scan
+      blockDevicesScan(bd);
+    }
 
 
     keyvalueType *kv = keyvalueInit();

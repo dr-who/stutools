@@ -26,9 +26,13 @@ void blockDevicesAddKV(blockDevicesType *bd, keyvalueType *kv) {
   // first search
   size_t match = bd->num;
   for (size_t i = 0; i < bd->num; i++) {
-    if (strcmp(keyvalueGetString(bd->devices[i].kv, "serial"), keyvalueGetString(kv, "serial")) == 0) {
+    char *s1 = keyvalueGetString(bd->devices[i].kv, "serial");
+    char *s2 = keyvalueGetString(kv, "serial");
+    if (s1 && s2 && (strcmp(s1, s2) == 0)) {
       match = i;
     }
+    free(s1);
+    free(s2);
   }
   if (match >= bd->num) {
     // not there
@@ -102,7 +106,7 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  
 		  unsigned int major = 0,minor = 0;
 		  majorAndMinor(fd, &major, &minor);
-		  keyvalueAddString(k, "paths", path);
+		  keyvalueSetString(k, "paths", path);
 		  keyvalueSetLong(k, "major", major);
 		  keyvalueSetLong(k, "minor", minor);
 		  if (major == 8) { // HDD
@@ -122,11 +126,15 @@ void blockDevicesScan(blockDevicesType *bd) {
 		    free(serial);
 		    free(model);
 		    free(scsi);
+		    break;
+		  } else {
+		    keyvalueFree(k);
 		  }
 		} // fd
 		close(fd);
 	      }
 	    }
+	    break; // xx
 	}
         closedir(d);
     }
@@ -149,8 +157,10 @@ char * blockDevicesAllJSON(blockDevicesType *bd) {
 void blockDevicesFree(blockDevicesType *bd) {
   for (size_t i = 0 ; i < bd->num; i++) {
     keyvalueFree(bd->devices[i].kv);
+    bd->devices[i].kv = NULL;
   }
   free(bd->devices);
+  bd->devices = NULL;
   free(bd);
 }
 
@@ -165,6 +175,7 @@ size_t blockDevicesCount(blockDevicesType *bd, const char *devtype, size_t *sumb
 	matched++;
 	*sumbytes = (*sumbytes) + keyvalueGetLong(bd->devices[i].kv, "size");
       }
+      free(v);
     }
   }
   return matched;
