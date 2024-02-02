@@ -103,7 +103,7 @@ void *advertiseMC(void *arg) {
      size_t hddsize = 0;
      size_t hddnum = blockDevicesCount(bd, "HDD", &hddsize);
      size_t ssdsize = 0;
-     size_t ssdnum = blockDevicesCount(bd, "SSD", &ssdsize);
+     size_t ssdnum = blockDevicesCount(bd, NULL, &ssdsize);
 
      keyvalueSetLong(kv, "HDDcount", hddnum);
      keyvalueSetLong(kv, "HDDsizeGB", hddsize / 1000.0 / 1000 / 1000);;
