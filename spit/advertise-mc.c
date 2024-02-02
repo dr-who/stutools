@@ -113,6 +113,8 @@ void *advertiseMC(void *arg) {
      keyvalueSetLong(kv, "Cores", getNumHardwareThreads());
      keyvalueSetLong(kv, "RAMGB", totalRAM()/1024/1024/1024);
 
+     //     fprintf(stderr,"%s\n", keyvalueDumpAsString(kv));
+     
     
     //    keyvalueSetString(kv, "shell", "stush");
     keyvalueSetLong(kv, "started", (long)starttime);
