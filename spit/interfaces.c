@@ -322,7 +322,13 @@ char *interfacesOnboardHW(const int quiet) {
     sprintf(fname, "/sys/class/net/%s/device/uevent", ifa->ifa_name);
     char *pci = getFieldFromFile(fname, "PCI_SLOT_NAME");
 
+    sprintf(fname, "/sys/class/net/%s/uevent", ifa->ifa_name);
+    char *devtype = getFieldFromFile(fname, "DEVTYPE");
 
+    if (devtype && (strcmp(devtype, "wlan")==0)) {
+      // ignore wifi
+      continue;
+    }
     //    fprintf(stderr,"[%s] %s %s\n", ifa->ifa_name, hw, pci);
     
     if (hw && (strcmp(hw, "00:00:00:00:00:00")==0)) {
