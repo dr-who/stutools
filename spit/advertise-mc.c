@@ -129,7 +129,7 @@ void *advertiseMC(void *arg) {
 
 
     count++;
-    sleep (cluster->id < 1 ? 1 : cluster->id);
+    sleep (cluster->id < 1 ? 1 : (cluster->id / 2)); // nyquist
   }
   return NULL;
 }
