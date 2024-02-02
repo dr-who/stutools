@@ -327,18 +327,18 @@ char *interfacesOnboardHW(const int quiet) {
 
     if (devtype && (strcmp(devtype, "wlan")==0)) {
       // ignore wifi
-      continue;
+      goto end;
     }
     //    fprintf(stderr,"[%s] %s %s\n", ifa->ifa_name, hw, pci);
     
     if (hw && (strcmp(hw, "00:00:00:00:00:00")==0)) {
       // ignore localhost 00:00:00:00:00:00
-      continue;
+      goto end;
     }
       
     if (pickedhw == NULL) {
-      pickedhw = hw; // always return at least 1 HW the first one
-      pickedpci = pci;
+      pickedhw = strdup(hw); // always return at least 1 HW the first one
+      pickedpci = strdup(pci);
       //      fprintf(stderr,"PICKED\n");
     } else {
       // already had one, pick the lowest PCI ordering
@@ -346,17 +346,23 @@ char *interfacesOnboardHW(const int quiet) {
 	// lower PCI SLOT
 	free(pickedhw);
 	free(pickedpci);
-	pickedhw = hw;
-	pickedpci = pci;
+	pickedhw = strdup(hw);
+	pickedpci = strdup(pci);
 	//	fprintf(stderr,"PICKED\n");
       }
     }
+  end:
+    free(devtype);
+    free(hw);
+    free(pci);
   }
   if (quiet == 0) fprintf(stderr,"%s %s\n", pickedhw, pickedpci);
   for (size_t i = 0; i < strlen(pickedhw); i++) {
     if (pickedhw[i] == ':') pickedhw[i]='_';
     else pickedhw[i] = toupper(pickedhw[i]);
   }
+
+  free(pickedpci);
   free(ifaddr);
   return pickedhw;
 }
