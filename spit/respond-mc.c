@@ -121,6 +121,8 @@ void *respondMC(void *arg) {
 	   nodeid = clusterAddNode(cluster, nodename, startedtime);
 	   cluster->node[nodeid]->nodename= strdup(hostname); // manually added so strdup
 	   cluster->node[nodeid]->nodeOS = keyvalueGetString(kv, "nodeOS");
+	   cluster->node[nodeid]->boardname = keyvalueGetString(kv, "boardname");
+	   cluster->node[nodeid]->biosdate = keyvalueGetString(kv, "biosdate");
 	   cluster->node[nodeid]->HDDcount = keyvalueGetLong(kv, "HDDcount");
 	   cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
 	   cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");

@@ -109,6 +109,8 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
       buf += sprintf(buf, "       \"nodename\": \"%s\",\n", c->node[i]->nodename);
       buf += sprintf(buf, "       \"nodeOS\": \"%s\",\n", c->node[i]->nodeOS);
+      buf += sprintf(buf, "       \"boardname\": \"%s\",\n", c->node[i]->boardname);
+      buf += sprintf(buf, "       \"biosdate\": \"%s\",\n", c->node[i]->biosdate);
       buf += sprintf(buf, "       \"lastseen\": %.0lf,\n", now - c->node[i]->seen);
       buf += sprintf(buf, "       \"created\": %lf,\n", c->node[i]->created);
       buf += sprintf(buf, "       \"age\": %lf,\n", now - c->node[i]->created);
@@ -168,6 +170,8 @@ void clusterFree(clusterType *c) {
     free(c->node[i]->name);
     free(c->node[i]->nodename);
     free(c->node[i]->nodeOS);
+    free(c->node[i]->boardname);
+    free(c->node[i]->biosdate);
     free(c->node[i]->ipaddress);
     free(c->node[i]->osrelease);
     free(c->node[i]);

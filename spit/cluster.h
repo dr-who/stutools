@@ -9,6 +9,8 @@ typedef struct {
   char *nodename; // can be dynamic
   char *nodeOS; // can be dynamic
   char *ipaddress;
+  char *biosdate;
+  char *boardname;
   double created;
   double changed;
   double discovered;

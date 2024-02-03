@@ -97,6 +97,22 @@ void *advertiseMC(void *arg) {
     //    fprintf(stderr,"OS :%s\n", nodeos);
     keyvalueSetString(kv, "nodeOS", strdup(nodeos));
     free(nodeos);
+
+    char str[1000];
+    sprintf(str, "/sys/devices/virtual/dmi/id/board_name");
+    char *boardvn = getStringFromFile(str, 1);
+    keyvalueSetString(kv, "boardname", boardvn);
+    free(boardvn);
+
+    sprintf(str, "/sys/devices/virtual/dmi/id/bios_date");
+    char *biosdate = getStringFromFile(str, 1);
+
+    keyvalueSetString(kv, "biosdate", biosdate);
+    free(biosdate);
+
+
+
+    
     keyvalueSetLong(kv, "time", (long)now);
     keyvalueSetLong(kv, "cluster", cluster->id);
     keyvalueSetLong(kv, "port", 1600);
