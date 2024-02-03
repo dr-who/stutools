@@ -91,7 +91,7 @@ void *respondMC(void *arg) {
      //          fprintf(stderr, "**NEW**  should try and connect to '%s' message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
 
      long startedtime = 0;//
-     char *node = inet_ntoa(addr.sin_addr);
+     char *ipaddr = inet_ntoa(addr.sin_addr);
 
      //fprintf(stderr,"rec:%s\n", message);
      
@@ -117,7 +117,7 @@ void *respondMC(void *arg) {
 	 
 	 if ((nodeid = clusterFindNode(cluster, nodename)) < 0) {
 	   // add and say hi
-	   fprintf(stderr, "adding node %s (%s)\n", nodename, hostname);
+	   fprintf(stderr, "adding node %s (%s) (%s)\n", nodename, hostname, ipaddr);
 	   nodeid = clusterAddNode(cluster, nodename, startedtime);
 	   cluster->node[nodeid]->nodename= strdup(hostname); // manually added so strdup
 	   cluster->node[nodeid]->nodeOS = keyvalueGetString(kv, "nodeOS");
@@ -129,11 +129,20 @@ void *respondMC(void *arg) {
 	   cluster->node[nodeid]->RAMGB = keyvalueGetLong(kv, "RAMGB");
 	   cluster->node[nodeid]->Cores = keyvalueGetLong(kv, "Cores");
 	 }
+
+
+	 char *keyip = keyvalueGetString(kv, "ip");
+	 if (keyip && (strcmp(keyip, ipaddr) != 0)) {
+	   fprintf(stderr,"warning, connecting IP different from multicast IP. Using multicast IP\n");
+	   ipaddr = keyip;
+	 } else {
+	   free(keyip);
+	 }
 	 
 	 
-	 if (strcmp(clusterGetNodeIP(cluster, nodeid), node) != 0) {
+	 if (strcmp(clusterGetNodeIP(cluster, nodeid), ipaddr) != 0) {
 	   //	   fprintf(stderr, "updating nodeid %d, %s IP %s: '^%s'\n", nodeid, cluster->node[nodeid]->name, node, message);
-	   clusterSetNodeIP(cluster, nodeid, node);
+	   clusterSetNodeIP(cluster, nodeid, ipaddr);
 	   if (cluster->node[nodeid]->nodename) {
 	     free(cluster->node[nodeid]->nodename);
 	   }
