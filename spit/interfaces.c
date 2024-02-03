@@ -110,6 +110,11 @@ void interfacesAddDevice(interfacesIntType *d, const char *nic) {
   char *label = getStringFromFile(ss, 1);
   p->label = label;
 
+  sprintf(ss, "/sys/class/net/%s/wireless", nic);
+  if (fileExists(ss)) {
+    p->wireless = 1;
+  }
+  
   p->num = 0;
   p->addr = NULL;
 
@@ -153,6 +158,7 @@ char * interfacesDumpJSONString(const interfacesIntType *d) {
     buf += sprintf(buf, "\t\t\"device\": \"%s\",\n", p->devicename);
     buf += sprintf(buf, "\t\t\"label\": \"%s\",\n", p->label ? p->label : "");
     buf += sprintf(buf, "\t\t\"lastUpdate\": \"%lf\",\n", p->lastUpdate);
+    buf += sprintf(buf, "\t\t\"wireless\": %d,\n", p->wireless);
     buf += sprintf(buf, "\t\t\"hw\": \"%s\",\n", p->hw);
     buf += sprintf(buf, "\t\t\"pcislot\": \"%s\",\n", p->pcislot ? p->pcislot : "");
     buf += sprintf(buf, "\t\t\"link\": %d,\n", p->link);
@@ -386,3 +392,15 @@ char *getFieldFromFile(char *filename, char *match) {
 
     return result;
 }
+
+
+char *interfaceIPNonWifi(interfacesIntType *n) {
+  for (size_t i = 0; i < n->id; i++) {
+    phyType *p = n->nics[i];
+    if ((p->wireless == 0) && (strcmp(p->hw, "00:00:00:00:00:00")!=0)) {
+      return strdup(p->addr[0].addr);
+    }
+  }
+  return NULL;
+}
+  

@@ -18,6 +18,7 @@ typedef struct {
   char *hw;
   char *pcislot;
   double lastUpdate;
+  int wireless;
   int link;
   int mtu;
   int speed;
@@ -54,5 +55,6 @@ char *interfacesOnboardHW(const int quiet);
 
 char *getFieldFromFile(char *filename, char *match);
 
+char *interfaceIPNonWifi(interfacesIntType *n);
 #endif
 

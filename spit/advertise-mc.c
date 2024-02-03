@@ -74,6 +74,7 @@ void *advertiseMC(void *arg) {
   interfacesIntType *n = interfacesInit();
   interfacesScan(n);
   char *uniquemac = interfacesOnboardHW(1);
+  char *adv_ip = interfaceIPNonWifi(n);
   interfacesFree(n);
 
 
@@ -112,6 +113,8 @@ void *advertiseMC(void *arg) {
 
      keyvalueSetLong(kv, "Cores", getNumHardwareThreads());
      keyvalueSetLong(kv, "RAMGB", totalRAM()/1024/1024/1024);
+
+     keyvalueSetString(kv, "ip", adv_ip);
 
      //     fprintf(stderr,"%s\n", keyvalueDumpAsString(kv));
      
