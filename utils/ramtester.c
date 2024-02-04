@@ -1,6 +1,6 @@
 #ifdef __linux
 #include <malloc.h>
-#include <sysinfo.h>
+#include <sys/sysinfo.h>
 #endif
 
 
