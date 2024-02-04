@@ -1,20 +1,33 @@
-#include <stdlib.h>
-
+#ifdef __linux
 #include <malloc.h>
-#include <sys/sysinfo.h>
+#include <sysinfo.h>
+#endif
+
+
+#include <stdlib.h>
+#include <stdio.h>
+
 #include <sys/time.h>
 #include <string.h>
 
 size_t freeRAM() {
+#ifdef __linux
   struct sysinfo info;
   sysinfo(&info);
   return info.freeram + info.bufferram + info.sharedram;
+#else
+  return 0;
+#endif
 }
 
 size_t totalswap() {
+#ifdef __linux
   struct sysinfo info;
   sysinfo(&info);
   return info.totalswap;
+#else
+  return 0;
+#endif
 }
 
 inline double timeAsDouble() {

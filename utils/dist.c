@@ -1,10 +1,13 @@
+#ifdef __linux
 #define _POSIX_C_SOURCE 200809L
+#include <malloc.h>
+#endif
+
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <malloc.h>
 #include <limits.h>
 #include <assert.h>
 #include <string.h>
