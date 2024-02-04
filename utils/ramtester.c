@@ -10,7 +10,7 @@
 #include <sys/time.h>
 #include <string.h>
 
-size_t freeRAM() {
+size_t freeRAM(void) {
 #ifdef __linux
   struct sysinfo info;
   sysinfo(&info);
@@ -20,7 +20,7 @@ size_t freeRAM() {
 #endif
 }
 
-size_t totalswap() {
+size_t totalswap(void) {
 #ifdef __linux
   struct sysinfo info;
   sysinfo(&info);
@@ -30,7 +30,7 @@ size_t totalswap() {
 #endif
 }
 
-inline double timeAsDouble() {
+inline double timeAsDouble(void) {
   struct timeval now;
   gettimeofday(&now, NULL);
   double tm = ((double)now.tv_sec * 1000000.0) + now.tv_usec;
