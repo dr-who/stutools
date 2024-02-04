@@ -48,6 +48,7 @@ void usage(void) {
   printf("\nOptions:\n");
   printf("  -t email         # to email address (singular)\n");
   printf("  -l list.txt      # to a list of email addresses (one per line)\n");
+  printf("  -v               # interactively validate before sending lots\n");
   printf("\n");
   printf("  -d               # dry run, don't send emails\n");
   printf("\n");
@@ -77,9 +78,13 @@ int main(int argc, char *argv[]) {
   char *fromemail = NULL, *fromname = NULL, *toemail = NULL, *ccemail = NULL, *bccemail = NULL, *subject = NULL, *htmlbody = NULL, *plainbody = NULL;
   emaildbType *e = NULL;
   double ratepersecond = 20;
+  int checkfirst = 0; 
   
-  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:l:p:r:dh:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:F:t:c:b:s:l:p:r:dh:v")) != -1) {
     switch (opt) {
+    case 'v':
+      checkfirst = 1;
+      break;
     case 'd':
       dryRun = 1;
       break;
@@ -162,35 +167,37 @@ int main(int argc, char *argv[]) {
     size_t next = 0;
     for (size_t i = 0; i < e->len; i++) {
       if ((e->len > 1) && (i >= next)) {
-	printf("Send how many [1,2 ... all] (%s)? ", e->addr[i]); fflush(stdout);
-	char input[100];
-	char buf[100];
-
-	
-	if (fgets(buf, sizeof buf, stdin) != NULL) {
-	  int ss = sscanf(buf, "%s", input);
-	  if (ss) {
-	    if (strcmp(input, "all")==0) {
-	      next = e->len;
-	    } else {
-	      char *ptr = NULL;
-	      unsigned long gap = strtoul(input, &ptr, 10);
-	      if (ptr != NULL) {
-		next = i+ gap;
+	if (checkfirst) {
+	  printf("Send how many [1,2 ... all] (%s)? ", e->addr[i]); fflush(stdout);
+	  char input[100];
+	  char buf[100];
+	  
+	  
+	  if (fgets(buf, sizeof buf, stdin) != NULL) {
+	    int ss = sscanf(buf, "%s", input);
+	    if (ss) {
+	      if (strcmp(input, "all")==0) {
+		next = e->len;
 	      } else {
-		next = i;
+		char *ptr = NULL;
+		unsigned long gap = strtoul(input, &ptr, 10);
+		if (ptr != NULL) {
+		  next = i+ gap;
+		} else {
+		  next = i;
+		}
 	      }
+	    } else {
+	      next=i;
 	    }
 	  } else {
-	    next=i;
+	    // eof
+	    printf("*terminated\n");
+	    break;
 	  }
-	} else {
-	  // eof
-	  printf("*terminated\n");
-	  break;
 	}
       } // i>= next
-	  
+      
       // send the email
       if (dryRun) {
 	printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, body %ld/%ld bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, e->addr[i], ccemail, bccemail, strlen(plainbody), strlen(htmlbody), subject);
