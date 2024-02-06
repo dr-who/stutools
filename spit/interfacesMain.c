@@ -11,6 +11,12 @@ int main(int argc, char *argv[]) {
   interfacesIntType *n = interfacesInit();
 
   interfacesScan(n);
+  for (size_t i = 0; i < n->id; i++) {
+    fprintf(stderr, "%s (speed %d)\n", n->nics[i]->devicename, n->nics[i]->speed);
+  }
+
+
+  
   interfacesDumpJSON(stdout, n);
   
 
