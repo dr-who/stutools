@@ -2126,7 +2126,7 @@ size_t isSSHLogin() {
 
 double getValueFromFile(const char *filename, const int quiet) {
   FILE *fp = fopen (filename, "rt");
-  double value = NAN;
+  double value = 0; // if can't open file etc
   if (fp) {
     char result[1024];
     int ret = fscanf(fp, "%s", result);

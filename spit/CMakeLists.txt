@@ -76,7 +76,7 @@ target_link_libraries(cidr uuid spitlib m aio pthread numa pci)
 add_executable(keyvalue keyvalueMain.c keyvalue.c keyvalue.h utils.c utils.h )
 target_link_libraries(keyvalue uuid spitlib m aio pthread numa pci)
 
-add_executable(edrive edrive.c keyvalue.c keyvalue.h utilstime.c utilstime.h utils.c simpsock.c)
+add_executable(edrive edrive.c keyvalue.c keyvalue.h utilstime.c utilstime.h utils.c simpsock.c iprange.c)
 target_link_libraries(edrive uuid spitlib m aio pthread numa pci)
 
 add_executable(ipcheck ipcheckMain.c ipcheck.c ipcheck.h iprange.c interfaces.c interfaces.h simpsock.c )

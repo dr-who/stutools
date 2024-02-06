@@ -99,7 +99,7 @@ void *receiver(void *arg) {
   size_t bytes = 0;
   double start =timeAsDouble();
 
-#define THESZ (32*1024)
+#define THESZ (128*1024)
       
   char *databuf = aligned_alloc(4096, THESZ); assert(databuf);
   char ch = 'A';
@@ -115,10 +115,15 @@ void *receiver(void *arg) {
 
   char *sendbuffer = aligned_alloc(4096, THESZ+200); assert(sendbuffer);
   
+  const size_t maxiops = (1000) * 1000.0 * 1000.0 / 8 / (THESZ);
   
   while (keepRunning) {
     iteration++;
     socklen_t addrlen = sizeof(clientaddr);
+
+
+
+
 
     const double latstart = timeAsDouble(); // i have work
     int connfd = accept(sockfd, (struct sockaddr *) &clientaddr, &addrlen);
@@ -158,7 +163,9 @@ void *receiver(void *arg) {
       connections++;
       bytes += contentLen;
       if ((connections %10 )==0 ) {
-	fprintf(stderr,"%d %.1lf IO/s  %zd MB  %.1lf MB/s (99%% %.3lf ms, sd %.3lf ms, max %.3lf ms)\n", connections, connections / (timeAsDouble()-start), bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start), nlSortedPos(&nl,0.99), nlSD(&nl), nlMax(&nl));
+	const double thisiops = connections / (timeAsDouble() - start);
+	const double eff = 100.0 * thisiops / maxiops;
+	fprintf(stderr,"%d %.1lf (of %zd = %.0lf%%) IO/s  %zd MB  %.1lf MB/s (99%% %.3lf ms, sd %.3lf ms, max %.3lf ms)\n", connections, thisiops, maxiops, eff, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start), nlSortedPos(&nl,0.99), nlSD(&nl), nlMax(&nl));
       }
       
       if (fcntl(connfd, F_GETFD) == -1) break;

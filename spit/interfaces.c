@@ -174,25 +174,30 @@ char * interfacesDumpJSONString(const interfacesIntType *d) {
       buf += sprintf(buf, "\t\t\t{\n");
       buf += sprintf(buf, "\t\t\t   \"address\": \"%s\",\n", p->addr[j].addr);
       buf += sprintf(buf, "\t\t\t   \"netmask\": \"%s\",\n", p->addr[j].netmask);
-      buf += sprintf(buf, "\t\t\t   \"broadcast\": \"%s\",\n", p->addr[j].broadcast);
-      buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\",\n", p->addr[j].cidrMask);
-      char s[100];
-      sprintf(s, "%s/%d", p->addr[j].broadcast, p->addr[j].cidrMask);
+      buf += sprintf(buf, "\t\t\t   \"broadcast\": \"%s\"", p->addr[j].broadcast);
 
-      
-      ipRangeType *ipr = ipRangeInit(s);
-      unsigned int ip1, ip2, ip3, ip4;
-      int gap = 1;
-      if (ipr->lastIP - ipr->firstIP < 3) gap = 0;
-      
-      ipRangeNtoA(ipr->firstIP+gap, &ip1, &ip2, &ip3, &ip4);
-      buf += sprintf(buf, "\t\t\t   \"addressFirst\": \"%u.%u.%u.%u\",\n", ip1, ip2, ip3, ip4);
-      ipRangeNtoA(ipr->lastIP-gap, &ip1, &ip2, &ip3, &ip4);
-      buf += sprintf(buf, "\t\t\t   \"addressLast\": \"%u.%u.%u.%u\"\n", ip1, ip2, ip3, ip4);
-      ipRangeFree(ipr);
+      // if ipv4
+      if (p->addr[j].cidrMask) {
+	buf += sprintf(buf, ",\n");
+	buf += sprintf(buf, "\t\t\t   \"cidrMask\": \"%d\",\n", p->addr[j].cidrMask);
+	char s[100];
+	sprintf(s, "%s/%d", p->addr[j].broadcast, p->addr[j].cidrMask);
+	
+	
+	ipRangeType *ipr = ipRangeInit(s);
+	unsigned int ip1, ip2, ip3, ip4;
+	int gap = 1;
+	if (ipr->lastIP - ipr->firstIP < 3) gap = 0;
+	
+	ipRangeNtoA(ipr->firstIP+gap, &ip1, &ip2, &ip3, &ip4);
+	buf += sprintf(buf, "\t\t\t   \"addressFirst\": \"%u.%u.%u.%u\",\n", ip1, ip2, ip3, ip4);
+	ipRangeNtoA(ipr->lastIP-gap, &ip1, &ip2, &ip3, &ip4);
+	buf += sprintf(buf, "\t\t\t   \"addressLast\": \"%u.%u.%u.%u\"\n", ip1, ip2, ip3, ip4);
+	ipRangeFree(ipr);
+      }
       buf += sprintf(buf, "\t\t\t}\n");
     }
-    buf += sprintf(buf, "\t\t]\n");
+    buf += sprintf(buf, "\t\t]\n"); // end of array
     buf += sprintf(buf, "\t}\n");
   }
   buf += sprintf(buf, "]\n");
@@ -225,71 +230,79 @@ unsigned int cidrMask(unsigned int n) {
 
 void interfacesScan(interfacesIntType *n) {
 
-  assert(n);
+  if (n == NULL) {
+    fprintf(stderr,"interfaceIntType needs allocating\n");
+    exit(EXIT_FAILURE);
+  }
   
-     struct ifaddrs *ifaddr;
-    int family;
-    char host[NI_MAXHOST];
+  struct ifaddrs *ifaddr;
+  int family;
+  char host[NI_MAXHOST];
 
-    if (getifaddrs(&ifaddr) == -1) {
-        perror("getifaddrs");
-        exit(EXIT_FAILURE);
+  if (getifaddrs(&ifaddr) == -1) {
+    perror("getifaddrs");
+    exit(EXIT_FAILURE);
+  }
+
+  for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+    //        if (ifa->ifa_addr == NULL)
+    //            continue;
+
+    family = ifa->ifa_addr->sa_family;
+
+    /* Display interface name and family (including symbolic
+       form of the latter for the common families). */
+
+    interfacesAddDevice(n, ifa->ifa_name);
+
+    if (family == AF_INET || family == AF_INET6) {
+      if (strcmp(ifa->ifa_name, "lo")==0) {
+	continue; // don't print info on localhost
+      }
+      
+      int s = getnameinfo(ifa->ifa_addr,
+			  (family == AF_INET) ? sizeof(struct sockaddr_in) :
+			  sizeof(struct sockaddr_in6),
+			  host, NI_MAXHOST,
+			  NULL, 0, NI_NUMERICHOST);
+      if (s != 0) {
+	printf("getnameinfo() failed: %s\n", gai_strerror(s));
+	exit(EXIT_FAILURE);
+      }
+      
+      
+      char addressBuffer[INET6_ADDRSTRLEN];
+      bzero(addressBuffer, INET6_ADDRSTRLEN);
+      char maskBuffer[INET6_ADDRSTRLEN];
+      bzero(maskBuffer, INET6_ADDRSTRLEN);
+      
+      char broadcastBuffer[INET6_ADDRSTRLEN];
+      bzero(broadcastBuffer, INET6_ADDRSTRLEN);
+      if  (family == AF_INET) {
+	
+	void *tmpAddrPtr = &((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr;
+	inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+	
+	tmpAddrPtr = &((struct sockaddr_in *)(ifa->ifa_netmask))->sin_addr;
+	inet_ntop(AF_INET, tmpAddrPtr, maskBuffer, INET_ADDRSTRLEN);
+	
+	
+	tmpAddrPtr = &((struct sockaddr_in *)(ifa->ifa_broadaddr))->sin_addr;
+	inet_ntop(AF_INET, tmpAddrPtr, broadcastBuffer, INET_ADDRSTRLEN);
+      }
+	
+	unsigned int tmpMask = ((struct sockaddr_in *)(ifa->ifa_netmask))->sin_addr.s_addr;
+	    
+	//	    	    printf("%s IP Address %s, Mask %s, %u\n", ifa->ifa_name, addressBuffer, maskBuffer, cidrMask(tmpMask));
+	//	    	    printf("tmpmask=%u\n", tmpMask);
+	//	                printf("%s\t", host);
+
+      
+      interfacesAddIP(n, ifa->ifa_name, host, maskBuffer, broadcastBuffer, cidrMask(tmpMask));
     }
+  }
 
-    for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-      //        if (ifa->ifa_addr == NULL)
-      //            continue;
-
-        family = ifa->ifa_addr->sa_family;
-
-        /* Display interface name and family (including symbolic
-           form of the latter for the common families). */
-
-        if (family == AF_INET/* || family == AF_INET6*/) {
-	  //	  if (strcmp(ifa->ifa_name, "lo")==0) {
-	  //	    continue; // don't print info on localhost
-	  //	  }
-	  
-	  //	  printf("%s\t", ifa->ifa_name);
-
-	  interfacesAddDevice(n, ifa->ifa_name);
-
-	  int s = getnameinfo(ifa->ifa_addr,
-                            (family == AF_INET) ? sizeof(struct sockaddr_in) :
-                            sizeof(struct sockaddr_in6),
-                            host, NI_MAXHOST,
-                            NULL, 0, NI_NUMERICHOST);
-            if (s != 0) {
-                printf("getnameinfo() failed: %s\n", gai_strerror(s));
-                exit(EXIT_FAILURE);
-            }
-
-
-	    char addressBuffer[INET_ADDRSTRLEN];
-	    char maskBuffer[INET_ADDRSTRLEN];
-	    char broadcastBuffer[INET_ADDRSTRLEN];
-	    
-	    void *tmpAddrPtr = &((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr;
-	    inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
-	    
-	    tmpAddrPtr = &((struct sockaddr_in *)(ifa->ifa_netmask))->sin_addr;
-	    inet_ntop(AF_INET, tmpAddrPtr, maskBuffer, INET_ADDRSTRLEN);
-	    
-
-	    tmpAddrPtr = &((struct sockaddr_in *)(ifa->ifa_broadaddr))->sin_addr;
-	    inet_ntop(AF_INET, tmpAddrPtr, broadcastBuffer, INET_ADDRSTRLEN);
-	    
-	    unsigned int tmpMask = ((struct sockaddr_in *)(ifa->ifa_netmask))->sin_addr.s_addr;
-	    
-	    //	    	    printf("%s IP Address %s, Mask %s, %u\n", ifa->ifa_name, addressBuffer, maskBuffer, cidrMask(tmpMask));
-	    //	    	    printf("tmpmask=%u\n", tmpMask);
-	    //	                printf("%s\t", host);
-
-	    interfacesAddIP(n, ifa->ifa_name, host, maskBuffer, broadcastBuffer, cidrMask(tmpMask));
-        }
-    }
-
-    freeifaddrs(ifaddr);
+  freeifaddrs(ifaddr);
   
 }
 

@@ -1,4 +1,6 @@
+#ifdef __linux
 #define _GNU_SOURCE
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +20,7 @@
 #include "utilstime.h"
 #include "utils.h"
 #include "simpsock.h"
+#include "interfaces.h"
 
 int keepRunning = 1;
 
@@ -173,7 +176,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (!namespace) {
+  if (!namespace || !nic) {
     usage();
     exit(EXIT_FAILURE);
   }
@@ -203,7 +206,23 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  fprintf(stderr, "namespace: %s, RAM: %zd GB, port %d, latency %.1lf ms (1:10,000 10x), nic: %s\n", name, ramgb, port, delayus/1000.0, nic);
+  interfacesIntType *n = interfacesInit();
+  interfacesScan(n);
+  int speed = 0, found = 0;
+  for (size_t i = 0; i < n->id; i++) {
+    if (strcmp(nic, n->nics[i]->devicename)==0) {
+      found = 1;
+      speed = n->nics[i]->speed;
+    }
+  }
+  interfacesFree(n);
+  if (found == 0) {
+    fprintf(stderr,"unknown nic '%s'\n", nic);
+    exit(1);
+  }
+  
+
+  fprintf(stderr, "nic/speed: %s/%d, namespace: %s, RAM: %zd GB, port %d, latency %.1lf ms (1:10,000 10x)\n", nic, speed, name, ramgb, port, delayus/1000.0);
 
   // do the commands
 
@@ -344,7 +363,7 @@ int main(int argc, char *argv[]) {
       }
       sprintf(header, "GET / HTTP/1.1\nHost: %s:%d\nX-WriteAtPosition: %zd\nUser-Agent: edrive-%s/0.0\nAccept */*\n", server, port, writeHead, keyvalueGetString(kv, "deviceName"));
 
-      if ((iterations % 100) == 0) {
+      if ((iterations % 1000) == 0) {
 	fprintf(stderr,"pos: %zd / %zd / %.2lf (SB to go %.1lf)%%\n", writeHead - 16*1024*1024, maxBytes, ((writtenBytes - loadedWrittenBytes) / 1024.0 / 1024.0) / (thistime - starttime), randTime - (thistime - lastUpdateSB));
       }
 
@@ -377,7 +396,7 @@ int main(int argc, char *argv[]) {
 
 	    }
 	    //shm mem
-	    memcpy(shm + writeHead, buffer, rz);
+	    //	    memcpy(shm + writeHead, buffer, rz);
 	    //	    msync(shm +writeHead, rz, MS_SYNC);
 	  }
 	  writeHead += rz;
