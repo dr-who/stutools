@@ -237,8 +237,8 @@ void interfacesScan(interfacesIntType *n) {
     }
 
     for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == NULL)
-            continue;
+      //        if (ifa->ifa_addr == NULL)
+      //            continue;
 
         family = ifa->ifa_addr->sa_family;
 
