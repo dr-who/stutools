@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
       speed = n->nics[i]->speed;
     }
   }
-  interfacesFree(n);
+  interfacesFree(&n); assert(NULL == n);
   if (found == 0) {
     fprintf(stderr,"unknown nic '%s'\n", nic);
     exit(1);
@@ -396,7 +396,7 @@ int main(int argc, char *argv[]) {
 
 	    }
 	    //shm mem
-	    //	    memcpy(shm + writeHead, buffer, rz);
+	    memcpy(shm + writeHead, buffer, rz);
 	    //	    msync(shm +writeHead, rz, MS_SYNC);
 	  }
 	  writeHead += rz;

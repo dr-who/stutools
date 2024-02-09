@@ -307,7 +307,8 @@ void interfacesScan(interfacesIntType *n) {
 }
 
 
-void interfacesFree(interfacesIntType *n) {
+void interfacesFree(interfacesIntType **nin) {
+  interfacesIntType *n = *nin;
   for (size_t i = 0; i < n->id; i++) {
     phyType *p = n->nics[i];
     for (size_t j = 0; j < p->num; j++) {
@@ -323,7 +324,7 @@ void interfacesFree(interfacesIntType *n) {
     free(p); p = NULL;
   }
   free(n->nics); n->nics = NULL;
-  free(n);
+  free(*nin); *nin=NULL;
 }  
 
 char *interfacesOnboardHW(const int quiet) {

@@ -1,4 +1,6 @@
 #include <stddef.h>
+#include <assert.h>
+
 #include "interfaces.h"
 
 int keepRunning = 1;
@@ -21,7 +23,7 @@ int main(int argc, char *argv[]) {
   
 
 
-  interfacesFree(n);
+  interfacesFree(&n); assert(NULL==n);
 
   return 0;
 }

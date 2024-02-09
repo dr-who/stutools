@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
   ipCheckAllInterfaceRanges(ipc);
 
   unsigned int ip = 0;
-  while((ip = ipCheckOpenPort(ipc, 1600, 0.1, 0)) != 0) {
+  while((ip = ipCheckOpenPort(ipc, 1600, 0.1, 1)) != 0) {
     printf("%d\n", ip);
   }
 

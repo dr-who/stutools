@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "cluster.h"
+#include "keyvalue.h"
 #include "utils.h"
 
 
@@ -14,7 +15,7 @@
 // a cluster all has the same port
 clusterType * clusterInit(const size_t port) {
   fprintf(stderr,"clusterInit on port %zd\n", port);
-  clusterType *p = calloc(sizeof(clusterType), 1); assert(p);
+  clusterType *p = calloc(1, sizeof(clusterType)); assert(p);
   p->port = port;
 
   return p;
@@ -22,6 +23,7 @@ clusterType * clusterInit(const size_t port) {
 
 // returns -1 for can't find it
 int clusterFindNode(clusterType *c, const char *nodename) {
+  assert(c);
   if (c) {
     for (int i = 0; i < c->id; i++) {
       if (c->node) {
@@ -39,6 +41,7 @@ int clusterFindNode(clusterType *c, const char *nodename) {
 
 
 int clusterAddNode(clusterType *c, const char *nodename, const double createdtime) {
+  assert(c);
   const int index = c->id;
   for (int i = 0; i < index; i++) {
     if (strcasecmp(c->node[i]->name, nodename)==0) {
@@ -57,12 +60,16 @@ int clusterAddNode(clusterType *c, const char *nodename, const double createdtim
   c->node[index]->discovered = timeAsDouble();
   c->node[index]->changed = c->node[index]->created;
 
+  c->node[index]->info = keyvalueInit(); // 
+
   c->latestchange = c->node[index]->created;
   
   return index;
 }
 
 int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip) {
+  assert(c);
+  
   fprintf(stderr,"addnodesip %s %s\n",nodename, ip);
   int find = clusterFindNode(c, nodename);
   if (find < 0) {
@@ -82,6 +89,10 @@ int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip) {
 }
 
 char *clusterDumpJSONString(clusterType *c) {
+  if (c==NULL) {
+    return NULL;
+  }
+  
   char *buf = calloc(1,1000000);
   char *ret = buf;
 
@@ -164,7 +175,8 @@ void clusterUpdateSeen(clusterType *c, const size_t nodeid) {
   c->node[nodeid]->seen = timeAsDouble();
 }
 
-void clusterFree(clusterType *c) {
+void clusterFree(clusterType **cin) {
+  clusterType *c = *cin;
   const int index = c->id;
   for (int i = 0; i <index; i++) {
     free(c->node[i]->name);
@@ -174,9 +186,13 @@ void clusterFree(clusterType *c) {
     free(c->node[i]->biosdate);
     free(c->node[i]->ipaddress);
     free(c->node[i]->osrelease);
+    keyvalueFree(c->node[i]->info);
+    c->node[i]->info = NULL;
     free(c->node[i]);
+    c->node[i] = NULL;
   }
-  free(c->node);
+  free(c->node); c->node = NULL;
   free(c);
+  *cin = NULL;
 }
    

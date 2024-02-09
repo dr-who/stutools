@@ -45,10 +45,10 @@ void nlInit(numListType *n, int window) {
 
 
 void nlFree(numListType *n) {
-    if (n->values) free(n->values);
-    if (n->label) free(n->label);
-    pthread_mutex_destroy(&n->lock);
-    memset(n, 0, sizeof(numListType));
+  if (n->values) free(n->values);
+  if (n->label) free(n->label);
+  pthread_mutex_destroy(&n->lock);
+  memset(n, 0, sizeof(numListType));
 }
 
 
