@@ -344,6 +344,11 @@ char *interfacesOnboardHW(const int quiet) {
     sprintf(fname, "/sys/class/net/%s/uevent", ifa->ifa_name);
     char *devtype = getFieldFromFile(fname, "DEVTYPE");
 
+    sprintf(fname, "/sys/class/net/%s/carrier", ifa->ifa_name);
+    double linkup = getValueFromFile(fname, 1);
+    if (linkup < 1) goto end;
+
+
     if (devtype && (strcmp(devtype, "wlan")==0)) {
       // ignore wifi
       goto end;
