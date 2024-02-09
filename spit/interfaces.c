@@ -345,9 +345,9 @@ char *interfacesOnboardHW(const int quiet) {
     sprintf(fname, "/sys/class/net/%s/uevent", ifa->ifa_name);
     char *devtype = getFieldFromFile(fname, "DEVTYPE");
 
-    sprintf(fname, "/sys/class/net/%s/carrier", ifa->ifa_name);
-    double linkup = getValueFromFile(fname, 1);
-    if (linkup < 1) goto end;
+    //    sprintf(fname, "/sys/class/net/%s/carrier", ifa->ifa_name);
+    //    double linkup = getValueFromFile(fname, 1);
+    ///    if (linkup < 1) goto end;
 
 
     if (devtype && (strcmp(devtype, "wlan")==0)) {
@@ -416,7 +416,7 @@ char *getFieldFromFile(char *filename, char *match) {
 char *interfaceIPNonWifi(interfacesIntType *n) {
   for (size_t i = 0; i < n->id; i++) {
     phyType *p = n->nics[i];
-    if ((p->wireless == 0) && (strcmp(p->hw, "00:00:00:00:00:00")!=0)) {
+    if ((p->wireless == 0) && (strcmp(p->hw, "00:00:00:00:00:00")!=0) && (p->link >0)) {
       return strdup(p->addr[0].addr);
     }
   }
