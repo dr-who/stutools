@@ -49,7 +49,7 @@ size_t interfaceSpeed(const char *nic);
 char * interfacesDumpJSONString(const interfacesIntType *d);
 void interfacesDumpJSON(FILE *fd, const interfacesIntType *d);
 
-void interfacesFree(interfacesIntType *n);
+void interfacesFree(interfacesIntType **n);
 
 char *interfacesOnboardHW(const int quiet);
 

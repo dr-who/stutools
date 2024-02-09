@@ -114,14 +114,16 @@ void ipCheckAllInterfaceRanges(ipCheckType *ipc) {
       //printf("%s\n", p->devicename);
       for (size_t j = 0; j < p->num; j++) {
 	addrType *a = &p->addr[j];
-	fprintf(stderr, "*info* examining %s: %s/%d\n", p->devicename, a->broadcast, a->cidrMask);
-	ipRangeType *r = ipRangeInit2(a->broadcast, a->cidrMask);
-  
-	//  ipRangeType *r = ipRangeInit("192.168.9.255/24");
-	ipCheckAdd(ipc, p->devicename, r->firstIP, r->lastIP);
-	free(r);
+	if (a->cidrMask) {
+	  fprintf(stderr, "*info* examining %s: %s/%d\n", p->devicename, a->broadcast, a->cidrMask);
+	  ipRangeType *r = ipRangeInit2(a->broadcast, a->cidrMask);
+	  
+	  //  ipRangeType *r = ipRangeInit("192.168.9.255/24");
+	  ipCheckAdd(ipc, p->devicename, r->firstIP, r->lastIP);
+	  free(r);
+	}
       }
     }
   }
-  interfacesFree(n);
+  interfacesFree(&n); assert(n == NULL);
 }  

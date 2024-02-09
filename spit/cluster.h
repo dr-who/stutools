@@ -4,8 +4,12 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "keyvalue.h"
+
 typedef struct {
   char *name; // grabbed from onboard mac, immutable
+
+  // the following should be KV
   char *nodename; // can be dynamic
   char *nodeOS; // can be dynamic
   char *ipaddress;
@@ -23,6 +27,9 @@ typedef struct {
   size_t SSDsizeGB;
   size_t RAMGB;
   size_t Cores;
+
+  
+  keyvalueType *info;
 } clusterNodeType;
 
 
@@ -48,5 +55,5 @@ void clusterDumpJSON(FILE *fp, clusterType *c);
 void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address);
 char *clusterGetNodeIP(clusterType *c, size_t nodeid);
 void clusterUpdateSeen(clusterType *c, const size_t nodeid);
-void clusterFree(clusterType *c);
+void clusterFree(clusterType **c);
 #endif

@@ -228,7 +228,7 @@ void startThreads(interfacesIntType *n, const int serverport) {
       pthread_join(pt[i], NULL);
       //	printf("thread %zd finished %d\n", i, keepRunning);
     }
-    clusterFree(cluster);
+    clusterFree(&cluster); assert(cluster == NULL);
     free(tc);
     free(pt);
 }

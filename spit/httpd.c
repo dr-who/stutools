@@ -60,7 +60,7 @@ void *receiver(void *arg) {
     //	  continue;
   }
 
-  //	socksetup(sockfd, 10);
+  socksetup(sockfd, 1);
   int true = 1;
   if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(int)) == -1) {
     perror("so_reuseaddr");
@@ -99,7 +99,7 @@ void *receiver(void *arg) {
   size_t bytes = 0;
   double start =timeAsDouble();
 
-#define THESZ (128*1024)
+#define THESZ (4*1024)
       
   char *databuf = aligned_alloc(4096, THESZ); assert(databuf);
   char ch = 'A';
@@ -113,44 +113,68 @@ void *receiver(void *arg) {
 
   size_t iteration = 0;
 
-  char *sendbuffer = aligned_alloc(4096, THESZ+200); assert(sendbuffer);
+  char *sendbuffer = aligned_alloc(4096, THESZ+4096); assert(sendbuffer);
   
   const size_t maxiops = (1000) * 1000.0 * 1000.0 / 8 / (THESZ);
-  
+
+  int askkeepalive = 0;
+
   while (keepRunning) {
     iteration++;
+    //    fprintf(stderr, "iteration %d\n", iteration);
     socklen_t addrlen = sizeof(clientaddr);
 
-
-
-
-
-    const double latstart = timeAsDouble(); // i have work
-    int connfd = accept(sockfd, (struct sockaddr *) &clientaddr, &addrlen);
-    if (connfd == -1) {
-      perror("Connect Error");
-      exit(1);
+    int connfd;
+    //    if (fcntl(connfd, F_GETFD) == -1) iteration = 1;
+    
+    if (iteration == 1) {
+      //      fprintf(stderr, "new accept\n");
+      connfd = accept(sockfd, (struct sockaddr *) &clientaddr, &addrlen);
+      if (connfd == -1) {
+	perror("Connect Error");
+	sleep(1);
+	continue;
+	//	exit(1);
+      }
     }
+      
 
     //    char addr[INET_ADDRSTRLEN];
     //    inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
 
-      char buffer[1024];
-      if (sockrec(connfd, buffer, 1024, 0, 1) < 0) {
+    const double latstart = timeAsDouble(); // i have work
+
+    char buffer[1024];
+    int rlen = 0;
+    if ((rlen=sockrec(connfd, buffer, 1024, MSG_NOSIGNAL, 1)) < 0) {
 	perror("sockrec connfd");
-	break;
+
+	close(connfd);
+	iteration = 0;
+	
+	fprintf(stderr, "bah\n");
+	continue;
+      //	break;
 	//	continue;
 	//	  fprintf(stderr, "din'yt get a string\n");
       }
 
+    fprintf(stderr,"rec len %d\n", rlen);
+      if (strstr(buffer, "Keep-Alive") != NULL) {
+	askkeepalive = 1;
+      } else {
+	askkeepalive = 0;
+      }
 
-    /*      char print[100];
+	      
+
+      char print[100];
       memset(print, 0, 100);
       strncpy(print, buffer, 99);
-      fprintf(stderr,"-->%s\n", print);
-      */
+      //      fprintf(stderr,"rec -->%s\n", print);
+      
 
-      sprintf(sendbuffer, "HTTP/1.1 200 OK\nDate: Sun, 28 Jan 2024 04:57:01 GMT\nConnection: close\nCache-Control: no-store, no-cache, must-revalidate\nContent-Length: %d\n", THESZ);
+      sprintf(sendbuffer, "HTTP/1.1 200 OK\nDate: Sun, 28 Jan 2024 04:57:01 GMT\nConnection: Keep-Alive\nKeep-Alive: timeout=5, max=1000\nCache-Control: no-store, no-cache, must-revalidate\nContent-Length: %d\n", THESZ);
       char s[100];
       sprintf(s, "X-Position: %d\n", rand());
       strcat(sendbuffer, s);
@@ -162,27 +186,37 @@ void *receiver(void *arg) {
 
       connections++;
       bytes += contentLen;
-      if ((connections %10 )==0 ) {
+      if ( (connections %1 )==0 ) {
 	const double thisiops = connections / (timeAsDouble() - start);
 	const double eff = 100.0 * thisiops / maxiops;
-	fprintf(stderr,"%d %.1lf (of %zd = %.0lf%%) IO/s  %zd MB  %.1lf MB/s (99%% %.3lf ms, sd %.3lf ms, max %.3lf ms)\n", connections, thisiops, maxiops, eff, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start), nlSortedPos(&nl,0.99), nlSD(&nl), nlMax(&nl));
+	fprintf(stderr,"[%d] %d %.1lf (of %zd = %.0lf%%) IO/s  %zd MB  %.1lf MB/s (99%% %.3lf ms, sd %.3lf ms, max %.3lf ms)\n", connfd, connections, thisiops, maxiops, eff, bytes/1024/1024, bytes*1.0/1024/1024/(timeAsDouble()-start), nlSortedPos(&nl,0.99), nlSD(&nl), nlMax(&nl));
       }
-      
-      if (fcntl(connfd, F_GETFD) == -1) break;
-      if (socksendWithLen(connfd, sendbuffer, contentLen, 0, 1) < 0) {
-	perror("sock send\n");
-	break;
+
+      //      fprintf(stderr, "sending reply...\n");
+      int srepl = 0;
+      if ( (srepl=socksendWithLen(connfd, sendbuffer, contentLen, MSG_NOSIGNAL, 1)) < 0) {
+	
+	close(connfd);
+	iteration = 0;
+	perror("socksendwithlen");
+	continue;
+      } else {
+	//	fprintf(stderr,"sent %d\n", srepl);
       }
       
       if (iteration > 10) {
 	const double latdelay = (timeAsDouble() - latstart) * 1000.0;
 	nlAdd(&nl, latdelay);
       }
-      
-    
-    close(connfd);
+
+      if (askkeepalive == 0) {
+	//	fprintf(stderr,"closing\n");
+	close(connfd);
+	iteration = 0;
+      }
   }
-      free(sendbuffer);
+  exit(1);
+  free(sendbuffer);
   close(sockfd);
   return NULL;
 }

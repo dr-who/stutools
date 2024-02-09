@@ -75,7 +75,7 @@ void *advertiseMC(void *arg) {
   interfacesScan(n);
   char *uniquemac = interfacesOnboardHW(1);
   char *adv_ip = interfaceIPNonWifi(n);
-  interfacesFree(n);
+  interfacesFree(&n); assert(n==NULL);
 
 
   double last = 0;

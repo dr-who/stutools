@@ -64,7 +64,7 @@ target_link_libraries(blockdevices spitlib m aio pthread numa pci)
 
 add_executable(broadcastwatch broadcastwatch.c multicast.h)
 
-add_executable(cluster clusterMain.c cluster.c cluster.h)
+add_executable(cluster clusterMain.c cluster.c cluster.h keyvalue.c keyvalue.h)
 target_link_libraries(cluster spitlib m aio pthread numa pci)
 
 add_executable(queue queueMain.c queue.c queue.h)

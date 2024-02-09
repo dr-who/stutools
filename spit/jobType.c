@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <strings.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -27,12 +27,13 @@ extern volatile int keepRunning;
 extern int verbose;
 
 void jobInit(jobType *job) {
-    job->count = 0;
+  bzero(job, sizeof(jobType));
+  /*    job->count = 0;
     job->strings = NULL;
     job->devices = NULL;
     job->deviceid = NULL;
     job->suggestedNUMA = NULL;
-    job->delay = NULL;
+    job->delay = NULL;*/
 }
 
 void jobAddBoth(jobType *job, char *device, char *jobstring, int suggestedNUMA) {
@@ -120,7 +121,7 @@ void jobDumpAll(jobType *job) {
 }
 
 void jobFree(jobType *job) {
-    for (int i = 0; i < job->count; i++) {
+  for (int i = 0; i < job->count; i++) {
         //    fprintf(stderr,"freeinging %d of %d\n", i, job->count);
         if (job->strings[i]) {
             free(job->strings[i]);

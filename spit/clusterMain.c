@@ -22,9 +22,6 @@ int main(int argc, char *argv[]) {
   free(s);
   
   clusterAddNode(c, "stu", timeAsDouble());
-  c->node[0]->nodename = strdup("cool");
-  clusterAddNode(c, "nic", timeAsDouble());
-  clusterAddNode(c, "nic", timeAsDouble());
 
   clusterAddNodesIP(c, "stu", "172.17.0.2");
   clusterAddNodesIP(c, "stu", "172.17.3.2");
@@ -32,7 +29,7 @@ int main(int argc, char *argv[]) {
   printf("%s", s);
   free(s);
 
-  clusterFree(c);
+  clusterFree(&c);
 
   return 0;
 }
