@@ -162,6 +162,48 @@ void *receiver(void *arg) {
 	  }
 	  free(json);
 	  keyvalueFree(kv);
+	} else if (strncmp(buffer,"bad",3)==0) {
+	  keyvalueType *kv = keyvalueInit();
+	  size_t nodesGood = 0, nodesBad = 0;
+	  for (int cc = 0; cc < tc->cluster->id; cc++) {
+	    if (timeAsDouble() - tc->cluster->node[cc]->seen <= 10) {
+	      nodesGood++;
+	    } else {
+	      nodesBad++;
+	      char str[100];
+	      sprintf(str, "badNode%02zd", nodesBad);
+	      keyvalueSetString(kv, str, tc->cluster->node[cc]->nodename);
+	      sprintf(str, "badNode%02zd_ip", nodesBad);
+	      keyvalueSetString(kv, str, tc->cluster->node[cc]->ipaddress);
+	    }
+	  }
+	  char *json = keyvalueDumpAsJSON(kv);
+	  if (socksend(connfd, json, 0, 1) < 0) {
+	    perror("socksendcluster");
+	  }
+	  free(json);
+	  keyvalueFree(kv);
+	} else if (strncmp(buffer,"good",4)==0) {
+	  keyvalueType *kv = keyvalueInit();
+	  size_t nodesGood = 0, nodesBad = 0;
+	  for (int cc = 0; cc < tc->cluster->id; cc++) {
+	    if (timeAsDouble() - tc->cluster->node[cc]->seen <= 10) {
+	      nodesGood++;
+	      char str[100];
+	      sprintf(str, "goodNode%02zd", nodesGood);
+	      keyvalueSetString(kv, str, tc->cluster->node[cc]->nodename);
+	      sprintf(str, "goodNode%02zd_ip", nodesGood);
+	      keyvalueSetString(kv, str, tc->cluster->node[cc]->ipaddress);
+	    } else {
+	      nodesBad++;
+	    }
+	  }
+	  char *json = keyvalueDumpAsJSON(kv);
+	  if (socksend(connfd, json, 0, 1) < 0) {
+	    perror("socksendcluster");
+	  }
+	  free(json);
+	  keyvalueFree(kv);
 	} else if (strncmp(buffer,"cluster",7)==0) {
 	  //	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
 	  char *json = clusterDumpJSONString(tc->cluster);

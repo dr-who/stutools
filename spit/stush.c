@@ -220,6 +220,7 @@ COMMAND commands[] = {
 	{"authqr",    "Show the TOTP QR code", "admin"},
 	{"authset",   "Set the TOTP key", "admin"},
 	{"authtok",   "Show the current TOTP token", "admin"},
+        {"bad",       "Show bad cluster noes", ""},
 	{"booking",   "Manage bookings", "admin"},
 	{"cidr",      "Handy CIDR calc", ""},
         {"cluster",   "Show Cluster info", ""},
@@ -239,6 +240,7 @@ COMMAND commands[] = {
         {"dropbear",  "Dropbear SSH config", "admin"},
         {"entropy",   "Calc entropy of a string", ""},
         {"env",       "List environment variables", "admin"},
+        {"good",       "Show good cluster noes", ""},
         {"h2d",        "Hex to decimal", ""},
         {"host",      "Convert hostname to IP", ""},
         {"hwserial",   "Unique HW serial", "admin"},
@@ -557,6 +559,26 @@ void cmd_sum(const int tty) {
   int fd = sockconnect("127.0.0.1", 1600, 10);
   if (fd > 0) {
     if (socksend(fd, "sum\n", 0, 1)) {
+      char *buffer = calloc(1024, 1); assert(buffer);
+      int ret;
+      while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
+	printf("%s", buffer);
+      }
+      free(buffer);
+    } else {
+      perror("socksend2");
+    }
+  } else {
+    perror("connect");
+  }
+  sockclose(fd);
+}
+
+void cmd_clusternodes(const int tty, int good) {
+  if (tty) {}
+  int fd = sockconnect("127.0.0.1", 1600, 10);
+  if (fd > 0) {
+    if (socksend(fd, good ? "good\n" : "bad\n", 0, 1)) {
       char *buffer = calloc(1024, 1); assert(buffer);
       int ret;
       while ((ret = sockrec(fd, buffer, 1024, 0, 1)) > 0) {
@@ -1686,6 +1708,10 @@ int run_command(const int tty, char *line, const char *username, const char *hos
 	      cmd_cidr(tty, rest); 
             } else if (strcasecmp(commands[i].name, "sum") == 0) {
 	      cmd_sum(tty); 
+            } else if (strcasecmp(commands[i].name, "good") == 0) {
+	      cmd_clusternodes(tty, 1); 
+            } else if (strcasecmp(commands[i].name, "bad") == 0) {
+	      cmd_clusternodes(tty, 0); 
             } else if (strcasecmp(commands[i].name, "cluster") == 0) {
 	      cmd_cluster(tty); 
             } else if (strcasecmp(commands[i].name, "mailserver") == 0) {
