@@ -204,6 +204,18 @@ void *receiver(void *arg) {
 	  }
 	  free(json);
 	  keyvalueFree(kv);
+	} else if (strncmp(buffer,"ansible",7)==0) {
+	  char *str = calloc(1024*1024, 1); assert(str);
+	  char *ret = str;
+	  for (int cc = 0; cc < tc->cluster->id; cc++) {
+	    
+	    str += sprintf(str, "%s ansible_ssh_host=%s\n", tc->cluster->node[cc]->nodename, tc->cluster->node[cc]->ipaddress);
+	  }
+	  fprintf(stderr,"%s", ret);
+	  if (socksend(connfd, ret, 0, 1) < 0) {
+	    perror("socksendcluster");
+	  }
+	  free(ret);
 	} else if (strncmp(buffer,"cluster",7)==0) {
 	  //	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
 	  char *json = clusterDumpJSONString(tc->cluster);
