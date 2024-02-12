@@ -423,7 +423,6 @@ char *interfaceIPNonWifi(interfacesIntType *n) {
     if (/*(p->wireless == 0) &&*/ (strcmp(p->hw, "00:00:00:00:00:00")!=0) && (p->link >0) && (p->addr)) {
       if (num++ > 0) {
 	strcat(ret, ",");
-	strcat(ret, ",");
       }
       strcat(ret, p->addr[0].addr);
       char cidr[10];sprintf(cidr,"/%d", p->addr[0].cidrMask);
