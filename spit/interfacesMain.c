@@ -20,7 +20,9 @@ int main(int argc, char *argv[]) {
 
   
   interfacesDumpJSON(stdout, n);
-  
+
+
+  fprintf(stderr,"IPs -> %s\n", interfaceIPNonWifi(n));
 
 
   interfacesFree(&n); assert(NULL==n);
