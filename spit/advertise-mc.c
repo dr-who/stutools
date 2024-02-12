@@ -85,6 +85,8 @@ void *advertiseMC(void *arg) {
     if (now - last > 60) {
       // every 60s scan
       blockDevicesScan(bd);
+      free(adv_ip);
+      adv_ip = interfaceIPNonWifi(n); // pickup a changing main IP
     }
 
 

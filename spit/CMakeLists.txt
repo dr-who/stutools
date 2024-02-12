@@ -26,7 +26,7 @@ include (CTest)
 
 #enable_testing()
 
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wshadow -Wextra -Wall -pedantic -Wstrict-prototypes -O2 -msse4.2" )
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wshadow -Wextra -Wall -pedantic -Wstrict-prototypes " )
 #SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 
 
@@ -34,6 +34,9 @@ add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c 
 
 add_executable(spit spit.c spit-version.h)
 target_link_libraries(spit spitlib m aio pthread numa)
+
+add_executable(dataset datasetMain.c dataset.c dataset.h numList.c numList.h)
+target_link_libraries(dataset m)
 
 add_executable(modcat modcat.c)
 #target_link_libraries()
