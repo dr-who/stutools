@@ -414,12 +414,13 @@ char *getFieldFromFile(char *filename, char *match) {
 
 
 char *interfaceIPNonWifi(interfacesIntType *n) {
+  assert(n);
   char *ret = calloc(1000,1); assert(ret);
-
+  
   int num = 0;
   for (size_t i = 0; i < n->id; i++) {
     phyType *p = n->nics[i];
-    if (/*(p->wireless == 0) &&*/ (strcmp(p->hw, "00:00:00:00:00:00")!=0) && (p->link >0)) {
+    if (/*(p->wireless == 0) &&*/ (strcmp(p->hw, "00:00:00:00:00:00")!=0) && (p->link >0) && (p->addr)) {
       if (num++ > 0) {
 	strcat(ret, ",");
       }
@@ -428,8 +429,7 @@ char *interfaceIPNonWifi(interfacesIntType *n) {
   }
   if (strlen(ret) > 0) {
     return ret;
-  } else {
-    return NULL;
   }
+  return NULL;
 }
   

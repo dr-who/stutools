@@ -71,22 +71,24 @@ void *advertiseMC(void *arg) {
   blockDevicesType *bd = blockDevicesInit();
 
   // find unique hw.mac
-  interfacesIntType *n = interfacesInit();
-  interfacesScan(n);
-  char *uniquemac = interfacesOnboardHW(1);
-  char *adv_ip = interfaceIPNonWifi(n);
-  interfacesFree(&n); assert(n==NULL);
+  //  interfacesIntType *n = interfacesInit();
+  //  interfacesScan(n);
+  char *uniquemac, *adv_ip;
 
-
-  double last = 0;
+  double last = 0; 
   while (keepRunning) {
     double now = timeAsDouble();
 
-    if (now - last > 60) {
+    if (now - last > 60) { // run first time
       // every 60s scan
       blockDevicesScan(bd);
+      interfacesIntType *n = interfacesInit();
+      interfacesScan(n);
       free(adv_ip);
+      uniquemac = interfacesOnboardHW(1);
       adv_ip = interfaceIPNonWifi(n); // pickup a changing main IP
+      interfacesFree(&n); assert(n==NULL);
+      
     }
 
 
