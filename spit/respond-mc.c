@@ -134,7 +134,7 @@ void *respondMC(void *arg) {
 
 
 	 char *keyip = keyvalueGetString(kv, "ip");
-	 if (keyip && (strcmp(keyip, ipaddr) != 0)) {
+	 if (keyip && (strstr(keyip, ipaddr) == NULL)) {
 	   fprintf(stderr,"warning; %s connecting IP (%s) different from multicast IP (%s). Using multicast IP\n", hostname, ipaddr, keyip);
 	   ipaddr = keyip;
 	 } else {

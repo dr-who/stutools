@@ -73,7 +73,7 @@ void *advertiseMC(void *arg) {
   // find unique hw.mac
   //  interfacesIntType *n = interfacesInit();
   //  interfacesScan(n);
-  char *uniquemac, *adv_ip;
+  char *uniquemac = NULL, *adv_ip = NULL;
 
   double last = 0; 
   while (keepRunning) {
