@@ -52,6 +52,7 @@ void checkData(const int fd, const void *p, const size_t sz) {
     fprintf(stderr,"can't allocate!\n");
     exit(1);
   }
+  free(check);
 }
 
 void benchmark(const int fd, const void *p, const size_t sz, const size_t blocksz, const double testtime, const int readtest, const int seq) {
@@ -147,7 +148,9 @@ int main(int argc, char *argv[]) {
 
   int fd = open(device, O_RDWR | O_EXCL | O_DIRECT);
   if (fd >= 0) {
-    fprintf(stderr,"*info* '%s': %s %s, %.0lf GB\n", device, vendorFromFD(fd), modelFromFD(fd), blockDeviceSizeFromFD(fd)/1000.0/1000/1000);
+    char *v = NULL, *m = NULL;
+    fprintf(stderr,"*info* '%s': %s %s, %.0lf GB\n", device, v=vendorFromFD(fd), m=modelFromFD(fd), blockDeviceSizeFromFD(fd)/1000.0/1000/1000);
+    free(v); free(m);
     fprintf(stderr,"*info* allocating fd %d to %s\n", fd, device);
     void *p = readData(fd, sz);
 
@@ -160,9 +163,8 @@ int main(int argc, char *argv[]) {
     }
 
     checkData(fd, p, sz);
-
-    
     close(fd);
+    free(p);
   } else {
     perror(device);
   }
