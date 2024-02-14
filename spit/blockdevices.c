@@ -117,6 +117,8 @@ void blockDevicesScan(blockDevicesType *bd) {
 		    keyvalueSetString(k, "serial", serial);
 		    char *model = modelFromFD(fd);
 		    keyvalueSetString(k, "model", model);
+		    char *vendor = vendorFromFD(fd);
+		    keyvalueSetString(k, "vendor", vendor);
 		    char *scsi= SCSISerialFromFD(fd);
 		    keyvalueSetString(k, "scsi", scsi);
 

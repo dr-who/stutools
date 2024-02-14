@@ -1843,6 +1843,16 @@ char *modelFromFD(int fd) {
     return serial;
 }
 
+char *vendorFromFD(int fd) {
+    unsigned int major, minor;
+    char *serial = NULL;
+
+    if (majorAndMinor(fd, &major, &minor) == 0) {
+        serial = getFieldFromUdev(major, minor, "E:ID_VENDOR=");
+    }
+    return serial;
+}
+
 
 
 #include <dirent.h>

@@ -13,10 +13,6 @@ int main(int argc, char *argv[]) {
 
 
   keyvalueType *kv = keyvalueInit();
-  keyvalueFree(kv);
-
-  exit(0);
-  
   
   
   char *line = NULL;
