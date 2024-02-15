@@ -138,13 +138,20 @@ int main(int argc, char *argv[]) {
     device = argv[1];
   }
   
+  double testtime = 0.5;
+  if (argc > 2) {
+    testtime = atof(argv[2]);
+    if (testtime < 0.001) {
+      testtime = 0.5;
+    }
+  }
+
   if (device == NULL) {
     printf("usage: testdevice <blockdevice>\n");
     exit(0);
   }
 
   size_t sz = 1024 * 1024 * 100;
-  double testtime = 0.5;
 
   int fd = open(device, O_RDWR | O_EXCL | O_DIRECT);
   if (fd >= 0) {
@@ -165,11 +172,12 @@ int main(int argc, char *argv[]) {
     checkData(fd, p, sz);
     close(fd);
     free(p);
+    fprintf(stderr,"*info* test passed.\n");
   } else {
     perror(device);
+    exit(EXIT_FAILURE);
   }
 
-  fprintf(stderr,"*info* test passed.\n");
 
   return 0;
 }

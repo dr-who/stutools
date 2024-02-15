@@ -154,7 +154,7 @@ void *advertiseMC(void *arg) {
 
 
     count++;
-    sleep (cluster->id < 1 ? 1 : (cluster->id)); // 2 * nyquist
+    sleep (cluster->id < 1 ? 1 : MIN(5,cluster->id)); // 2 * nyquist
   }
   return NULL;
 }
