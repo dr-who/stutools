@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
     perror("testdevice.gplot");
     exit(EXIT_FAILURE);
   }
-  fprintf(gnuplot, "set title 'Block device comparision'\n");
+  fprintf(gnuplot, "set title 'Block Device Comparison'\n");
   fprintf(gnuplot, "set xlabel 'Time taken for tests'\n");
   fprintf(gnuplot, "set ylabel 'Bytes processed'\n");
   fprintf(gnuplot, "plot ");
