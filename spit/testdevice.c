@@ -55,7 +55,9 @@ void checkData(const int fd, const void *p, const size_t sz) {
   free(check);
 }
 
-void benchmark(const int fd, const void *p, const size_t sz, const size_t blocksz, const double testtime, const int readtest, const int seq) {
+size_t iopos = 0;
+
+void benchmark(const int fd, const void *p, const size_t sz, const size_t blocksz, const double testtime, const int readtest, const int seq, FILE *log, const double yoff) {
   (void)p;
   void *readmem = NULL;
   ssize_t ret = 0;
@@ -76,7 +78,7 @@ void benchmark(const int fd, const void *p, const size_t sz, const size_t blocks
 
   numListType nl;
   nlInit(&nl, 100000);
-  
+
   while (((end = timeAsDouble()) - start) <= testtime || ios < 40) {
     if (seq) {
       testblock++;
@@ -103,7 +105,10 @@ void benchmark(const int fd, const void *p, const size_t sz, const size_t blocks
       //      assert(off - startoff == blocksz);
     }
     const double fin = timeAsDouble() - end;
+    iopos += blocksz;
     nlAdd(&nl, fin *1000);
+
+    fprintf(log, "%lf %zd\n", timeAsDouble(), iopos);
     
     if (ret < 0) {
       perror(readtest ? "READ" : "WRITE");
@@ -116,7 +121,7 @@ void benchmark(const int fd, const void *p, const size_t sz, const size_t blocks
   fprintf(stderr,"*info* %s %s blocksize=%7zd: %6zd IOs in %6.3lf seconds (99%% <= %6.1lf ms, s.d. %5.1lf ms), is %6.0lf IO/s, %4.0lf MB/s\n",
 	  seq ? "Seq" : "Rnd", readtest ? "READ " : "WRITE", blocksz, ios, end - start, nlSortedPos(&nl, 0.99), nlSD(&nl), iops, iops * blocksz/1000/1000);
   nlFree(&nl);
-  
+
   if (readtest) {
     free(readmem);
   }
@@ -145,30 +150,53 @@ int main(int argc, char *argv[]) {
       testtime = 0.5;
     }
   }
-
   if (device == NULL) {
     printf("usage: testdevice <blockdevice>\n");
     exit(0);
   }
 
+  char *suffix = getSuffix(device);
+
+  char s[100];
+  sprintf(s, "/sys/block/%s/diskseq", suffix);
+  double yoff = getValueFromFile(s, 1);
+  if (argc > 3) {
+    yoff = atof(argv[3]);
+  }
+
+
+
+
   size_t sz = 1024 * 1024 * 100;
+
 
   int fd = open(device, O_RDWR | O_EXCL | O_DIRECT);
   if (fd >= 0) {
     char *v = NULL, *m = NULL;
-    fprintf(stderr,"*info* '%s': %s %s, %.0lf GB\n", device, v=vendorFromFD(fd), m=modelFromFD(fd), blockDeviceSizeFromFD(fd)/1000.0/1000/1000);
+    fprintf(stderr,"*info* '%s': %s %s, %.0lf GB (yoff %.1lf)\n", device, v=vendorFromFD(fd), m=modelFromFD(fd), blockDeviceSizeFromFD(fd)/1000.0/1000/1000, yoff);
+    
+    sprintf(s, "%s-%s-%.0lf", v, m, yoff);
+    FILE *gnuplot = fopen(s, "wt");
+    if (gnuplot == NULL) {
+      perror(s);
+      exit(EXIT_FAILURE);
+    }
+  
+
+    
     free(v); free(m);
     fprintf(stderr,"*info* allocating fd %d to %s\n", fd, device);
     void *p = readData(fd, sz);
 
     for (int seq = 0; seq <= 1; seq++) {
       for (int rw = 0; rw <= 1; rw++) {
-	benchmark(fd, p, sz, 4096, testtime, rw, seq);
-	benchmark(fd, p, sz, 65536, testtime, rw, seq);
-	benchmark(fd, p, sz, 1024*1024, testtime, rw, seq);
+	benchmark(fd, p, sz, 4096, testtime, rw, seq, gnuplot, yoff);
+	benchmark(fd, p, sz, 65536, testtime, rw, seq, gnuplot, yoff);
+	benchmark(fd, p, sz, 1024*1024, testtime, rw, seq, gnuplot, yoff);
       }
     }
 
+    fclose(gnuplot);
     checkData(fd, p, sz);
     close(fd);
     free(p);
