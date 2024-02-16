@@ -55,9 +55,7 @@ void checkData(const int fd, const void *p, const size_t sz) {
   free(check);
 }
 
-size_t iopos = 0;
-
-void benchmark(const int fd, const void *p, const size_t sz, const size_t blocksz, const double testtime, const int readtest, const int seq, FILE *log, const double yoff) {
+void benchmark(const int fd, const void *p, const size_t sz, const size_t blocksz, const double testtime, const int readtest, const int seq, FILE *log, size_t *iopos, const double starttime, const size_t run) {
   (void)p;
   void *readmem = NULL;
   ssize_t ret = 0;
@@ -80,6 +78,7 @@ void benchmark(const int fd, const void *p, const size_t sz, const size_t blocks
   nlInit(&nl, 100000);
 
   while (((end = timeAsDouble()) - start) <= testtime || ios < 40) {
+    if (end - start > 3) break;
     if (seq) {
       testblock++;
       if (testblock >= maxblocks) testblock = 0; // wrap
@@ -105,10 +104,11 @@ void benchmark(const int fd, const void *p, const size_t sz, const size_t blocks
       //      assert(off - startoff == blocksz);
     }
     const double fin = timeAsDouble() - end;
-    iopos += blocksz;
+    (*iopos) += blocksz;
     nlAdd(&nl, fin *1000);
 
-    fprintf(log, "%lf %zd\n", timeAsDouble(), iopos);
+    // log relative time
+    fprintf(log, "%lf %zd %zd\n", timeAsDouble() - starttime, *iopos, run);
     
     if (ret < 0) {
       perror(readtest ? "READ" : "WRITE");
@@ -138,75 +138,87 @@ int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
 
-  char *device = NULL;
-  if (argc > 1) {
-    device = argv[1];
-  }
-  
-  double testtime = 0.5;
-  if (argc > 2) {
-    testtime = atof(argv[2]);
-    if (testtime < 0.001) {
-      testtime = 0.5;
-    }
-  }
-  if (device == NULL) {
+  if (argc <= 1) {
     printf("usage: testdevice <blockdevice>\n");
     exit(0);
   }
 
-  char *suffix = getSuffix(device);
-
-  char s[100];
-  sprintf(s, "/sys/block/%s/diskseq", suffix);
-  double yoff = getValueFromFile(s, 1);
-  if (argc > 3) {
-    yoff = atof(argv[3]);
-  }
+  double testtime = 0.5;
 
 
-
-
-  size_t sz = 1024 * 1024 * 100;
-
-
-  int fd = open(device, O_RDWR | O_EXCL | O_DIRECT);
-  if (fd >= 0) {
-    char *v = NULL, *m = NULL;
-    fprintf(stderr,"*info* '%s': %s %s, %.0lf GB (yoff %.1lf)\n", device, v=vendorFromFD(fd), m=modelFromFD(fd), blockDeviceSizeFromFD(fd)/1000.0/1000/1000, yoff);
-    
-    sprintf(s, "%s-%s-%.0lf", v, m, yoff);
-    FILE *gnuplot = fopen(s, "wt");
-    if (gnuplot == NULL) {
-      perror(s);
-      exit(EXIT_FAILURE);
-    }
-  
-
-    
-    free(v); free(m);
-    fprintf(stderr,"*info* allocating fd %d to %s\n", fd, device);
-    void *p = readData(fd, sz);
-
-    for (int seq = 0; seq <= 1; seq++) {
-      for (int rw = 0; rw <= 1; rw++) {
-	benchmark(fd, p, sz, 4096, testtime, rw, seq, gnuplot, yoff);
-	benchmark(fd, p, sz, 65536, testtime, rw, seq, gnuplot, yoff);
-	benchmark(fd, p, sz, 1024*1024, testtime, rw, seq, gnuplot, yoff);
-      }
-    }
-
-    fclose(gnuplot);
-    checkData(fd, p, sz);
-    close(fd);
-    free(p);
-    fprintf(stderr,"*info* test passed.\n");
-  } else {
-    perror(device);
+  FILE *gnuplot = fopen("testdevice.gplot", "wt");
+  if (gnuplot == NULL) {
+    perror("testdevice.gplot");
     exit(EXIT_FAILURE);
   }
+  fprintf(gnuplot, "set title 'Block device comparision'\n");
+  fprintf(gnuplot, "set xlabel 'Time taken for tests'\n");
+  fprintf(gnuplot, "set ylabel 'Bytes processed'\n");
+  fprintf(gnuplot, "plot ");
+      
+  for (int ii = 1; ii < argc; ii++) {
+    size_t bytes = 0;
+    const char *device = argv[ii];
+  
+    //    const char *suffix = getSuffix(device);
+    
+    size_t sz = 1024 * 1024 * 100;
+    
+    
+    int fd = open(device, O_RDWR | O_EXCL | O_DIRECT);
+    if (fd >= 0) {
+      char *v = NULL, *m = NULL;
+      double bdGB = blockDeviceSizeFromFD(fd)/1000.0/1000.0/1000.0;
 
+      fprintf(stderr,"*info* '%s': %s %s, %.0lf GB\n", device, v=vendorFromFD(fd), m=modelFromFD(fd), bdGB);
 
+      char s[255];
+      sprintf(s, "%s %s %.0lf GB", v, m, bdGB);
+      FILE *datafile = fopen(s, "wt");
+      if (datafile == NULL) {
+	perror(s);
+	exit(EXIT_FAILURE);
+      }
+      
+      
+      
+      free(v); free(m);
+      fprintf(stderr,"*info* allocating fd %d to %s\n", fd, device);
+      void *p = readData(fd, sz);
+
+      // start
+      double starttime = timeAsDouble();
+
+      size_t run = 0;
+      
+      for (int seq = 0; seq <= 1; seq++) {
+	for (int rw = 0; rw <= 1; rw++) {
+	  benchmark(fd, p, sz, 4096, testtime, rw, seq, datafile, &bytes, starttime, ii + run++);
+	  benchmark(fd, p, sz, 65536, testtime, rw, seq, datafile, &bytes, starttime, ii + run++);
+	  benchmark(fd, p, sz, 1024*1024, testtime, rw, seq, datafile, &bytes, starttime, ii + run++);
+	}
+      }
+      
+      fclose(datafile);
+      checkData(fd, p, sz);
+      close(fd);
+      free(p);
+      p = NULL;
+
+      if (ii >= 3) {
+	fprintf(gnuplot, ", ");
+      }
+      
+      fprintf(gnuplot, "\"%s\" u 1:2 with lines lw 5", s);
+      fflush(gnuplot);
+    } else {
+      perror(device);
+    }
+  }
+  fprintf(gnuplot, "\n");
+  fclose(gnuplot);
+  
+  fprintf(stderr,"*info* test passed.\n");
   return 0;
 }
 
