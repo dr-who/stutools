@@ -27,5 +27,6 @@ char * blockDevicesAllJSON(blockDevicesType *bd);
 
 size_t blockDevicesCount(blockDevicesType *bd, const char *s, size_t *sumbytes); // SSD, HDD type
 
+char * blockDeviceFromSerial(blockDevicesType *bd, const char *serial);
 
 #endif
