@@ -38,8 +38,8 @@ int clobberData(const int fd, size_t pos, const size_t sz, const char *buf) {
   
   int ret;
   size_t off = 0;
-  while ((ret = pwrite(fd, buf, sz -off, pos + off)) > 0) {
-    //    fprintf(stderr,"*info* clobbering pos=%zd len = %zd, ret = %d\n", pos, sz, ret);
+  while ((ret = pwrite(fd, buf+off, sz -off, pos + off)) > 0) {
+    //        fprintf(stderr,"*info* clobbering pos=%zd len = %zd, ret = %d\n", pos, sz, ret);
     off += ret;
   }
   if (ret < 0) {
@@ -54,19 +54,19 @@ int clobberData(const int fd, size_t pos, const size_t sz, const char *buf) {
 int checkDidWrite(const int fd, char *buf, size_t sz, size_t pos) {
   char *check = NULL;
   int ret = posix_memalign((void*)&check, 4096, sz);
-  bzero(check, 4096);
+  bzero(check, sz);
   
   if (ret == 0) {
     fprintf(stderr,"*info* checking %zd bytes from offset %zd\n", sz, pos);
-    ret = pread(fd, check, 4096, pos);
+    ret = pread(fd, check, sz, pos);
     /*      fprintf(stderr,"read %d\n", ret);
       abort();
       pos += ret;
       }*/
-    //    assert(ret == (int)sz);
+    assert(ret == (int)sz);
     int ch = 0;
-    for (size_t i =0; i < 10; i++) {
-      fprintf(stderr,"'%c' '%c'\n", buf[i], check[i]);
+    for (size_t i =0; i < sz; i++) {
+      if (i < 10) fprintf(stderr,"'%c' '%c'\n", buf[i], check[i]);
       if (buf[i] != check[i]) ch= 1;
     }
     if (ch == 0) {
@@ -90,7 +90,7 @@ void checkData(const int fd, const void *p, const size_t sz) {
   int ret = posix_memalign(&check, 4096, sz);
   if (ret == 0) {
     size_t pos = 0;
-    fprintf(stderr,"*info* checking %zd bytes%d\n", sz, fd);
+    fprintf(stderr,"*info* checking %zd bytes\n", sz);
     while ((ret = pread(fd, check, sz - pos, pos)) > 0) {
       pos += ret;
     }
@@ -200,6 +200,7 @@ int main(int argc, char *argv[]) {
 
   int opt;
   int benchmark = 0, persistence = 0;
+  size_t blocksz = 32768;
   
   while ((opt = getopt(argc, argv, "bp")) != -1) {
     switch (opt) {
@@ -284,7 +285,7 @@ int main(int argc, char *argv[]) {
 	
 	for (int seq = 0; seq <= 1; seq++) {
 	  for (int rw = 0; rw <= 1; rw++) {
-	    do_benchmark(fd, p, sz, 4096, testtime, rw, seq, datafile, &bytes, starttime, optind + run++);
+	    do_benchmark(fd, p, sz, blocksz, testtime, rw, seq, datafile, &bytes, starttime, optind + run++);
 	    do_benchmark(fd, p, sz, 65536, testtime, rw, seq, datafile, &bytes, starttime, optind + run++);
 	    do_benchmark(fd, p, sz, 1024*1024, testtime, rw, seq, datafile, &bytes, starttime, optind + run++);
 	  }
@@ -310,14 +311,15 @@ int main(int argc, char *argv[]) {
 
       } else {
 	// persistence check
-	const int maxblocks = (sz / 4096) - 1;
+	
+	const int maxblocks = (sz / blocksz) - 1;
 	char *buf = NULL;
-	int retalloc = posix_memalign((void*)&buf, 4096, 4096); assert(buf);
+	int retalloc = posix_memalign((void*)&buf, 4096, blocksz); assert(buf);
 	if (retalloc != 0) {
 	  fprintf(stderr,"*can't alloc\n");
 	  exit(EXIT_FAILURE);
 	}
-	for (size_t i = 0; i < 4096; i++) {
+	for (size_t i = 0; i < blocksz; i++) {
 	  buf[i] = 'A'+(lrand48() % 26);
 	}
 
@@ -332,9 +334,9 @@ int main(int argc, char *argv[]) {
 	  fprintf(stderr,"*info* writing to %s\n", serial);
 	  while (error == 0) {
 	    thisSeed = lrand48();
-	    size_t pos = (thisSeed % maxblocks) * 4096;
+	    size_t pos = (thisSeed % maxblocks) * blocksz;
 	    assert(pos < sz);
-	    if (clobberData(fd, pos, 4096, buf) < 0) {
+	    if (clobberData(fd, pos, blocksz, buf) < 0) {
 	      error = 1;
 	      break;
 	    }
@@ -385,9 +387,11 @@ int main(int argc, char *argv[]) {
 	    sleep(1);
 	  }
 	  
-	  checkDidWrite(fd, buf, 4096, (lastGoodSeed % maxblocks) * 4096);
+	  checkDidWrite(fd, buf, blocksz, (lastGoodSeed % maxblocks) * blocksz);
 
-	  //	  checkData(fd, p, sz);
+	  // after all the writes, restore and check
+	  clobberData(fd, 0, sz, p);
+	  checkData(fd, p, sz);
 	  free(p);
 	  p = NULL;
 	}
