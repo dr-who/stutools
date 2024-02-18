@@ -175,6 +175,8 @@ void *receiver(void *arg) {
 	      keyvalueSetString(kv, str, tc->cluster->node[cc]->nodename);
 	      sprintf(str, "badNode%02zd_ip", nodesBad);
 	      keyvalueSetString(kv, str, tc->cluster->node[cc]->ipaddress);
+	      sprintf(str, "badNode%02zd_lastSeen", nodesBad);
+	      keyvalueSetLong(kv, str, timeAsDouble() - tc->cluster->node[cc]->seen);
 	    }
 	  }
 	  char *json = keyvalueDumpAsJSON(kv);

@@ -238,7 +238,14 @@ int main(int argc, char *argv[]) {
     size_t sz = 1024 * 1024 * 100;
     
     
-    int fd = open(device, O_RDWR | O_EXCL | O_DIRECT);
+    int fd;
+    if (benchmark) {
+      fprintf(stderr,"*info* opening O_DIRECT\n");
+      fd = open(device, O_RDWR | O_EXCL | O_DIRECT);
+    } else {
+      fprintf(stderr,"*info* opening O_DSYNC\n");
+      fd = open(device, O_RDWR | O_EXCL | O_DSYNC);
+    }
     if (fd >= 0) {
       char *v = NULL, *m = NULL;
       double bdGB = blockDeviceSizeFromFD(fd)/1000.0/1000.0/1000.0;
