@@ -8,8 +8,10 @@
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
+#include <getopt.h>
 #include <assert.h>
 
+#include "blockdevices.h"
 #include "utilstime.h"
 #include "utils.h"
 
@@ -19,11 +21,11 @@ void *readData(const int fd, const size_t sz) {
   void *d = NULL;
   int ret = posix_memalign(&d, 4096, sz);
   if (ret == 0) {
+    fprintf(stderr,"*info* reading %zd bytes from fd %d\n", sz, fd);
     size_t pos = 0;
     while ((ret = pread(fd, d, sz - pos, pos)) > 0) {
       pos += ret;
     }
-    fprintf(stderr,"*info* read %zd bytes from fd %d\n", sz, fd);
   } else {
     fprintf(stderr,"can't allocate!\n");
     exit(1);
@@ -31,16 +33,68 @@ void *readData(const int fd, const size_t sz) {
   return d;
 }
 
+// return 0 is ok
+int clobberData(const int fd, size_t pos, const size_t sz, const char *buf) {
+  
+  int ret;
+  size_t off = 0;
+  while ((ret = pwrite(fd, buf+off, sz -off, pos + off)) > 0) {
+    //        fprintf(stderr,"*info* clobbering pos=%zd len = %zd, ret = %d\n", pos, sz, ret);
+    off += ret;
+  }
+  if (ret < 0) {
+    //    perror("clobber");
+    return -1;
+  } else {
+    //    fprintf(stderr,"written\n");
+    return 0;
+  }
+}
+
+int checkDidWrite(const int fd, char *buf, size_t sz, size_t pos) {
+  char *check = NULL;
+  int ret = posix_memalign((void*)&check, 4096, sz);
+  bzero(check, sz);
+  
+  if (ret == 0) {
+    fprintf(stderr,"*info* checking %zd bytes from offset %zd\n", sz, pos);
+    ret = pread(fd, check, sz, pos);
+    /*      fprintf(stderr,"read %d\n", ret);
+      abort();
+      pos += ret;
+      }*/
+    assert(ret == (int)sz);
+    int ch = 0;
+    for (size_t i =0; i < sz; i++) {
+      if (i < 10) fprintf(stderr,"'%c' '%c'\n", buf[i], check[i]);
+      if (buf[i] != check[i]) ch= 1;
+    }
+    if (ch == 0) {
+      fprintf(stderr, "*info* device retrieved the last write\n");
+      ret = 0;
+    } else {
+      fprintf(stderr, "*info* device said yes BUT CAN'T RESTORE IT!\n");
+      ret = 1;
+    }
+  } else {
+    fprintf(stderr,"can't allocate\n");
+    exit(1);
+  }
+  free(check);
+  return ret;
+}
+
+
 void checkData(const int fd, const void *p, const size_t sz) {
   void *check = NULL;
   int ret = posix_memalign(&check, 4096, sz);
   if (ret == 0) {
     size_t pos = 0;
+    fprintf(stderr,"*info* checking %zd bytes\n", sz);
     while ((ret = pread(fd, check, sz - pos, pos)) > 0) {
       pos += ret;
     }
     assert(pos == sz);
-    fprintf(stderr,"*info* checking %zd bytes from fd %d\n", sz, fd);
     int ch = memcmp(p, check, sz);
     if (ch == 0) {
       fprintf(stderr, "*info* device contents as initially read\n");
@@ -55,9 +109,7 @@ void checkData(const int fd, const void *p, const size_t sz) {
   free(check);
 }
 
-size_t iopos = 0;
-
-void benchmark(const int fd, const void *p, const size_t sz, const size_t blocksz, const double testtime, const int readtest, const int seq, FILE *log, const double yoff) {
+void do_benchmark(const int fd, const void *p, const size_t sz, const size_t blocksz, const double testtime, const int readtest, const int seq, FILE *log, size_t *iopos, const double starttime, const size_t run) {
   (void)p;
   void *readmem = NULL;
   ssize_t ret = 0;
@@ -69,7 +121,6 @@ void benchmark(const int fd, const void *p, const size_t sz, const size_t blocks
     }
   }
   double start = timeAsDouble(), end;
-  srand(time(NULL));
 
   size_t maxblocks = sz / blocksz;
   size_t ios = 0;
@@ -80,6 +131,7 @@ void benchmark(const int fd, const void *p, const size_t sz, const size_t blocks
   nlInit(&nl, 100000);
 
   while (((end = timeAsDouble()) - start) <= testtime || ios < 40) {
+    if (end - start > 3) break;
     if (seq) {
       testblock++;
       if (testblock >= maxblocks) testblock = 0; // wrap
@@ -105,10 +157,11 @@ void benchmark(const int fd, const void *p, const size_t sz, const size_t blocks
       //      assert(off - startoff == blocksz);
     }
     const double fin = timeAsDouble() - end;
-    iopos += blocksz;
+    (*iopos) += blocksz;
     nlAdd(&nl, fin *1000);
 
-    fprintf(log, "%lf %zd\n", timeAsDouble(), iopos);
+    // log relative time
+    fprintf(log, "%lf %zd %lf %zd\n", timeAsDouble() - starttime, *iopos, fin, run);
     
     if (ret < 0) {
       perror(readtest ? "READ" : "WRITE");
@@ -130,83 +183,232 @@ void benchmark(const int fd, const void *p, const size_t sz, const size_t blocks
       
       
       
-    
-  
+void usage(void) {
+  printf("usage: testdevice [ -b | -p ] {device} ... {device}\n");
+  printf("\n");
+  printf("options:\n");
+  printf("   -b    # benchmark device\n");
+  printf("   -p    # write persistence test\n");
+}  
 
 
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
 
-  char *device = NULL;
-  if (argc > 1) {
-    device = argv[1];
-  }
+  srand48(time(NULL));
+
+  int opt;
+  int benchmark = 0, persistence = 0;
+  size_t blocksz = 32768;
   
-  double testtime = 0.5;
-  if (argc > 2) {
-    testtime = atof(argv[2]);
-    if (testtime < 0.001) {
-      testtime = 0.5;
-    }
-  }
-  if (device == NULL) {
-    printf("usage: testdevice <blockdevice>\n");
-    exit(0);
-  }
-
-  char *suffix = getSuffix(device);
-
-  char s[100];
-  sprintf(s, "/sys/block/%s/diskseq", suffix);
-  double yoff = getValueFromFile(s, 1);
-  if (argc > 3) {
-    yoff = atof(argv[3]);
-  }
-
-
-
-
-  size_t sz = 1024 * 1024 * 100;
-
-
-  int fd = open(device, O_RDWR | O_EXCL | O_DIRECT);
-  if (fd >= 0) {
-    char *v = NULL, *m = NULL;
-    fprintf(stderr,"*info* '%s': %s %s, %.0lf GB (yoff %.1lf)\n", device, v=vendorFromFD(fd), m=modelFromFD(fd), blockDeviceSizeFromFD(fd)/1000.0/1000/1000, yoff);
-    
-    sprintf(s, "%s-%s-%.0lf", v, m, yoff);
-    FILE *gnuplot = fopen(s, "wt");
-    if (gnuplot == NULL) {
-      perror(s);
+  while ((opt = getopt(argc, argv, "bp")) != -1) {
+    switch (opt) {
+    case 'b':
+      benchmark = 1;
+      persistence = 0;
+      break;
+    case 'p':
+      persistence = 1;
+      benchmark = 0;
+      break;
+    default:
+      usage();
       exit(EXIT_FAILURE);
     }
-  
+  }
 
-    
-    free(v); free(m);
-    fprintf(stderr,"*info* allocating fd %d to %s\n", fd, device);
-    void *p = readData(fd, sz);
-
-    for (int seq = 0; seq <= 1; seq++) {
-      for (int rw = 0; rw <= 1; rw++) {
-	benchmark(fd, p, sz, 4096, testtime, rw, seq, gnuplot, yoff);
-	benchmark(fd, p, sz, 65536, testtime, rw, seq, gnuplot, yoff);
-	benchmark(fd, p, sz, 1024*1024, testtime, rw, seq, gnuplot, yoff);
-      }
-    }
-
-    fclose(gnuplot);
-    checkData(fd, p, sz);
-    close(fd);
-    free(p);
-    fprintf(stderr,"*info* test passed.\n");
-  } else {
-    perror(device);
+  if (benchmark + persistence == 0) {
+    usage();
     exit(EXIT_FAILURE);
   }
 
 
+  double testtime = 0.5;
+  
+  
+
+  int first = 0;
+  for (; optind < argc; optind++) {
+    size_t bytes = 0;
+    const char *device = argv[optind];
+  
+    //    const char *suffix = getSuffix(device);
+    
+    size_t sz = 1024 * 1024 * 100;
+    
+    
+    int fd;
+    if (benchmark) {
+      fprintf(stderr,"*info* opening O_DIRECT\n");
+      fd = open(device, O_RDWR | O_EXCL | O_DIRECT);
+    } else {
+      fprintf(stderr,"*info* opening O_DSYNC\n");
+      fd = open(device, O_RDWR | O_EXCL | O_DSYNC);
+    }
+    if (fd >= 0) {
+      char *v = NULL, *m = NULL;
+      double bdGB = blockDeviceSizeFromFD(fd)/1000.0/1000.0/1000.0;
+
+      fprintf(stderr,"*info* '%s': %s %s, %.0lf GB\n", device, v=vendorFromFD(fd), m=modelFromFD(fd), bdGB);
+
+      char s[255];
+      sprintf(s, "%s %s %.0lf GB", v, m, bdGB);
+      FILE *datafile = fopen(s, "wt");
+      if (datafile == NULL) {
+	perror(s);
+	exit(EXIT_FAILURE);
+      }
+      
+      
+      
+      free(v); free(m);
+
+      char *serial = serialFromFD(fd);
+      if (serial == NULL) {
+	fprintf(stderr,"*sorry* device %s has no serial, so I can't look for it once reinserted\n", device);
+	exit(1);
+      }
+
+      fprintf(stderr,"*info* opened '%s' (%s)\n", device, serial);
+      void *p = readData(fd, sz);
+
+      if (benchmark) {
+
+	FILE *gnuplot = fopen("testdevice.gplot", "wt");
+	if (gnuplot == NULL) {
+	  perror("testdevice.gplot");
+	  exit(EXIT_FAILURE);
+	}
+	fprintf(gnuplot, "set title 'Block Device Comparison'\n");
+	fprintf(gnuplot, "set xlabel 'Time taken for tests'\n");
+	fprintf(gnuplot, "set ylabel 'Bytes processed'\n");
+	fprintf(gnuplot, "plot ");
+      
+  // start
+	double starttime = timeAsDouble();
+	
+	size_t run = 0;
+	
+	for (int seq = 0; seq <= 1; seq++) {
+	  for (int rw = 0; rw <= 1; rw++) {
+	    do_benchmark(fd, p, sz, blocksz, testtime, rw, seq, datafile, &bytes, starttime, optind + run++);
+	    do_benchmark(fd, p, sz, 65536, testtime, rw, seq, datafile, &bytes, starttime, optind + run++);
+	    do_benchmark(fd, p, sz, 1024*1024, testtime, rw, seq, datafile, &bytes, starttime, optind + run++);
+	  }
+	}
+	
+	fclose(datafile);
+	checkData(fd, p, sz);
+	close(fd);
+	free(p);
+	p = NULL;
+	
+	if (first++ == 0) {
+	  fprintf(gnuplot, ", ");
+	}
+	
+	fprintf(gnuplot, "\"%s\" u 1:2 with lines lw 5", s);
+	fflush(gnuplot);
+	// end benchmark
+	fprintf(stderr,"*info* test passed.\n");
+
+	fprintf(gnuplot, "\n");
+	fclose(gnuplot);
+
+      } else {
+	// persistence check
+	
+	const int maxblocks = (sz / blocksz) - 1;
+	char *buf = NULL;
+	int retalloc = posix_memalign((void*)&buf, 4096, blocksz); assert(buf);
+	if (retalloc != 0) {
+	  fprintf(stderr,"*can't alloc\n");
+	  exit(EXIT_FAILURE);
+	}
+	for (size_t i = 0; i < blocksz; i++) {
+	  buf[i] = 'A'+(lrand48() % 26);
+	}
+
+	size_t startSeed = timeAsDouble()*100, thisSeed = 0, lastGoodSeed = 0;
+
+	if (maxblocks > 0) {
+	  int error = 0;
+	  srand48(startSeed);
+	  double lasttime =0;
+	  int firstwrite = 1;
+	  
+	  fprintf(stderr,"*info* writing to %s\n", serial);
+	  while (error == 0) {
+	    thisSeed = lrand48();
+	    size_t pos = (thisSeed % maxblocks) * blocksz;
+	    assert(pos < sz);
+	    if (clobberData(fd, pos, blocksz, buf) < 0) {
+	      error = 1;
+	      break;
+	    }
+	    lastGoodSeed = thisSeed;
+	    if (firstwrite) {
+	      firstwrite = 0;
+	      fprintf(stderr,"*info* remove the device from now on...\n");
+	    }
+	    double thistime = timeAsDouble();
+	    if (thistime - lasttime >= 1) {
+	      fprintf(stderr,"."); fflush(stderr);
+	      lasttime = thistime;
+	    }
+	  } // write heaps
+	  //	  fprintf(stderr,"I/O error with '%s', serial '%s'\n", device, serial);
+	  //	  perror(device);
+
+
+	  fprintf(stderr,"\n*info* The last seed used was %zd\n", lastGoodSeed);
+	  fprintf(stderr,"*info* Please reinsert the device...\n");
+	  int foundserial = 0;
+	  char *newdev = NULL;
+	  while (foundserial == 0) {
+	    blockDevicesType *bd = blockDevicesInit();
+	    blockDevicesScan(bd);
+	    newdev = blockDeviceFromSerial(bd, serial);
+	    if (newdev) {
+	      // reinserted
+	      foundserial = 1;
+	    }
+	    if (foundserial == 0) {
+	      fprintf(stderr, "."); fflush(stderr);
+	    }
+	    sleep(1);
+	  }
+
+	  close(fd);
+	  fprintf(stderr,"\n*info* device %s has been reinserted as '%s'\n", serial, newdev);
+	  fprintf(stderr,"*info* setting seed back to the last seed of %zd, was the block written? \n", lastGoodSeed);
+	  fd = open(newdev, O_RDWR | O_EXCL | O_DIRECT);
+	  if (fd < 0) {
+	    perror(newdev);
+	    fprintf(stderr,"*error* device is there, but we can't open?\n");
+	    exit(1);
+	  }
+	  while (serialFromFD(fd) == NULL) {
+	    fprintf(stderr,"*info* waiting on udev\n");
+	    sleep(1);
+	  }
+	  
+	  checkDidWrite(fd, buf, blocksz, (lastGoodSeed % maxblocks) * blocksz);
+
+	  // after all the writes, restore and check
+	  clobberData(fd, 0, sz, p);
+	  checkData(fd, p, sz);
+	  free(p);
+	  p = NULL;
+	}
+	close(fd);
+      }
+    } else {
+      perror(device);
+    }
+  }
+  
   return 0;
 }
 

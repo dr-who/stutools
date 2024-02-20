@@ -59,7 +59,7 @@ keyvalueType *keyvalueInitFromString(char *par) {
   if (tok) {
     keyvalueParsePair(p, tok);
     
-    while ((tok = strtok(NULL, " \r\n"))) {
+    while ((tok = strtok(NULL, " "))) {
       //      fprintf(stderr,"storing: %s\n", tok);
 
       keyvalueParsePair(p, tok);

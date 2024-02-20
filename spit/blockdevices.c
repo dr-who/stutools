@@ -114,13 +114,13 @@ void blockDevicesScan(blockDevicesType *bd) {
 		    size_t s = blockDeviceSizeFromFD(fd);
 		    keyvalueSetLong(k, "size", s);
 		    char *serial = serialFromFD(fd);
-		    keyvalueSetString(k, "serial", serial);
+		    keyvalueSetString(k, "serial", serial?serial:"n/a");
 		    char *model = modelFromFD(fd);
-		    keyvalueSetString(k, "model", model);
+		    keyvalueSetString(k, "model", model?model:"n/a");
 		    char *vendor = vendorFromFD(fd);
-		    keyvalueSetString(k, "vendor", vendor);
+		    keyvalueSetString(k, "vendor", vendor?vendor:"n/a");
 		    char *scsi= SCSISerialFromFD(fd);
-		    keyvalueSetString(k, "scsi", scsi);
+		    keyvalueSetString(k, "scsi", scsi?scsi:"n/a");
 
 
 		    blockDevicesAddKV(bd, k);
@@ -139,6 +139,15 @@ void blockDevicesScan(blockDevicesType *bd) {
         closedir(d);
     }
 }  
+
+char * blockDeviceFromSerial(blockDevicesType *bd, const char *serial) {
+  for (size_t i = 0; i < bd->num; i++) {
+    if (strcmp(keyvalueGetString(bd->devices[i].kv, "serial"), serial) == 0) {
+      return keyvalueGetString(bd->devices[i].kv, "paths");
+    }
+  }
+  return NULL;
+}
 
 
 char * blockDevicesAllJSON(blockDevicesType *bd) {

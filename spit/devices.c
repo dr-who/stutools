@@ -34,7 +34,7 @@ deviceDetails *addDeviceDetails(const char *fn, deviceDetails **devs, size_t *nu
             return NULL;
             //      return &(*devs)[i];
         }
-        if (fnserial && (strlen(fnserial) >= 5) && (strcmp(fnserial, fnserial2) == 0)) {
+        if (fnserial && fnserial2 && (strlen(fnserial) >= 5) && (strcmp(fnserial, fnserial2) == 0)) {
             fprintf(stderr, "*warning* ignoring '%s', it shares a serial number '%s' with '%s'\n", fn, fnserial2,
                     dcmp->devicename);
             return NULL;
@@ -105,9 +105,14 @@ size_t loadDeviceDetails(const char *fn, deviceDetails **devs, size_t *numDevs) 
             if (!hasanuma) hasanuma = 1;
         }
 
+	if (blockDeviceSize(line) < 1) {
+	  continue;
+	}
+	
         deviceDetails *d = addDeviceDetails(line, devs, numDevs);
         if (d) {
             d->numa = numa;
+	    
             //    fprintf(stderr,"--> %s %d\n", line, numa);
             //    addDeviceToAnalyse(line);
             add++;
