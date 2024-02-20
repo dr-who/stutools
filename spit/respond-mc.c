@@ -76,12 +76,14 @@ void *respondMC(void *arg) {
 
    // initial block device scan
 
-   
+
+   socksetup(sock, 600);
    while (1) {
      cnt = recvfrom(sock, message, 300, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {
-       perror("recvfrom");
+       perror("mc received timeout: a) no other nodes? b) firewall issue?");
+       continue;
        //       exit(1);
      } else if (cnt == 0) {
        break;
