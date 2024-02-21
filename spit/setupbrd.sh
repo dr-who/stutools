@@ -1,6 +1,6 @@
 #!/bin/bash
 
-modprobe brd nr_rd=128 rd_size=104857600
+modprobe brd rd_nr=128 rd_size=104857600
 
 /bin/rm -f /etc/exports
 
