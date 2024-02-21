@@ -188,6 +188,7 @@ target_link_libraries(testDiskStats spitlib m numa pthread)
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/spit.1 DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man1)
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/spitchecker.1 DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man1)
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/sat.service DESTINATION /etc/systemd/system)
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/setupbrd.sh DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist snack modcat simpmail pcp sat DESTINATION bin)
 
