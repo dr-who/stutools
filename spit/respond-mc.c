@@ -82,7 +82,7 @@ void *respondMC(void *arg) {
      cnt = recvfrom(sock, message, 300, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {
-       fprintf(stderr, "no broadcast is observed, even though this service is running. open port %d/UDP", EXAMPLE_PORT);
+       fprintf(stderr, "no broadcast is observed, even though this service is running. open port %d/UDP\n", EXAMPLE_PORT);
        continue;
        //       exit(1);
      } else if (cnt == 0) {
