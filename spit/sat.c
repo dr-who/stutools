@@ -236,7 +236,7 @@ void *receiver(void *arg) {
 	  char *str = calloc(1024*1024, 1); assert(str);
 	  char *ret = str;
 	  for (int cc = 0; cc < tc->cluster->id; cc++) {
-	    for (size_t i = 0; i < 128; i++) {
+	    for (size_t i = 0; i < 64; i++) {
 	      str += sprintf(str, "node%d:/mnt/disk%zd\t/mnt/node%d-%zd\tnfs\tdefaults,noauto\t 0 0\n", cc, i, cc,i);
 	    }
 	  }
@@ -249,7 +249,7 @@ void *receiver(void *arg) {
 	  char *str = calloc(1024*1024, 1); assert(str);
 	  char *ret = str;
 	  for (int cc = 0; cc < tc->cluster->id; cc++) {
-	    for (size_t i = 0; i < 128; i++) {
+	    for (size_t i = 0; i < 64; i++) {
 	      str += sprintf(str, "mkdir -p /mnt/node%d-%zd\n", cc, i);
 	    }
 	  }

@@ -1,10 +1,12 @@
 #!/bin/bash
 
-modprobe brd rd_nr=128 rd_size=104857600
+umount -f /mnt/disk*
+rmmod brd
+modprobe brd rd_nr=64 rd_size=10000 
 
 /bin/rm -f /etc/exports
 
-for f in {0..127}
+for f in {0..63}
 do
 
     umount /mnt/disk$f

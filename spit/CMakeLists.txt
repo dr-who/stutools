@@ -193,6 +193,7 @@ INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/setupbrd.sh DESTINATION ${CMAKE_INSTAL
 install(TARGETS spit fsfiller spitchecker raidcorrupt bdinfo dtest hist snack modcat simpmail pcp sat DESTINATION bin)
 
 install(TARGETS stush PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
+install(FILES setupbrd.sh PERMISSIONS SETUID WORLD_EXECUTE DESTINATION bin )
 
 # first check the position validation/collision collapsing is working
 #add_test(tds testDiskStats)
