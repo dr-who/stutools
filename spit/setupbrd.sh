@@ -2,7 +2,7 @@
 
 umount -f /mnt/disk*
 rmmod brd
-modprobe brd rd_nr=64 rd_size=10000 
+modprobe brd rd_nr=64 rd_size=1024000
 
 /bin/rm -f /etc/exports
 
@@ -11,7 +11,7 @@ do
 
     umount /mnt/disk$f
     
-    mkfs.xfs /dev/ram$f
+    mkfs.xfs -f /dev/ram$f
     mkdir -p /mnt/disk$f
     chmod 777 /mnt/disk$f
     mount /dev/ram$f /mnt/disk$f
