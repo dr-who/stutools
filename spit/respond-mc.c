@@ -77,12 +77,12 @@ void *respondMC(void *arg) {
    // initial block device scan
 
 
-   socksetup(sock, 600);
+   socksetup(sock, 30);
    while (1) {
      cnt = recvfrom(sock, message, 300, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {
-       perror("mc received timeout: a) no other nodes? b) firewall issue?");
+       fprintf(stderr, "no broadcast is observed, even though this service is running. open port %d/UDP", EXAMPLE_PORT);
        continue;
        //       exit(1);
      } else if (cnt == 0) {
