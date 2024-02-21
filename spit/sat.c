@@ -218,6 +218,46 @@ void *receiver(void *arg) {
 	    perror("socksendcluster");
 	  }
 	  free(ret);
+	} else if (strncmp(buffer,"hosts",5)==0) {
+	  char *str = calloc(1024*1024, 1); assert(str);
+	  char *ret = str;
+	  str += sprintf(str, "127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\n");
+	  str += sprintf(str, "::1         localhost localhost.localdomain localhost6 localhost6.localdomain6\n\n");
+	  for (int cc = 0; cc < tc->cluster->id; cc++) {
+	    
+	    str += sprintf(str, "%s\tnode%d\n", tc->cluster->node[cc]->ipaddress, cc);
+	  }
+	  fprintf(stderr,"%s", ret);
+	  if (socksend(connfd, ret, 0, 1) < 0) {
+	    perror("socksendcluster");
+	  }
+	  free(ret);
+	} else if (strncmp(buffer,"fstab",5)==0) {
+	  char *str = calloc(1024*1024, 1); assert(str);
+	  char *ret = str;
+	  for (int cc = 0; cc < tc->cluster->id; cc++) {
+	    for (size_t i = 0; i < 32; i++) {
+	      str += sprintf(str, "node%d:/mnt/disk%zd\t/mnt/node%d-%zd\tnfs\tdefaults,noauto\t 0 0\n", cc, i, cc,i);
+	    }
+	  }
+	  fprintf(stderr,"%s", ret);
+	  if (socksend(connfd, ret, 0, 1) < 0) {
+	    perror("socksendcluster");
+	  }
+	  free(ret);
+	} else if (strncmp(buffer,"mkdir",5)==0) {
+	  char *str = calloc(1024*1024, 1); assert(str);
+	  char *ret = str;
+	  for (int cc = 0; cc < tc->cluster->id; cc++) {
+	    for (size_t i = 0; i < 32; i++) {
+	      str += sprintf(str, "mkdir -p /mnt/node%d-%zd\n", cc, i);
+	    }
+	  }
+	  fprintf(stderr,"%s", ret);
+	  if (socksend(connfd, ret, 0, 1) < 0) {
+	    perror("socksendcluster");
+	  }
+	  free(ret);
 	} else if (strncmp(buffer,"cluster",7)==0) {
 	  //	  fprintf(stderr, "sending cluster info back: %zd nodes\n", tc->cluster->id);
 	  char *json = clusterDumpJSONString(tc->cluster);
