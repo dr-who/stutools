@@ -77,8 +77,28 @@ void *respondMC(void *arg) {
    // initial block device scan
 
 
-   socksetup(sock, 30);
+   size_t nodesGood = 0, nodesBad = 0, nodesLastBad = 0;
+   double nodeBadLastCheck = 0;
+
+   assert(cluster->localsmtp);
+   assert(cluster->alertToEmail);
+   socksetup(sock, 10);
    while (1) {
+     // once a min, if the bad number changes alert
+     if (timeAsDouble() - nodeBadLastCheck > 60) {
+       nodeBadLastCheck = timeAsDouble();
+
+       // calc good and bad
+       clusterGoodBad(cluster, &nodesGood, &nodesBad);
+       // if change in bad ALERT, any change
+       if (nodesBad != nodesLastBad) {
+	 clusterSendAlertEmail(cluster);
+	 nodesLastBad = nodesBad;
+       }
+       // log once a min
+       fprintf(stderr,"node status: good: %zd, bad: %zd\n", nodesGood, nodesBad);
+     }
+     
      cnt = recvfrom(sock, message, 300, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {

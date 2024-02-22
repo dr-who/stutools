@@ -414,6 +414,8 @@ void startThreads(interfacesIntType *n, const int serverport) {
     CALLOC(tc, num, sizeof(threadMsgType));
 
     clusterType *cluster = clusterInit(serverport);
+    loadEnvVars("/etc/sat.cfg");
+    clusterSetAlertEmail(cluster, getenv("ALERT_TOEMAIL"), getenv("ALERT_FROMEMAIL"), getenv("ALERT_FROMNAME"), getenv("ALERT_SUBJECT"));
 
     for (size_t i = 0; i < num; i++) {
         tc[i].id = i;

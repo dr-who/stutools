@@ -207,6 +207,9 @@ int main(int argc, char *argv[]) {
 	if (fd > 0) {
 	  simpmailSend(fd, i >= 10, fromemail, fromname, e->addr[i], ccemail, bccemail, subject, htmlbody, plainbody);
 	  simpmailClose(fd);
+	} else {
+	  perror("127.0.0.1");
+	  exit(1);
 	}
       }
       

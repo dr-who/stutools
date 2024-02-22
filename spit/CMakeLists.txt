@@ -53,7 +53,7 @@ target_link_libraries(simpmail spitlib m aio pthread numa pci uuid)
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
-add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c simpsock.c simpsock.h keyvalue.c keyvalue.h blockdevices.c blockdevices.h)
+add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c simpsock.c simpsock.h keyvalue.c keyvalue.h blockdevices.c blockdevices.h simpmail.c)
 target_link_libraries(sat spitlib m aio pthread numa pci uuid)
 
 add_executable(httpd httpd.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c simpsock.c simpsock.h keyvalue.c keyvalue.h blockdevices.c blockdevices.h)
@@ -70,8 +70,8 @@ target_link_libraries(blockdevices spitlib m aio pthread numa pci)
 
 add_executable(broadcastwatch broadcastwatch.c multicast.h)
 
-add_executable(cluster clusterMain.c cluster.c cluster.h keyvalue.c keyvalue.h)
-target_link_libraries(cluster spitlib m aio pthread numa pci)
+add_executable(cluster clusterMain.c cluster.c cluster.h keyvalue.c keyvalue.h simpmail.c simpsock.c)
+target_link_libraries(cluster spitlib m aio pthread numa pci uuid)
 
 add_executable(queue queueMain.c queue.c queue.h)
 

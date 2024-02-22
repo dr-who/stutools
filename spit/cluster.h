@@ -36,6 +36,15 @@ typedef struct {
 
 typedef struct {
   sem_t sem;
+  int localsmtp;
+  char *alertToEmail;
+  char *alertFromEmail;
+  char *alertFromName;
+  char *alertSubject;
+  double alertLastTime;
+  size_t alertCount;
+  double downTime;
+  
   int id; // count
   size_t port;
   double latestchange;
@@ -49,8 +58,11 @@ int clusterAddNode(clusterType *c, const char *nodename, const double createdtim
 int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip);
 int clusterFindNode(clusterType *c, const char *nodename);
 void clusterUpdateSeen(clusterType *c, size_t nodeid);
+void clusterSetAlertEmail(clusterType *c, char *toemail, char *fromemail, char *fromname, char *subject);
+void clusterSendAlertEmail(clusterType *c);
 
 char *clusterDumpJSONString(clusterType *c);
+void clusterGoodBad(clusterType *c, size_t *nodesGood, size_t *nodesBad);
 
 void clusterDumpJSON(FILE *fp, clusterType *c);
 
