@@ -246,12 +246,9 @@ void *receiver(void *arg) {
 	  size_t HDDsum = 0, SSDsum= 0, SSDsumGB = 0, HDDsumGB = 0;
 	  size_t nodesGood = 0, nodesBad = 0;
 	  size_t RAMsumGB = 0, Coressum = 0;
+	  char *bad = clusterGoodBad(tc->cluster, &nodesGood, &nodesBad);
+	  free(bad);
 	  for (int cc = 0; cc < tc->cluster->id; cc++) {
-	    if (timeAsDouble() - tc->cluster->node[cc]->seen <= 11) {
-	      nodesGood++;
-	    } else {
-	      nodesBad++;
-	    }
 	    HDDsum += tc->cluster->node[cc]->HDDcount;
 	    SSDsum += tc->cluster->node[cc]->SSDcount;
 	    HDDsumGB += tc->cluster->node[cc]->HDDsizeGB;

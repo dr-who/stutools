@@ -77,7 +77,7 @@ void *respondMC(void *arg) {
    // initial block device scan
 
 
-   size_t nodesGood = 0, nodesBad = 0, nodesLastBad = 0;
+   size_t nodesGood = 0, nodesBad = 0, nodesLastNum = 0;
    double nodeBadLastCheck = 0;
 
    assert(cluster->localsmtp);
@@ -95,9 +95,9 @@ void *respondMC(void *arg) {
        char *bad = clusterGoodBad(cluster, &nodesGood, &nodesBad);
        free(bad);
        // if change in bad ALERT, any change
-       if (nodesBad != nodesLastBad) {
+       if (nodesGood - nodesBad != nodesLastNum) {
 	 clusterSendAlertEmail(cluster);
-	 nodesLastBad = nodesBad;
+	 nodesLastNum = nodesGood - nodesBad;
        }
        // log once a min
        fprintf(stderr,"node status: good: %zd, bad: %zd\n", nodesGood, nodesBad);

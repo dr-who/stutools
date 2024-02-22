@@ -162,18 +162,29 @@ void clusterSendAlertEmail(clusterType *c) {
 	c->alertCount++;
       } else {
 	// nodesBad is now 0
-	c->downTime += (timeAsDouble() - c->alertLastTime);
+	if (c->alertLastTime) {// if in alert
+	  c->downTime += (timeAsDouble() - c->alertLastTime);
+	} else {
+	  // new node ?
+	}
       }
 
       double clusterage = timeAsDouble() - clusterCreated(c);
       
-      sprintf(body, "Event: %zd\nClusterPort: %zd\nClusterNodes: %d\nBadNodes: %zd\nDownTime: %.1lf secs\nTotalDownTime: %.1lf secs\nClusterAge: %.0lf\nUptime: %.5lf%%\n", c->alertCount,c->port, c->id, nodesBad, timeAsDouble() - c->alertLastTime, c->downTime, clusterage, (clusterage - c->downTime) * 100.0 / clusterage);
+      sprintf(body, "Event: %zd\nClusterPort: %zd\nClusterNodes: %d\nBadNodes: %zd\nDownTime: %.1lf secs\nTotalDownTime: %.1lf secs\nClusterAge: %.0lf\nUptime: %.5lf%%\n", c->alertCount,c->port, c->id, nodesBad, c->alertLastTime ? (timeAsDouble() - c->alertLastTime) : 0, c->downTime, clusterage, (clusterage - c->downTime) * 100.0 / clusterage);
 
       sprintf(subject, "[%.0lf] Event#%zd %s %s", c->alertLastTime, c->alertCount, nodesBad ? "DOWN" : "UP", c->alertSubject);
       
       simpmailSend(fd, 1, c->alertFromEmail, c->alertFromName, c->alertToEmail, NULL, NULL, subject, NULL, body);
       simpmailClose(fd);
       fprintf(stderr,"*info* ALERT [%zd] email: %s", c->alertCount, body);
+
+      if (c->alertLastTime) {
+	if (nodesBad == 0) {
+	  c->alertLastTime = 0;
+	}
+      }
+		  
     }
     free(badlist);
   } else {
