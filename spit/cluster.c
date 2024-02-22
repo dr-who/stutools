@@ -218,9 +218,9 @@ char *clusterDumpJSONString(clusterType *c) {
     buf += sprintf(buf, "  \"nodesCount\": %d,\n", c->id);
     size_t nodesGood = 0, nodesBad = 0;
     char *badlist = clusterGoodBad(c, &nodesGood, &nodesBad);
-    buf += sprintf(buf, "  \"nodesGood\": %zd\n", nodesGood);
-    buf += sprintf(buf, "  \"nodesBad\": %zd\n", nodesBad);
-    buf += sprintf(buf, "  \"nodesList\": \"%s\"\n", badlist);
+    buf += sprintf(buf, "  \"nodesGood\": %zd,\n", nodesGood);
+    buf += sprintf(buf, "  \"nodesBad\": %zd,\n", nodesBad);
+    buf += sprintf(buf, "  \"nodesList\": \"%s\",\n", badlist);
     free(badlist);
     int sum = 0, sum4 = 0, sum8 =0, sum16 = 0, sum32 = 0, sum64 = 0;
     for (int i = 0; i < c->id; i++) {
