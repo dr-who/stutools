@@ -127,12 +127,12 @@ void *advertiseMC(void *arg) {
      size_t ssdnum = blockDevicesCount(bd, NULL, &ssdsize);
 
      keyvalueSetLong(kv, "HDDcount", hddnum);
-     keyvalueSetLong(kv, "HDDsizeGB", hddsize / 1000.0 / 1000 / 1000);;
+     keyvalueSetLong(kv, "HDDsizeGB", ceil(hddsize / 1000.0 / 1000 / 1000));
      keyvalueSetLong(kv, "SSDcount", ssdnum);
-     keyvalueSetLong(kv, "SSDsizeGB", ssdsize / 1000.0 / 1000 / 1000);;
+     keyvalueSetLong(kv, "SSDsizeGB", ceil(ssdsize / 1000.0 / 1000 / 1000));
 
      keyvalueSetLong(kv, "Cores", getNumHardwareThreads());
-     keyvalueSetLong(kv, "RAMGB", totalRAM()/1024/1024/1024);
+     keyvalueSetLong(kv, "RAMGB", ceil(totalRAM()/1024.0/1024/1024));
 
      keyvalueSetString(kv, "ip", adv_ip);
 
