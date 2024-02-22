@@ -62,10 +62,10 @@ void clusterSetAlertEmail(clusterType *c, char *toemail, char *fromemail, char *
 void clusterSendAlertEmail(clusterType *c);
 
 char *clusterDumpJSONString(clusterType *c);
-void clusterGoodBad(clusterType *c, size_t *nodesGood, size_t *nodesBad);
+char * clusterGoodBad(clusterType *c, size_t *nodesGood, size_t *nodesBad);
 
 void clusterDumpJSON(FILE *fp, clusterType *c);
-
+double clusterCreated(clusterType *c);
 void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address);
 char *clusterGetNodeIP(clusterType *c, size_t nodeid);
 void clusterUpdateSeen(clusterType *c, const size_t nodeid);

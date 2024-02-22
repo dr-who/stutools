@@ -54,6 +54,18 @@ int clusterFindNode(clusterType *c, const char *nodename) {
   return ret;
 }
 
+
+double clusterCreated(clusterType *c) {
+  double oldest = timeAsDouble();
+  for (int cc = 0; cc < c->id; cc++) {
+    if (c->node[cc]->created < oldest) {
+      oldest = c->node[cc]->created;
+    }
+  }
+  return oldest;
+}
+
+
 void clusterSetAlertEmail(clusterType *c, char *toemail, char *fromemail, char *fromname, char *subject) {
   if (toemail) {
     fprintf(stderr,"*info* setting alert toemail to '%s'\n", toemail);
@@ -120,23 +132,28 @@ int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip) {
   return find;
 }
 
-void clusterGoodBad(clusterType *c, size_t *nodesGood, size_t *nodesBad) { 
+char * clusterGoodBad(clusterType *c, size_t *nodesGood, size_t *nodesBad) { 
   *nodesGood = 0;
   *nodesBad = 0;
+  char *retlist = calloc(100000,1);
   for (int cc = 0; cc < c->id; cc++) {
     if (timeAsDouble() - c->node[cc]->seen <= 11) {
       (*nodesGood)++;
     } else {
       (*nodesBad)++;
+      strcat(retlist, c->node[cc]->nodename);
     }
   }
+  char *ret = strdup(retlist);
+  free(retlist);
+  return ret;
 }
 
 void clusterSendAlertEmail(clusterType *c) {
   if (c->localsmtp) {
     char body[1000], subject[100];
     size_t nodesGood = 0, nodesBad = 0;
-    clusterGoodBad(c, &nodesGood, &nodesBad);
+    char *badlist = clusterGoodBad(c, &nodesGood, &nodesBad);
     
     int fd = simpmailConnect("127.0.0.1");
     if (fd > 0) {
@@ -147,15 +164,18 @@ void clusterSendAlertEmail(clusterType *c) {
 	// nodesBad is now 0
 	c->downTime += (timeAsDouble() - c->alertLastTime);
       }
-      
-      sprintf(body, "ClusterPort: %zd\nClusterNodes: %d\nBadNodes: %zd\nTime: %.1lf secs\nTimetime: %.1lf secs\n", c->port, c->id, nodesBad, timeAsDouble() - c->alertLastTime, c->downTime);
 
-      sprintf(subject, "[%zd] %s %s", c->alertCount, nodesBad ? "DOWN" : "UP", c->alertSubject);
+      double clusterage = timeAsDouble() - clusterCreated(c);
+      
+      sprintf(body, "Event: %zd\nClusterPort: %zd\nClusterNodes: %d\nBadNodes: %zd\nDownTime: %.1lf secs\nTotalDownTime: %.1lf secs\nClusterAge: %.0lf\nUptime: %.5lf%%\n", c->alertCount,c->port, c->id, nodesBad, timeAsDouble() - c->alertLastTime, c->downTime, clusterage, (clusterage - c->downTime) * 100.0 / clusterage);
+
+      sprintf(subject, "[%.0lf] Event#%zd %s %s", c->alertLastTime, c->alertCount, nodesBad ? "DOWN" : "UP", c->alertSubject);
       
       simpmailSend(fd, 1, c->alertFromEmail, c->alertFromName, c->alertToEmail, NULL, NULL, subject, NULL, body);
       simpmailClose(fd);
-      fprintf(stderr,"*info* ALERT email: %s", body);
+      fprintf(stderr,"*info* ALERT [%zd] email: %s", c->alertCount, body);
     }
+    free(badlist);
   } else {
     fprintf(stderr,"*ALERT* no email setup\n");
   }
@@ -189,16 +209,19 @@ char *clusterDumpJSONString(clusterType *c) {
     buf += sprintf(buf, "{ \"clusterport\": %zd,\n", c->port);
     buf += sprintf(buf, "  \"latestchange\": %lf,\n", c->latestchange);
     buf += sprintf(buf, "  \"latestchangesecondsago\": %lf,\n", now - c->latestchange);
-    buf += sprintf(buf, "  \"localSMTP\": %d\n", c->localsmtp);
-    buf += sprintf(buf, "  \"alertToEmail\": \"%s\"\n", c->alertToEmail ? c->alertToEmail : "");
-    buf += sprintf(buf, "  \"alertFromEmail\": \"%s\"\n", c->alertFromEmail ? c->alertFromEmail : "");
-    buf += sprintf(buf, "  \"alertFromName\": \"%s\"\n", c->alertFromName ? c->alertFromName : "");
-    buf += sprintf(buf, "  \"alertSubject\": \"%s\"\n", c->alertSubject ? c->alertSubject : "");
-    buf += sprintf(buf, "  \"nodesCount\": %d\n", c->id);
+    buf += sprintf(buf, "  \"localSMTP\": %d,\n", c->localsmtp);
+    buf += sprintf(buf, "  \"alertEvents\": %zd,\n", c->alertCount);
+    buf += sprintf(buf, "  \"alertToEmail\": \"%s\",\n", c->alertToEmail ? c->alertToEmail : "");
+    buf += sprintf(buf, "  \"alertFromEmail\": \"%s\",\n", c->alertFromEmail ? c->alertFromEmail : "");
+    buf += sprintf(buf, "  \"alertFromName\": \"%s\",\n", c->alertFromName ? c->alertFromName : "");
+    buf += sprintf(buf, "  \"alertSubject\": \"%s\",\n", c->alertSubject ? c->alertSubject : "");
+    buf += sprintf(buf, "  \"nodesCount\": %d,\n", c->id);
     size_t nodesGood = 0, nodesBad = 0;
-    clusterGoodBad(c, &nodesGood, &nodesBad);
+    char *badlist = clusterGoodBad(c, &nodesGood, &nodesBad);
     buf += sprintf(buf, "  \"nodesGood\": %zd\n", nodesGood);
     buf += sprintf(buf, "  \"nodesBad\": %zd\n", nodesBad);
+    buf += sprintf(buf, "  \"nodesList\": \"%s\"\n", badlist);
+    free(badlist);
     int sum = 0, sum4 = 0, sum8 =0, sum16 = 0, sum32 = 0, sum64 = 0;
     for (int i = 0; i < c->id; i++) {
       if (c->node[i]->RAMGB < 4) {
@@ -217,12 +240,12 @@ char *clusterDumpJSONString(clusterType *c) {
 	
 	
     }
-    buf += sprintf(buf, "  \"nodeRAM0to3\": %d\n", sum);
-    buf += sprintf(buf, "  \"nodeRAM4to7\": %d\n", sum4);
-    buf += sprintf(buf, "  \"nodeRAM8to15\": %d\n", sum8);
-    buf += sprintf(buf, "  \"nodeRAM16to31\": %d\n", sum16);
-    buf += sprintf(buf, "  \"nodeRAM32to63\": %d\n", sum32);
-    buf += sprintf(buf, "  \"nodeRAM64up\": %d\n", sum64);
+    buf += sprintf(buf, "  \"nodeRAM0to3\": %d,\n", sum);
+    buf += sprintf(buf, "  \"nodeRAM4to7\": %d,\n", sum4);
+    buf += sprintf(buf, "  \"nodeRAM8to15\": %d,\n", sum8);
+    buf += sprintf(buf, "  \"nodeRAM16to31\": %d,\n", sum16);
+    buf += sprintf(buf, "  \"nodeRAM32to63\": %d,\n", sum32);
+    buf += sprintf(buf, "  \"nodeRAM64up\": %d,\n", sum64);
     buf += sprintf(buf, "  \"nodes\": [\n");
     for (int i = 0; i < c->id; i++) {
       buf += sprintf(buf, "    {\n");

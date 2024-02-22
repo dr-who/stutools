@@ -28,9 +28,9 @@ multicast.c
 
 
 void *respondMC(void *arg) {
-    threadMsgType *tc = (threadMsgType *) arg;
+  volatile threadMsgType *tc = (threadMsgType *) arg;
 
-    clusterType *cluster = tc->cluster;
+  clusterType *cluster = tc->cluster;
 
   struct sockaddr_in addr;
    int sock, cnt;
@@ -84,12 +84,16 @@ void *respondMC(void *arg) {
    assert(cluster->alertToEmail);
    socksetup(sock, 10);
    while (1) {
-     // once a min, if the bad number changes alert
-     if (timeAsDouble() - nodeBadLastCheck > 60) {
+     // once every 2 mins or 10 seconds if one bad
+     double checktime = 120;
+     if (nodesBad) checktime = 10;
+     
+     if (timeAsDouble() - nodeBadLastCheck > checktime) {
        nodeBadLastCheck = timeAsDouble();
 
        // calc good and bad
-       clusterGoodBad(cluster, &nodesGood, &nodesBad);
+       char *bad = clusterGoodBad(cluster, &nodesGood, &nodesBad);
+       free(bad);
        // if change in bad ALERT, any change
        if (nodesBad != nodesLastBad) {
 	 clusterSendAlertEmail(cluster);
