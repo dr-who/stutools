@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <semaphore.h>
 
 #include "keyvalue.h"
 
@@ -34,6 +35,7 @@ typedef struct {
 
 
 typedef struct {
+  sem_t sem;
   int id; // count
   size_t port;
   double latestchange;

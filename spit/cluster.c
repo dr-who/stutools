@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <semaphore.h>
 
 #include "cluster.h"
 #include "keyvalue.h"
@@ -17,36 +18,45 @@ clusterType * clusterInit(const size_t port) {
   fprintf(stderr,"clusterInit on port %zd\n", port);
   clusterType *p = calloc(1, sizeof(clusterType)); assert(p);
   p->port = port;
+  if (sem_init(&p->sem, 1, 1)) {
+    fprintf(stderr,"sem_init()!\n");
+    exit(1);
+  }
 
   return p;
 }
 
 // returns -1 for can't find it
 int clusterFindNode(clusterType *c, const char *nodename) {
+  sem_wait(&c->sem);
+  int ret = -1;
   assert(c);
   if (c) {
     for (int i = 0; i < c->id; i++) {
       if (c->node) {
 	if (c->node[i]) {
 	  if (strcasecmp(c->node[i]->name, nodename)==0) {
-	    return i;
+	    ret = i;
+	    break;
 	  }
 	}
       }
     }
   }
-  return -1;
+  sem_post(&c->sem);
+  return ret;
 }
 
 
 
 int clusterAddNode(clusterType *c, const char *nodename, const double createdtime) {
   assert(c);
+  sem_wait(&c->sem);
   const int index = c->id;
   for (int i = 0; i < index; i++) {
     if (strcasecmp(c->node[i]->name, nodename)==0) {
       fprintf(stderr,"*warning* node already there, ignoring\n");
-      return i;
+      goto end;
     }
   }
 
@@ -64,6 +74,8 @@ int clusterAddNode(clusterType *c, const char *nodename, const double createdtim
 
   c->latestchange = c->node[index]->created;
   
+ end:
+  sem_post(&c->sem);
   return index;
 }
 
@@ -92,6 +104,8 @@ char *clusterDumpJSONString(clusterType *c) {
   if (c==NULL) {
     return NULL;
   }
+
+  sem_wait(&c->sem);
   
   char *buf = calloc(1,1000000);
   char *ret = buf;
@@ -148,6 +162,9 @@ char *clusterDumpJSONString(clusterType *c) {
 
   char *ret2 = strdup(ret);
   free(ret);
+
+  sem_post(&c->sem);
+  
   return ret2;
 }
 
@@ -160,11 +177,13 @@ void clusterDumpJSON(FILE *fp, clusterType *c) {
 
 
 void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address) {
+  sem_wait(&c->sem);
   if (c->node[nodeid]->ipaddress) free(c->node[nodeid]->ipaddress);
   
   c->node[nodeid]->ipaddress = strdup(address);
   c->node[nodeid]->changed = timeAsDouble();
   c->latestchange = timeAsDouble();
+  sem_post(&c->sem);
 }
 
 char *clusterGetNodeIP(clusterType *c, size_t nodeid) {

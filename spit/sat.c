@@ -44,6 +44,117 @@ void intHandler(int d) {
 #include "keyvalue.h"
 
  
+void *httpd(void *arg) {
+    threadMsgType *tc = (threadMsgType *) arg;
+
+      int serverport = 8080;
+
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd == -1) {
+	  perror("Can't allocate sockfd");
+	  exit(1);
+	  //	  continue;
+        }
+
+	//	socksetup(sockfd, 10);
+	int true = 1;
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(int)) == -1) {
+	  perror("so_reuseaddr");
+	  close(sockfd);
+	  exit(1);
+        }
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &true, sizeof(int)) == -1) {
+	  perror("so_reuseport");
+	  close(sockfd);
+	  exit(1);
+	  }
+
+        struct sockaddr_in clientaddr, serveraddr;
+        memset(&serveraddr, 0, sizeof(serveraddr));
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+        serveraddr.sin_port = htons(serverport);
+
+        if (bind(sockfd, (const struct sockaddr *) &serveraddr, sizeof(serveraddr)) == -1) {
+	  perror("Bind Error");
+	  close(sockfd);
+	  exit(1);
+	  //	  continue;
+        }
+
+	while (keepRunning) {
+	  
+        if (listen(sockfd, serverport) == -1) {
+	  perror("Listen Error");
+	  close(sockfd);
+	  exit(1);
+	  //	  continue;
+        }
+
+
+	socklen_t addrlen = sizeof(clientaddr);
+	  int connfd = accept(sockfd, (struct sockaddr *) &clientaddr, &addrlen);
+	  if (connfd == -1) {
+	    perror("Connect Error");
+	    exit(1);
+	    close(sockfd);
+	    //	    continue;
+	  }
+	  
+	  //	socksetup(connfd, 10);
+	  //        }
+	  char addr[INET_ADDRSTRLEN];
+	  inet_ntop(AF_INET, &clientaddr.sin_addr, addr, INET_ADDRSTRLEN);
+	  
+	  char buffer[1024];
+	  
+	  
+	  if (sockrec(connfd, buffer, 1024, 0, 1) < 0) {
+	    perror("sockrec connfd");
+	    //	  fprintf(stderr, "din'yt get a string\n");
+	  }
+	  
+	  //	  fprintf(stderr, "received:%s\n", buffer);
+
+
+	  char outstr[200];
+	  time_t t;
+	  struct tm *tmp;
+	  
+	  t = time(NULL);
+	  tmp = gmtime(&t);
+	  if (tmp == NULL) {perror("localtime"); exit(EXIT_FAILURE); }
+	  // Date: Thu, 22 Feb 2024 06:43:59 GMT
+	  //Date: Thu, 22 Feb 2024 06:48:16 GMT
+	    
+	  strftime(outstr, sizeof(outstr), "%a, %d %b %Y %H:%M:%S GMT", tmp);
+	  
+	  char *con = clusterDumpJSONString(tc->cluster);
+	  sprintf(buffer,"HTTP/1.1 200 OK\nCache-Control: no-cache\nDate: %s\nConnection: close\nContent-Type: text/plain\nContent-Length: %ld\n\n", outstr, strlen(con));
+	  
+	  assert(strlen(buffer) < 1023);
+	  
+	  char *reply = malloc(strlen(con) + strlen(buffer) + 100); assert(reply);
+	  sprintf(reply, "%s%s", buffer, con);
+
+
+	  if (socksend(connfd, reply, 0, 1) < 0) {
+	    perror("socksend\n");
+	  }
+	  
+
+	  shutdown(connfd,  SHUT_RDWR);
+	  close(connfd);
+
+	  free(reply);
+	  free(con);
+
+	}
+	close(sockfd);
+    return NULL;
+}
+
+
 void *receiver(void *arg) {
     threadMsgType *tc = (threadMsgType *) arg;
 
@@ -52,7 +163,7 @@ void *receiver(void *arg) {
 
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd == -1) {
-	  //            perror("Can't allocate sockfd");
+	  perror("Can't allocate sockfd");
 	    continue;
         }
 
@@ -109,9 +220,10 @@ void *receiver(void *arg) {
 	  //	  fprintf(stderr, "din'yt get a string\n");
 	}
 
-	//	fprintf(stderr, "received a string: %s\n", buffer);
+	fprintf(stderr, "received:%s\n", buffer);
 	
-	if (strncmp(buffer,"Hello",5)==0) {
+	if (strncmp(buffer,"/api",4)==0) {
+	} else if (strncmp(buffer,"Hello",5)==0) {
 	  char s1[100],ipa[100];
 	  //	  printf("buffer: %s\n", buffer);
 	  sscanf(buffer,"%*s %s %s", s1,ipa);
@@ -296,7 +408,7 @@ void startThreads(interfacesIntType *n, const int serverport) {
 
     pthread_t *pt;
     threadMsgType *tc;
-    size_t num = 3; // threads
+    size_t num = 4; // threads
 
     CALLOC(pt, num, sizeof(pthread_t));
     CALLOC(tc, num, sizeof(threadMsgType));
@@ -316,7 +428,9 @@ void startThreads(interfacesIntType *n, const int serverport) {
 	} else if (i == 1) {
 	  pthread_create(&(pt[i]), NULL, receiver, &(tc[i]));
 	} else if (i == 2) {
-	  	  pthread_create(&(pt[i]), NULL, advertiseMC, &(tc[i]));
+	  pthread_create(&(pt[i]), NULL, advertiseMC, &(tc[i]));
+	} else if (i == 3) {
+	  pthread_create(&(pt[i]), NULL, httpd, &(tc[i]));
 	}
     }
 
