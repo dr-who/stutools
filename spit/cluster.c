@@ -150,6 +150,7 @@ char * clusterGoodBad(clusterType *c, size_t *nodesGood, size_t *nodesBad) {
 }
 
 void clusterSendAlertEmail(clusterType *c) {
+  
   if (c->localsmtp) {
     char body[1000], subject[100];
     size_t nodesGood = 0, nodesBad = 0;
@@ -168,10 +169,19 @@ void clusterSendAlertEmail(clusterType *c) {
 	  // new node ?
 	}
       }
+      int thisClusterSize = c->id;
+      int allNodesAgreeSize = 1;
+      for (int cc = 0; cc < c->id; cc++) {
+	if (c->node[cc]->seen != thisClusterSize) {
+	  allNodesAgreeSize = 0;
+	}
+      }
+	  
+	  
 
       double clusterage = timeAsDouble() - clusterCreated(c);
       
-      sprintf(body, "Event: %zd\nClusterPort: %zd\nClusterNodes: %d\nBadNodes: %zd\nDownTime: %.1lf secs\nTotalDownTime: %.1lf secs\nClusterAge: %.0lf\nUptime: %.5lf%%\n", c->alertCount,c->port, c->id, nodesBad, c->alertLastTime ? (timeAsDouble() - c->alertLastTime) : 0, c->downTime, clusterage, (clusterage - c->downTime) * 100.0 / clusterage);
+      sprintf(body, "Event: %zd\nAllNodesAgreeSize: %s\nClusterPort: %zd\nClusterNodes: %d\nBadNodes: %zd (%s)\nDownTime: %.1lf secs\nTotalDownTime: %.1lf secs\nClusterAge: %.0lf\nUptime: %.5lf%%\n", c->alertCount, allNodesAgreeSize ? "Yes" : "No", c->port, c->id, nodesBad, badlist, c->alertLastTime ? (timeAsDouble() - c->alertLastTime) : 0, c->downTime, clusterage, (clusterage - c->downTime) * 100.0 / clusterage);
 
       sprintf(subject, "[%.0lf] Event#%zd %s %s", c->alertLastTime, c->alertCount, nodesBad ? "DOWN" : "UP", c->alertSubject);
       
@@ -231,7 +241,7 @@ char *clusterDumpJSONString(clusterType *c) {
     char *badlist = clusterGoodBad(c, &nodesGood, &nodesBad);
     buf += sprintf(buf, "  \"nodesGood\": %zd,\n", nodesGood);
     buf += sprintf(buf, "  \"nodesBad\": %zd,\n", nodesBad);
-    buf += sprintf(buf, "  \"nodesList\": \"%s\",\n", badlist);
+    buf += sprintf(buf, "  \"nodesBadList\": \"%s\",\n", badlist);
     free(badlist);
     int sum = 0, sum4 = 0, sum8 =0, sum16 = 0, sum32 = 0, sum64 = 0;
     for (int i = 0; i < c->id; i++) {

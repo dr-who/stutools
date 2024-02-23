@@ -78,7 +78,8 @@ void *respondMC(void *arg) {
 
 
    size_t nodesGood = 0, nodesBad = 0, nodesLastNum = 0;
-   double nodeBadLastCheck = 0;
+   double nodeBadLastCheck = 0, alertPingTime = timeAsDouble(), thistime = 0;
+   
 
    assert(cluster->localsmtp);
    assert(cluster->alertToEmail);
@@ -87,17 +88,31 @@ void *respondMC(void *arg) {
      // once every 2 mins or 10 seconds if one bad
      double checktime = 120;
      if (nodesBad) checktime = 10;
+
+     size_t shouldPing = 0;
+     thistime = timeAsDouble();
+     if (thistime - alertPingTime >= 3600*24) {
+       shouldPing = 1;
+     }
+       
      
-     if (timeAsDouble() - nodeBadLastCheck > checktime) {
-       nodeBadLastCheck = timeAsDouble();
+     if ((thistime - nodeBadLastCheck > checktime) || shouldPing) {
+       nodeBadLastCheck = thistime;
 
        // calc good and bad
        char *bad = clusterGoodBad(cluster, &nodesGood, &nodesBad);
        free(bad);
-       // if change in bad ALERT, any change
-       if (nodesGood - nodesBad != nodesLastNum) {
+
+       // if change in bad ALERT, any change or it's been a while
+       if (shouldPing | (nodesGood - nodesBad != nodesLastNum)) {
+	 if (shouldPing) {
+	   fprintf(stderr,"*info* regular PING alerts\n");
+	   alertPingTime = thistime;
+	 } else {
+	   fprintf(stderr,"*info* change in good/bad alert\n");
+	   nodesLastNum = nodesGood - nodesBad;
+	 }
 	 clusterSendAlertEmail(cluster);
-	 nodesLastNum = nodesGood - nodesBad;
        }
        // log once a min
        fprintf(stderr,"node status: good: %zd, bad: %zd\n", nodesGood, nodesBad);
@@ -132,6 +147,7 @@ void *respondMC(void *arg) {
 
        //       int port = keyvalueGetLong(kv, "port");
        char *nodename = keyvalueGetString(kv, "node");
+
        if (nodename) {
 	 //     senttime = keyvalueGetLong(kv, "time");
 	 startedtime = keyvalueGetLong(kv, "started");
@@ -140,6 +156,12 @@ void *respondMC(void *arg) {
 	   hostname = keyvalueGetString(kv, "hostname");
 	 }
 	 assert(hostname);
+
+	 const int nodeSeesCluster = keyvalueGetLong(kv, "cluster");
+	 if (nodeSeesCluster != cluster->id) {
+	   fprintf(stderr,"*warning* this node sees %d, that node %s sees %d\n", cluster->id, hostname, nodeSeesCluster);
+	 }
+	 
 	 
 	 if ((nodeid = clusterFindNode(cluster, nodename)) < 0) {
 	   // add and say hi

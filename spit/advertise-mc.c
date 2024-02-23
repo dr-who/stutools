@@ -36,7 +36,7 @@ extern int keepRunning;
 #include "utils.h"
 
 void *advertiseMC(void *arg) {
-  threadMsgType *tc = (threadMsgType *) arg;
+  volatile threadMsgType *tc = (threadMsgType *) arg;
 
     clusterType *cluster = tc->cluster;
   
@@ -154,7 +154,7 @@ void *advertiseMC(void *arg) {
 
 
     count++;
-    sleep (cluster->id < 1 ? 1 : MIN(5,cluster->id)); // 2 * nyquist
+    sleep (cluster->id < 1 ? 1 : MIN(5,cluster->id)); // every 5 secs, as >10 sec is misbehaving
   }
   return NULL;
 }
