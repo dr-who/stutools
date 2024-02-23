@@ -91,8 +91,10 @@ void *respondMC(void *arg) {
 
      size_t shouldPing = 0;
      thistime = timeAsDouble();
-     if (thistime - alertPingTime >= 3600*24) {
+     if (thistime - alertPingTime >= 3600*24) { // once a day send an update
        shouldPing = 1;
+       alertPingTime += 3600*24; // increase it by a day
+
      }
        
      
@@ -107,7 +109,6 @@ void *respondMC(void *arg) {
        if (shouldPing | (nodesGood - nodesBad != nodesLastNum)) {
 	 if (shouldPing) {
 	   fprintf(stderr,"*info* regular PING alerts\n");
-	   alertPingTime = thistime;
 	 } else {
 	   fprintf(stderr,"*info* change in good/bad alert\n");
 	   nodesLastNum = nodesGood - nodesBad;
@@ -157,84 +158,42 @@ void *respondMC(void *arg) {
 	 }
 	 assert(hostname);
 
-	 const int nodeSeesCluster = keyvalueGetLong(kv, "cluster");
-	 if (nodeSeesCluster != cluster->id) {
-	   fprintf(stderr,"*warning* this node sees %d, that node %s sees %d\n", cluster->id, hostname, nodeSeesCluster);
-	 }
 	 
 	 
 	 if ((nodeid = clusterFindNode(cluster, nodename)) < 0) {
 	   // add and say hi
 	   fprintf(stderr, "adding node %s (%s) (%s)\n", nodename, hostname, ipaddr);
 	   nodeid = clusterAddNode(cluster, nodename, startedtime);
-	   cluster->node[nodeid]->nodename= strdup(hostname); // manually added so strdup
-	   cluster->node[nodeid]->nodeOS = keyvalueGetString(kv, "nodeOS");
-	   cluster->node[nodeid]->boardname = keyvalueGetString(kv, "boardname");
-	   cluster->node[nodeid]->biosdate = keyvalueGetString(kv, "biosdate");
-	   cluster->node[nodeid]->HDDcount = keyvalueGetLong(kv, "HDDcount");
-	   cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
-	   cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");
-	   cluster->node[nodeid]->SSDsizeGB = keyvalueGetLong(kv, "SSDsizeGB");
-	   
-	   cluster->node[nodeid]->RAMGB = keyvalueGetLong(kv, "RAMGB");
-	   cluster->node[nodeid]->Cores = keyvalueGetLong(kv, "Cores");
 	 }
-
-
-	 char *keyip = keyvalueGetString(kv, "ip");
-	 if (keyip && (strstr(keyip, ipaddr) == NULL)) {
-	   fprintf(stderr,"warning; %s connecting IP (%s) different from multicast IP (%s). Using multicast IP\n", hostname, ipaddr, keyip);
-	   ipaddr = keyip;
-	 } else {
-	   free(keyip);
+	 free(cluster->node[nodeid]->nodename);
+	 cluster->node[nodeid]->nodename = strdup(hostname); // manually added so strdup
+	 
+	 cluster->node[nodeid]->nodeOS = keyvalueGetString(kv, "nodeOS");
+	 cluster->node[nodeid]->boardname = keyvalueGetString(kv, "boardname");
+	 cluster->node[nodeid]->biosdate = keyvalueGetString(kv, "biosdate");
+	 cluster->node[nodeid]->HDDcount = keyvalueGetLong(kv, "HDDcount");
+	 cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
+	 cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");
+	 cluster->node[nodeid]->SSDsizeGB = keyvalueGetLong(kv, "SSDsizeGB");
+	 cluster->node[nodeid]->RAMGB = keyvalueGetLong(kv, "RAMGB");
+	 cluster->node[nodeid]->Cores = keyvalueGetLong(kv, "Cores");
+	 
+	 if (keyvalueSetLong(tc->cluster->node[nodeid]->info, "cluster", keyvalueGetLong(kv, "cluster"))) {
+	   clusterChanged(cluster, nodeid);
+	 }
+	 if (keyvalueSetString(tc->cluster->node[nodeid]->info, "ip", keyvalueGetString(kv, "ip"))) {
+	   clusterChanged(cluster, nodeid);
+	 }
+	 if (keyvalueSetString(tc->cluster->node[nodeid]->info, "nodename", keyvalueGetString(kv, "nodename"))) {
+	   clusterChanged(cluster, nodeid);
+	 }
+	 if ( keyvalueSetString(tc->cluster->node[nodeid]->info, "nodeOS", keyvalueGetString(kv, "nodeOS"))) {
+	   clusterChanged(cluster, nodeid);
 	 }
 	 
-	 
-	 if (strcmp(clusterGetNodeIP(cluster, nodeid), ipaddr) != 0) {
-	   //	   fprintf(stderr, "updating nodeid %d, %s IP %s: '^%s'\n", nodeid, cluster->node[nodeid]->name, node, message);
-	   clusterSetNodeIP(cluster, nodeid, ipaddr);
-	   if (cluster->node[nodeid]->nodename) {
-	     free(cluster->node[nodeid]->nodename);
-	   }
-	   cluster->node[nodeid]->nodename= strdup(hostname); // manually added so strdup
-
-	   // check OS upgrade
-	   char *broad_os = keyvalueGetString(kv, "nodeOS"); // get creates
-	   int doupdate = 0;
-	   if (broad_os)  { // if we have a broadcast value
-	     doupdate = 1;
-	     if (cluster->node[nodeid]->nodeOS) {
-	       if (strcmp(broad_os, cluster->node[nodeid]->nodeOS) == 0) { // if same don't update
-		 doupdate = 0;
-	       }
-	     }
-	     if (doupdate) {
-	       free(cluster->node[nodeid]->nodeOS);
-	       cluster->node[nodeid]->nodeOS = broad_os;
-	     }
-	   } // got a broadcast
-		      
-	   
-	 }
-
 	 keyvalueFree(kv);
-
 	 
 	 clusterUpdateSeen(cluster, nodeid);
-
-	 //	 clusterDumpJSON(stdout, cluster);
-
-	   // hello every 10 seconds
-	 //	   last = timeAsDouble();
-	 /*	   int nsock = sockconnect(node, port, 30);
-	   if (nsock > 0) {
-	     socksetup(nsock, 10);
-	     char buff[100000];
-	     socksend(nsock, "Hello\n", 0, 1);
-	     sockrec(nsock, buff, 100000, 0, 1);
-	     //	     printf("res:%s\n", buff);
-	     close(nsock);
-	     }*/
        }
      } else {
        fprintf(stderr,"problem parsing: %s\n", message);

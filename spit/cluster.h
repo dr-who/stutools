@@ -69,5 +69,7 @@ double clusterCreated(clusterType *c);
 void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address);
 char *clusterGetNodeIP(clusterType *c, size_t nodeid);
 void clusterUpdateSeen(clusterType *c, const size_t nodeid);
+void clusterChanged(clusterType *c, const size_t nodeid);
+
 void clusterFree(clusterType **c);
 #endif

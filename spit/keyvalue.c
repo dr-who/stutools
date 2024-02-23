@@ -130,28 +130,33 @@ size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value) {
     }
   }
 
+  int ret = 1;
   if (index >= 0) {
     //found
-    if (kv->pairs[index].type == 0 || kv->pairs[index].type==2)
-      free(kv->pairs[index].value);
+    if (kv->pairs[index].type == 0 || kv->pairs[index].type==2) {
+      if (strcmp(kv->pairs[index].value,  value) == 0) {
+	ret = 0;
+	// same
+      } else {
+	free(kv->pairs[index].value);
+      }
+    }
   } else {
     index = kv->num;
     kv->num++;
     // add
     kv->pairs = realloc(kv->pairs, kv->num * sizeof(keyvaluePair)); assert(kv->pairs);
     kv->pairs[index].key = strdup(key);
+    kv->byteLen += (strlen(key)+2);
+    kv->byteLen += (strlen(value)+2);
   }
-  if (value) {
+  if (ret) {
     kv->pairs[index].value = strdup(value);
-  } else {
-    kv->pairs[index].value = NULL;
   }
   
   kv->pairs[index].type = 0;
 
-  kv->byteLen += (strlen(key)+2);
-  kv->byteLen += (strlen(value)+2);
-  return index;
+  return ret;
 }
 
 
@@ -161,7 +166,7 @@ size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
   
   if (strcmp(key, "checksum")==0) {
     kv->checksum = value;
-    return -1;
+    return 0;
   }
 
   int index = -1;
@@ -172,6 +177,7 @@ size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
     }
   }
 
+  int ret = 1;
   if (index >= 0) {
 
     //found
@@ -185,13 +191,18 @@ size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
     // add
     kv->pairs = realloc(kv->pairs, kv->num * sizeof(keyvaluePair));
     kv->pairs[index].key = strdup(key);
+    kv->byteLen += (strlen(key)+2);
+    kv->byteLen += (20+2);
   }
-  kv->pairs[index].longvalue = value;
+  if (kv->pairs[index].longvalue != value) {
+    kv->pairs[index].longvalue = value;
+    ret = 1;
+  } else {
+    ret = 0; // same value
+  }
   kv->pairs[index].type = 1; // 1 long
 
-  kv->byteLen += (strlen(key)+2);
-  kv->byteLen += (20+2);
-  return index;
+  return ret;
 }
 
 

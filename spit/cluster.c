@@ -169,11 +169,14 @@ void clusterSendAlertEmail(clusterType *c) {
 	  // new node ?
 	}
       }
-      int thisClusterSize = c->id;
+      const int thisClusterSize = c->id;
       int allNodesAgreeSize = 1;
       for (int cc = 0; cc < c->id; cc++) {
-	if (c->node[cc]->seen != thisClusterSize) {
+	int cansee= keyvalueGetLong(c->node[cc]->info, "cluster");
+	if (cansee != thisClusterSize) {
+	  fprintf(stderr,"*warning* we see %d nodes, node %s sees %d\n", thisClusterSize, c->node[cc]->nodename, cansee);
 	  allNodesAgreeSize = 0;
+	  break;
 	}
       }
 	  
@@ -317,11 +320,18 @@ void clusterDumpJSON(FILE *fp, clusterType *c) {
 
 void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address) {
   sem_wait(&c->sem);
-  if (c->node[nodeid]->ipaddress) free(c->node[nodeid]->ipaddress);
+
+  if (c->node[nodeid]->ipaddress) {
+    if (strcmp(c->node[nodeid]->ipaddress, address) == 0) {
+      //same
+      return;
+    }
+
+    free(c->node[nodeid]->ipaddress);
+  }
   
   c->node[nodeid]->ipaddress = strdup(address);
-  c->node[nodeid]->changed = timeAsDouble();
-  c->latestchange = timeAsDouble();
+  clusterChanged(c, nodeid);
   sem_post(&c->sem);
 }
 
@@ -331,6 +341,12 @@ char *clusterGetNodeIP(clusterType *c, size_t nodeid) {
 
 void clusterUpdateSeen(clusterType *c, const size_t nodeid) {
   c->node[nodeid]->seen = timeAsDouble();
+}
+
+void clusterChanged(clusterType *c, const size_t nodeid) {
+  fprintf(stderr,"cluster changed %zd\n", nodeid);
+  c->node[nodeid]->changed = timeAsDouble();
+  c->latestchange = c->node[nodeid]->changed;
 }
 
 void clusterFree(clusterType **cin) {
