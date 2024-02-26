@@ -55,7 +55,7 @@ void *respondMC(void *arg) {
   bzero((char *)&addr, sizeof(addr));
    addr.sin_family = AF_INET;
    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-   addr.sin_port = htons(EXAMPLE_PORT);
+   addr.sin_port = htons(tc->serverport);
    addrlen = sizeof(addr);
 
    
@@ -122,7 +122,7 @@ void *respondMC(void *arg) {
      cnt = recvfrom(sock, message, 300, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {
-       fprintf(stderr, "no broadcast is observed, even though this service is running. open port %d/UDP\n", EXAMPLE_PORT);
+       fprintf(stderr, "no broadcast is observed, even though this service is running. open port %d/UDP\n", tc->serverport);
        continue;
        //       exit(1);
      } else if (cnt == 0) {
@@ -147,43 +147,60 @@ void *respondMC(void *arg) {
        int nodeid = 0; 
 
        //       int port = keyvalueGetLong(kv, "port");
-       char *nodename = keyvalueGetString(kv, "node");
+       char *node = keyvalueGetString(kv, "node"); // UUNIX
 
-       if (nodename) {
+       if (node) {
 	 //     senttime = keyvalueGetLong(kv, "time");
 	 startedtime = keyvalueGetLong(kv, "started");
-	 char *hostname = keyvalueGetString(kv, "nodename");
-	 if (hostname == NULL) {
-	   hostname = keyvalueGetString(kv, "hostname");
-	 }
-	 assert(hostname);
 
-	 
-	 
-	 if ((nodeid = clusterFindNode(cluster, nodename)) < 0) {
+	 if ((nodeid = clusterFindNode(cluster, node)) < 0) {
 	   // add and say hi
-	   fprintf(stderr, "adding node %s (%s) (%s)\n", nodename, hostname, ipaddr);
-	   nodeid = clusterAddNode(cluster, nodename, startedtime);
+	   fprintf(stderr, "adding node %s (%s)\n", node, ipaddr);
+	   nodeid = clusterAddNode(cluster, node, startedtime);
 	 }
-	 free(cluster->node[nodeid]->nodename);
-	 cluster->node[nodeid]->nodename = strdup(hostname); // manually added so strdup
+
+	 char *tmp = keyvalueGetString(kv, "nodename"); // human readable
+	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodename", tmp);
+	 free(tmp);
 	 
-	 cluster->node[nodeid]->nodeOS = keyvalueGetString(kv, "nodeOS");
-	 cluster->node[nodeid]->boardname = keyvalueGetString(kv, "boardname");
-	 cluster->node[nodeid]->biosdate = keyvalueGetString(kv, "biosdate");
-	 cluster->node[nodeid]->HDDcount = keyvalueGetLong(kv, "HDDcount");
-	 cluster->node[nodeid]->HDDsizeGB= keyvalueGetLong(kv, "HDDsizeGB");
-	 cluster->node[nodeid]->SSDcount = keyvalueGetLong(kv, "SSDcount");
-	 cluster->node[nodeid]->SSDsizeGB = keyvalueGetLong(kv, "SSDsizeGB");
-	 cluster->node[nodeid]->RAMGB = keyvalueGetLong(kv, "RAMGB");
-	 cluster->node[nodeid]->Cores = keyvalueGetLong(kv, "Cores");
+	 keyvalueSetString(tc->cluster->node[nodeid]->info, "ip", ipaddr);
+	 
+	 tmp=keyvalueGetString(kv, "nodeOS");
+	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodeOS", tmp);
+	 free(tmp);
+
+	 tmp=keyvalueGetString(kv, "boardname");
+	 keyvalueSetString(tc->cluster->node[nodeid]->info, "boardname", tmp);
+	 free(tmp);
+
+	 tmp=keyvalueGetString(kv, "biosdate");
+	 keyvalueSetString(tc->cluster->node[nodeid]->info, "biosdate", tmp);
+	 free(tmp);
+
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "HDDcount", keyvalueGetLong(kv, "HDDcount"));
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "HDDsizeGB", keyvalueGetLong(kv, "HDDsizeGB"));
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "SSDcount", keyvalueGetLong(kv, "SSDcount"));
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "SDDsizeGB", keyvalueGetLong(kv, "SSDsizeGB"));
+
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "RAMGB", keyvalueGetLong(kv, "RAMGB"));
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "Cores", keyvalueGetLong(kv, "Cores"));
 	 
 	 if (keyvalueSetLong(tc->cluster->node[nodeid]->info, "cluster", keyvalueGetLong(kv, "cluster"))) {
 	   clusterChanged(cluster, nodeid);
 	 }
-	 if (keyvalueSetString(tc->cluster->node[nodeid]->info, "ip", keyvalueGetString(kv, "ip"))) {
-	   clusterChanged(cluster, nodeid);
-	 }
+	 // insert up to the /
+	 char *br_ip = keyvalueGetString(kv, "ip");
+	 if (br_ip) {
+	   char *slash = strchr(br_ip, '/');
+	   if (slash) {
+	     *slash = 0; // \0
+	   }
+	   if (keyvalueSetString(tc->cluster->node[nodeid]->info, "ip", br_ip)) {
+	     clusterChanged(cluster, nodeid);
+	   }
+	   free(br_ip);
+	 } // end ip
+	 
 	 if (keyvalueSetString(tc->cluster->node[nodeid]->info, "nodename", keyvalueGetString(kv, "nodename"))) {
 	   clusterChanged(cluster, nodeid);
 	 }

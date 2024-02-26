@@ -4,7 +4,7 @@ After=network.target
 StartLimitIntervalSec=0
 
 [Service]
-Environment=SAT_PORT=1600
+Environment=SAT_NAME=stu
 Type=simple
 Restart=always
 RestartSec=1

@@ -427,6 +427,7 @@ char *interfaceIPNonWifi(interfacesIntType *n) {
       strcat(ret, p->addr[0].addr);
       char cidr[10];sprintf(cidr,"/%d", p->addr[0].cidrMask);
       strcat(ret, cidr );
+      break;
     }
   }
   if (strlen(ret) > 0) {

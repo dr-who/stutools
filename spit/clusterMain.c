@@ -23,8 +23,6 @@ int main(int argc, char *argv[]) {
   
   clusterAddNode(c, "stu", timeAsDouble());
 
-  clusterAddNodesIP(c, "stu", "172.17.0.2");
-  clusterAddNodesIP(c, "stu", "172.17.3.2");
   s=clusterDumpJSONString(c);
   printf("%s", s);
   free(s);

@@ -34,7 +34,7 @@ clusterType * clusterInit(const size_t port) {
 }
 
 // returns -1 for can't find it
-int clusterFindNode(clusterType *c, const char *nodename) {
+int clusterFindNode(clusterType *c, const char *node) {
   sem_wait(&c->sem);
   int ret = -1;
   assert(c);
@@ -42,7 +42,7 @@ int clusterFindNode(clusterType *c, const char *nodename) {
     for (int i = 0; i < c->id; i++) {
       if (c->node) {
 	if (c->node[i]) {
-	  if (strcasecmp(c->node[i]->name, nodename)==0) {
+	  if (strcasecmp(c->node[i]->name, node)==0) {
 	    ret = i;
 	    break;
 	  }
@@ -81,12 +81,12 @@ void clusterSetAlertEmail(clusterType *c, char *toemail, char *fromemail, char *
   }
 }
 
-int clusterAddNode(clusterType *c, const char *nodename, const double createdtime) {
+int clusterAddNode(clusterType *c, const char *node, const double createdtime) {
   assert(c);
   sem_wait(&c->sem);
   const int index = c->id;
   for (int i = 0; i < index; i++) {
-    if (strcasecmp(c->node[i]->name, nodename)==0) {
+    if (strcasecmp(c->node[i]->name, node)==0) {
       fprintf(stderr,"*warning* node already there, ignoring\n");
       goto end;
     }
@@ -96,8 +96,7 @@ int clusterAddNode(clusterType *c, const char *nodename, const double createdtim
   c->node = realloc(c->node, c->id * sizeof(clusterNodeType *));
   c->node[index] = calloc(sizeof(clusterNodeType), 1); // create cluster node
   memset(c->node[index], 0, sizeof(clusterNodeType));
-  c->node[index]->name = strdup(nodename);
-  c->node[index]->ipaddress = strdup(nodename);
+  c->node[index]->name = strdup(node);
   c->node[index]->created = createdtime;
   c->node[index]->discovered = timeAsDouble();
   c->node[index]->changed = c->node[index]->created;
@@ -105,43 +104,41 @@ int clusterAddNode(clusterType *c, const char *nodename, const double createdtim
   c->node[index]->info = keyvalueInit(); // 
 
   c->latestchange = c->node[index]->created;
-  
+
  end:
   sem_post(&c->sem);
   return index;
-}
-
-int clusterAddNodesIP(clusterType *c, const char *nodename, const char *ip) {
-  assert(c);
-  
-  fprintf(stderr,"addnodesip %s %s\n",nodename, ip);
-  int find = clusterFindNode(c, nodename);
-  if (find < 0) {
-    printf("*error* can't find node. add it first\n");
-    //    find = clusterAddNode(c, nodename);
-    //    assert(find >= 0);
-    return -1;
-  }
-  if ((c->node[find]->ipaddress==NULL) || (strcmp(c->node[find]->ipaddress, ip) != 0)) {
-    //different
-    free(c->node[find]->ipaddress);
-    c->node[find]->ipaddress = strdup(ip);
-    c->node[find]->changed = timeAsDouble();
-    c->latestchange = c->node[find]->changed;
-  }
-  return find;
 }
 
 char * clusterGoodBad(clusterType *c, size_t *nodesGood, size_t *nodesBad) { 
   *nodesGood = 0;
   *nodesBad = 0;
   char *retlist = calloc(100000,1);
+
   for (int cc = 0; cc < c->id; cc++) {
     if (timeAsDouble() - c->node[cc]->seen <= 11) {
       (*nodesGood)++;
+      if (c->node[cc]->badsince > 0) {
+	// in a run, add to it
+	c->node[cc]->nodedowntime += (timeAsDouble() - c->node[cc]->badsince);
+	c->node[cc]->badsince = 0;
+      }
     } else {
+      if (c->node[cc]->badsince == 0) {
+	// start of a bad run
+	if (c->node[cc]->badsince == 0) {
+	  // if first time
+	  c->node[cc]->badsince = c->node[cc]->seen;
+	}
+      }
+      
+      if (*nodesBad != 0) {
+	strcat(retlist, " ");
+      }
       (*nodesBad)++;
-      strcat(retlist, c->node[cc]->nodename);
+      char *nodename = keyvalueGetString(c->node[cc]->info, "nodename");
+      strcat(retlist, nodename);
+      free(nodename);
     }
   }
   char *ret = strdup(retlist);
@@ -170,13 +167,15 @@ void clusterSendAlertEmail(clusterType *c) {
 	}
       }
       const int thisClusterSize = c->id;
+      double totaldowntime = 0;
       int allNodesAgreeSize = 1;
       for (int cc = 0; cc < c->id; cc++) {
+	totaldowntime += c->node[cc]->nodedowntime;
+	
 	int cansee= keyvalueGetLong(c->node[cc]->info, "cluster");
 	if (cansee != thisClusterSize) {
-	  fprintf(stderr,"*warning* we see %d nodes, node %s sees %d\n", thisClusterSize, c->node[cc]->nodename, cansee);
+	  fprintf(stderr,"*warning* we see %d nodes, node %s sees %d\n", thisClusterSize, c->node[cc]->name, cansee);
 	  allNodesAgreeSize = 0;
-	  break;
 	}
       }
 	  
@@ -184,7 +183,7 @@ void clusterSendAlertEmail(clusterType *c) {
 
       double clusterage = timeAsDouble() - clusterCreated(c);
       
-      sprintf(body, "Event: %zd\nAllNodesAgreeSize: %s\nClusterPort: %zd\nClusterNodes: %d\nBadNodes: %zd (%s)\nDownTime: %.1lf secs\nTotalDownTime: %.1lf secs\nClusterAge: %.0lf\nUptime: %.5lf%%\n", c->alertCount, allNodesAgreeSize ? "Yes" : "No", c->port, c->id, nodesBad, badlist, c->alertLastTime ? (timeAsDouble() - c->alertLastTime) : 0, c->downTime, clusterage, (clusterage - c->downTime) * 100.0 / clusterage);
+      sprintf(body, "Event: %zd\nAllNodesAgreeSize: %s\nClusterPort: %zd\nClusterNodes: %d\nBadNodes: %zd (%s)\nDownTime: %.1lf secs\nTotalDownTime: %.1lf secs\nClusterAge: %.0lf\nUptime: %.5lf%%\n", c->alertCount, allNodesAgreeSize ? "Yes" : "No", c->port, c->id, nodesBad, badlist, c->alertLastTime ? (timeAsDouble() - c->alertLastTime) : 0, totaldowntime, clusterage, (clusterage - totaldowntime) * 100.0 / clusterage);
 
       sprintf(subject, "[%.0lf] Event#%zd %s %s", c->alertLastTime, c->alertCount, nodesBad ? "DOWN" : "UP", c->alertSubject);
       
@@ -216,7 +215,7 @@ char *clusterDumpJSONString(clusterType *c) {
   char *ret = buf;
 
   // sort
-  if (c) 
+  /*  if (c) 
     for (int i = 0; i < c->id-1; i++) {
       for (int j = i+1; j < c->id; j++) {
       if (strcmp(c->node[i]->ipaddress, c->node[j]->ipaddress) > 0) {
@@ -226,10 +225,12 @@ char *clusterDumpJSONString(clusterType *c) {
 	*c->node[j] = t;
       }
     }
-  }
+    }*/
 
   const double now = timeAsDouble();
   if (c) {
+    char *tmp;
+    
     buf += sprintf(buf, "{ \"clusterport\": %zd,\n", c->port);
     buf += sprintf(buf, "  \"latestchange\": %lf,\n", c->latestchange);
     buf += sprintf(buf, "  \"latestchangesecondsago\": %lf,\n", now - c->latestchange);
@@ -247,16 +248,18 @@ char *clusterDumpJSONString(clusterType *c) {
     buf += sprintf(buf, "  \"nodesBadList\": \"%s\",\n", badlist);
     free(badlist);
     int sum = 0, sum4 = 0, sum8 =0, sum16 = 0, sum32 = 0, sum64 = 0;
+    long ramgb = 0;
     for (int i = 0; i < c->id; i++) {
-      if (c->node[i]->RAMGB < 4) {
+      ramgb = keyvalueGetLong(c->node[i]->info, "RAMGB");
+      if (ramgb< 4) {
 	sum++;
-      } else if (c->node[i]->RAMGB < 8) {
+      } else if (ramgb < 8) {
 	sum4++;
-      } else if (c->node[i]->RAMGB < 16) {
+      } else if (ramgb< 16) {
 	sum8++;
-      } else if (c->node[i]->RAMGB < 32) {
+      } else if (ramgb < 32) {
 	sum16++;
-      } else if (c->node[i]->RAMGB < 64) {
+      } else if (ramgb < 64) {
 	sum32++;
       } else {
 	sum64++;
@@ -274,10 +277,10 @@ char *clusterDumpJSONString(clusterType *c) {
     for (int i = 0; i < c->id; i++) {
       buf += sprintf(buf, "    {\n");
       buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
-      buf += sprintf(buf, "       \"nodename\": \"%s\",\n", c->node[i]->nodename);
-      buf += sprintf(buf, "       \"nodeOS\": \"%s\",\n", c->node[i]->nodeOS);
-      buf += sprintf(buf, "       \"boardname\": \"%s\",\n", c->node[i]->boardname);
-      buf += sprintf(buf, "       \"biosdate\": \"%s\",\n", c->node[i]->biosdate);
+      buf += sprintf(buf, "       \"nodename\": \"%s\",\n", tmp=keyvalueGetString(c->node[i]->info, "nodename")); free(tmp);
+      buf += sprintf(buf, "       \"nodeOS\": \"%s\",\n", tmp = keyvalueGetString(c->node[i]->info, "nodeOS")); free(tmp);
+      buf += sprintf(buf, "       \"boardname\": \"%s\",\n", tmp = keyvalueGetString(c->node[i]->info, "boardname")); free(tmp);
+      buf += sprintf(buf, "       \"biosdate\": \"%s\",\n", tmp = keyvalueGetString(c->node[i]->info, "biosdate")); free(tmp);
       buf += sprintf(buf, "       \"lastseen\": %.0lf,\n", now - c->node[i]->seen);
       buf += sprintf(buf, "       \"created\": %lf,\n", c->node[i]->created);
       buf += sprintf(buf, "       \"age\": %lf,\n", now - c->node[i]->created);
@@ -286,13 +289,14 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "       \"discoveredafter\": %lf,\n", delay);
       buf += sprintf(buf, "       \"changed\": %lf,\n", c->node[i]->changed);
       buf += sprintf(buf, "       \"sincechanged\": %lf,\n", now - c->node[i]->changed);
-      buf += sprintf(buf, "       \"ipaddress\": \"%s\",\n", c->node[i]->ipaddress ? c->node[i]->ipaddress : "n/a");
-      buf += sprintf(buf, "       \"RAMGB\": %ld,\n", c->node[i]->RAMGB);
-      buf += sprintf(buf, "       \"Cores\": %ld,\n", c->node[i]->Cores);
-      buf += sprintf(buf, "       \"HDDcount\": %ld,\n", c->node[i]->HDDcount);
-      buf += sprintf(buf, "       \"HDDsizeGB\": %ld,\n", c->node[i]->HDDsizeGB);
-      buf += sprintf(buf, "       \"SSDcount\": %ld,\n", c->node[i]->SSDcount);
-      buf += sprintf(buf, "       \"SSDsizeGB\": %ld\n", c->node[i]->SSDsizeGB);
+      buf += sprintf(buf, "       \"ipaddress\": \"%s\",\n", tmp=keyvalueGetString(c->node[i]->info, "ip"));
+      free(tmp);
+      buf += sprintf(buf, "       \"RAMGB\": %ld,\n", keyvalueGetLong(c->node[i]->info, "RAMGB"));
+      buf += sprintf(buf, "       \"Cores\": %ld,\n", keyvalueGetLong(c->node[i]->info, "Cores"));
+      buf += sprintf(buf, "       \"HDDcount\": %ld,\n", keyvalueGetLong(c->node[i]->info, "HDDcount"));
+      buf += sprintf(buf, "       \"HDDsizeGB\": %ld,\n", keyvalueGetLong(c->node[i]->info, "HDDSizeGB"));
+      buf += sprintf(buf, "       \"SSDcount\": %ld,\n", keyvalueGetLong(c->node[i]->info, "SSDcount"));
+      buf += sprintf(buf, "       \"SSDsizeGB\": %ld\n", keyvalueGetLong(c->node[i]->info, "SSDSizeGB"));
       
       buf += sprintf(buf, "    }");
       if (i < c->id-1) buf += sprintf(buf, ",");
@@ -318,33 +322,12 @@ void clusterDumpJSON(FILE *fp, clusterType *c) {
 }
 
 
-void clusterSetNodeIP(clusterType *c, size_t nodeid, char *address) {
-  sem_wait(&c->sem);
-
-  if (c->node[nodeid]->ipaddress) {
-    if (strcmp(c->node[nodeid]->ipaddress, address) == 0) {
-      //same
-      return;
-    }
-
-    free(c->node[nodeid]->ipaddress);
-  }
-  
-  c->node[nodeid]->ipaddress = strdup(address);
-  clusterChanged(c, nodeid);
-  sem_post(&c->sem);
-}
-
-char *clusterGetNodeIP(clusterType *c, size_t nodeid) {
-  return c->node[nodeid]->ipaddress;
-}
-
 void clusterUpdateSeen(clusterType *c, const size_t nodeid) {
   c->node[nodeid]->seen = timeAsDouble();
 }
 
 void clusterChanged(clusterType *c, const size_t nodeid) {
-  fprintf(stderr,"cluster changed %zd\n", nodeid);
+  //  fprintf(stderr,"cluster changed %zd\n", nodeid);
   c->node[nodeid]->changed = timeAsDouble();
   c->latestchange = c->node[nodeid]->changed;
 }
@@ -354,12 +337,6 @@ void clusterFree(clusterType **cin) {
   const int index = c->id;
   for (int i = 0; i <index; i++) {
     free(c->node[i]->name);
-    free(c->node[i]->nodename);
-    free(c->node[i]->nodeOS);
-    free(c->node[i]->boardname);
-    free(c->node[i]->biosdate);
-    free(c->node[i]->ipaddress);
-    free(c->node[i]->osrelease);
     keyvalueFree(c->node[i]->info);
     c->node[i]->info = NULL;
     free(c->node[i]);
@@ -370,3 +347,43 @@ void clusterFree(clusterType **cin) {
   *cin = NULL;
 }
    
+
+size_t clusterNameToPort(const char *name) {
+  size_t sum = 0;
+  if (name) {
+    for (size_t i = 0; i < strlen(name); i++) {
+      int val = *(name + i);
+      size_t calc = i+1;
+      calc = (1000-i) * val;
+      sum += calc;
+    }
+  }
+  //  fprintf(stderr,"sum: %zd\n", sum);
+  if (sum) {
+    sum -= (341650 + 1024);
+  } else if (sum == 0) {
+    sum = 6000;
+  }
+  return 1024 + sum % 30000;
+}
+
+
+size_t clusterDefaultPort(void) {
+  int port = 0;
+  
+  if (getenv("SAT_NAME")) {
+    port = clusterNameToPort(getenv("SAT_NAME"));
+    fprintf(stderr,"*info* SAT_NAME is %s and used to generate port %d\n", getenv("SAT_NAME"), port);
+  }
+  if (port == 0) {
+    if (getenv("SAT_PORT")) {
+      port = atoi(getenv("SAT_PORT"));
+      fprintf(stderr,"*info* SAT_PORT is %s and used to generate port %d\n", getenv("SAT_PORT"), port);
+    }
+  }
+  if (port == 0) {
+    port = clusterNameToPort(getlogin());
+    fprintf(stderr,"*info* username '%s' used to generate port %d\n", getlogin(), port);
+  }
+  return port;
+}

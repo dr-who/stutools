@@ -22,6 +22,7 @@
 #include "advertise-mc.h"
 #include "respond-mc.h"
 #include "blockdevices.h"
+#include "multicast.h"
 
 int keepRunning = 1;
 int tty = 0;
@@ -249,12 +250,14 @@ void *receiver(void *arg) {
 	  char *bad = clusterGoodBad(tc->cluster, &nodesGood, &nodesBad);
 	  free(bad);
 	  for (int cc = 0; cc < tc->cluster->id; cc++) {
-	    HDDsum += tc->cluster->node[cc]->HDDcount;
-	    SSDsum += tc->cluster->node[cc]->SSDcount;
-	    HDDsumGB += tc->cluster->node[cc]->HDDsizeGB;
-	    SSDsumGB += tc->cluster->node[cc]->SSDsizeGB;
-	    RAMsumGB += tc->cluster->node[cc]->RAMGB;
-	    Coressum += tc->cluster->node[cc]->Cores;
+	    HDDsum += keyvalueGetLong(tc->cluster->node[cc]->info, "HDDcount");
+	    SSDsum += keyvalueGetLong(tc->cluster->node[cc]->info, "SSDcount");
+
+	    HDDsumGB += keyvalueGetLong(tc->cluster->node[cc]->info, "HDDsizeGB");
+	    SSDsumGB += keyvalueGetLong(tc->cluster->node[cc]->info, "SSDsizeGB");
+
+	    RAMsumGB += keyvalueGetLong(tc->cluster->node[cc]->info, "RAMGB");
+	    Coressum += keyvalueGetLong(tc->cluster->node[cc]->info, "Cores");
 	  }
 	  keyvalueSetLong(kv, "Coressum", Coressum);
 	  keyvalueSetLong(kv, "RAMsumGB", RAMsumGB);
@@ -281,9 +284,9 @@ void *receiver(void *arg) {
 	      nodesBad++;
 	      char str[100];
 	      sprintf(str, "badNode%02zd", nodesBad);
-	      keyvalueSetString(kv, str, tc->cluster->node[cc]->nodename);
+	      keyvalueSetString(kv, str, tc->cluster->node[cc]->name);
 	      sprintf(str, "badNode%02zd_ip", nodesBad);
-	      keyvalueSetString(kv, str, tc->cluster->node[cc]->ipaddress);
+	      keyvalueSetString(kv, str, keyvalueGetString(tc->cluster->node[cc]->info, "ip"));
 	      sprintf(str, "badNode%02zd_lastSeen", nodesBad);
 	      keyvalueSetLong(kv, str, timeAsDouble() - tc->cluster->node[cc]->seen);
 	    }
@@ -302,9 +305,9 @@ void *receiver(void *arg) {
 	      nodesGood++;
 	      char str[100];
 	      sprintf(str, "goodNode%02zd", nodesGood);
-	      keyvalueSetString(kv, str, tc->cluster->node[cc]->nodename);
+	      keyvalueSetString(kv, str, tc->cluster->node[cc]->name);
 	      sprintf(str, "goodNode%02zd_ip", nodesGood);
-	      keyvalueSetString(kv, str, tc->cluster->node[cc]->ipaddress);
+	      keyvalueSetString(kv, str, keyvalueGetString(tc->cluster->node[cc]->info, "ip"));
 	    } else {
 	      nodesBad++;
 	    }
@@ -319,8 +322,11 @@ void *receiver(void *arg) {
 	  char *str = calloc(1024*1024, 1); assert(str);
 	  char *ret = str;
 	  for (int cc = 0; cc < tc->cluster->id; cc++) {
-	    
-	    str += sprintf(str, "%s ansible_ssh_host=%s\n", tc->cluster->node[cc]->nodename, tc->cluster->node[cc]->ipaddress);
+	    char *nn = keyvalueGetString(tc->cluster->node[cc]->info, "nodename");
+	    char *ii = keyvalueGetString(tc->cluster->node[cc]->info, "ip");
+	    str += sprintf(str, "%s ansible_ssh_host=%s\n", nn, ii);
+	    free(nn);
+	    free(ii);
 	  }
 	  fprintf(stderr,"%s", ret);
 	  if (socksend(connfd, ret, 0, 1) < 0) {
@@ -334,7 +340,11 @@ void *receiver(void *arg) {
 	  str += sprintf(str, "::1         localhost localhost.localdomain localhost6 localhost6.localdomain6\n\n");
 	  for (int cc = 0; cc < tc->cluster->id; cc++) {
 	    
-	    str += sprintf(str, "%s\tnode%d\n", tc->cluster->node[cc]->ipaddress, cc);
+	    char *nn = keyvalueGetString(tc->cluster->node[cc]->info, "nodename");
+	    char *ii = keyvalueGetString(tc->cluster->node[cc]->info, "ip");
+	    str += sprintf(str, "%s\tnode%d %s\n", ii, cc, nn);
+	    free(nn);
+	    free(ii);
 	  }
 	  fprintf(stderr,"%s", ret);
 	  if (socksend(connfd, ret, 0, 1) < 0) {
@@ -456,13 +466,7 @@ int main(int argc, char *argv[]) {
   interfacesIntType *n = interfacesInit();
   interfacesScan(n);
 
-  int port = 1600;
-  if (getenv("SAT_PORT")) {
-    port = atoi(getenv("SAT_PORT"));
-    fprintf(stderr,"systemd environment SAT_PORT is %d\n", port);
-    if (port < 1) port = 1600;
-  }
-
+  size_t port = clusterDefaultPort();
   startThreads(n, port);
 
   return 0;

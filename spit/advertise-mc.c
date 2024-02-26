@@ -61,7 +61,7 @@ void *advertiseMC(void *arg) {
   bzero((char *)&addr, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = inet_addr(EXAMPLE_GROUP);
-  addr.sin_port = htons(EXAMPLE_PORT);
+  addr.sin_port = htons(tc->serverport);
   addrlen = sizeof(addr);
 
   struct utsname buf;
@@ -119,7 +119,7 @@ void *advertiseMC(void *arg) {
     
     keyvalueSetLong(kv, "time", (long)now);
     keyvalueSetLong(kv, "cluster", cluster->id);
-    keyvalueSetLong(kv, "port", 1600);
+    keyvalueSetLong(kv, "port", tc->serverport);
 
      size_t hddsize = 0;
      size_t hddnum = blockDevicesCount(bd, "HDD", &hddsize);

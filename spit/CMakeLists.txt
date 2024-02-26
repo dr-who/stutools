@@ -35,6 +35,9 @@ add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c 
 add_executable(spit spit.c spit-version.h)
 target_link_libraries(spit spitlib m aio pthread numa)
 
+add_executable(clustername clustername.c cluster.c cluster.h keyvalue.c simpmail.c simpsock.c utilstime.c utils.c numList.c)
+target_link_libraries(clustername spitlib m aio pthread numa pci uuid)
+
 add_executable(dataset datasetMain.c dataset.c dataset.h numList.c numList.h)
 target_link_libraries(dataset m)
 
@@ -68,7 +71,8 @@ target_link_libraries(hwserial spitlib m aio pthread numa pci)
 add_executable(blockdevices blockdevicesMain.c blockdevices.c blockdevices.h keyvalue.c keyvalue.h)
 target_link_libraries(blockdevices spitlib m aio pthread numa pci)
 
-add_executable(broadcastwatch broadcastwatch.c multicast.h)
+add_executable(broadcastwatch broadcastwatch.c multicast.h cluster.c keyvalue.c keyvalue.c simpmail.c simpsock.c utilstime.c)
+target_link_libraries(broadcastwatch spitlib m aio pthread numa pci uuid)
 
 add_executable(cluster clusterMain.c cluster.c cluster.h keyvalue.c keyvalue.h simpmail.c simpsock.c)
 target_link_libraries(cluster spitlib m aio pthread numa pci uuid)
