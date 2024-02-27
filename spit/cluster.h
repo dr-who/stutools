@@ -31,6 +31,8 @@ typedef struct {
   char *alertSubject;
   double alertLastTime;
   size_t alertCount;
+
+  double downSince;
   double downTime;
   
   int id; // count
