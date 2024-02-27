@@ -155,6 +155,18 @@ void clusterSendAlertEmail(clusterType *c) {
     
     int fd = simpmailConnect("127.0.0.1");
     if (fd > 0) {
+
+      if (nodesBad > nodesGood) {
+	if (c->downSince == 0) {
+	  c->downSince = timeAsDouble();
+	}
+      } else {
+	// good >= bad
+	if (c->downSince) {
+	  c->downTime += (timeAsDouble() - c->downSince);
+	}
+      }
+      
       if (nodesBad) {
 	c->alertLastTime = timeAsDouble();
 	c->alertCount++;
@@ -167,10 +179,11 @@ void clusterSendAlertEmail(clusterType *c) {
 	}
       }
       const int thisClusterSize = c->id;
-      double totaldowntime = 0;
+      double totalnodedowntime = 0, totalnodetime = 0;
       int allNodesAgreeSize = 1;
       for (int cc = 0; cc < c->id; cc++) {
-	totaldowntime += c->node[cc]->nodedowntime;
+	totalnodedowntime += c->node[cc]->nodedowntime;
+	totalnodetime += (timeAsDouble() - c->node[cc]->created);
 	
 	int cansee= keyvalueGetLong(c->node[cc]->info, "cluster");
 	if (cansee != thisClusterSize) {
@@ -183,8 +196,23 @@ void clusterSendAlertEmail(clusterType *c) {
 
       double clusterage = timeAsDouble() - clusterCreated(c);
       
-      sprintf(body, "Event: %zd\nAllNodesAgreeSize: %s\nClusterPort: %zd\nClusterNodes: %d\nBadNodes: %zd (%s)\nDownTime: %.1lf secs\nTotalDownTime: %.1lf secs\nClusterAge: %.0lf\nUptime: %.5lf%%\n", c->alertCount, allNodesAgreeSize ? "Yes" : "No", c->port, c->id, nodesBad, badlist, c->alertLastTime ? (timeAsDouble() - c->alertLastTime) : 0, totaldowntime, clusterage, (clusterage - totaldowntime) * 100.0 / clusterage);
-
+      sprintf(body, "Event: %zd\n"
+	      "AllNodesAgreeSize: %s\n"
+	      "ClusterPort: %zd\n"
+	      "ClusterNodes: %d\n"
+	      "BadNodes: %zd (%s)\n"
+	      "NodeDownTime: %.1lf secs (%.1lf %%)\n"
+	      "ClusterDownTime: %.1lf secs (%.1lf %%)\n"
+	      "ClusterUpTime: %.1lf secs (%.1lf %%)\n",
+	      c->alertCount,
+	      allNodesAgreeSize ? "Yes" : "No",
+	      c->port,
+	      c->id,
+	      nodesBad, badlist,
+	      totalnodedowntime, (totalnodedowntime * 100.0 / totalnodetime),
+	      c->downTime, (c->downTime) *100.0 / clusterage,
+	      clusterage, (clusterage - c->downTime) *100.0 / clusterage);
+      
       sprintf(subject, "[%.0lf] Event#%zd %s %s", c->alertLastTime, c->alertCount, nodesBad ? "DOWN" : "UP", c->alertSubject);
       
       simpmailSend(fd, 1, c->alertFromEmail, c->alertFromName, c->alertToEmail, NULL, NULL, subject, NULL, body);
@@ -278,6 +306,8 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "    {\n");
       buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
       buf += sprintf(buf, "       \"nodename\": \"%s\",\n", tmp=keyvalueGetString(c->node[i]->info, "nodename")); free(tmp);
+      buf += sprintf(buf, "       \"nodedowntime\": %lf,\n", c->node[i]->nodedowntime);
+      buf += sprintf(buf, "       \"badsince\": %lf,\n", c->node[i]->badsince);
       buf += sprintf(buf, "       \"nodeOS\": \"%s\",\n", tmp = keyvalueGetString(c->node[i]->info, "nodeOS")); free(tmp);
       buf += sprintf(buf, "       \"boardname\": \"%s\",\n", tmp = keyvalueGetString(c->node[i]->info, "boardname")); free(tmp);
       buf += sprintf(buf, "       \"biosdate\": \"%s\",\n", tmp = keyvalueGetString(c->node[i]->info, "biosdate")); free(tmp);

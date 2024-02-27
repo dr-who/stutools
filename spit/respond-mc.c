@@ -81,8 +81,6 @@ void *respondMC(void *arg) {
    double nodeBadLastCheck = 0, alertPingTime = timeAsDouble(), thistime = 0;
    
 
-   assert(cluster->localsmtp);
-   assert(cluster->alertToEmail);
    socksetup(sock, 10);
    while (1) {
      // once every 2 mins or 10 seconds if one bad
