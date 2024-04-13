@@ -406,7 +406,7 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
 
     int fd = open(fn, O_RDONLY);
     // default speed is 20GB/s
-    size_t iop = 20L * 1024 * 1024 * 1024 / blocksize; // 20GB/s / blocksize
+    long long iop = 20LL * 1024 * 1024 * 1024 / blocksize; // 20GB/s / blocksize
     if (fd > 0) {
         int rr = 0;
         unsigned int major, minor;
@@ -415,19 +415,19 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
 
         if ((major == 1) && (minor == 3)) {
 	  iop = 100*1000;
-	  fprintf(stderr,"*info* IOP estimate for /dev/null is %zd IOPS\n", iop);
+	  fprintf(stderr,"*info* IOP estimate for /dev/null is %lld IOPS\n", iop);
 	} else if (major == 252) {
             // nsulate/HPSc
-            iop = 50L * 1024 * 1024 * 1024 / blocksize; // if 50GB/s / blocksize
+            iop = 50LL * 1024 * 1024 * 1024 / blocksize; // if 50GB/s / blocksize
             if (iop < 10) iop = 10;
         } else if (major == 1) {
             //      fprintf(stderr,"*info* RAM\n");
-            iop = 40L * 1024L * 1024 * 1024L / blocksize; // if RAM them 40GB/s / blocksize;
+            iop = 40LL * 1024L * 1024 * 1024L / blocksize; // if RAM them 40GB/s / blocksize;
             if (iop < 10) iop = 10;
             if (iop > 5000000) iop = 5000000;
         } else if (major == 9) {
             //      fprintf(stderr,"*mdadm*\n");
-            iop = 20L * 1024L * 1024 * 1024L / blocksize; // assume mdadm can do 20GB/s / blocksize;
+            iop = 20LL * 1024L * 1024 * 1024L / blocksize; // assume mdadm can do 20GB/s / blocksize;
             if (iop < 10) iop = 10;
         } else {
             char *suf = getSuffix(fn);
@@ -436,15 +436,15 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
                 free(suf);
             }
             if (rr) { // rot
-                iop = 300L * 1024 * 1024 / blocksize;  // 300MB/s rotational
+                iop = 300LL * 1024 * 1024 / blocksize;  // 300MB/s rotational
                 if (iop < 10) iop = 10; // but at least 10 IOPS
             } else {// not rot
-                iop = 12L * 1024L * 1024 * 1024 / 8L / blocksize; // 12Gb/sec for one device
+                iop = 12LL * 1024L * 1024 * 1024 / 8L / blocksize; // 12Gb/sec for one device
                 if (iop < 10) iop = 10;
             }
         }
         fprintf(stderr,
-                "*info* '%s' has major:minor %u:%u (rotate=%d), estimate %zd sequential %.1lf KiB IOPS, %.0lf MiB/s\n",
+                "*info* '%s' has major:minor %u:%u (rotate=%d), estimate %lld sequential %.1lf KiB IOPS, %.0lf MiB/s\n",
                 fn, major, minor, rr, iop, blocksize / 1024.0, iop * blocksize / 1024.0 / 1024);
 
     } else {
@@ -455,7 +455,7 @@ size_t getIOPSestimate(const char *fn, const size_t blocksize, const int verbose
 
 
     if (verbose) {
-        fprintf(stderr, "*info* I/O estimate '%s' is %zd IOPS x %zd = %.1lf GiB/s (%.1lf GiB/s)\n", fn, iop, blocksize,
+        fprintf(stderr, "*info* I/O estimate '%s' is %lld IOPS x %zd = %.1lf GiB/s (%.1lf GiB/s)\n", fn, iop, blocksize,
                 TOGiB(iop * blocksize), TOGiB(iop * blocksize * 8));
     }
     return iop;

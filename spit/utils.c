@@ -64,13 +64,13 @@ double timeOnPPS() {
   return thetime / 10.0;
 }
 
-size_t fileSize(int fd) {
-    size_t sz = lseek(fd, 0L, SEEK_END);
-    lseek(fd, 0L, SEEK_SET);
-    return sz;
+long long fileSize(int fd) {
+  long long sz = lseek(fd, 0L, SEEK_END);
+  lseek(fd, 0L, SEEK_SET);
+  return sz;
 }
 
-size_t fileSizeFromName(const char *path) {
+long long fileSizeFromName(const char *path) {
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
       perror(path);
@@ -89,7 +89,7 @@ size_t fileSizeFromName(const char *path) {
 	// might be /dev/null
 	if ((major==1) && (minor==3)) {
 	  fprintf(stderr, "*info* device is /dev/null, pretending it's 1EB in size\n");
-	  sz = (size_t)(1000L*1000*1000*1000*1000*1000);
+	  sz = (size_t)(1000LL*1000*1000*1000*1000*1000);
 	}
       }
     }
@@ -1246,7 +1246,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
                 if (range[1] < maxzero) {
                     maxzero = range[1];
                 } else {
-                    fprintf(stderr, "*info* truncating the zero region to be %zd bytes\n", maxzero);
+                    fprintf(stderr, "*info* truncating the zero region to be %ld bytes\n", maxzero);
                 }
                 char *trimdata;
                 CALLOC(trimdata, maxzero, sizeof(char));
@@ -1261,7 +1261,7 @@ int performDiscard(int fd, const char *path, unsigned long low, unsigned long hi
                 if (t != maxzero) {
                     perror("trim");
                 } else {
-                    fprintf(stderr, "*info* '%s' wrote %zd bytes data at position %zd\n", path, maxzero, i);
+                    fprintf(stderr, "*info* '%s' wrote %ld bytes data at position %zd\n", path, maxzero, i);
                 }
 
                 t = pread(fd, trimdata, maxzero, i);

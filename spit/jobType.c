@@ -1848,7 +1848,7 @@ int jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
         if ((ramBytesForPositions || verbose || (posThatFitInRam < mp)) && (i == 0)) {
-            fprintf(stderr, "*info* using %zd GiB RAM for positions (%d threads, %ld record size), we can store max ", ramBytesForPositions, num, sizeof(positionType));
+            fprintf(stderr, "*info* using %zd GiB RAM for positions (%d threads, %u record size), we can store max ", ramBytesForPositions, num, sizeof(positionType));
             commaPrint0dp(stderr, posThatFitInRam);
             fprintf(stderr, " positions in RAM\n");
         }
@@ -2146,7 +2146,7 @@ int jobRunThreads(jobType *job, const int num, char *filePrefix,
         if (metaData) {
             if ((long) qDepthMax > metaData) {
                 if (i == 0) {
-                    fprintf(stderr, "*warning* QD must be <= %zd if reading/writing. Setting QD=%zd\n", metaData,
+                    fprintf(stderr, "*warning* QD must be <= %ld if reading/writing. Setting QD=%ld\n", metaData,
                             metaData);
                 }
                 qDepthMax = metaData;

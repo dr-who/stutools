@@ -186,7 +186,7 @@ int main(int argc, char *argv[]) {
     deviceDetails *deviceList = NULL;
     size_t deviceCount = 0;
     size_t kdevices = 0, mlow = 0, mhigh = 0, blocksize = 256 * 1024, writeblocksize = 0;
-    size_t startAt = 0 * 1024 * 1024, finishAt = 1024L * 1024L * 1024L * 1;
+    long long startAt = 0 * 1024 * 1024, finishAt = 1024L * 1024L * 1024L * 1;
     unsigned short seed = 0;
     int printevery = 1;
     int tripleX = 0;
@@ -359,9 +359,9 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    fprintf(stderr, "*info* aligned start:  %lx (%zd, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt),
+    fprintf(stderr, "*info* aligned start:  %llx (%lld, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt),
             TOGiB(startAt));
-    fprintf(stderr, "*info* aligned finish: %lx (%zd, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt),
+    fprintf(stderr, "*info* aligned finish: %llx (%lld, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt),
             TOGiB(finishAt));
 
     fprintf(stderr, "*info* k = %zd, m = [%zd, %zd], device count %zd, seed = %d\n", kdevices, mlow, mhigh, deviceCount,
@@ -397,7 +397,7 @@ int main(int argc, char *argv[]) {
         }
 
         fprintf(stderr,
-                "*info* range [%.3lf GiB - %.3lf GiB) [%zd - %zd), step strip size = %zd, write strip size = %zd\n",
+                "*info* range [%.3lf GiB - %.3lf GiB) [%lld- %lld), step strip size = %zd, write strip size = %zd\n",
                 TOGiB(startAt), TOGiB(finishAt), startAt, finishAt, blocksize, writeblocksize);
         srand48(seed);
         int *selection = malloc(deviceCount * sizeof(int));
@@ -406,7 +406,7 @@ int main(int argc, char *argv[]) {
         char *block = aligned_alloc(4096, blocksize);
         memset(block, zapChar, blocksize);
 
-        for (size_t pos = startAt, pr = 0; pos < finishAt; pos += blocksize, pr++) {
+        for (long long pos = startAt, pr = 0; pos < finishAt; pos += blocksize, pr++) {
             // pick k
             memset(selection, 0, deviceCount * sizeof(int));
             memset(rotated, 0, deviceCount * sizeof(int));

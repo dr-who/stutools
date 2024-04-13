@@ -92,12 +92,12 @@ int main(int argc, char *argv[]) {
     while (++displaycount <= stopaftern) {
 
         {
-            long pos = 0;
+            long long pos = 0;
             if (random) pos = (alignedNumber(drand48() * devicebytes - 4096, 4096));
             assert(pos > 0);
 
             if (!quiet) {
-                fprintf(stdout, "[%.1lf / %zd]: seek on '%s' to pos %zd (%.3lf TB)\n", timeAsDouble() - starttime,
+                fprintf(stdout, "[%.1lf / %zd]: seek on '%s' to pos %lld (%.3lf TB)\n", timeAsDouble() - starttime,
                         displaycount, device, pos, TOTB(pos));
             }
 

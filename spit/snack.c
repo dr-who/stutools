@@ -170,7 +170,7 @@ void getEthStats(stringType *devs, size_t num) {
         double rxspeed = (devs[i].thisrx - devs[i].lastrx) * 8.0;
         if (devs[i].speed > 0)
             fprintf(stdout,
-                    "--> [%d] %s/MTU %d/speed %d Mb/s (RX %.1lf Gb/s, TX %.1lf Gb/s, errors %zd/%zd, carrier_changes %zd)\n",
+                    "--> [%d] %s/MTU %d/speed %d Mb/s (RX %.1lf Gb/s, TX %.1lf Gb/s, errors %ld/%ld, carrier_changes %ld)\n",
                     MAX(0, devs[i].numa), devs[i].path, devs[i].mtu, devs[i].speed, TOGB(rxspeed) / gaptime,
                     TOGB(txspeed) / gaptime, devs[i].thisrxerrors, devs[i].thistxerrors, devs[i].carrier_changes);
         //    }

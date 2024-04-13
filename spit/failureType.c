@@ -15,7 +15,7 @@ extern int keepRunning;
 // -2 16+2
 // -2 16+2 -g 2
 
-void virtualDeviceInit(virtualDeviceType *f, char *string, int k, int m, int lhs, size_t sizeInBytes, float flatprob) {
+void virtualDeviceInit(virtualDeviceType *f, char *string, int k, int m, int lhs, long long sizeInBytes, float flatprob) {
   memset(f, 0, sizeof(virtualDeviceType));
   f->name = strdup(string);
   f->k = k;
@@ -189,12 +189,12 @@ int failureType(int argc, char *argv[]) {
       
       virtualDeviceType f;
       
-      virtualDeviceInit(&f, "a", k, m, lhs, 20L*1024*1024*1024*1024, per);
+      virtualDeviceInit(&f, "a", k, m, lhs, 20LL*1024*1024*1024*1024, per);
       failureGroupAdd(&g, &f);
       
       virtualDeviceType f2;
       if (p==2) {
-	virtualDeviceInit(&f2, "b", k, m, lhs, 20L*1024*1024*1024*1024, per);
+	virtualDeviceInit(&f2, "b", k, m, lhs, 20LL*1024*1024*1024*1024, per);
 	failureGroupAdd(&g, &f2);
       }
       

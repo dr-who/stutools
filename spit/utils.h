@@ -95,9 +95,9 @@ char *OSRelease(void);
 double swapTotal(size_t *t, size_t *u);
 
 
-size_t fileSize(int fd);
+long long fileSize(int fd);
 
-size_t fileSizeFromName(const char *path);
+long long fileSizeFromName(const char *path);
 
 size_t fileExists(const char *path);
 

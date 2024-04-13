@@ -27,7 +27,7 @@ void lengthsFree(lengthsType *l) {
 }
 
 void lengthsAdd(lengthsType *l, const size_t len, size_t freq) {
-    const size_t maxlen = (1L << (sizeof(unsigned int) * 8)) - 1;
+    const size_t maxlen = (1LL << (sizeof(unsigned int) * 8)) - 1;
     if (len > maxlen) {
         fprintf(stderr, "*error* block length is too large (%zd), max is %zd (k%zd or M%zd)\n", len, maxlen,
                 maxlen / 1024, maxlen / 1024 / 1024);

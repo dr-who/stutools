@@ -1525,7 +1525,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow) {
                            positions[i].verify, positions[i].seed, positions[i].usoffset);
         }
     }
-    buf += sprintf(buf, "\tSummary[%d]: reads %zd (sum %zd), writes %zd (sum %zd), trims %zd (sum %zd), hash %lx\n",
+    buf += sprintf(buf, "\tSummary[%d]: reads %zd (sum %zd), writes %zd (sum %zd), trims %zd (sum %zd), hash %xzd\n",
                    positions ? positions[0].seed : 0, rcount, rsum, wcount, wsum, tcount, tsum, hash);
     buf[0] = 0;
     fprintf(stderr, "%s", startbuf);

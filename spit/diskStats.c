@@ -336,7 +336,7 @@ void diskStatMaxQDStr(diskStatType *d, size_t n_print, char *max_q_disk_str, siz
 
     // Print to string
     size_t count = 0;
-    count += sprintf(max_q_disk_str + count, "Max%lu Q ", n_print);
+    count += sprintf(max_q_disk_str + count, "Max%zd Q ", n_print);
 
     for (size_t i = 0; i < n_print; i++) {
         const char *delim = i == 0 ? "" : "/";

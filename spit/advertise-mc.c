@@ -105,13 +105,13 @@ void *advertiseMC(void *arg) {
     char str[1000];
     sprintf(str, "/sys/devices/virtual/dmi/id/board_name");
     char *boardvn = getStringFromFile(str, 1);
-    keyvalueSetString(kv, "boardname", boardvn);
+    keyvalueSetString(kv, "boardname", boardvn ? boardvn : "");
     free(boardvn);
 
     sprintf(str, "/sys/devices/virtual/dmi/id/bios_date");
     char *biosdate = getStringFromFile(str, 1);
 
-    keyvalueSetString(kv, "biosdate", biosdate);
+    keyvalueSetString(kv, "biosdate", biosdate ? biosdate : "");
     free(biosdate);
 
 

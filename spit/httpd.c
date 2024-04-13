@@ -124,7 +124,7 @@ void *receiver(void *arg) {
     //    fprintf(stderr, "iteration %d\n", iteration);
     socklen_t addrlen = sizeof(clientaddr);
 
-    int connfd;
+    int connfd = -1;
     //    if (fcntl(connfd, F_GETFD) == -1) iteration = 1;
     
     if (iteration == 1) {
