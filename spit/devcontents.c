@@ -158,7 +158,7 @@ int main(int argc, char *argv[]) {
     if (fd < 0) {
         perror(device);
     } else {
-      const size_t blockDevSize = blockDeviceSizeFromFD(fd);
+      const long long blockDevSize = blockDeviceSizeFromFD(fd);
 	//	if (blockDevSize < finishAt) finishAt = blockDevSize; // don't finish past the end of the device
 
 	if (finishAt < startAt) {
@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
         const double statictime = timeAsDouble();
         uint8_t hashresult[SIZE_OF_SHA_256_HASH];
 	
-        for (size_t pos = startAt; pos < finishAt; pos += blocksize) {
+        for (long long pos = startAt; pos < finishAt; pos += blocksize) {
             int min = 0, max = 0, range = 0;
             int r = pread(fd, buf, blocksize, pos);
             if (r <= 0) {

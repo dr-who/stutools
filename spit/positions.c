@@ -1503,7 +1503,8 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow) {
 
     buf += sprintf(buf, "*info*: total number of positions %zd\n", pc->sz);
     const positionType *positions = pc->positions;
-    size_t rcount = 0, wcount = 0, tcount = 0, hash = 0, rsum = 0, wsum = 0, tsum = 0;
+    size_t rcount = 0, wcount = 0, tcount = 0, rsum = 0, wsum = 0, tsum = 0;
+    unsigned long long hash = 0;
     for (size_t i = 0; i < pc->sz; i++) {
         hash = (hash + i) + positions[i].action + positions[i].pos + positions[i].len;
         if (positions[i].action == 'R') {
@@ -1525,7 +1526,7 @@ void positionContainerDump(positionContainer *pc, const size_t countToShow) {
                            positions[i].verify, positions[i].seed, positions[i].usoffset);
         }
     }
-    buf += sprintf(buf, "\tSummary[%d]: reads %zd (sum %zd), writes %zd (sum %zd), trims %zd (sum %zd), hash %xzd\n",
+    buf += sprintf(buf, "\tSummary[%d]: reads %zd (sum %zd), writes %zd (sum %zd), trims %zd (sum %zd), hash %llx\n",
                    positions ? positions[0].seed : 0, rcount, rsum, wcount, wsum, tcount, tsum, hash);
     buf[0] = 0;
     fprintf(stderr, "%s", startbuf);

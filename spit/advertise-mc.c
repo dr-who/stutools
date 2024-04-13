@@ -97,10 +97,12 @@ void *advertiseMC(void *arg) {
     keyvalueSetString(kv, "node", uniquemac);
     keyvalueSetString(kv, "hostname", buf.nodename);
     keyvalueSetString(kv, "nodename", buf.nodename);
+    char *hwtype = hwMachine();
+    keyvalueSetString(kv, "nodeHW", hwtype); // wil ldup
+    
     char *nodeos = OSRelease();
     //    fprintf(stderr,"OS :%s\n", nodeos);
-    keyvalueSetString(kv, "nodeOS", strdup(nodeos));
-    free(nodeos);
+    keyvalueSetString(kv, "nodeOS", nodeos); // will dup
 
     char str[1000];
     sprintf(str, "/sys/devices/virtual/dmi/id/board_name");

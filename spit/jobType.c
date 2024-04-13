@@ -1827,7 +1827,7 @@ int jobRunThreads(jobType *job, const int num, char *filePrefix,
 
         // if RAM is not specified for positions
         if (ramBytesForPositions == 0) { 
-	  ramBytesForPositions = MIN((size_t) 15L * 1024 * 1024 * 1024, freeRAM() / 2) / num; // 1L*1024*1024*1024;
+	  ramBytesForPositions = MIN(15LL * 1024 * 1024 * 1024, freeRAM() / 2) / num; // 1L*1024*1024*1024;
         }
 
         size_t aioSizeRAM = 2 * threadContext[i].queueDepthMax * (threadContext[i].highBlockSize); // 2* as read and write

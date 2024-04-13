@@ -106,14 +106,14 @@ size_t fileExists(const char *path) {
     }
 }
 
-size_t blockDeviceSizeFromFD(const int fd) {
-    size_t file_size_in_bytes = 0;
+long long blockDeviceSizeFromFD(const int fd) {
+    long long file_size_in_bytes = 0;
     ioctl(fd, BLKGETSIZE64, &file_size_in_bytes);
     return file_size_in_bytes;
 }
 
 
-size_t blockDeviceSize(const char *path) {
+long long blockDeviceSize(const char *path) {
 
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
@@ -121,7 +121,7 @@ size_t blockDeviceSize(const char *path) {
         //    exit(-1);
         return 0;
     }
-    size_t file_size_in_bytes = 0;
+    long long file_size_in_bytes = 0;
     ioctl(fd, BLKGETSIZE64, &file_size_in_bytes);
     fsync(fd);
     close(fd);
@@ -341,6 +341,12 @@ char *OSRelease(void) {
     struct utsname buf;
     uname(&buf);
     return strdup(buf.release);
+}
+
+char *hwMachine(void) {
+    struct utsname buf;
+    uname(&buf);
+    return strdup(buf.machine);
 }
 
 int getWriteCacheStatus(int fd) {
@@ -767,7 +773,7 @@ int canOpenExclusively(const char *fn) {
   }*/
 
 
-int createFile(const char *filename, const size_t sz) {
+int createFile(const char *filename, const long long sz) {
     if (!filename) {
         fprintf(stderr, "*error* no filename\n");
         exit(1);
@@ -775,10 +781,10 @@ int createFile(const char *filename, const size_t sz) {
     assert(sz);
 
     if (fileSizeFromName(filename) == sz) { // already there and right size
-        fprintf(stderr, "*info* file %s already exists with size %zd\n", filename, sz);
+        fprintf(stderr, "*info* file %s already exists with size %lld\n", filename, sz);
         return 0;
     }
-    fprintf(stderr, "*info* create file '%s' size %zd\n", filename, sz);
+    fprintf(stderr, "*info* create file '%s' size %lld\n", filename, sz);
 
 
     if (startsWith("/dev/", filename)) {
@@ -809,7 +815,7 @@ int createFile(const char *filename, const size_t sz) {
     }
     int fdret = fallocate(fd, 0, 0, sz);
     if (fdret == 0) {
-        fprintf(stderr, "*info* fallocate '%s' succeeded with length = %zd\n", filename, sz);
+        fprintf(stderr, "*info* fallocate '%s' succeeded with length = %lld\n", filename, sz);
     } else {
         perror("*info* fallocate potentially not supported: ");
     }
@@ -822,7 +828,7 @@ int createFile(const char *filename, const size_t sz) {
 
     CALLOC(buf, 1, CREATECHUNK);
     generateRandomBuffer(buf, CREATECHUNK, 42);
-    fprintf(stderr, "*info* slow write(fd, %ld, buf) with '%s' %zd (%.3lf GiB)\n", CREATECHUNK, filename, sz,
+    fprintf(stderr, "*info* slow write(fd, %ld, buf) with '%s' %lld (%.3lf GiB)\n", CREATECHUNK, filename, sz,
             TOGiB(sz));
     size_t towriteMiB = sz;
     //totalw = 0;
@@ -856,7 +862,7 @@ int createFile(const char *filename, const size_t sz) {
     close(fd);
     free(buf);
     buf = NULL;
-    fprintf(stderr, "*info* wrote down to %zd / %zd\n", towriteMiB, sz);
+    fprintf(stderr, "*info* wrote down to %zd / %lld\n", towriteMiB, sz);
     double timeelapsed = timeAsDouble() - timestart;
     fprintf(stderr, "*info* file '%s' created in %.1lf seconds, %.0lf MB/s\n", filename, timeelapsed,
             TOMB(sz / timeelapsed));

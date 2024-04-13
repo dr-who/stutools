@@ -93,7 +93,7 @@ size_t aioMultiplePositions(positionContainer *p,
         fprintf(stderr, "*warning* decreasing QDmax=%zd because sz=%zd\n", QDmax, sz);
     }
     assert(QDmax <= sz);
-    const size_t QD = QDmax;
+    const int QD = QDmax;
     assert(sz > 0);
     positionType *positions = p->positions;
     p->inFlight = 0;
@@ -124,7 +124,7 @@ size_t aioMultiplePositions(positionContainer *p,
         }
     }
 
-    size_t maxSize = 0;
+    long long maxSize = 0;
     for (size_t i = 0; i < sz; i++) {
         if (positions[i].len > maxSize) {
             maxSize = positions[i].len;

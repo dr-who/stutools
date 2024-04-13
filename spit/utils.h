@@ -55,11 +55,11 @@ void writeChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t max
 void readChunks(int fd, char *label, int *chunkSizes, int numChunks, size_t maxTime, size_t resetTime, logSpeedType *l,
                 size_t maxBufSize, size_t outputEvery, int seq, int direct, float limitGBToProcess);
 
-size_t blockDeviceSize(const char *name);
+long long blockDeviceSize(const char *name);
 
 int isBlockDevice(const char *name);
 
-size_t blockDeviceSizeFromFD(const int fd);
+long long  blockDeviceSizeFromFD(const int fd);
 
 
 void dropCaches(void);
@@ -91,6 +91,8 @@ long long totalShared(void);
 long long totalBuffer(void);
 
 char *OSRelease(void);
+
+char *hwMachine(void);
 
 double swapTotal(size_t *t, size_t *u);
 
@@ -133,7 +135,7 @@ int startsWith(const char *pre, const char *str);
 
 int canOpenExclusively(const char *fn);
 
-int createFile(const char *filename, const size_t sz);
+int createFile(const char *filename, const long long sz);
 
 void commaPrint0dp(FILE *fp, double d);
 
@@ -148,8 +150,6 @@ char *getCPUModel(void);
 char *getModel(const char *suffix);
 
 long long freeRAM(void);
-
-size_t canCreateFile(const char *filename, const size_t sz);
 
 char *hostname(void);
 
