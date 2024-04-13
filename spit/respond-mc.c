@@ -162,7 +162,7 @@ void *respondMC(void *arg) {
 	 free(tmp);
 
 	 tmp = keyvalueGetString(kv, "nodeHW"); // human readable
-	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodehw", tmp);
+	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodehw", tmp ? tmp : "");
 	 free(tmp);
 
 	 keyvalueSetString(tc->cluster->node[nodeid]->info, "ip", ipaddr);
