@@ -306,6 +306,7 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "    {\n");
       buf += sprintf(buf, "       \"node\": \"%s\",\n", c->node[i]->name);
       buf += sprintf(buf, "       \"nodename\": \"%s\",\n", tmp=keyvalueGetString(c->node[i]->info, "nodename")); free(tmp);
+      buf += sprintf(buf, "       \"nodehw\": \"%s\",\n", tmp=keyvalueGetString(c->node[i]->info, "nodehw")); free(tmp);
       buf += sprintf(buf, "       \"nodedowntime\": %lf,\n", c->node[i]->nodedowntime);
       buf += sprintf(buf, "       \"badsince\": %lf,\n", c->node[i]->badsince);
       buf += sprintf(buf, "       \"nodeOS\": \"%s\",\n", tmp = keyvalueGetString(c->node[i]->info, "nodeOS")); free(tmp);

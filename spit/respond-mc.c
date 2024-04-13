@@ -160,7 +160,11 @@ void *respondMC(void *arg) {
 	 char *tmp = keyvalueGetString(kv, "nodename"); // human readable
 	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodename", tmp);
 	 free(tmp);
-	 
+
+	 tmp = keyvalueGetString(kv, "nodeHW"); // human readable
+	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodehw", tmp);
+	 free(tmp);
+
 	 keyvalueSetString(tc->cluster->node[nodeid]->info, "ip", ipaddr);
 	 
 	 tmp=keyvalueGetString(kv, "nodeOS");
