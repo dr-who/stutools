@@ -984,7 +984,7 @@ void cmd_uptime(const int tty) {
   
   double d1,d2,d3;
   loadAverage3(&d1, &d2, &d3);
-  printf("%s up %zd days, %2zd:%02zd, %2zd user%s load average: %.2lf, %.2lf, %.2lf\n", timestring, d, h, s, who(1), who(1)>1?"s,":", ", d1, d2, d3);
+  printf("%s up %ld days, %2ld:%02ld, %2zd user%s load average: %.2lf, %.2lf, %.2lf\n", timestring, d, h, s, who(1), who(1)>1?"s,":", ", d1, d2, d3);
 }
 
 void cmd_devSpeed(const int tty, const char *second, int showspeedorlatency) {
@@ -1079,7 +1079,7 @@ void cmd_spit(const int tty, char *origstring) {
                         if (tty) printf("%s", END);
 
                         jobRunThreads(&j, j.count, NULL, 0, bdsize, 30, 0, NULL, 4, 42, 0, NULL, 1, 0, 0, NULL, NULL,
-                                      NULL, "all", 0, /*&r*/NULL, 15L * 1024 * 1024 * 1024, 0, 0, NULL, 0, 1, 0);
+                                      NULL, "all", 0, /*&r*/NULL, 15LL * 1024 * 1024 * 1024, 0, 0, NULL, 0, 1, 0);
                         jobFree(&j);
                     }
                 }

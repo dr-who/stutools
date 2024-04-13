@@ -131,7 +131,7 @@ void *httpd(void *arg) {
 	  strftime(outstr, sizeof(outstr), "%a, %d %b %Y %H:%M:%S GMT", tmp);
 	  
 	  char *con = clusterDumpJSONString(tc->cluster);
-	  sprintf(buffer,"HTTP/1.1 200 OK\nCache-Control: no-cache\nDate: %s\nConnection: close\nContent-Type: text/plain\nContent-Length: %ld\n\n", outstr, strlen(con));
+	  sprintf(buffer,"HTTP/1.1 200 OK\nCache-Control: no-cache\nDate: %s\nConnection: close\nContent-Type: text/plain\nContent-Length: %zd\n\n", outstr, strlen(con));
 	  
 	  assert(strlen(buffer) < 1023);
 	  

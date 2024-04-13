@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 
     char *device = NULL;
     size_t blocksize = 4 * 1024, width = 70;
-    size_t startAt = 0 * 1024 * 1024, finishAt = 1024L * 1024L * 1024L * 1;
+    long long startAt = 0 * 1024 * 1024, finishAt = 1024LL * 1024L * 1024L * 1;
     int showsha256 = 0;
     float showentropy = 9e9;
     size_t oneposition = 0;
@@ -167,9 +167,9 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	fprintf(stderr, "*info* aligned start:  0x%lx (%zd, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt),
+	fprintf(stderr, "*info* aligned start:  0x%llx (%lld, %.3lf MiB, %.4lf GiB)\n", startAt, startAt, TOMiB(startAt),
 		TOGiB(startAt));
-	fprintf(stderr, "*info* aligned finish: 0x%lx (%zd, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt),
+	fprintf(stderr, "*info* aligned finish: 0x%llx (%lld, %.3lf MiB, %.4lf GiB)\n", finishAt, finishAt, TOMiB(finishAt),
 		TOGiB(finishAt));
 
 

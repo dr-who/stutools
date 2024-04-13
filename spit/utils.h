@@ -84,11 +84,11 @@ void loadAverage3(double *d1, double *d2, double *d3);
 
 size_t numThreads(void);
 
-size_t totalRAM(void);
+long long totalRAM(void);
 
-size_t totalShared(void);
+long long totalShared(void);
 
-size_t totalBuffer(void);
+long long totalBuffer(void);
 
 char *OSRelease(void);
 
@@ -147,13 +147,13 @@ char *getCPUModel(void);
 
 char *getModel(const char *suffix);
 
-size_t freeRAM(void);
+long long freeRAM(void);
 
 size_t canCreateFile(const char *filename, const size_t sz);
 
 char *hostname(void);
 
-size_t getUptime(void);
+long getUptime(void);
 
 int getRotational(const char *suf);
 

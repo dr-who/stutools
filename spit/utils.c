@@ -307,34 +307,34 @@ size_t numThreads(void) {
     return sysconf(_SC_NPROCESSORS_ONLN);
 }
 
-size_t totalRAM(void) {
+long long totalRAM(void) {
     struct sysinfo info;
     sysinfo(&info);
-    return info.totalram;
+    return info.totalram * 1LL * info.mem_unit;
 }
 
-size_t getUptime(void) {
+long getUptime(void) {
     struct sysinfo info;
     sysinfo(&info);
     return info.uptime;
 }
 
-size_t freeRAM(void) {
+long long freeRAM(void) {
     struct sysinfo info;
     sysinfo(&info);
-    return info.freeram;
+    return info.freeram * 1LL * info.mem_unit;
 }
 
-size_t totalShared(void) {
+long long totalShared(void) {
     struct sysinfo info;
     sysinfo(&info);
-    return info.sharedram;
+    return info.sharedram * 1LL * info.mem_unit;
 }
 
-size_t totalBuffer(void) {
+long long totalBuffer(void) {
     struct sysinfo info;
     sysinfo(&info);
-    return info.bufferram;
+    return info.bufferram * 1LL * info.mem_unit;
 }
 
 char *OSRelease(void) {

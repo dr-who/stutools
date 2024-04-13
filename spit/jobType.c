@@ -1169,8 +1169,8 @@ static void *runThreadTimer(void *arg) {
                                                                                         floor(starttime)); // insert a range that covers everything, including the printed values
         fprintf(fpmysql, ", mysqloptions='%s'", threadContext->mysqloptions);
         fprintf(fpmysql, ", command='%s'", threadContext->commandstring);
-        fprintf(fpmysql, ", machineUptime='%zd'", getUptime());
-        fprintf(fpmysql, ", totalRAM='%zd'", totalRAM());
+        fprintf(fpmysql, ", machineUptime='%ld'", getUptime());
+        fprintf(fpmysql, ", totalRAM='%lldd'", totalRAM());
         {
             char *os = getValue(threadContext->mysqloptions2, "os=");
             fprintf(fpmysql, ", os='%s'", os);
@@ -1306,7 +1306,7 @@ int jobRunThreads(jobType *job, const int num, char *filePrefix,
                    const double ignorefirst, const size_t verify,
                    char *mysqloptions, char *mysqloptions2, char *commandstring, char *numaBinding,
                    const int performPreDiscard,
-                   resultType *result, size_t ramBytesForPositions, size_t notexclusive, const size_t showdate,
+                   resultType *result, long long ramBytesForPositions, size_t notexclusive, const size_t showdate,
                    FILE *loadpos, const double exitTimeout, const size_t showASCII, const size_t exitOnErrors) {
     pthread_t *pt;
     CALLOC(pt, num + 1, sizeof(pthread_t));
@@ -1848,7 +1848,7 @@ int jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
         if ((ramBytesForPositions || verbose || (posThatFitInRam < mp)) && (i == 0)) {
-            fprintf(stderr, "*info* using %zd GiB RAM for positions (%d threads, %u record size), we can store max ", ramBytesForPositions, num, sizeof(positionType));
+            fprintf(stderr, "*info* using %lld GiB RAM for positions (%d threads, %u record size), we can store max ", ramBytesForPositions, num, sizeof(positionType));
             commaPrint0dp(stderr, posThatFitInRam);
             fprintf(stderr, " positions in RAM\n");
         }
