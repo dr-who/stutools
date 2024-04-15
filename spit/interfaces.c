@@ -356,14 +356,14 @@ char *interfacesOnboardHW(const int quiet) {
     }
     //    fprintf(stderr,"[%s] %s %s\n", ifa->ifa_name, hw, pci);
     
-    if (hw && (strcmp(hw, "00:00:00:00:00:00")==0)) {
+    if (hw && (strstr(hw, "00:00:00:00"))) { // if contains
       // ignore localhost 00:00:00:00:00:00
       goto end;
     }
       
-    if (pickedhw == NULL) {
+    if (pickedhw == NULL) { // first one
       pickedhw = strdup(hw); // always return at least 1 HW the first one
-      pickedpci = strdup(pci);
+      pickedpci = strdup(pci ? pci : "");
       //      fprintf(stderr,"PICKED\n");
     } else {
       // already had one, pick the lowest PCI ordering
