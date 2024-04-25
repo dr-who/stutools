@@ -63,6 +63,14 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  char isr[100];
 		  sprintf(isr,"/sys/block/%s/queue/rotational", suf);
 
+
+		  unsigned int major = 0,minor = 0;
+		  majorAndMinor(fd, &major, &minor);
+		  keyvalueSetString(k, "paths", path);
+		  keyvalueSetLong(k, "major", major);
+		  keyvalueSetLong(k, "minor", minor);
+
+
 		  int rot = getValueFromFile(isr, 1);
 
 		  char isremove[100];
@@ -73,10 +81,17 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  if (canremove) {
 		    keyvalueSetString(k, "type", "Removable");
 		  } else {
-		    if (rot && 0) {
-		      keyvalueSetString(k, "type", "HDD");
-		    } else {
-		      keyvalueSetString(k, "type", "SSD");
+		    if (major == 1) { // ram
+			keyvalueSetString(k, "type", "Volatile-RAM");
+		    } 
+		    if (major == 8) {
+		      if (rot) {
+			keyvalueSetString(k, "type", "HDD");
+		      } else {
+			keyvalueSetString(k, "type", "SSD");
+		      }
+		    } else if (major >= 243) {
+		      keyvalueSetString(k, "type", "Virtual");
 		    }
 		  }
 
@@ -104,30 +119,31 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  free(suf);
 
 		  
-		  unsigned int major = 0,minor = 0;
-		  majorAndMinor(fd, &major, &minor);
-		  keyvalueSetString(k, "paths", path);
-		  keyvalueSetLong(k, "major", major);
-		  keyvalueSetLong(k, "minor", minor);
-		  if (major == 8) { // HDD
-		    
+		  if (major >= 243 || major ==8 || major == 1) {
+		    // valid one to add
+		    char *serial = NULL, *model = NULL, *vendor = NULL, *scsi = NULL;
 		    size_t s = blockDeviceSizeFromFD(fd);
 		    keyvalueSetLong(k, "size", s);
-		    char *serial = serialFromFD(fd);
-		    keyvalueSetString(k, "serial", serial?serial:"n/a");
-		    char *model = modelFromFD(fd);
-		    keyvalueSetString(k, "model", model?model:"n/a");
-		    char *vendor = vendorFromFD(fd);
-		    keyvalueSetString(k, "vendor", vendor?vendor:"n/a");
-		    char *scsi= SCSISerialFromFD(fd);
-		    keyvalueSetString(k, "scsi", scsi?scsi:"n/a");
+		    if (major >= 243) {
+		    } 
+		    if (major == 8) { // block
+		      
+		      serial = serialFromFD(fd);
+		      keyvalueSetString(k, "serial", serial?serial:"n/a");
+		      model = modelFromFD(fd);
+		      keyvalueSetString(k, "model", model?model:"n/a");
+		      vendor = vendorFromFD(fd);
+		      keyvalueSetString(k, "vendor", vendor?vendor:"n/a");
+		      scsi= SCSISerialFromFD(fd);
+		      keyvalueSetString(k, "scsi", scsi?scsi:"n/a");
 
-
+		    }
+		    
 		    blockDevicesAddKV(bd, k);
-
 		    free(serial);
 		    free(model);
 		    free(scsi);
+		    
 		  } else {
 		    keyvalueFree(k);
 		  }
@@ -179,8 +195,10 @@ size_t blockDevicesCount(blockDevicesType *bd, const char *devtype, size_t *sumb
   (*sumbytes) = 0;
   for (size_t i = 0; i < bd->num; i++) {
     char *v = keyvalueGetString(bd->devices[i].kv, "type");
+    //    fprintf(stderr,"checking haystack %s, needle %s\n", devtype, v);
     if (v) {
-      if ((devtype == NULL) || (strcmp(v, devtype) == 0)) {
+      if ((devtype == NULL) || (strstr(devtype, v) != 0)) {
+	//	fprintf(stderr,"match\n");
 	matched++;
 	*sumbytes = (*sumbytes) + keyvalueGetLong(bd->devices[i].kv, "size");
       }

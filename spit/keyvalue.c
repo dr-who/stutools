@@ -251,7 +251,7 @@ long keyvalueGetLong(keyvalueType *kv, const char *key) {
 char *keyvalueGetString(keyvalueType *kv, const char *key) {
   int index = keyvalueFindKey(kv, key);
   if (index < 0) {
-    fprintf(stderr,"can't find: %s\n", key);
+    //        fprintf(stderr,"can't find: %s\n", key);
     return NULL;
   }
   assert(kv->pairs[index].type != 1);

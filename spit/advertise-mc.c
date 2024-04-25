@@ -68,7 +68,6 @@ void *advertiseMC(void *arg) {
   uname(&buf);
 
 
-  blockDevicesType *bd = blockDevicesInit();
 
   // find unique hw.mac
   //  interfacesIntType *n = interfacesInit();
@@ -78,10 +77,19 @@ void *advertiseMC(void *arg) {
   double last = 0; 
   while (keepRunning) {
     double now = timeAsDouble();
+    size_t hddsize = 0, hddnum = 0, ssdsize= 0, ssdnum = 0, volatileramsize = 0, volatileramnum = 0;
 
     if (now - last > 60) { // run first time
       // every 60s scan
+      blockDevicesType *bd = blockDevicesInit();
       blockDevicesScan(bd);
+      hddsize = 0;
+      hddnum = blockDevicesCount(bd, "HDD", &hddsize);
+      ssdsize = 0;
+      ssdnum = blockDevicesCount(bd, "SSD", &ssdsize);
+      volatileramsize = 0;
+      volatileramnum = blockDevicesCount(bd, "Volatile-RAM", &volatileramsize);
+
       interfacesIntType *n = interfacesInit();
       interfacesScan(n);
       free(adv_ip);
@@ -123,15 +131,12 @@ void *advertiseMC(void *arg) {
     keyvalueSetLong(kv, "cluster", cluster->id);
     keyvalueSetLong(kv, "port", tc->serverport);
 
-     size_t hddsize = 0;
-     size_t hddnum = blockDevicesCount(bd, "HDD", &hddsize);
-     size_t ssdsize = 0;
-     size_t ssdnum = blockDevicesCount(bd, NULL, &ssdsize);
-
      keyvalueSetLong(kv, "HDDcount", hddnum);
      keyvalueSetLong(kv, "HDDsizeGB", ceil(hddsize / 1000.0 / 1000 / 1000));
      keyvalueSetLong(kv, "SSDcount", ssdnum);
      keyvalueSetLong(kv, "SSDsizeGB", ceil(ssdsize / 1000.0 / 1000 / 1000));
+     keyvalueSetLong(kv, "VolatileRAMcount", volatileramnum);
+     keyvalueSetLong(kv, "VolatileRAMsizeGB", ceil(volatileramsize / 1000.0 / 1000 / 1000));
 
      keyvalueSetLong(kv, "Cores", getNumHardwareThreads());
      keyvalueSetLong(kv, "RAMGB", ceil(totalRAM()/1024.0/1024/1024));

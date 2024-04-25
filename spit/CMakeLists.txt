@@ -44,6 +44,10 @@ target_link_libraries(dataset m)
 add_executable(modcat modcat.c)
 #target_link_libraries()
 
+add_executable(fakecluster fakecluster.c fakecluster.h)
+
+
+
 add_executable(testdevice testdevice.c utilstime.c utilstime.h utils.c blockdevices.c blockdevices.h keyvalue.c keyvalue.h)
 target_link_libraries(testdevice spitlib m aio pthread numa pci uuid)
 

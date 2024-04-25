@@ -325,9 +325,11 @@ char *clusterDumpJSONString(clusterType *c) {
       buf += sprintf(buf, "       \"RAMGB\": %ld,\n", keyvalueGetLong(c->node[i]->info, "RAMGB"));
       buf += sprintf(buf, "       \"Cores\": %ld,\n", keyvalueGetLong(c->node[i]->info, "Cores"));
       buf += sprintf(buf, "       \"HDDcount\": %ld,\n", keyvalueGetLong(c->node[i]->info, "HDDcount"));
-      buf += sprintf(buf, "       \"HDDsizeGB\": %ld,\n", keyvalueGetLong(c->node[i]->info, "HDDSizeGB"));
+      buf += sprintf(buf, "       \"HDDsizeGB\": %ld,\n", keyvalueGetLong(c->node[i]->info, "HDDsizeGB"));
       buf += sprintf(buf, "       \"SSDcount\": %ld,\n", keyvalueGetLong(c->node[i]->info, "SSDcount"));
-      buf += sprintf(buf, "       \"SSDsizeGB\": %ld\n", keyvalueGetLong(c->node[i]->info, "SSDSizeGB"));
+      buf += sprintf(buf, "       \"SSDsizeGB\": %ld,\n", keyvalueGetLong(c->node[i]->info, "SSDsizeGB"));
+      buf += sprintf(buf, "       \"VolatileRAMcount\": %ld,\n", keyvalueGetLong(c->node[i]->info, "VolatileRAMcount"));
+      buf += sprintf(buf, "       \"VolatileRAMsizeGB\": %ld\n", keyvalueGetLong(c->node[i]->info, "VolatileRAMsizeGB"));
       
       buf += sprintf(buf, "    }");
       if (i < c->id-1) buf += sprintf(buf, ",");

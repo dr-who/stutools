@@ -182,7 +182,9 @@ void *respondMC(void *arg) {
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "HDDcount", keyvalueGetLong(kv, "HDDcount"));
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "HDDsizeGB", keyvalueGetLong(kv, "HDDsizeGB"));
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "SSDcount", keyvalueGetLong(kv, "SSDcount"));
-	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "SDDsizeGB", keyvalueGetLong(kv, "SSDsizeGB"));
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "SSDsizeGB", keyvalueGetLong(kv, "SSDsizeGB"));
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "VolatileRAMcount", keyvalueGetLong(kv, "VolatileRAMcount"));
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "VolatileRAMsizeGB", keyvalueGetLong(kv, "VolatileRAMsizeGB"));
 
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "RAMGB", keyvalueGetLong(kv, "RAMGB"));
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "Cores", keyvalueGetLong(kv, "Cores"));
