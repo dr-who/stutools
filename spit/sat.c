@@ -159,13 +159,13 @@ void *httpd(void *arg) {
 void *receiver(void *arg) {
     threadMsgType *tc = (threadMsgType *) arg;
 
-    while (keepRunning) {
         int serverport = tc->serverport;
 
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd == -1) {
 	  perror("Can't allocate sockfd");
-	    continue;
+	  exit(1);
+	  //	    continue;
         }
 
 	//	socksetup(sockfd, 10);
@@ -191,15 +191,18 @@ void *receiver(void *arg) {
 	  perror("Bind Error");
 	  close(sockfd);
 	  exit(1);
-	  continue;
+	  //	  continue;
         }
 
         if (listen(sockfd, serverport) == -1) {
 	  perror("Listen Error");
 	  close(sockfd);
 	  exit(1);
-	  continue;
+	  //	  continue;
         }
+
+	    while (keepRunning) {
+
 
         socklen_t addrlen = sizeof(clientaddr);
         int connfd = accept(sockfd, (struct sockaddr *) &clientaddr, &addrlen);
@@ -403,9 +406,9 @@ void *receiver(void *arg) {
 	  printf("?? %s\n", buffer);
 	}
 	
-	close(sockfd);
 	close(connfd);
-    }
+	    }
+	//	close(sockfd);
     return NULL;
 }
 
