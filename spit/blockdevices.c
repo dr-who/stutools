@@ -57,6 +57,10 @@ void blockDevicesScan(blockDevicesType *bd) {
 	      if (st.st_mode | S_IFBLK) {
 		int fd = open(path, O_RDONLY);
 		if (fd >= 0) {
+		  fprintf(stderr,"%s\n", path);
+		  if (strcmp(path, "/dev/sdd")==0) {
+		    double d = pow(1,2);
+		  }
 		  keyvalueType *k = keyvalueInit();
 
 		  char *suf = getSuffix(path);
@@ -71,6 +75,8 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  keyvalueSetLong(k, "minor", minor);
 
 
+		  fprintf(stderr,"  m %d %d\n", major, minor);
+		  
 		  int rot = getValueFromFile(isr, 1);
 
 		  char isremove[100];
@@ -83,15 +89,18 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  } else {
 		    if (major == 1) { // ram
 			keyvalueSetString(k, "type", "Volatile-RAM");
-		    } 
-		    if (major == 8) {
+		    } else if (major == 8) {
 		      if (rot) {
 			keyvalueSetString(k, "type", "HDD");
 		      } else {
 			keyvalueSetString(k, "type", "SSD");
 		      }
+		    } else if (major == 259) {
+		      keyvalueSetString(k, "type", "NVMe");
 		    } else if (major >= 243) {
 		      keyvalueSetString(k, "type", "Virtual");
+		    } else {
+		      fprintf(stderr,"issue!\n");
 		    }
 		  }
 

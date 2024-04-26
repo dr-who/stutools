@@ -41,6 +41,8 @@ target_link_libraries(clustername spitlib m aio pthread numa pci uuid)
 add_executable(dataset datasetMain.c dataset.c dataset.h numList.c numList.h)
 target_link_libraries(dataset m)
 
+add_executable(nfsexports nfsexportsMain.c nfsexports.c nfsexports.h) 
+
 add_executable(modcat modcat.c)
 #target_link_libraries()
 
