@@ -1,4 +1,3 @@
-#include "nfsexports.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -7,8 +6,55 @@
 
 #include <sys/statvfs.h>
 
+#include "nfsexports.h"
+#include <regex.h>
 
 #define PATH_MAX 1024
+
+
+
+// returns the number of lines
+char *dumpFile(const char *fn, const char *regexstring) {
+
+    regex_t regex;
+    int reti;
+    reti = regcomp(&regex, regexstring, REG_EXTENDED | REG_ICASE);
+    if (reti) {
+        fprintf(stderr, "*error* could not compile regex\n");
+        return 0;
+    }
+
+    int linecount = 0;
+    FILE *stream = fopen(fn, "rt");
+    char *ret = NULL;
+    
+    if (stream) {
+        char *line = NULL;
+        size_t len = 0;
+        ssize_t nread;
+
+        while ((nread = getline(&line, &len, stream)) != -1) {
+            //      printf("Retrieved line of length %zu:\n", nread);
+
+            reti = regexec(&regex, line, 0, NULL, 0);
+            if (!reti) {
+                linecount++;
+
+		ret = line;
+		break;
+            }
+        }
+
+        if (ret == NULL) free(line);
+        fclose(stream);
+    } else {
+      perror(fn);
+    }
+
+    regfree(&regex);
+    return ret;
+}
+
 
 
 nfsRangeExports *nfsExportsInit(void) {
@@ -123,14 +169,28 @@ void nfsCheckMissing(nfsRangeExports *n) {
 
 
     
-    if (n->exports[i].start > 1) {
-      fprintf(stderr,"*warning* missing low drives. setting start to 1\n");
+    if (n->exports[i].prefix && (n->exports[i].start > 1)) {
+      fprintf(stderr,"*warning* missing low drives (maybe missing hypen). setting start to 1\n");
       n->exports[i].start = 1;
     }
 
     // check /proc/mounts
+    char *ss = dumpFile("/proc/mounts", n->exports[i].prefix);
+    if (ss) {
+      char *first = strtok(ss, " \t");
+      
+      fprintf(stderr,"---> %s\n", first);
+    }
+    
     // if there, get type from underlying block device
+    // 
     // otherwise get the device under / and return that.
+    //    [root@nuc7b spit]# cat /proc/mounts  | grep -w /
+    //    /dev/mapper/almalinux_nuc7b-root / xfs rw,seclabel,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota 0 0
+    //    [root@nuc7b spit]# cat /sys/class/block/dm-*/dm/name | grep root
+    //    almalinux_nuc7b-root
+
+      
   }
 }
 

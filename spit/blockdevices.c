@@ -5,7 +5,9 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <linux/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 
 #include "diskStats.h"
@@ -58,9 +60,6 @@ void blockDevicesScan(blockDevicesType *bd) {
 		int fd = open(path, O_RDONLY);
 		if (fd >= 0) {
 		  fprintf(stderr,"%s\n", path);
-		  if (strcmp(path, "/dev/sdd")==0) {
-		    double d = pow(1,2);
-		  }
 		  keyvalueType *k = keyvalueInit();
 
 		  char *suf = getSuffix(path);
