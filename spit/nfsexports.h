@@ -1,6 +1,7 @@
 #ifndef _NFSEXPORTS_H
 #define _NFSEXPORTS_H
 
+#include "json.h"
 
 typedef struct {
   char *prefix;
@@ -25,8 +26,9 @@ nfsRangeExports *nfsExportsInit(void); // init and scan
 void nfsExportsFree(nfsRangeExports **n); // free sub and pointer, change to NULL
 
 char *nfsExportsKV(nfsRangeExports *n);   // return nice KV format
-char *nfsExportsJSON(nfsRangeExports *n); // return JSON format
 
 void nfsPrefixUpdate(nfsRangeExports *n, const char *prefix, int suffix, const char *scope);
 
+jsonValue * nfsExportsJSON(nfsRangeExports *n);
+  
 #endif

@@ -5,9 +5,9 @@
 int main(void) {
   nfsRangeExports *n = nfsExportsInit();
 
-  nfsExportsJSON(n);
-  nfsExportsKV(n);
-
+  jsonValue* json = nfsExportsJSON(n);
+  printf("%s\n", jsonValueDump(json));
+  
   nfsExportsFree(&n);
   free(n);
 

@@ -45,7 +45,7 @@ char *getFieldFromUdev(unsigned int major, unsigned int minor, char *match) {
 
 
 /* creates a new string */
-char *getSuffix(const char *path) {
+char *getSuffix2(const char *path) {
     if (!path) return NULL;
     int found = -1;
     for (size_t i = strlen(path) - 1; i > 0; i--) {
@@ -76,7 +76,7 @@ long getLongValueFromFile(const char *filename) {
   }
   return value;
 }
-char * getStringFromFile(const char *filename) {
+char * getStringFromFile2(const char *filename) {
   int fd = open(filename, O_RDONLY); 
   char str[1024];
   memset(str, 0, 1024);
@@ -122,7 +122,7 @@ bdType *bdInit(const char *path) {
   bdType *b = calloc(1, sizeof(bdType));
   b->path = strdup(path);
 
-  char *suffix = getSuffix(path);
+  char *suffix = getSuffix2(path);
 
   char s[1024];
 
@@ -176,7 +176,7 @@ bdType *bdInit(const char *path) {
 	
 
     sprintf(s, "/sys/block/%s/queue/write_cache", suffix);
-    b->writecache = getStringFromFile(s);
+    b->writecache = getStringFromFile2(s);
 	
     sprintf(s, "/sys/block/%s/size", suffix);
     b->size = 512LL * getLongValueFromFile(s);

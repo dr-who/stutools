@@ -10,13 +10,14 @@
 #include <regex.h>
 
 #include "blockdevice.h"
+#include "json.h"
 
 #define PATH_MAX 1024
 
 
 
 // returns the number of lines
-char *dumpFile(const char *fn, const char *regexstring) {
+char *dumpFile2(const char *fn, const char *regexstring) {
 
     regex_t regex;
     int reti;
@@ -103,7 +104,7 @@ nfsRangeExports *nfsExportsInit(void) {
 void nfsPrefixUpdate(nfsRangeExports *n, const char *prefix, int suffix, const char *scope) {
   (void)scope;
   if (suffix < 1) {
-    fprintf(stderr,"*error* suffixes < 1 not supported ('%s %d %s')\n", prefix, suffix, scope);
+    //    fprintf(stderr,"*error* suffixes < 1 not supported ('%s %d %s')\n", prefix, suffix, scope);
     return;
   }
   if (n) {
@@ -173,7 +174,7 @@ void nfsCheckMissing(nfsRangeExports *n) {
 
     
     if (n->exports[i].prefix && (n->exports[i].start > 1)) {
-      fprintf(stderr,"*warning* missing low drives (maybe missing hypen). setting start to 1\n");
+      //      fprintf(stderr,"*warning* missing low drives (maybe missing hypen). setting start to 1\n");
       n->exports[i].start = 1;
     }
 
@@ -185,7 +186,7 @@ void nfsCheckMissing(nfsRangeExports *n) {
     for (int j = 1; j <= n->exports[i].end; j++) {
       
       sprintf(fullp, " %s-%d ", n->exports[i].prefix, j);
-      char *ss = dumpFile("/proc/mounts", fullp);
+      char *ss = dumpFile2("/proc/mounts", fullp);
       if (ss) {
 	found = 1;
 	char *devpath = strtok(ss, " \t");
@@ -204,7 +205,7 @@ void nfsCheckMissing(nfsRangeExports *n) {
       //      n->exports[i].type = strdup(n->exports[i].prefix);
       
       sprintf(fullp, " / ");
-      char *ss = dumpFile("/proc/mounts", fullp);
+      char *ss = dumpFile2("/proc/mounts", fullp);
       if (ss) {
 	found = 1;
 	char *devpath = strtok(ss, " \t");
@@ -218,7 +219,7 @@ void nfsCheckMissing(nfsRangeExports *n) {
 	      n->exports[i].type = strdup("Device-Mapper");
 	    }
 	    
-	    fprintf(stderr,"%s ---> %s -> %u:%u\n", fullp, devpath, major, minor);
+	    //	    fprintf(stderr,"%s ---> %s -> %u:%u\n", fullp, devpath, major, minor);
 	  }
 	}
 
@@ -249,26 +250,28 @@ char *nfsExportsKV(nfsRangeExports *n) {
   return NULL;
 }
 
-char *nfsExportsJSON(nfsRangeExports *n) {
+jsonValue * nfsExportsJSON(nfsRangeExports *n) {
   nfsCheckMissing(n);
-  printf("{ \"nfsexports\": [ ");
-  for (int i = 0;i < n->num;i++) {
-    if (i > 0) printf(",");
-    printf("{ \"prefix\":\"%s\",", n->exports[i].prefix);
-    printf("  \"start\":%d,", n->exports[i].start);
-    printf("  \"end\":%d,", n->exports[i].end);
-    printf("  \"missing\":%d,", n->exports[i].missing);
-    printf("  \"type\":\"%s\",", n->exports[i].type ? n->exports[i].type : "");
-    printf("  \"minSizeGB\":%ld,", n->exports[i].minSizeGB);
-    printf("  \"maxSizeGB\":%ld,", n->exports[i].maxSizeGB);
-    printf("  \"sumSizeGB\":%ld,", n->exports[i].sumSizeGB);
-    printf("  \"sumFreeGB\":%ld", n->exports[i].sumFreeGB);
-    printf("}\n");
-  }
-  printf(" ]\n");
-  printf("}\n");
 
-  return NULL;
+  jsonValue *json = jsonValueObject();
+  jsonValue *array = jsonValueArray();
+  jsonObjectAdd(json, "nfsexports", array);
+
+  for (int i = 0;i < n->num;i++) {
+    jsonValue *obj = jsonValueObject();
+    jsonArrayAdd(array, obj);
+    jsonObjectAdd(obj, "Prefix", jsonValueString(n->exports[i].prefix));
+    jsonObjectAdd(obj, "Start", jsonValueNumber(n->exports[i].start));
+    jsonObjectAdd(obj, "End", jsonValueNumber(n->exports[i].end));
+    jsonObjectAdd(obj, "Missing", jsonValueNumber(n->exports[i].missing));
+    jsonObjectAdd(obj, "Type", jsonValueString(n->exports[i].type ? n->exports[i].type : ""));
+    jsonObjectAdd(obj, "MinSizeGB", jsonValueNumber(n->exports[i].minSizeGB));
+    jsonObjectAdd(obj, "MaxSizeGB", jsonValueNumber(n->exports[i].maxSizeGB));
+    jsonObjectAdd(obj, "SumSizeGB", jsonValueNumber(n->exports[i].sumSizeGB));
+    jsonObjectAdd(obj, "SumFreeGB", jsonValueNumber(n->exports[i].sumFreeGB));
+  }
+
+  return json;
 }
 
 

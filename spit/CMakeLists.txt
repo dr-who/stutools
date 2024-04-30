@@ -41,7 +41,7 @@ target_link_libraries(clustername spitlib m aio pthread numa pci uuid)
 add_executable(dataset datasetMain.c dataset.c dataset.h numList.c numList.h)
 target_link_libraries(dataset m)
 
-add_executable(nfsexports nfsexportsMain.c nfsexports.c nfsexports.h blockdevice.c blockdevice.h keyvalue.c keyvalue.h)
+add_executable(nfsexports nfsexportsMain.c nfsexports.c nfsexports.h blockdevice.c blockdevice.h json.c json.h)
 
 add_executable(blockdevice blockdevice.c blockdevice.h blockdeviceMain.c json.c json.h)
 
@@ -66,7 +66,7 @@ target_link_libraries(simpmail spitlib m aio pthread numa pci uuid)
 add_executable(snack snackmain.c snack.c snack.h transfer.h)
 target_link_libraries(snack spitlib m aio pthread numa pci)
 
-add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c simpsock.c simpsock.h keyvalue.c keyvalue.h blockdevices.c blockdevices.h simpmail.c json.c json.h blockdevice.c blockdevice.h)
+add_executable(sat sat.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c simpsock.c simpsock.h keyvalue.c keyvalue.h blockdevices.c blockdevices.h simpmail.c json.c json.h blockdevice.c blockdevice.h nfsexports.c nfsexports.h)
 target_link_libraries(sat spitlib m aio pthread numa pci uuid)
 
 add_executable(httpd httpd.c snack.c simpmail.c utils.c cluster.c iprange.c iprange.h ipcheck.c ipcheck.h echo.c advertise-mc.c advertise-mc.h respond-mc.c respond-mc.h multicast.h queue.c simpsock.c simpsock.h keyvalue.c keyvalue.h blockdevices.c blockdevices.h)

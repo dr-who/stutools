@@ -26,6 +26,7 @@
 
 #include "blockdevice.h"
 #include "json.h"
+#include "nfsexports.h"
 
 int keepRunning = 1;
 int tty = 0;
@@ -390,6 +391,18 @@ void *receiver(void *arg) {
 	    perror("socksendcluster");
 	  }
 	  free(json);
+	} else if (strncmp(buffer,"nfs", 3)==0) {
+	  nfsRangeExports *n = nfsExportsInit();
+	  
+	  jsonValue* json = nfsExportsJSON(n);
+	  char *ss = jsonValueDump(json);
+	  if (socksend(connfd, ss, 0, 1) < 0) {
+	    perror("socksendcluster");
+	  }
+	  free(json);
+	  
+	  nfsExportsFree(&n);
+	  free(n);
 	} else if (strncmp(buffer,"block", 5)==0) {
 	  jsonValue *j = bdScan();
 	  
