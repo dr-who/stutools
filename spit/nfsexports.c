@@ -3,11 +3,13 @@
 #include <stddef.h>
 #include <string.h>
 #include <assert.h>
-
+#include <fcntl.h>
 #include <sys/statvfs.h>
 
 #include "nfsexports.h"
 #include <regex.h>
+
+#include "blockdevice.h"
 
 #define PATH_MAX 1024
 
@@ -133,6 +135,7 @@ void nfsExportsFree(nfsRangeExports **nin) {
   if (n) {
     for (int i = 0; i < n->num; i++) {
       free(n->exports[i].prefix);
+      free(n->exports[i].type);
     }
     free(n->exports);
     free(n);
@@ -175,14 +178,54 @@ void nfsCheckMissing(nfsRangeExports *n) {
     }
 
     // check /proc/mounts
-    char *ss = dumpFile("/proc/mounts", n->exports[i].prefix);
-    if (ss) {
-      char *first = strtok(ss, " \t");
+
+    int found = 0;
+    char fullp[1024];
       
-      fprintf(stderr,"---> %s\n", first);
+    for (int j = 1; j <= n->exports[i].end; j++) {
+      
+      sprintf(fullp, " %s-%d ", n->exports[i].prefix, j);
+      char *ss = dumpFile("/proc/mounts", fullp);
+      if (ss) {
+	found = 1;
+	char *devpath = strtok(ss, " \t");
+	
+	bdType *bd = bdInit(devpath);
+
+	//		fprintf(stderr,"%s ---> %s -> %s\n", fullp, devpath, bd->type);
+	//if (!n->exports[i].type) n->exports[i].type = strdup(bd->type);
+
+	//	bdDumpKV(stderr, bd);
+	bdFree(&bd);
+      }
     }
-    
-    // if there, get type from underlying block device
+
+    if (found == 0) {
+      //      n->exports[i].type = strdup(n->exports[i].prefix);
+      
+      sprintf(fullp, " / ");
+      char *ss = dumpFile("/proc/mounts", fullp);
+      if (ss) {
+	found = 1;
+	char *devpath = strtok(ss, " \t");
+
+	if (devpath) {
+	  int fd = open(devpath, O_RDONLY);
+	  if (fd >= 0) {
+	    unsigned int major, minor;
+	    majorAndMinor(fd, &major, &minor);
+	    if (major == 253) {
+	      n->exports[i].type = strdup("Device-Mapper");
+	    }
+	    
+	    fprintf(stderr,"%s ---> %s -> %u:%u\n", fullp, devpath, major, minor);
+	  }
+	}
+
+      }
+    }
+
+      // if there, get type from underlying block device
     // 
     // otherwise get the device under / and return that.
     //    [root@nuc7b spit]# cat /proc/mounts  | grep -w /
@@ -198,9 +241,9 @@ void nfsCheckMissing(nfsRangeExports *n) {
 
 char *nfsExportsKV(nfsRangeExports *n) {
   nfsCheckMissing(n);
-  fprintf(stderr,"nfs-size;%d ", n->num);
+  fprintf(stderr,"nfs#=%d ", n->num);
   for (int i = 0; i < n->num; i++) {
-    fprintf(stderr,"nfs:%s|start:%d|end:%d|missing%d ", n->exports[i].prefix, n->exports[i].start, n->exports[i].end, n->exports[i].missing);
+    fprintf(stderr,"nfs#%s|start:%d|end:%d|missing:%d|type:%s ", n->exports[i].prefix, n->exports[i].start, n->exports[i].end, n->exports[i].missing, n->exports[i].type);
   }
   fprintf(stderr,"\n");
   return NULL;
@@ -215,7 +258,7 @@ char *nfsExportsJSON(nfsRangeExports *n) {
     printf("  \"start\":%d,", n->exports[i].start);
     printf("  \"end\":%d,", n->exports[i].end);
     printf("  \"missing\":%d,", n->exports[i].missing);
-    printf("  \"type\":\"hdd\",");
+    printf("  \"type\":\"%s\",", n->exports[i].type ? n->exports[i].type : "");
     printf("  \"minSizeGB\":%ld,", n->exports[i].minSizeGB);
     printf("  \"maxSizeGB\":%ld,", n->exports[i].maxSizeGB);
     printf("  \"sumSizeGB\":%ld,", n->exports[i].sumSizeGB);

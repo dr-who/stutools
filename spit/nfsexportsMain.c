@@ -6,6 +6,7 @@ int main(void) {
   nfsRangeExports *n = nfsExportsInit();
 
   nfsExportsJSON(n);
+  nfsExportsKV(n);
 
   nfsExportsFree(&n);
   free(n);

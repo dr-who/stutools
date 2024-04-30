@@ -24,6 +24,9 @@
 #include "blockdevices.h"
 #include "multicast.h"
 
+#include "blockdevice.h"
+#include "json.h"
+
 int keepRunning = 1;
 int tty = 0;
 
@@ -388,20 +391,13 @@ void *receiver(void *arg) {
 	  }
 	  free(json);
 	} else if (strncmp(buffer,"block", 5)==0) {
-	  blockDevicesType *bd = blockDevicesInit();
+	  jsonValue *j = bdScan();
 	  
-	  blockDevicesScan(bd);
-
-	  for (size_t q = 0; q < bd->num; q++) {
-	    //	  char *s = blockDevicesAllJSON(bd);
-	    char *s = keyvalueDumpAsJSON(bd->devices[q].kv);
-	    if (socksend(connfd, s, 0, 0) < 0) {
-	      perror("socksendblock");
-	    }
-	    free(s);
+	  char * s = jsonValueDump(j);
+	  if (socksend(connfd, s, 0, 0) < 0) {
+	    perror("socksendblock");
 	  }
-	  
-	  blockDevicesFree(bd);
+	  free(s);
 	} else {
 	  printf("?? %s\n", buffer);
 	}

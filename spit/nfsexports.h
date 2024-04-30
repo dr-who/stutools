@@ -11,6 +11,7 @@ typedef struct {
   long maxSizeGB;
   long sumSizeGB;
   long sumFreeGB;
+  char *type;
 } nfsRangeType;
 
 

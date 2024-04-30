@@ -2,6 +2,7 @@
 #define _BLOCKDEVICE_H
 
 #include <stdio.h>
+#include "json.h"
 
 typedef struct {
   char *path;
@@ -26,6 +27,13 @@ typedef struct {
 
 
 bdType *bdInit(const char *path);
-void bdDumpKV(FILE *fp, bdType *bd);
+void bdFree(bdType **bd);
+
+int majorAndMinor(int fd, unsigned int *major, unsigned int *minor);
+jsonValue *bdJsonValue(bdType *bd);
+
+jsonValue * bdScan(void);
+
+
 
 #endif
