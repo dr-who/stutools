@@ -40,7 +40,6 @@ void *advertiseMC(void *arg) {
 
     clusterType *cluster = tc->cluster;
   
-  int count = 0;
   int addrlen, sock, cnt;
   double starttime = timeAsDouble();
   
@@ -74,6 +73,8 @@ void *advertiseMC(void *arg) {
   //  interfacesScan(n);
   char *uniquemac = NULL, *adv_ip = NULL;
 
+  unsigned long monotonic = 0;
+
   double last = 0; 
   while (keepRunning) {
     double now = timeAsDouble();
@@ -103,6 +104,7 @@ void *advertiseMC(void *arg) {
     keyvalueType *kv = keyvalueInit();
     keyvalueSetString(kv, "action", "hello");
     keyvalueSetString(kv, "node", uniquemac);
+    keyvalueSetLong(kv, "mono", ++monotonic);
     keyvalueSetString(kv, "hostname", buf.nodename);
     keyvalueSetString(kv, "nodename", buf.nodename);
     char *hwtype = hwMachine();
@@ -149,7 +151,9 @@ void *advertiseMC(void *arg) {
     //    keyvalueSetString(kv, "shell", "stush");
     keyvalueSetLong(kv, "started", (long)starttime);
     char *message = keyvalueDumpAsString(kv);
+
     //    fprintf(stderr,"mc:%s\n", message);
+
     cnt = sendto(sock, message, strlen(message), 0,
 		 (struct sockaddr *) &addr, addrlen);
     if (cnt < 0) {
@@ -158,10 +162,11 @@ void *advertiseMC(void *arg) {
     free(message);
     keyvalueFree(kv);
     
+    double taken = timeAsDouble() - now;
+    if (taken > 5) taken = 5;
 
-
-    count++;
-    sleep (cluster->id < 1 ? 1 : MIN(5,cluster->id)); // every 5 secs, as >10 sec is misbehaving
+    fprintf(stderr,"sleeping for %.2lf\n", 5-taken);
+    sleep(5 - taken);
   }
   return NULL;
 }

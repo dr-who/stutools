@@ -211,18 +211,9 @@ void nfsCheckMissing(nfsRangeExports *n) {
 	char *devpath = strtok(ss, " \t");
 
 	if (devpath) {
-	  int fd = open(devpath, O_RDONLY);
-	  if (fd >= 0) {
-	    unsigned int major, minor;
-	    majorAndMinor(fd, &major, &minor);
-	    if (major == 253) {
-	      n->exports[i].type = strdup("Device-Mapper");
-	    }
-	    
-	    //	    fprintf(stderr,"%s ---> %s -> %u:%u\n", fullp, devpath, major, minor);
-	  }
+	  bdType *bd = bdInit(devpath);
+	  bdFree(&bd);
 	}
-
       }
     }
 

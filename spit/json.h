@@ -46,8 +46,8 @@ typedef struct {
 
 
 jsonElements *jsonInit(void);
-char * jsonElementsDump(jsonElements *j);
-char * jsonValueDump(jsonValue *j);
+char * jsonElementsDump(jsonElements *j, int pretty);
+char * jsonValueDump(jsonValue *j, int pretty);
 
 jsonValue *jsonValueNumber(long num);
 jsonValue *jsonValueString(char *str);

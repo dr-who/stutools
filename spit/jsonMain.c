@@ -25,7 +25,7 @@ int main(void) {
   jsonElementAdd(j, o);
 
   
-  jsonElementsDump(j);
+  jsonElementsDump(j, 1);
 
 
   return 0;

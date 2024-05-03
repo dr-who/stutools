@@ -36,7 +36,7 @@ void *respondMC(void *arg) {
    int sock, cnt;
    socklen_t addrlen;
    struct ip_mreq mreq;
-   char *message = calloc(300, 1); assert(message);
+   char *message = calloc(1500, 1); assert(message);
 
    /* set up socket */
    sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -117,7 +117,7 @@ void *respondMC(void *arg) {
        fprintf(stderr,"node status: good: %zd, bad: %zd\n", nodesGood, nodesBad);
      }
      
-     cnt = recvfrom(sock, message, 300, 0, 
+     cnt = recvfrom(sock, message, 1500, 0, 
 		    (struct sockaddr *) &addr, &addrlen);
      if (cnt < 0) {
        fprintf(stderr, "no broadcast is observed, even though this service is running. open port %d/UDP\n", tc->serverport);
@@ -159,7 +159,19 @@ void *respondMC(void *arg) {
 
 	 char *tmp = keyvalueGetString(kv, "nodename"); // human readable
 	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodename", tmp);
+	 //free(tmp);
+
+	 unsigned long oldmono = keyvalueGetLong(tc->cluster->node[nodeid]->info, "mono");
+	 unsigned long newmono = keyvalueGetLong(kv, "mono");
+	 if (newmono != (oldmono + 1)) {
+	   fprintf(stderr,"*missed a packet: old mono = %ld, new mono = %ld\n", oldmono, newmono);
+	 } else {
+	   fprintf(stderr,"*correct* got the next sequence: %s\n", tmp);
+	 }
+	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "mono", newmono);
+	 
 	 free(tmp);
+	 
 
 	 tmp = keyvalueGetString(kv, "nodeHW"); // human readable
 	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodehw", tmp ? tmp : "");
@@ -179,6 +191,7 @@ void *respondMC(void *arg) {
 	 keyvalueSetString(tc->cluster->node[nodeid]->info, "biosdate", tmp);
 	 free(tmp);
 
+	 
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "HDDcount", keyvalueGetLong(kv, "HDDcount"));
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "HDDsizeGB", keyvalueGetLong(kv, "HDDsizeGB"));
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "SSDcount", keyvalueGetLong(kv, "SSDcount"));

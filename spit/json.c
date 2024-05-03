@@ -9,31 +9,42 @@ jsonElements *jsonInit(void) {
   return j;
 }
 
-char * jsonValueDump(jsonValue *val) {
+
+
+
+char * jsonValueDump(jsonValue *val, int pretty) {
   int slen = 1000000;
   char *s = calloc(slen, 1);
   char *ret = s;
+  char spaces[100]; memset(spaces, ' ', 100);
 
   
-  if (val->type == J_NUMBER) s += sprintf(s, "%ld ", val->number);
-  else if (val->type == J_STRING) s += sprintf(s, "\"%s\" ", val->string);
+  if (val->type == J_NUMBER) s += sprintf(s, "%ld", val->number);
+  else if (val->type == J_STRING) s += sprintf(s, "\"%s\"", val->string);
   else if (val->type == J_ARRAY) {
-    s += sprintf(s, "[");
+    spaces[pretty] = 0;
+    s += sprintf(s, "%s[%s", spaces, pretty ? "\n" : ""); 
+    spaces[pretty] = ' ';
+    
     for (size_t i = 0; i < val->array->num; i++) {
       if (i > 0)
 	s += sprintf(s, ",");
-      s = stpcpy(s, jsonValueDump(val->array->value[i]));
+      s = stpcpy(s, jsonValueDump(val->array->value[i], pretty+2));
     }
-    s += sprintf(s, "]");
+    spaces[pretty] = 0;
+    s += sprintf(s, "%s]%s", spaces, pretty? "\n" : "");
+    spaces[pretty] = 32;
   } else if (val->type == J_OBJECT) {
-    s += sprintf(s, "{");
+    spaces[pretty] = 0;
+    s += sprintf(s, "%s{%s", spaces, pretty? "\n" : "");
     for (size_t i = 0; i < val->object->num; i++) {
       if (i > 0)
-	s += sprintf(s, ",");
-      s += sprintf(s, "\"%s\": ", val->object->key[i]);
-      s = stpcpy(s, jsonValueDump(val->object->value[i]));
+	s += sprintf(s, ",%s", pretty ? "\n" : "");
+      s += sprintf(s, "%s\"%s\": ", spaces, val->object->key[i]);
+      s = stpcpy(s, jsonValueDump(val->object->value[i], pretty+2));
     }
-    s += sprintf(s, "}");
+    s += sprintf(s, "%s}%s", spaces, pretty ? "\n" : "");
+    spaces[pretty] = 32;
   } else if (val->type == J_TRUE) {
     s += sprintf(s, "true");
   } else if (val->type == J_FALSE) {
@@ -46,14 +57,14 @@ char * jsonValueDump(jsonValue *val) {
 
 
 
-char * jsonElementsDump(jsonElements *j) {
+char * jsonElementsDump(jsonElements *j, int pretty) {
   char *s = calloc(100000,1);
   char *ret = s;
   
   for (size_t i = 0; i < j->num; i++) {
     if (i > 0)
       s += sprintf(s, ",");
-    s = stpcpy(s,jsonValueDump(j->value[i]));
+    s = stpcpy(s,jsonValueDump(j->value[i], pretty));
   }
 
   return ret;

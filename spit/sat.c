@@ -395,7 +395,7 @@ void *receiver(void *arg) {
 	  nfsRangeExports *n = nfsExportsInit();
 	  
 	  jsonValue* json = nfsExportsJSON(n);
-	  char *ss = jsonValueDump(json);
+	  char *ss = jsonValueDump(json, 1);
 	  if (socksend(connfd, ss, 0, 1) < 0) {
 	    perror("socksendcluster");
 	  }
@@ -406,7 +406,7 @@ void *receiver(void *arg) {
 	} else if (strncmp(buffer,"block", 5)==0) {
 	  jsonValue *j = bdScan();
 	  
-	  char * s = jsonValueDump(j);
+	  char * s = jsonValueDump(j, 1);
 	  if (socksend(connfd, s, 0, 0) < 0) {
 	    perror("socksendblock");
 	  }

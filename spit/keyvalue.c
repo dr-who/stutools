@@ -46,6 +46,7 @@ void keyvalueParsePair(keyvalueType *kv, char *pp) {
       keyvalueSetLong(kv, key, atol(value));
     } else {
       fprintf(stderr,"pair with '%s' has no value\n", pp);
+      abort();
     }
   }
 }
@@ -53,6 +54,7 @@ void keyvalueParsePair(keyvalueType *kv, char *pp) {
   
 
 keyvalueType *keyvalueInitFromString(char *par) {
+  //  fprintf(stderr,"init from string: %s\n",par);
   keyvalueType *p = keyvalueInit();
   char *parse = strdup(par);
   char *tok = strtok(parse, " ");

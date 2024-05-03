@@ -59,7 +59,7 @@ void blockDevicesScan(blockDevicesType *bd) {
 	      if (st.st_mode | S_IFBLK) {
 		int fd = open(path, O_RDONLY);
 		if (fd >= 0) {
-		  fprintf(stderr,"%s\n", path);
+		  //		  fprintf(stderr,"%s\n", path);
 		  keyvalueType *k = keyvalueInit();
 
 		  char *suf = getSuffix(path);
@@ -74,7 +74,7 @@ void blockDevicesScan(blockDevicesType *bd) {
 		  keyvalueSetLong(k, "minor", minor);
 
 
-		  fprintf(stderr,"  m %d %d\n", major, minor);
+		  //		  fprintf(stderr,"  m %d %d\n", major, minor);
 		  
 		  int rot = getValueFromFile(isr, 1);
 
@@ -99,7 +99,7 @@ void blockDevicesScan(blockDevicesType *bd) {
 		    } else if (major >= 243) {
 		      keyvalueSetString(k, "type", "Virtual");
 		    } else {
-		      fprintf(stderr,"issue!\n");
+		      fprintf(stderr,"issue with major=%d!\n", major);
 		    }
 		  }
 
