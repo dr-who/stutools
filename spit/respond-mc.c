@@ -79,6 +79,7 @@ void *respondMC(void *arg) {
 
    size_t nodesGood = 0, nodesBad = 0, nodesLastNum = 0;
    double nodeBadLastCheck = 0, alertPingTime = timeAsDouble(), thistime = 0;
+   size_t monogood = 0, monobad = 0;
    
 
    socksetup(sock, 10);
@@ -167,9 +168,11 @@ void *respondMC(void *arg) {
 	 unsigned long oldmono = keyvalueGetLong(tc->cluster->node[nodeid]->info, "mono");
 	 unsigned long newmono = keyvalueGetLong(kv, "mono");
 	 if (newmono != (oldmono + 1)) {
-	   fprintf(stderr,"*missed a packet: old mono = %ld, new mono = %ld [%s]\n", oldmono, newmono, tmp);
+	   monogood++;
+	   fprintf(stderr,"*missed a packet: old mono = %ld, new mono = %ld [%s],  %.2lf%%\n", oldmono, newmono, tmp, monobad *100.0/(monobad+monogood));
 	 } else {
-	   fprintf(stderr,"*correct* got the next sequence [%s]\n", tmp);
+	   monobad++;
+	   fprintf(stderr,"*correct* got the next sequence [%s],  %.2lf\n", tmp, monobad*100.0/(monobad+monogood));
 	 }
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "mono", newmono);
 	 
