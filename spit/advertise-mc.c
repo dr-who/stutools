@@ -163,7 +163,7 @@ void *advertiseMC(void *arg) {
       }
       monotonic++;
     } else if (now - lastbeacon > 5) {
-      sprintf(message,"node:%s nodename:bob time;%ld mono;%ld", buf.nodename, (long)now, keyvalueGetLong(kv, "mono"));
+      sprintf(message,"node:%s time;%ld mono;%ld", buf.nodename, (long)now, keyvalueGetLong(kv, "mono"));
       lastbeacon = now;
       fprintf(stderr,"[beacon] %s\n", message);
       cnt = sendto(sock, message, strlen(message), 0, (struct sockaddr *) &addr, addrlen);
