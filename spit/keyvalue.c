@@ -117,6 +117,10 @@ int keyvalueFindKey(keyvalueType *kv, const char *key) {
 
 
 size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value) {
+  if (value == NULL) {
+    return 0;
+  }
+  
   if (value) {
     for (size_t i = 0; i < strlen(value); i++) {
       if ((value[i] == ' ') || (value[i] == ':') || (value[i] == ';') || (value[i] == '\n'))
@@ -148,15 +152,14 @@ size_t keyvalueSetString(keyvalueType *kv, const char *key, char *value) {
     kv->num++;
     // add
     kv->pairs = realloc(kv->pairs, kv->num * sizeof(keyvaluePair)); assert(kv->pairs);
-    kv->pairs[index].key = strdup(key);
-    kv->byteLen += (strlen(key)+2);
-    kv->byteLen += (strlen(value)+2);
+    kv->pairs[index].key = key ? strdup(key) : "";
+    if (key) kv->byteLen += (strlen(key)+2);
+    if (value) kv->byteLen += (strlen(value)+2);
   }
   if (ret) {
+    kv->pairs[index].type = 0;
     kv->pairs[index].value = strdup(value);
   }
-  
-  kv->pairs[index].type = 0;
 
   return ret;
 }
@@ -195,14 +198,17 @@ size_t keyvalueSetLong(keyvalueType *kv, const char *key, long value) {
     kv->pairs[index].key = strdup(key);
     kv->byteLen += (strlen(key)+2);
     kv->byteLen += (20+2);
+    kv->pairs[index].type = 1;
   }
+
+  if (index >= 0) kv->pairs[index].type = 1; // 1 long
+
   if (kv->pairs[index].longvalue != value) {
     kv->pairs[index].longvalue = value;
     ret = 1;
   } else {
     ret = 0; // same value
   }
-  kv->pairs[index].type = 1; // 1 long
 
   return ret;
 }

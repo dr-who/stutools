@@ -155,18 +155,21 @@ void *respondMC(void *arg) {
 	   // add and say hi
 	   fprintf(stderr, "adding node %s (%s)\n", node, ipaddr);
 	   nodeid = clusterAddNode(cluster, node, startedtime);
+	   fprintf(stderr, "added\n");
 	 }
 
+	 assert(nodeid >= 0);
+
 	 char *tmp = keyvalueGetString(kv, "nodename"); // human readable
-	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodename", tmp);
+	 if (tmp) keyvalueSetString(tc->cluster->node[nodeid]->info, "nodename", tmp);
 	 //free(tmp);
 
 	 unsigned long oldmono = keyvalueGetLong(tc->cluster->node[nodeid]->info, "mono");
 	 unsigned long newmono = keyvalueGetLong(kv, "mono");
 	 if (newmono != (oldmono + 1)) {
-	   fprintf(stderr,"*missed a packet: old mono = %ld, new mono = %ld\n", oldmono, newmono);
+	   fprintf(stderr,"*missed a packet: old mono = %ld, new mono = %ld [%s]\n", oldmono, newmono, tmp);
 	 } else {
-	   fprintf(stderr,"*correct* got the next sequence: %s\n", tmp);
+	   fprintf(stderr,"*correct* got the next sequence [%s]\n", tmp);
 	 }
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "mono", newmono);
 	 
@@ -174,21 +177,21 @@ void *respondMC(void *arg) {
 	 
 
 	 tmp = keyvalueGetString(kv, "nodeHW"); // human readable
-	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodehw", tmp ? tmp : "");
+	 if (tmp) keyvalueSetString(tc->cluster->node[nodeid]->info, "nodehw", tmp ? tmp : "");
 	 free(tmp);
 
 	 keyvalueSetString(tc->cluster->node[nodeid]->info, "ip", ipaddr);
 	 
 	 tmp=keyvalueGetString(kv, "nodeOS");
-	 keyvalueSetString(tc->cluster->node[nodeid]->info, "nodeOS", tmp);
+	 if (tmp) keyvalueSetString(tc->cluster->node[nodeid]->info, "nodeOS", tmp);
 	 free(tmp);
 
 	 tmp=keyvalueGetString(kv, "boardname");
-	 keyvalueSetString(tc->cluster->node[nodeid]->info, "boardname", tmp);
+	 if (tmp) keyvalueSetString(tc->cluster->node[nodeid]->info, "boardname", tmp);
 	 free(tmp);
 
 	 tmp=keyvalueGetString(kv, "biosdate");
-	 keyvalueSetString(tc->cluster->node[nodeid]->info, "biosdate", tmp);
+	 if (tmp) keyvalueSetString(tc->cluster->node[nodeid]->info, "biosdate", tmp);
 	 free(tmp);
 
 	 

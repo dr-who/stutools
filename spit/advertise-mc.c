@@ -75,12 +75,13 @@ void *advertiseMC(void *arg) {
 
   unsigned long monotonic = 0;
 
-  double last = 0; 
+  double lastfull = 0, lastbeacon = 0;
+  
   while (keepRunning) {
     double now = timeAsDouble();
     size_t hddsize = 0, hddnum = 0, ssdsize= 0, ssdnum = 0, volatileramsize = 0, volatileramnum = 0;
 
-    if (now - last > 60) { // run first time
+    if (now - lastfull > 60) { // run first time
       // every 60s scan
       blockDevicesType *bd = blockDevicesInit();
       blockDevicesScan(bd);
@@ -104,7 +105,7 @@ void *advertiseMC(void *arg) {
     keyvalueType *kv = keyvalueInit();
     keyvalueSetString(kv, "action", "hello");
     keyvalueSetString(kv, "node", uniquemac);
-    keyvalueSetLong(kv, "mono", ++monotonic);
+    keyvalueSetLong(kv, "mono", monotonic);
     keyvalueSetString(kv, "hostname", buf.nodename);
     keyvalueSetString(kv, "nodename", buf.nodename);
     char *hwtype = hwMachine();
@@ -152,13 +153,28 @@ void *advertiseMC(void *arg) {
     keyvalueSetLong(kv, "started", (long)starttime);
     char *message = keyvalueDumpAsString(kv);
 
-    //    fprintf(stderr,"mc:%s\n", message);
 
-    cnt = sendto(sock, message, strlen(message), 0,
-		 (struct sockaddr *) &addr, addrlen);
-    if (cnt < 0) {
-      perror("sendto");
+    if (now - lastfull >15) { 
+      lastfull = now;
+      fprintf(stderr,"[full] %s\n", message);
+      cnt = sendto(sock, message, strlen(message), 0, (struct sockaddr *) &addr, addrlen);
+      if (cnt < 0) {
+	perror("sendto");
+      }
+      monotonic++;
+    } else if (now - lastbeacon > 5) {
+      sprintf(message,"node:%s nodename:bob time;%ld mono;%ld", buf.nodename, (long)now, keyvalueGetLong(kv, "mono"));
+      lastbeacon = now;
+      fprintf(stderr,"[beacon] %s\n", message);
+      cnt = sendto(sock, message, strlen(message), 0, (struct sockaddr *) &addr, addrlen);
+      if (cnt < 0) {
+	perror("sendto");
+      }
+      monotonic++;
+
     }
+
+
     free(message);
     keyvalueFree(kv);
     
