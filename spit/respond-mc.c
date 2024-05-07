@@ -205,8 +205,11 @@ void *respondMC(void *arg) {
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "VolatileRAMcount", keyvalueGetLong(kv, "VolatileRAMcount"));
 	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "VolatileRAMsizeGB", keyvalueGetLong(kv, "VolatileRAMsizeGB"));
 
-	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "RAMGB", keyvalueGetLong(kv, "RAMGB"));
-	 keyvalueSetLong(tc->cluster->node[nodeid]->info, "Cores", keyvalueGetLong(kv, "Cores"));
+	 if (keyvalueGetLong(kv, "RAMGB") > 0) 
+	   keyvalueSetLong(tc->cluster->node[nodeid]->info, "RAMGB", keyvalueGetLong(kv, "RAMGB"));
+	 
+	 if (keyvalueGetLong(kv, "Cores") > 0)
+	   keyvalueSetLong(tc->cluster->node[nodeid]->info, "Cores", keyvalueGetLong(kv, "Cores"));
 	 
 	 if (keyvalueSetLong(tc->cluster->node[nodeid]->info, "cluster", keyvalueGetLong(kv, "cluster"))) {
 	   clusterChanged(cluster, nodeid);

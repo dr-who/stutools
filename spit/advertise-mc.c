@@ -42,6 +42,7 @@ void *advertiseMC(void *arg) {
   
   int addrlen, sock, cnt;
   double starttime = timeAsDouble();
+  srand(starttime);
   
   /* set up socket */
   sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -154,7 +155,7 @@ void *advertiseMC(void *arg) {
     char *message = keyvalueDumpAsString(kv);
 
 
-    if (now - lastbeacon > 5) {
+    /*    if (now - lastbeacon > 5) {
       sprintf(message,"node:%s time;%ld mono;%ld nodename:%s", uniquemac, (long)now, keyvalueGetLong(kv, "mono"), buf.nodename);
       lastbeacon = now;
       fprintf(stderr,"[beacon] %s\n", message);
@@ -164,15 +165,17 @@ void *advertiseMC(void *arg) {
       }
       monotonic++;
 
-    } else if (now - lastfull >60) { 
+    } else 
+    */
+    //    if (now - lastfull >5) { 
       lastfull = now;
-      fprintf(stderr,"[full] %s\n", message);
+      //      fprintf(stderr,"[full] %s\n", message);
       cnt = sendto(sock, message, strlen(message), 0, (struct sockaddr *) &addr, addrlen);
       if (cnt < 0) {
 	perror("sendto");
       }
       monotonic++;
-    }
+      //    }
 
     free(message);
     keyvalueFree(kv);
@@ -181,7 +184,10 @@ void *advertiseMC(void *arg) {
     if (taken > 5) taken = 5;
 
     fprintf(stderr,"sleeping for %.2lf\n", 5-taken);
-    sleep(5 - taken);
+    const int sleepval = 5 - taken;
+    const int sleeplow = 3;
+
+    sleep((rand()%sleeplow) + sleepval);
   }
   return NULL;
 }
