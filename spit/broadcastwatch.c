@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
 	message[cnt] = '\0';
       }
 
-      printf("%s: '%s' %d\n", inet_ntoa(addr.sin_addr), message, cnt);
+      printf("%s: '%s' %d\n", inet_ntoa(addr.sin_addr), message, cnt);fflush(stdout);
     }
   }
 

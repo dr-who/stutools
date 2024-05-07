@@ -154,16 +154,8 @@ void *advertiseMC(void *arg) {
     char *message = keyvalueDumpAsString(kv);
 
 
-    if (now - lastfull >15) { 
-      lastfull = now;
-      fprintf(stderr,"[full] %s\n", message);
-      cnt = sendto(sock, message, strlen(message), 0, (struct sockaddr *) &addr, addrlen);
-      if (cnt < 0) {
-	perror("sendto");
-      }
-      monotonic++;
-    } else if (now - lastbeacon > 5) {
-      sprintf(message,"node:%s time;%ld mono;%ld", uniquemac, (long)now, keyvalueGetLong(kv, "mono"));
+    if (now - lastbeacon > 5) {
+      sprintf(message,"node:%s time;%ld mono;%ld nodename:%s", uniquemac, (long)now, keyvalueGetLong(kv, "mono"), buf.nodename);
       lastbeacon = now;
       fprintf(stderr,"[beacon] %s\n", message);
       cnt = sendto(sock, message, strlen(message), 0, (struct sockaddr *) &addr, addrlen);
@@ -172,8 +164,15 @@ void *advertiseMC(void *arg) {
       }
       monotonic++;
 
+    } else if (now - lastfull >60) { 
+      lastfull = now;
+      fprintf(stderr,"[full] %s\n", message);
+      cnt = sendto(sock, message, strlen(message), 0, (struct sockaddr *) &addr, addrlen);
+      if (cnt < 0) {
+	perror("sendto");
+      }
+      monotonic++;
     }
-
 
     free(message);
     keyvalueFree(kv);

@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
       
       // send the email
       if (dryRun) {
-	printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, body %zd/%zd bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, e->addr[i], ccemail, bccemail, strlen(plainbody), strlen(htmlbody), subject);
+	printf("DRY From \"%s\" <%s>, To <%s>, CC <%s>, BCC <%s>, body %zd/%zd bytes, Subject \"%s\"\n", fromname?fromname:"", fromemail, e->addr[i], ccemail, bccemail, plainbody?strlen(plainbody):0, htmlbody?strlen(htmlbody):0, subject);
       } else {
 	int fd = simpmailConnect("127.0.0.1");
 	
