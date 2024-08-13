@@ -22,6 +22,7 @@ void usage() {
   printf("   -t n      specify number of drives for group calc (d=t/g)\n");
   printf("   -k/m      data/parity\n");
   printf("   -T        size of drive in TB\n");
+  printf("   -S n      n samples\n");
   printf("   -s        stripe size in MB\n");
   printf("   -H        print histogram\n");
   printf("   -H -H     verbose histogram\n");
@@ -31,17 +32,11 @@ void usage() {
 }
 
 
-int simulate(int *drivesok, int groups, int drives, int k, int m, int T, int s, int Print, int showhist) {
+int simulate(unsigned int *a, int *drivesok, int groups, int drives, int k, int m, int T, int s, int Print, int showhist) {
   size_t totaldrives = groups * drives;
   size_t totalrows = T*1000L*1000L / s;
 
-  printf("*info* allocating = %.1lf GB\n", totalrows * totaldrives / 1024.0/1024.0/1024.0);
-
-  unsigned int *a = calloc(totaldrives * totalrows, sizeof(unsigned int));
-  if (!a) {
-    printf("OOM!, trying to allocate %zd \n", totaldrives * totalrows * sizeof(int));
-    exit(1);
-  }
+  assert(a);
 
   int *stripecounter = calloc(totaldrives, sizeof(int));
   int *shuf = calloc(drives, sizeof(int));
@@ -80,7 +75,7 @@ int simulate(int *drivesok, int groups, int drives, int k, int m, int T, int s, 
 	  
 	  stripecounter[shuf[d]]++;
 	} else {
-	  printf("breaking out!\n");
+	  fprintf(stderr, "*warning* breaking out!\n");
 	  break;
 	}
 	  
@@ -119,25 +114,36 @@ int simulate(int *drivesok, int groups, int drives, int k, int m, int T, int s, 
       }
     }
 
-    int *histhist = calloc(k+m+1, sizeof(int));
+    int *histhist = calloc(totaldrives+1, sizeof(int));
     assert(histhist);
-    
+
     for (int i = 1; i < stripid; i++) {
       if (striphist[i]) {
-	histhist[striphist[i]]++;
-	if (striphist[i] < k+m) {
-	  if (showhist >= 2) printf("strip %d = %d %s\n", i, striphist[i], striphist[i] < k ? "ERROR":"");
-	  //	  if (striphist[i] < k)
-	  //	    exit(1);
-	  //
+	if ((striphist[i] >= 0) && (striphist[i] <=totaldrives)) {
+	  histhist[striphist[i]]++;
+	  if (striphist[i] < k+m) {
+	    if (showhist >= 3) printf("strip %d = %d %s\n", i, striphist[i], striphist[i] < k ? "ERROR":"");
+	    //	  if (striphist[i] < k)
+	    //	    exit(1);
+	    //
+	  }
+	} else {
+	  printf("warning: %d! \n", striphist[i]);
 	}
       }
     }
-    printf("\n");
-    for (int i = 0; i <= k+m; i++) {
-      printf("drives %d = %d\n", i, histhist[i]);
+    free(striphist); striphist = NULL;
+    if (showhist==1) {
+      for (int i = 0; i <= k+m; i++) {
+	printf("drives %d = %d\n", i, histhist[i]);
+      }
+    } else {
+      for (int i = 0;i <= k+m; i++) {
+	printf("%d\t", histhist[i]);
+      }
+      printf("\n");
     }
-    free(histhist);
+    free(histhist); histhist = NULL;
   } else {
     
     for (int stripe = 0 ; stripe < Print; stripe++) {
@@ -153,11 +159,52 @@ int simulate(int *drivesok, int groups, int drives, int k, int m, int T, int s, 
 
   free(shuf);
   free(stripecounter);
-  free(a);
   return 0;
 }
+
+
+int *failedDrives(int totaldrives, char *failed) {
   
-  
+  int *drivesok = calloc(totaldrives, sizeof(int));
+  for (int i = 0; i < totaldrives; i++) {
+    drivesok[i] = 1;
+  }
+  if (failed) {
+    if (atoi(failed) < 0) {
+      // -2 means pick two random disks
+      if (-atoi(failed) < totaldrives) { 
+	for (int i = 0; i < -atoi(failed); i++) {
+	  int d = 0;
+	  while (drivesok[d=drand48()*totaldrives] == 0) {
+	  }
+	  drivesok[d] = 0;
+	  fprintf(stderr,"*info* randomly failed drive %d\n", d);
+	}
+      }
+    } else {
+      char *first = strtok(failed, ",");
+      while (first) {
+	//      printf("%d\n", atoi(first));
+	if (atoi(first) >= totaldrives) {
+	  fprintf(stderr,"*error*, can't be >= %d\n", totaldrives);
+	  exit(1);
+	}
+	drivesok[atoi(first)] = 0;
+	first = strtok(NULL, ",");
+      }
+    }
+  }
+
+  int workingdrives = 0, faileddrives = 0;
+  for (int i = 0; i< totaldrives; i++) {
+    if (drivesok[i]) workingdrives++; else faileddrives++;
+  }
+  fprintf(stderr, "*info* %d working drives, %d failed\n", workingdrives, faileddrives);
+
+  return drivesok;
+}
+
+
 
 int main(int argc, char *argv[]) {
 
@@ -171,11 +218,11 @@ int main(int argc, char *argv[]) {
     close(fd);
   }
 
-  printf("*info* seed %u\n", seed);
+  fprintf(stderr, "*info* seed %u\n", seed);
   srand48(seed);
 
   
-  const char *getoptstring = "hg:d:k:m:T:s:p:Hf:t:";
+  const char *getoptstring = "hg:d:k:m:T:s:p:Hf:t:S:";
 
   int opt;
   int groups = 2;
@@ -185,6 +232,7 @@ int main(int argc, char *argv[]) {
   int T = 1;
   int totaldrives = 0;
   int s = 1;
+  int samples = 1;
   int Print = 100;
   int showhist = 0;
   char *failed = NULL;
@@ -202,6 +250,7 @@ int main(int argc, char *argv[]) {
     case 'T': T = atoi(optarg);break;
     case 't': totaldrives = atoi(optarg);break;
     case 's': s = atoi(optarg);break;
+    case 'S': samples = atoi(optarg); break;
     case 'p': Print = atoi(optarg); break;
     case 'H': showhist++; break;
     case 'f': failed = strdup(optarg); break;
@@ -220,47 +269,26 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  printf("*info* groups %d, drives/group %d, %d+%d, drive %d TB, stripe %d MB, failed '%s'\n", groups, drives, k, m, T, s, failed ? failed : "");
+  fprintf(stderr, "*info* groups %d, drives/group %d, %d+%d, drive %d TB, stripe %d MB, failed '%s' (samples=%d)\n", groups, drives, k, m, T, s, failed ? failed : "", samples);
   
 	
-  int *drivesok = calloc(drives * groups, sizeof(int));
-  for (int i = 0; i < drives * groups; i++) {
-    drivesok[i] = 1;
+  if (samples > 1) {
+    showhist = 2;
   }
-  if (failed) {
-    if (atoi(failed) < 0) {
-      // -2 means pick two random disks
-      if (-atoi(failed) < drives * groups) { 
-	for (int i = 0; i < -atoi(failed); i++) {
-	  int d = 0;
-	  while (drivesok[d=drand48()*(drives*groups)] == 0) {
-	  }
-	  drivesok[d] = 0;
-	  printf("randomly failed drive %d\n", d);
-	}
-      }
-    } else {
-      char *first = strtok(failed, ",");
-      while (first) {
-	//      printf("%d\n", atoi(first));
-	if (atoi(first) >= drives*groups) {
-	  printf("Error, can't be >= %d\n", drives*groups);
-	  exit(1);
-	}
-	drivesok[atoi(first)] = 0;
-	first = strtok(NULL, ",");
-      }
-    }
-  }
-
-  int workingdrives = 0, faileddrives = 0;
-  for (int i = 0; i< drives*groups; i++) {
-    if (drivesok[i]) workingdrives++; else faileddrives++;
-  }
-  printf("*info* %d working drives, %d failed\n", workingdrives, faileddrives);
   
-  simulate(drivesok, groups, drives, k, m, T, s, Print, showhist);
+  size_t totalrows = T*1000L*1000L / s;
   
+  fprintf(stderr, "*info* allocating = %.1lf GB\n", totalrows * totaldrives / 1024.0/1024.0/1024.0);
+    
+  unsigned int *a = calloc(totaldrives * totalrows, sizeof(unsigned int));
+  if (!a) {printf("OOM!, trying to allocate %zd \n", totaldrives * totalrows * sizeof(int));exit(1); }
+  
+  for (int run = 0; run < samples; run++) {
+    int *drivesok = failedDrives(groups * drives, failed);
+    simulate(a, drivesok, groups, drives, k, m, T, s, Print, showhist);
+    free(drivesok);
+  }
+  free(a);
 
   return 0;
 }
