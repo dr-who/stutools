@@ -12,16 +12,16 @@ void usage() {
   printf("usage: stripsim -g 2 -d 13 -k 6 -m 3 -T 20 -s 1\n");
   printf("\n");
   printf("options:\n");
-  printf("   -g n    groups of drives\n");
-  printf("   -d n    drives per group (total = g x d)\n");
-  printf("   -k/m    data/parity\n");
-  printf("   -T      size of drive in TB\n");
-  printf("   -s      stripe size in MB\n");
-  printf("   -H      print histogram\n");
-  printf("   -H -H   verbose histogram\n");
+  printf("   -g n      groups of drives\n");
+  printf("   -d n      drives per group (total = g x d)\n");
+  printf("   -k/m      data/parity\n");
+  printf("   -T        size of drive in TB\n");
+  printf("   -s        stripe size in MB\n");
+  printf("   -H        print histogram\n");
+  printf("   -H -H     verbose histogram\n");
   printf("   -f 0,2... list of failed drives\n");
-  printf("   -f -5   if negative, fail that many drives\n");
-  printf("   -P n    print that many rows of the table\n");
+  printf("   -f -5     if negative, fail that many drives\n");
+  printf("   -p n      print n strips\n");
 }
 
 
