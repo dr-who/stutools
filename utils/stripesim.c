@@ -119,13 +119,14 @@ int simulate(int *drivesok, int groups, int drives, int k, int m, int T, int s, 
 	histhist[striphist[i]]++;
 	if (striphist[i] < k+m) {
 	  if (showhist >= 2) printf("strip %d = %d %s\n", i, striphist[i], striphist[i] < k ? "ERROR":"");
-	  if (striphist[i] < k)
-	    exit(1);
+	  //	  if (striphist[i] < k)
+	  //	    exit(1);
+	  //
 	}
       }
     }
     printf("\n");
-    for (int i = 1; i <= k+m; i++) {
+    for (int i = 0; i <= k+m; i++) {
       printf("drives %d = %d\n", i, histhist[i]);
     }
     free(histhist);
