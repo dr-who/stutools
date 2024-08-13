@@ -20,6 +20,8 @@ void usage() {
   printf("   -H      print histogram\n");
   printf("   -H -H   verbose histogram\n");
   printf("   -f 0,2... list of failed drives\n");
+  printf("   -f -5   if negative, fail that many drives\n");
+  printf("   -P n    print that many rows of the table\n");
 }
 
 
@@ -27,7 +29,7 @@ int simulate(int *drivesok, int groups, int drives, int k, int m, int T, int s, 
   size_t totaldrives = groups * drives;
   size_t totalrows = T*1000L*1000L / s;
 
-  //  printf("*info* total = %zd\n", totalrows * totaldrives);
+  printf("*info* allocating = %.1lf GB\n", totalrows * totaldrives / 1024.0/1024.0/1024.0);
 
   unsigned int *a = calloc(totaldrives * totalrows, sizeof(unsigned int));
   if (!a) {
@@ -90,7 +92,7 @@ int simulate(int *drivesok, int groups, int drives, int k, int m, int T, int s, 
 
   // histogram
   if (showhist) {
-    printf("maximum stripid %d\n", stripid);
+    //    printf("maximum stripid %d\n", stripid);
     int *striphist = calloc(stripid, sizeof(int));
     for (int r = 0 ; r < totalrows; r++) {
       for (int g = 0; g < groups; g++ ){
@@ -203,17 +205,36 @@ int main(int argc, char *argv[]) {
     drivesok[i] = 1;
   }
   if (failed) {
-    char *first = strtok(failed, ",");
-    while (first) {
-      //      printf("%d\n", atoi(first));
-      if (atoi(first) >= drives*groups) {
-	printf("Error, can't be >= %d\n", drives*groups);
-	exit(1);
+    if (atoi(failed) < 0) {
+      // -2 means pick two random disks
+      if (-atoi(failed) < drives * groups) { 
+	for (int i = 0; i < -atoi(failed); i++) {
+	  int d = 0;
+	  while (drivesok[d=drand48()*(drives*groups)] == 0) {
+	  }
+	  drivesok[d] = 0;
+	  printf("randomly failed drive %d\n", d);
+	}
       }
-      drivesok[atoi(first)] = 0;
-      first = strtok(NULL, ",");
+    } else {
+      char *first = strtok(failed, ",");
+      while (first) {
+	//      printf("%d\n", atoi(first));
+	if (atoi(first) >= drives*groups) {
+	  printf("Error, can't be >= %d\n", drives*groups);
+	  exit(1);
+	}
+	drivesok[atoi(first)] = 0;
+	first = strtok(NULL, ",");
+      }
     }
   }
+
+  int workingdrives = 0, faileddrives = 0;
+  for (int i = 0; i< drives*groups; i++) {
+    if (drivesok[i]) workingdrives++; else faileddrives++;
+  }
+  printf("*info* %d working drives, %d failed\n", workingdrives, faileddrives);
   
   simulate(drivesok, groups, drives, k, m, T, s, Print, showhist);
   
