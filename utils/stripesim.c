@@ -7,6 +7,11 @@
 #include <getopt.h>
 #include <assert.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+
 
 void usage() {
   printf("usage: stripsim -g 2 -d 13 -k 6 -m 3 -T 20 -s 1\n");
@@ -14,6 +19,7 @@ void usage() {
   printf("options:\n");
   printf("   -g n      groups of drives\n");
   printf("   -d n      drives per group (total = g x d)\n");
+  printf("   -t n      specify number of drives for group calc (d=t/g)\n");
   printf("   -k/m      data/parity\n");
   printf("   -T        size of drive in TB\n");
   printf("   -s        stripe size in MB\n");
@@ -55,7 +61,7 @@ int simulate(int *drivesok, int groups, int drives, int k, int m, int T, int s, 
       }
       // shuffle
       for (int d = 0; d < drives; d++) {
-	int i = d;
+	int i = drand48() * drives;
 	int j = drand48() * drives;
 
 	int temp = shuf[i];
@@ -155,10 +161,21 @@ int simulate(int *drivesok, int groups, int drives, int k, int m, int T, int s, 
 
 int main(int argc, char *argv[]) {
 
-  srand48(time(NULL));
+  unsigned int seed = 42;
+  int fd = open("/dev/random", O_RDONLY);
+  if (fd) {
+    int len = read(fd, &seed, sizeof(unsigned int));
+    if (len != sizeof(unsigned int)) {
+      printf("*warning* short /dev/random read\n");
+    }
+    close(fd);
+  }
+
+  printf("*info* seed %u\n", seed);
+  srand48(seed);
 
   
-  const char *getoptstring = "hg:d:k:m:T:s:p:Hf:";
+  const char *getoptstring = "hg:d:k:m:T:s:p:Hf:t:";
 
   int opt;
   int groups = 2;
@@ -166,6 +183,7 @@ int main(int argc, char *argv[]) {
   int k = 6;
   int m = 3;
   int T = 1;
+  int totaldrives = 0;
   int s = 1;
   int Print = 100;
   int showhist = 0;
@@ -182,6 +200,7 @@ int main(int argc, char *argv[]) {
     case 'k': k = atoi(optarg);break;
     case 'm': m = atoi(optarg);break;
     case 'T': T = atoi(optarg);break;
+    case 't': totaldrives = atoi(optarg);break;
     case 's': s = atoi(optarg);break;
     case 'p': Print = atoi(optarg); break;
     case 'H': showhist++; break;
@@ -192,6 +211,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (totaldrives > 0) {
+    drives = totaldrives / groups;
+  }
+  
   if (k+m > drives) {
     printf("*error* you can't have less drives than k+m\n");
     exit(1);
