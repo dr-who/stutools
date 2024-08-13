@@ -90,6 +90,8 @@ int simulate(unsigned int *a, int *drivesok, int groups, int drives, int k, int 
     //    printf("\n");
   }
 
+  int dataloss = 0;
+
 
   // histogram
   if (showhist) {
@@ -105,8 +107,9 @@ int simulate(unsigned int *a, int *drivesok, int groups, int drives, int k, int 
 	      assert(v>=0);
 	      //	      assert(v < stripid);
 	      //	      printf("v = %d, max = %d\n", v, stripid);
-	      if (v < stripid) {
+	      if ((v > 0) && (v < stripid)) {
 		striphist[v]++;
+		//		if (striphist[v] >= totaldrives) abort();
 	      }
 	    }
 	  
@@ -128,18 +131,24 @@ int simulate(unsigned int *a, int *drivesok, int groups, int drives, int k, int 
 	    //
 	  }
 	} else {
-	  printf("warning: %d! \n", striphist[i]);
+	  //	  printf("warning: %d! total drives %zd \n", striphist[i], totaldrives);
 	}
       }
     }
     free(striphist); striphist = NULL;
     if (showhist==1) {
-      for (int i = 0; i <= k+m; i++) {
+      for (int i = 1; i <= k+m; i++) {
 	printf("drives %d = %d\n", i, histhist[i]);
+	if ((i < k) && (histhist[i])) {
+	  dataloss = 1;
+	}
       }
     } else {
-      for (int i = 0;i <= k+m; i++) {
+      for (int i = 1; i <= k+m; i++) {
 	printf("%d\t", histhist[i]);
+	if ((i < k) && (histhist[i])) {
+	  dataloss = 1;
+	}
       }
       printf("\n");
     }
@@ -159,7 +168,7 @@ int simulate(unsigned int *a, int *drivesok, int groups, int drives, int k, int 
 
   free(shuf);
   free(stripecounter);
-  return 0;
+  return dataloss;
 }
 
 
@@ -178,7 +187,7 @@ int *failedDrives(int totaldrives, char *failed) {
 	  while (drivesok[d=drand48()*totaldrives] == 0) {
 	  }
 	  drivesok[d] = 0;
-	  fprintf(stderr,"*info* randomly failed drive %d\n", d);
+	  //fprintf(stderr,"*info* randomly failed drive %d\n", d);
 	}
       }
     } else {
@@ -199,7 +208,7 @@ int *failedDrives(int totaldrives, char *failed) {
   for (int i = 0; i< totaldrives; i++) {
     if (drivesok[i]) workingdrives++; else faileddrives++;
   }
-  fprintf(stderr, "*info* %d working drives, %d failed\n", workingdrives, faileddrives);
+  //  fprintf(stderr, "*info* %d working drives, %d failed\n", workingdrives, faileddrives);
 
   return drivesok;
 }
@@ -260,10 +269,13 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  // if -t specified
   if (totaldrives > 0) {
     drives = totaldrives / groups;
+  } else {
+    totaldrives = drives * groups;
   }
-  
+
   if (k+m > drives) {
     printf("*error* you can't have less drives than k+m\n");
     exit(1);
@@ -275,19 +287,36 @@ int main(int argc, char *argv[]) {
   if (samples > 1) {
     showhist = 2;
   }
-  
+
   size_t totalrows = T*1000L*1000L / s;
-  
-  fprintf(stderr, "*info* allocating = %.1lf GB\n", totalrows * totaldrives / 1024.0/1024.0/1024.0);
+
+  //  fprintf(stderr,"*info* totalrows %zd, total drives %d\n", totalrows, totaldrives);
+  size_t allocsize = totaldrives * (totalrows +1);
+  fprintf(stderr, "*info* allocating = %.3lf GiB (%d x %zd = %zd bytes)\n", allocsize / 1024.0/1024.0/1024.0, totaldrives, totalrows+1, allocsize);
     
-  unsigned int *a = calloc(totaldrives * totalrows, sizeof(unsigned int));
-  if (!a) {printf("OOM!, trying to allocate %zd \n", totaldrives * totalrows * sizeof(int));exit(1); }
+  unsigned int *a = calloc(allocsize , sizeof(unsigned int));
+  if (!a) {printf("OOM!, trying to allocate %zd \n", allocsize * sizeof(int));exit(1); }
+
+  int dataloss = 0;
+  int ok = 0, bad = 0;
+  
   
   for (int run = 0; run < samples; run++) {
     int *drivesok = failedDrives(groups * drives, failed);
-    simulate(a, drivesok, groups, drives, k, m, T, s, Print, showhist);
+    dataloss = simulate(a, drivesok, groups, drives, k, m, T, s, Print, showhist);
+    if (dataloss) {
+      bad++;
+      fprintf(stderr,"*warning* stripe loss\n");
+    } else {
+      ok++;
+    }
     free(drivesok);
   }
+  fprintf(stderr,"*info* summary OK = %.1f%%, failed = %.1f%%\n", ok *100.0/samples, bad*100.0/samples);
+  
+
+  if (failed) {free(failed); failed=NULL;}
+
   free(a);
 
   return 0;
