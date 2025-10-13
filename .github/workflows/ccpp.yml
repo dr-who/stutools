@@ -12,7 +12,7 @@ jobs:
     - name: aptupdate
       run: sudo apt-get update
     - name: apt 
-      run: sudo apt-get install libaio-dev libnuma-dev libpci-dev uuid-dev
+      run: sudo apt-get install libaio-dev libnuma-dev libpci-dev uuid-dev libreadline-dev
     - name: cmake 
       run: cmake .
     - name: make
