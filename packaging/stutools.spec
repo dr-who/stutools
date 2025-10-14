@@ -1,6 +1,6 @@
 Name:                 exaba-spit
 Epoch:                0
-Version:              0.0.1
+Version:              1.1.3
 Release:              1%{?dist}
 Summary:              Stu's powerful I/O tester
 License:              Proprietary
