@@ -1,0 +1,196 @@
+.TH SNACK 1 "October 2025" "snack" "User Commands"
+.SH NAME
+snack \- network performance tool with interface summary and multi\-port tests
+.SH SYNOPSIS
+.B snack
+.RB \-s
+.RB [ \-t
+.IR n ]
+.RB [ \-p
+.IR port ]
+.PP
+.B snack
+.B \-c
+.I IP
+.RB [ \-l
+.IR size ]
+.RB [ \-t
+.IR n ]
+.RB [ \-p
+.IR port ]
+.SH DESCRIPTION
+.B snack
+is a lightweight network performance tool with two roles:
+.IP \(bu 3
+In
+.B server
+mode it listens on multiple ports (one per thread), periodically printing a
+live summary of local network interfaces (name, MTU, link speed, RX/TX rates,
+error counters, and carrier changes) and aggregated test throughput.
+.IP \(bu 3
+In
+.B client
+mode it connects to a server by IP address and drives traffic across one or
+more ports/threads to measure end\-to\-end throughput.
+.PP
+The client uses a simple multi\-connection pattern: port
+.IR base
+for thread 0, then
+.IR base +1
+for thread 1, and so on up to
+.IR base + n \- 1 .
+The server accepts the same set of ports.
+.PP
+Hostnames are intentionally not accepted in client mode (IP only) to avoid
+interface and DNS ambiguity.
+.SH OPTIONS
+.TP
+.B \-s
+Server (listening) mode. Starts listeners on
+.IR n
+ports (one per thread).
+.TP
+.BI \-c " IP"
+Client (sending) mode. Connects to a
+.B snack
+server at the given
+.IR IP .
+The value must be a literal IPv4/IPv6 address (no hostnames).
+.TP
+.BI \-l " size"
+Packet/payload length in bytes for client transmissions.
+Default:
+.BR 1048576 .
+.TP
+.BI \-p " port"
+Base TCP/UDP port to use (implementation uses one sequential port per thread).
+Default:
+.BR 5001 .
+With
+.BR \-t " 10"
+this yields ports
+.BR 5001 " through " 5010 .
+.TP
+.BI \-t " n"
+Number of threads/ports (parallel connections). Default:
+.BR 10 .
+.SH EXAMPLES
+.PP
+Start a server with the defaults (10 threads on ports 5001\-5010):
+.PP
+.nf
+.RS
+snack \-s
+.RE
+.fi
+.PP
+Run a client to a server at 10.1.2.3 using 4 threads on ports 6000\-6003 and 1 MiB payloads:
+.PP
+.nf
+.RS
+snack \-c 10.1.2.3 \-t 4 \-p 6000 \-l 1048576
+.RE
+.fi
+.PP
+Typical server output on start:
+.PP
+.nf
+.RS
+*info* starting receiver \-\- using 10 threads on ports [5001,5010]
+\-\-> [0] bond0.100/MTU 1500/speed 200000 Mb/s (RX 0.0 Gb/s, TX 0.0 Gb/s, errors 0/0, carrier_changes 1)
+\-\-> [0] bond0.200/MTU 9000/speed 200000 Mb/s (RX 0.0 Gb/s, TX 0.0 Gb/s, errors 0/0, carrier_changes 1)
+\-\-> [0] bond0/MTU 9216/speed 200000 Mb/s (RX 0.0 Gb/s, TX 0.0 Gb/s, errors 0/0, carrier_changes 2)
+\-\-> [0] eno1/MTU 1500/speed 1000 Mb/s (RX 0.0 Gb/s, TX 0.0 Gb/s, errors 0/0, carrier_changes 2)
+\-\-> [1] enp216s0f0np0/MTU 9216/speed 100000 Mb/s (RX 0.0 Gb/s, TX 0.0 Gb/s, errors 0/0, carrier_changes 11)
+\-\-> [0] enp94s0f0np0/MTU 9216/speed 100000 Mb/s (RX 0.0 Gb/s, TX 0.0 Gb/s, errors 0/0, carrier_changes 11)
+\-\-> time 1760480356 \-\- total nan Gb/s (nan GByte/s) \-\- 0 clients (nan Gb/s/client) \-\- CPU 0.1 %
+.RE
+.fi
+.SH OUTPUT
+Each interface line has the form:
+.PP
+.nf
+.RS
+\-\-> [T] IFACE/MTU <bytes>/speed <Mb/s> (RX <Gb/s>, TX <Gb/s>, errors <rx/tx>, carrier_changes <n>)
+.RE
+.fi
+.PP
+Where:
+.TP
+.B [T]
+Thread or reporting index.
+.TP
+.B IFACE
+Kernel interface name (e.g.,
+.BR bond0.200 ", " enp94s0f0np0 ).
+.TP
+.B MTU
+Maximum Transmission Unit in bytes.
+.TP
+.B speed
+Advertised/known link speed in megabits per second.
+.TP
+.B RX ", " TX
+Observed receive/transmit rates in gigabits per second.
+.TP
+.B errors
+Receive/transmit error counters.
+.TP
+.B carrier_changes
+Link up/down transitions observed.
+.PP
+The periodic summary line includes a timestamp (implementation dependent;
+often seconds since the Unix epoch), aggregate throughput, number of active
+clients, per\-client average, and an approximate CPU usage sample.
+.SH DEFAULTS
+.TP
+Threads/ports:
+.BR 10
+.TP
+Base port:
+.BR 5001
+(so with 10 threads the server listens on
+.BR 5001 "\- " 5010 )
+.TP
+Payload length:
+.BR 1048576
+bytes
+.SH PORT AND THREAD MAPPING
+With
+.BR \-t " n"
+and base
+.BR \-p " port" ,
+.B snack
+uses ports
+.IR port " .. " port + n \- 1 .
+Ensure firewalls on both client and server allow this range.
+.SH NOTES
+.IP \(bu 3
+Client requires a literal IP address (no DNS lookup).
+.IP \(bu 3
+Run with sufficient privileges to bind/listen on the chosen ports and to read
+link metrics.
+.IP \(bu 3
+Units: link speed is shown in
+.B Mb/s
+(megabits per second); data rates are shown as
+.B Gb/s
+(gigabits per second) and
+.B GByte/s
+(gigabytes per second).
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B non\-zero
+An error occurred (invalid arguments, bind/connect failure, etc.).
+.SH SEE ALSO
+.BR ip (8),
+.BR ethtool (8),
+.BR ss (8),
+.BR iperf (1)
+.SH AUTHOR
+Stuart Inglis, Ph.D.
+.SH COPYRIGHT
+Copyright \(co 2025. License and warranty terms as provided with the source.
