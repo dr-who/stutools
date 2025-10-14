@@ -23,7 +23,7 @@ install -D -m 0755 %{SOURCE2} %{buildroot}%{_bindir}/snack
 
 # man
 install -D -m 0644 %{SOURCE1} %{buildroot}%{_mandir}/man1/spit.1
-install -D -m 0644 %{SOURCE3} %{buildroot}%{_mandir}/man1/snack.3
+install -D -m 0644 %{SOURCE3} %{buildroot}%{_mandir}/man1/snack.1
 
 %files
 %{_bindir}/spit
