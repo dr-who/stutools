@@ -13,6 +13,8 @@ static const char *mode(void) {
 }
 int io_submit(io_context_t ctx, long nr, struct iocb **cbs) {
     int (*real_submit)(io_context_t, long, struct iocb **) = dlsym(RTLD_NEXT, "io_submit");
+    static int failed;
+    if (!strcmp(mode(), "submit_once") && !failed++) return -5;
     int ret = real_submit(ctx, nr, cbs);
     if (ret > 0) {
         pending_buffer = cbs[0]->u.c.buf;
@@ -25,7 +27,15 @@ int io_getevents(io_context_t ctx, long min, long max, struct io_event *events, 
     if (!strcmp(mode(), "delay") || !strcmp(mode(), "destroy_fail")) return 0;
     int (*real_get)(io_context_t, long, long, struct io_event *, struct timespec *) = dlsym(RTLD_NEXT, "io_getevents");
     int ret = real_get(ctx, min, max, events, timeout);
+    static int reads;
     for (int i = 0; i < ret; i++) {
+        if (events[i].obj->aio_lio_opcode == IO_CMD_PREAD && (long)events[i].res > 0) {
+            reads++;
+            if (!strcmp(mode(), "corrupt") ||
+                (!strcmp(mode(), "corrupt_last") && reads == 2)) {
+                ((char *)events[i].obj->u.c.buf)[0] ^= 1;
+            }
+        }
         if (!strcmp(mode(), "short")) events[i].res = events[i].obj->u.c.nbytes / 2;
         if (!strcmp(mode(), "error")) events[i].res = (unsigned long)-5;
     }

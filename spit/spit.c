@@ -61,7 +61,7 @@ static int targetMayWrite(const jobType *jobs, const char *target) {
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 size_t *minSizeInBytes, size_t *maxSizeInBytes, double *runseconds, size_t *dumpPositions,
                 unsigned short *seed, diskStatType *d, size_t *verify, double *timeperline, double *ignorefirst,
-                char **mysqloptions, char **mysqloptions2, char *commandstring, char **filePrefix, char **numaBinding,
+                char **mysqloptions, char **mysqloptions2, char *commandstring, size_t commandstringSize, char **filePrefix, char **numaBinding,
                 int *performPreDiscard, int *reportMode,
                 size_t *cacheSizeBytes, size_t *forever, size_t *ramBytesForPositions, size_t *tripleX,
                 size_t *showdate, char **kcheckresults, FILE **filepos, double *exitTimeout, size_t *exitOnErrors) {
@@ -162,13 +162,16 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 break;
             case 'c': {
             }
-                if (commandstringpos > 0) {
-                    commandstring[commandstringpos++] = ' ';
+                const size_t commandLength = strlen(optarg);
+                const size_t separator = commandstringpos != 0;
+                if (commandLength + separator >= commandstringSize - commandstringpos) {
+                    fprintf(stderr, "*error* command too long: combined -c arguments exceed %zu bytes\n",
+                            commandstringSize - 1);
+                    exit(1);
                 }
-                //      strncpy(commandstring + commandstringpos, optarg, strlen(optarg));
-                memcpy(commandstring + commandstringpos, optarg, strlen(optarg));
-                commandstringpos += strlen(optarg);
-                commandstring[commandstringpos] = 0;
+                if (separator) commandstring[commandstringpos++] = ' ';
+                memcpy(commandstring + commandstringpos, optarg, commandLength + 1);
+                commandstringpos += commandLength;
 
                 char *charJ = strchr(optarg, 'j');
                 if (charJ == NULL) {
@@ -183,12 +186,11 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
                 for (size_t i = 0; i < joption; i++) {
                     char temp[PATH_MAX];
-		    /*                    if (addthej) {
-                        sprintf(temp, "%s%c%zd#%zd", optarg, charJ ? *charJ : 'j', jcount, i);
-			} else {*/
-                        sprintf(temp, "%s#%zd", optarg, i);
-			//                    }
-                    //	fprintf(stderr,"Adding %s\n", temp);
+                    const int length = snprintf(temp, sizeof(temp), "%s#%zu", optarg, i);
+                    if (length < 0 || (size_t) length >= sizeof(temp)) {
+                        fprintf(stderr, "*error* command too long after adding job index\n");
+                        exit(1);
+                    }
                     jobAdd(&jtemp, temp);
                 }
                 break;
@@ -1305,7 +1307,7 @@ int main(int argc, char *argv[]) {
 	size_t exitOnError = 1;    // any I/O errors then exit, until -E
 
         handle_args(argc2, argv2, preconditions, j, &minSizeInBytes, &maxSizeInBytes, &runseconds, &dumpPositions,
-                    &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring,
+                    &seed, &d, &verify, &timeperline, &ignoreFirst, &mysqloptions, &mysqloptions2, commandstring, sizeof(commandstring),
                     &filePrefix, &numaBinding, &performPreDiscard, &reportMode, &cacheSizeBytes, &forever,
                     &ramBytesForPositions, &tripleX, &showdate, &kcheckresults, &loadpos, &exitTimeout, &exitOnError);
 

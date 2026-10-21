@@ -47,6 +47,31 @@ static int completeTransfer(const struct io_event *event, positionType *pp,
     return success;
 }
 
+/* Apply read-back checks in both completion paths, including the final drain. */
+static void verifyCompletedRead(positionContainer *p, positionType *pp,
+                                const char *actual, const char *expected,
+                                size_t stringcompare, size_t *errors) {
+    if (!pp->verify || pp->action != 'R') return;
+    if (pp->verify >= p->sz || !p->positions[pp->verify].finishTime) return;
+    size_t actualPosition = 0;
+    const size_t headerSize = 2 * sizeof(size_t);
+    int mismatch = pp->len < headerSize;
+    if (!mismatch) {
+        memcpy(&actualPosition, actual, sizeof(actualPosition));
+        mismatch = actualPosition != pp->pos;
+        if (stringcompare)
+            mismatch |= memcmp(actual + headerSize, expected + headerSize, pp->len - headerSize) != 0;
+    }
+    if (mismatch) {
+        if ((*errors)++ < 10)
+            fprintf(stderr, "*error* verification mismatch at %zu: encoded position %zu\n",
+                    pp->pos, actualPosition);
+        pp->success = 2;
+        // The bytes were transferred, but this is not a successful verified I/O.
+        p->readIOs--;
+    }
+}
+
 size_t aioMultiplePositions(positionContainer *p,
                             const size_t sz,
                             const double finishTime,
@@ -373,7 +398,6 @@ size_t aioMultiplePositions(positionContainer *p,
                                 if (byteLimit && (totalWriteSubmit + totalReadSubmit + len > byteLimit)) {
                                     goto endoffunction;
                                 }
-                                totalReadSubmit += len;
 
 
                             } else if (positions[pos].action == 'F') {
@@ -413,9 +437,7 @@ size_t aioMultiplePositions(positionContainer *p,
                                 if (byteLimit && (totalWriteSubmit + totalReadSubmit + len > byteLimit)) {
                                     goto endoffunction;
                                 }
-                                totalWriteSubmit += len;
 
-                                flushPos++;
                             } else if (positions[pos].action == 'P') {
                                 if (inFlight > 0) {
                                     pos--;  // if in flight repeat
@@ -435,12 +457,10 @@ size_t aioMultiplePositions(positionContainer *p,
                             positions[pos].finishTime = 0;
 
                             const double sub_start = positions[pos].submitTime;
-                            positions[pos].inFlight = 1;
 
                             ret = io_submit(ioc, 1, &cbs[qdIndex]);
 
                             thistime = timeAsDouble();
-                            lastsubmit = thistime; // last good submit
 
                             const double sub_taken = thistime - sub_start;
                             if (sub_taken > 1) {
@@ -448,7 +468,14 @@ size_t aioMultiplePositions(positionContainer *p,
                                         sub_taken);
                             }
 
-                            if (ret > 0) {
+                            if (ret == 1) {
+                                positions[pos].inFlight = 1;
+                                lastsubmit = thistime;
+                                if (positions[pos].action == 'R') totalReadSubmit += len;
+                                if (positions[pos].action == 'W') {
+                                    totalWriteSubmit += len;
+                                    flushPos++;
+                                }
                                 // if success
                                 freeQueue[headOfQueue] = -1; // take off queue
                                 //	      freeQueue[headOfQueue] = -1;
@@ -467,10 +494,15 @@ size_t aioMultiplePositions(positionContainer *p,
                                 }
 
                             } else {
+                                // No request owns this position or queue slot. A later
+                                // pass can retry it if the error policy permits continuing.
+                                positions[pos].inFlight = 0;
+                                positions[pos].submitTime = 0;
+                                positions[pos].success = 2;
                                 *ioerrors = (*ioerrors) + 1;
 				fprintTimePrefix(stderr);
-                                fprintf(stderr, "*error* io_submit() failed, ret = %d\n", ret);
-                                perror("io_submit()");
+                                fprintf(stderr, "*error* io_submit() failed, ret = %d (%s)\n",
+                                        ret, ret < 0 ? strerror(-ret) : "no request submitted");
                                 if (exitOnErrors) {
 				  if (*ioerrors >= (size_t)exitOnErrors) {
 				    fprintTimePrefix(stderr);
@@ -575,34 +607,8 @@ size_t aioMultiplePositions(positionContainer *p,
 
                 if (completeTransfer(&events[j], pp, p, ioerrors,
                                      &totalReadBytes, &totalWriteBytes)) {
-                    if (pp->verify && (pp->action == 'R')) {
-                        // if we know we have written we can check, or if we have read a previous write
-                        size_t *uucheck = NULL, *poscheck = NULL;
-                        poscheck = (size_t *) readdata[pp->q];
-                        uucheck = (size_t *) readdata[pp->q] + 1;
-
-                        int strcmpres = 0, firstcmp = 0;
-                        if (stringcompare) {
-                            strcmpres = strncmp(readdata[pp->q] + 16, data[pp->q] + 16, pp->len - 16) ||
-                                        (pp->pos != *poscheck);
-                        } else {
-                            firstcmp = /*(p->UUID != *uucheck) ||*/ (pp->pos != *poscheck);
-                        }
-
-                        if (((firstcmp) || (strcmpres != 0)) && (positions[pp->verify].finishTime)) {
-
-                            fprintf(stderr,
-                                    "*error* position[%zd] cmp=%d, '%c' R=%d (success %d) ver=%d wrong. UUID %zd/%zd, pos %zd/%zd\n",
-                                    pos, strcmpres, pp->action, pp->seed, pp->success, pp->verify, p->UUID, *uucheck,
-                                    pp->pos, *poscheck);
-                            fprintf(stderr,
-                                    "*error* Maybe: combinations of meta-data 'm', multiple threads 'j' and high QD can clobber\n");
-                            fprintf(stderr,
-                                    "*error* as the different threads will clobber data from other threads in real time\n");
-                            fprintf(stderr,
-                                    "*error* Potentially write to -P positions.txt and check after data is written\n");
-                        }
-                    }
+                    verifyCompletedRead(p, pp, readdata[pp->q], data[pp->q],
+                                        stringcompare, ioerrors);
                     pp->finishTime = lastreceive;
                     pp->sumLatency += (pp->finishTime - pp->submitTime);
                     if (recordSamples && pp->samples < recordSamples) {
@@ -611,7 +617,6 @@ size_t aioMultiplePositions(positionContainer *p,
                         //	    assert(pp->latencies);
                         pp->latencies[pppp] = pp->finishTime - pp->submitTime;
                     }
-		    pp->success = 1; // the action has completed
                 } // good IO
 		pp->finishTime = lastreceive; // even with an error
                 pp->inFlight = 0;
@@ -677,8 +682,11 @@ size_t aioMultiplePositions(positionContainer *p,
                     struct iocb *my_iocb = events[j].obj;
                     positionType *pp = (positionType *) my_iocb->data;
 
-                    completeTransfer(&events[j], pp, p, ioerrors,
-                                     &totalReadBytes, &totalWriteBytes);
+                    if (completeTransfer(&events[j], pp, p, ioerrors,
+                                         &totalReadBytes, &totalWriteBytes)) {
+                        verifyCompletedRead(p, pp, readdata[pp->q], data[pp->q],
+                                            stringcompare, ioerrors);
+                    }
                     received++;
                     pp->finishTime = timeAsDouble();
                     pp->sumLatency += (pp->finishTime - pp->submitTime);

@@ -1,5 +1,6 @@
 """Run with python3 tests/test_spit_safety.py [path/to/spit]. Uses only temporary files."""
 import os
+import resource
 from pathlib import Path
 import subprocess
 import sys
@@ -11,6 +12,7 @@ BINARY = Path(sys.argv.pop(1) if len(sys.argv) > 1 else 'build/spit/spit').resol
 class SafetyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
         cls.artifacts = tempfile.TemporaryDirectory(prefix='spit-faults-')
         cls.shim = Path(cls.artifacts.name) / 'faults.so'
         subprocess.run(['cc', '-shared', '-fPIC', str(Path(__file__).with_name('aio_faults.c')),
@@ -28,12 +30,12 @@ class SafetyTests(unittest.TestCase):
         self.original = b'A' * (1024 * 1024)
         self.target.write_bytes(self.original)
 
-    def run_spit(self, *args, fault=None):
+    def run_spit(self, *args, fault=None, timeout=15):
         env = os.environ.copy()
         if fault:
             env.update(LD_PRELOAD=str(self.shim), SPIT_AIO_FAULT=fault)
         return subprocess.run([str(BINARY), *args], cwd=self.root, env=env,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=15)
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
 
     def test_read_preserves_existing_file(self):
         for size in ([], ['-G', '512KiB'], ['-G', '1MiB'], ['-G', '2MiB']):
@@ -104,6 +106,45 @@ class SafetyTests(unittest.TestCase):
         self.assertIn(b'n/a (insufficient samples)', r.stdout)
         self.assertIn(b'write throughput: no samples', r.stdout)
         self.assertRegex(r.stdout, rb'using [0-9]{1,2}\.[0-9]{3} GiB RAM for positions')
+
+    def test_metadata_corruption_fails(self):
+        for fault in ('corrupt', 'corrupt_last'):
+            with self.subTest(fault=fault):
+                r = self.run_spit('-f', str(self.target), '-G', '1MiB',
+                                  '-c', 'wm1s1k4q1P2X1', fault=fault)
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn(b'verification mismatch', r.stdout)
+
+    def test_metadata_without_corruption_succeeds(self):
+        r = self.run_spit('-f', str(self.target), '-G', '1MiB', '-c', 'wm1s1k4q1P2X1')
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_long_commands_rejected_before_writes(self):
+        for commands in (['r'*5000], ['r'*4094], ['r'*1500]*3):
+            with self.subTest(lengths=[len(c) for c in commands]):
+                args = [arg for c in commands for arg in ('-c', c)]
+                r = self.run_spit('-f', str(self.target), '-G', '1MiB', '-t', '0.02',
+                                  *args, timeout=3)
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn(b'command too long', r.stdout)
+                self.assertEqual(self.target.read_bytes(), self.original)
+
+    def test_failed_submission_retries_without_hanging(self):
+        for action in ('r', 'w'):
+            with self.subTest(action=action):
+                try:
+                    r = self.run_spit('-f', str(self.target), '-G', '1MiB',
+                                      '-c', action+'s1k4q1P1X1', '-E', '2',
+                                      fault='submit_once', timeout=3)
+                except subprocess.TimeoutExpired:
+                    self.fail('One failed submission left the job stuck')
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn(b'Input/output error', r.stdout)
+                self.assertNotIn(b'inflight!', r.stdout)
+                if action == 'r':
+                    self.assertEqual(self.target.read_bytes(), self.original)
+                else:
+                    self.assertNotEqual(self.target.read_bytes(), self.original)
 
     def test_pending_io_cleanup(self):
         for fault in ('delay', 'destroy_fail'):
