@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <getopt.h>
 
 #include "utils.h"
 #include "diskStats.h"
@@ -39,6 +40,23 @@ FILE *savePositions = NULL;
 char *device = NULL;
 char *logfile = NULL;
 double lowg = 0, highg = 0;
+
+/* Match the action probabilities used by jobRunThreads. Treat metadata and
+ * discard jobs as modifying the target as well. */
+static int targetMayWrite(const jobType *jobs, const char *target) {
+    for (int i = 0; i < jobs->count; i++) {
+        if (strcmp(jobs->devices[i], target) != 0 || jobs->delay[i] != 0) continue;
+        const char *cmd = jobs->strings[i];
+        if (strchr(cmd, 'm')) return 1;
+        const char *prob = strchr(cmd, 'p');
+        if (prob && prob[1]) {
+            if (atof(prob + 1) != 1.0) return 1;
+        } else if (strchr(cmd, 'w') || strchr(cmd, 't') || !strchr(cmd, 'r')) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
                 size_t *minSizeInBytes, size_t *maxSizeInBytes, double *runseconds, size_t *dumpPositions,
@@ -69,11 +87,19 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
 
     optind = 0;
     size_t keepversions = 0;
+    int recreate = 0;
+    static const struct option longOptions[] = {
+        {"recreate", no_argument, NULL, 1000},
+        {NULL, 0, NULL, 0}
+    };
 
     const char *getoptstring = "hE:b:c:f:F:G:g:t:d:VB:I:XR:p:O:s:i:vP:M:N:e:uU:T:rC:1L:DK:l:S:3";
 
-    while ((opt = getopt(argc, argv, getoptstring)) != -1) {
+    while ((opt = getopt_long(argc, argv, getoptstring, longOptions, NULL)) != -1) {
         switch (opt) {
+            case 1000:
+                recreate = 1;
+                break;
             case 'h':
                 usage();
                 exit(0);
@@ -111,7 +137,7 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
     optind = 0;
     int GBpow2;
 
-    while ((opt = getopt(argc, argv, getoptstring)) != -1) {
+    while ((opt = getopt_long(argc, argv, getoptstring, longOptions, NULL)) != -1) {
         switch (opt) {
             case 'b': {
             }
@@ -504,25 +530,28 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
         size_t fsize = 0;
         if (isAFile) {
 
-            if (*maxSizeInBytes == 0) { // if not specified use 2 x RAM
-                fprintf(stderr, "*warning* -Gn not specified so defaulting filesize to 2x RAM\n");
-                *maxSizeInBytes = totalRAM() * 2;
+            const int exists = fileExists(j->devices[i]);
+            const int mayWrite = *performPreDiscard || *reportMode || *filepos ||
+                targetMayWrite(j, j->devices[i]) || targetMayWrite(preconditions, j->devices[i]);
+            const long long existingSize = exists ? fileSizeFromName(j->devices[i]) : 0;
+            if (!exists && !mayWrite) {
+                fprintf(stderr, "*error* read-only target '%s' does not exist\n", j->devices[i]);
+                exit(1);
             }
-
-            if (*maxSizeInBytes == fileSizeFromName(j->devices[i])) {
-                if (*filePrefix) {
-                    fprintf(stderr,
-                            "*warning* file '%s' already exists. Leaving in place. For benchmarking writes remove first\n",
-                            j->devices[i]);
-                }
+            if (*maxSizeInBytes == 0) {
+                *maxSizeInBytes = exists ? existingSize : totalRAM() * 2;
             }
-
-            if (*filePrefix == NULL) {
-                int ret = createFile(j->devices[i],
-                                     *maxSizeInBytes); // create file, but if already there then don't recreate
-                if (ret) {
-                    exit(1);
-                }
+            if (*maxSizeInBytes == 0 || *minSizeInBytes >= *maxSizeInBytes) {
+                fprintf(stderr, "*error* empty or invalid range for '%s'\n", j->devices[i]);
+                exit(1);
+            }
+            if (exists && *maxSizeInBytes > (size_t) existingSize && !(recreate && mayWrite)) {
+                fprintf(stderr, "*error* range exceeds file '%s'; write jobs require --recreate to resize\n",
+                        j->devices[i]);
+                exit(1);
+            }
+            if (!exists || (recreate && mayWrite)) {
+                if (createFile(j->devices[i], *maxSizeInBytes)) exit(1);
             }
         } else {
             fsize = fileSizeFromName(j->devices[i]);
@@ -563,6 +592,7 @@ void usage_no_args(void) {
 }
 
 void usage(void) {
+    fprintf(stdout, "  --recreate  Allow write jobs to recreate existing files when their size differs from -G\n");
     fprintf(stdout, "\nUsage:\n  spit [-f device] [-c string] [-c string] ... [-c string]\n");
     fprintf(stdout, "\nCreate positions:\n");
     fprintf(stdout,
@@ -1332,7 +1362,7 @@ int main(int argc, char *argv[]) {
                           mysqloptions, mysqloptions2, commandstring, numaBinding, performPreDiscard, &r,
                           ramBytesForPositions, tripleX == 3, showdate, loadpos, exitTimeout, 0, exitOnError);
 	    if (joberrors) {
-	      exitcode = joberrors;
+	      exitcode = 1; // Error counts such as 256 must not become shell status zero.
 	    }
 		
 

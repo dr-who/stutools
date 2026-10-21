@@ -20,6 +20,33 @@ int canseekanywhere(int fd) {
     return lseek(fd, 0, SEEK_CUR);
 }
 
+/* Use the same transfer validation and accounting during execution and drain. */
+static int completeTransfer(const struct io_event *event, positionType *pp,
+                            positionContainer *p, size_t *errors,
+                            size_t *readBytes, size_t *writeBytes) {
+    const long result = (long) event->res;
+    const long result2 = (long) event->res2;
+    const int success = result >= 0 && result2 == 0 && (size_t) result == pp->len;
+    const size_t bytes = result > 0 ? (size_t) result : 0;
+    if (pp->action == 'R') {
+        p->readBytes += bytes;
+        *readBytes += bytes;
+        if (success) p->readIOs++;
+    } else if (pp->action == 'W') {
+        p->writtenBytes += bytes;
+        *writeBytes += bytes;
+        if (success) p->writtenIOs++;
+    }
+    pp->success = success ? 1 : 2;
+    if (!success) {
+        if ((*errors)++ < 10) {
+            fprintf(stderr, "*error* incomplete %c at %zu: requested %u bytes, result %ld, res2 %ld\n",
+                    pp->action, pp->pos, pp->len, result, result2);
+        }
+    }
+    return success;
+}
+
 size_t aioMultiplePositions(positionContainer *p,
                             const size_t sz,
                             const double finishTime,
@@ -227,7 +254,6 @@ size_t aioMultiplePositions(positionContainer *p,
     size_t flush_count = 0;
     double thistime = 0;
     int qdIndex = 0;
-    int printed = 0;
 
 
     if (posStart == 0) {
@@ -539,7 +565,6 @@ size_t aioMultiplePositions(positionContainer *p,
             lastsubmit = lastreceive; // a receive is fine too
 
             // verify it's all ok
-            size_t rio = 0, rlen = 0, wio = 0, wlen = 0;
             for (int j = 0; j < ret; j++) {
                 //	struct iocb *my_iocb = events[j].obj;
                 //if (alll) logSpeedAdd2(alll, TOMB(events[j].res), 1);
@@ -548,35 +573,8 @@ size_t aioMultiplePositions(positionContainer *p,
                 assert(pp->inFlight);
 
 
-                int rescode = events[j].res;
-                int rescode2 = events[j].res2;
-
-                if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read / IO error
-                    *ioerrors = (*ioerrors) + 1;
-                    if (printed++ < 10) {
-                        fprintf(stderr,
-                                "*error* I/O error. AIO failure codes[fd=%d, can seek?=%d]: res=%d (%s) and res2=%d, position %zd, len %d, inFlight %zd, returned %d results\n",
-                                fd, canseekanywhere(fd), rescode, rescode < 0 ? strerror(-rescode) : "", rescode2, pp->pos,
-                                pp->len, inFlight, ret);
-                        //	    fprintf(stderr,"*error* last successful submission was %.3lf seconds ago\n", timeAsDouble() - lastsubmit);
-                        //	    fprintf(stderr,"*error* last successful receive was %.3lf seconds ago\n", timeAsDouble() - lastreceive);
-                    } else {
-
-                        //	    fprintf(stderr,"*error* further output supressed\n");
-                    }
-
-		    pp->success = 2; // 2 means IO error
-                } else { // good IO
-		    // if successful read or write
-                    if (pp->action == 'R') {
-                        rio++;
-                        rlen += pp->len;
-                    } else if (pp->action == 'W') {
-                        wio++;
-                        wlen += pp->len;
-                    }
-
-
+                if (completeTransfer(&events[j], pp, p, ioerrors,
+                                     &totalReadBytes, &totalWriteBytes)) {
                     if (pp->verify && (pp->action == 'R')) {
                         // if we know we have written we can check, or if we have read a previous write
                         size_t *uucheck = NULL, *poscheck = NULL;
@@ -643,14 +641,6 @@ size_t aioMultiplePositions(positionContainer *p,
 
 
 
-            p->readIOs += rio;
-            p->readBytes += rlen;
-            totalReadBytes += rlen;
-
-            p->writtenIOs += wio;
-            p->writtenBytes += wlen;
-            totalWriteBytes += wlen;
-
 	    if (exitOnErrors) {
 	      if (*ioerrors >= (size_t) exitOnErrors) {
 		fprintTimePrefix(stderr);
@@ -687,19 +677,9 @@ size_t aioMultiplePositions(positionContainer *p,
                     struct iocb *my_iocb = events[j].obj;
                     positionType *pp = (positionType *) my_iocb->data;
 
-                    int rescode = events[j].res;
-                    int rescode2 = events[j].res2;
-
-                    if ((rescode < 0) || (rescode2 != 0)) { // if return of bytes written or read
-                        *ioerrors = (*ioerrors) + 1;
-
-                        fprintf(stderr,
-                                "*error* AIO2 failure codes[fd=%d]: res=%d and res2=%d, %zd, inFlight %zd, returned %d results\n",
-                                fd, rescode, rescode2, pp->pos, inFlight, ret);
-			pp->success = 2;
-                    } else {
-		        pp->success = 1;
-		    }
+                    completeTransfer(&events[j], pp, p, ioerrors,
+                                     &totalReadBytes, &totalWriteBytes);
+                    received++;
                     pp->finishTime = timeAsDouble();
                     pp->sumLatency += (pp->finishTime - pp->submitTime);
                     if (recordSamples && pp->samples < recordSamples) {
@@ -732,15 +712,6 @@ size_t aioMultiplePositions(positionContainer *p,
                         if (printCount >= sz) printCount = 0;
                     }
 
-                    if (pp->action == 'R') {
-                        p->readIOs++;
-                        p->readBytes += pp->len;
-                        totalReadBytes += pp->len;
-                    } else if (pp->action == 'W') {
-                        p->writtenIOs++;
-                        p->writtenBytes += pp->len;
-                        totalWriteBytes += pp->len;
-                    }
                 }
                 inFlight -= ret;
             } else {
@@ -755,10 +726,18 @@ size_t aioMultiplePositions(positionContainer *p,
         }
     }
     if (inFlight) {
-        fprintf(stderr, "*warning* timed out after %.0lf seconds. Flight requests still = %zd\n",
+        (*ioerrors)++;
+        fprintf(stderr, "*error* timed out after %.0lf seconds. Flight requests still = %zd\n",
                 timeAsDouble() - snaptime, inFlight);
     }
 
+    /* io_destroy waits for outstanding requests. Their buffers must stay alive
+     * until it succeeds, even if our bounded drain has timed out. */
+    const int destroyResult = io_destroy(ioc);
+    if (destroyResult != 0) {
+        fprintf(stderr, "*error* io_destroy failed (%d); terminating with buffers retained\n", destroyResult);
+        exit(EXIT_FAILURE);
+    }
     free(events);
     for (size_t i = 0; i < QD; i++) {
         free(cbs[i]);
@@ -771,13 +750,6 @@ size_t aioMultiplePositions(positionContainer *p,
     free(readdata[0]);
     free(readdata);
     free(freeQueue);
-    if (inFlight) {
-        fprintf(stderr, "*warning* about to io_destroy()... should be instant before a 'succeeded' message.\n");
-    }
-    io_destroy(ioc);
-    if (inFlight) {
-        fprintf(stderr, "*info* io_destroy() succeeded\n");
-    }
 
     *ios = received;
 

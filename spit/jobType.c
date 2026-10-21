@@ -368,23 +368,8 @@ static void *runThread(void *arg) {
 
     if (threadContext->anywrites) {
         if (threadContext->filePrefix) {
-            // always create new file on prefix and writes, delete existing
-            int tr = 0;
-            if (threadContext->seqFiles != 0) {
-                tr = O_TRUNC; // if seq then create the file first
-            } else {
-                // if random create file
-                createFile(threadContext->jobdevice, threadContext->maxSizeInBytes);
-            }
-            fd = open(threadContext->jobdevice, O_RDWR | O_CREAT | tr | direct, S_IRUSR | S_IWUSR);
-
-            int fdret = fallocate(fd, 0, 0, threadContext->maxSizeInBytes);
-            if (fdret == 0) {
-                fprintf(stderr, "*info* fallocate '%s' succeeded with length = %zd\n", threadContext->jobdevice,
-                        threadContext->maxSizeInBytes);
-            } else {
-                perror("*info* fallocate potentially not supported: ");
-            }
+            // File preparation and explicit recreation are handled before jobs start.
+            fd = open(threadContext->jobdevice, O_RDWR | direct);
 
             if (verbose) fprintf(stderr, "*info* open with O_RDWR, direct=%d, no excl specified\n", direct);
         } else {

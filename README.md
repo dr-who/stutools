@@ -28,6 +28,27 @@ then
 
       make -j
 
+## Existing files and error handling
+
+For an existing regular file, `spit` uses its current size when `-G` is omitted.
+A smaller `-G` limits the tested range without truncating the file. A range beyond
+EOF is rejected unless a write job explicitly supplies `--recreate`; that option
+allows the file to be recreated when its size differs. Read-only jobs require an
+existing file and never recreate it. These rules also apply to `-F` prefix files.
+Write jobs still overwrite the positions selected by their workload.
+
+Short reads (including EOF), short writes, I/O errors, and a timeout while draining
+outstanding requests fail the run. Only complete transfers count as successful
+I/Os, and byte counters use the actual transferred length. Cleanup keeps buffers
+alive until the kernel AIO context is destroyed; this can still wait on stuck I/O.
+
+Run the focused regression tests after building:
+
+      python3 tests/test_spit_safety.py build/spit/spit
+
+The tests use temporary files and a Linux/glibc fault-injection library compiled
+with `cc`. No real block device is used.
+
 ## As a docker container
 
       git clone https://github.com/dr-who/stutools.git

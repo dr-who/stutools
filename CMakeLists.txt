@@ -12,3 +12,9 @@ add_subdirectory(report)
 
 
 
+
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  add_test(NAME spitSafety COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_spit_safety.py $<TARGET_FILE:spit>)
+endif()
