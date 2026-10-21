@@ -151,6 +151,13 @@ void latencyLenVsLatency(positionContainer *origpc, int num) {
 }
 
 
+/* Missing estimates are not zero: show why they are unavailable. */
+static const char *latencyEstimate(char *buf, size_t len, double value) {
+    if (isfinite(value)) snprintf(buf, len, "%.2f ms", value);
+    else snprintf(buf, len, "n/a (insufficient samples)");
+    return buf;
+}
+
 void latencyStats(latencyType *lat) {
     double median, three9, four9, five9;
     if (histCount(&lat->histRead)) {
@@ -159,9 +166,14 @@ void latencyStats(latencyType *lat) {
         if (n < 10000) three9 = NAN; // to report 1 in 1,000 values. Try and get 10 of them.
         if (n < 100000) four9 = NAN;
         if (n < 1000000) five9 = NAN;
+        char sdText[64], threeText[64], fourText[64], fiveText[64];
         fprintf(stderr,
-                "*info* read latency: n = %zd, mean = %.3lf ms (sd = %.2lf ms), median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n",
-                n, histMean(&lat->histRead), nlSD(&lat->histRead.nl), median, three9, four9, five9);
+                "*info* read latency: n = %zu, mean = %.3lf ms (sd = %s), median = %.2lf ms, 99.9%% <= %s, 99.99%% <= %s, 99.999%% <= %s\n",
+                n, histMean(&lat->histRead),
+                latencyEstimate(sdText, sizeof(sdText), nlSD(&lat->histRead.nl)), median,
+                latencyEstimate(threeText, sizeof(threeText), three9),
+                latencyEstimate(fourText, sizeof(fourText), four9),
+                latencyEstimate(fiveText, sizeof(fiveText), five9));
         if (lat->histRead.showASCII)
             asciiField(&lat->histRead, 79, 20, "Latency histogram (read ms)");
         histSave(&lat->histRead, "spit-latency-histogram-read.txt");
@@ -172,9 +184,14 @@ void latencyStats(latencyType *lat) {
         if (n < 10000) three9 = NAN;
         if (n < 100000) four9 = NAN;
         if (n < 1000000) five9 = NAN;
+        char sdText[64], threeText[64], fourText[64], fiveText[64];
         fprintf(stderr,
-                "*info* write latency: n = %zd, mean = %.3lf ms (sd = %.2lf ms), median = %.2lf ms, 99.9%% <= %.2lf ms, 99.99%% <= %.2lf ms, 99.999%% <= %.2lf ms\n",
-                n, histMean(&lat->histWrite), nlSD(&lat->histWrite.nl), median, three9, four9, five9);
+                "*info* write latency: n = %zu, mean = %.3lf ms (sd = %s), median = %.2lf ms, 99.9%% <= %s, 99.99%% <= %s, 99.999%% <= %s\n",
+                n, histMean(&lat->histWrite),
+                latencyEstimate(sdText, sizeof(sdText), nlSD(&lat->histWrite.nl)), median,
+                latencyEstimate(threeText, sizeof(threeText), three9),
+                latencyEstimate(fourText, sizeof(fourText), four9),
+                latencyEstimate(fiveText, sizeof(fiveText), five9));
         if (lat->histWrite.showASCII)
             asciiField(&lat->histWrite, 79, 20, "Latency histogram (write ms)");
         histSave(&lat->histWrite, "spit-latency-histogram-write.txt");

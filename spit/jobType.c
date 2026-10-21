@@ -1127,15 +1127,36 @@ static void *runThreadTimer(void *arg) {
     if (thistime - lastprintedtime >= 2) {
         tm = thistime - starttime; // if more than two seconds since a non zero line
     }
+    if (tm <= 0) {
+        // A short job can finish before the first periodic sample. Summarize
+        // completed I/O over the elapsed timer interval instead of dividing by zero.
+        tm = MAX(timeAsDouble() - starttime, 1e-9);
+        total_printed_r_bytes = total_printed_w_bytes = 0;
+        total_printed_r_iops = total_printed_w_iops = 0;
+        for (size_t i = 0; i < threadContext->numThreads; i++) {
+            total_printed_r_bytes += threadContext->allPC[i]->readBytes;
+            total_printed_w_bytes += threadContext->allPC[i]->writtenBytes;
+            total_printed_r_iops += threadContext->allPC[i]->readIOs;
+            total_printed_w_iops += threadContext->allPC[i]->writtenIOs;
+        }
+    }
     fprintf(stderr, "*info* summary: read mean %.0lf MB/s (%.0lf IOPS), ", TOMB(total_printed_r_bytes) / tm,
             total_printed_r_iops / tm);
     fprintf(stderr, "write mean %.0lf MB/s (%.0lf IOPS)\n", TOMB(total_printed_w_bytes) / tm,
             total_printed_w_iops / tm);
 
+    if (nlN(&readBList)) {
     fprintf(stderr, "*info* last %zd samples: read median %.0lf MB/s, read 95th%% %.0lf MB/s\n",
             MIN(nlN(&readBList), nlWindowSize), nlMedian(&readBList), nlSortedPos(&readBList, 0.95));
+    } else {
+        fprintf(stderr, "*info* read throughput: no samples\n");
+    }
+    if (nlN(&writeBList)) {
     fprintf(stderr, "*info* last %zd samples: write median %.0lf MB/s, write 95th%% %.0lf MB/s\n",
             MIN(nlN(&writeBList), nlWindowSize), nlMedian(&writeBList), nlSortedPos(&writeBList, 0.95));
+    } else {
+        fprintf(stderr, "*info* write throughput: no samples\n");
+    }
 
     nlFree(&readBList);
     nlFree(&readIOPList);
@@ -1833,7 +1854,7 @@ int jobRunThreads(jobType *job, const int num, char *filePrefix,
 
 
         if ((ramBytesForPositions || verbose || (posThatFitInRam < mp)) && (i == 0)) {
-            fprintf(stderr, "*info* using %lld GiB RAM for positions (%d threads, %u record size), we can store max ", ramBytesForPositions, num, sizeof(positionType));
+            fprintf(stderr, "*info* using %.3f GiB RAM for positions (%d threads, %zu record size), we can store max ", TOGiB(ramBytesForPositions), num, sizeof(positionType));
             commaPrint0dp(stderr, posThatFitInRam);
             fprintf(stderr, " positions in RAM\n");
         }

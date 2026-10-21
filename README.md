@@ -10,6 +10,8 @@ Stu's Powerful I/O Tester (spit)
 
 ## Dependencies
 
+CMake 3.20 or newer is required.
+
       apt install libaio-dev libnuma-dev libpci-dev libreadline-dev
 
       or
@@ -30,6 +32,9 @@ then
 
 ## Existing files and error handling
 
+Block-device ranges must fit entirely within the device. Invalid ranges are
+rejected before I/O; they are never reset to the start of the device.
+
 For an existing regular file, `spit` uses its current size when `-G` is omitted.
 A smaller `-G` limits the tested range without truncating the file. A range beyond
 EOF is rejected unless a write job explicitly supplies `--recreate`; that option
@@ -45,6 +50,15 @@ alive until the kernel AIO context is destroyed; this can still wait on stuck I/
 Run the focused regression tests after building:
 
       python3 tests/test_spit_safety.py build/spit/spit
+
+To run the optional block-device regression tests with loop-device permissions:
+
+      python3 tests/test_spit_block.py build/spit/spit
+
+This creates and detaches its own temporary loop device.
+
+The build refreshes the Git version at build time, marking modified sources with
+`-dirty`. The generated header lives in the build directory.
 
 The tests use temporary files and a Linux/glibc fault-injection library compiled
 with `cc`. No real block device is used.

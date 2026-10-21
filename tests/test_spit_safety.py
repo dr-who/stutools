@@ -97,6 +97,14 @@ class SafetyTests(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0, r.stdout)
         self.assertIn(b'result 0', r.stdout)
 
+    def test_small_sample_diagnostics(self):
+        r = self.run_spit('-f', str(self.target), '-G', '1MiB', '-c', 'rs1k4q1P1X1')
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotRegex(r.stdout, rb'\bnan\b')
+        self.assertIn(b'n/a (insufficient samples)', r.stdout)
+        self.assertIn(b'write throughput: no samples', r.stdout)
+        self.assertRegex(r.stdout, rb'using [0-9]{1,2}\.[0-9]{3} GiB RAM for positions')
+
     def test_pending_io_cleanup(self):
         for fault in ('delay', 'destroy_fail'):
             with self.subTest(fault=fault):

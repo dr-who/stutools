@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required(VERSION 3.20)
 project (stutools)
 
 get_directory_property(hasParent PARENT_DIRECTORY)
@@ -6,21 +6,15 @@ if(NOT hasParent)
   include( ${CMAKE_CURRENT_SOURCE_DIR}/../utils/Version.cmake)
 endif()
 
-execute_process(COMMAND git describe --tags
-    OUTPUT_VARIABLE GIT_REV
-    ERROR_QUIET
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-# This is used if there is no tag or the working dir is not a git repo.
-if("${GIT_REV}" STREQUAL "")
-    set(GIT_REV "1.1-unofficial")
-endif()
-
-set(VERSION "const char* SPIT_VERSION=\"${GIT_REV}\";")
-
-if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/spit-version.h)
-    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/spit-version.h "${VERSION}")
-endif()
+# Check Git at build time, including commits made without reconfiguring CMake.
+# The script only changes the header when the version changes.
+add_custom_target(spit_version
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+        -DOUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/spit-version.h
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/GenerateVersion.cmake
+    BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/spit-version.h
+    VERBATIM)
 
 include (CTest)
 
@@ -32,7 +26,9 @@ set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wshadow -Wextra -Wall -pedantic -Wstric
 
 add_library(spitlib STATIC positions.c devices.c utils.c diskStats.c logSpeed.c aioRequests.c jobType.c histogram.c spitfuzz.c blockVerify.c lengths.c workQueue.c list.c latency.c numList.c procDiskStats.c mapVoid.c interfaces.c utilstime.c)
 
-add_executable(spit spit.c spit-version.h)
+add_executable(spit spit.c ${CMAKE_CURRENT_BINARY_DIR}/spit-version.h)
+add_dependencies(spit spit_version)
+target_include_directories(spit PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(spit spitlib m aio pthread numa)
 
 add_executable(clustername clustername.c cluster.c cluster.h keyvalue.c simpmail.c simpsock.c utilstime.c utils.c numList.c)
@@ -432,10 +428,3 @@ add_test(testspit_J4S100  spit -f wow -G 1GiB -c ws0J4S100 -v -t 5 )
 
 #set (CTEST_TEST_TIMEOUT 1)
 #add_test(testspit_fuzz spit fuzz wow)
-
-set_property(
-  TARGET spit
-  APPEND
-  PROPERTY ADDITIONAL_CLEAN_FILES spit-version.h
-)
-      

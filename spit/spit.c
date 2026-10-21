@@ -3,7 +3,7 @@
 #define _GNU_SOURCE
 
 #include "jobType.h"
-#include "spit-version.h"
+#include <spit-version.h>
 #include <signal.h>
 #include <math.h>
 #include <linux/limits.h>
@@ -555,16 +555,12 @@ int handle_args(int argc, char *argv[], jobType *preconditions, jobType *j,
             }
         } else {
             fsize = fileSizeFromName(j->devices[i]);
-            // if you specify -G too big or it's 0 then set it to the existing file size
-            if (*maxSizeInBytes > fsize || *maxSizeInBytes == 0) {
-                if (*maxSizeInBytes > fsize) {
-                    fprintf(stderr, "*warning* limiting size to %zd, ignoring -G\n", *maxSizeInBytes);
-                }
-                *maxSizeInBytes = fsize;
-                if (*minSizeInBytes > fsize) {
-                    fprintf(stderr, "*warning* limiting size to %d, ignoring -G\n", 0);
-                    *minSizeInBytes = 0;
-                }
+            if (*maxSizeInBytes == 0) *maxSizeInBytes = fsize;
+            if (*minSizeInBytes >= fsize || *maxSizeInBytes > fsize ||
+                *minSizeInBytes >= *maxSizeInBytes) {
+                fprintf(stderr, "*error* requested range [%zu, %zu) is outside device '%s' (size %zu); refusing I/O\n",
+                        *minSizeInBytes, *maxSizeInBytes, j->devices[i], fsize);
+                exit(1);
             }
         }
     }
