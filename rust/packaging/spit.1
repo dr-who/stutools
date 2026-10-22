@@ -65,6 +65,10 @@ contain whitespace, for example "w s1 k4 q32 j4 x1".
 Global time limit, default 10. Use -1 for unlimited. Workload x/X pass limits
 override it; Y caps operations. Workload T sets a per-worker duration.
 .TP
+.BI \-s " SECONDS"
+Live progress interval, default one second. Zero disables progress. Lines show
+interval throughput/IOPS and cumulative workload counts before process exit.
+.TP
 .B \-v
 Immediately read back ordinary writes and check their seeded, address-tagged
 payload. Verification reads do not count toward workload read operations.
@@ -98,7 +102,8 @@ subject to the hard retry limit and timeout. Any submission error makes the
 final exit nonzero, even if later I/O succeeds. Completion errors stop the worker.
 .TP
 .BI \-T " SECONDS"
-Asynchronous completion-stall timeout, default 1; accepted range (0,3600].
+Asynchronous completion-stall timeout, default 3600 seconds as in spitc;
+accepted range (0,3600]. Use a smaller explicit value for bounded failure tests.
 This differs from workload T. Synchronous calls and kernel queue destruction
 cannot guarantee a bounded wait.
 .TP
@@ -108,7 +113,10 @@ auto probes actual io_uring queue creation, falling back to libaio if unavailabl
 Other systems default to buffered. Explicit selections never switch backends.
 .TP
 .BI \-\-memory " SIZE"
-Budget for user I/O buffers and request/position tables, default 512MiB.
+Budget for user I/O buffers and request/position tables. The automatic default
+is half available RAM, capped at 64 GiB; macOS uses half physical RAM. If
+detection fails, the fallback is 512 MiB. Linux cgroup-v2 limits are respected.
+Help prints the detected budget; errors suggest a copyable --memory value.
 Thread stacks, Tokio, parsed arguments, kernel queues and page cache are extra.
 This is not a process RSS limit. Startup/error/shutdown may allocate; successful
 worker I/O loops report hot_path_allocations=0.
@@ -169,6 +177,9 @@ minimum block per pass, start at zero, or flush completed write batches.
 Per-worker rate, duration and duty cycle. W1:0.5 alternates one active second
 with half an idle second. Global -T is a stall timeout, not this duration.
 .TP
+.B RSEED
+Override global -R for this workload; for example wk4096s0j32G400R42.
+.TP
 .B GLOW-HIGH, bLOW-HIGH, G, G_
 Per-workload GiB range, byte range, full target range, or target range with
 worker splitting. An underscore may separate range endpoints and requests
@@ -199,6 +210,14 @@ include OS page cache and are not physical-media throughput. Short RAM-device
 measurements do not predict SSD/HDD performance. Mixed io_uring workloads on the
 development host currently use more CPU than libaio; choose explicitly when
 comparing. No general performance claim against fio is implied.
+.PP
+If the Linux kernel disables io_uring, an administrator may enable it with:
+.nf
+  sudo sh -c 'echo 0 > /proc/sys/kernel/io_uring_disabled'
+.fi
+This changes the running host's policy. Plain sudo echo with shell redirection
+does not elevate the redirection. Other security restrictions may still block
+queue creation; run spit --help to check the detected default.
 .SH COMPATIBILITY
 Rust 2.0 implements the common C syntax, not every C workflow. Its data and
 position formats differ from C spit and spitchecker. NUMA policies, copy/trim,

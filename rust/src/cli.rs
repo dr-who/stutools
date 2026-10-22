@@ -52,6 +52,7 @@ pub struct Workload {
     pub rate: Option<f64>,
     pub duty: Option<(f64, f64)>,
     pub duration: Option<f64>,
+    pub seed: Option<u64>,
     pub workers: usize,
     pub shared_range: bool,
     pub range: Option<(u64, u64)>,
@@ -84,6 +85,7 @@ impl Default for Workload {
             rate: None,
             duty: None,
             duration: None,
+            seed: None,
             workers: 1,
             shared_range: false,
             range: None,
@@ -112,6 +114,7 @@ pub struct Config {
     pub seed: u64,
     pub backend: Backend,
     pub memory: u64,
+    pub interval: f64,
     pub errors: u64,
     pub timeout: f64,
     pub positions_file: Option<PathBuf>,
@@ -255,6 +258,7 @@ pub fn workload(s: &str) -> Result<Workload> {
                 let n = integer(value)?;
                 w.operation_limit = if n == 0 { None } else { Some(n) };
             }
+            'R' => w.seed = Some(integer(value)?),
             'O' if value.is_empty() => w.passes = Some(1),
             '=' if value.is_empty() => w.alternate = true,
             'S' => {
@@ -417,7 +421,7 @@ fn expand_options(args: Vec<String>) -> Result<Vec<String>> {
             && arg
                 .as_bytes()
                 .get(1)
-                .is_some_and(|c| b"fFGbctRETS pK".contains(c) && *c != b' ');
+                .is_some_and(|c| b"fFGbctRETSspK".contains(c));
         if takes && arg.len() > 2 {
             out.push(arg[..2].into());
             out.push(arg[2..].into());
@@ -442,9 +446,10 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         recreate: false,
         seed: 1,
         backend: crate::io::default_backend(),
-        memory: 512 * 1024 * 1024,
+        memory: crate::memory::default_budget(),
+        interval: 1.,
         errors: 1,
-        timeout: 1.,
+        timeout: 3600.,
         positions_file: None,
         precondition: None,
         expected: None,
@@ -505,6 +510,14 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 c.duration = if t == -1. { None } else { Some(t) };
             }
             "-R" => c.seed = integer(v)?,
+            "-s" => {
+                c.interval = finite(v)?;
+                if c.interval != 0. && !(0.001..=86400.).contains(&c.interval) {
+                    return Err(
+                        "progress interval must be 0 or in [0.001, 86400]; -s 0 disables it".into(),
+                    );
+                }
+            }
             "-E" => c.errors = integer(v)?,
             "-T" => {
                 c.timeout = finite(v)?;
@@ -553,6 +566,10 @@ fn help() {
         crate::io::default_backend().name()
     );
     println!(
+        "Default --memory on this system: {:.3} GiB (automatic)",
+        crate::memory::default_budget() as f64 / 1073741824.
+    );
+    println!(
         r#"spit {} (Rust) - Stu's powerful I/O tester
 
 USAGE
@@ -574,6 +591,7 @@ TARGETS AND RUN LIMITS
   -b BYTES        size in bytes (equivalent to -G with a byte suffix)
   -c WORKLOAD     workload string; repeat to run workloads together
   -t SECONDS      time limit (default 10); -1 unlimited; x/X override it
+  -s SECONDS      live progress interval (default 1); -s 0 disables progress
   --recreate      permit enlargement of an existing writable regular file
 
 WORKLOAD TOKENS (whitespace allowed inside a quoted workload)
@@ -592,6 +610,7 @@ WORKLOAD TOKENS (whitespace allowed inside a quoted workload)
   m[COUNT]        metadata write/read checks; optional queue-depth cap
   u / U           per-position seeds / seeds plus checked read pairs (depth 1)
   SIOPS / TSEC    per-worker IOPS limit / duration (not the global -T timeout)
+  RSEED           per-workload seed, overriding global -R
   WON:OFF         active/idle seconds, e.g. W1:0.5
   GLOW-HIGH       per-workload GiB range; bLOW-HIGH is a byte range
                   bare G uses the target range; G_ also splits J workers
@@ -604,14 +623,16 @@ VERIFICATION, RESOURCES AND DIAGNOSTICS
   -K READ,WRITE   require these completed workload counts
   -E ERRORS       libaio submission-error stop threshold (default 1; 0 continues)
                   any submission error still makes the final exit nonzero
-  -T SECONDS      async completion-stall timeout (default 1; synchronous calls
+  -T SECONDS      async completion-stall timeout (default 3600, as in spitc; synchronous calls
                   and kernel queue destruction cannot guarantee this bound)
   --backend NAME  auto | io_uring | libaio | direct | buffered (bufferedio alias)
-  --memory SIZE   buffer/table budget (default 512MiB); excludes stacks,
+  --memory SIZE   buffer/table budget (automatic default shown above); excludes stacks,
                   runtime, kernel queues and OS page cache
   -h, --help      this help and the detected backend; --version prints version
 
 Linux auto probes io_uring queue creation, then uses libaio if unavailable.
+Linux administrator enable command:
+  sudo sh -c 'echo 0 > /proc/sys/kernel/io_uring_disabled'
 macOS/Windows use buffered positional I/O. Explicit backends never fall back.
 Synchronous backends do one I/O at a time per worker; q sets reusable batch size.
 Pools allocate at startup; successful worker I/O loops report hot_path_allocations=0.
@@ -647,5 +668,9 @@ mod tests {
         let w = workload("ws1k4q32j64P8X1").unwrap();
         assert_eq!((w.block, w.depth, w.workers), (4096, 32, 64));
         assert_eq!(w.read_probability, 0.);
+    }
+    #[test]
+    fn accepts_the_reported_large_block_workload() {
+        assert!(workload("wk4096s0j32G400R42").is_ok());
     }
 }

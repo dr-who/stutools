@@ -81,9 +81,30 @@ Linux automatically uses **io_uring** when queue creation succeeds, otherwise
 I/O. Explicit backend choices never silently fall back. A synchronous backend
 executes one I/O at a time per worker; its `q` controls reusable batch storage.
 
-`--memory 512MiB` is the default budget for I/O pools and position tables, not
-an RSS limit. Stacks, Tokio, kernel queues and OS page cache are additional.
+The automatic memory budget is half the available RAM, capped at 64 GiB
+(half physical RAM on macOS; 512 MiB fallback if detection fails).
+Linux cgroup-v2 limits are respected. `--memory SIZE` overrides this budget;
+errors give a copyable value to use. This is not an RSS limit.
+Stacks, Tokio, kernel queues and OS page cache are additional.
 Memory is prepared before the worker clock starts and reused during I/O.
+
+Progress appears every second; `-s 0.5` changes the interval and `-s 0` disables
+it. Workload `R42` overrides the global random seed, for example
+`-c wk4096s0j32G400R42` uses 4 MiB blocks, 32 workers and a 400 GiB range.
+The asynchronous completion-stall limit is `-T 3600`, matching C. Use `-T 30`
+for a shorter limit; a failed run does not establish a device's bandwidth limit.
+
+If Linux disables io_uring, an administrator can enable it with:
+
+```sh
+sudo sh -c 'echo 0 > /proc/sys/kernel/io_uring_disabled'
+spit --help
+```
+
+Value 0 enables the kernel interface; sandbox/security restrictions can still
+prevent queue creation. The command changes the running host's policy. The help
+reports whether spit can actually use it. Plain `sudo echo ... > ...` does not
+elevate the shell redirection.
 
 In three two-second RAM-device runs at 64 workers, Rust io_uring reached median
 **968k read / 870k write IOPS**, versus C libaio's **403k / 395k**, with less

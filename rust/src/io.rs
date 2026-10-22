@@ -132,7 +132,7 @@ impl std::fmt::Display for Failure {
             Self::System(e) => write!(f, "{e}"),
             Self::Incomplete(n, w) => write!(f, "incomplete I/O: result {n}, expected {w}"),
             #[cfg(target_os = "linux")]
-            Self::Timeout => write!(f, "I/O timed out"),
+            Self::Timeout => write!(f, "I/O timed out: no completion within -T; increase -T SECONDS for a slow or heavily queued device"),
             Self::Verification => write!(f, "verification mismatch"),
         }
     }
@@ -288,7 +288,15 @@ impl Queue {
             }
         }
     }
-    pub fn execute(&mut self, count: usize, _error_limit: u64) -> std::result::Result<(), Failure> {
+    pub fn execute<C>(
+        &mut self,
+        count: usize,
+        _error_limit: u64,
+        mut complete: C,
+    ) -> std::result::Result<(), Failure>
+    where
+        C: FnMut(usize, Request),
+    {
         assert!(count <= self.requests.len());
         let ptr = self.arena.as_ref().unwrap().ptr.as_ptr();
         let stride = self.stride;
@@ -312,6 +320,7 @@ impl Queue {
                     if n != r.len {
                         return Err(Failure::Incomplete(n as i64, r.len));
                     }
+                    complete(i, *r);
                 }
             }
             #[cfg(target_os = "linux")]
@@ -325,6 +334,7 @@ impl Queue {
                     _error_limit,
                     &mut self.submit_errors,
                     self.submit_batch,
+                    &mut complete,
                 )?;
             }
             #[cfg(target_os = "linux")]
@@ -373,6 +383,9 @@ impl Queue {
                         let expected = self.requests[index].len;
                         if cqe.result() as i64 != expected as i64 && failure.is_none() {
                             failure = Some(Failure::Incomplete(cqe.result() as i64, expected));
+                        }
+                        if cqe.result() as i64 == expected as i64 {
+                            complete(index, self.requests[index]);
                         }
                     }
                     if done > before {
@@ -626,7 +639,7 @@ mod linux {
             })
         }
         #[allow(clippy::too_many_arguments)]
-        pub fn execute(
+        pub fn execute<C>(
             &mut self,
             fd: i32,
             ptr: *mut u8,
@@ -636,7 +649,11 @@ mod linux {
             error_limit: u64,
             errors: &mut u64,
             submit_batch: usize,
-        ) -> std::result::Result<(), Failure> {
+            mut complete: C,
+        ) -> std::result::Result<(), Failure>
+        where
+            C: FnMut(usize, Request),
+        {
             for (i, r) in requests.iter().enumerate() {
                 self.cbs[i] = Cb {
                     data: i as u64,
@@ -707,6 +724,9 @@ mod linux {
                                 .ok_or_else(|| io::Error::other("invalid completion id"))?;
                             if (e.result != r.len as i64 || e.result2 != 0) && failure.is_none() {
                                 failure = Some(Failure::Incomplete(e.result, r.len));
+                            }
+                            if e.result == r.len as i64 && e.result2 == 0 {
+                                complete(e.data as usize, *r);
                             }
                         }
                     }

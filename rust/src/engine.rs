@@ -40,6 +40,13 @@ struct Stats {
     submit_errors: u64,
     verified: u64,
 }
+impl Stats {
+    fn publish(&self, counter: Option<&crate::progress::Counter>) {
+        if let Some(counter) = counter {
+            counter.publish(self.reads, self.writes, self.read_bytes, self.write_bytes);
+        }
+    }
+}
 struct Outcome {
     stats: Stats,
     error: Option<Failure>,
@@ -49,6 +56,7 @@ struct StartGate {
     ready: Barrier,
     failed: AtomicBool,
     start: OnceLock<Instant>,
+    progress: Option<Arc<crate::progress::State>>,
 }
 impl StartGate {
     fn new(workers: usize) -> Self {
@@ -56,6 +64,7 @@ impl StartGate {
             ready: Barrier::new(workers),
             failed: AtomicBool::new(false),
             start: OnceLock::new(),
+            progress: None,
         }
     }
 }
@@ -175,10 +184,13 @@ pub fn run(c: Config) -> Result<()> {
         })
         .and_then(|v| v.checked_add(records.len() as u64 * std::mem::size_of::<Request>() as u64))
         .ok_or("memory budget overflow")?;
-    if pool_bytes > c.memory {
-        return Err(format!(
-            "I/O pools need {pool_bytes} bytes; --memory permits {}",
-            c.memory
+    let minimum =
+        pool_bytes.saturating_add(worker_count as u64 * std::mem::size_of::<Request>() as u64);
+    if minimum > c.memory {
+        return Err(crate::memory::error(
+            minimum,
+            c.memory,
+            "I/O pools and minimum position tables",
         ));
     }
     // Validate every target and range before creating, resizing or writing any file.
@@ -311,7 +323,7 @@ pub fn run(c: Config) -> Result<()> {
                 lo: start,
                 hi: end,
                 loaded: Arc::from([]),
-                seed: c.seed,
+                seed: pre.seed.unwrap_or(c.seed),
                 backend: c.backend,
                 timeout: c.timeout,
                 duration: None,
@@ -324,7 +336,7 @@ pub fn run(c: Config) -> Result<()> {
                     .min((end - start) / pre.block as u64)
                     as usize,
             };
-            let out = worker(plan, Arc::new(StartGate::new(1)));
+            let out = worker(plan, Arc::new(StartGate::new(1)), 0);
             if let Some(e) = out.error {
                 return Err(e.to_string());
             }
@@ -337,7 +349,7 @@ pub fn run(c: Config) -> Result<()> {
                 lo: start,
                 hi: end,
                 loaded: records.clone(),
-                seed: c.seed,
+                seed: w.seed.unwrap_or(c.seed),
                 backend: c.backend,
                 timeout: c.timeout,
                 duration: c.duration,
@@ -373,19 +385,29 @@ pub fn run(c: Config) -> Result<()> {
         .max_blocking_threads(plans.len())
         .build()
         .map_err(|e| e.to_string())?;
-    let barrier = Arc::new(StartGate::new(plans.len()));
+    let reporter = if c.interval > 0. {
+        Some(crate::progress::Reporter::new(plans.len(), c.interval).map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+    let mut gate = StartGate::new(plans.len());
+    gate.progress = reporter.as_ref().map(|reporter| reporter.state.clone());
+    let barrier = Arc::new(gate);
     let outcomes = runtime.block_on(async {
         let mut joins = Vec::with_capacity(plans.len());
         let mut outcomes = Vec::with_capacity(plans.len());
-        for p in plans {
+        for (index, p) in plans.into_iter().enumerate() {
             let barrier = barrier.clone();
-            joins.push(tokio::task::spawn_blocking(move || worker(p, barrier)));
+            joins.push(tokio::task::spawn_blocking(move || {
+                worker(p, barrier, index)
+            }));
         }
         for task in joins {
             outcomes.push(task.await);
         }
         outcomes
     });
+    drop(reporter);
     let mut total = Stats::default();
     let mut error = None;
     for result in outcomes {
@@ -472,7 +494,7 @@ fn check_pattern(
         pattern::matches_cached(buffer, request.offset, seed, template)
     }
 }
-fn worker(p: Plan, barrier: Arc<StartGate>) -> Outcome {
+fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
     let mixed = if p.loaded.is_empty() {
         p.work.read_probability > 0. && p.work.read_probability < 1.
     } else {
@@ -537,6 +559,10 @@ fn worker(p: Plan, barrier: Arc<StartGate>) -> Outcome {
         Ok(resources) => resources,
     };
     let start = *barrier.start.get_or_init(Instant::now);
+    let progress = barrier.progress.as_ref().map(|state| {
+        state.start.get_or_init(|| start);
+        state.counter(worker_index)
+    });
     let guard = allocation::Guard::start();
     let mut stats = Stats::default();
     let mut error = None;
@@ -593,6 +619,9 @@ fn worker(p: Plan, barrier: Arc<StartGate>) -> Outcome {
                 } else {
                     stats.reads += 1;
                     stats.read_bytes += request.len as u64;
+                }
+                if (stats.reads + stats.writes) % 64 == 0 {
+                    stats.publish(progress);
                 }
             },
             p.errors,
@@ -654,11 +683,7 @@ fn worker(p: Plan, barrier: Arc<StartGate>) -> Outcome {
                     write_pattern(q.buffer(i), request, &p.work, p.seed, reusable, &template);
                 }
             }
-            if let Err(e) = q.execute(count, p.errors) {
-                error = Some(e);
-                break;
-            }
-            for (i, r) in q.requests[..count].iter().enumerate() {
+            let result = q.execute(count, p.errors, |i, r| {
                 if r.write {
                     stats.writes += 1;
                     stats.write_bytes += r.len as u64;
@@ -669,7 +694,15 @@ fn worker(p: Plan, barrier: Arc<StartGate>) -> Outcome {
                     stats.reads += 1;
                     stats.read_bytes += r.len as u64;
                 }
+                if (stats.reads + stats.writes) % 64 == 0 || r.len >= 65536 {
+                    stats.publish(progress);
+                }
+            });
+            if let Err(e) = result {
+                error = Some(e);
+                break;
             }
+            stats.publish(progress);
             if p.work.flush && q.requests[..count].iter().any(|r| r.write) {
                 if let Err(e) = q.flush() {
                     error = Some(e.into());
@@ -701,7 +734,7 @@ fn worker(p: Plan, barrier: Arc<StartGate>) -> Outcome {
                     }
                 }
                 if n > 0 {
-                    if let Err(e) = q.execute(n, p.errors) {
+                    if let Err(e) = q.execute(n, p.errors, |_, _| {}) {
                         error = Some(e);
                         break;
                     }
@@ -738,7 +771,7 @@ fn worker(p: Plan, barrier: Arc<StartGate>) -> Outcome {
             if count == 0 {
                 break;
             }
-            if let Err(e) = q.execute(count, p.errors) {
+            if let Err(e) = q.execute(count, p.errors, |_, _| {}) {
                 error = Some(e);
                 break;
             }
@@ -755,6 +788,7 @@ fn worker(p: Plan, barrier: Arc<StartGate>) -> Outcome {
             }
         }
     }
+    stats.publish(progress);
     stats.allocations = guard.count();
     stats.submit_errors = q.submit_errors;
     drop(guard);

@@ -30,6 +30,9 @@ test -x /usr/bin/fsfiller
 test -x /usr/bin/spitchecker
 /usr/bin/spitc -h
 /usr/bin/spitc -f /work/scratch.img -G 1MiB -c ws1k4q8j4x1 -v -K 0,256
-if command -v dpkg >/dev/null; then dpkg -r stutools-c; else rpm -e stutools-c; fi
+if command -v dpkg >/dev/null; then
+    if dpkg-query -W stutools-c-dbgsym >/dev/null 2>&1; then dpkg -r stutools-c-dbgsym; fi
+    dpkg -r stutools-c
+else rpm -e stutools-c; fi
 test ! -e /usr/bin/spitc
 cp dist/* /artifacts/

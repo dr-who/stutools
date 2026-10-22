@@ -41,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix='spit-ram-',dir='/dev/shm') as temp:
        match=re.search(r'summary: read mean (\d+) MB/s \((\d+) IOPS\), write mean (\d+) MB/s \((\d+) IOPS\)',output)
        iops=int(match[2])+int(match[4]) if match else None
       else:
-       match=re.search(r' IOPS=(\d+)',output);iops=int(match[1]) if match else None
+       match=re.search(r'^read_ops=.* IOPS=(\d+)',output,re.M);iops=int(match[1]) if match else None
       row=dict(implementation=implementation,backend=backend,workers=workers,operation=op,repeat=repeat,exit=run.returncode,iops=iops,wall_seconds=wall,process_cpu_percent=100*((after.ru_utime-before.ru_utime)+(after.ru_stime-before.ru_stime))/wall,output=output)
       results.append(row);print({k:v for k,v in row.items() if k!='output'},flush=True)
       pathlib.Path(a.output).write_text(json.dumps(results,indent=2)+'\n')

@@ -44,7 +44,12 @@ The current io_uring implementation uses ordinary read/write SQEs with stable
 buffers; registered buffers, SQPOLL, IOCP and macOS asynchronous I/O remain future
 work. Linux currently requires a 64-bit little-endian target.
 
-`--memory 512MiB` bounds user I/O buffer pools and request/position tables.
+`--memory SIZE` bounds user I/O buffer pools and request/position tables.
+The automatic default is half available RAM, capped at 64 GiB (half physical
+RAM on macOS), with a 512 MiB fallback if detection fails. Linux cgroup-v2
+limits reduce the available amount. Help shows the detected default; an
+insufficient-budget error suggests a copyable `--memory` value. Large blocks
+multiply by queue depth and worker count: 4 MiB x q64 x 32 needs over 8 GiB.
 It is **not** a whole-process RSS cap: thread stacks, Tokio, parsed arguments,
 kernel queues, and OS page cache are additional memory. Pools are allocated and
 touched at startup and reused. An allocator counter checks each successful
@@ -54,12 +59,13 @@ startup, error reporting and shutdown can allocate.
 Queues drain before reuse. On failed destruction or unresolved io_uring requests,
 buffers are retained until process exit instead of freeing memory still owned
 by the kernel. Submission retries have a finite hard limit. Completion errors
-stop the worker. `-T` bounds completion stalls in asynchronous backends; synchronous
+stop the worker. `-T` bounds completion stalls in asynchronous backends (default
+3600 seconds, matching C; use `-T 30` for a shorter limit); synchronous
 system calls and kernel queue destruction cannot guarantee a bounded wait.
 
 ## Compatibility status
 
-Implemented: `-f`, per-worker `-F` target suffixes, `-G`, `-c`, `-t`, `-R`, `-v`,
+Implemented: `-f`, per-worker `-F` target suffixes, `-G`, `-c`, `-t`, live `-s` progress, `-R`, `-v`,
 `--recreate`, simple `-S` position files, `-p` range-aware preconditioning,
 `-K` operation counts, submission-error threshold `-E` and asynchronous timeout
 `-T`. Workloads support r/w ratios, pPROB, fractional/reverse/striped s values,
@@ -67,6 +73,9 @@ fixed or variable k/M sizes, qDEPTH and qMIN-MAX, j/J workers, positive P,
 sampled/spaced/alternating P modes, x/X, Y operation limits, O single passes,
 alternating read/write passes, n/N pass changes, S rate limits, T duration,
 W duty cycles, per-job G/b ranges, z, metadata m/mCOUNT, unique seeds u/U and F flushing.
+Workload `RSEED` overrides global `-R`. Progress defaults to one second;
+`-s 0` disables it. Per-worker counters are allocated before I/O and published
+without worker heap allocations; the reporter is separate from I/O workers.
 qDEPTH allows asynchronous backends to batch submissions up to the depth;
 qMIN-MAX explicitly limits submission groups to MIN and queue depth to MAX.
 Libaio refills freed queue slots continuously. io_uring uses bounded batches for

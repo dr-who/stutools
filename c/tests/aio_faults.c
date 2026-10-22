@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 static void *pending_buffer, *pending_cb;
 static int destroyed;
@@ -69,6 +70,18 @@ int io_submit(io_context_t ctx, long nr, struct iocb **cbs) {
 }
 int io_getevents(io_context_t ctx, long min, long max, struct io_event *events, struct timespec *timeout) {
     if (!strcmp(mode(), "delay") || !strcmp(mode(), "destroy_fail")) return 0;
+    if (!strcmp(mode(), "recover")) {
+        static struct timespec start;
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        if (!start.tv_sec) start = now;
+        double elapsed = now.tv_sec - start.tv_sec + (now.tv_nsec - start.tv_nsec) / 1e9;
+        if (elapsed < 1.2) {
+            struct timespec pause = {0, 1000000};
+            nanosleep(&pause, NULL);
+            return 0;
+        }
+    }
     int (*real_get)(io_context_t, long, long, struct io_event *, struct timespec *) = dlvsym(RTLD_NEXT, "io_getevents", "LIBAIO_0.4");
     /* Older glibc dlsym(RTLD_NEXT) selects LIBAIO_0.1, whose ABI has
        four arguments rather than five. Select the current ABI explicitly. */
@@ -91,6 +104,7 @@ int io_getevents(io_context_t ctx, long min, long max, struct io_event *events, 
         }
     }
     static int reads;
+    static int short_once;
     for (int i = 0; i < ret; i++) {
         if (events[i].obj->aio_lio_opcode == IO_CMD_PREAD && (long)events[i].res > 0) {
             int read_count = !strcmp(mode(), "corrupt_last") ? __sync_add_and_fetch(&reads, 1) : 0;
@@ -100,6 +114,7 @@ int io_getevents(io_context_t ctx, long min, long max, struct io_event *events, 
             }
         }
         if (!strcmp(mode(), "short")) events[i].res = events[i].obj->u.c.nbytes / 2;
+        if (!strcmp(mode(), "short_once") && !short_once++) events[i].res = events[i].obj->u.c.nbytes / 2;
         if (!strcmp(mode(), "error")) events[i].res = (unsigned long)-5;
     }
     return ret;

@@ -4,8 +4,10 @@ static ALLOCATOR: allocation::Audited = allocation::Audited;
 mod cli;
 mod engine;
 mod io;
+mod memory;
 mod pattern;
 mod positions;
+mod progress;
 fn main() {
     let result = cli::parse(std::env::args().skip(1).collect()).and_then(|config| {
         if let Some(config) = config {

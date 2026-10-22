@@ -149,7 +149,7 @@ class SafetyTests(unittest.TestCase):
     def test_pending_io_cleanup(self):
         for fault in ('delay', 'destroy_fail'):
             with self.subTest(fault=fault):
-                r = self.run_spit('-f', str(self.target), '-G', '1MiB', '-c', 'rs1k4q1P1X1', fault=fault)
+                r = self.run_spit('-f', str(self.target), '-G', '1MiB', '-c', 'rs1k4q1P1X1', '-T', '0.05', fault=fault)
                 self.assertNotEqual(r.returncode, 0, r.stdout)
                 self.assertNotIn(b'FREED_PENDING_IO', r.stdout)
                 self.assertIn(b'timed out', r.stdout)

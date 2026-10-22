@@ -64,6 +64,125 @@ fn memory_limit_rejects_before_write() {
     assert_eq!(fs::read(&t.0).unwrap(), vec![0x55; 1048576]);
 }
 #[test]
+fn memory_failure_suggests_a_working_cli_budget() {
+    let target = Target::new();
+    let args = [
+        "--backend",
+        "buffered",
+        "-c",
+        "ws1k4q128j64x1",
+        "--memory",
+        "1MiB",
+    ];
+    let out = target.run(&args);
+    assert!(!out.status.success());
+    assert_eq!(fs::read(&target.0).unwrap(), vec![0x55; 1048576]);
+    let error = String::from_utf8_lossy(&out.stderr);
+    let hint = error
+        .split("try --memory ")
+        .nth(1)
+        .and_then(|s| s.split_whitespace().next())
+        .expect("memory errors need a copyable --memory value");
+    let mut retry = args;
+    retry[5] = hint;
+    let result = target.run(&retry);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+}
+#[test]
+fn workload_seed_overrides_global_seed() {
+    let reference = Target::new();
+    assert!(reference
+        .run(&[
+            "--backend",
+            "buffered",
+            "-c",
+            "ws1k4q4j2x1",
+            "-R",
+            "42",
+            "-v"
+        ])
+        .status
+        .success());
+    let actual = Target::new();
+    let out = actual.run(&[
+        "--backend",
+        "buffered",
+        "-c",
+        "ws1k4q4j2x1R42",
+        "-R",
+        "999",
+        "-v",
+    ]);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        fs::read(&actual.0).unwrap(),
+        fs::read(&reference.0).unwrap()
+    );
+}
+#[test]
+fn interval_progress_arrives_before_process_exit() {
+    for args in [&[][..], &["-s1"][..], &["-s", "0.1"][..]] {
+        check_live_progress(args);
+    }
+}
+fn check_live_progress(interval_args: &[&str]) {
+    use std::{
+        io::{BufRead, BufReader, Read},
+        process::Stdio,
+        sync::mpsc,
+        time::Duration,
+    };
+    let target = Target::new();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_spit"))
+        .arg("-f")
+        .arg(&target.0)
+        .args(["--backend", "buffered", "-c", "rs1k4q8", "-t", "2"])
+        .args(interval_args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let stderr = child.stderr.take().unwrap();
+    let (send, receive) = mpsc::channel();
+    let reader = std::thread::spawn(move || {
+        for line in BufReader::new(stderr).lines() {
+            let line = line.unwrap();
+            if line.starts_with("progress ") {
+                let _ = send.send(line);
+            }
+        }
+    });
+    let progress = receive.recv_timeout(Duration::from_millis(1500));
+    let still_running = child.try_wait().unwrap().is_none();
+    if progress.is_err() {
+        let _ = child.kill();
+    }
+    let status = child.wait().unwrap();
+    reader.join().unwrap();
+    assert!(
+        progress.is_ok(),
+        "{interval_args:?} must print live progress: {progress:?}"
+    );
+    assert!(still_running, "progress must arrive before the job exits");
+    assert!(status.success());
+    let mut output = String::new();
+    child
+        .stdout
+        .take()
+        .unwrap()
+        .read_to_string(&mut output)
+        .unwrap();
+    assert!(output.contains("hot_path_allocations=0"));
+}
+#[test]
 fn invalid_precondition_rejects_before_write() {
     let t = Target::new();
     let out = t.run(&[
@@ -156,9 +275,7 @@ fn async_streamed_writes_match_verified_buffered_data() {
 }
 
 #[cfg(target_os = "linux")]
-#[test]
-fn libaio_uses_requested_queue_depth() {
-    let target = Target::new();
+fn aio_shim() -> Target {
     let shim = Target::new();
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let source = if root.join("../c/tests/aio_faults.c").is_file() {
@@ -179,6 +296,65 @@ fn libaio_uses_requested_queue_depth() {
         "{}",
         String::from_utf8_lossy(&compile.stderr)
     );
+    shim
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn default_timeout_allows_a_device_to_recover_after_one_second() {
+    let target = Target::new();
+    let shim = aio_shim();
+    for extra in [&[][..], &["-T", "0.05"][..]] {
+        let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+            .arg("-f")
+            .arg(&target.0)
+            .args(["--backend", "libaio", "-c", "rs1k4q8P8X1", "-K", "8,0"])
+            .args(extra)
+            .env("LD_PRELOAD", &shim.0)
+            .env("SPIT_AIO_FAULT", "recover")
+            .output()
+            .unwrap();
+        if extra.is_empty() {
+            assert!(
+                out.status.success(),
+                "{}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+            assert!(String::from_utf8_lossy(&out.stdout).contains("read_ops=8 write_ops=0"));
+        } else {
+            assert!(!out.status.success());
+            assert!(String::from_utf8_lossy(&out.stderr).contains("timed out"));
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn failed_batches_still_count_successful_completions() {
+    let target = Target::new();
+    let shim = aio_shim();
+    let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+        .arg("-f")
+        .arg(&target.0)
+        .args(["--backend", "libaio", "-c", "ws1k4q8P8X1", "-v"])
+        .env("LD_PRELOAD", &shim.0)
+        .env("SPIT_AIO_FAULT", "short_once")
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("incomplete I/O"));
+    assert!(
+        String::from_utf8_lossy(&out.stdout).contains("read_ops=0 write_ops=7"),
+        "{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn libaio_uses_requested_queue_depth() {
+    let target = Target::new();
+    let shim = aio_shim();
     for (command, submitted) in [("rs1k4q32P32X1", 32), ("rs1k4q2-32P32X1", 2)] {
         let out = Command::new(env!("CARGO_BIN_EXE_spit"))
             .arg("-f")

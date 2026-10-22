@@ -2,6 +2,9 @@
 
 spit 2.0 introduces the Rust I/O tester, reusable fixed memory pools, automatic
 Linux io_uring/libaio selection, and native downloads that need no compiler.
+Live progress defaults to one second; `-s1` and `-s 0.1` select the interval.
+The memory budget scales with available RAM, with actionable override hints.
+Per-workload `R` seeds and C's default 3600-second completion-stall limit are supported.
 The repository is organised into independent `rust/` and `c/` trees. The C suite
 remains available as stutools-c, installing spitc, fsfiller and its other tools.
 
