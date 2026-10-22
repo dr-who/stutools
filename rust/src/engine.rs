@@ -39,12 +39,37 @@ struct Stats {
     allocations: u64,
     submit_errors: u64,
     verified: u64,
+    completed_reads: u64,
+    completed_writes: u64,
 }
 impl Stats {
+    fn complete(&mut self, request: Request, measured: bool) {
+        if request.write {
+            self.completed_writes += 1;
+        } else {
+            self.completed_reads += 1;
+        }
+        if measured {
+            if request.write {
+                self.writes += 1;
+                self.write_bytes += request.len as u64;
+            } else {
+                self.reads += 1;
+                self.read_bytes += request.len as u64;
+            }
+        }
+    }
     fn publish(&self, counter: Option<&crate::progress::Counter>) {
         if let Some(counter) = counter {
             counter.publish(self.reads, self.writes, self.read_bytes, self.write_bytes);
         }
+    }
+}
+fn work_duration(work: &Workload, fallback: Option<f64>) -> Option<f64> {
+    if work.passes.is_some() || work.range_passes.is_some() {
+        None
+    } else {
+        work.duration.or(fallback)
     }
 }
 struct Outcome {
@@ -385,8 +410,14 @@ pub fn run(c: Config) -> Result<()> {
         .max_blocking_threads(plans.len())
         .build()
         .map_err(|e| e.to_string())?;
+    let report_duration = plans.iter().try_fold(0f64, |longest, plan| {
+        work_duration(&plan.work, plan.duration).map(|duration| longest.max(duration))
+    });
     let reporter = if c.interval > 0. {
-        Some(crate::progress::Reporter::new(plans.len(), c.interval).map_err(|e| e.to_string())?)
+        Some(
+            crate::progress::Reporter::new(plans.len(), c.interval, report_duration)
+                .map_err(|e| e.to_string())?,
+        )
     } else {
         None
     };
@@ -421,6 +452,8 @@ pub fn run(c: Config) -> Result<()> {
         total.allocations += s.allocations;
         total.submit_errors += s.submit_errors;
         total.verified += s.verified;
+        total.completed_reads += s.completed_reads;
+        total.completed_writes += s.completed_writes;
         if let Some(e) = out.error {
             eprintln!("*error* {e}");
             error = Some(e.to_string());
@@ -442,10 +475,10 @@ pub fn run(c: Config) -> Result<()> {
         error = Some("submission errors: Input/output error".into());
     }
     if let Some(expected) = c.expected {
-        if expected != (total.reads, total.writes) {
+        if expected != (total.completed_reads, total.completed_writes) {
             error = Some(format!(
                 "operation count mismatch: expected {expected:?}, got {:?}",
-                (total.reads, total.writes)
+                (total.completed_reads, total.completed_writes)
             ));
         }
     }
@@ -579,11 +612,7 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
         (a, b) => a.or(b),
     };
     let byte_limit = p.work.range_passes.map(|n| n * (p.hi - p.lo));
-    let duration = if p.work.passes.is_some() || byte_limit.is_some() {
-        None
-    } else {
-        p.work.duration.or(p.duration)
-    };
+    let duration = work_duration(&p.work, p.duration);
     let mut index = 0u64;
     // On Linux loop devices, continuously refilling pure-direction io_uring
     // queues creates block-dispatch contention at high worker counts. Keep
@@ -617,16 +646,10 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
                 }
             },
             |request| {
-                if request.write {
-                    stats.writes += 1;
-                    stats.write_bytes += request.len as u64;
-                } else {
-                    stats.reads += 1;
-                    stats.read_bytes += request.len as u64;
-                }
-                if (stats.reads + stats.writes) % 64 == 0 || request.len >= 65536 {
-                    stats.publish(progress);
-                }
+                let measured =
+                    duration.is_none_or(|seconds| start.elapsed().as_secs_f64() < seconds);
+                stats.complete(request, measured);
+                stats.publish(progress);
             },
             p.errors,
         );
@@ -688,19 +711,13 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
                 }
             }
             let result = q.execute(count, p.errors, |i, r| {
-                if r.write {
-                    stats.writes += 1;
-                    stats.write_bytes += r.len as u64;
-                    if p.work.verify {
-                        generated.written(index + i as u64);
-                    }
-                } else {
-                    stats.reads += 1;
-                    stats.read_bytes += r.len as u64;
+                if r.write && p.work.verify {
+                    generated.written(index + i as u64);
                 }
-                if (stats.reads + stats.writes) % 64 == 0 || r.len >= 65536 {
-                    stats.publish(progress);
-                }
+                let measured =
+                    duration.is_none_or(|seconds| start.elapsed().as_secs_f64() < seconds);
+                stats.complete(r, measured);
+                stats.publish(progress);
             });
             if let Err(e) = result {
                 error = Some(e);
@@ -758,7 +775,8 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
             index += count as u64;
         }
     }
-    stats.seconds = start.elapsed().as_secs_f64();
+    let elapsed = start.elapsed().as_secs_f64();
+    stats.seconds = duration.map_or(elapsed, |seconds| elapsed.min(seconds));
     // A time/byte/operation limit may end between a write and its scheduled
     // metadata read. Complete those checks outside the workload counters.
     if p.work.verify && error.is_none() {
@@ -796,10 +814,10 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
     stats.allocations = guard.count();
     stats.submit_errors = q.submit_errors;
     drop(guard);
-    let retained = !q.close();
     if let Some(counter) = progress {
         counter.finish();
     }
+    let retained = !q.close();
     Outcome {
         stats,
         error,

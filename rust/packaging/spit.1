@@ -64,6 +64,9 @@ contain whitespace, for example "w s1 k4 q32 j4 x1".
 .BI \-t " SECONDS"
 Global time limit, default 10. Use -1 for unlimited. Workload x/X pass limits
 override it; Y caps operations. Workload T sets a per-worker duration.
+Progress stops at the measured deadline. Already submitted I/O drains silently;
+draining and resource cleanup can delay process exit without extending the
+reported time or adding late completions to throughput and IOPS.
 .TP
 .BI \-s " SECONDS"
 Print C-style progress lines: elapsed seconds, active workers, requests in flight,

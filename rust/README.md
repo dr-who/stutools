@@ -69,6 +69,10 @@ Live progress uses C's layout: `[seconds / workers / in-flight] read ... MB/s
 (... IOPS / bytes-per-I/O), write ..., total ... GiB`. Rates use decimal MB/s;
 the cumulative total uses GiB. The default interval is one second; `-s1` and
 `-s 0.1` select explicit intervals, and `-s 0` disables progress.
+For timed workloads, output and performance counters stop at the duration limit.
+The summary divides in-window completions by the measured duration, excluding
+late completions and cleanup time. Outstanding I/O drains silently before exit.
+`-K` still checks all completed workload operations, including drained requests.
 
 Implemented: `-f`, per-worker `-F` target suffixes, `-G`, `-c`, `-t`, live `-s` progress, `-R`, `-v`,
 `--recreate`, simple `-S` position files, `-p` range-aware preconditioning,

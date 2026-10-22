@@ -590,7 +590,8 @@ TARGETS AND RUN LIMITS
                   bare numbers are decimal GB; KiB/MiB/GiB are exact
   -b BYTES        size in bytes (equivalent to -G with a byte suffix)
   -c WORKLOAD     workload string; repeat to run workloads together
-  -t SECONDS      time limit (default 10); -1 unlimited; x/X override it
+  -t SECONDS      measured time limit (default 10); -1 unlimited; x/X override it
+                  progress/counts stop at this boundary; queued I/O drains silently
   -s SECONDS      live progress interval (default 1); -s 0 disables progress
                   C layout: time / workers / in-flight, read/write MB/s and IOPS,
                   average bytes per I/O, cumulative GiB
@@ -622,7 +623,7 @@ VERIFICATION, RESOURCES AND DIAGNOSTICS
   -R SEED         repeatable random seed (default 1)
   -S FILE         positions: byte-offset R|W byte-length, one per line
   -p WORKLOAD     precondition first (one worker; defaults to ws1x1)
-  -K READ,WRITE   require these completed workload counts
+  -K READ,WRITE   require these completed workload counts, including drained I/O
   -E ERRORS       libaio submission-error stop threshold (default 1; 0 continues)
                   any submission error still makes the final exit nonzero
   -T SECONDS      async completion-stall timeout (default 3600, as in spitc; synchronous calls
@@ -639,6 +640,8 @@ macOS/Windows use buffered positional I/O. Explicit backends never fall back.
 Synchronous backends do one I/O at a time per worker; q sets reusable batch size.
 Pools allocate at startup; successful worker I/O loops report hot_path_allocations=0.
 Summary: completed reads/writes, elapsed seconds, MiB/s, IOPS and verified_ops.
+Timed summaries count only completions observed within the measured window;
+draining, verification cleanup and resource teardown do not extend that window.
 Metadata checks pending at a limit finish before success, outside workload counts.
 C data/spitchecker formats and some advanced C modes are not supported; use spitc
 for those workflows. See README.md and man spit. Invalid/incomplete I/O fails.

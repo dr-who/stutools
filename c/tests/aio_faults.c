@@ -70,6 +70,17 @@ int io_submit(io_context_t ctx, long nr, struct iocb **cbs) {
 }
 int io_getevents(io_context_t ctx, long min, long max, struct io_event *events, struct timespec *timeout) {
     if (!strcmp(mode(), "delay") || !strcmp(mode(), "destroy_fail")) return 0;
+    if (!strcmp(mode(), "deadline")) {
+        static struct timespec start;
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        if (!start.tv_sec) { start = now; max = 1; }
+        else if (now.tv_sec - start.tv_sec + (now.tv_nsec - start.tv_nsec) / 1e9 < 0.3) {
+            struct timespec pause = {0, 1000000};
+            nanosleep(&pause, NULL);
+            return 0;
+        }
+    }
     if (!strcmp(mode(), "recover")) {
         static struct timespec start;
         struct timespec now;
@@ -121,6 +132,10 @@ int io_getevents(io_context_t ctx, long min, long max, struct io_event *events, 
 }
 int io_destroy(io_context_t ctx) {
     if (!strcmp(mode(), "destroy_fail")) return -5;
+    if (!strcmp(mode(), "slow_cleanup")) {
+        struct timespec pause = {0, 300000000};
+        nanosleep(&pause, NULL);
+    }
     int (*real_destroy)(io_context_t) = dlsym(RTLD_NEXT, "io_destroy");
     int ret = real_destroy(ctx);
     if (!strcmp(mode(), "depth") || !strcmp(mode(), "refill")) {

@@ -92,6 +92,8 @@ Progress uses C's `[seconds / workers / in-flight] read ... MB/s (... IOPS / byt
 write ..., total ... GiB` layout. It appears every second; `-s 0.1` changes the
 interval and `-s 0` disables it. Workload `R42` overrides the global random seed, for example
 `-c wk4096s0j32G400R42` uses 4 MiB blocks, 32 workers and a 400 GiB range.
+Timed progress and averages end at `-t`; pending I/O drains silently afterward.
+Late completions and resource cleanup do not extend the measured window.
 The asynchronous completion-stall limit is `-T 3600`, matching C. Use `-T 30`
 for a shorter limit; a failed run does not establish a device's bandwidth limit.
 

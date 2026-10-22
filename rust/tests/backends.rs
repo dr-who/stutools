@@ -321,6 +321,103 @@ fn aio_shim() -> Target {
 
 #[cfg(target_os = "linux")]
 #[test]
+fn timed_reports_exclude_late_completions_and_stop_at_the_deadline() {
+    let target = Target::new();
+    let shim = aio_shim();
+    for (extra, expected) in [(&["-v"][..], "8,0"), (&[][..], "9,0")] {
+        let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+            .arg("-f")
+            .arg(&target.0)
+            .args([
+                "--backend",
+                "libaio",
+                "-c",
+                "rs1k4q8P8",
+                "-t",
+                "0.1",
+                "-s",
+                "0.03",
+                "-K",
+                expected,
+            ])
+            .args(extra)
+            .env("LD_PRELOAD", &shim.0)
+            .env("SPIT_AIO_FAULT", "deadline")
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let summary = String::from_utf8_lossy(&out.stdout);
+        assert!(
+            summary.contains("read_ops=1 write_ops=0 seconds=0.100000"),
+            "{summary}"
+        );
+        assert!(summary.contains("read_MiB_s=0.039"), "{summary}");
+        assert!(summary.contains("hot_path_allocations=0"), "{summary}");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        let times: Vec<f64> = stderr
+            .lines()
+            .filter(|line| line.starts_with('['))
+            .map(|line| {
+                line[1..]
+                    .split_whitespace()
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            })
+            .collect();
+        assert_eq!(times.last().copied(), Some(0.1), "{stderr}");
+        assert!(times.iter().all(|time| *time <= 0.1), "{stderr}");
+        assert!(
+            stderr
+                .lines()
+                .filter(|line| line.starts_with('['))
+                .any(|line| line.contains(" IOPS / 4096)")),
+            "the in-window completion must be visible before the drain: {stderr}"
+        );
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn progress_stops_when_io_finishes_before_slow_cleanup() {
+    let target = Target::new();
+    let shim = aio_shim();
+    let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+        .arg("-f")
+        .arg(&target.0)
+        .args([
+            "--backend",
+            "libaio",
+            "-c",
+            "rs1k4q1P1X1",
+            "-s",
+            "0.03",
+            "-K",
+            "1,0",
+        ])
+        .env("LD_PRELOAD", &shim.0)
+        .env("SPIT_AIO_FAULT", "slow_cleanup")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.lines().any(|line| line.starts_with('[')),
+        "cleanup must not produce empty progress samples: {stderr}"
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
 fn default_timeout_allows_a_device_to_recover_after_one_second() {
     let target = Target::new();
     let shim = aio_shim();

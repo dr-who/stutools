@@ -115,7 +115,7 @@ pub struct Reporter {
     thread: Option<JoinHandle<()>>,
 }
 impl Reporter {
-    pub fn new(workers: usize, interval: f64) -> io::Result<Self> {
+    pub fn new(workers: usize, interval: f64, duration: Option<f64>) -> io::Result<Self> {
         let state = Arc::new(State {
             start: OnceLock::new(),
             counters: (0..workers).map(|_| Counter::default()).collect(),
@@ -134,13 +134,15 @@ impl Reporter {
                         thread::park_timeout(Duration::from_millis(10));
                         continue;
                     };
-                    let wait = (last + interval - start.elapsed().as_secs_f64()).max(0.);
+                    let next =
+                        duration.map_or(last + interval, |limit| (last + interval).min(limit));
+                    let wait = (next - start.elapsed().as_secs_f64()).max(0.);
                     thread::park_timeout(Duration::from_secs_f64(wait).min(period));
                     if shared.stop.load(Ordering::Acquire) {
                         break;
                     }
-                    let elapsed = start.elapsed().as_secs_f64();
-                    if elapsed < last + interval {
+                    let actual = start.elapsed().as_secs_f64();
+                    if actual < next {
                         continue;
                     }
                     let mut total = Sample::default();
@@ -152,12 +154,19 @@ impl Reporter {
                         total.in_flight += counter.in_flight.load(Ordering::Relaxed);
                         total.workers += usize::from(!counter.finished.load(Ordering::Acquire));
                     }
+                    if total.workers == 0 {
+                        break;
+                    }
+                    let elapsed = duration.map_or(actual, |limit| actual.min(limit));
                     let seconds = (elapsed - last).max(1e-9);
                     if write_line(&mut stderr.lock(), elapsed, seconds, total, previous).is_err() {
                         break;
                     }
                     previous = total;
                     last = elapsed;
+                    if duration.is_some_and(|limit| actual >= limit) {
+                        break;
+                    }
                 }
             })?;
         Ok(Self {
