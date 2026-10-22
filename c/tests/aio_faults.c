@@ -14,7 +14,7 @@
 static void *pending_buffer, *pending_cb;
 static int destroyed;
 static long queued, max_queued, max_submit, mixed_submits;
-static long total_submitted, get_calls, refilled_early;
+static long total_submitted, successful_gets, refilled_early;
 static struct iocb *active[4096];
 static const char *mode(void) {
     const char *m = getenv("SPIT_AIO_FAULT");
@@ -70,12 +70,12 @@ int io_submit(io_context_t ctx, long nr, struct iocb **cbs) {
 }
 int io_getevents(io_context_t ctx, long min, long max, struct io_event *events, struct timespec *timeout) {
     if (!strcmp(mode(), "delay") || !strcmp(mode(), "destroy_fail")) return 0;
+    static struct timespec first_completion;
     if (!strcmp(mode(), "deadline")) {
-        static struct timespec start;
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
-        if (!start.tv_sec) { start = now; max = 1; }
-        else if (now.tv_sec - start.tv_sec + (now.tv_nsec - start.tv_nsec) / 1e9 < 0.3) {
+        if (!first_completion.tv_sec) max = 1;
+        else if (now.tv_sec - first_completion.tv_sec + (now.tv_nsec - first_completion.tv_nsec) / 1e9 < 1.2) {
             struct timespec pause = {0, 1000000};
             nanosleep(&pause, NULL);
             return 0;
@@ -103,9 +103,20 @@ int io_getevents(io_context_t ctx, long min, long max, struct io_event *events, 
     }
     if (!strcmp(mode(), "refill")) {
         max = 1;
-        if (++get_calls == 2) refilled_early = total_submitted > 32;
+    }
+    /* Exercise valid empty completion polls even on fast local storage. */
+    static unsigned long empty_polls;
+    const char *warmup = getenv("SPIT_AIO_EMPTY_POLLS");
+    if (warmup && empty_polls++ < strtoul(warmup, NULL, 10)) {
+        struct timespec pause = {0, 1000000};
+        nanosleep(&pause, NULL);
+        return 0;
     }
     int ret = real_get(ctx, min, max, events, timeout);
+    if (ret > 0 && !strcmp(mode(), "refill") && ++successful_gets == 2)
+        refilled_early = total_submitted > 32;
+    if (ret > 0 && !strcmp(mode(), "deadline") && !first_completion.tv_sec)
+        clock_gettime(CLOCK_MONOTONIC, &first_completion);
     if ((!strcmp(mode(), "depth") || !strcmp(mode(), "refill")) && ret > 0) queued -= ret;
     if (!strcmp(mode(), "depth") || !strcmp(mode(), "refill")) {
         for (int i = 0; i < ret; i++) {
@@ -133,6 +144,8 @@ int io_getevents(io_context_t ctx, long min, long max, struct io_event *events, 
 int io_destroy(io_context_t ctx) {
     if (!strcmp(mode(), "destroy_fail")) return -5;
     if (!strcmp(mode(), "slow_cleanup")) {
+        const char msg[] = "CLEANUP_BEGIN\n";
+        write(2, msg, sizeof(msg)-1);
         struct timespec pause = {0, 300000000};
         nanosleep(&pause, NULL);
     }

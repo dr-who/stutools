@@ -31,7 +31,7 @@ For direct CMake builds:
   sudo cmake --install build
 
 In-source cmake builds are intentionally rejected. The built C target remains
-build/spit/spit, while installation names it spitc. macOS/Windows build the
+build/spit/spit, while installation names it spitc. macOS/Windows/FreeBSD/OpenBSD build the
 limited portable backend; the complete C suite requires Linux.
 
 Write/discard workloads destroy data within their selected ranges. Use the

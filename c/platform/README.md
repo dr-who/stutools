@@ -1,4 +1,4 @@
-# Native macOS and Windows builds
+# Native macOS, Windows, FreeBSD and OpenBSD builds
 
 CMake 3.20+ and a C11 compiler are required. Apple Clang, MSVC and LLVM-MinGW
 are supported by the build configuration. Use an out-of-source build:
@@ -10,9 +10,14 @@ ctest --test-dir build -C Release --output-on-failure -L smoke
 cmake --build build --config Release --target package
 ```
 
-The executable is `build/platform/spit` on macOS. Windows uses
+The executable is `build/platform/spit` on macOS, FreeBSD and OpenBSD. Windows uses
 `build/platform/spit.exe` (Ninja/Makefiles) or
 `build/platform/Release/spit.exe` (Visual Studio).
+
+FreeBSD prerequisites: `pkg install rust cmake ninja`. OpenBSD prerequisites:
+`pkg_add rust cmake ninja`. CMake selects this portable C backend automatically
+on both BSD systems; the complete libaio C suite remains Linux-only.
+GitHub Actions builds and tests Rust spit and this C backend in real BSD VMs.
 
 This is an initial native file backend, not the Linux libaio engine. It uses
 buffered synchronous I/O, one job, one worker, and queue depth one. It supports

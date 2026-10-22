@@ -83,3 +83,38 @@ jobs:
         with:
           name: stutools-${{ matrix.distro }}
           path: rust/dist/packages/
+  bsd-native:
+    name: Rust and C (${{ matrix.os }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [freebsd-15.1, openbsd-7.9]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare locked, offline Rust sources
+        run: |
+          cargo fetch --locked --manifest-path rust/Cargo.toml
+          python3 rust/packaging/source.py
+      - name: Build and test in FreeBSD
+        if: matrix.os == 'freebsd-15.1'
+        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1
+        with:
+          release: '15.1'
+          mem: 6144
+          prepare: pkg install -y rust cmake ninja
+          run: sh .github/scripts/bsd-build.sh
+      - name: Build and test in OpenBSD
+        if: matrix.os == 'openbsd-7.9'
+        uses: vmactions/openbsd-vm@f1ca8bc8ecc5b6ef7218e5b914836e067e1546d3 # v1
+        with:
+          release: '7.9'
+          mem: 6144
+          prepare: pkg_add -I rust cmake ninja
+          run: sh .github/scripts/bsd-build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spit-${{ matrix.os }}
+          path: rust/dist/spit-*.tar.gz
+          if-no-files-found: error

@@ -334,15 +334,16 @@ fn timed_reports_exclude_late_completions_and_stop_at_the_deadline() {
                 "-c",
                 "rs1k4q8P8",
                 "-t",
-                "0.1",
+                "1",
                 "-s",
-                "0.03",
+                "0.3",
                 "-K",
                 expected,
             ])
             .args(extra)
             .env("LD_PRELOAD", &shim.0)
             .env("SPIT_AIO_FAULT", "deadline")
+            .env("SPIT_AIO_EMPTY_POLLS", "3")
             .output()
             .unwrap();
         assert!(
@@ -352,10 +353,10 @@ fn timed_reports_exclude_late_completions_and_stop_at_the_deadline() {
         );
         let summary = String::from_utf8_lossy(&out.stdout);
         assert!(
-            summary.contains("read_ops=1 write_ops=0 seconds=0.100000"),
+            summary.contains("read_ops=1 write_ops=0 seconds=1.000000"),
             "{summary}"
         );
-        assert!(summary.contains("read_MiB_s=0.039"), "{summary}");
+        assert!(summary.contains("read_MiB_s=0.004"), "{summary}");
         assert!(summary.contains("hot_path_allocations=0"), "{summary}");
         let stderr = String::from_utf8_lossy(&out.stderr);
         let times: Vec<f64> = stderr
@@ -370,8 +371,8 @@ fn timed_reports_exclude_late_completions_and_stop_at_the_deadline() {
                     .unwrap()
             })
             .collect();
-        assert_eq!(times.last().copied(), Some(0.1), "{stderr}");
-        assert!(times.iter().all(|time| *time <= 0.1), "{stderr}");
+        assert_eq!(times.last().copied(), Some(1.), "{stderr}");
+        assert!(times.iter().all(|time| *time <= 1.), "{stderr}");
         assert!(
             stderr
                 .lines()
@@ -410,8 +411,12 @@ fn progress_stops_when_io_finishes_before_slow_cleanup() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stderr = String::from_utf8_lossy(&out.stderr);
+    let cleanup = stderr
+        .split_once("CLEANUP_BEGIN\n")
+        .expect("the shim must mark cleanup")
+        .1;
     assert!(
-        !stderr.lines().any(|line| line.starts_with('[')),
+        !cleanup.lines().any(|line| line.starts_with('[')),
         "cleanup must not produce empty progress samples: {stderr}"
     );
 }
@@ -541,6 +546,7 @@ fn libaio_uses_requested_queue_depth() {
         .args(["--backend", "libaio", "-c", "rs1k4q32P32X2", "-K", "64,0"])
         .env("LD_PRELOAD", &shim.0)
         .env("SPIT_AIO_FAULT", "refill")
+        .env("SPIT_AIO_EMPTY_POLLS", "3")
         .output()
         .unwrap();
     assert!(

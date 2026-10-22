@@ -148,6 +148,9 @@ cargo clippy --locked --all-targets -- -D warnings
 Rust 1.85+ is required. Linux also needs a C linker and libaio development files;
 `rust/install-deps.sh` installs distro prerequisites. See [the Rust guide](rust/README.md)
 for native macOS/Windows build requirements and offline sources.
+FreeBSD and OpenBSD also build Rust spit with Cargo and the portable C backend
+with CMake. GitHub Actions tests both implementations in real BSD VMs, alongside
+native Linux/macOS/Windows and Linux distribution container builds.
 
 The repository has two independent trees: [`rust/`](rust/) for spit 2.0, and
 [`c/`](c/) for the original suite (`make -C c`). The top-level Makefile delegates
