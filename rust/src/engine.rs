@@ -563,6 +563,10 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
         state.start.get_or_init(|| start);
         state.counter(worker_index)
     });
+    q.observer = barrier
+        .progress
+        .as_ref()
+        .map(|state| (state.clone(), worker_index));
     let guard = allocation::Guard::start();
     let mut stats = Stats::default();
     let mut error = None;
@@ -620,7 +624,7 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
                     stats.reads += 1;
                     stats.read_bytes += request.len as u64;
                 }
-                if (stats.reads + stats.writes) % 64 == 0 {
+                if (stats.reads + stats.writes) % 64 == 0 || request.len >= 65536 {
                     stats.publish(progress);
                 }
             },
@@ -793,6 +797,9 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
     stats.submit_errors = q.submit_errors;
     drop(guard);
     let retained = !q.close();
+    if let Some(counter) = progress {
+        counter.finish();
+    }
     Outcome {
         stats,
         error,

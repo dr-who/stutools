@@ -88,8 +88,9 @@ errors give a copyable value to use. This is not an RSS limit.
 Stacks, Tokio, kernel queues and OS page cache are additional.
 Memory is prepared before the worker clock starts and reused during I/O.
 
-Progress appears every second; `-s 0.5` changes the interval and `-s 0` disables
-it. Workload `R42` overrides the global random seed, for example
+Progress uses C's `[seconds / workers / in-flight] read ... MB/s (... IOPS / bytes),
+write ..., total ... GiB` layout. It appears every second; `-s 0.1` changes the
+interval and `-s 0` disables it. Workload `R42` overrides the global random seed, for example
 `-c wk4096s0j32G400R42` uses 4 MiB blocks, 32 workers and a 400 GiB range.
 The asynchronous completion-stall limit is `-T 3600`, matching C. Use `-T 30`
 for a shorter limit; a failed run does not establish a device's bandwidth limit.

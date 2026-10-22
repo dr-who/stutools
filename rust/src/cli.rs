@@ -592,6 +592,8 @@ TARGETS AND RUN LIMITS
   -c WORKLOAD     workload string; repeat to run workloads together
   -t SECONDS      time limit (default 10); -1 unlimited; x/X override it
   -s SECONDS      live progress interval (default 1); -s 0 disables progress
+                  C layout: time / workers / in-flight, read/write MB/s and IOPS,
+                  average bytes per I/O, cumulative GiB
   --recreate      permit enlargement of an existing writable regular file
 
 WORKLOAD TOKENS (whitespace allowed inside a quoted workload)

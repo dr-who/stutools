@@ -66,6 +66,8 @@ Global time limit, default 10. Use -1 for unlimited. Workload x/X pass limits
 override it; Y caps operations. Workload T sets a per-worker duration.
 .TP
 .BI \-s " SECONDS"
+Print C-style progress lines: elapsed seconds, active workers, requests in flight,
+read/write MB/s, IOPS, average bytes per I/O, and cumulative GiB.
 Live progress interval, default one second. Zero disables progress. Lines show
 interval throughput/IOPS and cumulative workload counts before process exit.
 .TP

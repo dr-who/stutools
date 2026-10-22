@@ -155,7 +155,7 @@ fn check_live_progress(interval_args: &[&str]) {
     let reader = std::thread::spawn(move || {
         for line in BufReader::new(stderr).lines() {
             let line = line.unwrap();
-            if line.starts_with("progress ") {
+            if line.starts_with('[') && line.contains("] read ") {
                 let _ = send.send(line);
             }
         }
@@ -173,6 +173,26 @@ fn check_live_progress(interval_args: &[&str]) {
     );
     assert!(still_running, "progress must arrive before the job exits");
     assert!(status.success());
+    let line = progress.unwrap();
+    let (header, metrics) = line.split_once("] read ").unwrap();
+    let fields: Vec<_> = header.split_whitespace().collect();
+    assert_eq!(fields.len(), 5, "{line}");
+    assert_eq!(fields[1], "/", "{line}");
+    assert_eq!(fields[2], "1", "{line}");
+    assert_eq!(fields[3], "/", "{line}");
+    assert!(
+        matches!(fields[4], "0" | "1"),
+        "synchronous backend has at most one request in flight: {line}"
+    );
+    let (read, rest) = metrics.split_once(", write ").unwrap();
+    let (write, total) = rest.split_once(", total ").unwrap();
+    assert!(read.contains(" MB/s ("), "{line}");
+    assert!(read.ends_with(" IOPS / 4096)"), "{line}");
+    assert!(write.contains(" MB/s ("), "{line}");
+    assert!(write.ends_with(" IOPS / 0)"), "{line}");
+    assert!(total.trim_end_matches(" GiB").parse::<f64>().unwrap() > 0.);
+    assert!(line.contains(" IOPS / 4096), write "), "{line}");
+    assert!(line.ends_with(" GiB"), "{line}");
     let mut output = String::new();
     child
         .stdout
@@ -308,7 +328,16 @@ fn default_timeout_allows_a_device_to_recover_after_one_second() {
         let out = Command::new(env!("CARGO_BIN_EXE_spit"))
             .arg("-f")
             .arg(&target.0)
-            .args(["--backend", "libaio", "-c", "rs1k4q8P8X1", "-K", "8,0"])
+            .args([
+                "--backend",
+                "libaio",
+                "-c",
+                "rs1k4q8P8X1",
+                "-K",
+                "8,0",
+                "-s",
+                "0.01",
+            ])
             .args(extra)
             .env("LD_PRELOAD", &shim.0)
             .env("SPIT_AIO_FAULT", "recover")
@@ -325,6 +354,11 @@ fn default_timeout_allows_a_device_to_recover_after_one_second() {
             assert!(!out.status.success());
             assert!(String::from_utf8_lossy(&out.stderr).contains("timed out"));
         }
+        assert!(
+            String::from_utf8_lossy(&out.stderr).contains(" / 1 / 8] read "),
+            "pending requests must be reported: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
     }
 }
 

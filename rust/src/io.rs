@@ -153,6 +153,7 @@ pub struct Queue {
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     submit_batch: usize,
     file: File,
+    pub observer: Option<(std::sync::Arc<crate::progress::State>, usize)>,
     #[cfg(target_os = "linux")]
     timeout: Duration,
     pub submit_errors: u64,
@@ -209,6 +210,7 @@ impl Queue {
             // qMIN-MAX explicitly limits each submission group to MIN.
             submit_batch: submit_batch.unwrap_or(depth),
             file,
+            observer: None,
             #[cfg(target_os = "linux")]
             timeout: Duration::from_secs_f64(_timeout),
             submit_errors: 0,
@@ -250,6 +252,10 @@ impl Queue {
     {
         let fd = self.file.as_raw_fd();
         let ptr = self.arena.as_ref().unwrap().ptr.as_ptr();
+        let observer = self
+            .observer
+            .as_ref()
+            .map(|(state, index)| state.counter(*index));
         match self.state.as_mut().unwrap() {
             State::Aio(aio) => aio.execute_stream(
                 fd,
@@ -260,6 +266,7 @@ impl Queue {
                 error_limit,
                 &mut self.submit_errors,
                 self.submit_batch,
+                observer,
                 next,
                 prepare,
                 complete,
@@ -274,6 +281,7 @@ impl Queue {
                     &mut self.requests,
                     self.timeout,
                     self.submit_batch,
+                    observer,
                     next,
                     prepare,
                     complete,
@@ -300,10 +308,17 @@ impl Queue {
         assert!(count <= self.requests.len());
         let ptr = self.arena.as_ref().unwrap().ptr.as_ptr();
         let stride = self.stride;
+        let observer = self
+            .observer
+            .as_ref()
+            .map(|(state, index)| state.counter(*index));
         match self.state.as_mut().unwrap() {
             State::Sync => {
                 for (i, r) in self.requests[..count].iter().enumerate() {
                     let buf = unsafe { std::slice::from_raw_parts_mut(ptr.add(i * stride), r.len) };
+                    if let Some(counter) = observer {
+                        counter.submitted(1);
+                    }
                     #[cfg(unix)]
                     let result = if r.write {
                         self.file.write_at(buf, r.offset)
@@ -316,6 +331,9 @@ impl Queue {
                     } else {
                         self.file.seek_read(buf, r.offset)
                     };
+                    if let Some(counter) = observer {
+                        counter.completed(1);
+                    }
                     let n = result?;
                     if n != r.len {
                         return Err(Failure::Incomplete(n as i64, r.len));
@@ -334,6 +352,7 @@ impl Queue {
                     _error_limit,
                     &mut self.submit_errors,
                     self.submit_batch,
+                    observer,
                     &mut complete,
                 )?;
             }
@@ -346,7 +365,7 @@ impl Queue {
                     // Keep the requested order, but do not ask the Linux block
                     // plug to dispatch both directions in a single submission.
                     if direction.is_some_and(|previous| previous != r.write) {
-                        ring.submit()?;
+                        linux::uring_submit(ring, observer)?;
                     }
                     direction = Some(r.write);
                     let buf = unsafe { ptr.add(i * stride) };
@@ -363,7 +382,7 @@ impl Queue {
                     unsafe { ring.submission().push(&entry) }
                         .map_err(|_| io::Error::other("submission queue full"))?;
                     if (i + 1) % self.submit_batch == 0 {
-                        ring.submit()?;
+                        linux::uring_submit(ring, observer)?;
                     }
                 }
                 let mut done = 0;
@@ -371,10 +390,13 @@ impl Queue {
                 let mut failure = None;
                 // Nonblocking submission plus bounded polling gives every backend the same
                 // stall timeout; a stalled device must not trap an uninterruptible wait.
-                ring.submit()?;
+                linux::uring_submit(ring, observer)?;
                 while done < count {
                     let before = done;
                     for cqe in ring.completion() {
+                        if let Some(counter) = observer {
+                            counter.completed(1);
+                        }
                         done += 1;
                         let index = cqe.user_data() as usize;
                         if index >= count {
@@ -397,6 +419,11 @@ impl Queue {
                         if ring.params().is_feature_ext_arg() {
                             let timeout = io_uring::types::Timespec::from(Duration::from_millis(1));
                             let args = io_uring::types::SubmitArgs::new().timespec(&timeout);
+                            // Submit through the accounting path before waiting.
+                            if !ring.submission().is_empty() {
+                                linux::uring_submit(ring, observer)?;
+                                continue;
+                            }
                             if let Err(e) = ring.submitter().submit_with_args(1, &args) {
                                 if !matches!(
                                     e.raw_os_error(),
@@ -411,7 +438,7 @@ impl Queue {
                     }
                     // Retry SQEs not accepted by a partial submit.
                     if !ring.submission().is_empty() {
-                        ring.submit()?;
+                        linux::uring_submit(ring, observer)?;
                     }
                 }
                 self.pending = false;
@@ -465,6 +492,16 @@ impl Drop for Queue {
 #[cfg(target_os = "linux")]
 mod linux {
     use super::*;
+    pub fn uring_submit(
+        ring: &io_uring::IoUring,
+        observer: Option<&crate::progress::Counter>,
+    ) -> io::Result<usize> {
+        let submitted = ring.submit()?;
+        if let Some(counter) = observer {
+            counter.submitted(submitted);
+        }
+        Ok(submitted)
+    }
     #[allow(clippy::too_many_arguments)]
     pub fn uring_stream<N, P, C>(
         ring: &mut io_uring::IoUring,
@@ -474,6 +511,7 @@ mod linux {
         requests: &mut [Request],
         timeout: Duration,
         submit_batch: usize,
+        observer: Option<&crate::progress::Counter>,
         mut next: N,
         mut prepare: P,
         mut complete: C,
@@ -504,7 +542,7 @@ mod linux {
                         unsafe { std::slice::from_raw_parts_mut(ptr.add(i * stride), request.len) };
                     prepare(request, buffer);
                     if direction.is_some_and(|previous| previous != request.write) {
-                        if ring.submit()? > 0 {
+                        if uring_submit(ring, observer)? > 0 {
                             progress = Instant::now();
                         }
                         group = 0;
@@ -527,7 +565,7 @@ mod linux {
                     pending += 1;
                     group += 1;
                     if group == submit_batch {
-                        if ring.submit()? > 0 {
+                        if uring_submit(ring, observer)? > 0 {
                             progress = Instant::now();
                         }
                         group = 0;
@@ -535,7 +573,7 @@ mod linux {
                 }
             }
             let queued = !ring.submission().is_empty();
-            if queued && ring.submit()? > 0 {
+            if queued && uring_submit(ring, observer)? > 0 {
                 progress = Instant::now();
             }
             if finished && pending == 0 {
@@ -543,6 +581,9 @@ mod linux {
             }
             let mut completed = 0;
             for cqe in ring.completion() {
+                if let Some(counter) = observer {
+                    counter.completed(1);
+                }
                 let slot = requests
                     .get_mut(cqe.user_data() as usize)
                     .ok_or_else(|| io::Error::other("invalid completion id"))?;
@@ -566,6 +607,12 @@ mod linux {
                 return Err(Failure::Timeout);
             }
             if ring.params().is_feature_ext_arg() {
+                if !ring.submission().is_empty() {
+                    if uring_submit(ring, observer)? > 0 {
+                        progress = Instant::now();
+                    }
+                    continue;
+                }
                 let wait = types::Timespec::from(Duration::from_millis(1));
                 let args = types::SubmitArgs::new().timespec(&wait);
                 if let Err(e) = ring.submitter().submit_with_args(1, &args) {
@@ -649,6 +696,7 @@ mod linux {
             error_limit: u64,
             errors: &mut u64,
             submit_batch: usize,
+            observer: Option<&crate::progress::Counter>,
             mut complete: C,
         ) -> std::result::Result<(), Failure>
         where
@@ -687,6 +735,9 @@ mod linux {
                         )
                     };
                     if ret > 0 {
+                        if let Some(counter) = observer {
+                            counter.submitted(ret as usize);
+                        }
                         submitted += ret as usize;
                         progress = Instant::now();
                     } else if ret == 0 || ret == -libc::EAGAIN || ret == -libc::EINTR {
@@ -716,6 +767,9 @@ mod linux {
                         return Err(io::Error::from_raw_os_error(-ret).into());
                     }
                     if ret > 0 {
+                        if let Some(counter) = observer {
+                            counter.completed(ret as usize);
+                        }
                         progress = Instant::now();
                         for e in &self.events[..ret as usize] {
                             completed += 1;
@@ -751,6 +805,7 @@ mod linux {
             error_limit: u64,
             errors: &mut u64,
             submit_batch: usize,
+            observer: Option<&crate::progress::Counter>,
             mut next: N,
             mut prepare: P,
             mut complete: C,
@@ -818,6 +873,9 @@ mod linux {
                         )
                     };
                     if ret > 0 {
+                        if let Some(counter) = observer {
+                            counter.submitted(ret as usize);
+                        }
                         for pointer in &self.pointers[head..head + ret as usize] {
                             let index = unsafe { (**pointer).data as usize };
                             requests[index].state = 2;
@@ -855,6 +913,9 @@ mod linux {
                         return Err(io::Error::from_raw_os_error(-ret).into());
                     }
                     if ret > 0 {
+                        if let Some(counter) = observer {
+                            counter.completed(ret as usize);
+                        }
                         progress = Instant::now();
                         for event in &self.events[..ret as usize] {
                             let slot = requests

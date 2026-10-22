@@ -65,6 +65,11 @@ system calls and kernel queue destruction cannot guarantee a bounded wait.
 
 ## Compatibility status
 
+Live progress uses C's layout: `[seconds / workers / in-flight] read ... MB/s
+(... IOPS / bytes-per-I/O), write ..., total ... GiB`. Rates use decimal MB/s;
+the cumulative total uses GiB. The default interval is one second; `-s1` and
+`-s 0.1` select explicit intervals, and `-s 0` disables progress.
+
 Implemented: `-f`, per-worker `-F` target suffixes, `-G`, `-c`, `-t`, live `-s` progress, `-R`, `-v`,
 `--recreate`, simple `-S` position files, `-p` range-aware preconditioning,
 `-K` operation counts, submission-error threshold `-E` and asynchronous timeout
