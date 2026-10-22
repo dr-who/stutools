@@ -100,6 +100,13 @@ fn write_line(
         if writes == 0 { 0. } else { write_bytes as f64 / writes as f64 },
         (total.read_bytes + total.write_bytes) as f64 / 1073741824.)
 }
+
+fn write_pending_notice(out: &mut impl Write, total: Sample, elapsed: f64) -> io::Result<()> {
+    if total.reads == 0 && total.writes == 0 && total.in_flight > 0 {
+        writeln!(out, "*info* no I/O completed within {elapsed:.2} seconds; {} requests are still pending in the OS/driver. Waiting for submitted I/O; synchronous calls cannot be stopped by -t/-T. For file tests, try a NEW prefix with -F PREFIX -G 1MiB -c ws1x1 first; -G limits the test range but does not shrink an existing file", total.in_flight)?;
+    }
+    Ok(())
+}
 pub struct State {
     pub start: OnceLock<Instant>,
     counters: Box<[Counter]>,
@@ -165,6 +172,7 @@ impl Reporter {
                     previous = total;
                     last = elapsed;
                     if duration.is_some_and(|limit| actual >= limit) {
+                        let _ = write_pending_notice(&mut stderr.lock(), total, elapsed);
                         break;
                     }
                 }
@@ -188,6 +196,36 @@ impl Drop for Reporter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn zero_iops_with_pending_io_explains_the_wait() {
+        let mut output = Vec::new();
+        write_pending_notice(
+            &mut output,
+            Sample {
+                in_flight: 1,
+                ..Sample::default()
+            },
+            2.,
+        )
+        .unwrap();
+        let notice = String::from_utf8(output).unwrap();
+        assert!(
+            notice.contains("no I/O completed within 2.00 seconds") && notice.contains("OS/driver")
+        );
+        assert!(notice.contains("NEW prefix") && notice.contains("does not shrink"));
+        for sample in [
+            Sample::default(),
+            Sample {
+                writes: 1,
+                in_flight: 1,
+                ..Sample::default()
+            },
+        ] {
+            let mut output = Vec::new();
+            write_pending_notice(&mut output, sample, 2.).unwrap();
+            assert!(output.is_empty());
+        }
+    }
     #[test]
     fn matches_c_progress_layout_units_and_padding() {
         let mut output = Vec::new();

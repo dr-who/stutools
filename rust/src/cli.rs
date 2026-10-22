@@ -586,6 +586,7 @@ START HERE (writes overwrite the selected range)
 TARGETS AND RUN LIMITS
   -f FILE         file/device; repeat for several targets
   -F PREFIX       one file per worker: PREFIX.0001, PREFIX.0002, ...
+                  initialize new test files with -c ws1x1 before reading
   -G SIZE         bytes [0,SIZE); -G LOW-HIGH selects [LOW,HIGH)
                   bare numbers are decimal GB; KiB/MiB/GiB are exact
   -b BYTES        size in bytes (equivalent to -G with a byte suffix)
@@ -637,6 +638,13 @@ Linux auto probes io_uring queue creation, then uses libaio if unavailable.
 Linux administrator enable command:
   sudo sh -c 'echo 0 > /proc/sys/kernel/io_uring_disabled'
 macOS/Windows use buffered positional I/O. Explicit backends never fall back.
+Windows: -f E:\ is a filesystem root; use -F E:\spit-test for file tests.
+  spit -F E:\spit-test -G 1MiB -c ws1x1 -v
+  spit -F E:\spit-test -G 1MiB -c rs0 -t 10
+Administrator raw volume READS: spit -f \\.\C: -c rs0 -G 1GiB
+Raw Windows writes are unsupported. Virtual filesystems may have no raw device.
+-G limits the range; it never shrinks an existing file. If an I/O stalls beyond
+-t, its late completion is excluded from IOPS; the driver must finish before exit.
 Synchronous backends do one I/O at a time per worker; q sets reusable batch size.
 Pools allocate at startup; successful worker I/O loops report hot_path_allocations=0.
 Summary: completed reads/writes, elapsed seconds, MiB/s, IOPS and verified_ops.

@@ -43,11 +43,14 @@ Only overwrite the middle 512 KiB of an existing file:
 .SH OPTIONS
 .TP
 .BI \-f " FILE"
-Target file or Linux block device. Repeat for several targets. Existing size is
+Target file, Linux block device, or read-only Windows volume. Repeat for several targets. Existing size is
 the default range. New or unsized targets require an explicit size.
 .TP
 .BI \-F " PREFIX"
 One target per expanded worker, PREFIX.0001, PREFIX.0002, and so on.
+PREFIX is a filename prefix, not a directory. Read workloads require files
+initialized earlier, for example using -c ws1x1 with the same prefix, size
+and worker count. Reading never creates missing files.
 .TP
 .BI \-G " SIZE or LOW-HIGH"
 Select [0,SIZE) or [LOW,HIGH), with the upper bound excluded. Bare numbers mean
@@ -67,6 +70,8 @@ override it; Y caps operations. Workload T sets a per-worker duration.
 Progress stops at the measured deadline. Already submitted I/O drains silently;
 draining and resource cleanup can delay process exit without extending the
 reported time or adding late completions to throughput and IOPS.
+If no I/O has completed and requests remain pending at the deadline, a notice
+explains the OS/driver wait. Late completions are reported separately.
 .TP
 .BI \-s " SECONDS"
 Print C-style progress lines: elapsed seconds, active workers, requests in flight,
@@ -138,6 +143,30 @@ Show examples, syntax and the detected default backend.
 .TP
 .B \-\-version
 Show the version and implementation.
+.SH WINDOWS TARGETS
+A drive root such as E: or E:\e names a filesystem, not an I/O file.
+For a filesystem test, choose a new disposable filename prefix:
+.PP
+.nf
+  spit -F E:\espit-test -G 1MiB -c ws1x1 -v
+  spit -F E:\espit-test -G 1MiB -c rs0 -t 10 -s 0.1
+.fi
+.PP
+These commands write then read E:\espit-test.0001. Bare -G 1 means one
+decimal gigabyte; -G 1M means one decimal megabyte. Selecting a smaller range
+does not shrink an existing file or change its filesystem allocation.
+.PP
+For a non-destructive raw volume read, run as Administrator:
+.PP
+.nf
+  spit -f \e\e.\eC: -c rs0 -G 1GiB
+.fi
+.PP
+Use two leading backslashes and no trailing backslash. Spit queries the volume
+size and sector size using disk controls, validates sector alignment, and reports
+the filesystem. Raw Windows workloads support reads only. Virtual filesystems
+may expose files without a raw block device; use -F for those filesystems.
+I/O errors include the target, operation, byte offset, length and Windows error.
 .SH WORKLOAD LANGUAGE
 Defaults are a 50:50 read/write mix, sequential order, 4 KiB blocks, queue depth
 64 and one worker. Specify r or w explicitly when that is what you intend.

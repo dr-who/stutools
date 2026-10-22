@@ -108,6 +108,11 @@ with the C spitchecker. Do not substitute this binary into those workflows yet.
 `cargo test` on Linux runs the original 15 C safety tests and 11 deeper regression
 specifications unchanged, including their libaio fault-injection shim. The native
 Windows/macOS tests cover the portable core; the libaio shim is Linux-only.
+Windows drive-root diagnostics are tested natively. Administrator-only raw read
+tests are opt-in: in PowerShell set `$env:SPIT_TEST_RAW_VOLUME = '\\.\C:'`,
+then run `cargo test --release windows_raw_volume_read_only`. This performs
+16 reads inside the first MiB and never opens the volume for writing.
+See the top-level README for Windows volume and filesystem examples.
 
 Additional opt-in tests (only disposable devices):
 

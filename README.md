@@ -64,6 +64,27 @@ spit -f scratch.img -c rws0k4q32j8 -t 10 --backend libaio
 On Windows use `.\spit.exe` from the extracted directory. The first two examples
 also work on macOS and Windows, using their buffered backend.
 
+Windows drive roots such as `E:` and `E:\` name a filesystem, not a test file.
+`-F` takes a **file prefix** and creates `PREFIX.0001`, `PREFIX.0002`, etc.,
+one file per worker. Initialize disposable files before reading them:
+
+```bat
+spit -F E:\spit-test -G 1MiB -c ws1x1 -v
+spit -F E:\spit-test -G 1MiB -c rs0 -t 10 -s 0.1
+```
+
+For a non-destructive raw **volume** read, run as Administrator:
+`spit -f \\.\C: -c rs0 -G 1GiB`. Keep the two leading backslashes and omit
+the trailing backslash. Spit reports the filesystem and sector size; raw Windows
+writes are currently unsupported. A virtual filesystem such as ExabaFOO may
+provide files without exposing a raw block device; use `-F` in that case.
+
+`-G 1M` tests a decimal megabyte; `-G 1` tests a decimal gigabyte. Neither shrinks
+an existing file. Use a new prefix when comparing small and large files.
+Zero IOPS with requests in flight means the OS/driver has not completed an I/O
+within the measured window. Synchronous calls can delay exit beyond `-t`;
+spit explains the pending requests and excludes late completions from rates.
+
 The compact workload `ws1k4q32j4x1` means **w**rites, **s1** sequential,
 **k4** = 4 KiB, **q32** queue depth, **j4** workers splitting the range, and
 **x1** = one worker-range worth of bytes per worker. Quoted workloads may contain

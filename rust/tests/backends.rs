@@ -190,7 +190,9 @@ fn check_live_progress(interval_args: &[&str]) {
     assert!(read.ends_with(" IOPS / 4096)"), "{line}");
     assert!(write.contains(" MB/s ("), "{line}");
     assert!(write.ends_with(" IOPS / 0)"), "{line}");
-    assert!(total.trim_end_matches(" GiB").parse::<f64>().unwrap() > 0.);
+    // Slow VMs can complete reads while the GiB total still rounds to 0.00.
+    // The 4096-byte average above proves that this interval completed reads.
+    assert!(total.trim_end_matches(" GiB").parse::<f64>().unwrap() >= 0.);
     assert!(line.contains(" IOPS / 4096), write "), "{line}");
     assert!(line.ends_with(" GiB"), "{line}");
     let mut output = String::new();
@@ -945,5 +947,151 @@ fn missing_prefix_read_job_rejects_before_any_creation() {
     assert!(
         !created,
         "preflight created a target before discovering the missing read file"
+    );
+}
+
+#[test]
+fn missing_prefix_read_explains_initialization() {
+    let target = Target::new();
+    let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+        .arg("-F")
+        .arg(&target.0)
+        .args(["--backend", "buffered", "-G", "1MiB", "-c", "rs0"])
+        .output()
+        .unwrap();
+    let error = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success());
+    assert!(
+        error.contains(&format!("{}.0001", target.0.display())),
+        "{error}"
+    );
+    assert!(
+        error.contains("-F") && error.contains("ws1") && error.contains("x1"),
+        "{error}"
+    );
+    assert!(!std::path::PathBuf::from(format!("{}.0001", target.0.display())).exists());
+}
+
+#[test]
+fn directory_target_explains_file_test_syntax() {
+    let directory = std::env::temp_dir();
+    let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+        .arg("-f")
+        .arg(&directory)
+        .args(["--backend", "buffered", "-G", "1MiB", "-c", "rs0"])
+        .output()
+        .unwrap();
+    let error = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success());
+    assert!(
+        error.contains("directory") && error.contains("-F") && error.contains("prefix"),
+        "{error}"
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_drive_root_explains_filesystem_and_raw_volume() {
+    let drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".into());
+    for path in [drive.clone(), format!("{drive}\\")] {
+        let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+            .args(["-f", &path, "-G", "1MiB", "-c", "rs0"])
+            .output()
+            .unwrap();
+        let error = String::from_utf8_lossy(&out.stderr);
+        assert!(!out.status.success());
+        assert!(
+            error.contains("filesystem") && error.contains("-F"),
+            "{error}"
+        );
+        assert!(error.contains(&format!(r"\\.\{drive}")), "{error}");
+    }
+}
+
+// Opt in only on a host where an administrator has authorized raw reads.
+#[cfg(windows)]
+#[test]
+fn windows_raw_volume_read_only() {
+    let Ok(volume) = std::env::var("SPIT_TEST_RAW_VOLUME") else {
+        return;
+    };
+    let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+        .args([
+            "-f",
+            &volume,
+            "-G",
+            "1MiB",
+            "-c",
+            "rs0k4q1Y16",
+            "-t",
+            "-1",
+            "-K",
+            "16,0",
+        ])
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let error = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stdout}\n{error}");
+    assert!(
+        stdout.contains("write_ops=0") && stdout.contains("hot_path_allocations=0"),
+        "{stdout}"
+    );
+    assert!(
+        stdout
+            .split("read_ops=")
+            .nth(1)
+            .unwrap()
+            .split_whitespace()
+            .next()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap()
+            > 0,
+        "{stdout}"
+    );
+    assert!(
+        error.contains("filesystem") && error.contains("read-only"),
+        "{error}"
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_raw_writes_are_rejected_before_open() {
+    let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+        .args(["-f", r"\\.\Z:", "-G", "1MiB", "-c", "ws0Y1"])
+        .output()
+        .unwrap();
+    let error = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success());
+    assert!(
+        error.contains("read-only workloads") && error.contains("-F"),
+        "{error}"
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn io_failure_names_target_operation_offset_and_length() {
+    let out = Command::new(env!("CARGO_BIN_EXE_spit"))
+        .args([
+            "-f",
+            "/dev/full",
+            "--backend",
+            "buffered",
+            "-G",
+            "1MiB",
+            "-c",
+            "ws1zY1",
+        ])
+        .output()
+        .unwrap();
+    let error = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success());
+    assert!(
+        error.contains("target /dev/full")
+            && error.contains("write at byte offset 0, length 4096 bytes"),
+        "{error}"
     );
 }

@@ -230,32 +230,28 @@ pub fn run(c: Config) -> Result<()> {
         } else {
             records.iter().any(|r| r.write)
         } || c.precondition.is_some();
+        io::validate_target(path, write)?;
         let existing = match File::open(path) {
             Ok(f) => Some(f),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(e) => return Err(format!("{}: {e}", path.display())),
+            Err(e) => return Err(format!("open target for size/range validation {}: {e}; check that the path exists and your account has read access (raw Windows volumes require Administrator)", path.display())),
         };
-        let actual = existing
+        let info = existing
             .as_ref()
-            .map(io::length)
-            .transpose()
-            .map_err(|e| e.to_string())?
-            .flatten();
-        let regular = existing
-            .as_ref()
-            .map(|f| f.metadata().map(|m| m.is_file()))
-            .transpose()
-            .map_err(|e| e.to_string())?
-            .unwrap_or(true);
+            .map(|f| io::inspect(path, f))
+            .transpose()?;
+        let actual = info.as_ref().and_then(|i| i.length);
+        let regular = info.as_ref().is_none_or(|i| i.regular);
+        let sector = info.as_ref().and_then(|i| i.sector);
+        if existing.is_none() && !write {
+            return Err(format!("read target does not exist: {}; -F is a file prefix and reads require initialized PREFIX.0001, PREFIX.0002, ... files. Create disposable test files first with the same -F PREFIX, -G SIZE and j worker count using -c ws1x1, then read with -c rs0. Writes overwrite data; choose a new test prefix", path.display()));
+        }
         let (lo, hi) = c
             .range
             .or_else(|| actual.map(|n| (0, n)))
             .ok_or("new/unsized targets need -G")?;
         if lo >= hi {
             return Err("empty range".into());
-        }
-        if existing.is_none() && !write {
-            return Err("read target does not exist".into());
         }
         if actual.is_some_and(|n| hi > n) && !(regular && write && c.recreate) {
             return Err(
@@ -281,6 +277,17 @@ pub fn run(c: Config) -> Result<()> {
         }
         for (w, index) in &target.jobs {
             let (start, end) = worker_range(w, *index, lo, hi, !records.is_empty())?;
+            if let Some(sector) = sector {
+                if start % sector as u64 != 0
+                    || w.block % sector != 0
+                    || w.max_block % sector != 0
+                    || records
+                        .iter()
+                        .any(|r| r.offset % sector as u64 != 0 || r.len % sector != 0)
+                {
+                    return Err(format!("{}: raw Windows I/O requires offsets and lengths in multiples of {sector} bytes; worker start={start}, block={}, maximum block={}; adjust -G, k/M or -S positions", path.display(), w.block, w.max_block));
+                }
+            }
             let count = if records.is_empty() {
                 w.positions.unwrap_or((end - start) / w.block as u64)
             } else {
@@ -333,12 +340,20 @@ pub fn run(c: Config) -> Result<()> {
         return Err("requested positions exceed fixed memory budget".into());
     }
     let mut plans = Vec::new();
+    let mut labels = Vec::new();
     for (target, lo, hi, create, actual, regular, write) in targets {
         let path = &target.path;
-        let file = io::open(path, write, create, c.backend)
-            .map_err(|e| format!("{}: {e}", path.display()))?;
+        let file = io::open(path, write, create, c.backend).map_err(|e| {
+            format!(
+                "open {} target {}: {e}",
+                if write { "read/write" } else { "read-only" },
+                path.display()
+            )
+        })?;
         if regular && (create || actual.is_some_and(|n| hi > n)) {
-            file.set_len(hi).map_err(|e| e.to_string())?;
+            file.set_len(hi).map_err(|e| {
+                format!("set file length to {hi} bytes for {}: {e}", path.display())
+            })?;
         }
         if let Some(pre) = &c.precondition {
             let (start, end) = worker_range(pre, 0, lo, hi, false)?;
@@ -363,11 +378,12 @@ pub fn run(c: Config) -> Result<()> {
             };
             let out = worker(plan, Arc::new(StartGate::new(1)), 0);
             if let Some(e) = out.error {
-                return Err(e.to_string());
+                return Err(format!("precondition {}: {e}", path.display()));
             }
         }
         for (w, index) in &target.jobs {
             let (start, end) = worker_range(w, *index, lo, hi, !records.is_empty())?;
+            labels.push(path.clone());
             plans.push(Plan {
                 file: file.try_clone().map_err(|e| e.to_string())?,
                 work: w.clone(),
@@ -441,7 +457,7 @@ pub fn run(c: Config) -> Result<()> {
     drop(reporter);
     let mut total = Stats::default();
     let mut error = None;
-    for result in outcomes {
+    for (index, result) in outcomes.into_iter().enumerate() {
         let out = result.map_err(|e| e.to_string())?;
         let s = out.stats;
         total.reads += s.reads;
@@ -455,8 +471,13 @@ pub fn run(c: Config) -> Result<()> {
         total.completed_reads += s.completed_reads;
         total.completed_writes += s.completed_writes;
         if let Some(e) = out.error {
-            eprintln!("*error* {e}");
-            error = Some(e.to_string());
+            let context = format!(
+                "worker {} target {}: {e}",
+                index + 1,
+                labels[index].display()
+            );
+            eprintln!("*error* {context}");
+            error = Some(context);
         }
         if out.retained {
             eprintln!("*error* buffers retained until process exit");
@@ -464,6 +485,11 @@ pub fn run(c: Config) -> Result<()> {
         }
     }
     let seconds = total.seconds.max(1e-9);
+    let late =
+        (total.completed_reads + total.completed_writes).saturating_sub(total.reads + total.writes);
+    if late > 0 && total.reads + total.writes == 0 {
+        eprintln!("*info* {late} I/O operations completed after the measured deadline and are excluded from throughput/IOPS; the OS/driver completed them during cleanup");
+    }
     println!("read_ops={} write_ops={} seconds={:.6} read_MiB_s={:.3} write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={} verified_ops={}",total.reads,total.writes,seconds,total.read_bytes as f64/1048576./seconds,total.write_bytes as f64/1048576./seconds,(total.reads+total.writes) as f64/seconds,total.allocations,total.verified);
     if total.reads + total.writes < 2 {
         println!("latency variance: n/a (insufficient samples)");

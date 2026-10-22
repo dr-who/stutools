@@ -1,4 +1,7 @@
 use crate::cli::Backend;
+#[cfg(windows)]
+#[path = "windows.rs"]
+mod windows;
 #[cfg(unix)]
 use std::os::unix::fs::FileExt;
 #[cfg(windows)]
@@ -57,7 +60,48 @@ pub fn open(
             "this platform currently supports only the buffered backend",
         ));
     }
-    o.open(path)
+    let file = o.open(path)?;
+    #[cfg(windows)]
+    windows::prepare_handle(path, &file)?;
+    Ok(file)
+}
+
+pub fn validate_target(path: &std::path::Path, write: bool) -> crate::Result<()> {
+    #[cfg(windows)]
+    windows::validate_target(path, write)?;
+    #[cfg(not(windows))]
+    let _ = write;
+    if path.is_dir() {
+        return Err(format!(
+            "{} is a directory, not an I/O file; -F takes a file prefix, e.g. -F \"{}\" -G 1MiB -c ws1x1, then repeat with -c rs0 to read it",
+            path.display(), path.join("spit-test").display()
+        ));
+    }
+    Ok(())
+}
+
+pub struct TargetInfo {
+    pub length: Option<u64>,
+    pub regular: bool,
+    pub sector: Option<usize>,
+}
+
+pub fn inspect(path: &std::path::Path, file: &File) -> crate::Result<TargetInfo> {
+    #[cfg(windows)]
+    if windows::is_device(path) {
+        return windows::inspect(path, file);
+    }
+    let regular = file
+        .metadata()
+        .map_err(|e| format!("query file metadata for {}: {e}", path.display()))?
+        .is_file();
+    let length =
+        length(file).map_err(|e| format!("query target size for {}: {e}", path.display()))?;
+    Ok(TargetInfo {
+        length,
+        regular,
+        sector: None,
+    })
 }
 pub fn length(file: &File) -> io::Result<Option<u64>> {
     let meta = file.metadata()?;
@@ -121,6 +165,12 @@ pub struct Request {
 #[derive(Debug)]
 pub enum Failure {
     System(io::Error),
+    Operation {
+        error: io::Error,
+        write: bool,
+        offset: u64,
+        len: usize,
+    },
     Incomplete(i64, usize),
     #[cfg(target_os = "linux")]
     Timeout,
@@ -130,6 +180,14 @@ impl std::fmt::Display for Failure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::System(e) => write!(f, "{e}"),
+            Self::Operation { error, write, offset, len } => {
+                write!(f, "{} at byte offset {offset}, length {len} bytes: {error}", if *write { "write" } else { "read" })?;
+                #[cfg(windows)]
+                if error.raw_os_error() == Some(87) {
+                    write!(f, "; Windows rejected an I/O request parameter (not a CLI option); raw-volume offsets, lengths and buffers must be sector-aligned")?;
+                }
+                Ok(())
+            },
             Self::Incomplete(n, w) => write!(f, "incomplete I/O: result {n}, expected {w}"),
             #[cfg(target_os = "linux")]
             Self::Timeout => write!(f, "I/O timed out: no completion within -T; increase -T SECONDS for a slow or heavily queued device"),
@@ -334,7 +392,12 @@ impl Queue {
                     if let Some(counter) = observer {
                         counter.completed(1);
                     }
-                    let n = result?;
+                    let n = result.map_err(|error| Failure::Operation {
+                        error,
+                        write: r.write,
+                        offset: r.offset,
+                        len: r.len,
+                    })?;
                     if n != r.len {
                         return Err(Failure::Incomplete(n as i64, r.len));
                     }
