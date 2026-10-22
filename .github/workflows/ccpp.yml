@@ -1,20 +1,85 @@
-name: C/C++ CI
-
-on: [push]
-
+name: Build and test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-    
+  c-linux:
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v1
-    - name: aptupdate
-      run: sudo apt-get update
-    - name: apt 
-      run: sudo apt-get install libaio-dev libnuma-dev libpci-dev uuid-dev libreadline-dev
-    - name: cmake 
-      run: cmake .
-    - name: make
-      run: make
-
+      - uses: actions/checkout@v4
+      - run: sudo ./c/install-deps.sh --build-only
+      - run: make -C c test JOBS=4
+  rust-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libaio-dev
+      - run: rustup toolchain install stable --profile minimal --component clippy,rustfmt
+      - run: cargo +stable fmt --manifest-path rust/Cargo.toml --check
+      - run: cargo +stable clippy --manifest-path rust/Cargo.toml --locked --all-targets -- -D warnings
+      - run: cargo +stable test --manifest-path rust/Cargo.toml --release --locked
+      - run: cargo +stable build --manifest-path rust/Cargo.toml --release --locked
+      - if: runner.os == 'macOS'
+        run: |
+          python3 rust/packaging/build.py tar
+          python3 rust/packaging/build.py pkg
+      - if: runner.os == 'Windows'
+        run: python rust/packaging/build.py zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spit-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            rust/target/release/spit
+            rust/target/release/spit.exe
+            rust/dist/spit-*.tar.gz
+            rust/dist/spit-*.zip
+            rust/dist/spit-*.pkg
+  rust-packages:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian12
+            image: docker.io/library/debian:12
+          - distro: mint22
+            image: docker.io/linuxmintd/mint22-amd64:latest
+          - distro: rocky9
+            image: docker.io/library/rockylinux:9
+          - distro: alma9
+            image: docker.io/library/almalinux:9
+          - distro: fedora
+            image: registry.fedoraproject.org/fedora:latest
+          - distro: rhel9-ubi
+            image: registry.access.redhat.com/ubi9/ubi:latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo fetch --locked --manifest-path rust/Cargo.toml
+      - run: python3 rust/packaging/source.py
+      - name: Build, test and install the package
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          toolchain=$(dirname "$(dirname "$(rustup which rustc)")")
+          mkdir -p rust/dist/packages
+          archive=$(python3 -c 'import pathlib,re; print("stutools-" + re.search(r"^version = \"([^\"]+)\"", pathlib.Path("rust/Cargo.toml").read_text(),re.M)[1] + ".tar.gz")')
+          docker run --rm --user 0 --security-opt seccomp=unconfined \
+            -e "STUTOOLS_SOURCE_ARCHIVE=$archive" \
+            -v "$toolchain:/opt/rust:ro" \
+            -v "$PWD/rust/dist:/input:ro" \
+            -v "$PWD/rust/packaging:/scripts:ro" \
+            -v "$PWD/rust/dist/packages:/artifacts" \
+            "$IMAGE" sh /scripts/container-check.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stutools-${{ matrix.distro }}
+          path: rust/dist/packages/

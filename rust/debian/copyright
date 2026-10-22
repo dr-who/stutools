@@ -1,0 +1,56 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: stutools
+Upstream-Contact: Stuart Inglis <stuart.inglis@gmail.com>
+Source: https://github.com/dr-who/stutools
+
+Files: *
+Copyright: 2026 Stuart Inglis <stuart.inglis@gmail.com>
+License: Apache-2.0
+ On Debian systems, the complete text of the Apache License, version 2.0,
+ can be found in /usr/share/common-licenses/Apache-2.0.
+
+Files: vendor/bitflags-*
+Copyright: (c) 2014 The Rust Project Developers
+License: Expat
+
+Files: vendor/cfg-if-*
+Copyright: (c) 2014 Alex Crichton
+License: Expat
+
+Files: vendor/io-uring-*
+Copyright: (c) 2019 quininer@live.com
+License: Expat
+
+Files: vendor/libc-*
+Copyright: (c) The Rust Project Developers
+License: Expat
+
+Files: vendor/pin-project-lite-*
+Copyright: No copyright notice supplied in the upstream MIT licence
+License: Expat
+
+Files: vendor/tokio-*
+Copyright: (c) Tokio Contributors
+License: Expat
+
+License: Expat
+License: Expat
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the "Software"),
+ to deal in the Software without restriction, including without limitation
+ the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to whom the
+ Software is furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
+Comment: Each dependency is distributed under its MIT licence option.
+ THIRD_PARTY_LICENSES.txt retains the individual notices and exact texts.

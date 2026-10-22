@@ -1,0 +1,19 @@
+Source: stutools
+Section: utils
+Maintainer: Stuart Inglis <stuart.inglis@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+ cargo (>= 1.85) <!pkg.stutools.external-rust>,
+ rustc (>= 1.85) <!pkg.stutools.external-rust>,
+ gcc, libaio-dev, python3
+Standards-Version: 4.7.4
+Homepage: https://github.com/dr-who/stutools
+Vcs-Git: https://github.com/dr-who/stutools.git
+Vcs-Browser: https://github.com/dr-who/stutools/tree/main/rust
+Rules-Requires-Root: no
+
+Package: stutools
+Architecture: amd64 arm64 ppc64el riscv64 loong64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Stu's I/O tester, Rust implementation
+ Fixed-pool I/O benchmark with libaio, io_uring, buffered and direct I/O.
+ The Rust package currently contains spit. Other utilities remain in c/.

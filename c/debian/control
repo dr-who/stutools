@@ -1,0 +1,19 @@
+Source: stutools-c
+Section: utils
+Maintainer: Stuart Inglis <stuart.inglis@gmail.com>
+Build-Depends: debhelper-compat (= 13), cmake (>= 3.20), gcc, g++, make,
+ libaio-dev, libpci-dev, libnuma-dev, libreadline-dev, uuid-dev, python3, git
+Standards-Version: 4.7.4
+Homepage: https://github.com/dr-who/stutools
+Vcs-Git: https://github.com/dr-who/stutools.git
+Vcs-Browser: https://github.com/dr-who/stutools/tree/main/c
+Rules-Requires-Root: no
+
+Package: stutools-c
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Breaks: stutools (<< 2.0.0)
+Replaces: stutools (<< 2.0.0)
+Description: Stu's storage and network I/O testing tools
+ Storage and network testing tools including spitc, spitchecker, fsfiller,
+ and snack. Write and discard workloads intentionally modify their targets.

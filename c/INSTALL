@@ -1,0 +1,38 @@
+C suite build and packaging
+
+From c/, install prerequisites and build out of source:
+
+  ./install-deps.sh
+  make JOBS=4
+  make test
+  sudo make install
+
+Debian/Ubuntu/Mint use apt; RHEL/Rocky/Alma/Fedora use dnf.
+CMake 3.20+, a C compiler, make, Python 3, git, libaio, pciutils, NUMA,
+readline and UUID development packages are required. The helper installs them.
+
+Linux defaults to /usr/bin: spitc, fsfiller and the other C utilities.
+Use PREFIX=/path only for an intentional custom install. Rust spit is separate
+and installs as /usr/bin/spit; it does not use C spitchecker's data format.
+
+  make dist         native DEB/RPM, with build/test checks
+  make deb          Debian package using debhelper
+  make rpm          RPM and source RPM using rpmbuild
+  make source       source archive with offline version metadata
+
+The Debian directory is debian/; the RPM spec is packaging/stutools-c.spec.
+The package is stutools-c and can coexist with Rust stutools 2.0.
+
+For direct CMake builds:
+
+  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+  cmake --build build --parallel 4
+  ctest --test-dir build --output-on-failure -L smoke
+  sudo cmake --install build
+
+In-source cmake builds are intentionally rejected. The built C target remains
+build/spit/spit, while installation names it spitc. macOS/Windows build the
+limited portable backend; the complete C suite requires Linux.
+
+Write/discard workloads destroy data within their selected ranges. Use the
+help and man pages and a disposable target before running storage tests.

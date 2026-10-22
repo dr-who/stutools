@@ -1,0 +1,5 @@
+stutools (2.0.0-1) unstable; urgency=medium
+
+  * Package the Rust implementation of spit with offline dependency sources.
+
+ -- Stuart Inglis <stuart.inglis@gmail.com>  Wed, 21 Oct 2026 12:00:00 +1300

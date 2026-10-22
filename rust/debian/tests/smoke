@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+spit --version
+spit --help
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+spit -f "$work/scratch.img" --backend buffered -G 1MiB -c ws1k4q8j4x1 -v -K 0,256
+spit -f "$work/scratch.img" --backend buffered -c rs1k4q8j4x1 -K 256,0

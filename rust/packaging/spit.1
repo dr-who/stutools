@@ -1,0 +1,221 @@
+.TH SPIT 1 "October 2026" "stutools 2.0.0" "User Commands"
+.SH NAME
+spit \- Stu's powerful I/O tester, with fixed memory pools
+.SH SYNOPSIS
+.B spit
+.BI \-f " TARGET"
+.BI \-c " WORKLOAD"
+.RI [ options ]
+.SH DESCRIPTION
+spit runs storage workloads across workers and reports completed operations,
+MiB/s, IOPS, elapsed seconds and verification counts. Linux supports io_uring,
+libaio, synchronous direct and buffered I/O. macOS and Windows currently use
+buffered positional I/O. The Rust implementation uses Tokio to coordinate
+long-lived workers and allocates its reusable I/O pools before measurement.
+.PP
+Write workloads overwrite the selected range. Begin with a disposable file.
+A read workload does not create a missing file or enlarge an existing file.
+All ranges and pool budgets are validated before target creation or writes.
+.SH EXAMPLES
+Create a disposable 16 MiB file, write it once and verify every write:
+.PP
+.nf
+  spit -f scratch.img -G 16MiB -c ws1k4q32j4x1 -v
+.fi
+.PP
+Read it randomly for five seconds:
+.PP
+.nf
+  spit -f scratch.img -c rs0k4q32j4 -t 5
+.fi
+.PP
+Run a random mixed workload with Linux libaio:
+.PP
+.nf
+  spit -f scratch.img -c rws0k4q32j8 -t 10 --backend libaio
+.fi
+.PP
+Only overwrite the middle 512 KiB of an existing file:
+.PP
+.nf
+  spit -f scratch.img -G 256KiB-768KiB -c ws1k4q8x1 -v
+.fi
+.SH OPTIONS
+.TP
+.BI \-f " FILE"
+Target file or Linux block device. Repeat for several targets. Existing size is
+the default range. New or unsized targets require an explicit size.
+.TP
+.BI \-F " PREFIX"
+One target per expanded worker, PREFIX.0001, PREFIX.0002, and so on.
+.TP
+.BI \-G " SIZE or LOW-HIGH"
+Select [0,SIZE) or [LOW,HIGH), with the upper bound excluded. Bare numbers mean
+decimal GB; explicit B, KB/MB/GB and KiB/MiB/GiB suffixes are supported.
+For example, 1GiB is 1073741824 bytes. Workload G tokens instead use GiB.
+.TP
+.BI \-b " BYTES"
+Select a size in bytes; equivalent to -G with a byte suffix.
+.TP
+.BI \-c " WORKLOAD"
+Compact workload string. Repeat to run workloads together. Quoted strings may
+contain whitespace, for example "w s1 k4 q32 j4 x1".
+.TP
+.BI \-t " SECONDS"
+Global time limit, default 10. Use -1 for unlimited. Workload x/X pass limits
+override it; Y caps operations. Workload T sets a per-worker duration.
+.TP
+.B \-v
+Immediately read back ordinary writes and check their seeded, address-tagged
+payload. Verification reads do not count toward workload read operations.
+Scheduled metadata/unique checks are described below.
+.TP
+.BI \-R " SEED"
+Random seed, default 1. Repeating it reproduces Rust's position generation;
+it does not reproduce C's random sequence or C's data format.
+.TP
+.BI \-S " FILE"
+Load positions: byte-offset, R or W, byte-length, one record per line. Example:
+.nf
+  0 W 4096
+  4096 R 4096
+.fi
+These simple records are not C position files. Loaded requests must fit the
+selected range and direct-I/O alignment. Every worker replays the imported range.
+.TP
+.BI \-p " WORKLOAD"
+Precondition before the measured job. One worker only; defaults are ws1x1
+with the supplied tokens appended. The last -p wins. The preconditioning
+implementation does not reproduce all advanced C preconditioning modes.
+.TP
+.BI \-K " READS,WRITES"
+Require exact completed workload counts across all workers and targets.
+Verification-only reads and preconditioning are excluded.
+.TP
+.BI \-E " ERRORS"
+Libaio submission-error stop threshold, default 1. Zero permits retries, still
+subject to the hard retry limit and timeout. Any submission error makes the
+final exit nonzero, even if later I/O succeeds. Completion errors stop the worker.
+.TP
+.BI \-T " SECONDS"
+Asynchronous completion-stall timeout, default 1; accepted range (0,3600].
+This differs from workload T. Synchronous calls and kernel queue destruction
+cannot guarantee a bounded wait.
+.TP
+.BI \-\-backend " NAME"
+auto, io_uring, libaio, direct or buffered; bufferedio aliases buffered. Linux
+auto probes actual io_uring queue creation, falling back to libaio if unavailable.
+Other systems default to buffered. Explicit selections never switch backends.
+.TP
+.BI \-\-memory " SIZE"
+Budget for user I/O buffers and request/position tables, default 512MiB.
+Thread stacks, Tokio, parsed arguments, kernel queues and page cache are extra.
+This is not a process RSS limit. Startup/error/shutdown may allocate; successful
+worker I/O loops report hot_path_allocations=0.
+.TP
+.B \-\-recreate
+Allow enlargement of existing writable regular files to fit the selected range.
+It does not make a read job writable or truncate an existing file's tail.
+.TP
+.B \-V
+Accepted for C CLI compatibility; currently has no effect.
+.TP
+.B \-h, \-\-help
+Show examples, syntax and the detected default backend.
+.TP
+.B \-\-version
+Show the version and implementation.
+.SH WORKLOAD LANGUAGE
+Defaults are a 50:50 read/write mix, sequential order, 4 KiB blocks, queue depth
+64 and one worker. Specify r or w explicitly when that is what you intend.
+.TP
+.B r, w, rw, rrw, pPROB
+Read, write or mix letters proportionally; rrw is two reads per write on average.
+p0.7 selects 70% reads. PROB must lie between zero and one.
+.TP
+.B s0, s1, s-1, sN
+Random, sequential, reverse, or N interleaved stripes. Fractional magnitudes
+between zero and one control partial shuffling; negative values reverse order.
+.TP
+.B kN, MN, kMIN-MAX, kMIN:MAX
+Block sizes in KiB or MiB. kMIN-MAX chooses multiples of MIN; kMIN:MAX chooses
+powers of two starting at MIN. Direct requests require sector alignment.
+.TP
+.B qN, qMIN-MAX
+Queue depth, or maximum submission group MIN and queue depth MAX. qN permits
+batching up to N. Async queue slots are reused only after completion; synchronous
+backends execute one I/O at a time and use q only for reusable batch storage.
+.TP
+.B jN, JN
+N workers with split ranges, or N workers sharing the range. Each worker has its
+own queue and buffers. Total expanded workers are limited to 1024.
+.TP
+.B Pn, P-n, P+n, P.n
+Use the first n generated positions, n random samples with replacement, n spaced
+positions, or alternating low/high spaced positions. Position tables are fixed
+at startup and reused; memory limits may constrain implicit table capacity.
+.TP
+.B Xn, xn, Yn, O
+n position-table passes, n worker-range worth of bytes, n workload operations,
+or one position-table pass. X and x cannot be combined with each other or with
+workload T. Readbacks scheduled by metadata modes are workload operations;
+final checks pending at a stopping limit are verification-only operations.
+.TP
+.B =, n, N, z, F
+Alternate read/write actions each pass, shuffle positions each pass, shift by a
+minimum block per pass, start at zero, or flush completed write batches.
+.TP
+.B SIOPS, TSECONDS, WON:OFF
+Per-worker rate, duration and duty cycle. W1:0.5 alternates one active second
+with half an idle second. Global -T is a stall timeout, not this duration.
+.TP
+.B GLOW-HIGH, bLOW-HIGH, G, G_
+Per-workload GiB range, byte range, full target range, or target range with
+worker splitting. An underscore may separate range endpoints and requests
+splitting for J workers. All ranges must lie within the global target range.
+.SH VERIFICATION MODES
+m and mCOUNT schedule a read phase after the primary positions and flush writes;
+COUNT caps queue depth. u assigns per-position 16-bit seeds, wrapping modulo
+65536. U also schedules checked read pairs at queue depth one. Original read
+positions are replayed without expecting newly written data.
+.PP
+Checks pending when a time, byte or operation limit is reached finish before
+success. These final readbacks are excluded from workload counters and timed
+workload seconds. verified_ops includes completed data checks. Metadata checks
+cannot be combined with alternating-action =. For ordinary -v workloads,
+verification occurs inside the timed loop, unlike C's final verification pass.
+.SH OUTPUT AND EXIT STATUS
+The summary reports read_ops, write_ops, seconds, read_MiB_s, write_MiB_s, IOPS,
+hot_path_allocations and verified_ops. Throughput uses completed workload bytes;
+MiB is 1048576 bytes. Too few samples produce an unavailable diagnostic rather
+than a fabricated latency statistic.
+.PP
+Zero means success. Invalid arguments, pool/range failures, incomplete I/O,
+submission errors, verification failures, allocation-audit failures and count
+mismatches return nonzero. A worker setup failure aborts all workers before I/O.
+.SH PERFORMANCE
+Compare the same sizes, ranges, seeds, durations and backends. Buffered results
+include OS page cache and are not physical-media throughput. Short RAM-device
+measurements do not predict SSD/HDD performance. Mixed io_uring workloads on the
+development host currently use more CPU than libaio; choose explicitly when
+comparing. No general performance claim against fio is implied.
+.SH COMPATIBILITY
+Rust 2.0 implements the common C syntax, not every C workflow. Its data and
+position formats differ from C spit and spitchecker. NUMA policies, copy/trim,
+coverage/GC, changing rate schedules, position output, logs and latency histograms
+remain C features. Unsupported tokens fail explicitly. Use spitc for those
+workflows and consult the installed README before replacing scripts.
+.SH WORDS OF WISDOM
+"Premature optimization is the root of all evil." \(em Donald Knuth.
+.PP
+"There is no Rule 6." \(em Rob Pike.
+.PP
+Bring back Pluto as a planet.
+.SH SEE ALSO
+.BR spitc (1),
+.BR fio (1),
+.BR dd (1)
+.PP
+https://github.com/dr-who/stutools
+.SH AUTHOR
+Stuart Inglis <stuart.inglis@gmail.com>.

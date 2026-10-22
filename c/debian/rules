@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+%:
+	dh $@ --buildsystem=cmake --builddirectory=build
+
+override_dh_auto_configure:
+	dh_auto_configure -- -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSTUTOOLS_SYSTEMD_UNIT_DIR=/usr/lib/systemd/system
+
+override_dh_auto_test:
+	ctest --test-dir build --output-on-failure -L smoke
+
+override_dh_installsystemd:
+	dh_installsystemd --no-enable --no-start

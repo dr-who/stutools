@@ -1,0 +1,26 @@
+#!/usr/bin/make -f
+export CARGO_HOME = $(CURDIR)/debian/cargo-home
+export CARGO_TARGET_DIR = $(CURDIR)/target
+
+%:
+	dh $@ --buildsystem=none
+override_dh_auto_configure:
+override_dh_auto_build:
+	cargo build --release --locked --offline
+override_dh_auto_test:
+	cargo test --locked --offline
+override_dh_auto_install:
+	install -Dm755 target/release/spit debian/stutools/usr/bin/spit
+override_dh_auto_clean:
+	rm -rf target debian/cargo-home
+
+override_dh_clean:
+	# Cargo.toml.orig is part of each crate's verified vendor checksum set.
+	dh_clean -Xvendor/
+
+override_dh_dwz:
+	# Rust DWARF is not handled consistently by older dwz releases.
+
+override_dh_strip:
+	# The release profile has no DWARF. Avoid an empty automatic dbgsym package.
+	dh_strip --no-automatic-dbgsym

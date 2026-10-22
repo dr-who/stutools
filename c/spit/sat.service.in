@@ -1,0 +1,15 @@
+[Unit]
+Description=Stu's automatic topology
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Environment=SAT_NAME=stu
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/sat
+
+[Install]
+WantedBy=multi-user.target
