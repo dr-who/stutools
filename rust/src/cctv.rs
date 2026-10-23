@@ -213,7 +213,7 @@ impl Logs {
             );
             writeln!(log,"# spit CCTV run; prefix={:?}; cameras={}; Mbit_s_each={}; retention_hours={}; block_bytes={}; file_bytes={}; duration_seconds={duration:?}",ns.directory.join(&ns.prefix),settings.count,settings.mbps,settings.hours,settings.block,settings.file_size)?;
             for file in [&mut minute, &mut hour] {
-                file.write_all(stats::HEADER.as_bytes())?;
+                stats::write_header(file)?;
                 file.flush()?;
             }
             hour.get_ref().sync_data()?;
@@ -385,7 +385,11 @@ fn camera(shared: Arc<Shared>, index: usize, mut buffer: Box<[u8]>, seed: u64) -
         }
         let before = Instant::now();
         let result = file.file.as_mut().unwrap().write_all(&buffer);
-        let latency = before.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let completed = Instant::now();
+        let latency = completed
+            .duration_since(before)
+            .as_nanos()
+            .min(u64::MAX as u128) as u64;
         if let Some(c) = counter {
             c.completed(1);
         }
@@ -395,6 +399,20 @@ fn camera(shared: Arc<Shared>, index: usize, mut buffer: Box<[u8]>, seed: u64) -
                 bytes: buffer.len() as u64,
                 write_ns: latency as u128,
                 max_write_ns: latency,
+                max_write_tag: stats::WriteTag {
+                    camera: index + 1,
+                    sequence: file.sequence,
+                    offset,
+                    submitted_ns: before
+                        .duration_since(start)
+                        .as_nanos()
+                        .min(u64::MAX as u128) as u64,
+                    completed_ns: completed
+                        .duration_since(start)
+                        .as_nanos()
+                        .min(u64::MAX as u128) as u64,
+                },
+                writes_over_200ms: u64::from(latency > 200_000_000),
                 ..Metrics::default()
             })
         } else {
@@ -546,7 +564,14 @@ fn run_inner(config: Config) -> Result<()> {
         "preallocating initial {}-byte files for {} cameras before the measured run",
         settings.file_size, settings.count
     );
-    while shared.ready.load(Ordering::Acquire) < settings.count && !shared.stopping() {
+    // Start with both the current file and the lookahead reserved for every camera.
+    while !shared.stopping()
+        && (shared.ready.load(Ordering::Acquire) < settings.count
+            || shared
+                .slots
+                .iter()
+                .any(|slot| slot.value.lock().unwrap().is_none()))
+    {
         thread::sleep(Duration::from_millis(10));
     }
     let utc = files::now().map_err(|e| e.to_string())?;
@@ -655,9 +680,11 @@ fn run_inner(config: Config) -> Result<()> {
         total.preallocation_waits,
         total.max_preallocation_wait_ns as f64 / 1e6
     );
+    let timing = format!("writes_over_200ms={} max_write_camera={} max_write_sequence={} max_write_offset={} max_write_submit_s={:.9} max_write_complete_s={:.9} stop_reason={}",total.writes_over_200ms,total.max_write_tag.camera,total.max_write_tag.sequence,total.max_write_tag.offset,total.max_write_tag.submitted_ns as f64/1e9,total.max_write_tag.completed_ns as f64/1e9,if error.is_some(){"error"}else if signals::INTERRUPTED.load(Ordering::Relaxed){"interrupted"}else{"deadline"});
     println!("read_ops=0 write_ops={} seconds={seconds:.6} read_MiB_s=0.000 write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={allocations} verified_ops=0 avg_write_ms={:.6} max_write_ms={:.6} late_write_ops={}",total.writes,total.bytes as f64/1048576./seconds,total.writes as f64/seconds,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,shared.late.load(Ordering::Relaxed));
     println!("{rotation_stats}");
-    writeln!(logs.log,"# finished seconds={seconds:.6} write_ops={} write_bytes={} avg_write_ms={:.6} max_write_ms={:.6} hot_path_allocations={allocations} {rotation_stats} status={}",total.writes,total.bytes,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,if error.is_some(){"error"}else{"ok"}).map_err(|e|e.to_string())?;
+    println!("{timing}");
+    writeln!(logs.log,"# finished seconds={seconds:.6} write_ops={} write_bytes={} avg_write_ms={:.6} max_write_ms={:.6} hot_path_allocations={allocations} {rotation_stats} {timing} status={}",total.writes,total.bytes,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,if error.is_some(){"error"}else{"ok"}).map_err(|e|e.to_string())?;
     if let Some(e) = error {
         Err(e)
     } else {
@@ -693,7 +720,14 @@ mod tests {
         logs.advance(&mut periods, 3600., false, &store, 0).unwrap();
         let text = std::fs::read_to_string(&logs.paths[2]).unwrap();
         assert_eq!(text.lines().count(), 2);
-        assert!(text.contains(",3.000000,4.000000,"));
+        let fields: Vec<_> = text
+            .lines()
+            .nth(1)
+            .unwrap()
+            .split(',')
+            .map(str::trim)
+            .collect();
+        assert_eq!(&fields[7..9], &["3.000000", "4.000000"]);
         logs.advance(&mut periods, 7200., false, &store, 0).unwrap();
         assert_eq!(
             std::fs::read_to_string(&logs.paths[2])
@@ -706,11 +740,14 @@ mod tests {
         logs.advance(&mut periods, 8100., true, &store, 0).unwrap();
         let text = std::fs::read_to_string(&logs.paths[2]).unwrap();
         assert_eq!(text.lines().count(), 4);
-        assert!(text
+        let fields: Vec<_> = text
             .lines()
             .last()
             .unwrap()
-            .contains(",7200,900.000000,partial,"));
+            .split(',')
+            .map(str::trim)
+            .collect();
+        assert_eq!(&fields[2..5], &["7200", "900.000000", "partial"]);
         drop(logs);
         drop(ns);
         std::fs::remove_dir_all(directory).unwrap();

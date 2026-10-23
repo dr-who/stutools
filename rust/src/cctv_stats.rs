@@ -1,6 +1,14 @@
 use std::io::{self, Write};
 
 #[derive(Clone, Copy, Default, Debug)]
+pub struct WriteTag {
+    pub camera: usize,
+    pub sequence: u64,
+    pub offset: u64,
+    pub submitted_ns: u64,
+    pub completed_ns: u64,
+}
+#[derive(Clone, Copy, Default, Debug)]
 pub struct Metrics {
     pub writes: u64,
     pub bytes: u64,
@@ -14,9 +22,14 @@ pub struct Metrics {
     pub preallocation_waits: u64,
     pub preallocation_wait_ns: u128,
     pub max_preallocation_wait_ns: u64,
+    pub max_write_tag: WriteTag,
+    pub writes_over_200ms: u64,
 }
 impl Metrics {
     pub fn merge(&mut self, other: Self) {
+        if other.writes > 0 && (self.writes == 0 || other.max_write_ns > self.max_write_ns) {
+            self.max_write_tag = other.max_write_tag;
+        }
         self.writes += other.writes;
         self.bytes += other.bytes;
         self.write_ns += other.write_ns;
@@ -31,6 +44,7 @@ impl Metrics {
         self.max_preallocation_wait_ns = self
             .max_preallocation_wait_ns
             .max(other.max_preallocation_wait_ns);
+        self.writes_over_200ms += other.writes_over_200ms;
     }
 }
 #[derive(Default)]
@@ -71,7 +85,29 @@ impl MetricsStore {
         }
     }
 }
-pub const HEADER: &str = "period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms\n";
+pub const HEADER: &str = "period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms,max_write_camera,max_write_sequence,max_write_offset,max_write_submit_s,max_write_complete_s,writes_over_200ms\n";
+
+fn padded_csv(out: &mut impl Write, row: &str) -> io::Result<()> {
+    for (index, (name, value)) in HEADER
+        .trim_end()
+        .split(',')
+        .zip(row.trim_end().split(','))
+        .enumerate()
+    {
+        if index > 0 {
+            write!(out, ", ")?;
+        }
+        let width = name.len().max(match index {
+            1 | 6 => 20,
+            _ => 12,
+        });
+        write!(out, "{value:>width$}")?;
+    }
+    writeln!(out)
+}
+pub fn write_header(out: &mut impl Write) -> io::Result<()> {
+    padded_csv(out, HEADER)
+}
 
 fn row(
     out: &mut impl Write,
@@ -82,9 +118,8 @@ fn row(
     complete: bool,
     m: Metrics,
 ) -> io::Result<()> {
-    writeln!(
-        out,
-        "{},{},{start},{seconds:.6},{},{},{},{:.6},{:.6},{},{:.6},{:.6},{},{},{},{:.6},{:.6}",
+    let line = format!(
+        "{},{},{start},{seconds:.6},{},{},{},{:.6},{:.6},{},{:.6},{:.6},{},{},{},{:.6},{:.6},{},{},{},{:.9},{:.9},{}",
         index + 1,
         super::files::utc(utc + start, true),
         if complete { "complete" } else { "partial" },
@@ -111,8 +146,15 @@ fn row(
         } else {
             m.preallocation_wait_ns as f64 / m.preallocation_waits as f64 / 1e6
         },
-        m.max_preallocation_wait_ns as f64 / 1e6
-    )
+        m.max_preallocation_wait_ns as f64 / 1e6,
+        m.max_write_tag.camera,
+        m.max_write_tag.sequence,
+        m.max_write_tag.offset,
+        m.max_write_tag.submitted_ns as f64 / 1e9,
+        m.max_write_tag.completed_ns as f64 / 1e9,
+        m.writes_over_200ms
+    );
+    padded_csv(out, &line)
 }
 #[derive(Default)]
 pub struct Periods {
@@ -189,6 +231,58 @@ impl Periods {
 mod tests {
     use super::*;
     #[test]
+    fn slowest_buffer_keeps_its_camera_and_submit_complete_times() {
+        let mut metrics = Metrics {
+            writes: 1,
+            bytes: 65536,
+            write_ns: 45_000_000,
+            max_write_ns: 45_000_000,
+            max_write_tag: WriteTag {
+                camera: 7,
+                sequence: 9,
+                offset: 65536,
+                submitted_ns: 1_000_000_000,
+                completed_ns: 1_045_000_000,
+            },
+            ..Metrics::default()
+        };
+        let mut out = Vec::new();
+        row(&mut out, 0, 0, 60., 0, true, metrics).unwrap();
+        let text = String::from_utf8(out).unwrap();
+        let fields: Vec<_> = text.trim_end().split(',').map(str::trim).collect();
+        assert_eq!(&fields[7..9], &["45.000000", "45.000000"]);
+        assert_eq!(
+            &fields[17..22],
+            &["7", "9", "65536", "1.000000000", "1.045000000"]
+        );
+        let slow = Metrics {
+            writes: 1,
+            write_ns: 250_000_000,
+            max_write_ns: 250_000_000,
+            writes_over_200ms: 1,
+            max_write_tag: WriteTag {
+                camera: 3,
+                submitted_ns: 2_000_000_000,
+                completed_ns: 2_250_000_000,
+                ..WriteTag::default()
+            },
+            ..Metrics::default()
+        };
+        metrics.merge(slow);
+        metrics.merge(Metrics {
+            writes: 1,
+            write_ns: 1_000_000,
+            max_write_ns: 1_000_000,
+            ..Metrics::default()
+        });
+        assert_eq!(metrics.max_write_tag.camera, 3);
+        assert_eq!(
+            metrics.max_write_tag.completed_ns - metrics.max_write_tag.submitted_ns,
+            metrics.max_write_ns
+        );
+        assert_eq!(metrics.writes_over_200ms, 1);
+    }
+    #[test]
     fn seven_days_have_168_flushed_hours_with_weighted_latencies() {
         let mut periods = Periods::default();
         let mut store = MetricsStore::default();
@@ -241,7 +335,7 @@ mod tests {
         let hours = String::from_utf8(hours).unwrap();
         assert_eq!(hours.lines().count(), 168);
         for line in hours.lines() {
-            let fields: Vec<_> = line.split(',').collect();
+            let fields: Vec<_> = line.split(',').map(str::trim).collect();
             assert_eq!(
                 &fields[4..9],
                 &["complete", "240", "15728640", "2.500000", "3.000000"]
@@ -310,7 +404,7 @@ mod tests {
             .unwrap());
         assert_eq!(minutes.iter().filter(|b| **b == b'\n').count(), 15);
         let row = String::from_utf8(hours).unwrap();
-        let fields: Vec<_> = row.trim_end().split(',').collect();
+        let fields: Vec<_> = row.trim_end().split(',').map(str::trim).collect();
         assert_eq!(
             &fields[2..9],
             &[
@@ -323,6 +417,6 @@ mod tests {
                 "4.000000"
             ]
         );
-        assert_eq!(&fields[13..], &["60", "15", "2.000000", "2.000000"]);
+        assert_eq!(&fields[13..17], &["60", "15", "2.000000", "2.000000"]);
     }
 }

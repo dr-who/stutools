@@ -3,6 +3,10 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 pub static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+#[cfg(any(windows, test))]
+fn windows_stop_signal(kind: u32) -> bool {
+    matches!(kind, 0 | 1 | 2 | 6)
+}
 #[cfg(unix)]
 unsafe extern "C" {
     fn signal(number: i32, handler: usize) -> usize;
@@ -13,13 +17,18 @@ extern "C" fn interrupt(_number: i32) {
 }
 #[cfg(windows)]
 extern "system" fn interrupt(kind: u32) -> i32 {
-    if matches!(kind, 0 | 1 | 2 | 5 | 6) {
+    // SYSTEM tasks can receive a logoff notification for somebody else's session.
+    if kind == 5 {
+        return 1;
+    }
+    if windows_stop_signal(kind) {
         INTERRUPTED.store(true, Ordering::Relaxed);
         1
     } else {
         0
     }
 }
+
 #[cfg(windows)]
 #[link(name = "kernel32")]
 unsafe extern "system" {
@@ -71,6 +80,17 @@ impl Drop for Guard {
         #[cfg(windows)]
         if self.installed {
             unsafe { SetConsoleCtrlHandler(Some(interrupt), 0) };
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn windows_logoff_does_not_stop_background_recording() {
+        assert!(!super::windows_stop_signal(5));
+        for kind in [0, 1, 2, 6] {
+            assert!(super::windows_stop_signal(kind));
         }
     }
 }

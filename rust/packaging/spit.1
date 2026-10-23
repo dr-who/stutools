@@ -167,8 +167,13 @@ Normal -s progress defaults to one second. Beside the recording prefix, each
 run creates cctv-test-UTC-DATETIME.log, .min and .hour. Progress is mirrored to
 .log. Minute/hour CSV rows contain completed write count, bytes, average and
 maximum application-write latency in milliseconds, preallocation latency and
-deletion counts. Write latency excludes pacing, buffer generation and closing
-flushes. Hour averages are weighted by write count. Rows are flushed immediately;
+deletion counts. Columns are padded with spaces; trim headings and values when
+importing CSV. Write latency times a synchronous buffer write in a Tokio blocking
+worker and excludes pacing, buffer generation and closing flushes. It includes
+any OS blocking or thread descheduling during that call. The slowest buffer has
+camera/sequence/offset and monotonic submission/return timestamps. The
+writes_over_200ms column counts buffer writes exceeding 200 ms. Hour averages
+are weighted by write count. Rows are flushed immediately;
 hourly rows are also synced, so they can be analysed while recording continues.
 A completed seven-day run has 168 hourly data rows plus a header. Final partial
 periods are labelled partial; exact boundaries add no empty extra row.

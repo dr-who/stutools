@@ -342,7 +342,7 @@ pub struct Prepared {
     path: PathBuf,
     namespace: Arc<Namespace>,
     camera: usize,
-    sequence: u64,
+    pub sequence: u64,
     pub head: [u8; 64],
     pub used: bool,
     pub fallback: bool,

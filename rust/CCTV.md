@@ -17,15 +17,15 @@ MBPS means **decimal megabits per second per camera**. The example targets
 500 Mbit/s (62.5 MB/s), retains 24 hours of recordings, and runs for seven days.
 The files contain generated benchmark data.
 
-For a three-day, 1,000-camera run with one day's retention:
+For a three-day, 100-camera run with one day's retention:
 
 ```powershell
-spit -F E:\recordings\camera --cctv 1000,5,24 -c k64 --filesizemb 16 -t 3d -s 1
+spit -F E:\recordings\camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 3d -s 1
 ```
 
-This requests 5,000 Mbit/s (625 MB/s). Each camera has its own long-lived worker
+This requests 500 Mbit/s (62.5 MB/s). Each camera has its own long-lived worker
 and open recording; the background allocator keeps a second open file ready.
-Allow roughly 54 TB for 24 hours of payload, plus reservations and metadata.
+Allow roughly 5.4 TB for 24 hours of payload, plus reservations and metadata.
 The requested rate is a target; storage or CPU limits can reduce the achieved
 rate, which is recorded in the progress and summary logs.
 
@@ -70,24 +70,38 @@ cctv-test-2026-10-23_14-35-01Z.hour
 
 Times are UTC; same-second runs receive a numeric suffix. Logs are created
 exclusively. `.log` contains settings, progress and the final result. `.min`
-and `.hour` are CSV with one header and one row per elapsed minute/hour:
+and `.hour` are CSV with space padding to align columns, one header and one row
+per elapsed minute/hour. Trim surrounding whitespace from column names and
+values when importing them into analysis tools:
 
 ```text
-period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms
+period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms,max_write_camera,max_write_sequence,max_write_offset,max_write_submit_s,max_write_complete_s,writes_over_200ms
 ```
 
 `avg_write_ms` is total completed application-write latency divided by write
 count; `max_write_ms` is the slowest completed write in that period. These
 measure `write_all`, exclude pacing/buffer generation and do not measure media
-durability. Closing a recording flushes data separately. Preallocation has its
+durability. CCTV uses synchronous `File::write_all` calls in Tokio blocking workers, not
+Tokio asynchronous file writes. The elapsed time includes any OS blocking or
+thread descheduling during that buffer-write call. Closing a recording flushes
+data separately. Preallocation has its
 own latency columns. Hourly averages are weighted by write count. Empty periods
 show zero samples and zero latency.
 
 `file_rotations` counts switches to the next recording after the initial file.
 `preallocation_waits` counts switches where the allocation worker had not yet
 made that file available; its average/max wait columns measure those delays.
-Zero waits means each next file was ready when the camera requested it. This
+The measured run starts only after every camera has its current and next file
+reserved. Zero waits means each next file was ready when the camera requested it. This
 does not promise zero filesystem write, flush or rename latency.
+
+The slowest buffer write carries its camera, recording sequence and byte offset.
+`max_write_submit_s` and `max_write_complete_s` are monotonic elapsed seconds
+relative to the measured start, immediately before and after the synchronous
+write call. Their difference in milliseconds equals `max_write_ms`. They are
+application submission/return timestamps, not kernel IRP or durable-media
+completion timestamps. `writes_over_200ms` counts completed buffer writes that
+exceeded 200 ms; file allocation and closing flushes do not enter that count.
 
 Every progress/minute/hour record is flushed from userspace. Each hourly row
 is also synced to the filesystem, so `.hour` can be analysed during the run.
@@ -127,7 +141,9 @@ a fresh prefix and a unique task name for each independent recording set. For
 `-t 7d`, raise the task's execution limit (for example, to eight days); otherwise
 Task Scheduler could forcibly stop it before Spit flushes the final summary.
 The machine must stay running and the volume must remain mounted. An SSH
-disconnect does not stop this task; a reboot does. Forcefully ending the task
+disconnect does not stop this task; a reboot does. Windows user-logoff
+notifications are ignored by the background recorder; shutdown and Ctrl+C
+still request a clean stop. Forcefully ending the task
 cannot guarantee a final partial-hour summary, so let `-t` finish normally.
 
 ## Ownership and retention

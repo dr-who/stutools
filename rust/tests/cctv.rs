@@ -115,9 +115,34 @@ fn cameras_write_fixed_files_and_live_logs_without_hot_allocations() {
         if ext == "log" {
             assert!(text.contains("] read "));
         } else {
-            assert!(text.contains("avg_write_ms,max_write_ms"));
+            let names: Vec<_> = text
+                .lines()
+                .next()
+                .unwrap()
+                .split(',')
+                .map(str::trim)
+                .collect();
+            assert_eq!(&names[7..9], &["avg_write_ms", "max_write_ms"]);
             assert_eq!(text.lines().filter(|l| !l.starts_with('#')).count(), 2);
             assert!(text.contains("partial"));
+            let data = text.lines().nth(1).unwrap();
+            let values: Vec<_> = data.split(',').map(str::trim).collect();
+            let submitted: f64 = values[20].parse().unwrap();
+            let completed: f64 = values[21].parse().unwrap();
+            let maximum_ms: f64 = values[8].parse().unwrap();
+            assert!(submitted <= completed);
+            assert!(((completed - submitted) * 1000. - maximum_ms).abs() < 0.000002);
+            assert!(matches!(values[17], "1" | "2"));
+            assert_eq!(values[19], "0");
+            assert_eq!(
+                text.lines()
+                    .next()
+                    .unwrap()
+                    .match_indices(',')
+                    .map(|(i, _)| i)
+                    .collect::<Vec<_>>(),
+                data.match_indices(',').map(|(i, _)| i).collect::<Vec<_>>()
+            );
         }
     }
     assert!(!fs::read_dir(&dir.0).unwrap().any(|e| e
