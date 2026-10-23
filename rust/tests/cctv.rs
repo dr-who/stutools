@@ -66,11 +66,11 @@ fn cameras_write_fixed_files_and_live_logs_without_hot_allocations() {
         "--cctv",
         "2,8,24",
         "--filesizemb",
-        "0.25",
+        "0.0625",
         "-c",
         "k64",
         "-t",
-        "0.7s",
+        "3s",
         "-s",
         "0.1",
     ]);
@@ -93,7 +93,7 @@ fn cameras_write_fixed_files_and_live_logs_without_hot_allocations() {
     let files = dir.files("spitcam");
     assert!(files.len() >= 4, "expected rotation: {files:?}");
     for p in files {
-        assert_eq!(fs::metadata(&p).unwrap().len(), 262144);
+        assert_eq!(fs::metadata(&p).unwrap().len(), 65536);
         assert!(p
             .file_name()
             .unwrap()

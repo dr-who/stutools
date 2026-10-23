@@ -17,6 +17,18 @@ MBPS means **decimal megabits per second per camera**. The example targets
 500 Mbit/s (62.5 MB/s), retains 24 hours of recordings, and runs for seven days.
 The files contain generated benchmark data.
 
+For a three-day, 1,000-camera run with one day's retention:
+
+```powershell
+spit -F E:\recordings\camera --cctv 1000,5,24 -c k64 --filesizemb 16 -t 3d -s 1
+```
+
+This requests 5,000 Mbit/s (625 MB/s). Each camera has its own long-lived worker
+and open recording; the background allocator keeps a second open file ready.
+Allow roughly 54 TB for 24 hours of payload, plus reservations and metadata.
+The requested rate is a target; storage or CPU limits can reduce the achieved
+rate, which is recorded in the progress and summary logs.
+
 Each camera writes sequentially with a fixed, reusable **64 KiB** buffer by
 default. `-c k64` makes that explicit; a fixed `M` size also works.
 `--filesizemb 16` means **16 MiB** and defaults to 16. File size must be a
