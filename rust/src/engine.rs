@@ -15,6 +15,7 @@ use std::{
     time::Instant,
 };
 struct Plan {
+    record_latency: bool,
     file: File,
     work: Workload,
     lo: u64,
@@ -41,6 +42,8 @@ struct Stats {
     verified: u64,
     completed_reads: u64,
     completed_writes: u64,
+    /// Per-operation latency in microseconds, measured from the start of its batch.
+    latencies_us: Vec<u32>,
 }
 impl Stats {
     fn complete(&mut self, request: Request, measured: bool) {
@@ -194,7 +197,21 @@ fn loaded(c: &Config) -> Result<Arc<[Request]>> {
     }
     Ok(records.into())
 }
-pub fn run(c: Config) -> Result<()> {
+/// Upper bound on latency samples kept per worker; later completions are not recorded.
+const LATENCY_CAPACITY: usize = 2_000_000;
+
+/// What a finished workload measured. Printed as the usual summary line as well.
+#[allow(dead_code)]
+pub struct Summary {
+    pub reads: u64,
+    pub writes: u64,
+    pub read_bytes: u64,
+    pub write_bytes: u64,
+    pub seconds: f64,
+    pub latencies_us: Vec<u32>,
+}
+
+pub fn run(c: Config) -> Result<Summary> {
     let records = loaded(&c)?;
     let specs = target_specs(&c);
     let max_loaded = records.iter().map(|r| r.len).max().unwrap_or(0);
@@ -263,7 +280,7 @@ pub fn run(c: Config) -> Result<()> {
             let (start, end) = worker_range(pre, 0, lo, hi, false)?;
             if pre.workers != 1
                 || pre.max_block as u64 > end - start
-                || (c.backend != Backend::Buffered
+                || (c.backend != Backend::Pagecache
                     && (start % 512 != 0 || pre.block % 512 != 0 || pre.max_block % 512 != 0))
             {
                 return Err("invalid preconditioning block/range".into());
@@ -305,7 +322,7 @@ pub fn run(c: Config) -> Result<()> {
             if records.is_empty() && end - start < w.max_block as u64 {
                 return Err("block is larger than worker range".into());
             }
-            if c.backend != Backend::Buffered
+            if c.backend != Backend::Pagecache
                 && (start % 512 != 0 || (w.block % 512 != 0 || w.max_block % 512 != 0))
             {
                 return Err("direct I/O requires sector-aligned offsets and lengths".into());
@@ -319,7 +336,7 @@ pub fn run(c: Config) -> Result<()> {
                 {
                     return Err("loaded position outside range".into());
                 }
-                if c.backend != Backend::Buffered && (r.offset % 512 != 0 || r.len % 512 != 0) {
+                if c.backend != Backend::Pagecache && (r.offset % 512 != 0 || r.len % 512 != 0) {
                     return Err("unaligned loaded position".into());
                 }
             }
@@ -358,6 +375,7 @@ pub fn run(c: Config) -> Result<()> {
         if let Some(pre) = &c.precondition {
             let (start, end) = worker_range(pre, 0, lo, hi, false)?;
             let plan = Plan {
+                record_latency: c.latency_out.is_some(),
                 file: file.try_clone().map_err(|e| e.to_string())?,
                 work: pre.clone(),
                 lo: start,
@@ -385,6 +403,7 @@ pub fn run(c: Config) -> Result<()> {
             let (start, end) = worker_range(w, *index, lo, hi, !records.is_empty())?;
             labels.push(path.clone());
             plans.push(Plan {
+                record_latency: c.latency_out.is_some(),
                 file: file.try_clone().map_err(|e| e.to_string())?,
                 work: w.clone(),
                 lo: start,
@@ -468,6 +487,7 @@ pub fn run(c: Config) -> Result<()> {
         total.allocations += s.allocations;
         total.submit_errors += s.submit_errors;
         total.verified += s.verified;
+        total.latencies_us.extend(s.latencies_us);
         total.completed_reads += s.completed_reads;
         total.completed_writes += s.completed_writes;
         if let Some(e) = out.error {
@@ -517,7 +537,21 @@ pub fn run(c: Config) -> Result<()> {
     if total.allocations != 0 {
         return Err(format!("hot path allocated {} times", total.allocations));
     }
-    Ok(())
+    if let Some(path) = &c.latency_out {
+        let mut text = String::with_capacity(total.latencies_us.len() * 12);
+        for us in &total.latencies_us {
+            text.push_str(&format!("{:.3}\n", *us as f64 / 1000.));
+        }
+        std::fs::write(path, text).map_err(|e| format!("write latency {}: {e}", path.display()))?;
+    }
+    Ok(Summary {
+        reads: total.reads,
+        writes: total.writes,
+        read_bytes: total.read_bytes,
+        write_bytes: total.write_bytes,
+        seconds,
+        latencies_us: total.latencies_us,
+    })
 }
 fn write_pattern(
     buffer: &mut [u8],
@@ -626,8 +660,11 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
         .progress
         .as_ref()
         .map(|state| (state.clone(), worker_index));
-    let guard = allocation::Guard::start();
     let mut stats = Stats::default();
+    if p.record_latency {
+        stats.latencies_us = Vec::with_capacity(LATENCY_CAPACITY);
+    }
+    let guard = allocation::Guard::start();
     let mut error = None;
     let positions = generated.len();
     let limit = match (
@@ -644,6 +681,7 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
     // queues creates block-dispatch contention at high worker counts. Keep
     // those submissions in bounded batches; mixed I/O benefits from refill.
     let streamed = cfg!(target_os = "linux")
+        && !p.record_latency
         && (p.backend == Backend::Libaio || (p.backend == Backend::Uring && mixed))
         && !p.verify
         && !p.work.flush
@@ -736,12 +774,16 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
                     write_pattern(q.buffer(i), request, &p.work, p.seed, reusable, &template);
                 }
             }
+            let batch_started = Instant::now();
             let result = q.execute(count, p.errors, |i, r| {
                 if r.write && p.work.verify {
                     generated.written(index + i as u64);
                 }
                 let measured =
                     duration.is_none_or(|seconds| start.elapsed().as_secs_f64() < seconds);
+                if measured && p.record_latency && stats.latencies_us.len() < stats.latencies_us.capacity() {
+                    stats.latencies_us.push(batch_started.elapsed().as_micros() as u32);
+                }
                 stats.complete(r, measured);
                 stats.publish(progress);
             });

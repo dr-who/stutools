@@ -24,6 +24,12 @@ pub struct Metrics {
     pub max_preallocation_wait_ns: u64,
     pub max_write_tag: WriteTag,
     pub writes_over_200ms: u64,
+    pub gen_ns: u128,
+    pub max_gen_ns: u64,
+    pub closes: u64,
+    pub close_ns: u128,
+    pub max_close_ns: u64,
+    pub max_close_queue: u64,
 }
 impl Metrics {
     pub fn merge(&mut self, other: Self) {
@@ -45,6 +51,12 @@ impl Metrics {
             .max_preallocation_wait_ns
             .max(other.max_preallocation_wait_ns);
         self.writes_over_200ms += other.writes_over_200ms;
+        self.gen_ns += other.gen_ns;
+        self.max_gen_ns = self.max_gen_ns.max(other.max_gen_ns);
+        self.closes += other.closes;
+        self.close_ns += other.close_ns;
+        self.max_close_ns = self.max_close_ns.max(other.max_close_ns);
+        self.max_close_queue = self.max_close_queue.max(other.max_close_queue);
     }
 }
 #[derive(Default)]
@@ -85,7 +97,7 @@ impl MetricsStore {
         }
     }
 }
-pub const HEADER: &str = "period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms,max_write_camera,max_write_sequence,max_write_offset,max_write_submit_s,max_write_complete_s,writes_over_200ms\n";
+pub const HEADER: &str = "period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms,max_write_camera,max_write_sequence,max_write_offset,max_write_submit_s,max_write_complete_s,writes_over_200ms,avg_gen_ms,max_gen_ms,closes,avg_close_ms,max_close_ms,max_close_queue\n";
 
 fn padded_csv(out: &mut impl Write, row: &str) -> io::Result<()> {
     for (index, (name, value)) in HEADER
@@ -119,7 +131,7 @@ fn row(
     m: Metrics,
 ) -> io::Result<()> {
     let line = format!(
-        "{},{},{start},{seconds:.6},{},{},{},{:.6},{:.6},{},{:.6},{:.6},{},{},{},{:.6},{:.6},{},{},{},{:.9},{:.9},{}",
+        "{},{},{start},{seconds:.6},{},{},{},{:.6},{:.6},{},{:.6},{:.6},{},{},{},{:.6},{:.6},{},{},{},{:.9},{:.9},{},{:.6},{:.6},{},{:.6},{:.6},{}",
         index + 1,
         super::files::utc(utc + start, true),
         if complete { "complete" } else { "partial" },
@@ -152,9 +164,22 @@ fn row(
         m.max_write_tag.offset,
         m.max_write_tag.submitted_ns as f64 / 1e9,
         m.max_write_tag.completed_ns as f64 / 1e9,
-        m.writes_over_200ms
+        m.writes_over_200ms,
+        avg_ms(m.gen_ns, m.writes),
+        m.max_gen_ns as f64 / 1e6,
+        m.closes,
+        avg_ms(m.close_ns, m.closes),
+        m.max_close_ns as f64 / 1e6,
+        m.max_close_queue
     );
     padded_csv(out, &line)
+}
+fn avg_ms(total: u128, count: u64) -> f64 {
+    if count == 0 {
+        0.
+    } else {
+        total as f64 / count as f64 / 1e6
+    }
 }
 #[derive(Default)]
 pub struct Periods {

@@ -2,10 +2,6 @@ use crate::cli::Backend;
 #[cfg(windows)]
 #[path = "windows.rs"]
 mod windows;
-#[cfg(unix)]
-use std::os::unix::fs::FileExt;
-#[cfg(windows)]
-use std::os::windows::fs::FileExt;
 use std::{
     alloc::{alloc_zeroed, dealloc, Layout},
     fs::{File, OpenOptions},
@@ -31,7 +27,7 @@ pub fn default_backend() -> Backend {
     }
     #[cfg(not(target_os = "linux"))]
     {
-        Backend::Buffered
+        Backend::Pagecache
     }
 }
 
@@ -44,7 +40,7 @@ pub fn open(
     let mut o = OpenOptions::new();
     o.read(true).write(write).create_new(create);
     #[cfg(target_os = "linux")]
-    if backend != Backend::Buffered {
+    if backend != Backend::Pagecache {
         use std::os::unix::fs::FileTypeExt;
         let direct = std::fs::metadata(path)
             .map(|m| m.is_file() || m.file_type().is_block_device())
@@ -53,14 +49,34 @@ pub fn open(
             o.custom_flags(libc::O_DIRECT);
         }
     }
-    #[cfg(not(target_os = "linux"))]
-    if backend != Backend::Buffered {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // FILE_FLAG_OVERLAPPED: every Windows backend submits requests asynchronously.
+        let mut flags = 0x4000_0000;
+        if backend == Backend::Direct {
+            // FILE_FLAG_NO_BUFFERING: bypass the page cache. Buffers, offsets and lengths
+            // must be sector-aligned, which the engine already checks for direct backends.
+            flags |= 0x2000_0000;
+        }
+        o.custom_flags(flags);
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    if backend != Backend::Pagecache {
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,
-            "this platform currently supports only the buffered backend",
+            "this platform currently supports only the pagecache backend",
         ));
     }
     let file = o.open(path)?;
+    #[cfg(target_os = "macos")]
+    if backend == Backend::Direct {
+        // F_NOCACHE is macOS's direct I/O: bypass the unified buffer cache.
+        use std::os::unix::io::AsRawFd;
+        if unsafe { libc::fcntl(file.as_raw_fd(), libc::F_NOCACHE, 1) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+    }
     #[cfg(windows)]
     windows::prepare_handle(path, &file)?;
     Ok(file)
@@ -165,6 +181,7 @@ pub struct Request {
 #[derive(Debug)]
 pub enum Failure {
     System(io::Error),
+    #[cfg_attr(target_os = "linux", allow(dead_code))]
     Operation {
         error: io::Error,
         write: bool,
@@ -221,7 +238,10 @@ pub struct Queue {
 // One enum per worker; keep the queue inline instead of allocating another box.
 #[allow(clippy::large_enum_variant)]
 enum State {
-    Sync,
+    #[cfg(all(not(windows), not(target_os = "linux")))]
+    Threads(threads::Pool),
+    #[cfg(windows)]
+    Overlapped(overlapped::Port),
     #[cfg(target_os = "linux")]
     Aio(linux::Aio),
     #[cfg(target_os = "linux")]
@@ -246,12 +266,21 @@ impl Queue {
                 .ok_or(io::ErrorKind::InvalidInput)?,
         )?;
         let state = match backend {
-            Backend::Buffered | Backend::Direct => State::Sync,
+            #[cfg(windows)]
+            _ => State::Overlapped(overlapped::Port::new(&file, depth)?),
+            // Linux pagecache and direct I/O both go through the async backends; direct sets O_DIRECT in open().
+            #[cfg(target_os = "linux")]
+            Backend::Pagecache | Backend::Direct => match default_backend() {
+                Backend::Uring => State::Uring(io_uring::IoUring::new(depth as u32)?),
+                _ => State::Aio(linux::Aio::new(depth)?),
+            },
+            #[cfg(all(not(windows), not(target_os = "linux")))]
+            Backend::Pagecache | Backend::Direct => State::Threads(threads::Pool::new(&file, depth)?),
             #[cfg(target_os = "linux")]
             Backend::Libaio => State::Aio(linux::Aio::new(depth)?),
             #[cfg(target_os = "linux")]
             Backend::Uring => State::Uring(io_uring::IoUring::new(depth as u32)?),
-            #[cfg(not(target_os = "linux"))]
+            #[cfg(all(not(windows), not(target_os = "linux")))]
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::Unsupported,
@@ -349,7 +378,8 @@ impl Queue {
                 }
                 result
             }
-            State::Sync => {
+            #[cfg(windows)]
+            State::Overlapped(_) => {
                 Err(io::Error::other("streaming requires an asynchronous backend").into())
             }
         }
@@ -371,38 +401,13 @@ impl Queue {
             .as_ref()
             .map(|(state, index)| state.counter(*index));
         match self.state.as_mut().unwrap() {
-            State::Sync => {
-                for (i, r) in self.requests[..count].iter().enumerate() {
-                    let buf = unsafe { std::slice::from_raw_parts_mut(ptr.add(i * stride), r.len) };
-                    if let Some(counter) = observer {
-                        counter.submitted(1);
-                    }
-                    #[cfg(unix)]
-                    let result = if r.write {
-                        self.file.write_at(buf, r.offset)
-                    } else {
-                        self.file.read_at(buf, r.offset)
-                    };
-                    #[cfg(windows)]
-                    let result = if r.write {
-                        self.file.seek_write(buf, r.offset)
-                    } else {
-                        self.file.seek_read(buf, r.offset)
-                    };
-                    if let Some(counter) = observer {
-                        counter.completed(1);
-                    }
-                    let n = result.map_err(|error| Failure::Operation {
-                        error,
-                        write: r.write,
-                        offset: r.offset,
-                        len: r.len,
-                    })?;
-                    if n != r.len {
-                        return Err(Failure::Incomplete(n as i64, r.len));
-                    }
-                    complete(i, *r);
-                }
+            #[cfg(windows)]
+            State::Overlapped(port) => {
+                port.execute(&self.file, ptr, stride, &self.requests[..count], observer, |i, r| complete(i, r))?;
+            }
+            #[cfg(all(not(windows), not(target_os = "linux")))]
+            State::Threads(pool) => {
+                pool.execute(ptr, stride, &self.requests[..count], observer, |i, r| complete(i, r))?;
             }
             #[cfg(target_os = "linux")]
             State::Aio(aio) => {
@@ -538,7 +543,10 @@ impl Queue {
                         return false;
                     }
                 }
-                State::Sync => {}
+                #[cfg(windows)]
+                State::Overlapped(_) => {}
+                #[cfg(all(not(windows), not(target_os = "linux")))]
+                State::Threads(_) => {}
             }
         }
         true
@@ -1025,6 +1033,274 @@ mod linux {
             assert_eq!(std::mem::size_of::<Cb>(), 64);
             assert_eq!(std::mem::size_of::<Event>(), 32);
             assert_eq!(std::mem::size_of::<Request>(), 24);
+        }
+    }
+}
+
+#[cfg(windows)]
+mod overlapped {
+    //! Windows overlapped I/O: a batch of requests is submitted at once, each with its own
+    //! OVERLAPPED, and the completion port reports them as they finish.
+    use super::{Failure, Request};
+    use std::ffi::c_void;
+    use std::fs::File;
+    use std::io;
+    use std::os::windows::io::AsRawHandle;
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct Ov {
+        internal: usize,
+        internal_high: usize,
+        offset: u32,
+        offset_high: u32,
+        event: *mut c_void,
+    }
+
+    unsafe extern "system" {
+        fn CreateIoCompletionPort(file: *mut c_void, existing: *mut c_void, key: usize, threads: u32) -> *mut c_void;
+        fn ReadFile(file: *mut c_void, buf: *mut u8, count: u32, read: *mut u32, ov: *mut Ov) -> i32;
+        fn WriteFile(file: *mut c_void, buf: *const u8, count: u32, written: *mut u32, ov: *mut Ov) -> i32;
+        fn GetQueuedCompletionStatus(port: *mut c_void, bytes: *mut u32, key: *mut usize, ov: *mut *mut Ov, timeout: u32) -> i32;
+        fn CloseHandle(handle: *mut c_void) -> i32;
+    }
+
+    const ERROR_IO_PENDING: i32 = 997;
+    const INFINITE: u32 = 0xFFFF_FFFF;
+
+    pub struct Port {
+        file: *mut c_void,
+        port: *mut c_void,
+        ov: Box<[Ov]>,
+    }
+
+    impl Port {
+        pub fn new(file: &File, depth: usize) -> io::Result<Self> {
+            let file_handle = file.as_raw_handle() as *mut c_void;
+            // Associating the file with a new port returns the port handle.
+            let port = unsafe { CreateIoCompletionPort(file_handle, std::ptr::null_mut(), 0, 0) };
+            if port.is_null() {
+                return Err(io::Error::last_os_error());
+            }
+            let zero = Ov { internal: 0, internal_high: 0, offset: 0, offset_high: 0, event: std::ptr::null_mut() };
+            Ok(Self { file: file_handle, port, ov: vec![zero; depth].into_boxed_slice() })
+        }
+
+        /// Submits `requests` together and waits for every completion, calling `complete` for each.
+        pub fn execute<C>(
+            &mut self,
+            _file: &File,
+            ptr: *mut u8,
+            stride: usize,
+            requests: &[Request],
+            observer: Option<&crate::progress::Counter>,
+            mut complete: C,
+        ) -> Result<(), Failure>
+        where
+            C: FnMut(usize, Request),
+        {
+            let mut submitted = 0usize;
+            let mut failure = None;
+            for (i, r) in requests.iter().enumerate() {
+                let ov = &mut self.ov[i] as *mut Ov;
+                unsafe {
+                    (*ov).internal = 0;
+                    (*ov).internal_high = 0;
+                    (*ov).offset = r.offset as u32;
+                    (*ov).offset_high = (r.offset >> 32) as u32;
+                    (*ov).event = std::ptr::null_mut();
+                }
+                let buf = unsafe { ptr.add(i * stride) };
+                let ok = unsafe {
+                    if r.write {
+                        WriteFile(self.file, buf, r.len as u32, std::ptr::null_mut(), ov)
+                    } else {
+                        ReadFile(self.file, buf, r.len as u32, std::ptr::null_mut(), ov)
+                    }
+                };
+                if ok == 0 && unsafe { GetLastErrorCode() } != ERROR_IO_PENDING {
+                    failure = Some(Failure::Operation {
+                        error: io::Error::last_os_error(),
+                        write: r.write,
+                        offset: r.offset,
+                        len: r.len,
+                    });
+                    break;
+                }
+                submitted += 1;
+                if let Some(counter) = observer {
+                    counter.submitted(1);
+                }
+            }
+            // Reap everything that was submitted, even after a failure, so no buffer is in use by the kernel.
+            for _ in 0..submitted {
+                let mut bytes = 0u32;
+                let mut key = 0usize;
+                let mut done: *mut Ov = std::ptr::null_mut();
+                let ok = unsafe { GetQueuedCompletionStatus(self.port, &mut bytes, &mut key, &mut done, INFINITE) };
+                if done.is_null() {
+                    return Err(Failure::System(io::Error::last_os_error()));
+                }
+                let index = (done as usize - self.ov.as_ptr() as usize) / std::mem::size_of::<Ov>();
+                let r = requests[index];
+                if let Some(counter) = observer {
+                    counter.completed(1);
+                }
+                if ok == 0 {
+                    failure.get_or_insert(Failure::Operation {
+                        error: io::Error::last_os_error(),
+                        write: r.write,
+                        offset: r.offset,
+                        len: r.len,
+                    });
+                } else if bytes as usize != r.len {
+                    failure.get_or_insert(Failure::Incomplete(bytes as i64, r.len));
+                } else if failure.is_none() {
+                    complete(index, r);
+                }
+            }
+            match failure {
+                Some(e) => Err(e),
+                None => Ok(()),
+            }
+        }
+    }
+
+    unsafe fn GetLastErrorCode() -> i32 {
+        io::Error::last_os_error().raw_os_error().unwrap_or(0)
+    }
+
+    impl Drop for Port {
+        fn drop(&mut self) {
+            unsafe {
+                CloseHandle(self.port);
+            }
+        }
+    }
+}
+
+/// macOS (and other non-Linux, non-Windows Unix) async I/O: one thread per queue slot, each doing
+/// positional reads or writes, so up to `depth` requests are in flight at once.
+#[cfg(all(not(windows), not(target_os = "linux")))]
+mod threads {
+    use super::{Failure, Request};
+    use std::fs::File;
+    use std::io;
+    use std::os::unix::fs::FileExt;
+    use std::sync::{mpsc, Arc};
+    use std::thread::JoinHandle;
+
+    struct Job {
+        index: usize,
+        ptr: usize,
+        len: usize,
+        offset: u64,
+        write: bool,
+    }
+
+    pub struct Pool {
+        jobs: Vec<mpsc::Sender<Job>>,
+        done: mpsc::Receiver<(usize, io::Result<usize>)>,
+        handles: Vec<JoinHandle<()>>,
+    }
+
+    impl Pool {
+        pub fn new(file: &File, depth: usize) -> io::Result<Self> {
+            let file = Arc::new(file.try_clone()?);
+            let (done_tx, done) = mpsc::channel();
+            let mut jobs = Vec::with_capacity(depth);
+            let mut handles = Vec::with_capacity(depth);
+            for _ in 0..depth {
+                let (tx, rx) = mpsc::channel::<Job>();
+                let file = file.clone();
+                let done_tx = done_tx.clone();
+                handles.push(std::thread::spawn(move || {
+                    for job in rx {
+                        let buf = unsafe { std::slice::from_raw_parts_mut(job.ptr as *mut u8, job.len) };
+                        let result = if job.write {
+                            file.write_at(buf, job.offset)
+                        } else {
+                            file.read_at(buf, job.offset)
+                        };
+                        if done_tx.send((job.index, result)).is_err() {
+                            break;
+                        }
+                    }
+                }));
+                jobs.push(tx);
+            }
+            Ok(Self { jobs, done, handles })
+        }
+
+        /// Submits the batch to the slot threads and waits for every completion.
+        pub fn execute<C>(
+            &mut self,
+            ptr: *mut u8,
+            stride: usize,
+            requests: &[Request],
+            observer: Option<&crate::progress::Counter>,
+            mut complete: C,
+        ) -> Result<(), Failure>
+        where
+            C: FnMut(usize, Request),
+        {
+            for (i, r) in requests.iter().enumerate() {
+                if let Some(counter) = observer {
+                    counter.submitted(1);
+                }
+                let job = Job {
+                    index: i,
+                    ptr: ptr as usize + i * stride,
+                    len: r.len,
+                    offset: r.offset,
+                    write: r.write,
+                };
+                self.jobs[i]
+                    .send(job)
+                    .map_err(|_| Failure::System(io::Error::other("I/O thread stopped")))?;
+            }
+            let mut failure = None;
+            for _ in 0..requests.len() {
+                let (index, result) = self
+                    .done
+                    .recv()
+                    .map_err(|_| Failure::System(io::Error::other("I/O thread stopped")))?;
+                let r = requests[index];
+                if let Some(counter) = observer {
+                    counter.completed(1);
+                }
+                match result {
+                    Ok(n) if n == r.len => {
+                        if failure.is_none() {
+                            complete(index, r);
+                        }
+                    }
+                    Ok(n) => {
+                        failure.get_or_insert(Failure::Incomplete(n as i64, r.len));
+                    }
+                    Err(error) => {
+                        failure.get_or_insert(Failure::Operation {
+                            error,
+                            write: r.write,
+                            offset: r.offset,
+                            len: r.len,
+                        });
+                    }
+                }
+            }
+            match failure {
+                Some(e) => Err(e),
+                None => Ok(()),
+            }
+        }
+    }
+
+    impl Drop for Pool {
+        fn drop(&mut self) {
+            self.jobs.clear();
+            for handle in self.handles.drain(..) {
+                let _ = handle.join();
+            }
         }
     }
 }
