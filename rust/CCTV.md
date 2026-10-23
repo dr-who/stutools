@@ -3,16 +3,16 @@
 Linux:
 
 ```sh
-spit -F /mnt/recordings/camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+spit -F /mnt/recordings/camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 7d
 ```
 
 Windows PowerShell:
 
 ```powershell
-spit -F F:\recordings\camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+spit -F E:\recordings\camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 7d
 ```
 
-`--cams COUNT,MBPS,HOURS` starts independent synthetic recording streams.
+`--cctv COUNT,MBPS,HOURS` starts independent synthetic recording streams.
 MBPS means **decimal megabits per second per camera**. The example targets
 500 Mbit/s (62.5 MB/s), retains 24 hours of recordings, and runs for seven days.
 The files contain generated benchmark data.
@@ -61,7 +61,7 @@ exclusively. `.log` contains settings, progress and the final result. `.min`
 and `.hour` are CSV with one header and one row per elapsed minute/hour:
 
 ```text
-period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files
+period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms
 ```
 
 `avg_write_ms` is total completed application-write latency divided by write
@@ -71,6 +71,12 @@ durability. Closing a recording flushes data separately. Preallocation has its
 own latency columns. Hourly averages are weighted by write count. Empty periods
 show zero samples and zero latency.
 
+`file_rotations` counts switches to the next recording after the initial file.
+`preallocation_waits` counts switches where the allocation worker had not yet
+made that file available; its average/max wait columns measure those delays.
+Zero waits means each next file was ready when the camera requested it. This
+does not promise zero filesystem write, flush or rename latency.
+
 Every progress/minute/hour record is flushed from userspace. Each hourly row
 is also synced to the filesystem, so `.hour` can be analysed during the run.
 A completed **`-t 7d` produces 168 hourly data rows**, plus the header, and
@@ -78,10 +84,39 @@ A completed **`-t 7d` produces 168 hourly data rows**, plus the header, and
 boundaries do not add empty rows. The accelerated seven-day aggregation test
 does not imply a seven-day wall-clock soak.
 
+For a 15-minute check, use `-t 15m`. A successful full run produces 15 complete
+minute rows and **one partial-hour row covering 900 seconds**, including all
+write and preallocation statistics. The partial row is flushed and synced
+before the process exits.
+
 `-t` accepts seconds or `ms`, `s`, `m`, `h`, `d`, `w` suffixes, including
 `-t 1.5h`. CCTV defaults to running until Ctrl+C/SIGTERM. Timed progress/counts
 stop at the deadline; pending filesystem calls and final flushes can delay exit.
 Late writes are counted separately.
+
+## Keep a Windows run alive after disconnecting
+
+Use Windows Task Scheduler to run independently of an SSH or terminal session.
+For example, in an elevated PowerShell session:
+
+```powershell
+$exe = (Get-Command spit).Source
+$action = New-ScheduledTaskAction -Execute $exe -Argument '-F E:\recordings\camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 15m -s 1'
+$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+Register-ScheduledTask -TaskName 'spit-cctv-test' -Action $action -Principal $principal -Settings $settings
+Start-ScheduledTask -TaskName 'spit-cctv-test'
+Get-ScheduledTask -TaskName 'spit-cctv-test'
+Get-Content E:\recordings\cctv-test-*.log -Tail 5
+```
+
+The task writes the normal CCTV logs even without an attached console. Choose
+a fresh prefix and a unique task name for each independent recording set. For
+`-t 7d`, raise the task's execution limit (for example, to eight days); otherwise
+Task Scheduler could forcibly stop it before Spit flushes the final summary.
+The machine must stay running and the volume must remain mounted. An SSH
+disconnect does not stop this task; a reboot does. Forcefully ending the task
+cannot guarantee a final partial-hour summary, so let `-t` finish normally.
 
 ## Ownership and retention
 

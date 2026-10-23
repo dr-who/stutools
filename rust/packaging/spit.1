@@ -146,10 +146,10 @@ Show examples, syntax and the detected default backend.
 Show the version and implementation.
 .SH CCTV RECORDING MODE
 .nf
-  spit -F recordings/camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+  spit -F recordings/camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 7d
 .fi
 .PP
-Works on Linux, Windows and other supported systems. --cams specifies camera
+Works on Linux, Windows and other supported systems. --cctv specifies camera
 count, decimal Mbit/s per camera, and recording retention in hours. Cameras
 write generated data sequentially. Defaults are 64 KiB per write and 16 MiB
 per file. --filesizemb is measured in MiB; file size must be a block multiple.
@@ -172,6 +172,11 @@ flushes. Hour averages are weighted by write count. Rows are flushed immediately
 hourly rows are also synced, so they can be analysed while recording continues.
 A completed seven-day run has 168 hourly data rows plus a header. Final partial
 periods are labelled partial; exact boundaries add no empty extra row.
+A 15-minute run (-t 15m) has 15 complete minute rows and one flushed partial
+hour covering 900 seconds. Rotation and preallocation-wait counters show whether
+the next recording was available in advance. Zero preallocation waits does not
+imply zero write, flush or rename latency. On Windows, use Task Scheduler for
+runs that must survive terminal/SSH disconnection; see CCTV.md for an example.
 .PP
 Retention scans at startup and each minute. It deletes only expired regular
 recordings matching this prefix's exact naming scheme and binary ownership

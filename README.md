@@ -100,7 +100,7 @@ For camera-style recording with background preallocation, retention and flushed
 minute/hour logs:
 
 ```sh
-spit -F recordings/camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+spit -F recordings/camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 7d
 ```
 
 This simulates 100 cameras at 5 Mbit/s each, using 64 KiB sequential writes into

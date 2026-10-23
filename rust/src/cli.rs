@@ -563,9 +563,9 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 c.backend = Backend::parse(v)?;
                 explicit_backend = v != "auto";
             }
-            "--cams" => {
+            "--cctv" => {
                 if c.cameras.is_some() {
-                    return Err("specify --cams once".into());
+                    return Err("specify --cctv once".into());
                 }
                 c.cameras = Some(crate::cctv::Settings::parse(v)?);
             }
@@ -586,7 +586,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     }
     if let Some(cameras) = &mut c.cameras {
         if camera_conflict || c.prefixes.len() != 1 || c.jobs.len() > 1 {
-            return Err("--cams requires one -F directory/prefix; supports -c kSIZE/MSIZE, --filesizemb, -t, -s, -R and --memory; regular workload/range/verification options cannot be combined".into());
+            return Err("--cctv requires one -F directory/prefix; supports -c kSIZE/MSIZE, --filesizemb, -t, -s, -R and --memory; regular workload/range/verification options cannot be combined".into());
         }
         if let Some(block) = camera_block {
             let scale = if block.starts_with('k') {
@@ -613,7 +613,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         return Ok(Some(c));
     }
     if file_size.is_some() {
-        return Err("--filesizemb requires --cams".into());
+        return Err("--filesizemb requires --cctv".into());
     }
     if c.files.is_empty() && c.prefixes.is_empty() {
         return Err("specify -f FILE or -F PREFIX".into());
@@ -730,14 +730,14 @@ Timed summaries count only completions observed within the measured window;
 draining, verification cleanup and resource teardown do not extend that window.
 Metadata checks pending at a limit finish before success, outside workload counts.
 [cctv]
-  --cams COUNT,MBPS,HOURS  camera count, decimal Mbit/s EACH, retention hours
+  --cctv COUNT,MBPS,HOURS  camera count, decimal Mbit/s EACH, retention hours
   -F DIR/PREFIX           one independent sequential recording stream per camera
   -c k64                  fixed write block size (default 64 KiB; M sizes accepted)
   --filesizemb 16         preallocated recording file size in MiB (default 16)
                           files rotate when full; background worker prepares ahead
   -t 7d                   run for seven days (CCTV default: until Ctrl+C)
   -s SECONDS              normal progress interval (default 1; 0 disables it)
-  spit -F recordings/camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+  spit -F recordings/camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 7d
   Logs: cctv-test-UTC-DATETIME.log, .min and .hour, beside the recording prefix.
   .min/.hour are flushed CSV, with average/max write ms for each minute/hour.
   A completed seven-day run has 168 hourly data rows; final partial periods are labelled.
@@ -761,6 +761,7 @@ mod tests {
             ("7d", 604800.),
             ("1.5h", 5400.),
             ("10m", 600.),
+            ("15m", 900.),
             ("250ms", 0.25),
             ("2w", 1209600.),
             ("1s", 1.),

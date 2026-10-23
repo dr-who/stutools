@@ -48,7 +48,7 @@ fn help_has_cctv_section_and_seven_day_example() {
     assert!(out.status.success());
     for required in [
         "[cctv]",
-        "--cams",
+        "--cctv",
         "--filesizemb",
         "-t 7d",
         ".hour",
@@ -56,13 +56,14 @@ fn help_has_cctv_section_and_seven_day_example() {
     ] {
         assert!(help.contains(required), "missing {required}: {help}");
     }
+    assert!(!help.contains("--cams"));
 }
 
 #[test]
 fn cameras_write_fixed_files_and_live_logs_without_hot_allocations() {
     let dir = Scratch::new();
     let out = dir.run(&[
-        "--cams",
+        "--cctv",
         "2,8,24",
         "--filesizemb",
         "0.25",
@@ -80,6 +81,14 @@ fn cameras_write_fixed_files_and_live_logs_without_hot_allocations() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert!(String::from_utf8_lossy(&out.stdout).contains("hot_path_allocations=0"));
+    let summary = String::from_utf8_lossy(&out.stdout);
+    for field in [
+        "file_rotations=",
+        "preallocation_waits=",
+        "max_preallocation_wait_ms=",
+    ] {
+        assert!(summary.contains(field), "missing {field}: {summary}");
+    }
     assert!(String::from_utf8_lossy(&out.stderr).contains("] read "));
     let files = dir.files("spitcam");
     assert!(files.len() >= 4, "expected rotation: {files:?}");
@@ -121,12 +130,12 @@ fn cameras_write_fixed_files_and_live_logs_without_hot_allocations() {
 #[test]
 fn invalid_camera_options_do_not_create_files() {
     for args in [
-        vec!["--cams", "0,5,24"],
-        vec!["--cams", "100,nan,24"],
-        vec!["--cams", "1,5,0"],
-        vec!["--cams", "1,5,24", "-c", "ws1"],
-        vec!["--cams", "1,5,24", "--filesizemb", "0.1", "-c", "k64"],
-        vec!["--cams", "1,5,24", "--memory", "1B"],
+        vec!["--cctv", "0,5,24"],
+        vec!["--cctv", "100,nan,24"],
+        vec!["--cctv", "1,5,0"],
+        vec!["--cctv", "1,5,24", "-c", "ws1"],
+        vec!["--cctv", "1,5,24", "--filesizemb", "0.1", "-c", "k64"],
+        vec!["--cctv", "1,5,24", "--memory", "1B"],
         vec!["--filesizemb", "16", "-c", "rs0"],
     ] {
         let dir = Scratch::new();
@@ -142,7 +151,7 @@ fn progress_can_be_disabled_and_restarts_preserve_logs_and_ownership() {
     let mut marker = None;
     for _ in 0..2 {
         let out = dir.run(&[
-            "--cams",
+            "--cctv",
             "1,8,24",
             "--filesizemb",
             "0.25",
@@ -183,7 +192,7 @@ fn exclusive_prefix_lock_is_released_after_process_exit() {
         .arg("-F")
         .arg(dir.0.join("recording"))
         .args([
-            "--cams",
+            "--cctv",
             "1,8,24",
             "--filesizemb",
             "0.25",
@@ -200,7 +209,7 @@ fn exclusive_prefix_lock_is_released_after_process_exit() {
     while !dir.0.join("recording.cctv.owner").exists() && Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(5));
     }
-    let out = dir.run(&["--cams", "1,8,24", "-t", "0.1s"]);
+    let out = dir.run(&["--cctv", "1,8,24", "-t", "0.1s"]);
     let _ = child.kill();
     child.wait().unwrap();
     let error = String::from_utf8_lossy(&out.stderr);
@@ -213,7 +222,7 @@ fn exclusive_prefix_lock_is_released_after_process_exit() {
         "{error}"
     );
     let retry = dir.run(&[
-        "--cams",
+        "--cctv",
         "1,8,24",
         "--filesizemb",
         "0.25",
@@ -241,7 +250,7 @@ fn interrupt_finalizes_a_seven_day_run_without_waiting_seven_days() {
         .arg("-F")
         .arg(dir.0.join("recording"))
         .args([
-            "--cams",
+            "--cctv",
             "1,8,24",
             "--filesizemb",
             "0.25",
@@ -258,11 +267,11 @@ fn interrupt_finalizes_a_seven_day_run_without_waiting_seven_days() {
     while !dir.0.join("recording.cctv.owner").exists() && Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(5));
     }
-    assert!(Command::new("kill")
-        .args(["-INT", &child.id().to_string()])
-        .status()
-        .unwrap()
-        .success());
+    // Minimal containers need not ship a standalone kill executable.
+    unsafe extern "C" {
+        fn kill(pid: i32, signal: i32) -> i32;
+    }
+    assert_eq!(unsafe { kill(child.id() as i32, 2) }, 0);
     while child.try_wait().unwrap().is_none() && Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(5));
     }

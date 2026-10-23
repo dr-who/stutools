@@ -32,15 +32,15 @@ impl Settings {
         let count = parts
             .next()
             .and_then(|s| s.parse().ok())
-            .ok_or("--cams needs COUNT,MBPS,HOURS")?;
+            .ok_or("--cctv needs COUNT,MBPS,HOURS")?;
         let mbps = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or("--cams needs COUNT,MBPS,HOURS")?;
+            .ok_or("--cctv needs COUNT,MBPS,HOURS")?;
         let hours = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or("--cams needs COUNT,MBPS,HOURS")?;
+            .ok_or("--cctv needs COUNT,MBPS,HOURS")?;
         if parts.next().is_some()
             || !(1..=1024).contains(&count)
             || !mbps.is_finite()
@@ -49,7 +49,7 @@ impl Settings {
             || hours <= 0.
             || hours > 1e9
         {
-            return Err("--cams needs 1..1024 cameras, a finite positive Mbit/s rate and positive retention hours".into());
+            return Err("--cctv needs 1..1024 cameras, a finite positive Mbit/s rate and positive retention hours".into());
         }
         Ok(Self {
             count,
@@ -131,9 +131,10 @@ impl Shared {
         store.record(elapsed, m)?;
         Ok(true)
     }
-    fn take(&self, index: usize) -> io::Result<Option<files::Prepared>> {
+    fn take(&self, index: usize, rotation: bool) -> io::Result<Option<files::Prepared>> {
         let slot = &self.slots[index];
         let mut locked = slot.value.lock().unwrap();
+        let mut waited = None::<Instant>;
         loop {
             if self.stopping() {
                 return Ok(None);
@@ -142,8 +143,22 @@ impl Shared {
                 file.used = true;
                 slot.need.store(true, Ordering::Release);
                 self.wake.notify_one();
+                drop(locked);
+                if rotation {
+                    let ns = waited.map_or(0, |start| {
+                        start.elapsed().as_nanos().min(u64::MAX as u128) as u64
+                    });
+                    self.record(Metrics {
+                        rotations: 1,
+                        preallocation_waits: u64::from(waited.is_some()),
+                        preallocation_wait_ns: ns as u128,
+                        max_preallocation_wait_ns: ns,
+                        ..Metrics::default()
+                    })?;
+                }
                 return Ok(Some(file));
             }
+            waited.get_or_insert_with(Instant::now);
             locked = slot
                 .ready
                 .wait_timeout(locked, Duration::from_millis(100))
@@ -310,7 +325,7 @@ fn fill(buffer: &mut [u8], state: &mut u64) {
     }
 }
 fn camera(shared: Arc<Shared>, index: usize, mut buffer: Box<[u8]>, seed: u64) -> Result<u64> {
-    let mut current = shared.take(index).map_err(|e| e.to_string())?;
+    let mut current = shared.take(index, false).map_err(|e| e.to_string())?;
     if current.is_none() {
         return Ok(0);
     }
@@ -346,7 +361,7 @@ fn camera(shared: Arc<Shared>, index: usize, mut buffer: Box<[u8]>, seed: u64) -
             continue;
         }
         if current.is_none() {
-            current = shared.take(index).map_err(|e| e.to_string())?;
+            current = shared.take(index, true).map_err(|e| e.to_string())?;
             offset = 0;
             if current.is_none() {
                 break;
@@ -634,8 +649,15 @@ fn run_inner(config: Config) -> Result<()> {
     }
     let total = shared.metrics.lock().unwrap().total;
     let seconds = elapsed.max(1e-9);
+    let rotation_stats = format!(
+        "file_rotations={} preallocation_waits={} max_preallocation_wait_ms={:.6}",
+        total.rotations,
+        total.preallocation_waits,
+        total.max_preallocation_wait_ns as f64 / 1e6
+    );
     println!("read_ops=0 write_ops={} seconds={seconds:.6} read_MiB_s=0.000 write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={allocations} verified_ops=0 avg_write_ms={:.6} max_write_ms={:.6} late_write_ops={}",total.writes,total.bytes as f64/1048576./seconds,total.writes as f64/seconds,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,shared.late.load(Ordering::Relaxed));
-    writeln!(logs.log,"# finished seconds={seconds:.6} write_ops={} write_bytes={} avg_write_ms={:.6} max_write_ms={:.6} hot_path_allocations={allocations} status={}",total.writes,total.bytes,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,if error.is_some(){"error"}else{"ok"}).map_err(|e|e.to_string())?;
+    println!("{rotation_stats}");
+    writeln!(logs.log,"# finished seconds={seconds:.6} write_ops={} write_bytes={} avg_write_ms={:.6} max_write_ms={:.6} hot_path_allocations={allocations} {rotation_stats} status={}",total.writes,total.bytes,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,if error.is_some(){"error"}else{"ok"}).map_err(|e|e.to_string())?;
     if let Some(e) = error {
         Err(e)
     } else {
@@ -680,6 +702,15 @@ mod tests {
                 .count(),
             3
         );
+        // A final partial hour must be readable before the writer is closed too.
+        logs.advance(&mut periods, 8100., true, &store, 0).unwrap();
+        let text = std::fs::read_to_string(&logs.paths[2]).unwrap();
+        assert_eq!(text.lines().count(), 4);
+        assert!(text
+            .lines()
+            .last()
+            .unwrap()
+            .contains(",7200,900.000000,partial,"));
         drop(logs);
         drop(ns);
         std::fs::remove_dir_all(directory).unwrap();

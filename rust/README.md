@@ -4,7 +4,7 @@ CCTV mode simulates paced camera streams with background file preallocation,
 retention and flushed minute/hour latency logs. For example:
 
 ```sh
-spit -F recordings/camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+spit -F recordings/camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 7d
 ```
 
 See [CCTV.md](CCTV.md) for Linux/Windows examples and the exact recording,

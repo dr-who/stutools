@@ -10,6 +10,10 @@ pub struct Metrics {
     pub allocation_ns: u128,
     pub max_allocation_ns: u64,
     pub deleted: u64,
+    pub rotations: u64,
+    pub preallocation_waits: u64,
+    pub preallocation_wait_ns: u128,
+    pub max_preallocation_wait_ns: u64,
 }
 impl Metrics {
     pub fn merge(&mut self, other: Self) {
@@ -21,6 +25,12 @@ impl Metrics {
         self.allocation_ns += other.allocation_ns;
         self.max_allocation_ns = self.max_allocation_ns.max(other.max_allocation_ns);
         self.deleted += other.deleted;
+        self.rotations += other.rotations;
+        self.preallocation_waits += other.preallocation_waits;
+        self.preallocation_wait_ns += other.preallocation_wait_ns;
+        self.max_preallocation_wait_ns = self
+            .max_preallocation_wait_ns
+            .max(other.max_preallocation_wait_ns);
     }
 }
 #[derive(Default)]
@@ -61,7 +71,7 @@ impl MetricsStore {
         }
     }
 }
-pub const HEADER: &str = "period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files\n";
+pub const HEADER: &str = "period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms\n";
 
 fn row(
     out: &mut impl Write,
@@ -74,7 +84,7 @@ fn row(
 ) -> io::Result<()> {
     writeln!(
         out,
-        "{},{},{start},{seconds:.6},{},{},{},{:.6},{:.6},{},{:.6},{:.6},{}",
+        "{},{},{start},{seconds:.6},{},{},{},{:.6},{:.6},{},{:.6},{:.6},{},{},{},{:.6},{:.6}",
         index + 1,
         super::files::utc(utc + start, true),
         if complete { "complete" } else { "partial" },
@@ -93,7 +103,15 @@ fn row(
             m.allocation_ns as f64 / m.allocations as f64 / 1e6
         },
         m.max_allocation_ns as f64 / 1e6,
-        m.deleted
+        m.deleted,
+        m.rotations,
+        m.preallocation_waits,
+        if m.preallocation_waits == 0 {
+            0.
+        } else {
+            m.preallocation_wait_ns as f64 / m.preallocation_waits as f64 / 1e6
+        },
+        m.max_preallocation_wait_ns as f64 / 1e6
     )
 }
 #[derive(Default)]
@@ -251,5 +269,60 @@ mod tests {
             assert_eq!(h.iter().filter(|b| **b == b'\n').count(), expected_hours);
             assert_eq!(m.iter().filter(|b| **b == b'\n').count(), expected_minutes);
         }
+    }
+
+    #[test]
+    fn fifteen_minutes_flush_one_partial_hour_with_all_latency_samples() {
+        let mut p = Periods::default();
+        let mut store = MetricsStore::default();
+        let mut minutes = Vec::new();
+        let mut hours = Vec::new();
+        for minute in 0..15 {
+            store
+                .record(
+                    minute as f64 * 60. + 1.,
+                    Metrics {
+                        writes: 2,
+                        bytes: 131072,
+                        write_ns: 6_000_000,
+                        max_write_ns: 4_000_000,
+                        rotations: 4,
+                        preallocation_waits: 1,
+                        preallocation_wait_ns: 2_000_000,
+                        max_preallocation_wait_ns: 2_000_000,
+                        ..Metrics::default()
+                    },
+                )
+                .unwrap();
+            p.advance(
+                (minute + 1) as f64 * 60.,
+                false,
+                &mut store,
+                0,
+                &mut minutes,
+                &mut hours,
+            )
+            .unwrap();
+            assert!(hours.is_empty());
+        }
+        assert!(p
+            .advance(900., true, &mut store, 0, &mut minutes, &mut hours)
+            .unwrap());
+        assert_eq!(minutes.iter().filter(|b| **b == b'\n').count(), 15);
+        let row = String::from_utf8(hours).unwrap();
+        let fields: Vec<_> = row.trim_end().split(',').collect();
+        assert_eq!(
+            &fields[2..9],
+            &[
+                "0",
+                "900.000000",
+                "partial",
+                "30",
+                "1966080",
+                "3.000000",
+                "4.000000"
+            ]
+        );
+        assert_eq!(&fields[13..], &["60", "15", "2.000000", "2.000000"]);
     }
 }
