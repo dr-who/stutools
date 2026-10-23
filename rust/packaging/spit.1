@@ -65,7 +65,8 @@ Compact workload string. Repeat to run workloads together. Quoted strings may
 contain whitespace, for example "w s1 k4 q32 j4 x1".
 .TP
 .BI \-t " SECONDS"
-Global time limit, default 10. Use -1 for unlimited. Workload x/X pass limits
+Global time limit, default 10. Use -1 for unlimited. Accepts ms, s, m, h, d
+and w suffixes, for example -t 7d or -t 1.5h. Workload x/X pass limits
 override it; Y caps operations. Workload T sets a per-worker duration.
 Progress stops at the measured deadline. Already submitted I/O drains silently;
 draining and resource cleanup can delay process exit without extending the
@@ -143,6 +144,40 @@ Show examples, syntax and the detected default backend.
 .TP
 .B \-\-version
 Show the version and implementation.
+.SH CCTV RECORDING MODE
+.nf
+  spit -F recordings/camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+.fi
+.PP
+Works on Linux, Windows and other supported systems. --cams specifies camera
+count, decimal Mbit/s per camera, and recording retention in hours. Cameras
+write generated data sequentially. Defaults are 64 KiB per write and 16 MiB
+per file. --filesizemb is measured in MiB; file size must be a block multiple.
+A background allocation worker prepares one file ahead per camera. Linux uses
+fallocate; Windows reserves allocation size and sets EOF. Unsupported allocation
+uses a reported zero-fill fallback. Preallocation does not guarantee physical
+contiguity. This is not an exact replica of proprietary Milestone internals.
+.PP
+Files rotate when full. At 5 Mbit/s, a 16 MiB file fills in about 26.84 seconds.
+The final partial file retains its reserved size. -t accepts durations such as
+7d; CCTV defaults to unlimited runtime. Ctrl+C/SIGTERM closes recordings and
+flushes summaries. Pending filesystem calls can delay exit.
+.PP
+Normal -s progress defaults to one second. Beside the recording prefix, each
+run creates cctv-test-UTC-DATETIME.log, .min and .hour. Progress is mirrored to
+.log. Minute/hour CSV rows contain completed write count, bytes, average and
+maximum application-write latency in milliseconds, preallocation latency and
+deletion counts. Write latency excludes pacing, buffer generation and closing
+flushes. Hour averages are weighted by write count. Rows are flushed immediately;
+hourly rows are also synced, so they can be analysed while recording continues.
+A completed seven-day run has 168 hourly data rows plus a header. Final partial
+periods are labelled partial; exact boundaries add no empty extra row.
+.PP
+Retention scans at startup and each minute. It deletes only expired regular
+recordings matching this prefix's exact naming scheme and binary ownership
+header. This run's active/preallocated files, symlinks, foreign files and logs
+are preserved. Keep PREFIX.cctv.owner across restarts. An OS lock prevents
+concurrent runs on the same prefix. See CCTV.md for details.
 .SH WINDOWS TARGETS
 A drive root such as E: or E:\e names a filesystem, not an I/O file.
 For a filesystem test, choose a new disposable filename prefix:

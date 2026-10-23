@@ -60,6 +60,7 @@ with tempfile.TemporaryDirectory(prefix='stutools-package-') as temp:
   shutil.copy2(license,source/'LICENSE');shutil.copy2(root/'README.md',source/'README.md');shutil.copy2(root/'THIRD_PARTY_LICENSES.txt',source/'THIRD_PARTY_LICENSES.txt')
   shutil.copy2(root/'packaging/spit.1',source/'spit.1')
   shutil.copy2(root/'INSTALL.md',source/'INSTALL.md')
+  shutil.copy2(root/'CCTV.md',source/'CCTV.md')
   with tarfile.open(temp/'SOURCES'/f'stutools-{version}.tar.gz','w:gz') as tar:tar.add(source,arcname=source.name)
   shutil.copy2(binary,temp/'SOURCES/spit')
   subprocess.run(['rpmbuild','-bb','--define',f'_topdir {temp}','--define','prebuilt 1',str(root/'packaging/stutools.spec')],check=True)
@@ -71,7 +72,7 @@ with tempfile.TemporaryDirectory(prefix='stutools-package-') as temp:
   shutil.copy2(binary,payload/'usr/local/bin/spit')
   (payload/'usr/local/bin/spit').chmod(0o755)
   shutil.copy2(root/'packaging/spit.1',payload/'usr/local/share/man/man1/spit.1')
-  for path in [license,root/'README.md',root/'INSTALL.md',root/'THIRD_PARTY_LICENSES.txt']:shutil.copy2(path,payload/'usr/local/share/doc/stutools'/path.name)
+  for path in [license,root/'README.md',root/'INSTALL.md',root/'CCTV.md',root/'THIRD_PARTY_LICENSES.txt']:shutil.copy2(path,payload/'usr/local/share/doc/stutools'/path.name)
   target=options.target or 'macos-'+{'aarch64':'arm64'}.get(platform.machine(),platform.machine())
   if not target.startswith('macos-'):parser.error('pkg requires a macOS target')
   package=out/f'spit-{version}-{target}.pkg'
@@ -83,9 +84,9 @@ with tempfile.TemporaryDirectory(prefix='stutools-package-') as temp:
   name=f'spit-{version}-{system}-{arch}'
   if kind=='zip':
    with zipfile.ZipFile(out/f'{name}.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
-    for path in [binary,license,root/'README.md',root/'INSTALL.md',root/'THIRD_PARTY_LICENSES.txt',root/'packaging/spit.1']:z.write(path,arcname=f'{name}/{path.name}')
+    for path in [binary,license,root/'README.md',root/'INSTALL.md',root/'CCTV.md',root/'THIRD_PARTY_LICENSES.txt',root/'packaging/spit.1']:z.write(path,arcname=f'{name}/{path.name}')
   else:
    with tarfile.open(out/f'{name}.tar.gz','w:gz') as tar:
-    for path in [binary,license,root/'README.md',root/'INSTALL.md',root/'THIRD_PARTY_LICENSES.txt',root/'packaging/spit.1']:tar.add(path,arcname=f'{name}/{path.name}')
+    for path in [binary,license,root/'README.md',root/'INSTALL.md',root/'CCTV.md',root/'THIRD_PARTY_LICENSES.txt',root/'packaging/spit.1']:tar.add(path,arcname=f'{name}/{path.name}')
  else:raise SystemExit(f'Unknown format: {kind}')
 print(out)

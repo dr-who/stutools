@@ -104,6 +104,7 @@ impl Default for Workload {
 }
 #[derive(Debug)]
 pub struct Config {
+    pub cameras: Option<crate::cctv::Settings>,
     pub files: Vec<PathBuf>,
     pub prefixes: Vec<PathBuf>,
     pub jobs: Vec<Workload>,
@@ -129,6 +130,31 @@ fn finite(s: &str) -> Result<f64> {
         return Err(format!("nonfinite number {s}"));
     }
     Ok(v)
+}
+fn duration(s: &str) -> Result<Option<f64>> {
+    if s == "-1" {
+        return Ok(None);
+    }
+    let (number, multiplier) = if let Some(s) = s.strip_suffix("ms") {
+        (s, 0.001)
+    } else if let Some(s) = s.strip_suffix('s') {
+        (s, 1.)
+    } else if let Some(s) = s.strip_suffix('m') {
+        (s, 60.)
+    } else if let Some(s) = s.strip_suffix('h') {
+        (s, 3600.)
+    } else if let Some(s) = s.strip_suffix('d') {
+        (s, 86400.)
+    } else if let Some(s) = s.strip_suffix('w') {
+        (s, 604800.)
+    } else {
+        (s, 1.)
+    };
+    let seconds = finite(number)? * multiplier;
+    if seconds <= 0. || std::time::Duration::try_from_secs_f64(seconds).is_err() {
+        return Err("duration must be positive (seconds, ms/s/m/h/d/w suffix) or -1".into());
+    }
+    Ok(Some(seconds))
 }
 pub fn size(s: &str, default: f64) -> Result<u64> {
     let n = s
@@ -437,6 +463,7 @@ fn expand_options(args: Vec<String>) -> Result<Vec<String>> {
 pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     let args = expand_options(args)?;
     let mut c = Config {
+        cameras: None,
         files: vec![],
         prefixes: vec![],
         jobs: vec![],
@@ -460,7 +487,16 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     }
     let mut it = args.iter();
     let mut length = 0;
+    let mut explicit_duration = false;
+    let mut explicit_backend = false;
+    let mut camera_block = None;
+    let mut file_size = None;
+    let mut camera_conflict = false;
     while let Some(flag) = it.next() {
+        camera_conflict |= matches!(
+            flag.as_str(),
+            "-f" | "-G" | "-b" | "-v" | "--recreate" | "-p" | "-S" | "-K" | "-E" | "-T"
+        );
         match flag.as_str() {
             "-h" | "--help" => {
                 help();
@@ -488,6 +524,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             "-f" => c.files.push(v.into()),
             "-F" => c.prefixes.push(v.into()),
             "-c" => {
+                camera_block = Some(v.clone());
                 length += v.len() + 1;
                 if length > 4094 {
                     return Err("command too long".into());
@@ -503,11 +540,8 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             }
             "-b" => c.range = Some((0, size(v, 1.)?)),
             "-t" => {
-                let t = finite(v)?;
-                if t <= 0. && t != -1. {
-                    return Err("duration must be positive or -1".into());
-                }
-                c.duration = if t == -1. { None } else { Some(t) };
+                explicit_duration = true;
+                c.duration = duration(v)?;
             }
             "-R" => c.seed = integer(v)?,
             "-s" => {
@@ -525,7 +559,19 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                     return Err("timeout must be in (0, 3600]".into());
                 }
             }
-            "--backend" => c.backend = Backend::parse(v)?,
+            "--backend" => {
+                c.backend = Backend::parse(v)?;
+                explicit_backend = v != "auto";
+            }
+            "--cams" => {
+                if c.cameras.is_some() {
+                    return Err("specify --cams once".into());
+                }
+                c.cameras = Some(crate::cctv::Settings::parse(v)?);
+            }
+            "--filesizemb" => {
+                file_size = Some(size(&format!("{v}MiB"), 1.)?);
+            }
             "--memory" => c.memory = size(v, 1.)?,
             "-S" => c.positions_file = Some(v.into()),
             "-p" => c.precondition = Some(workload(&format!("ws1x1{v}"))?),
@@ -537,6 +583,37 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             }
             _ => return Err(format!("unsupported option {flag}")),
         }
+    }
+    if let Some(cameras) = &mut c.cameras {
+        if camera_conflict || c.prefixes.len() != 1 || c.jobs.len() > 1 {
+            return Err("--cams requires one -F directory/prefix; supports -c kSIZE/MSIZE, --filesizemb, -t, -s, -R and --memory; regular workload/range/verification options cannot be combined".into());
+        }
+        if let Some(block) = camera_block {
+            let scale = if block.starts_with('k') {
+                1024.
+            } else if block.starts_with('M') {
+                1048576.
+            } else {
+                return Err("CCTV -c accepts a fixed block size only, e.g. -c k64".into());
+            };
+            cameras.block = usize::try_from(size(&block[1..], scale)?)
+                .map_err(|_| "CCTV block size overflow")?;
+        }
+        cameras.file_size = file_size.unwrap_or(16 * 1048576);
+        cameras.validate(c.memory)?;
+        if !explicit_duration {
+            c.duration = None;
+        }
+        if explicit_backend && c.backend != Backend::Buffered {
+            return Err(
+                "CCTV mode uses buffered filesystem I/O; use --backend buffered or auto".into(),
+            );
+        }
+        c.backend = Backend::Buffered;
+        return Ok(Some(c));
+    }
+    if file_size.is_some() {
+        return Err("--filesizemb requires --cams".into());
     }
     if c.files.is_empty() && c.prefixes.is_empty() {
         return Err("specify -f FILE or -F PREFIX".into());
@@ -592,6 +669,7 @@ TARGETS AND RUN LIMITS
   -b BYTES        size in bytes (equivalent to -G with a byte suffix)
   -c WORKLOAD     workload string; repeat to run workloads together
   -t SECONDS      measured time limit (default 10); -1 unlimited; x/X override it
+                  suffixes ms/s/m/h/d/w accepted, e.g. -t 7d
                   progress/counts stop at this boundary; queued I/O drains silently
   -s SECONDS      live progress interval (default 1); -s 0 disables progress
                   C layout: time / workers / in-flight, read/write MB/s and IOPS,
@@ -651,6 +729,20 @@ Summary: completed reads/writes, elapsed seconds, MiB/s, IOPS and verified_ops.
 Timed summaries count only completions observed within the measured window;
 draining, verification cleanup and resource teardown do not extend that window.
 Metadata checks pending at a limit finish before success, outside workload counts.
+[cctv]
+  --cams COUNT,MBPS,HOURS  camera count, decimal Mbit/s EACH, retention hours
+  -F DIR/PREFIX           one independent sequential recording stream per camera
+  -c k64                  fixed write block size (default 64 KiB; M sizes accepted)
+  --filesizemb 16         preallocated recording file size in MiB (default 16)
+                          files rotate when full; background worker prepares ahead
+  -t 7d                   run for seven days (CCTV default: until Ctrl+C)
+  -s SECONDS              normal progress interval (default 1; 0 disables it)
+  spit -F recordings/camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+  Logs: cctv-test-UTC-DATETIME.log, .min and .hour, beside the recording prefix.
+  .min/.hour are flushed CSV, with average/max write ms for each minute/hour.
+  A completed seven-day run has 168 hourly data rows; final partial periods are labelled.
+  Retention deletes only this prefix's owned recording files; logs are preserved.
+  CCTV uses buffered filesystem I/O on Linux, Windows and other supported systems.
 C data/spitchecker formats and some advanced C modes are not supported; use spitc
 for those workflows. See README.md and man spit. Invalid/incomplete I/O fails.
 
@@ -663,6 +755,24 @@ Bring back Pluto as a planet."#,
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn duration_suffixes_are_exact_and_bounded() {
+        for (text, expected) in [
+            ("7d", 604800.),
+            ("1.5h", 5400.),
+            ("10m", 600.),
+            ("250ms", 0.25),
+            ("2w", 1209600.),
+            ("1s", 1.),
+            ("0.1", 0.1),
+        ] {
+            assert_eq!(duration(text).unwrap(), Some(expected));
+        }
+        assert_eq!(duration("-1").unwrap(), None);
+        for text in ["0", "-2", "nan", "1e300d", "1day", "7dextra"] {
+            assert!(duration(text).is_err(), "{text}");
+        }
+    }
     #[test]
     fn reject_unbounded_input() {
         for s in [

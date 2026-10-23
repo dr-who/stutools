@@ -96,6 +96,19 @@ seconds, MiB/s, IOPS, verification counts and the hot-path allocation count.
 
 ## Backends, memory and speed
 
+For camera-style recording with background preallocation, retention and flushed
+minute/hour logs:
+
+```sh
+spit -F recordings/camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+```
+
+This simulates 100 cameras at 5 Mbit/s each, using 64 KiB sequential writes into
+16 MiB files and retaining 24 hours. `-s` defaults to one second. A completed
+seven-day run produces 168 hourly data rows in `cctv-test-DATETIME.hour`, with
+average/max write latency in milliseconds. See [the CCTV guide](rust/CCTV.md)
+for Linux/Windows examples, ownership rules and allocation behavior.
+
 Linux automatically uses **io_uring** when queue creation succeeds, otherwise
 **libaio**. You can explicitly select either, synchronous `direct`, or
 `buffered` (`bufferedio`). macOS and Windows currently use buffered positional

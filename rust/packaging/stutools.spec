@@ -55,7 +55,7 @@ install -m644 packaging/spit.1 %{buildroot}%{_mandir}/man1/spit.1
 
 %files
 %license LICENSE THIRD_PARTY_LICENSES.txt
-%doc README.md INSTALL.md
+%doc README.md INSTALL.md CCTV.md
 %{_bindir}/spit
 %{_mandir}/man1/spit.1*
 

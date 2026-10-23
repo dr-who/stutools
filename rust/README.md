@@ -1,5 +1,15 @@
 # Rust spit
 
+CCTV mode simulates paced camera streams with background file preallocation,
+retention and flushed minute/hour latency logs. For example:
+
+```sh
+spit -F recordings/camera --cams 100,5,24 -c k64 --filesizemb 16 -t 7d
+```
+
+See [CCTV.md](CCTV.md) for Linux/Windows examples and the exact recording,
+preallocation, logging and deletion rules.
+
 The Rust implementation of Stu's powerful I/O tester. It supports the common C
 workload syntax; advanced compatibility limits are listed below. This version
 uses Tokio to coordinate one long-lived blocking worker per workload

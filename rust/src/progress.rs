@@ -111,6 +111,7 @@ pub struct State {
     pub start: OnceLock<Instant>,
     counters: Box<[Counter]>,
     stop: AtomicBool,
+    pub log_failed: AtomicBool,
 }
 impl State {
     pub fn counter(&self, index: usize) -> &Counter {
@@ -123,15 +124,25 @@ pub struct Reporter {
 }
 impl Reporter {
     pub fn new(workers: usize, interval: f64, duration: Option<f64>) -> io::Result<Self> {
+        Self::with_log(workers, interval, duration, None)
+    }
+    pub fn with_log(
+        workers: usize,
+        interval: f64,
+        duration: Option<f64>,
+        log: Option<std::fs::File>,
+    ) -> io::Result<Self> {
         let state = Arc::new(State {
             start: OnceLock::new(),
             counters: (0..workers).map(|_| Counter::default()).collect(),
             stop: AtomicBool::new(false),
+            log_failed: AtomicBool::new(false),
         });
         let shared = state.clone();
         let thread = thread::Builder::new()
             .name("spit-progress".into())
             .spawn(move || {
+                let mut log = log.map(io::BufWriter::new);
                 let stderr = io::stderr();
                 let period = Duration::from_secs_f64(interval);
                 let mut previous = Sample::default();
@@ -168,6 +179,15 @@ impl Reporter {
                     let seconds = (elapsed - last).max(1e-9);
                     if write_line(&mut stderr.lock(), elapsed, seconds, total, previous).is_err() {
                         break;
+                    }
+                    if let Some(log) = &mut log {
+                        if let Err(e) = write_line(log, elapsed, seconds, total, previous)
+                            .and_then(|_| log.flush())
+                        {
+                            eprintln!("*error* write CCTV progress log: {e}");
+                            shared.log_failed.store(true, Ordering::Release);
+                            break;
+                        }
                     }
                     previous = total;
                     last = elapsed;

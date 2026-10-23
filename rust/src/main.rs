@@ -1,6 +1,7 @@
 mod allocation;
 #[global_allocator]
 static ALLOCATOR: allocation::Audited = allocation::Audited;
+mod cctv;
 mod cli;
 mod engine;
 mod io;
@@ -11,7 +12,11 @@ mod progress;
 fn main() {
     let result = cli::parse(std::env::args().skip(1).collect()).and_then(|config| {
         if let Some(config) = config {
-            engine::run(config)
+            if config.cameras.is_some() {
+                cctv::run(config)
+            } else {
+                engine::run(config)
+            }
         } else {
             Ok(())
         }
