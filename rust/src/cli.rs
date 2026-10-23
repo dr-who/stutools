@@ -5,7 +5,7 @@ use std::path::PathBuf;
 pub enum Backend {
     Libaio,
     Uring,
-    Buffered,
+    Pagecache,
     Direct,
 }
 impl Backend {
@@ -13,7 +13,7 @@ impl Backend {
         match self {
             Self::Libaio => "libaio",
             Self::Uring => "io_uring",
-            Self::Buffered => "buffered",
+            Self::Pagecache => "pagecache",
             Self::Direct => "direct",
         }
     }
@@ -22,7 +22,7 @@ impl Backend {
             "auto" => Ok(crate::io::default_backend()),
             "libaio" | "aio" => Ok(Self::Libaio),
             "io_uring" | "uring" => Ok(Self::Uring),
-            "buffered" | "bufferedio" => Ok(Self::Buffered),
+            "pagecache" => Ok(Self::Pagecache),
             "direct" => Ok(Self::Direct),
             _ => Err(format!("unknown backend {s}")),
         }
@@ -121,6 +121,8 @@ pub struct Config {
     pub positions_file: Option<PathBuf>,
     pub precondition: Option<Workload>,
     pub expected: Option<(u64, u64)>,
+    /// Writes one latency per completed operation (milliseconds, one per line) to this file.
+    pub latency_out: Option<PathBuf>,
 }
 fn finite(s: &str) -> Result<f64> {
     let v = s
@@ -480,6 +482,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         positions_file: None,
         precondition: None,
         expected: None,
+        latency_out: None,
     };
     if args.is_empty() {
         help();
@@ -491,6 +494,9 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     let mut explicit_backend = false;
     let mut camera_block = None;
     let mut file_size = None;
+    let mut cctv_io = None;
+    let mut cctv_floor = None;
+    let mut cctv_link = None;
     let mut camera_conflict = false;
     while let Some(flag) = it.next() {
         camera_conflict |= matches!(
@@ -569,10 +575,32 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 }
                 c.cameras = Some(crate::cctv::Settings::parse(v)?);
             }
+            "--link-mbps" => {
+                let mbps: f64 = v.parse().map_err(|_| "--link-mbps needs a rate in Mbit/s, e.g. 1000")?;
+                if !(mbps > 0.) {
+                    return Err("--link-mbps must be above 0".into());
+                }
+                cctv_link = Some(mbps);
+            }
+            "--cctv-floor-percent" => {
+                let percent: f64 = v.parse().map_err(|_| "--cctv-floor-percent needs a percentage, e.g. 75")?;
+                if !(0. <= percent && percent <= 100.) {
+                    return Err("--cctv-floor-percent must be from 0 to 100; 0 turns the floor off".into());
+                }
+                cctv_floor = Some(percent / 100.);
+            }
+            "--cctv-io" => {
+                cctv_io = Some(match v.as_str() {
+                    "pagecache" => false,
+                    "direct" => true,
+                    _ => return Err("--cctv-io needs pagecache or direct".into()),
+                });
+            }
             "--filesizemb" => {
                 file_size = Some(size(&format!("{v}MiB"), 1.)?);
             }
             "--memory" => c.memory = size(v, 1.)?,
+            "--latency-out" => c.latency_out = Some(PathBuf::from(v)),
             "-S" => c.positions_file = Some(v.into()),
             "-p" => c.precondition = Some(workload(&format!("ws1x1{v}"))?),
             "-K" => {
@@ -600,20 +628,35 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 .map_err(|_| "CCTV block size overflow")?;
         }
         cameras.file_size = file_size.unwrap_or(16 * 1048576);
+        // Direct I/O where the platform supports it, otherwise the page cache.
+        cameras.direct = cctv_io.unwrap_or(cfg!(any(windows, target_os = "linux")));
+        if let Some(floor) = cctv_floor {
+            cameras.floor = floor;
+        }
+        cameras.link_mbps = cctv_link;
         cameras.validate(c.memory)?;
         if !explicit_duration {
             c.duration = None;
         }
-        if explicit_backend && c.backend != Backend::Buffered {
+        if explicit_backend && c.backend != Backend::Pagecache {
             return Err(
-                "CCTV mode uses buffered filesystem I/O; use --backend buffered or auto".into(),
+                "CCTV mode uses page-cache filesystem I/O; use --backend pagecache or auto".into(),
             );
         }
-        c.backend = Backend::Buffered;
+        c.backend = Backend::Pagecache;
         return Ok(Some(c));
     }
     if file_size.is_some() {
         return Err("--filesizemb requires --cctv".into());
+    }
+    if cctv_io.is_some() {
+        return Err("--cctv-io requires --cctv".into());
+    }
+    if cctv_floor.is_some() {
+        return Err("--cctv-floor-percent requires --cctv".into());
+    }
+    if cctv_link.is_some() {
+        return Err("--link-mbps requires --cctv".into());
     }
     if c.files.is_empty() && c.prefixes.is_empty() {
         return Err("specify -f FILE or -F PREFIX".into());
@@ -707,7 +750,7 @@ VERIFICATION, RESOURCES AND DIAGNOSTICS
                   any submission error still makes the final exit nonzero
   -T SECONDS      async completion-stall timeout (default 3600, as in spitc; synchronous calls
                   and kernel queue destruction cannot guarantee this bound)
-  --backend NAME  auto | io_uring | libaio | direct | buffered (bufferedio alias)
+  --backend NAME  auto | io_uring | libaio | direct | pagecache
   --memory SIZE   buffer/table budget (automatic default shown above); excludes stacks,
                   runtime, kernel queues and OS page cache
   -h, --help      this help and the detected backend; --version prints version
@@ -715,7 +758,7 @@ VERIFICATION, RESOURCES AND DIAGNOSTICS
 Linux auto probes io_uring queue creation, then uses libaio if unavailable.
 Linux administrator enable command:
   sudo sh -c 'echo 0 > /proc/sys/kernel/io_uring_disabled'
-macOS/Windows use buffered positional I/O. Explicit backends never fall back.
+macOS/Windows use page-cache positional I/O unless direct is requested. Explicit backends never fall back.
 Windows: -f E:\ is a filesystem root; use -F E:\spit-test for file tests.
   spit -F E:\spit-test -G 1MiB -c ws1x1 -v
   spit -F E:\spit-test -G 1MiB -c rs0 -t 10
@@ -730,7 +773,14 @@ Timed summaries count only completions observed within the measured window;
 draining, verification cleanup and resource teardown do not extend that window.
 Metadata checks pending at a limit finish before success, outside workload counts.
 [cctv]
-  --cctv COUNT,MBPS,HOURS  camera count, decimal Mbit/s EACH, retention hours
+  --cctv COUNT,MBPS,HOURS  camera count (N or START..END/STEP, e.g. 10..100/10),
+                           decimal Mbit/s EACH, retention hours
+  --info DEVICE           describe a block device (identity, queue and transfer limits,
+                          iSCSI negotiated values where the OS exposes them); no I/O
+  --cctv-io MODE           direct (default on Linux/Windows) or pagecache
+  --link-mbps RATE         link capacity in Mbit/s; drawn on the rate chart
+  --cctv-floor-percent PERCENT     stop when the last 10 s average falls below PERCENT of the camera
+                           rate (default 0, off); e.g. --cctv-floor-percent 75
   -F DIR/PREFIX           one independent sequential recording stream per camera
   -c k64                  fixed write block size (default 64 KiB; M sizes accepted)
   --filesizemb 16         preallocated recording file size in MiB (default 16)
@@ -738,11 +788,13 @@ Metadata checks pending at a limit finish before success, outside workload count
   -t 7d                   run for seven days (CCTV default: until Ctrl+C)
   -s SECONDS              normal progress interval (default 1; 0 disables it)
   spit -F recordings/camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 7d
-  Logs: cctv-test-UTC-DATETIME.log, .min and .hour, beside the recording prefix.
+  Logs: cctv-test-UTC-DATETIME-cameras=N.log, .min and .hour, beside the recording prefix.
+  A camera range writes one set of logs per count.
   .min/.hour are flushed CSV, with average/max write ms for each minute/hour.
   A completed seven-day run has 168 hourly data rows; final partial periods are labelled.
   Retention deletes only this prefix's owned recording files; logs are preserved.
-  CCTV uses buffered filesystem I/O on Linux, Windows and other supported systems.
+  CCTV uses direct (no page cache) filesystem I/O on Linux and Windows by default;
+  --cctv-io pagecache selects the page cache. Other systems use pagecache I/O.
 C data/spitchecker formats and some advanced C modes are not supported; use spitc
 for those workflows. See README.md and man spit. Invalid/incomplete I/O fails.
 

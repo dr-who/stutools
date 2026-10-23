@@ -2,10 +2,39 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
+    ops::{Deref, DerefMut},
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 const MAGIC: &[u8; 8] = b"SPITCAM1";
+/// Direct I/O needs buffers, offsets and lengths aligned to the device sector size.
+const ALIGN: usize = 4096;
+
+/// Zeroed buffer whose data starts on an `ALIGN` boundary.
+pub struct Aligned {
+    raw: Vec<u8>,
+    start: usize,
+    len: usize,
+}
+impl Aligned {
+    pub fn new(len: usize) -> Self {
+        let raw = vec![0; len + ALIGN];
+        let start = raw.as_ptr().align_offset(ALIGN);
+        Self { raw, start, len }
+    }
+}
+impl Deref for Aligned {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        &self.raw[self.start..self.start + self.len]
+    }
+}
+impl DerefMut for Aligned {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        &mut self.raw[self.start..self.start + self.len]
+    }
+}
+
 pub fn now() -> io::Result<u64> {
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -111,15 +140,117 @@ fn header(owner: u128, camera: usize, run: u128, sequence: u64) -> [u8; 64] {
     h
 }
 
+/// Volume facts printed at startup, so the target's size and free space are on record.
+pub struct VolumeInfo {
+    pub source: String,
+    pub fs_type: String,
+    pub total: u64,
+    pub free: u64,
+}
+
+pub fn volume_info(directory: &Path) -> io::Result<VolumeInfo> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        let wide = |p: &Path| -> Vec<u16> { p.as_os_str().encode_wide().chain(Some(0)).collect() };
+        let root = wide(directory.ancestors().last().unwrap_or(directory));
+        let (mut caller_free, mut total, mut free) = (0u64, 0u64, 0u64);
+        let (mut serial, mut max_len, mut flags) = (0u32, 0u32, 0u32);
+        let mut label = [0u16; 261];
+        let mut fs_name = [0u16; 261];
+        unsafe extern "system" {
+            fn GetDiskFreeSpaceExW(dir: *const u16, caller: *mut u64, total: *mut u64, free: *mut u64) -> i32;
+            fn GetVolumeInformationW(
+                root: *const u16,
+                label: *mut u16,
+                label_len: u32,
+                serial: *mut u32,
+                max_len: *mut u32,
+                flags: *mut u32,
+                fs: *mut u16,
+                fs_len: u32,
+            ) -> i32;
+        }
+        if unsafe { GetDiskFreeSpaceExW(wide(directory).as_ptr(), &mut caller_free, &mut total, &mut free) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        if unsafe {
+            GetVolumeInformationW(root.as_ptr(), label.as_mut_ptr(), 261, &mut serial, &mut max_len, &mut flags, fs_name.as_mut_ptr(), 261)
+        } == 0
+        {
+            return Err(io::Error::last_os_error());
+        }
+        let text = |b: &[u16]| String::from_utf16_lossy(&b[..b.iter().position(|&c| c == 0).unwrap_or(b.len())]);
+        return Ok(VolumeInfo {
+            source: text(&label),
+            fs_type: text(&fs_name),
+            total,
+            free: caller_free,
+        });
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use std::{ffi::CString, os::unix::ffi::OsStrExt};
+        let path = CString::new(directory.as_os_str().as_bytes()).map_err(io::Error::other)?;
+        let mut vfs: libc::statvfs = unsafe { std::mem::zeroed() };
+        if unsafe { libc::statvfs(path.as_ptr(), &mut vfs) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let mut fs: libc::statfs = unsafe { std::mem::zeroed() };
+        if unsafe { libc::statfs(path.as_ptr(), &mut fs) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let fs_type = match fs.f_type as u64 {
+            0xEF53 => "ext2/3/4",
+            0x5846_5342 => "xfs",
+            0x9123_683E => "btrfs",
+            0x0102_1994 => "tmpfs",
+            0x6969 => "nfs",
+            0x794C_7630 => "overlayfs",
+            _ => "other",
+        };
+        return Ok(VolumeInfo {
+            source: mount_source(directory),
+            fs_type: fs_type.into(),
+            total: vfs.f_blocks as u64 * vfs.f_frsize as u64,
+            free: vfs.f_bavail as u64 * vfs.f_frsize as u64,
+        });
+    }
+    #[allow(unreachable_code)]
+    Err(io::Error::other("volume information is not available on this platform"))
+}
+
+/// The device mounted at the longest mount point that contains `directory`.
+#[cfg(target_os = "linux")]
+fn mount_source(directory: &Path) -> String {
+    let dir = fs::canonicalize(directory).unwrap_or_else(|_| directory.to_path_buf());
+    let Ok(mounts) = fs::read_to_string("/proc/self/mounts") else {
+        return "unknown".into();
+    };
+    mounts
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.split_whitespace();
+            let (source, mount) = (fields.next()?, fields.next()?);
+            dir.starts_with(mount).then(|| (mount.len(), source.to_string()))
+        })
+        .max_by_key(|(len, _)| *len)
+        .map_or_else(|| "unknown".into(), |(_, source)| source)
+}
+
 pub struct Namespace {
     pub directory: PathBuf,
     pub prefix: String,
+    pub direct: bool,
     pub owner: u128,
     pub run: u128,
     _lock: File,
 }
 impl Namespace {
-    pub fn open(prefix: &Path, run: u128) -> io::Result<Arc<Self>> {
+    pub fn open(prefix: &Path, run: u128, direct: bool) -> io::Result<Arc<Self>> {
+        if direct && !cfg!(any(windows, target_os = "linux")) {
+            return Err(io::Error::other("--cctv-io direct is supported on Linux and Windows"));
+        }
         let name = prefix
             .file_name()
             .and_then(|s| s.to_str())
@@ -199,6 +330,7 @@ impl Namespace {
         Ok(Arc::new(Self {
             directory,
             prefix: name,
+            direct,
             owner,
             run,
             _lock: lock,
@@ -221,11 +353,21 @@ impl Namespace {
         fallback_buffer: &[u8],
     ) -> io::Result<Prepared> {
         let path = self.name(camera, sequence, now()?, true);
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create_new(true)
-            .open(&path)?;
+        let mut options = OpenOptions::new();
+        options.read(true).write(true).create_new(true);
+        if self.direct {
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::OpenOptionsExt;
+                options.custom_flags(0x2000_0000); // FILE_FLAG_NO_BUFFERING
+            }
+            #[cfg(target_os = "linux")]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.custom_flags(libc::O_DIRECT);
+            }
+        }
+        let file = options.open(&path)?;
         let mut prepared = Prepared {
             file: Some(file),
             path,
@@ -250,8 +392,12 @@ impl Namespace {
         }
         file.set_len(size)?;
         file.seek(SeekFrom::Start(0))?;
-        file.write_all(&prepared.head)?;
-        file.seek(SeekFrom::Start(0))?;
+        // Direct writes must be whole aligned blocks, so the camera writes the header
+        // as part of its first block instead of here.
+        if !self.direct {
+            file.write_all(&prepared.head)?;
+            file.seek(SeekFrom::Start(0))?;
+        }
         Ok(prepared)
     }
     pub fn prune(&self, cutoff: u64) -> io::Result<u64> {
@@ -456,7 +602,7 @@ mod tests {
     fn retention_requires_exact_prefix_header_and_expired_closed_file() {
         let dir = std::env::temp_dir().join(format!("spit-cctv-retention-{}", run_id().unwrap()));
         fs::create_dir(&dir).unwrap();
-        let ns = Namespace::open(&dir.join("camera"), 1).unwrap();
+        let ns = Namespace::open(&dir.join("camera"), 1, false).unwrap();
         let bytes = [0; 65536];
         let mut p = ns.prepare(1, 1, 65536, &bytes).unwrap();
         p.used = true;
@@ -485,7 +631,7 @@ mod tests {
     fn prepared_files_have_real_allocation_not_only_a_sparse_length() {
         let run = run_id().unwrap();
         let dir = std::env::temp_dir().join(format!("spit-cctv-reserve-{run}"));
-        let ns = Namespace::open(&dir.join("camera"), run).unwrap();
+        let ns = Namespace::open(&dir.join("camera"), run, false).unwrap();
         let p = ns.prepare(1, 1, 1048576, &[0; 65536]).unwrap();
         let f = p.file.as_ref().unwrap();
         assert_eq!(f.metadata().unwrap().len(), 1048576);
