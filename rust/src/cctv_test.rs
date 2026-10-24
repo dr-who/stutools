@@ -18,6 +18,8 @@ const QUEUE_DEPTHS: [usize; 13] = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 
 const QD_BLOCKS_KIB: [usize; 3] = [4, 64, 1024];
 const SWEEP_SECONDS: &str = "10";
 const SWEEP_RANGE: &str = "1GiB";
+/// Enough for the largest chart 5 point (1 MiB blocks at queue depth 4096 need about 4 GiB of I/O pool).
+const SWEEP_MEMORY: &str = "6GiB";
 const CAMERA_MBPS: f64 = 5.;
 const LINK_MBPS: f64 = 1000.;
 
@@ -68,6 +70,7 @@ pub fn run(mode: &str, mut args: Vec<String>) -> Result<()> {
     }
     let config = cli::parse(args.clone())?.ok_or("nothing to run")?;
     cctv::run(config)?;
+    interrupted()?;
 
     if !long {
         sweeps(&dir)?;
@@ -128,17 +131,36 @@ fn sweeps(dir: &Path) -> Result<()> {
 /// Runs one sweep point through the normal engine. Latencies are recorded to a file beside the
 /// results (kept as a record) and returned in memory for the .dat rows.
 fn point(file: &str, dir: &Path, workload: &str, tag: &str) -> Result<engine::Summary> {
+    interrupted()?;
     let latency = dir.join(format!("{tag}.lat"));
     let args: Vec<String> = [
         "-F", file, "-G", SWEEP_RANGE, "--backend", "direct", "-t", SWEEP_SECONDS, "-s", "0", "-c", workload,
-        "--latency-out",
+        "--memory", SWEEP_MEMORY, "--latency-out",
     ]
     .iter()
     .map(|s| s.to_string())
     .chain([latency.to_string_lossy().to_string()])
     .collect();
     let config = cli::parse(args)?.ok_or("sweep point produced no configuration")?;
-    engine::run(config)
+    match engine::run(config) {
+        Ok(summary) => Ok(summary),
+        Err(e) => {
+            // One unrunnable point (for example one whose I/O pool exceeds the budget) must not
+            // stop the rest of the sweep. It is reported and left out of the data, like a zero-op point.
+            eprintln!("warning: {tag} skipped: {e}");
+            Ok(engine::Summary { reads: 0, writes: 0, read_bytes: 0, write_bytes: 0, seconds: 0., latencies_us: Vec::new() })
+        }
+    }
+}
+
+/// A console stop (Ctrl+C, window close, shutdown) ends the test with an error, so the exit code
+/// and the log both say so instead of the run just stopping.
+fn interrupted() -> Result<()> {
+    if crate::cctv::signals::INTERRUPTED.load(std::sync::atomic::Ordering::Relaxed) {
+        let kind = crate::cctv::signals::SIGNAL.load(std::sync::atomic::Ordering::Relaxed);
+        return Err(format!("stopped by console signal {kind} (0 Ctrl+C, 1 Ctrl+Break, 2 window close, 6 shutdown)"));
+    }
+    Ok(())
 }
 
 fn value(args: &[String], flag: &str) -> Option<String> {
@@ -169,7 +191,7 @@ fn path(dir: &Path, name: &str) -> String {
 }
 
 fn suffix_text() -> String {
-    crate::cctv_plots::LABEL.get().map(|l| format!(", {l}")).unwrap_or_default()
+    crate::cctv_plots::label_suffix()
 }
 
 fn qd_gnu(dir: &Path) -> String {
