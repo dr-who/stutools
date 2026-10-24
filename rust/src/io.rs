@@ -268,11 +268,17 @@ pub struct StreamCtx<'a> {
 }
 
 /// Latencies kept per run, the same bound the engine uses for its own samples.
-#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+#[cfg_attr(
+    not(any(windows, target_os = "macos", target_os = "freebsd")),
+    allow(dead_code)
+)]
 const LATENCY_CAPACITY: usize = 2_000_000;
 
 /// What a streamed run measured: the in-flight depth over time and each request's latency.
-#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+#[cfg_attr(
+    not(any(windows, target_os = "macos", target_os = "freebsd")),
+    allow(dead_code)
+)]
 #[derive(Default)]
 pub struct StreamStats {
     pub max_in_flight: u64,
@@ -284,7 +290,10 @@ pub struct StreamStats {
     last_change: Option<Instant>,
 }
 
-#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+#[cfg_attr(
+    not(any(windows, target_os = "macos", target_os = "freebsd")),
+    allow(dead_code)
+)]
 impl StreamStats {
     /// Reserves room for every latency up front, so a run itself never grows the vector.
     pub fn new() -> Self {
@@ -326,7 +335,12 @@ impl StreamStats {
 /// the same code: libaio and io_uring on Linux, WinAio (overlapped I/O) on Windows. Each keeps the
 /// queue full, refilling a slot as soon as its request completes.
 #[cfg_attr(
-    not(any(target_os = "linux", windows, target_os = "macos")),
+    not(any(
+        target_os = "linux",
+        windows,
+        target_os = "macos",
+        target_os = "freebsd"
+    )),
     allow(dead_code)
 )]
 pub trait AsyncStream {
@@ -360,9 +374,7 @@ pub struct Queue {
 // One enum per worker; keep the queue inline instead of allocating another box.
 #[allow(clippy::large_enum_variant)]
 enum State {
-    #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
-    Threads(threads::Pool),
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "freebsd"))]
     PosixAio(posix_aio::PosixAio),
     #[cfg(windows)]
     Overlapped(overlapped::WinAio),
@@ -405,13 +417,9 @@ impl Queue {
                 Backend::Uring => State::Uring(io_uring::IoUring::new(depth as u32)?),
                 _ => State::Aio(linux::Aio::new(depth)?),
             },
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "freebsd"))]
             Backend::Pagecache | Backend::Direct => {
                 State::PosixAio(posix_aio::PosixAio::new(&file, depth)?)
-            }
-            #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
-            Backend::Pagecache | Backend::Direct => {
-                State::Threads(threads::Pool::new(&file, depth)?)
             }
             #[cfg(target_os = "linux")]
             Backend::Libaio => State::Aio(linux::Aio::new(depth)?),
@@ -421,7 +429,7 @@ impl Queue {
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::Unsupported,
-                    "Linux backend requested on another OS",
+                    "no asynchronous I/O backend on this platform: pagecache and direct need POSIX AIO (macOS, FreeBSD), libaio or io_uring (Linux), or overlapped I/O (Windows)",
                 ))
             }
         };
@@ -464,18 +472,22 @@ impl Queue {
         match self.state.as_mut()? {
             #[cfg(windows)]
             State::Overlapped(port) => Some(port.take_stats()),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "freebsd"))]
             State::PosixAio(aio) => Some(aio.take_stats()),
-            #[cfg(not(any(windows, target_os = "macos")))]
+            #[cfg(not(any(windows, target_os = "macos", target_os = "freebsd")))]
             _ => None,
         }
     }
 
-    /// Streams requests through the platform's asynchronous backend: libaio or io_uring on Linux and WinAio
-    /// on Windows, each implementing `AsyncStream`. Other platforms use the threaded backend, which does not
-    /// stream, so the engine never calls this there.
+    /// Streams requests through the platform's asynchronous backend: libaio or io_uring on Linux, WinAio on
+    /// Windows and POSIX AIO on macOS and FreeBSD, each implementing `AsyncStream`.
     #[cfg_attr(
-        not(any(target_os = "linux", windows, target_os = "macos")),
+        not(any(
+            target_os = "linux",
+            windows,
+            target_os = "macos",
+            target_os = "freebsd"
+        )),
         allow(dead_code, unused_variables)
     )]
     pub fn execute_stream<N, P, C>(
@@ -524,12 +536,8 @@ impl Queue {
             }
             #[cfg(windows)]
             State::Overlapped(port) => port.stream(ctx, next, prepare, complete),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "freebsd"))]
             State::PosixAio(aio) => aio.stream(ctx, next, prepare, complete),
-            #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
-            State::Threads(_) => {
-                Err(io::Error::other("streaming requires an asynchronous backend").into())
-            }
         }
     }
 
@@ -561,13 +569,7 @@ impl Queue {
                     &mut complete,
                 )?;
             }
-            #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
-            State::Threads(pool) => {
-                pool.execute(ptr, stride, &self.requests[..count], observer, |i, r| {
-                    complete(i, r)
-                })?;
-            }
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "freebsd"))]
             State::PosixAio(aio) => {
                 aio.execute(
                     ptr,
@@ -716,10 +718,8 @@ impl Queue {
                 }
                 #[cfg(windows)]
                 State::Overlapped(_) => {}
-                #[cfg(target_os = "macos")]
+                #[cfg(any(target_os = "macos", target_os = "freebsd"))]
                 State::PosixAio(_) => {}
-                #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
-                State::Threads(_) => {}
             }
         }
         true
@@ -1617,9 +1617,9 @@ mod overlapped {
     }
 }
 
-/// macOS POSIX AIO. Each slot is one `aio_write` or `aio_read` the kernel holds, and this thread reaps
+/// POSIX AIO (macOS and FreeBSD). Each slot is one `aio_write` or `aio_read` the kernel holds, and this thread reaps
 /// completions with `aio_suspend`, so the queue depth is not a count of threads.
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "freebsd"))]
 mod posix_aio {
     use super::{AsyncStream, Failure, Request, StreamCtx, StreamStats, LATENCY_CAPACITY};
     use std::{
@@ -1953,142 +1953,6 @@ mod posix_aio {
             match failure {
                 Some(e) => Err(e),
                 None => Ok(()),
-            }
-        }
-    }
-}
-
-/// macOS (and other non-Linux, non-Windows Unix) async I/O: one thread per queue slot, each doing
-/// positional reads or writes, so up to `depth` requests are in flight at once.
-#[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
-mod threads {
-    use super::{Failure, Request};
-    use std::fs::File;
-    use std::io;
-    use std::os::unix::fs::FileExt;
-    use std::sync::{mpsc, Arc};
-    use std::thread::JoinHandle;
-
-    struct Job {
-        index: usize,
-        ptr: usize,
-        len: usize,
-        offset: u64,
-        write: bool,
-    }
-
-    pub struct Pool {
-        jobs: Vec<mpsc::SyncSender<Job>>,
-        done: mpsc::Receiver<(usize, io::Result<usize>)>,
-        handles: Vec<JoinHandle<()>>,
-    }
-
-    impl Pool {
-        pub fn new(file: &File, depth: usize) -> io::Result<Self> {
-            let _ = std::thread::current();
-            let file = Arc::new(file.try_clone()?);
-            // Bounded channels are allocated once here. An unbounded channel allocates blocks as messages
-            // flow, which the hot-path allocation guard counts. Each slot has at most one job in flight.
-            let (done_tx, done) = mpsc::sync_channel(depth);
-            let mut jobs = Vec::with_capacity(depth);
-            let mut handles = Vec::with_capacity(depth);
-            for _ in 0..depth {
-                let (tx, rx) = mpsc::sync_channel::<Job>(1);
-                let file = file.clone();
-                let done_tx = done_tx.clone();
-                handles.push(std::thread::Builder::new().spawn(move || {
-                    // Creating a thread's handle allocates, so do it before the first job rather than inside the run.
-                    let _ = std::thread::current();
-                    for job in rx {
-                        let buf =
-                            unsafe { std::slice::from_raw_parts_mut(job.ptr as *mut u8, job.len) };
-                        let result = if job.write {
-                            file.write_at(buf, job.offset)
-                        } else {
-                            file.read_at(buf, job.offset)
-                        };
-                        if done_tx.send((job.index, result)).is_err() {
-                            break;
-                        }
-                    }
-                })?);
-                jobs.push(tx);
-            }
-            Ok(Self {
-                jobs,
-                done,
-                handles,
-            })
-        }
-
-        /// Submits the batch to the slot threads and waits for every completion.
-        pub fn execute<C>(
-            &mut self,
-            ptr: *mut u8,
-            stride: usize,
-            requests: &[Request],
-            observer: Option<&crate::progress::Counter>,
-            mut complete: C,
-        ) -> Result<(), Failure>
-        where
-            C: FnMut(usize, Request),
-        {
-            for (i, r) in requests.iter().enumerate() {
-                if let Some(counter) = observer {
-                    counter.submitted(1);
-                }
-                let job = Job {
-                    index: i,
-                    ptr: ptr as usize + i * stride,
-                    len: r.len,
-                    offset: r.offset,
-                    write: r.write,
-                };
-                self.jobs[i]
-                    .send(job)
-                    .map_err(|_| Failure::System(io::Error::other("I/O thread stopped")))?;
-            }
-            let mut failure = None;
-            for _ in 0..requests.len() {
-                let (index, result) = self
-                    .done
-                    .recv()
-                    .map_err(|_| Failure::System(io::Error::other("I/O thread stopped")))?;
-                let r = requests[index];
-                if let Some(counter) = observer {
-                    counter.completed(1);
-                }
-                match result {
-                    Ok(n) if n == r.len => {
-                        if failure.is_none() {
-                            complete(index, r);
-                        }
-                    }
-                    Ok(n) => {
-                        failure.get_or_insert(Failure::Incomplete(n as i64, r));
-                    }
-                    Err(error) => {
-                        failure.get_or_insert(Failure::Operation {
-                            error,
-                            write: r.write,
-                            offset: r.offset,
-                            len: r.len,
-                        });
-                    }
-                }
-            }
-            match failure {
-                Some(e) => Err(e),
-                None => Ok(()),
-            }
-        }
-    }
-
-    impl Drop for Pool {
-        fn drop(&mut self) {
-            self.jobs.clear();
-            for handle in self.handles.drain(..) {
-                let _ = handle.join();
             }
         }
     }

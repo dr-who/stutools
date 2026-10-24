@@ -710,13 +710,18 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
         && !p.work.alternate
         && p.work.rate.is_none()
         && p.work.duty.is_none())
-        || (cfg!(any(windows, target_os = "macos"))
+        || (cfg!(any(windows, target_os = "macos", target_os = "freebsd"))
             && !p.verify
             && !p.work.flush
             && !p.work.alternate
             && p.work.rate.is_none()
             && p.work.duty.is_none());
-    #[cfg(any(target_os = "linux", windows, target_os = "macos"))]
+    #[cfg(any(
+        target_os = "linux",
+        windows,
+        target_os = "macos",
+        target_os = "freebsd"
+    ))]
     if streamed {
         let mut queued_bytes = 0u64;
         let result = q.execute_stream(
