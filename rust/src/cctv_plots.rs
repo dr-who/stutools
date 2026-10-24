@@ -29,6 +29,8 @@ pub struct Run<'a> {
     pub seconds: f64,
     /// (seconds since the measured start, latency in microseconds), as written to the .lat file.
     pub samples: &'a [(f64, u32)],
+    /// Total Mbit over the run: (offered, achieved, dropped). None when the run did not record it.
+    pub loss: Option<(f64, f64, f64)>,
 }
 
 const HIST_BIN_MS: f64 = 0.1;
@@ -94,6 +96,25 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
     let tics = counts.iter().map(usize::to_string).collect::<Vec<_>>().join(", ");
     let block = block_label(runs[0].block_bytes);
     let png = gnu_path(&dir.join(format!("cctv-allranges{}.png", sfx())));
+    // With loss recorded, offered, achieved and dropped Mbit/s per camera count go on y2.
+    let loss_path = dir.join(format!("cctv-allranges-loss{}.dat", sfx()));
+    let (loss_def, loss_plot) = if runs.iter().all(|r| r.loss.is_some()) {
+        let mut loss = create(&loss_path)?;
+        for run in runs {
+            let (offered, achieved, dropped) = run.loss.unwrap();
+            let seconds = run.seconds.max(1e-9);
+            writeln!(loss, "{} {:.3} {:.3} {:.3}", run.count, offered / seconds, achieved / seconds, dropped / seconds)?;
+        }
+        loss.flush()?;
+        (
+            format!("LOSS = \"{}\"\n", gnu_path(&loss_path)),
+            format!(
+                ", \\\n     LOSS using 1:2 axes x1y2 with lines dt 2 lw 4 lc rgb \"#7f7f7f\" title \"offered Mbit/s\", \\\n     LOSS using 1:4 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb \"#d62728\" title \"dropped Mbit/s\""
+            ),
+        )
+    } else {
+        (String::new(), String::new())
+    };
     let gnu = format!(
         r##"# Per-write CCTV latency against camera count, one dot per write, with achieved Mbit/s on y2.
 # Each dot is moved by a random x offset in [-2, +2] cameras so points at the same count do not stack.
@@ -112,10 +133,12 @@ set y2tics
 set arrow from graph 0, first {LINE_MS} to graph 1, first {LINE_MS} nohead dt 2 lw 3 lc rgb "#d62728"
 DATA = "{dots}"
 MBPS = "{rates}"
-plot DATA using ($1+4*rand(0)-2):2 axes x1y1 with points pt 7 ps 0.3 lc rgb "#1f77b4" title "write latency (ms)", \
-     MBPS using 1:2 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb "#2ca02c" title "achieved Mbit/s"
+{loss_def}plot DATA using ($1+4*rand(0)-2):2 axes x1y1 with points pt 7 ps 0.3 lc rgb "#1f77b4" title "write latency (ms)", \
+     MBPS using 1:2 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb "#2ca02c" title "achieved Mbit/s"{loss_plot}
 "##,
         label_suffix = label_suffix(),
+        loss_def = loss_def,
+        loss_plot = loss_plot,
         gnu = gnu_path(&dir.join(format!("cctv-allranges{}.gnu", sfx()))),
         dots = gnu_path(&dots_path),
         rates = gnu_path(&rates_path),

@@ -620,6 +620,8 @@ struct Measured {
     dir: std::path::PathBuf,
     seconds: f64,
     samples: Vec<(f64, u32)>,
+    /// Total Mbit over the run: (offered, achieved, dropped).
+    loss: (f64, f64, f64),
 }
 
 pub fn run(config: Config) -> Result<()> {
@@ -656,6 +658,7 @@ pub fn run(config: Config) -> Result<()> {
                 block_bytes: base.block,
                 seconds: run.seconds,
                 samples: &run.samples,
+                loss: Some(run.loss),
             })
             .collect();
         let io_mode = if base.direct { "direct" } else { "pagecache" };
@@ -952,10 +955,17 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
             error = Some(format!("write latency samples: {e}"));
         }
         let dir = logs.paths[0].parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+        let frame_mbit = settings.block as f64 * 8. / 1e6;
+        let loss = (
+            shared.generated.load(Ordering::Relaxed) as f64 * frame_mbit,
+            shared.written.load(Ordering::Relaxed) as f64 * 8. / 1e6,
+            shared.dropped.load(Ordering::Relaxed) as f64 * frame_mbit,
+        );
         measured = Some(Measured {
             dir,
             seconds: elapsed.max(1e-9),
             samples: latencies,
+            loss,
         });
     }
     // Closers sync and rename every queued recording, including final partial files,
@@ -1134,6 +1144,7 @@ pub fn replot(dir: &std::path::Path) -> Result<()> {
             block_bytes: *block_bytes,
             seconds: *seconds,
             samples,
+            loss: None,
         })
         .collect();
     cctv_plots::write_range(dir, &runs, &io_mode).map_err(|e| format!("CCTV plot files: {e}"))?;
