@@ -33,12 +33,17 @@ pub fn run(mode: &str, mut args: Vec<String>) -> Result<()> {
     let prefix = value(&args, "-F").ok_or("--cctv-test needs -F PREFIX")?;
     // Every chart title says what was tested: the target path, the remote details and the test type.
     let version = format!("spit {}", env!("CARGO_PKG_VERSION"));
-    let title = [version.as_str(), label.as_str(), &format!("{mode} test"), &format!("target {prefix}")]
-        .iter()
-        .filter(|s| !s.is_empty())
-        .cloned()
-        .collect::<Vec<_>>()
-        .join(", ");
+    let title = [
+        version.as_str(),
+        label.as_str(),
+        &format!("{mode} test"),
+        &format!("target {prefix}"),
+    ]
+    .iter()
+    .filter(|s| !s.is_empty())
+    .cloned()
+    .collect::<Vec<_>>()
+    .join(", ");
     let _ = crate::cctv_plots::LABEL.set(title);
     let dir = Path::new(&prefix)
         .parent()
@@ -48,14 +53,27 @@ pub fn run(mode: &str, mut args: Vec<String>) -> Result<()> {
     let long = match mode {
         "short" | "range" => false,
         "long" => true,
-        other => return Err(format!("--cctv-test takes short, range or long, not {other}")),
+        other => {
+            return Err(format!(
+                "--cctv-test takes short, range or long, not {other}"
+            ))
+        }
     };
     // Each chart file says which I/O mode made it, so direct and pagecache runs can sit side by side.
-    let io = value(&args, "--cctv-io").unwrap_or_else(|| if cfg!(any(windows, target_os = "linux")) { "direct" } else { "pagecache" }.into());
+    let io = value(&args, "--cctv-io").unwrap_or_else(|| {
+        if cfg!(any(windows, target_os = "linux")) {
+            "direct"
+        } else {
+            "pagecache"
+        }
+        .into()
+    });
     let _ = crate::cctv_plots::SUFFIX.set(format!("-{io}"));
 
     if !args.iter().any(|a| a == "--cctv") {
-        let link = value(&args, "--link-mbps").and_then(|v| v.parse().ok()).unwrap_or(LINK_MBPS);
+        let link = value(&args, "--link-mbps")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(LINK_MBPS);
         let fit = (link / CAMERA_MBPS).floor() as usize;
         let cameras = if long {
             format!("{fit},{CAMERA_MBPS},1")
@@ -91,13 +109,24 @@ fn sweeps(dir: &Path) -> Result<()> {
     for kib in QD_BLOCKS_KIB {
         let mut rows = String::new();
         for qd in QUEUE_DEPTHS {
-            let s = point(&file, dir, &format!("ws1k{kib}q{qd}"), &format!("short-qd-{kib}k-q{qd}"))?;
+            let s = point(
+                &file,
+                dir,
+                &format!("ws1k{kib}q{qd}"),
+                &format!("short-qd-{kib}k-q{qd}"),
+            )?;
             if s.writes == 0 {
                 // No completed operations: a missing value, not a rate of zero. Left out of the data.
                 eprintln!("warning: {kib} KiB queue depth {qd} completed no writes; point left out of short-qd-{kib}k.dat");
                 continue;
             }
-            rows.push_str(&format!("{qd} {} {} {} {}\n", mbit(s.write_bytes, s.seconds), iops(s.writes, s.seconds), mean_ms(&s.latencies_us), max_ms(&s.latencies_us)));
+            rows.push_str(&format!(
+                "{qd} {} {} {} {}\n",
+                mbit(s.write_bytes, s.seconds),
+                iops(s.writes, s.seconds),
+                mean_ms(&s.latencies_us),
+                max_ms(&s.latencies_us)
+            ));
         }
         fs::write(dir.join(format!("short-qd-{kib}k.dat")), rows).map_err(|e| e.to_string())?;
     }
@@ -109,17 +138,37 @@ fn sweeps(dir: &Path) -> Result<()> {
     let mut read_ops = String::new();
     for kib in BLOCKS_KIB {
         let bytes = kib * 1024;
-        let w = point(&file, dir, &format!("ws1k{kib}q1"), &format!("short-bs-write-{kib}k"))?;
+        let w = point(
+            &file,
+            dir,
+            &format!("ws1k{kib}q1"),
+            &format!("short-bs-write-{kib}k"),
+        )?;
         if w.writes == 0 {
             eprintln!("warning: {kib} KiB write completed no writes; point left out of short-bs-write.dat");
         } else {
-            write_rows.push_str(&format!("{bytes} {} {} {}\n", mbit(w.write_bytes, w.seconds), mean_ms(&w.latencies_us), max_ms(&w.latencies_us)));
+            write_rows.push_str(&format!(
+                "{bytes} {} {} {}\n",
+                mbit(w.write_bytes, w.seconds),
+                mean_ms(&w.latencies_us),
+                max_ms(&w.latencies_us)
+            ));
         }
         for us in &w.latencies_us {
             write_ops.push_str(&format!("{bytes} {:.3}\n", *us as f64 / 1000.));
         }
-        let r = point(&file, dir, &format!("rs1k{kib}q1"), &format!("short-bs-read-{kib}k"))?;
-        read_rows.push_str(&format!("{bytes} {} {} {}\n", mbit(r.read_bytes, r.seconds), mean_ms(&r.latencies_us), max_ms(&r.latencies_us)));
+        let r = point(
+            &file,
+            dir,
+            &format!("rs1k{kib}q1"),
+            &format!("short-bs-read-{kib}k"),
+        )?;
+        read_rows.push_str(&format!(
+            "{bytes} {} {} {}\n",
+            mbit(r.read_bytes, r.seconds),
+            mean_ms(&r.latencies_us),
+            max_ms(&r.latencies_us)
+        ));
         for us in &r.latencies_us {
             read_ops.push_str(&format!("{bytes} {:.3}\n", *us as f64 / 1000.));
         }
@@ -138,8 +187,21 @@ fn point(file: &str, dir: &Path, workload: &str, tag: &str) -> Result<engine::Su
     interrupted()?;
     let latency = dir.join(format!("{tag}.lat"));
     let args: Vec<String> = [
-        "-F", file, "-G", SWEEP_RANGE, "--backend", "direct", "-t", SWEEP_SECONDS, "-s", "0", "-c", workload,
-        "--memory", SWEEP_MEMORY, "--latency-out",
+        "-F",
+        file,
+        "-G",
+        SWEEP_RANGE,
+        "--backend",
+        "direct",
+        "-t",
+        SWEEP_SECONDS,
+        "-s",
+        "0",
+        "-c",
+        workload,
+        "--memory",
+        SWEEP_MEMORY,
+        "--latency-out",
     ]
     .iter()
     .map(|s| s.to_string())
@@ -152,7 +214,14 @@ fn point(file: &str, dir: &Path, workload: &str, tag: &str) -> Result<engine::Su
             // One unrunnable point (for example one whose I/O pool exceeds the budget) must not
             // stop the rest of the sweep. It is reported and left out of the data, like a zero-op point.
             eprintln!("warning: {tag} skipped: {e}");
-            Ok(engine::Summary { reads: 0, writes: 0, read_bytes: 0, write_bytes: 0, seconds: 0., latencies_us: Vec::new() })
+            Ok(engine::Summary {
+                reads: 0,
+                writes: 0,
+                read_bytes: 0,
+                write_bytes: 0,
+                seconds: 0.,
+                latencies_us: Vec::new(),
+            })
         }
     }
 }
@@ -162,13 +231,18 @@ fn point(file: &str, dir: &Path, workload: &str, tag: &str) -> Result<engine::Su
 fn interrupted() -> Result<()> {
     if crate::cctv::signals::INTERRUPTED.load(std::sync::atomic::Ordering::Relaxed) {
         let kind = crate::cctv::signals::SIGNAL.load(std::sync::atomic::Ordering::Relaxed);
-        return Err(format!("stopped by console signal {kind} (0 Ctrl+C, 1 Ctrl+Break, 2 window close, 6 shutdown)"));
+        return Err(format!(
+            "stopped by console signal {kind} (0 Ctrl+C, 1 Ctrl+Break, 2 window close, 6 shutdown)"
+        ));
     }
     Ok(())
 }
 
 fn value(args: &[String], flag: &str) -> Option<String> {
-    args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned()
+    args.iter()
+        .position(|a| a == flag)
+        .and_then(|i| args.get(i + 1))
+        .cloned()
 }
 
 fn mbit(bytes: u64, seconds: f64) -> String {
@@ -183,11 +257,17 @@ fn mean_ms(us: &[u32]) -> String {
     if us.is_empty() {
         return "0".into();
     }
-    format!("{:.4}", us.iter().map(|&u| u as f64).sum::<f64>() / us.len() as f64 / 1000.)
+    format!(
+        "{:.4}",
+        us.iter().map(|&u| u as f64).sum::<f64>() / us.len() as f64 / 1000.
+    )
 }
 
 fn max_ms(us: &[u32]) -> String {
-    format!("{:.4}", us.iter().copied().max().unwrap_or(0) as f64 / 1000.)
+    format!(
+        "{:.4}",
+        us.iter().copied().max().unwrap_or(0) as f64 / 1000.
+    )
 }
 
 fn path(dir: &Path, name: &str) -> String {
@@ -233,7 +313,11 @@ fn bs_gnu(dir: &Path) -> String {
     let tics: Vec<String> = BLOCKS_KIB
         .iter()
         .map(|&k| {
-            let label = if k >= 1024 { format!("{}M", k / 1024) } else { format!("{k}K") };
+            let label = if k >= 1024 {
+                format!("{}M", k / 1024)
+            } else {
+                format!("{k}K")
+            };
             format!("\"{label}\" {}", k * 1024)
         })
         .collect();

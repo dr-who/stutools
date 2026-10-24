@@ -19,7 +19,10 @@ fn sfx() -> String {
 /// The target and test details, on a line of their own under the chart title. Backslashes are
 /// escaped because gnuplot reads them inside double quotes.
 pub fn label_suffix() -> String {
-    LABEL.get().map(|l| format!("\\n{}", l.replace('\\', "\\\\"))).unwrap_or_default()
+    LABEL
+        .get()
+        .map(|l| format!("\\n{}", l.replace('\\', "\\\\")))
+        .unwrap_or_default()
 }
 
 /// One camera count's measured writes.
@@ -49,8 +52,17 @@ pub fn write_range(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
         picks.push(high);
     }
     for run in picks {
-        let ms: Vec<f64> = run.samples.iter().map(|&(_, us)| us as f64 / 1000.).collect();
-        write_histogram(dir, &run.count.to_string(), &format!("{} cameras, {io_mode}", run.count), &ms)?;
+        let ms: Vec<f64> = run
+            .samples
+            .iter()
+            .map(|&(_, us)| us as f64 / 1000.)
+            .collect();
+        write_histogram(
+            dir,
+            &run.count.to_string(),
+            &format!("{} cameras, {io_mode}", run.count),
+            &ms,
+        )?;
     }
     Ok(())
 }
@@ -95,7 +107,12 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
     }
     rates.flush()?;
 
-    let tics = counts.iter().enumerate().map(|(i, c)| format!("\"{c}\" {}", i + 1)).collect::<Vec<_>>().join(", ");
+    let tics = counts
+        .iter()
+        .enumerate()
+        .map(|(i, c)| format!("\"{c}\" {}", i + 1))
+        .collect::<Vec<_>>()
+        .join(", ");
     let block = block_label(runs[0].block_bytes);
     let png = gnu_path(&dir.join(format!("cctv-allranges{}.png", sfx())));
     // With loss recorded, offered, achieved and dropped Mbit/s per camera count go on y2.
@@ -105,14 +122,19 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
         for run in runs {
             let (offered, achieved, dropped) = run.loss.unwrap();
             let seconds = run.seconds.max(1e-9);
-            writeln!(loss, "{} {:.3} {:.3} {:.3}", position(run.count), offered / seconds, achieved / seconds, dropped / seconds)?;
+            writeln!(
+                loss,
+                "{} {:.3} {:.3} {:.3}",
+                position(run.count),
+                offered / seconds,
+                achieved / seconds,
+                dropped / seconds
+            )?;
         }
         loss.flush()?;
         (
             format!("LOSS = \"{}\"\n", gnu_path(&loss_path)),
-            format!(
-                ", \\\n     LOSS using 1:2 axes x1y2 with lines dt 2 lw 4 lc rgb \"#7f7f7f\" title \"offered Mbit/s\", \\\n     LOSS using 1:4 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb \"#d62728\" title \"dropped Mbit/s\""
-            ),
+            String::from(", \\\n     LOSS using 1:2 axes x1y2 with lines dt 2 lw 4 lc rgb \"#7f7f7f\" title \"offered Mbit/s\", \\\n     LOSS using 1:4 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb \"#d62728\" title \"dropped Mbit/s\""),
         )
     } else {
         (String::new(), String::new())
@@ -177,11 +199,17 @@ fn write_histogram(dir: &Path, tag: &str, label: &str, values: &[f64]) -> io::Re
 
     let mut bins: BTreeMap<i64, u64> = BTreeMap::new();
     for v in &sorted {
-        *bins.entry((v / HIST_BIN_MS + 0.5).floor() as i64).or_insert(0) += 1;
+        *bins
+            .entry((v / HIST_BIN_MS + 0.5).floor() as i64)
+            .or_insert(0) += 1;
     }
     // The axis runs from the first to the last bin holding more than one write, so a single
     // outlier at either end does not stretch the chart. Falls back to min and max if no bin qualifies.
-    let busy: Vec<f64> = bins.iter().filter(|(_, count)| **count > 1).map(|(bin, _)| *bin as f64 * HIST_BIN_MS).collect();
+    let busy: Vec<f64> = bins
+        .iter()
+        .filter(|(_, count)| **count > 1)
+        .map(|(bin, _)| *bin as f64 * HIST_BIN_MS)
+        .collect();
     let (low, high) = match (busy.first(), busy.last()) {
         (Some(first), Some(last)) => ((first - HIST_BIN_MS).max(HIST_BIN_MS), last + HIST_BIN_MS),
         _ => (low, high),
@@ -250,7 +278,13 @@ plot "{dat}" using 1:2 with boxes lc rgb "#1f77b4" title "writes per bin", \
 
 /// Rolling mean and +/-1, 2, 3 standard deviations of the per-second rate over `window_s` seconds.
 /// Writes `<stem>.env.dat` (t mean sd1 sd2 sd3) and `<stem>.env.gnu`, which renders it with the raw rate points.
-pub fn write_envelope(dir: &Path, stem: &str, rates: &[(f64, f64)], window_s: f64, link_mbps: Option<f64>) -> io::Result<()> {
+pub fn write_envelope(
+    dir: &Path,
+    stem: &str,
+    rates: &[(f64, f64)],
+    window_s: f64,
+    link_mbps: Option<f64>,
+) -> io::Result<()> {
     if rates.is_empty() {
         return Ok(());
     }
@@ -269,7 +303,12 @@ pub fn write_envelope(dir: &Path, stem: &str, rates: &[(f64, f64)], window_s: f6
         let n = (i + 1 - start) as f64;
         let mean = sum / n;
         let sd = (sum2 / n - mean * mean).max(0.0).sqrt();
-        writeln!(out, "{t:.0} {mean:.3} {sd:.3} {:.3} {:.3}", 2.0 * sd, 3.0 * sd)?;
+        writeln!(
+            out,
+            "{t:.0} {mean:.3} {sd:.3} {:.3} {:.3}",
+            2.0 * sd,
+            3.0 * sd
+        )?;
     }
     out.flush()?;
 

@@ -13,7 +13,9 @@ pub fn run(device: &str) -> Result<()> {
     #[cfg(target_os = "macos")]
     return macos::report(device);
     #[allow(unreachable_code)]
-    Err(format!("--info is not supported on this platform (device {device})"))
+    Err(format!(
+        "--info is not supported on this platform (device {device})"
+    ))
 }
 
 #[cfg(target_os = "linux")]
@@ -70,7 +72,12 @@ mod linux {
 
         /// Sends `cdb`. With `data` non-empty, the command transfers into it (`to_device` false)
         /// or out of it (`to_device` true).
-        pub fn send(file: &File, cdb: &[u8], data: &mut [u8], to_device: bool) -> std::result::Result<Reply, String> {
+        pub fn send(
+            file: &File,
+            cdb: &[u8],
+            data: &mut [u8],
+            to_device: bool,
+        ) -> std::result::Result<Reply, String> {
             let mut sense = [0u8; 32];
             let direction = if data.is_empty() {
                 SG_DXFER_NONE
@@ -86,7 +93,11 @@ mod linux {
                 mx_sb_len: sense.len() as u8,
                 iovec_count: 0,
                 dxfer_len: data.len() as u32,
-                dxferp: if data.is_empty() { std::ptr::null_mut() } else { data.as_mut_ptr() as *mut libc::c_void },
+                dxferp: if data.is_empty() {
+                    std::ptr::null_mut()
+                } else {
+                    data.as_mut_ptr() as *mut libc::c_void
+                },
                 cmdp: cdb.as_ptr() as *mut u8,
                 sbp: sense.as_mut_ptr(),
                 timeout: 10_000,
@@ -151,7 +162,9 @@ mod linux {
             .ok_or_else(|| format!("{device}: not a block device name"))?
             .to_string();
         if !Path::new(&format!("/sys/block/{name}")).exists() {
-            return Err(format!("{device} ({name}) is not a block device known to sysfs"));
+            return Err(format!(
+                "{device} ({name}) is not a block device known to sysfs"
+            ));
         }
         println!("device={device} kernel={name}");
         let size = sysfs(&name, "size").parse::<u64>().unwrap_or(0) * 512;
@@ -209,11 +222,18 @@ mod linux {
         }
         let supported = read_command(file, &[0x12, 0x01, 0x00, 0, 255, 0], 255);
         match &supported {
-            Ok(d) if d.len() >= 4 => println!("scsi VPD supported pages: {:02x?}", &d[4..4 + d[3] as usize]),
+            Ok(d) if d.len() >= 4 => println!(
+                "scsi VPD supported pages: {:02x?}",
+                &d[4..4 + d[3] as usize]
+            ),
             Ok(_) => println!("scsi VPD supported pages: short reply"),
             Err(e) => println!("scsi VPD supported pages: {e}"),
         }
-        let block_size = match read_command(file, &[0x9e, 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0], 32) {
+        let block_size = match read_command(
+            file,
+            &[0x9e, 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0],
+            32,
+        ) {
             Ok(d) if d.len() >= 12 => {
                 let last = u64::from_be_bytes(d[0..8].try_into().unwrap());
                 let block = u32::from_be_bytes(d[8..12].try_into().unwrap());
@@ -234,7 +254,9 @@ mod linux {
             }
         };
         match read_command(file, &[0x12, 0x01, 0x80, 0, 255, 0], 255) {
-            Ok(d) if d.len() >= 4 => println!("scsi serial number: {}", ascii(&d[4..4 + d[3] as usize])),
+            Ok(d) if d.len() >= 4 => {
+                println!("scsi serial number: {}", ascii(&d[4..4 + d[3] as usize]))
+            }
             Ok(_) => println!("scsi serial number: short reply"),
             Err(e) => println!("scsi serial number: {e}"),
         }
@@ -253,7 +275,10 @@ mod linux {
                         8 => "SCSI name",
                         _ => "other",
                     };
-                    let value: String = d[at + 4..(at + 4 + len).min(end)].iter().map(|b| format!("{b:02x}")).collect();
+                    let value: String = d[at + 4..(at + 4 + len).min(end)]
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect();
                     println!("scsi device identifier: type={kind_name} value={value}");
                     at += 4 + len;
                 }
@@ -289,7 +314,14 @@ mod linux {
         }
         match read_command(file, &[0x1a, 0, 0x08, 0, 0x20, 0], 0x20) {
             Ok(d) if d.len() >= 6 && d[4] & 0x3f == 0x08 => {
-                println!("scsi write cache: {}", if d[6 + 2] & 0x04 != 0 { "enabled (WCE)" } else { "disabled" })
+                println!(
+                    "scsi write cache: {}",
+                    if d[6 + 2] & 0x04 != 0 {
+                        "enabled (WCE)"
+                    } else {
+                        "disabled"
+                    }
+                )
             }
             Ok(_) => println!("scsi write cache: caching page not found"),
             Err(e) => println!("scsi write cache: {e}"),
@@ -299,7 +331,10 @@ mod linux {
     /// Finds the open-iscsi session that owns `name` and returns its target, portal, SID and
     /// negotiated parameters. Each session in `iscsiadm -P 3` starts at its "Current Portal" line.
     fn iscsi_session(name: &str) -> Option<Vec<String>> {
-        let out = Command::new("iscsiadm").args(["-m", "session", "-P", "3"]).output().ok()?;
+        let out = Command::new("iscsiadm")
+            .args(["-m", "session", "-P", "3"])
+            .output()
+            .ok()?;
         if !out.status.success() {
             return None;
         }
@@ -313,10 +348,15 @@ mod linux {
                 target = rest.to_string();
             }
             if t.starts_with("Current Portal:") {
-                sessions.push((t.to_string(), vec![format!("Target: {target}"), t.to_string()]));
+                sessions.push((
+                    t.to_string(),
+                    vec![format!("Target: {target}"), t.to_string()],
+                ));
                 in_negotiated = false;
             }
-            let Some((_, lines)) = sessions.last_mut() else { continue };
+            let Some((_, lines)) = sessions.last_mut() else {
+                continue;
+            };
             if lines.len() == 2 && t.starts_with("SID:") {
                 lines.push(t.to_string());
             }
@@ -328,7 +368,9 @@ mod linux {
                 lines.push(t.to_string());
             }
         }
-        let (_, mut lines) = sessions.into_iter().find(|(portal, _)| attached(&text, portal, name))?;
+        let (_, mut lines) = sessions
+            .into_iter()
+            .find(|(portal, _)| attached(&text, portal, name))?;
         // The same parameter can appear once per interface; keep the first copy of each line.
         let mut seen = std::collections::HashSet::new();
         lines.retain(|l| seen.insert(l.clone()));
@@ -388,11 +430,31 @@ mod windows {
     const STORAGE_ADAPTER_PROPERTY: u32 = 1;
     const PROPERTY_STANDARD_QUERY: u32 = 0;
     const BUS_TYPES: [&str; 18] = [
-        "unknown", "scsi", "atapi", "ata", "1394", "ssa", "fibre", "usb", "raid", "iscsi", "sas", "sata",
-        "sd", "mmc", "virtual", "file-backed", "spaces", "nvme",
+        "unknown",
+        "scsi",
+        "atapi",
+        "ata",
+        "1394",
+        "ssa",
+        "fibre",
+        "usb",
+        "raid",
+        "iscsi",
+        "sas",
+        "sata",
+        "sd",
+        "mmc",
+        "virtual",
+        "file-backed",
+        "spaces",
+        "nvme",
     ];
 
-    fn query(handle: *mut c_void, property: u32, buffer: &mut [u8]) -> std::result::Result<usize, String> {
+    fn query(
+        handle: *mut c_void,
+        property: u32,
+        buffer: &mut [u8],
+    ) -> std::result::Result<usize, String> {
         // STORAGE_PROPERTY_QUERY: PropertyId, QueryType, AdditionalParameters[1]
         let mut input = [0u8; 12];
         input[..4].copy_from_slice(&property.to_le_bytes());
@@ -411,7 +473,10 @@ mod windows {
             )
         };
         if ok == 0 {
-            return Err(format!("IOCTL_STORAGE_QUERY_PROPERTY: {}", std::io::Error::last_os_error()));
+            return Err(format!(
+                "IOCTL_STORAGE_QUERY_PROPERTY: {}",
+                std::io::Error::last_os_error()
+            ));
         }
         Ok(returned as usize)
     }
@@ -420,8 +485,13 @@ mod windows {
         if offset == 0 || offset >= buffer.len() {
             return "-".into();
         }
-        let end = buffer[offset..].iter().position(|&b| b == 0).map_or(buffer.len(), |p| offset + p);
-        String::from_utf8_lossy(&buffer[offset..end]).trim().to_string()
+        let end = buffer[offset..]
+            .iter()
+            .position(|&b| b == 0)
+            .map_or(buffer.len(), |p| offset + p);
+        String::from_utf8_lossy(&buffer[offset..end])
+            .trim()
+            .to_string()
     }
 
     fn u32_at(buffer: &[u8], offset: usize) -> u32 {
@@ -429,10 +499,21 @@ mod windows {
     }
 
     pub fn report(device: &str) -> Result<()> {
-        let wide: Vec<u16> = std::ffi::OsStr::new(device).encode_wide().chain(Some(0)).collect();
+        let wide: Vec<u16> = std::ffi::OsStr::new(device)
+            .encode_wide()
+            .chain(Some(0))
+            .collect();
         // Query-only access (0) needs no read or write rights to the disk.
         let handle = unsafe {
-            CreateFileW(wide.as_ptr(), 0, 3, std::ptr::null_mut(), 3, 0, std::ptr::null_mut())
+            CreateFileW(
+                wide.as_ptr(),
+                0,
+                3,
+                std::ptr::null_mut(),
+                3,
+                0,
+                std::ptr::null_mut(),
+            )
         };
         if handle == INVALID_HANDLE_VALUE {
             return Err(format!("{device}: {}", std::io::Error::last_os_error()));
@@ -461,7 +542,8 @@ mod windows {
         );
 
         let mut adapter = vec![0u8; 256];
-        query(handle, STORAGE_ADAPTER_PROPERTY, &mut adapter).map_err(|e| format!("{device}: {e}"))?;
+        query(handle, STORAGE_ADAPTER_PROPERTY, &mut adapter)
+            .map_err(|e| format!("{device}: {e}"))?;
         // STORAGE_ADAPTER_DESCRIPTOR: Version, Size, MaximumTransferLength, MaximumPhysicalPages,
         // AlignmentMask, AdapterUsesPio, AdapterScansDown, CommandQueueing, AcceleratedTransfer, BusType.
         println!(
@@ -472,7 +554,9 @@ mod windows {
             adapter[22] != 0,
         );
         println!("scsi commands: not sent on Windows yet (IOCTL_SCSI_PASS_THROUGH_DIRECT is next)");
-        println!("iscsi session: negotiated values are not exposed by Windows WMI; use a login capture");
+        println!(
+            "iscsi session: negotiated values are not exposed by Windows WMI; use a login capture"
+        );
         println!("MaxCmdSN: not reported by Windows; needs an iSCSI login capture");
         Ok(())
     }

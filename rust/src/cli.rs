@@ -577,23 +577,31 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 c.cameras = Some(crate::cctv::Settings::parse(v)?);
             }
             "--cctv-drop-after" => {
-                let seconds: f64 = v.parse().map_err(|_| "--cctv-drop-after needs seconds, e.g. 5")?;
-                if !(seconds > 0.) {
+                let seconds: f64 = v
+                    .parse()
+                    .map_err(|_| "--cctv-drop-after needs seconds, e.g. 5")?;
+                if seconds.is_nan() || seconds <= 0. {
                     return Err("--cctv-drop-after must be above 0".into());
                 }
                 cctv_drop_after = Some(seconds);
             }
             "--link-mbps" => {
-                let mbps: f64 = v.parse().map_err(|_| "--link-mbps needs a rate in Mbit/s, e.g. 1000")?;
-                if !(mbps > 0.) {
+                let mbps: f64 = v
+                    .parse()
+                    .map_err(|_| "--link-mbps needs a rate in Mbit/s, e.g. 1000")?;
+                if mbps.is_nan() || mbps <= 0. {
                     return Err("--link-mbps must be above 0".into());
                 }
                 cctv_link = Some(mbps);
             }
             "--cctv-floor-percent" => {
-                let percent: f64 = v.parse().map_err(|_| "--cctv-floor-percent needs a percentage, e.g. 75")?;
-                if !(0. <= percent && percent <= 100.) {
-                    return Err("--cctv-floor-percent must be from 0 to 100; 0 turns the floor off".into());
+                let percent: f64 = v
+                    .parse()
+                    .map_err(|_| "--cctv-floor-percent needs a percentage, e.g. 75")?;
+                if !(0. ..=100.).contains(&percent) {
+                    return Err(
+                        "--cctv-floor-percent must be from 0 to 100; 0 turns the floor off".into(),
+                    );
                 }
                 cctv_floor = Some(percent / 100.);
             }

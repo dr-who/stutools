@@ -34,7 +34,7 @@ fn buffered_multithread_fixed_pool() {
     let t = Target::new();
     let out = t.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-c",
         "ws1k4q8j4x1",
         "-v",
@@ -54,7 +54,7 @@ fn memory_limit_rejects_before_write() {
     let t = Target::new();
     let out = t.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-c",
         "ws1k4q128j64x1",
         "--memory",
@@ -68,7 +68,7 @@ fn memory_failure_suggests_a_working_cli_budget() {
     let target = Target::new();
     let args = [
         "--backend",
-        "buffered",
+        "pagecache",
         "-c",
         "ws1k4q128j64x1",
         "--memory",
@@ -98,7 +98,7 @@ fn workload_seed_overrides_global_seed() {
     assert!(reference
         .run(&[
             "--backend",
-            "buffered",
+            "pagecache",
             "-c",
             "ws1k4q4j2x1",
             "-R",
@@ -110,7 +110,7 @@ fn workload_seed_overrides_global_seed() {
     let actual = Target::new();
     let out = actual.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-c",
         "ws1k4q4j2x1R42",
         "-R",
@@ -144,7 +144,7 @@ fn check_live_progress(interval_args: &[&str]) {
     let mut child = Command::new(env!("CARGO_BIN_EXE_spit"))
         .arg("-f")
         .arg(&target.0)
-        .args(["--backend", "buffered", "-c", "rs1k4q8", "-t", "2"])
+        .args(["--backend", "pagecache", "-c", "rs1k4q8", "-t", "2"])
         .args(interval_args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -209,7 +209,7 @@ fn invalid_precondition_rejects_before_write() {
     let t = Target::new();
     let out = t.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-G",
         "1MiB",
         "-p",
@@ -223,7 +223,7 @@ fn invalid_precondition_rejects_before_write() {
 #[test]
 fn pass_overflow_rejected() {
     let t = Target::new();
-    let out = t.run(&["--backend", "buffered", "-c", "wP2X18446744073709551615"]);
+    let out = t.run(&["--backend", "pagecache", "-c", "wP2X18446744073709551615"]);
     assert!(!out.status.success());
     assert_eq!(fs::read(&t.0).unwrap(), vec![0x55; 1048576]);
 }
@@ -263,7 +263,7 @@ fn async_streamed_writes_match_verified_buffered_data() {
     }
     for command in ["ws1k4q32j4x1", "ws0k4-16q32j4x1", "ws1k4q2-32j4x1"] {
         let expected = Target::new();
-        let reference = expected.run(&["--backend", "buffered", "-c", command, "-R", "17", "-v"]);
+        let reference = expected.run(&["--backend", "pagecache", "-c", command, "-R", "17", "-v"]);
         assert!(
             reference.status.success(),
             "{}",
@@ -608,7 +608,7 @@ fn help_reports_actual_default() {
     let help = String::from_utf8(help.stdout).unwrap();
     let default = help
         .lines()
-        .find_map(|l| l.strip_prefix("Default backend on this system: "))
+        .find_map(|l| l.strip_prefix("Default backend: "))
         .unwrap()
         .split_whitespace()
         .next()
@@ -621,9 +621,9 @@ fn help_reports_actual_default() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert!(String::from_utf8_lossy(&out.stdout).contains(&format!("backend={default} ")));
-    let explicit = target.run(&["--backend", "buffered", "-c", "rs1k4q1P1X1"]);
+    let explicit = target.run(&["--backend", "pagecache", "-c", "rs1k4q1P1X1"]);
     assert!(explicit.status.success());
-    assert!(String::from_utf8_lossy(&explicit.stdout).contains("backend=buffered "));
+    assert!(String::from_utf8_lossy(&explicit.stdout).contains("backend=pagecache "));
 }
 
 #[test]
@@ -631,7 +631,7 @@ fn c_attached_options_and_zero_range() {
     let t = Target::new();
     let out = t.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-G0-1MiB",
         "-cws1k4q8P8X1",
         "-R1",
@@ -650,7 +650,7 @@ fn c_workload_whitespace() {
     let t = Target::new();
     let out = t.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-c",
         "r s1 k4 q8 P8 X1",
         "-K",
@@ -677,7 +677,7 @@ fn c_position_modes_and_variable_blocks() {
         "rs1k4P10X2N",
     ] {
         let t = Target::new();
-        let out = t.run(&["--backend", "buffered", "-c", command, "-K", "20,0"]);
+        let out = t.run(&["--backend", "pagecache", "-c", command, "-K", "20,0"]);
         assert!(
             out.status.success(),
             "{command}: {}",
@@ -692,7 +692,7 @@ fn variable_writes_preserve_range() {
         let t = Target::new();
         let out = t.run(&[
             "--backend",
-            "buffered",
+            "pagecache",
             "-G",
             "256KiB-768KiB",
             "-c",
@@ -723,7 +723,7 @@ fn c_queue_ranges_operation_limit_and_alternating_passes() {
         ("rs1k4P5O", "5,0"),
     ] {
         let t = Target::new();
-        let out = t.run(&["--backend", "buffered", "-c", command, "-K", expected]);
+        let out = t.run(&["--backend", "pagecache", "-c", command, "-K", expected]);
         assert!(
             out.status.success(),
             "{command}: {}",
@@ -744,7 +744,7 @@ fn metadata_and_unique_modes_match_c_operation_counts() {
         ("ws0k4-16q8P32X2UnN", "64,64"),
     ] {
         let target = Target::new();
-        let out = target.run(&["--backend", "buffered", "-c", command, "-K", expected]);
+        let out = target.run(&["--backend", "pagecache", "-c", command, "-K", expected]);
         assert!(
             out.status.success(),
             "{command}: {}",
@@ -757,7 +757,7 @@ fn metadata_and_unique_modes_match_c_operation_counts() {
 fn metadata_finishes_verification_after_workload_limit() {
     for command in ["ws1k4q8P8Y1m1", "ws1k4q8P8Y1U"] {
         let target = Target::new();
-        let out = target.run(&["--backend", "buffered", "-c", command, "-K", "0,1"]);
+        let out = target.run(&["--backend", "pagecache", "-c", command, "-K", "0,1"]);
         assert!(
             out.status.success(),
             "{command}: {}",
@@ -772,7 +772,7 @@ fn unique_mode_uses_a_different_seed_for_each_position() {
     let target = Target::new();
     let out = target.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-c",
         "ws1k4q8P8X1uz",
         "-R",
@@ -797,14 +797,14 @@ fn unique_mode_uses_a_different_seed_for_each_position() {
 fn c_rate_limit_and_time_controls() {
     let t = Target::new();
     let start = std::time::Instant::now();
-    let out = t.run(&["--backend", "buffered", "-c", "rs1k4q8P5X1S20"]);
+    let out = t.run(&["--backend", "pagecache", "-c", "rs1k4q8P5X1S20"]);
     assert!(
         out.status.success(),
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
     assert!(start.elapsed().as_secs_f64() >= 0.18);
-    let out = t.run(&["--backend", "buffered", "-c", "rs1k4q1T0.05W0.01:0.01"]);
+    let out = t.run(&["--backend", "pagecache", "-c", "rs1k4q1T0.05W0.01:0.01"]);
     assert!(
         out.status.success(),
         "{}",
@@ -820,7 +820,7 @@ fn prefix_creates_one_file_per_worker() {
         .arg(&t.0)
         .args([
             "--backend",
-            "buffered",
+            "pagecache",
             "-G",
             "1MiB",
             "-c",
@@ -851,7 +851,7 @@ fn command_range_preserves_surroundings() {
     let t = Target::new();
     let out = t.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-c",
         "ws1k4q8b262144-786432x1",
         "-K",
@@ -875,7 +875,7 @@ fn gib_range_and_shared_worker_split_preserve_surroundings() {
     let target = Target::new();
     let out = target.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-c",
         "ws1k4q8J2G0.000244140625_0.000732421875x1",
         "-K",
@@ -897,7 +897,14 @@ fn gib_range_and_shared_worker_split_preserve_surroundings() {
 #[test]
 fn bare_g_uses_the_target_range() {
     let target = Target::new();
-    let out = target.run(&["--backend", "buffered", "-c", "ws1UG_j2P8X1", "-K", "16,16"]);
+    let out = target.run(&[
+        "--backend",
+        "pagecache",
+        "-c",
+        "ws1UG_j2P8X1",
+        "-K",
+        "16,16",
+    ]);
     assert!(
         out.status.success(),
         "{}",
@@ -905,7 +912,7 @@ fn bare_g_uses_the_target_range() {
     );
     let out = target.run(&[
         "--backend",
-        "buffered",
+        "pagecache",
         "-p",
         "Gs1k4",
         "-c",
@@ -928,7 +935,7 @@ fn missing_prefix_read_job_rejects_before_any_creation() {
         .arg(&target.0)
         .args([
             "--backend",
-            "buffered",
+            "pagecache",
             "-G",
             "1MiB",
             "-c",
@@ -956,7 +963,7 @@ fn missing_prefix_read_explains_initialization() {
     let out = Command::new(env!("CARGO_BIN_EXE_spit"))
         .arg("-F")
         .arg(&target.0)
-        .args(["--backend", "buffered", "-G", "1MiB", "-c", "rs0"])
+        .args(["--backend", "pagecache", "-G", "1MiB", "-c", "rs0"])
         .output()
         .unwrap();
     let error = String::from_utf8_lossy(&out.stderr);
@@ -978,7 +985,7 @@ fn directory_target_explains_file_test_syntax() {
     let out = Command::new(env!("CARGO_BIN_EXE_spit"))
         .arg("-f")
         .arg(&directory)
-        .args(["--backend", "buffered", "-G", "1MiB", "-c", "rs0"])
+        .args(["--backend", "pagecache", "-G", "1MiB", "-c", "rs0"])
         .output()
         .unwrap();
     let error = String::from_utf8_lossy(&out.stderr);
@@ -1079,7 +1086,7 @@ fn io_failure_names_target_operation_offset_and_length() {
             "-f",
             "/dev/full",
             "--backend",
-            "buffered",
+            "pagecache",
             "-G",
             "1MiB",
             "-c",

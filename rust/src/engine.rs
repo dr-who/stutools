@@ -383,7 +383,8 @@ pub fn run(c: Config) -> Result<Summary> {
             let plan = Plan {
                 record_latency: c.latency_out.is_some(),
                 file: file.try_clone().map_err(|e| e.to_string())?,
-                slots: io::open_slots(path, write, c.backend, pre.depth).map_err(|e| e.to_string())?,
+                slots: io::open_slots(path, write, c.backend, pre.depth)
+                    .map_err(|e| e.to_string())?,
                 work: pre.clone(),
                 lo: start,
                 hi: end,
@@ -412,7 +413,8 @@ pub fn run(c: Config) -> Result<Summary> {
             plans.push(Plan {
                 record_latency: c.latency_out.is_some(),
                 file: file.try_clone().map_err(|e| e.to_string())?,
-                slots: io::open_slots(path, write, c.backend, w.depth).map_err(|e| e.to_string())?,
+                slots: io::open_slots(path, write, c.backend, w.depth)
+                    .map_err(|e| e.to_string())?,
                 work: w.clone(),
                 lo: start,
                 hi: end,
@@ -523,7 +525,12 @@ pub fn run(c: Config) -> Result<Summary> {
     }
     println!("read_ops={} write_ops={} seconds={:.6} read_MiB_s={:.3} write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={} verified_ops={}",total.reads,total.writes,seconds,total.read_bytes as f64/1048576./seconds,total.write_bytes as f64/1048576./seconds,(total.reads+total.writes) as f64/seconds,total.allocations,total.verified);
     if total.inflight_time_ns > 0 {
-        println!("in_flight avg={:.2} max={} measured_seconds={:.3}", total.inflight_area_ns as f64 / total.inflight_time_ns as f64, total.inflight_max, total.inflight_time_ns as f64 / 1e9);
+        println!(
+            "in_flight avg={:.2} max={} measured_seconds={:.3}",
+            total.inflight_area_ns as f64 / total.inflight_time_ns as f64,
+            total.inflight_max,
+            total.inflight_time_ns as f64 / 1e9
+        );
     }
     if total.reads + total.writes < 2 {
         println!("latency variance: n/a (insufficient samples)");
@@ -811,8 +818,13 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
                 }
                 let measured =
                     duration.is_none_or(|seconds| start.elapsed().as_secs_f64() < seconds);
-                if measured && p.record_latency && stats.latencies_us.len() < stats.latencies_us.capacity() {
-                    stats.latencies_us.push(batch_started.elapsed().as_micros() as u32);
+                if measured
+                    && p.record_latency
+                    && stats.latencies_us.len() < stats.latencies_us.capacity()
+                {
+                    stats
+                        .latencies_us
+                        .push(batch_started.elapsed().as_micros() as u32);
                 }
                 stats.complete(r, measured);
                 stats.publish(progress);
