@@ -46,7 +46,7 @@ struct Stats {
     completed_writes: u64,
     /// Per-operation latency in microseconds, measured from the start of its batch.
     latencies_us: Vec<u32>,
-    /// Measured in-flight depth from streamed Windows runs: maximum, time-weighted sum and time.
+    /// Measured in-flight depth from streamed runs: maximum, time-weighted sum and time.
     inflight_max: u64,
     inflight_area_ns: u128,
     inflight_time_ns: u128,
@@ -710,13 +710,13 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
         && !p.work.alternate
         && p.work.rate.is_none()
         && p.work.duty.is_none())
-        || (cfg!(windows)
+        || (cfg!(any(windows, target_os = "macos"))
             && !p.verify
             && !p.work.flush
             && !p.work.alternate
             && p.work.rate.is_none()
             && p.work.duty.is_none());
-    #[cfg(any(target_os = "linux", windows))]
+    #[cfg(any(target_os = "linux", windows, target_os = "macos"))]
     if streamed {
         let mut queued_bytes = 0u64;
         let result = q.execute_stream(
@@ -748,8 +748,7 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
         if let Err(e) = result {
             error = Some(e);
         }
-        #[cfg(windows)]
-        if let Some(port) = q.take_overlapped_stats() {
+        if let Some(port) = q.take_stream_stats() {
             stats.inflight_max = port.max_in_flight;
             stats.inflight_area_ns = port.area_ns;
             stats.inflight_time_ns = port.time_ns;

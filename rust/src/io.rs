@@ -3,7 +3,7 @@ use crate::cli::Backend;
 #[path = "windows.rs"]
 mod windows;
 #[cfg(not(target_os = "linux"))]
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::{
     alloc::{alloc_zeroed, dealloc, Layout},
     fs::{File, OpenOptions},
@@ -31,7 +31,7 @@ pub fn default_backend() -> Backend {
     {
         Backend::Direct
     }
-    #[cfg(all(not(windows), not(target_os = "linux")))]
+    #[cfg(not(any(windows, target_os = "linux")))]
     {
         Backend::Pagecache
     }
@@ -267,10 +267,68 @@ pub struct StreamCtx<'a> {
     pub observer: Option<&'a crate::progress::Counter>,
 }
 
+/// Latencies kept per run, the same bound the engine uses for its own samples.
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+const LATENCY_CAPACITY: usize = 2_000_000;
+
+/// What a streamed run measured: the in-flight depth over time and each request's latency.
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+#[derive(Default)]
+pub struct StreamStats {
+    pub max_in_flight: u64,
+    /// Sum over time of the in-flight count, in count x nanoseconds.
+    pub area_ns: u128,
+    pub time_ns: u128,
+    pub latencies_us: Vec<u32>,
+    in_flight: u64,
+    last_change: Option<Instant>,
+}
+
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+impl StreamStats {
+    /// Reserves room for every latency up front, so a run itself never grows the vector.
+    pub fn new() -> Self {
+        Self {
+            latencies_us: Vec::with_capacity(LATENCY_CAPACITY),
+            ..Self::default()
+        }
+    }
+
+    /// Used by the Windows trace line; elsewhere it is only measured.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    pub fn in_flight(&self) -> u64 {
+        self.in_flight
+    }
+
+    /// Moves the in-flight count by one, first adding the time spent at the previous count.
+    pub fn change(&mut self, now: Instant, submitted: bool) {
+        if let Some(last) = self.last_change {
+            let dt = now.duration_since(last).as_nanos();
+            self.area_ns += dt * self.in_flight as u128;
+            self.time_ns += dt;
+        }
+        self.last_change = Some(now);
+        if submitted {
+            self.in_flight += 1;
+            self.max_in_flight = self.max_in_flight.max(self.in_flight);
+        } else {
+            self.in_flight -= 1;
+        }
+    }
+
+    /// Returns what was measured and clears it for the next run.
+    pub fn take(&mut self) -> StreamStats {
+        std::mem::take(self)
+    }
+}
+
 /// The streaming contract every asynchronous backend implements, so Linux and Windows run through
 /// the same code: libaio and io_uring on Linux, WinAio (overlapped I/O) on Windows. Each keeps the
 /// queue full, refilling a slot as soon as its request completes.
-#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
+#[cfg_attr(
+    not(any(target_os = "linux", windows, target_os = "macos")),
+    allow(dead_code)
+)]
 pub trait AsyncStream {
     fn stream<N, P, C>(
         &mut self,
@@ -302,8 +360,10 @@ pub struct Queue {
 // One enum per worker; keep the queue inline instead of allocating another box.
 #[allow(clippy::large_enum_variant)]
 enum State {
-    #[cfg(all(not(windows), not(target_os = "linux")))]
+    #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
     Threads(threads::Pool),
+    #[cfg(target_os = "macos")]
+    PosixAio(posix_aio::PosixAio),
     #[cfg(windows)]
     Overlapped(overlapped::WinAio),
     #[cfg(target_os = "linux")]
@@ -345,7 +405,11 @@ impl Queue {
                 Backend::Uring => State::Uring(io_uring::IoUring::new(depth as u32)?),
                 _ => State::Aio(linux::Aio::new(depth)?),
             },
-            #[cfg(all(not(windows), not(target_os = "linux")))]
+            #[cfg(target_os = "macos")]
+            Backend::Pagecache | Backend::Direct => {
+                State::PosixAio(posix_aio::PosixAio::new(&file, depth)?)
+            }
+            #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
             Backend::Pagecache | Backend::Direct => {
                 State::Threads(threads::Pool::new(&file, depth)?)
             }
@@ -353,7 +417,7 @@ impl Queue {
             Backend::Libaio => State::Aio(linux::Aio::new(depth)?),
             #[cfg(target_os = "linux")]
             Backend::Uring => State::Uring(io_uring::IoUring::new(depth as u32)?),
-            #[cfg(all(not(windows), not(target_os = "linux")))]
+            #[cfg(not(any(windows, target_os = "linux")))]
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::Unsupported,
@@ -395,12 +459,14 @@ impl Queue {
     pub fn flush(&self) -> io::Result<()> {
         self.file.sync_data()
     }
-    /// Windows only: the in-flight depth and per-request latency measured by the last streamed run.
-    #[cfg(windows)]
-    pub(crate) fn take_overlapped_stats(&mut self) -> Option<overlapped::Stats> {
+    /// The in-flight depth and per-request latency measured by the last streamed run.
+    pub(crate) fn take_stream_stats(&mut self) -> Option<StreamStats> {
         match self.state.as_mut()? {
+            #[cfg(windows)]
             State::Overlapped(port) => Some(port.take_stats()),
-            #[cfg(not(windows))]
+            #[cfg(target_os = "macos")]
+            State::PosixAio(aio) => Some(aio.take_stats()),
+            #[cfg(not(any(windows, target_os = "macos")))]
             _ => None,
         }
     }
@@ -409,7 +475,7 @@ impl Queue {
     /// on Windows, each implementing `AsyncStream`. Other platforms use the threaded backend, which does not
     /// stream, so the engine never calls this there.
     #[cfg_attr(
-        not(any(target_os = "linux", windows)),
+        not(any(target_os = "linux", windows, target_os = "macos")),
         allow(dead_code, unused_variables)
     )]
     pub fn execute_stream<N, P, C>(
@@ -458,7 +524,9 @@ impl Queue {
             }
             #[cfg(windows)]
             State::Overlapped(port) => port.stream(ctx, next, prepare, complete),
-            #[cfg(all(not(windows), not(target_os = "linux")))]
+            #[cfg(target_os = "macos")]
+            State::PosixAio(aio) => aio.stream(ctx, next, prepare, complete),
+            #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
             State::Threads(_) => {
                 Err(io::Error::other("streaming requires an asynchronous backend").into())
             }
@@ -493,11 +561,21 @@ impl Queue {
                     &mut complete,
                 )?;
             }
-            #[cfg(all(not(windows), not(target_os = "linux")))]
+            #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
             State::Threads(pool) => {
                 pool.execute(ptr, stride, &self.requests[..count], observer, |i, r| {
                     complete(i, r)
                 })?;
+            }
+            #[cfg(target_os = "macos")]
+            State::PosixAio(aio) => {
+                aio.execute(
+                    ptr,
+                    stride,
+                    &self.requests[..count],
+                    observer,
+                    &mut complete,
+                )?;
             }
             #[cfg(target_os = "linux")]
             State::Aio(aio) => {
@@ -638,7 +716,9 @@ impl Queue {
                 }
                 #[cfg(windows)]
                 State::Overlapped(_) => {}
-                #[cfg(all(not(windows), not(target_os = "linux")))]
+                #[cfg(target_os = "macos")]
+                State::PosixAio(_) => {}
+                #[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
                 State::Threads(_) => {}
             }
         }
@@ -1134,7 +1214,7 @@ mod linux {
 mod overlapped {
     //! Windows overlapped I/O: a batch of requests is submitted at once, each with its own
     //! OVERLAPPED, and the completion port reports them as they finish.
-    use super::{Failure, Request};
+    use super::{Failure, Request, StreamStats, LATENCY_CAPACITY};
     use std::ffi::c_void;
     use std::fs::File;
     use std::io;
@@ -1202,19 +1282,6 @@ mod overlapped {
     const INFINITE: u32 = 0xFFFF_FFFF;
 
     /// Windows asynchronous backend: overlapped I/O on one completion port, one file handle per slot.
-    /// Measured in-flight depth and per-request latency of a streamed run.
-    #[derive(Default)]
-    pub struct Stats {
-        pub max_in_flight: u64,
-        /// Sum over time of the in-flight count, in count x nanoseconds.
-        pub area_ns: u128,
-        pub time_ns: u128,
-        pub latencies_us: Vec<u32>,
-    }
-
-    /// Latencies kept per run, the same bound the engine uses for its own samples.
-    const LATENCY_CAPACITY: usize = 2_000_000;
-
     pub struct WinAio {
         /// One file per slot, so each in-flight request has its own file object. The completion
         /// port holds the handles; these keep the files open.
@@ -1228,9 +1295,7 @@ mod overlapped {
         trace: bool,
         /// The request each slot has in flight, kept here so a streamed run allocates nothing.
         inflight: Vec<Option<Request>>,
-        in_flight: u64,
-        stats: Stats,
-        last_change: Option<Instant>,
+        stats: StreamStats,
     }
 
     impl WinAio {
@@ -1269,13 +1334,7 @@ mod overlapped {
                 submitted_at: vec![None; depth],
                 trace: std::env::var_os("SPIT_TRACE").is_some(),
                 inflight: vec![None; depth],
-                in_flight: 0,
-                // Reserved up front so the run itself never grows the vector.
-                stats: Stats {
-                    latencies_us: Vec::with_capacity(LATENCY_CAPACITY),
-                    ..Stats::default()
-                },
-                last_change: None,
+                stats: StreamStats::new(),
             })
         }
 
@@ -1315,26 +1374,8 @@ mod overlapped {
             Ok(())
         }
 
-        /// Moves the in-flight count by one, first adding the time spent at the previous count.
-        fn change(&mut self, now: Instant, submitted: bool) {
-            if let Some(last) = self.last_change {
-                let dt = now.duration_since(last).as_nanos();
-                self.stats.area_ns += dt * self.in_flight as u128;
-                self.stats.time_ns += dt;
-            }
-            self.last_change = Some(now);
-            if submitted {
-                self.in_flight += 1;
-                self.stats.max_in_flight = self.stats.max_in_flight.max(self.in_flight);
-            } else {
-                self.in_flight -= 1;
-            }
-        }
-
-        pub fn take_stats(&mut self) -> Stats {
-            self.last_change = None;
-            self.in_flight = 0;
-            std::mem::take(&mut self.stats)
+        pub fn take_stats(&mut self) -> StreamStats {
+            self.stats.take()
         }
 
         /// Keeps `slots` requests in flight until `next` runs out: each slot is refilled as soon as
@@ -1417,7 +1458,7 @@ mod overlapped {
                             break;
                         }
                         self.submitted_at[slot] = Some(now);
-                        self.change(now, true);
+                        self.stats.change(now, true);
                         *entry = Some(request);
                         outstanding += 1;
                         if let Some(counter) = observer {
@@ -1443,7 +1484,7 @@ mod overlapped {
                     .take()
                     .expect("completion for a slot with nothing in flight");
                 outstanding -= 1;
-                self.change(now, false);
+                self.stats.change(now, false);
                 if let Some(counter) = observer {
                     counter.completed(1);
                 }
@@ -1458,7 +1499,7 @@ mod overlapped {
                             request.write,
                             request.offset,
                             latency,
-                            self.in_flight
+                            self.stats.in_flight()
                         );
                     }
                     if self.stats.latencies_us.len() < LATENCY_CAPACITY {
@@ -1576,9 +1617,350 @@ mod overlapped {
     }
 }
 
+/// macOS POSIX AIO. Each slot is one `aio_write` or `aio_read` the kernel holds, and this thread reaps
+/// completions with `aio_suspend`, so the queue depth is not a count of threads.
+#[cfg(target_os = "macos")]
+mod posix_aio {
+    use super::{AsyncStream, Failure, Request, StreamCtx, StreamStats, LATENCY_CAPACITY};
+    use std::{
+        ffi::c_void,
+        fs::File,
+        io,
+        os::unix::io::{AsRawFd, RawFd},
+        time::{Duration, Instant},
+    };
+
+    /// The kernel caps the AIO requests a process can hold, and every worker shares that cap.
+    enum Submit {
+        Started,
+        /// The kernel has no room (EAGAIN). The request was not started and can be retried.
+        Full,
+    }
+
+    pub struct PosixAio {
+        fd: RawFd,
+        /// One control block per slot. Boxed, so each address stays fixed while its request is in flight.
+        cbs: Box<[libc::aiocb]>,
+        inflight: Vec<Option<Request>>,
+        submitted_at: Vec<Option<Instant>>,
+        /// A request the kernel had no room for, to be started before any new one.
+        parked: Option<Request>,
+        /// The control blocks still in flight, rebuilt for every `aio_suspend` without allocating.
+        suspend: Vec<*const libc::aiocb>,
+        stats: StreamStats,
+    }
+
+    impl PosixAio {
+        pub fn new(file: &File, depth: usize) -> io::Result<Self> {
+            Ok(Self {
+                fd: file.as_raw_fd(),
+                cbs: (0..depth).map(|_| unsafe { std::mem::zeroed() }).collect(),
+                inflight: vec![None; depth],
+                submitted_at: vec![None; depth],
+                parked: None,
+                suspend: Vec::with_capacity(depth),
+                stats: StreamStats::new(),
+            })
+        }
+
+        pub fn take_stats(&mut self) -> StreamStats {
+            self.stats.take()
+        }
+
+        /// Hands one request to the kernel on `slot`, using that slot's control block.
+        fn start(
+            &mut self,
+            slot: usize,
+            ptr: *mut u8,
+            stride: usize,
+            request: Request,
+            observer: Option<&crate::progress::Counter>,
+        ) -> Result<Submit, Failure> {
+            let cb = &mut self.cbs[slot];
+            *cb = unsafe { std::mem::zeroed() };
+            cb.aio_fildes = self.fd;
+            cb.aio_buf = unsafe { ptr.add(slot * stride) } as *mut c_void;
+            cb.aio_nbytes = request.len;
+            cb.aio_offset = request.offset as libc::off_t;
+            let rc = unsafe {
+                if request.write {
+                    libc::aio_write(cb)
+                } else {
+                    libc::aio_read(cb)
+                }
+            };
+            if rc != 0 {
+                let error = io::Error::last_os_error();
+                if error.raw_os_error() == Some(libc::EAGAIN) {
+                    return Ok(Submit::Full);
+                }
+                return Err(Failure::System(error));
+            }
+            let now = Instant::now();
+            self.submitted_at[slot] = Some(now);
+            self.stats.change(now, true);
+            self.inflight[slot] = Some(request);
+            if let Some(counter) = observer {
+                counter.submitted(1);
+            }
+            Ok(Submit::Started)
+        }
+
+        /// Blocks until at least one request in flight has finished.
+        fn wait(&mut self) -> io::Result<()> {
+            self.suspend.clear();
+            for (slot, request) in self.inflight.iter().enumerate() {
+                if request.is_some() {
+                    self.suspend.push(&self.cbs[slot] as *const libc::aiocb);
+                }
+            }
+            loop {
+                let rc = unsafe {
+                    libc::aio_suspend(
+                        self.suspend.as_ptr(),
+                        self.suspend.len() as libc::c_int,
+                        std::ptr::null(),
+                    )
+                };
+                if rc == 0 {
+                    return Ok(());
+                }
+                let error = io::Error::last_os_error();
+                if error.kind() != io::ErrorKind::Interrupted {
+                    return Err(error);
+                }
+            }
+        }
+
+        /// Takes the result of `slot` if its request has finished, releasing its control block.
+        fn finish(
+            &mut self,
+            slot: usize,
+            observer: Option<&crate::progress::Counter>,
+        ) -> Option<(Request, io::Result<usize>)> {
+            let request = self.inflight[slot]?;
+            let cb = &mut self.cbs[slot];
+            if unsafe { libc::aio_error(cb as *const libc::aiocb) } == libc::EINPROGRESS {
+                return None;
+            }
+            let now = Instant::now();
+            self.inflight[slot] = None;
+            // aio_return must follow aio_error once, so the kernel releases the request.
+            let bytes = unsafe { libc::aio_return(cb as *mut libc::aiocb) };
+            let error = unsafe { libc::aio_error(cb as *const libc::aiocb) };
+            let result = if bytes < 0 {
+                Err(io::Error::from_raw_os_error(error))
+            } else {
+                Ok(bytes as usize)
+            };
+            self.stats.change(now, false);
+            if let Some(counter) = observer {
+                counter.completed(1);
+            }
+            if let Some(start) = self.submitted_at[slot] {
+                let latency = now.duration_since(start).as_micros().min(u32::MAX as u128) as u32;
+                if self.stats.latencies_us.len() < LATENCY_CAPACITY {
+                    self.stats.latencies_us.push(latency);
+                }
+            }
+            Some((request, result))
+        }
+
+        /// Cancels every request still in flight and waits until the kernel no longer uses its buffer.
+        fn drain(&mut self) {
+            for slot in 0..self.cbs.len() {
+                if self.inflight[slot].take().is_none() {
+                    continue;
+                }
+                let cb = &self.cbs[slot] as *const libc::aiocb as *mut libc::aiocb;
+                unsafe { libc::aio_cancel(self.fd, cb) };
+                while unsafe { libc::aio_error(cb) } == libc::EINPROGRESS {
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+                unsafe { libc::aio_return(cb) };
+            }
+        }
+
+        /// Batch submission: every request is in flight together and the batch waits for all of them.
+        pub fn execute<C>(
+            &mut self,
+            ptr: *mut u8,
+            stride: usize,
+            requests: &[Request],
+            observer: Option<&crate::progress::Counter>,
+            mut complete: C,
+        ) -> Result<(), Failure>
+        where
+            C: FnMut(usize, Request),
+        {
+            let mut outstanding = 0usize;
+            let mut failure = None;
+            for (slot, &request) in requests.iter().enumerate() {
+                loop {
+                    match self.start(slot, ptr, stride, request, observer) {
+                        Ok(Submit::Started) => {
+                            outstanding += 1;
+                            break;
+                        }
+                        Ok(Submit::Full) if outstanding == 0 => {
+                            // Another worker holds the kernel's requests; they finish on their own.
+                            std::thread::sleep(Duration::from_millis(1));
+                        }
+                        Ok(Submit::Full) => {
+                            if let Err(e) = self.wait() {
+                                self.drain();
+                                return Err(Failure::System(e));
+                            }
+                            outstanding -=
+                                self.reap(requests.len(), observer, &mut failure, &mut complete);
+                        }
+                        Err(e) => {
+                            self.drain();
+                            return Err(e);
+                        }
+                    }
+                }
+            }
+            while outstanding > 0 {
+                if let Err(e) = self.wait() {
+                    self.drain();
+                    return Err(Failure::System(e));
+                }
+                outstanding -= self.reap(requests.len(), observer, &mut failure, &mut complete);
+            }
+            match failure {
+                Some(e) => Err(e),
+                None => Ok(()),
+            }
+        }
+
+        /// Settles every finished request among the first `slots`, returning how many there were.
+        fn reap<C>(
+            &mut self,
+            slots: usize,
+            observer: Option<&crate::progress::Counter>,
+            failure: &mut Option<Failure>,
+            complete: &mut C,
+        ) -> usize
+        where
+            C: FnMut(usize, Request),
+        {
+            let mut done = 0;
+            for slot in 0..slots {
+                if let Some((request, result)) = self.finish(slot, observer) {
+                    done += 1;
+                    match outcome(request, result) {
+                        Ok(()) if failure.is_none() => complete(slot, request),
+                        Ok(()) => {}
+                        Err(e) => {
+                            failure.get_or_insert(e);
+                        }
+                    }
+                }
+            }
+            done
+        }
+    }
+
+    /// Maps a finished request to success, a short transfer or an operation error.
+    fn outcome(request: Request, result: io::Result<usize>) -> Result<(), Failure> {
+        match result {
+            Ok(n) if n == request.len => Ok(()),
+            Ok(n) => Err(Failure::Incomplete(n as i64, request)),
+            Err(error) => Err(Failure::Operation {
+                error,
+                write: request.write,
+                offset: request.offset,
+                len: request.len,
+            }),
+        }
+    }
+
+    impl AsyncStream for PosixAio {
+        fn stream<N, P, C>(
+            &mut self,
+            ctx: StreamCtx<'_>,
+            mut next: N,
+            mut prepare: P,
+            mut complete: C,
+        ) -> std::result::Result<(), Failure>
+        where
+            N: FnMut() -> Option<Request>,
+            P: FnMut(Request, &mut [u8]),
+            C: FnMut(Request),
+        {
+            let slots = self.cbs.len();
+            let mut outstanding = 0usize;
+            let mut exhausted = false;
+            let mut failure: Option<Failure> = None;
+            loop {
+                if failure.is_none() && !exhausted {
+                    for slot in 0..slots {
+                        if self.inflight[slot].is_some() {
+                            continue;
+                        }
+                        let request = match self.parked.take().or_else(&mut next) {
+                            Some(request) => request,
+                            None => {
+                                exhausted = true;
+                                break;
+                            }
+                        };
+                        let buffer = unsafe {
+                            std::slice::from_raw_parts_mut(
+                                ctx.ptr.add(slot * ctx.stride),
+                                request.len,
+                            )
+                        };
+                        prepare(request, buffer);
+                        match self.start(slot, ctx.ptr, ctx.stride, request, ctx.observer) {
+                            Ok(Submit::Started) => outstanding += 1,
+                            Ok(Submit::Full) => {
+                                self.parked = Some(request);
+                                break;
+                            }
+                            Err(e) => {
+                                failure = Some(e);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if outstanding == 0 {
+                    if self.parked.is_some() && failure.is_none() {
+                        std::thread::sleep(Duration::from_millis(1));
+                        continue;
+                    }
+                    break;
+                }
+                if let Err(e) = self.wait() {
+                    self.drain();
+                    return Err(Failure::System(e));
+                }
+                for slot in 0..slots {
+                    if let Some((request, result)) = self.finish(slot, ctx.observer) {
+                        outstanding -= 1;
+                        match outcome(request, result) {
+                            Ok(()) if failure.is_none() => complete(request),
+                            Ok(()) => {}
+                            Err(e) => {
+                                failure.get_or_insert(e);
+                            }
+                        }
+                    }
+                }
+            }
+            match failure {
+                Some(e) => Err(e),
+                None => Ok(()),
+            }
+        }
+    }
+}
+
 /// macOS (and other non-Linux, non-Windows Unix) async I/O: one thread per queue slot, each doing
 /// positional reads or writes, so up to `depth` requests are in flight at once.
-#[cfg(all(not(windows), not(target_os = "linux")))]
+#[cfg(all(not(windows), not(target_os = "linux"), not(target_os = "macos")))]
 mod threads {
     use super::{Failure, Request};
     use std::fs::File;
