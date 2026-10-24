@@ -585,12 +585,6 @@ fn camera(
                 .map_err(|e| format!("camera {} close recording: {e}", index + 1))?;
             offset = 0;
         }
-        let actual = start.elapsed().as_secs_f64();
-        due += period;
-        // A blocked camera drops missed pacing slots instead of issuing a burst.
-        if due < actual {
-            due = actual + period;
-        }
     }
     if let Some(file) = current.take() {
         close(&shared, file, offset)
