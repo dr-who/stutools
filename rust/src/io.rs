@@ -2,7 +2,7 @@ use crate::cli::Backend;
 #[cfg(windows)]
 #[path = "windows.rs"]
 mod windows;
-#[cfg(windows)]
+#[cfg(not(target_os = "linux"))]
 use std::time::Duration;
 use std::{
     alloc::{alloc_zeroed, dealloc, Layout},
@@ -270,6 +270,7 @@ pub struct StreamCtx<'a> {
 /// The streaming contract every asynchronous backend implements, so Linux and Windows run through
 /// the same code: libaio and io_uring on Linux, WinAio (overlapped I/O) on Windows. Each keeps the
 /// queue full, refilling a slot as soon as its request completes.
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 pub trait AsyncStream {
     fn stream<N, P, C>(
         &mut self,
@@ -404,8 +405,13 @@ impl Queue {
         }
     }
 
-    /// Streams requests through the platform's asynchronous backend. Linux uses libaio or io_uring and
-    /// Windows uses WinAio; each implements `AsyncStream`, so this is the same code on both.
+    /// Streams requests through the platform's asynchronous backend: libaio or io_uring on Linux and WinAio
+    /// on Windows, each implementing `AsyncStream`. Other platforms use the threaded backend, which does not
+    /// stream, so the engine never calls this there.
+    #[cfg_attr(
+        not(any(target_os = "linux", windows)),
+        allow(dead_code, unused_variables)
+    )]
     pub fn execute_stream<N, P, C>(
         &mut self,
         next: N,
@@ -1590,22 +1596,27 @@ mod threads {
     }
 
     pub struct Pool {
-        jobs: Vec<mpsc::Sender<Job>>,
+        jobs: Vec<mpsc::SyncSender<Job>>,
         done: mpsc::Receiver<(usize, io::Result<usize>)>,
         handles: Vec<JoinHandle<()>>,
     }
 
     impl Pool {
         pub fn new(file: &File, depth: usize) -> io::Result<Self> {
+            let _ = std::thread::current();
             let file = Arc::new(file.try_clone()?);
-            let (done_tx, done) = mpsc::channel();
+            // Bounded channels are allocated once here. An unbounded channel allocates blocks as messages
+            // flow, which the hot-path allocation guard counts. Each slot has at most one job in flight.
+            let (done_tx, done) = mpsc::sync_channel(depth);
             let mut jobs = Vec::with_capacity(depth);
             let mut handles = Vec::with_capacity(depth);
             for _ in 0..depth {
-                let (tx, rx) = mpsc::channel::<Job>();
+                let (tx, rx) = mpsc::sync_channel::<Job>(1);
                 let file = file.clone();
                 let done_tx = done_tx.clone();
                 handles.push(std::thread::spawn(move || {
+                    // Creating a thread's handle allocates, so do it before the first job rather than inside the run.
+                    let _ = std::thread::current();
                     for job in rx {
                         let buf =
                             unsafe { std::slice::from_raw_parts_mut(job.ptr as *mut u8, job.len) };

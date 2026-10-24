@@ -148,7 +148,9 @@ pub struct VolumeInfo {
     pub free: u64,
 }
 
-#[allow(clippy::unnecessary_cast)] // statfs field widths differ between Unix platforms; the casts keep them portable
+// The casts keep the statfs fields portable (their widths differ between Unix platforms). Only Windows and Linux
+// report volume information; elsewhere the parameter goes unused.
+#[allow(clippy::unnecessary_cast, unused_variables)]
 pub fn volume_info(directory: &Path) -> io::Result<VolumeInfo> {
     #[cfg(windows)]
     {
