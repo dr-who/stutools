@@ -1148,6 +1148,8 @@ mod overlapped {
         port: *mut c_void,
         ov: Box<[Ov]>,
         submitted_at: Vec<Option<Instant>>,
+        /// SPIT_TRACE, read once when the queue is created: reading the environment allocates.
+        trace: bool,
         /// The request each slot has in flight, kept here so a streamed run allocates nothing.
         inflight: Vec<Option<Request>>,
         in_flight: u64,
@@ -1180,6 +1182,7 @@ mod overlapped {
                 port,
                 ov: vec![zero; depth].into_boxed_slice(),
                 submitted_at: vec![None; depth],
+                trace: std::env::var_os("SPIT_TRACE").is_some(),
                 inflight: vec![None; depth],
                 in_flight: 0,
                 // Reserved up front so the run itself never grows the vector.
@@ -1257,7 +1260,7 @@ mod overlapped {
             C: FnMut(Request),
         {
             let slots = self.ov.len();
-            let trace = std::env::var_os("SPIT_TRACE").is_some();
+            let trace = self.trace;
             let started = Instant::now();
             // Scheduled tasks can run at low I/O priority, which slows every completion. A benchmark
             // asks for normal priority so the device, not the scheduler, sets the pace.
