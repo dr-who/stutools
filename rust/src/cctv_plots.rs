@@ -9,6 +9,12 @@ use std::path::Path;
 
 /// Run label (host and remote endpoint) appended to every chart title; set once by `--label`.
 pub static LABEL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+/// Added to each CCTV chart file name ("-direct" or "-pagecache") so both I/O modes can be kept.
+pub static SUFFIX: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+fn sfx() -> String {
+    SUFFIX.get().cloned().unwrap_or_default()
+}
 
 /// The target and test details, on a line of their own under the chart title. Backslashes are
 /// escaped because gnuplot reads them inside double quotes.
@@ -65,7 +71,7 @@ fn block_label(bytes: usize) -> String {
 }
 
 fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
-    let dots_path = dir.join("cctv-allranges.dat");
+    let dots_path = dir.join(format!("cctv-allranges{}.dat", sfx()));
     let mut dots = create(&dots_path)?;
     for run in runs {
         for &(_, us) in run.samples {
@@ -74,7 +80,7 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
     }
     dots.flush()?;
 
-    let rates_path = dir.join("cctv-allranges-mbps.dat");
+    let rates_path = dir.join(format!("cctv-allranges-mbps{}.dat", sfx()));
     let mut rates = create(&rates_path)?;
     for run in runs {
         let mbit = run.samples.len() as f64 * run.block_bytes as f64 * 8. / run.seconds / 1e6;
@@ -87,7 +93,7 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
     counts.dedup();
     let tics = counts.iter().map(usize::to_string).collect::<Vec<_>>().join(", ");
     let block = block_label(runs[0].block_bytes);
-    let png = gnu_path(&dir.join("cctv-allranges.png"));
+    let png = gnu_path(&dir.join(format!("cctv-allranges{}.png", sfx())));
     let gnu = format!(
         r##"# Per-write CCTV latency against camera count, one dot per write, with achieved Mbit/s on y2.
 # Each dot is moved by a random x offset in [-2, +2] cameras so points at the same count do not stack.
@@ -110,16 +116,16 @@ plot DATA using ($1+4*rand(0)-2):2 axes x1y1 with points pt 7 ps 0.3 lc rgb "#1f
      MBPS using 1:2 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb "#2ca02c" title "achieved Mbit/s"
 "##,
         label_suffix = label_suffix(),
-        gnu = gnu_path(&dir.join("cctv-allranges.gnu")),
+        gnu = gnu_path(&dir.join(format!("cctv-allranges{}.gnu", sfx()))),
         dots = gnu_path(&dots_path),
         rates = gnu_path(&rates_path),
     );
-    fs::write(dir.join("cctv-allranges.gnu"), gnu)?;
+    fs::write(dir.join(format!("cctv-allranges{}.gnu", sfx())), gnu)?;
     println!(
         "wrote {} and {}: render with gnuplot {}",
         dots_path.display(),
         rates_path.display(),
-        dir.join("cctv-allranges.gnu").display()
+        dir.join(format!("cctv-allranges{}.gnu", sfx())).display()
     );
     Ok(())
 }
@@ -153,7 +159,7 @@ fn write_histogram(dir: &Path, tag: &str, label: &str, values: &[f64]) -> io::Re
         (Some(first), Some(last)) => ((first - HIST_BIN_MS).max(HIST_BIN_MS), last + HIST_BIN_MS),
         _ => (low, high),
     };
-    let dat_path = dir.join(format!("cctv-hist-{tag}.dat"));
+    let dat_path = dir.join(format!("cctv-hist-{tag}{}.dat", sfx()));
     let mut out = create(&dat_path)?;
     let mut cum = 0u64;
     for (bin, count) in &bins {
@@ -168,7 +174,7 @@ fn write_histogram(dir: &Path, tag: &str, label: &str, values: &[f64]) -> io::Re
     }
     out.flush()?;
 
-    let png = gnu_path(&dir.join(format!("cctv-hist-{tag}.png")));
+    let png = gnu_path(&dir.join(format!("cctv-hist-{tag}{}.png", sfx())));
     let gnu = format!(
         r##"# Histogram of per-write CCTV latency, {label}, 0.1 ms bins.
 # Log-log axes; y2 is the cumulative distribution; vertical lines mark the average response time, p99.9 and p99.99.
@@ -202,12 +208,12 @@ plot "{dat}" using 1:2 with boxes lc rgb "#1f77b4" title "writes per bin", \
      1/0 with lines dt 2 lw 4 lc rgb "#9467bd" title "p99.99 {p9999:.2} ms"
 "##,
         label_suffix = label_suffix(),
-        gnu = gnu_path(&dir.join(format!("cctv-hist-{tag}.gnu"))),
+        gnu = gnu_path(&dir.join(format!("cctv-hist-{tag}{}.gnu", sfx()))),
         dat = gnu_path(&dat_path),
         low_x = low,
         bin = HIST_BIN_MS,
     );
-    fs::write(dir.join(format!("cctv-hist-{tag}.gnu")), gnu)?;
+    fs::write(dir.join(format!("cctv-hist-{tag}{}.gnu", sfx())), gnu)?;
     println!(
         "wrote {} ({n} writes, mean {mean:.2} ms, p99.9 {p999:.2} ms, p99.99 {p9999:.2} ms)",
         dat_path.display()
