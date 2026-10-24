@@ -1,7 +1,7 @@
 #[path = "cctv_files.rs"]
 mod files;
 #[path = "cctv_signals.rs"]
-mod signals;
+pub(crate) mod signals;
 #[path = "cctv_stats.rs"]
 mod stats;
 use crate::cctv_plots;

@@ -10,8 +10,10 @@ use std::path::Path;
 /// Run label (host and remote endpoint) appended to every chart title; set once by `--label`.
 pub static LABEL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
-fn label_suffix() -> String {
-    LABEL.get().map(|l| format!(", {l}")).unwrap_or_default()
+/// The target and test details, on a line of their own under the chart title. Backslashes are
+/// escaped because gnuplot reads them inside double quotes.
+pub fn label_suffix() -> String {
+    LABEL.get().map(|l| format!("\\n{}", l.replace('\\', "\\\\"))).unwrap_or_default()
 }
 
 /// One camera count's measured writes.

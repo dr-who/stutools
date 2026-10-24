@@ -1,8 +1,10 @@
 use std::{
     io,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicU32, Ordering},
 };
 pub static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+/// The console control event that set INTERRUPTED (Windows) or the signal number (Unix), 0 if none.
+pub static SIGNAL: AtomicU32 = AtomicU32::new(0);
 #[cfg(any(windows, test))]
 fn windows_stop_signal(kind: u32) -> bool {
     matches!(kind, 0 | 1 | 2 | 6)
@@ -12,7 +14,8 @@ unsafe extern "C" {
     fn signal(number: i32, handler: usize) -> usize;
 }
 #[cfg(unix)]
-extern "C" fn interrupt(_number: i32) {
+extern "C" fn interrupt(number: i32) {
+    SIGNAL.store(number as u32, Ordering::Relaxed);
     INTERRUPTED.store(true, Ordering::Relaxed);
 }
 #[cfg(windows)]
@@ -22,6 +25,7 @@ extern "system" fn interrupt(kind: u32) -> i32 {
         return 1;
     }
     if windows_stop_signal(kind) {
+        SIGNAL.store(kind, Ordering::Relaxed);
         INTERRUPTED.store(true, Ordering::Relaxed);
         1
     } else {
@@ -43,6 +47,7 @@ pub struct Guard {
 impl Guard {
     pub fn install() -> io::Result<Self> {
         INTERRUPTED.store(false, Ordering::Relaxed);
+        SIGNAL.store(0, Ordering::Relaxed);
         #[cfg(unix)]
         {
             let handler = interrupt as *const () as usize;
