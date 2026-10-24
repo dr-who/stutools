@@ -17,6 +17,8 @@ use std::{
 struct Plan {
     record_latency: bool,
     file: File,
+    /// Windows only: one file per queue slot.
+    slots: Vec<File>,
     work: Workload,
     lo: u64,
     hi: u64,
@@ -44,6 +46,10 @@ struct Stats {
     completed_writes: u64,
     /// Per-operation latency in microseconds, measured from the start of its batch.
     latencies_us: Vec<u32>,
+    /// Measured in-flight depth from streamed Windows runs: maximum, time-weighted sum and time.
+    inflight_max: u64,
+    inflight_area_ns: u128,
+    inflight_time_ns: u128,
 }
 impl Stats {
     fn complete(&mut self, request: Request, measured: bool) {
@@ -377,6 +383,7 @@ pub fn run(c: Config) -> Result<Summary> {
             let plan = Plan {
                 record_latency: c.latency_out.is_some(),
                 file: file.try_clone().map_err(|e| e.to_string())?,
+                slots: io::open_slots(path, write, c.backend, pre.depth).map_err(|e| e.to_string())?,
                 work: pre.clone(),
                 lo: start,
                 hi: end,
@@ -405,6 +412,7 @@ pub fn run(c: Config) -> Result<Summary> {
             plans.push(Plan {
                 record_latency: c.latency_out.is_some(),
                 file: file.try_clone().map_err(|e| e.to_string())?,
+                slots: io::open_slots(path, write, c.backend, w.depth).map_err(|e| e.to_string())?,
                 work: w.clone(),
                 lo: start,
                 hi: end,
@@ -488,6 +496,9 @@ pub fn run(c: Config) -> Result<Summary> {
         total.submit_errors += s.submit_errors;
         total.verified += s.verified;
         total.latencies_us.extend(s.latencies_us);
+        total.inflight_max = total.inflight_max.max(s.inflight_max);
+        total.inflight_area_ns += s.inflight_area_ns;
+        total.inflight_time_ns += s.inflight_time_ns;
         total.completed_reads += s.completed_reads;
         total.completed_writes += s.completed_writes;
         if let Some(e) = out.error {
@@ -511,6 +522,9 @@ pub fn run(c: Config) -> Result<Summary> {
         eprintln!("*info* {late} I/O operations completed after the measured deadline and are excluded from throughput/IOPS; the OS/driver completed them during cleanup");
     }
     println!("read_ops={} write_ops={} seconds={:.6} read_MiB_s={:.3} write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={} verified_ops={}",total.reads,total.writes,seconds,total.read_bytes as f64/1048576./seconds,total.write_bytes as f64/1048576./seconds,(total.reads+total.writes) as f64/seconds,total.allocations,total.verified);
+    if total.inflight_time_ns > 0 {
+        println!("in_flight avg={:.2} max={} measured_seconds={:.3}", total.inflight_area_ns as f64 / total.inflight_time_ns as f64, total.inflight_max, total.inflight_time_ns as f64 / 1e9);
+    }
     if total.reads + total.writes < 2 {
         println!("latency variance: n/a (insufficient samples)");
     }
@@ -608,6 +622,7 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
             p.max_len,
             p.timeout,
             p.work.submit_batch,
+            p.slots,
         )?;
         let generated = crate::positions::Positions::new(
             &p.work,
@@ -680,15 +695,21 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
     // On Linux loop devices, continuously refilling pure-direction io_uring
     // queues creates block-dispatch contention at high worker counts. Keep
     // those submissions in bounded batches; mixed I/O benefits from refill.
-    let streamed = cfg!(target_os = "linux")
+    let streamed = (cfg!(target_os = "linux")
         && !p.record_latency
         && (p.backend == Backend::Libaio || (p.backend == Backend::Uring && mixed))
         && !p.verify
         && !p.work.flush
         && !p.work.alternate
         && p.work.rate.is_none()
-        && p.work.duty.is_none();
-    #[cfg(target_os = "linux")]
+        && p.work.duty.is_none())
+        || (cfg!(windows)
+            && !p.verify
+            && !p.work.flush
+            && !p.work.alternate
+            && p.work.rate.is_none()
+            && p.work.duty.is_none());
+    #[cfg(any(target_os = "linux", windows))]
     if streamed {
         let mut queued_bytes = 0u64;
         let result = q.execute_stream(
@@ -719,6 +740,15 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
         );
         if let Err(e) = result {
             error = Some(e);
+        }
+        #[cfg(windows)]
+        if let Some(port) = q.take_overlapped_stats() {
+            stats.inflight_max = port.max_in_flight;
+            stats.inflight_area_ns = port.area_ns;
+            stats.inflight_time_ns = port.time_ns;
+            if p.record_latency {
+                stats.latencies_us.extend(port.latencies_us);
+            }
         }
     }
     if !streamed {
