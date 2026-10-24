@@ -32,7 +32,8 @@ pub fn run(mode: &str, mut args: Vec<String>) -> Result<()> {
     }
     let prefix = value(&args, "-F").ok_or("--cctv-test needs -F PREFIX")?;
     // Every chart title says what was tested: the target path, the remote details and the test type.
-    let title = [label.as_str(), &format!("{mode} test"), &format!("target {prefix}")]
+    let version = format!("spit {}", env!("CARGO_PKG_VERSION"));
+    let title = [version.as_str(), label.as_str(), &format!("{mode} test"), &format!("target {prefix}")]
         .iter()
         .filter(|s| !s.is_empty())
         .cloned()

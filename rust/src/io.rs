@@ -1108,6 +1108,13 @@ mod overlapped {
     }
 
     unsafe extern "system" {
+        fn SetPriorityClass(process: *mut c_void, class: u32) -> i32;
+        fn NtSetInformationProcess(process: *mut c_void, class: u32, info: *const c_void, length: u32) -> i32;
+        fn GetCurrentProcess() -> *mut c_void;
+        fn GetCurrentProcessId() -> u32;
+        fn GetPriorityClass(process: *mut c_void) -> u32;
+        fn GetProcessAffinityMask(process: *mut c_void, process_mask: *mut usize, system_mask: *mut usize) -> i32;
+        fn ProcessIdToSessionId(pid: u32, session: *mut u32) -> i32;
         fn CreateIoCompletionPort(file: *mut c_void, existing: *mut c_void, key: usize, threads: u32) -> *mut c_void;
         fn ReadFile(file: *mut c_void, buf: *mut u8, count: u32, read: *mut u32, ov: *mut Ov) -> i32;
         fn WriteFile(file: *mut c_void, buf: *const u8, count: u32, written: *mut u32, ov: *mut Ov) -> i32;
@@ -1250,6 +1257,37 @@ mod overlapped {
             C: FnMut(Request),
         {
             let slots = self.ov.len();
+            let trace = std::env::var_os("SPIT_TRACE").is_some();
+            let started = Instant::now();
+            // Scheduled tasks can run at low I/O priority, which slows every completion. A benchmark
+            // asks for normal priority so the device, not the scheduler, sets the pace.
+            let io_priority: u32 = 2;
+            let (class_ok, io_status) = unsafe {
+                let process = GetCurrentProcess();
+                (
+                    SetPriorityClass(process, 0x20),
+                    NtSetInformationProcess(process, 33, &io_priority as *const u32 as *const c_void, 4),
+                )
+            };
+            if trace {
+                eprintln!("trace priority set_class_ok={} io_priority_status=0x{:x}", class_ok, io_status);
+            }
+            if trace {
+                let (mut session, mut mask, mut system) = (0u32, 0usize, 0usize);
+                unsafe {
+                    let process = GetCurrentProcess();
+                    ProcessIdToSessionId(GetCurrentProcessId(), &mut session);
+                    GetProcessAffinityMask(process, &mut mask, &mut system);
+                    eprintln!(
+                        "trace context pid={} session={} priority_class=0x{:x} affinity_mask=0x{:x} slots={}",
+                        GetCurrentProcessId(),
+                        session,
+                        GetPriorityClass(process),
+                        mask,
+                        slots
+                    );
+                }
+            }
             let mut inflight = std::mem::take(&mut self.inflight);
             let mut outstanding = 0usize;
             let mut exhausted = false;
@@ -1299,8 +1337,20 @@ mod overlapped {
                     counter.completed(1);
                 }
                 if let Some(start) = self.submitted_at[slot] {
+                    let latency = now.duration_since(start).as_micros().min(u32::MAX as u128) as u32;
+                    if trace {
+                        eprintln!(
+                            "trace t_ms={} slot={} write={} offset={} latency_us={} in_flight={}",
+                            started.elapsed().as_millis(),
+                            slot,
+                            request.write,
+                            request.offset,
+                            latency,
+                            self.in_flight
+                        );
+                    }
                     if self.stats.latencies_us.len() < LATENCY_CAPACITY {
-                        self.stats.latencies_us.push(now.duration_since(start).as_micros().min(u32::MAX as u128) as u32);
+                        self.stats.latencies_us.push(latency);
                     }
                 }
                 if ok == 0 {
