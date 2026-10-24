@@ -146,6 +146,13 @@ fn write_histogram(dir: &Path, tag: &str, label: &str, values: &[f64]) -> io::Re
     for v in &sorted {
         *bins.entry((v / HIST_BIN_MS + 0.5).floor() as i64).or_insert(0) += 1;
     }
+    // The axis runs from the first to the last bin holding more than one write, so a single
+    // outlier at either end does not stretch the chart. Falls back to min and max if no bin qualifies.
+    let busy: Vec<f64> = bins.iter().filter(|(_, count)| **count > 1).map(|(bin, _)| *bin as f64 * HIST_BIN_MS).collect();
+    let (low, high) = match (busy.first(), busy.last()) {
+        (Some(first), Some(last)) => ((first - HIST_BIN_MS).max(HIST_BIN_MS), last + HIST_BIN_MS),
+        _ => (low, high),
+    };
     let dat_path = dir.join(format!("cctv-hist-{tag}.dat"));
     let mut out = create(&dat_path)?;
     let mut cum = 0u64;
