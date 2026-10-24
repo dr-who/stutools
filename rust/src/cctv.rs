@@ -36,6 +36,8 @@ pub struct Settings {
     pub floor: f64,
     /// Link capacity in Mbit/s, drawn on the rate chart and used to report how many cameras fit.
     pub link_mbps: Option<f64>,
+    /// Seconds a generated frame may wait for its write before it is dropped.
+    pub drop_after: f64,
 }
 /// Parses `N` or `START..END/STEP` (step defaults to 1) into (start, end, step).
 fn parse_cameras(text: &str) -> Result<(usize, usize, usize)> {
@@ -93,6 +95,7 @@ impl Settings {
             ranged: cameras_text.contains(".."),
             floor: RATE_FLOOR,
             link_mbps: Some(1000.),
+            drop_after: DROP_AFTER_S,
         })
     }
     fn pool_bytes(self) -> Option<u64> {
@@ -140,6 +143,8 @@ struct Shared {
     wake: Condvar,
     wake_lock: Mutex<()>,
     late: AtomicU64,
+    generated: AtomicU64,
+    dropped: AtomicU64,
     fallback: AtomicBool,
     progress: Option<Arc<progress::State>>,
     written: AtomicU64,
@@ -157,6 +162,8 @@ const CLOSERS: usize = 4;
 const RATE_WINDOW_S: f64 = 10.;
 /// Fraction of the combined camera rate that must be achieved.
 const RATE_FLOOR: f64 = 0.;
+/// How long a generated frame may wait for its write before it is dropped.
+const DROP_AFTER_S: f64 = 5.;
 fn closer(shared: Arc<Shared>, queue: Arc<Mutex<mpsc::Receiver<Closing>>>) {
     loop {
         let next = queue.lock().unwrap().recv();
@@ -458,6 +465,8 @@ fn camera(
     };
     let period = shared.settings.block as f64 / (shared.settings.mbps * 1e6 / 8.);
     let mut due = period * (1. + index as f64 / shared.settings.count as f64);
+    // Frames generated but not yet written, as the times they were generated.
+    let mut backlog = std::collections::VecDeque::new();
     let mut offset = 0u64;
     let (mut writes, mut bytes, mut allocations) = (0, 0, 0);
     let mut samples = Vec::new();
@@ -468,10 +477,21 @@ fn camera(
         if shared.stopping() || shared.duration.is_some_and(|limit| elapsed >= limit) {
             break;
         }
-        if elapsed < due {
-            thread::sleep(Duration::from_secs_f64((due - elapsed).min(0.05)));
-            continue;
+        // The camera generates a frame every period whether or not earlier writes have finished.
+        while due <= elapsed {
+            backlog.push_back(due);
+            shared.generated.fetch_add(1, Ordering::Relaxed);
+            due += period;
         }
+        // A frame still unwritten after the drop deadline is lost, as a full camera buffer would lose it.
+        while backlog.front().is_some_and(|&g| elapsed - g > shared.settings.drop_after) {
+            backlog.pop_front();
+            shared.dropped.fetch_add(1, Ordering::Relaxed);
+        }
+        let Some(generated_at) = backlog.pop_front() else {
+            thread::sleep(Duration::from_secs_f64((due - elapsed).clamp(0., 0.05)));
+            continue;
+        };
         if current.is_none() {
             current = shared.take(index, true).map_err(|e| e.to_string())?;
             offset = 0;
@@ -505,8 +525,9 @@ fn camera(
             .as_nanos()
             .min(u64::MAX as u128) as u64;
         if shared.settings.ranged {
-            let submitted = before.duration_since(start).as_secs_f64();
-            samples.push((submitted, (latency / 1000).min(u32::MAX as u64) as u32));
+            // Runs from when the frame was generated, so time spent waiting behind earlier writes counts.
+            let end_to_end = completed.duration_since(start).as_secs_f64() - generated_at;
+            samples.push((generated_at, (end_to_end * 1e6).clamp(0., u32::MAX as f64) as u32));
         }
         if let Some(c) = counter {
             c.completed(1);
@@ -703,6 +724,8 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
         wake: Condvar::new(),
         wake_lock: Mutex::new(()),
         late: AtomicU64::new(0),
+        generated: AtomicU64::new(0),
+        dropped: AtomicU64::new(0),
         fallback: AtomicBool::new(false),
         progress: reporter.as_ref().map(|r| r.state.clone()),
         written: AtomicU64::new(0),
@@ -965,6 +988,16 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
     );
     let timing = format!("writes_over_200ms={} max_write_camera={} max_write_sequence={} max_write_offset={} max_write_submit_s={:.9} max_write_complete_s={:.9} stop_reason={}",total.writes_over_200ms,total.max_write_tag.camera,total.max_write_tag.sequence,total.max_write_tag.offset,total.max_write_tag.submitted_ns as f64/1e9,total.max_write_tag.completed_ns as f64/1e9,if error.is_some(){"error"}else if signals::INTERRUPTED.load(Ordering::Relaxed){"interrupted"}else{"deadline"});
     println!("read_ops=0 write_ops={} seconds={seconds:.6} read_MiB_s=0.000 write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={allocations} verified_ops=0 avg_write_ms={:.6} max_write_ms={:.6} late_write_ops={}",total.writes,total.bytes as f64/1048576./seconds,total.writes as f64/seconds,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,shared.late.load(Ordering::Relaxed));
+    let offered = shared.generated.load(Ordering::Relaxed);
+    let dropped = shared.dropped.load(Ordering::Relaxed);
+    let dropped_pct = if offered == 0 { 0. } else { 100. * dropped as f64 / offered as f64 };
+    println!(
+        "open_loop drop_after_s={:.1} offered_frames={offered} written_frames={} dropped_frames={dropped} dropped_pct={dropped_pct:.2} offered_Mbit_s={:.3} achieved_Mbit_s={:.3}",
+        settings.drop_after,
+        total.writes,
+        offered as f64 * settings.block as f64 * 8. / seconds / 1e6,
+        total.bytes as f64 * 8. / seconds / 1e6,
+    );
     println!("{rotation_stats}");
     println!("{timing}");
     let pipeline = format!(

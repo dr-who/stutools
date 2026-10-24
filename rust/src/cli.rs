@@ -497,6 +497,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     let mut cctv_io = None;
     let mut cctv_floor = None;
     let mut cctv_link = None;
+    let mut cctv_drop_after = None;
     let mut camera_conflict = false;
     while let Some(flag) = it.next() {
         camera_conflict |= matches!(
@@ -575,6 +576,13 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 }
                 c.cameras = Some(crate::cctv::Settings::parse(v)?);
             }
+            "--cctv-drop-after" => {
+                let seconds: f64 = v.parse().map_err(|_| "--cctv-drop-after needs seconds, e.g. 5")?;
+                if !(seconds > 0.) {
+                    return Err("--cctv-drop-after must be above 0".into());
+                }
+                cctv_drop_after = Some(seconds);
+            }
             "--link-mbps" => {
                 let mbps: f64 = v.parse().map_err(|_| "--link-mbps needs a rate in Mbit/s, e.g. 1000")?;
                 if !(mbps > 0.) {
@@ -634,6 +642,9 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             cameras.floor = floor;
         }
         cameras.link_mbps = cctv_link;
+        if let Some(seconds) = cctv_drop_after {
+            cameras.drop_after = seconds;
+        }
         cameras.validate(c.memory)?;
         if !explicit_duration {
             c.duration = None;
@@ -657,6 +668,9 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     }
     if cctv_link.is_some() {
         return Err("--link-mbps requires --cctv".into());
+    }
+    if cctv_drop_after.is_some() {
+        return Err("--cctv-drop-after requires --cctv".into());
     }
     if c.files.is_empty() && c.prefixes.is_empty() {
         return Err("specify -f FILE or -F PREFIX".into());
