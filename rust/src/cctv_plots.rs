@@ -117,7 +117,7 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
     };
     let gnu = format!(
         r##"# Per-write CCTV latency against camera count, one dot per write, with achieved Mbit/s on y2.
-# Each dot is moved by a random x offset in [-2, +2] cameras so points at the same count do not stack.
+# Each dot is moved by a random factor of about +/-4% of its camera count (log axis) so points at the same count do not stack.
 # Render with:  gnuplot "{gnu}"   (writes the PNG named below)
 set terminal pngcairo size 6400,3600 font "sans,48" background rgb "white"
 set output "{png}"
@@ -134,7 +134,7 @@ set y2tics
 set arrow from graph 0, first {LINE_MS} to graph 1, first {LINE_MS} nohead dt 2 lw 3 lc rgb "#d62728"
 DATA = "{dots}"
 MBPS = "{rates}"
-{loss_def}plot DATA using ($1+4*rand(0)-2):2 axes x1y1 with points pt 7 ps 0.3 lc rgb "#1f77b4" title "write latency (ms)", \
+{loss_def}plot DATA using ($1*(1+0.08*(rand(0)-0.5))):2 axes x1y1 with points pt 7 ps 0.3 lc rgb "#1f77b4" title "write latency (ms)", \
      MBPS using 1:2 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb "#2ca02c" title "achieved Mbit/s"{loss_plot}
 "##,
         label_suffix = label_suffix(),
