@@ -1614,7 +1614,7 @@ mod threads {
                 let (tx, rx) = mpsc::sync_channel::<Job>(1);
                 let file = file.clone();
                 let done_tx = done_tx.clone();
-                handles.push(std::thread::spawn(move || {
+                handles.push(std::thread::Builder::new().spawn(move || {
                     // Creating a thread's handle allocates, so do it before the first job rather than inside the run.
                     let _ = std::thread::current();
                     for job in rx {
@@ -1629,7 +1629,7 @@ mod threads {
                             break;
                         }
                     }
-                }));
+                })?);
                 jobs.push(tx);
             }
             Ok(Self {
