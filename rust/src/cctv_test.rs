@@ -45,10 +45,13 @@ pub fn run(mode: &str, mut args: Vec<String>) -> Result<()> {
         .map(Path::to_path_buf)
         .unwrap_or_else(|| PathBuf::from("."));
     let long = match mode {
-        "short" => false,
+        "short" | "range" => false,
         "long" => true,
-        other => return Err(format!("--cctv-test takes short or long, not {other}")),
+        other => return Err(format!("--cctv-test takes short, range or long, not {other}")),
     };
+    // Each chart file says which I/O mode made it, so direct and pagecache runs can sit side by side.
+    let io = value(&args, "--cctv-io").unwrap_or_else(|| if cfg!(any(windows, target_os = "linux")) { "direct" } else { "pagecache" }.into());
+    let _ = crate::cctv_plots::SUFFIX.set(format!("-{io}"));
 
     if !args.iter().any(|a| a == "--cctv") {
         let link = value(&args, "--link-mbps").and_then(|v| v.parse().ok()).unwrap_or(LINK_MBPS);
@@ -72,7 +75,7 @@ pub fn run(mode: &str, mut args: Vec<String>) -> Result<()> {
     cctv::run(config)?;
     interrupted()?;
 
-    if !long {
+    if mode == "short" {
         sweeps(&dir)?;
     }
     println!("cctv-test {mode} finished; files in {}", dir.display());
