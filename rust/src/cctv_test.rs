@@ -59,7 +59,7 @@ pub fn run(mode: &str, mut args: Vec<String>) -> Result<()> {
         let cameras = if long {
             format!("{fit},{CAMERA_MBPS},1")
         } else {
-            format!("10..{fit}/10,{CAMERA_MBPS},1")
+            format!("5..{fit}*sqrt2,{CAMERA_MBPS},1")
         };
         args.extend(["--cctv".into(), cameras]);
     }

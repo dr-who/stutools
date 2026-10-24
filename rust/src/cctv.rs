@@ -30,6 +30,8 @@ pub struct Settings {
     /// Last camera count of a COUNT..END/STEP sweep; equals `count` for a single run.
     pub count_end: usize,
     pub count_step: usize,
+    /// Ratio between successive counts in a geometric range; 1 for linear ranges.
+    pub count_ratio: f64,
     /// A START..END range writes a per-write latency file for each camera count.
     pub ranged: bool,
     /// Fraction of the combined camera rate the last 10 s must reach to keep running.
@@ -40,8 +42,23 @@ pub struct Settings {
     pub drop_after: f64,
 }
 /// Parses `N` or `START..END/STEP` (step defaults to 1) into (start, end, step).
-fn parse_cameras(text: &str) -> Result<(usize, usize, usize)> {
-    const USAGE: &str = "--cctv needs COUNT,MBPS,HOURS; COUNT is N or START..END/STEP, e.g. 10..100/10";
+/// Parses COUNT as N, START..END/STEP (linear) or START..END*RATIO (geometric, e.g. 10..200*sqrt2).
+/// Returns (start, end, linear step, ratio); ratio is 1 for linear counts.
+fn parse_cameras(text: &str) -> Result<(usize, usize, usize, f64)> {
+    const USAGE: &str = "--cctv needs COUNT,MBPS,HOURS; COUNT is N, START..END/STEP (e.g. 10..100/10) or START..END*RATIO (e.g. 10..200*sqrt2)";
+    let (text, ratio) = match text.split_once('*') {
+        Some((span, ratio)) => {
+            let ratio = match ratio {
+                "sqrt2" => std::f64::consts::SQRT_2,
+                other => other.parse::<f64>().map_err(|_| USAGE)?,
+            };
+            if !(ratio > 1. && ratio.is_finite()) {
+                return Err(USAGE.into());
+            }
+            (span, ratio)
+        }
+        None => (text, 1.),
+    };
     let (span, step) = match text.split_once('/') {
         Some((span, step)) => (span, step.parse::<usize>().map_err(|_| USAGE)?),
         None => (text, 1),
@@ -59,13 +76,33 @@ fn parse_cameras(text: &str) -> Result<(usize, usize, usize)> {
     if !(1..=1024).contains(&start) || !(start..=1024).contains(&end) || step == 0 {
         return Err(USAGE.into());
     }
-    Ok((start, end, step))
+    Ok((start, end, step, ratio))
+}
+/// The camera counts a range runs: every linear step, or each count a ratio times the last.
+/// The end is always included.
+pub fn camera_counts(s: &Settings) -> Vec<usize> {
+    if s.count_ratio == 1. {
+        return (s.count..=s.count_end).step_by(s.count_step).collect();
+    }
+    let mut counts = Vec::new();
+    let mut x = s.count as f64;
+    while x <= s.count_end as f64 + 0.5 {
+        let n = x.round() as usize;
+        if counts.last() != Some(&n) {
+            counts.push(n);
+        }
+        x *= s.count_ratio;
+    }
+    if counts.last() != Some(&s.count_end) {
+        counts.push(s.count_end);
+    }
+    counts
 }
 impl Settings {
     pub fn parse(text: &str) -> Result<Self> {
         let mut parts = text.split(',');
         let cameras_text = parts.next().ok_or("--cctv needs COUNT,MBPS,HOURS")?;
-        let (count, count_end, count_step) = parse_cameras(cameras_text)?;
+        let (count, count_end, count_step, count_ratio) = parse_cameras(cameras_text)?;
         let mbps = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
@@ -92,6 +129,7 @@ impl Settings {
             direct: cfg!(any(windows, target_os = "linux")),
             count_end,
             count_step,
+            count_ratio,
             ranged: cameras_text.contains(".."),
             floor: RATE_FLOOR,
             link_mbps: Some(1000.),
@@ -620,9 +658,7 @@ struct Measured {
 
 pub fn run(config: Config) -> Result<()> {
     let base = config.cameras.unwrap();
-    let counts: Vec<usize> = (base.count..=base.count_end)
-        .step_by(base.count_step)
-        .collect();
+    let counts = camera_counts(&base);
     let mut measured = Vec::new();
     // A failed count still leaves the plot files for the counts measured before it.
     let mut failure = None;
