@@ -15,10 +15,10 @@ mod progress;
 fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if let Some(pos) = args.iter().position(|a| a == "--cctv-test") {
-        // The standard test: `--cctv-test` (short, the default) or `--cctv-test long`.
+        // The standard test: `--cctv-test` (short, the default), `--cctv-test range` or `--cctv-test long`.
         args.remove(pos);
         let mode = match args.get(pos) {
-            Some(m) if m == "short" || m == "long" => args.remove(pos),
+            Some(m) if m == "short" || m == "long" || m == "range" => args.remove(pos),
             _ => "short".to_string(),
         };
         if let Err(error) = cctv_test::run(&mode, args) {
