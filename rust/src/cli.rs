@@ -474,7 +474,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         verify: false,
         recreate: false,
         seed: 1,
-        backend: crate::io::default_backend(),
+        backend: Backend::Direct,
         memory: crate::memory::default_budget(),
         interval: 1.,
         errors: 1,
@@ -696,7 +696,8 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
 }
 fn help() {
     println!(
-        "Default backend on this system: {} (auto)",
+        "Default backend: {} (--backend auto selects {} on this system)",
+        Backend::Direct.name(),
         crate::io::default_backend().name()
     );
     println!(
