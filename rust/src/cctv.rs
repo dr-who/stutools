@@ -118,7 +118,9 @@ impl Settings {
             || hours <= 0.
             || hours > 1e9
         {
-            return Err("--cctv needs a finite positive Mbit/s rate and positive retention hours".into());
+            return Err(
+                "--cctv needs a finite positive Mbit/s rate and positive retention hours".into(),
+            );
         }
         Ok(Self {
             count,
@@ -220,7 +222,11 @@ fn closer(shared: Arc<Shared>, queue: Arc<Mutex<mpsc::Receiver<Closing>>>) {
                     max_close_ns: ns,
                     ..Metrics::default()
                 }) {
-                    shared.close_error.lock().unwrap().get_or_insert(e.to_string());
+                    shared
+                        .close_error
+                        .lock()
+                        .unwrap()
+                        .get_or_insert(e.to_string());
                     shared.stop.store(true, Ordering::Release);
                 }
             }
@@ -522,7 +528,10 @@ fn camera(
             due += period;
         }
         // A frame still unwritten after the drop deadline is lost, as a full camera buffer would lose it.
-        while backlog.front().is_some_and(|&g| elapsed - g > shared.settings.drop_after) {
+        while backlog
+            .front()
+            .is_some_and(|&g| elapsed - g > shared.settings.drop_after)
+        {
             backlog.pop_front();
             shared.dropped.fetch_add(1, Ordering::Relaxed);
         }
@@ -565,7 +574,10 @@ fn camera(
         if shared.settings.ranged {
             // Runs from when the frame was generated, so time spent waiting behind earlier writes counts.
             let end_to_end = completed.duration_since(start).as_secs_f64() - generated_at;
-            samples.push((generated_at, (end_to_end * 1e6).clamp(0., u32::MAX as f64) as u32));
+            samples.push((
+                generated_at,
+                (end_to_end * 1e6).clamp(0., u32::MAX as f64) as u32,
+            ));
         }
         if let Some(c) = counter {
             c.completed(1);
@@ -636,12 +648,7 @@ fn camera(
 
 /// One line per measured write: seconds since the measured start, then latency in milliseconds.
 fn write_latencies(path: &std::path::Path, samples: &[(f64, u32)]) -> io::Result<()> {
-    let mut out = BufWriter::new(
-        OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(path)?,
-    );
+    let mut out = BufWriter::new(OpenOptions::new().write(true).create_new(true).open(path)?);
     for &(submitted, us) in samples {
         writeln!(out, "{submitted:.6} {:.3}", us as f64 / 1000.)?;
     }
@@ -664,9 +671,16 @@ pub fn run(config: Config) -> Result<()> {
     let mut failure = None;
     for (index, count) in counts.iter().enumerate() {
         if counts.len() > 1 {
-            println!("=== sweep {}/{}: {count} cameras ===", index + 1, counts.len());
+            println!(
+                "=== sweep {}/{}: {count} cameras ===",
+                index + 1,
+                counts.len()
+            );
         }
-        let settings = Settings { count: *count, ..base };
+        let settings = Settings {
+            count: *count,
+            ..base
+        };
         match run_inner(&config, settings) {
             Ok(Some(run)) => measured.push((*count, run)),
             Ok(None) => {}
@@ -849,7 +863,10 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
     println!("backend={} cameras={} Mbit_s_each={} target_Mbit_s={} block_bytes={} file_bytes={} fixed_pool_bytes={} memory_budget={}",if settings.direct { "direct" } else { "pagecache" },settings.count,settings.mbps,settings.mbps*settings.count as f64,settings.block,settings.file_size,settings.pool_bytes().unwrap(),config.memory);
     if let Some(link) = settings.link_mbps {
         let fits = (link * settings.floor / settings.mbps).floor() as usize;
-        println!("link_mbps={link} floor_percent={:.0} cameras_that_fit={fits}", settings.floor * 100.);
+        println!(
+            "link_mbps={link} floor_percent={:.0} cameras_that_fit={fits}",
+            settings.floor * 100.
+        );
     }
     let mut periods = Periods::default();
     let mut next_minute = 60.;
@@ -894,7 +911,10 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
             let written = shared.written.load(Ordering::Relaxed);
             let (last_t, last_bytes) = last_rate_point;
             if elapsed > last_t {
-                rates.push((elapsed, (written - last_bytes) as f64 * 8. / 1e6 / (elapsed - last_t)));
+                rates.push((
+                    elapsed,
+                    (written - last_bytes) as f64 * 8. / 1e6 / (elapsed - last_t),
+                ));
             }
             last_rate_point = (elapsed, written);
             samples.push((elapsed, written));
@@ -905,7 +925,8 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
             let (t0, b0) = samples[0];
             let span = elapsed - t0;
             if span >= RATE_WINDOW_S {
-                let achieved = (shared.written.load(Ordering::Relaxed) - b0) as f64 * 8. / 1e6 / span;
+                let achieved =
+                    (shared.written.load(Ordering::Relaxed) - b0) as f64 * 8. / 1e6 / span;
                 // The floor (75% by default) of the combined rate is the success threshold for continuing.
                 let required = settings.count as f64 * settings.mbps * settings.floor;
                 if achieved < required {
@@ -969,11 +990,17 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
         (count, latencies)
     });
     // Per-second Mbit/s for the whole run, beside the logs (for the sustained-rate chart).
-    let rate_text: String = rates.iter().map(|(t, m)| format!("{t:.0} {m:.3}\n")).collect();
+    let rate_text: String = rates
+        .iter()
+        .map(|(t, m)| format!("{t:.0} {m:.3}\n"))
+        .collect();
     if let Err(e) = std::fs::write(logs.paths[0].with_extension("rate"), rate_text) {
         error = Some(format!("write rate samples: {e}"));
     }
-    if let (Some(dir), Some(stem)) = (logs.paths[0].parent(), logs.paths[0].file_stem().and_then(|s| s.to_str())) {
+    if let (Some(dir), Some(stem)) = (
+        logs.paths[0].parent(),
+        logs.paths[0].file_stem().and_then(|s| s.to_str()),
+    ) {
         if let Err(e) = cctv_plots::write_envelope(dir, stem, &rates, 30., settings.link_mbps) {
             error = Some(format!("write rate envelope: {e}"));
         }
@@ -984,7 +1011,10 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
         if let Err(e) = write_latencies(&path, &latencies) {
             error = Some(format!("write latency samples: {e}"));
         }
-        let dir = logs.paths[0].parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+        let dir = logs.paths[0]
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .to_path_buf();
         let frame_mbit = settings.block as f64 * 8. / 1e6;
         let loss = (
             shared.generated.load(Ordering::Relaxed) as f64 * frame_mbit,
@@ -1030,7 +1060,11 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
     println!("read_ops=0 write_ops={} seconds={seconds:.6} read_MiB_s=0.000 write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={allocations} verified_ops=0 avg_write_ms={:.6} max_write_ms={:.6} late_write_ops={}",total.writes,total.bytes as f64/1048576./seconds,total.writes as f64/seconds,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,shared.late.load(Ordering::Relaxed));
     let offered = shared.generated.load(Ordering::Relaxed);
     let dropped = shared.dropped.load(Ordering::Relaxed);
-    let dropped_pct = if offered == 0 { 0. } else { 100. * dropped as f64 / offered as f64 };
+    let dropped_pct = if offered == 0 {
+        0.
+    } else {
+        100. * dropped as f64 / offered as f64
+    };
     println!(
         "open_loop drop_after_s={:.1} offered_frames={offered} written_frames={} dropped_frames={dropped} dropped_pct={dropped_pct:.2} offered_Mbit_s={:.3} achieved_Mbit_s={:.3}",
         settings.drop_after,
@@ -1050,13 +1084,84 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
         total.max_close_queue,
     );
     println!("{pipeline}");
-    writeln!(logs.log,"# pipeline {pipeline}").map_err(|e|e.to_string())?;
+    writeln!(logs.log, "# pipeline {pipeline}").map_err(|e| e.to_string())?;
     writeln!(logs.log,"# finished seconds={seconds:.6} write_ops={} write_bytes={} avg_write_ms={:.6} max_write_ms={:.6} hot_path_allocations={allocations} {rotation_stats} {timing} status={}",total.writes,total.bytes,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,if error.is_some(){"error"}else{"ok"}).map_err(|e|e.to_string())?;
     if let Some(e) = error {
         Err(e)
     } else {
         Ok(measured)
     }
+}
+
+/// Rebuilds the plot files from the newest cctv-test-*-cameras=N.lat per count in `dir`,
+/// reading each block size and I/O mode from the matching .log header.
+pub fn replot(dir: &std::path::Path) -> Result<()> {
+    let mut newest: std::collections::BTreeMap<usize, std::path::PathBuf> = Default::default();
+    let mut names: Vec<_> = std::fs::read_dir(dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|x| x == "lat"))
+        .collect();
+    names.sort();
+    for path in names {
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        if let Some(count) = name
+            .rsplit("cameras=")
+            .next()
+            .and_then(|t| t.strip_suffix(".lat"))
+        {
+            if let Ok(count) = count.parse::<usize>() {
+                newest.insert(count, path);
+            }
+        }
+    }
+    if newest.is_empty() {
+        return Err(format!(
+            "no cctv-test-*-cameras=N.lat files in {}",
+            dir.display()
+        ));
+    }
+    let mut data = Vec::new();
+    for (count, path) in &newest {
+        let log = std::fs::read_to_string(path.with_extension("log")).unwrap_or_default();
+        let header = |key: &str| {
+            log.split(key)
+                .nth(1)
+                .and_then(|t| t.split(|c: char| !c.is_ascii_alphanumeric()).next())
+                .map(str::to_string)
+        };
+        let block_bytes = header("block_bytes=")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(65536);
+        let io_mode = header("backend=").unwrap_or_else(|| "direct".into());
+        let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let samples: Vec<(f64, u32)> = text
+            .lines()
+            .filter_map(|line| {
+                let mut f = line.split(' ');
+                let at: f64 = f.next()?.parse().ok()?;
+                let ms: f64 = f.next()?.parse().ok()?;
+                Some((at, (ms * 1000.).round() as u32))
+            })
+            .collect();
+        let seconds = samples.last().map_or(1e-9, |s| s.0.max(1e-9));
+        data.push((*count, block_bytes, io_mode, seconds, samples));
+    }
+    let io_mode = data[0].2.clone();
+    let runs: Vec<cctv_plots::Run> = data
+        .iter()
+        .map(
+            |(count, block_bytes, _, seconds, samples)| cctv_plots::Run {
+                count: *count,
+                block_bytes: *block_bytes,
+                seconds: *seconds,
+                samples,
+                loss: None,
+            },
+        )
+        .collect();
+    cctv_plots::write_range(dir, &runs, &io_mode).map_err(|e| format!("CCTV plot files: {e}"))?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1119,64 +1224,4 @@ mod tests {
         drop(ns);
         std::fs::remove_dir_all(directory).unwrap();
     }
-}
-
-/// Rebuilds the plot files from the newest cctv-test-*-cameras=N.lat per count in `dir`,
-/// reading each block size and I/O mode from the matching .log header.
-pub fn replot(dir: &std::path::Path) -> Result<()> {
-    let mut newest: std::collections::BTreeMap<usize, std::path::PathBuf> = Default::default();
-    let mut names: Vec<_> = std::fs::read_dir(dir)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| p.extension().is_some_and(|x| x == "lat"))
-        .collect();
-    names.sort();
-    for path in names {
-        let name = path.file_name().unwrap().to_string_lossy().to_string();
-        if let Some(count) = name.rsplit("cameras=").next().and_then(|t| t.strip_suffix(".lat")) {
-            if let Ok(count) = count.parse::<usize>() {
-                newest.insert(count, path);
-            }
-        }
-    }
-    if newest.is_empty() {
-        return Err(format!("no cctv-test-*-cameras=N.lat files in {}", dir.display()));
-    }
-    let mut data = Vec::new();
-    for (count, path) in &newest {
-        let log = std::fs::read_to_string(path.with_extension("log")).unwrap_or_default();
-        let header = |key: &str| {
-            log.split(key)
-                .nth(1)
-                .and_then(|t| t.split(|c: char| !c.is_ascii_alphanumeric()).next())
-                .map(str::to_string)
-        };
-        let block_bytes = header("block_bytes=").and_then(|v| v.parse().ok()).unwrap_or(65536);
-        let io_mode = header("backend=").unwrap_or_else(|| "direct".into());
-        let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-        let samples: Vec<(f64, u32)> = text
-            .lines()
-            .filter_map(|line| {
-                let mut f = line.split(' ');
-                let at: f64 = f.next()?.parse().ok()?;
-                let ms: f64 = f.next()?.parse().ok()?;
-                Some((at, (ms * 1000.).round() as u32))
-            })
-            .collect();
-        let seconds = samples.last().map_or(1e-9, |s| s.0.max(1e-9));
-        data.push((*count, block_bytes, io_mode, seconds, samples));
-    }
-    let io_mode = data[0].2.clone();
-    let runs: Vec<cctv_plots::Run> = data
-        .iter()
-        .map(|(count, block_bytes, _, seconds, samples)| cctv_plots::Run {
-            count: *count,
-            block_bytes: *block_bytes,
-            seconds: *seconds,
-            samples,
-            loss: None,
-        })
-        .collect();
-    cctv_plots::write_range(dir, &runs, &io_mode).map_err(|e| format!("CCTV plot files: {e}"))?;
-    Ok(())
 }

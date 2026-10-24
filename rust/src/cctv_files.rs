@@ -1,8 +1,8 @@
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, SeekFrom, Write},
-    path::{Path, PathBuf},
     ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -148,6 +148,7 @@ pub struct VolumeInfo {
     pub free: u64,
 }
 
+#[allow(clippy::unnecessary_cast)] // statfs field widths differ between Unix platforms; the casts keep them portable
 pub fn volume_info(directory: &Path) -> io::Result<VolumeInfo> {
     #[cfg(windows)]
     {
@@ -159,7 +160,12 @@ pub fn volume_info(directory: &Path) -> io::Result<VolumeInfo> {
         let mut label = [0u16; 261];
         let mut fs_name = [0u16; 261];
         unsafe extern "system" {
-            fn GetDiskFreeSpaceExW(dir: *const u16, caller: *mut u64, total: *mut u64, free: *mut u64) -> i32;
+            fn GetDiskFreeSpaceExW(
+                dir: *const u16,
+                caller: *mut u64,
+                total: *mut u64,
+                free: *mut u64,
+            ) -> i32;
             fn GetVolumeInformationW(
                 root: *const u16,
                 label: *mut u16,
@@ -171,16 +177,35 @@ pub fn volume_info(directory: &Path) -> io::Result<VolumeInfo> {
                 fs_len: u32,
             ) -> i32;
         }
-        if unsafe { GetDiskFreeSpaceExW(wide(directory).as_ptr(), &mut caller_free, &mut total, &mut free) } == 0 {
-            return Err(io::Error::last_os_error());
-        }
         if unsafe {
-            GetVolumeInformationW(root.as_ptr(), label.as_mut_ptr(), 261, &mut serial, &mut max_len, &mut flags, fs_name.as_mut_ptr(), 261)
+            GetDiskFreeSpaceExW(
+                wide(directory).as_ptr(),
+                &mut caller_free,
+                &mut total,
+                &mut free,
+            )
         } == 0
         {
             return Err(io::Error::last_os_error());
         }
-        let text = |b: &[u16]| String::from_utf16_lossy(&b[..b.iter().position(|&c| c == 0).unwrap_or(b.len())]);
+        if unsafe {
+            GetVolumeInformationW(
+                root.as_ptr(),
+                label.as_mut_ptr(),
+                261,
+                &mut serial,
+                &mut max_len,
+                &mut flags,
+                fs_name.as_mut_ptr(),
+                261,
+            )
+        } == 0
+        {
+            return Err(io::Error::last_os_error());
+        }
+        let text = |b: &[u16]| {
+            String::from_utf16_lossy(&b[..b.iter().position(|&c| c == 0).unwrap_or(b.len())])
+        };
         return Ok(VolumeInfo {
             source: text(&label),
             fs_type: text(&fs_name),
@@ -217,7 +242,9 @@ pub fn volume_info(directory: &Path) -> io::Result<VolumeInfo> {
         });
     }
     #[allow(unreachable_code)]
-    Err(io::Error::other("volume information is not available on this platform"))
+    Err(io::Error::other(
+        "volume information is not available on this platform",
+    ))
 }
 
 /// The device mounted at the longest mount point that contains `directory`.
@@ -232,7 +259,8 @@ fn mount_source(directory: &Path) -> String {
         .filter_map(|line| {
             let mut fields = line.split_whitespace();
             let (source, mount) = (fields.next()?, fields.next()?);
-            dir.starts_with(mount).then(|| (mount.len(), source.to_string()))
+            dir.starts_with(mount)
+                .then(|| (mount.len(), source.to_string()))
         })
         .max_by_key(|(len, _)| *len)
         .map_or_else(|| "unknown".into(), |(_, source)| source)
@@ -249,7 +277,9 @@ pub struct Namespace {
 impl Namespace {
     pub fn open(prefix: &Path, run: u128, direct: bool) -> io::Result<Arc<Self>> {
         if direct && !cfg!(any(windows, target_os = "linux")) {
-            return Err(io::Error::other("--cctv-io direct is supported on Linux and Windows"));
+            return Err(io::Error::other(
+                "--cctv-io direct is supported on Linux and Windows",
+            ));
         }
         let name = prefix
             .file_name()

@@ -2,14 +2,14 @@ use crate::cli::Backend;
 #[cfg(windows)]
 #[path = "windows.rs"]
 mod windows;
+#[cfg(windows)]
+use std::time::Duration;
 use std::{
     alloc::{alloc_zeroed, dealloc, Layout},
     fs::{File, OpenOptions},
     io,
     ptr::NonNull,
 };
-#[cfg(windows)]
-use std::time::Duration;
 #[cfg(target_os = "linux")]
 use std::{
     os::unix::{fs::OpenOptionsExt, io::AsRawFd},
@@ -39,11 +39,18 @@ pub fn default_backend() -> Backend {
 
 /// One handle per queue slot on Windows, so in-flight requests do not share a file object.
 /// Other platforms use the single handle the caller already has.
-pub fn open_slots(path: &std::path::Path, write: bool, backend: Backend, depth: usize) -> io::Result<Vec<File>> {
+pub fn open_slots(
+    path: &std::path::Path,
+    write: bool,
+    backend: Backend,
+    depth: usize,
+) -> io::Result<Vec<File>> {
     if !cfg!(windows) || depth == 0 {
         return Ok(Vec::new());
     }
-    (0..depth).map(|_| open(path, write, false, backend)).collect()
+    (0..depth)
+        .map(|_| open(path, write, false, backend))
+        .collect()
 }
 
 pub fn open(
@@ -182,7 +189,7 @@ impl Drop for Arena {
         }
     }
 }
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Request {
     pub offset: u64,
     pub len: usize,
@@ -203,7 +210,8 @@ pub enum Failure {
         offset: u64,
         len: usize,
     },
-    Incomplete(i64, usize),
+    /// A transfer that finished with a negative errno or fewer bytes than the request asked for.
+    Incomplete(i64, Request),
     #[cfg(target_os = "linux")]
     Timeout,
     Verification,
@@ -220,7 +228,14 @@ impl std::fmt::Display for Failure {
                 }
                 Ok(())
             },
-            Self::Incomplete(n, w) => write!(f, "incomplete I/O: result {n}, expected {w}"),
+            Self::Incomplete(n, r) => {
+                write!(f, "{} at byte offset {}, length {} bytes: ", if r.write { "write" } else { "read" }, r.offset, r.len)?;
+                write!(f, "incomplete I/O: result {n}, expected {} bytes", r.len)?;
+                if *n < 0 {
+                    write!(f, ": {}", io::Error::from_raw_os_error((-n) as i32))?;
+                }
+                Ok(())
+            }
             #[cfg(target_os = "linux")]
             Self::Timeout => write!(f, "I/O timed out: no completion within -T; increase -T SECONDS for a slow or heavily queued device"),
             Self::Verification => write!(f, "verification mismatch"),
@@ -239,6 +254,7 @@ impl From<io::Error> for Failure {
 /// WinAio (overlapped I/O) on Windows. Each keeps the queue full, refilling a slot as soon as
 /// its request completes.
 /// What a streamed run needs from its queue. Each backend uses the fields it needs.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub struct StreamCtx<'a> {
     pub fd: i32,
     pub ptr: *mut u8,
@@ -279,6 +295,7 @@ pub struct Queue {
     pub observer: Option<(std::sync::Arc<crate::progress::State>, usize)>,
     timeout: Duration,
     pub submit_errors: u64,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pending: bool,
 }
 // One enum per worker; keep the queue inline instead of allocating another box.
@@ -316,7 +333,11 @@ impl Queue {
         )?;
         let state = match backend {
             #[cfg(windows)]
-            _ => State::Overlapped(overlapped::WinAio::new(if slots.is_empty() { vec![file.try_clone()?] } else { slots })?),
+            _ => State::Overlapped(overlapped::WinAio::new(if slots.is_empty() {
+                vec![file.try_clone()?]
+            } else {
+                slots
+            })?),
             // Linux pagecache and direct I/O both go through the async backends; direct sets O_DIRECT in open().
             #[cfg(target_os = "linux")]
             Backend::Pagecache | Backend::Direct => match default_backend() {
@@ -324,7 +345,9 @@ impl Queue {
                 _ => State::Aio(linux::Aio::new(depth)?),
             },
             #[cfg(all(not(windows), not(target_os = "linux")))]
-            Backend::Pagecache | Backend::Direct => State::Threads(threads::Pool::new(&file, depth)?),
+            Backend::Pagecache | Backend::Direct => {
+                State::Threads(threads::Pool::new(&file, depth)?)
+            }
             #[cfg(target_os = "linux")]
             Backend::Libaio => State::Aio(linux::Aio::new(depth)?),
             #[cfg(target_os = "linux")]
@@ -376,6 +399,7 @@ impl Queue {
     pub(crate) fn take_overlapped_stats(&mut self) -> Option<overlapped::Stats> {
         match self.state.as_mut()? {
             State::Overlapped(port) => Some(port.take_stats()),
+            #[cfg(not(windows))]
             _ => None,
         }
     }
@@ -429,7 +453,9 @@ impl Queue {
             #[cfg(windows)]
             State::Overlapped(port) => port.stream(ctx, next, prepare, complete),
             #[cfg(all(not(windows), not(target_os = "linux")))]
-            State::Threads(_) => Err(io::Error::other("streaming requires an asynchronous backend").into()),
+            State::Threads(_) => {
+                Err(io::Error::other("streaming requires an asynchronous backend").into())
+            }
         }
     }
 
@@ -452,11 +478,20 @@ impl Queue {
         match self.state.as_mut().unwrap() {
             #[cfg(windows)]
             State::Overlapped(port) => {
-                port.execute(&self.file, ptr, stride, &self.requests[..count], observer, |i, r| complete(i, r))?;
+                port.execute(
+                    &self.file,
+                    ptr,
+                    stride,
+                    &self.requests[..count],
+                    observer,
+                    &mut complete,
+                )?;
             }
             #[cfg(all(not(windows), not(target_os = "linux")))]
             State::Threads(pool) => {
-                pool.execute(ptr, stride, &self.requests[..count], observer, |i, r| complete(i, r))?;
+                pool.execute(ptr, stride, &self.requests[..count], observer, |i, r| {
+                    complete(i, r)
+                })?;
             }
             #[cfg(target_os = "linux")]
             State::Aio(aio) => {
@@ -521,7 +556,10 @@ impl Queue {
                         }
                         let expected = self.requests[index].len;
                         if cqe.result() as i64 != expected as i64 && failure.is_none() {
-                            failure = Some(Failure::Incomplete(cqe.result() as i64, expected));
+                            failure = Some(Failure::Incomplete(
+                                cqe.result() as i64,
+                                self.requests[index],
+                            ));
                         }
                         if cqe.result() as i64 == expected as i64 {
                             complete(index, self.requests[index]);
@@ -711,7 +749,7 @@ mod linux {
                     return Err(io::Error::other("completion for a free slot").into());
                 }
                 if cqe.result() as i64 != slot.len as i64 {
-                    return Err(Failure::Incomplete(cqe.result() as i64, slot.len));
+                    return Err(Failure::Incomplete(cqe.result() as i64, *slot));
                 }
                 let request = *slot;
                 slot.state = 0;
@@ -897,7 +935,7 @@ mod linux {
                                 .get(e.data as usize)
                                 .ok_or_else(|| io::Error::other("invalid completion id"))?;
                             if (e.result != r.len as i64 || e.result2 != 0) && failure.is_none() {
-                                failure = Some(Failure::Incomplete(e.result, r.len));
+                                failure = Some(Failure::Incomplete(e.result, *r));
                             }
                             if e.result == r.len as i64 && e.result2 == 0 {
                                 complete(e.data as usize, *r);
@@ -1045,7 +1083,7 @@ mod linux {
                                 return Err(io::Error::other("completion for a free slot").into());
                             }
                             if event.result != slot.len as i64 || event.result2 != 0 {
-                                return Err(Failure::Incomplete(event.result, slot.len));
+                                return Err(Failure::Incomplete(event.result, *slot));
                             }
                             let request = *slot;
                             slot.state = 0;
@@ -1109,16 +1147,48 @@ mod overlapped {
 
     unsafe extern "system" {
         fn SetPriorityClass(process: *mut c_void, class: u32) -> i32;
-        fn NtSetInformationProcess(process: *mut c_void, class: u32, info: *const c_void, length: u32) -> i32;
+        fn NtSetInformationProcess(
+            process: *mut c_void,
+            class: u32,
+            info: *const c_void,
+            length: u32,
+        ) -> i32;
         fn GetCurrentProcess() -> *mut c_void;
         fn GetCurrentProcessId() -> u32;
         fn GetPriorityClass(process: *mut c_void) -> u32;
-        fn GetProcessAffinityMask(process: *mut c_void, process_mask: *mut usize, system_mask: *mut usize) -> i32;
+        fn GetProcessAffinityMask(
+            process: *mut c_void,
+            process_mask: *mut usize,
+            system_mask: *mut usize,
+        ) -> i32;
         fn ProcessIdToSessionId(pid: u32, session: *mut u32) -> i32;
-        fn CreateIoCompletionPort(file: *mut c_void, existing: *mut c_void, key: usize, threads: u32) -> *mut c_void;
-        fn ReadFile(file: *mut c_void, buf: *mut u8, count: u32, read: *mut u32, ov: *mut Ov) -> i32;
-        fn WriteFile(file: *mut c_void, buf: *const u8, count: u32, written: *mut u32, ov: *mut Ov) -> i32;
-        fn GetQueuedCompletionStatus(port: *mut c_void, bytes: *mut u32, key: *mut usize, ov: *mut *mut Ov, timeout: u32) -> i32;
+        fn CreateIoCompletionPort(
+            file: *mut c_void,
+            existing: *mut c_void,
+            key: usize,
+            threads: u32,
+        ) -> *mut c_void;
+        fn ReadFile(
+            file: *mut c_void,
+            buf: *mut u8,
+            count: u32,
+            read: *mut u32,
+            ov: *mut Ov,
+        ) -> i32;
+        fn WriteFile(
+            file: *mut c_void,
+            buf: *const u8,
+            count: u32,
+            written: *mut u32,
+            ov: *mut Ov,
+        ) -> i32;
+        fn GetQueuedCompletionStatus(
+            port: *mut c_void,
+            bytes: *mut u32,
+            key: *mut usize,
+            ov: *mut *mut Ov,
+            timeout: u32,
+        ) -> i32;
         fn CloseHandle(handle: *mut c_void) -> i32;
     }
 
@@ -1162,7 +1232,7 @@ mod overlapped {
             let mut port: *mut c_void = std::ptr::null_mut();
             let mut handles = Vec::with_capacity(files.len());
             for file in &files {
-                let handle = file.as_raw_handle() as *mut c_void;
+                let handle = file.as_raw_handle();
                 // The first association creates the completion port; the others join it.
                 let associated = unsafe { CreateIoCompletionPort(handle, port, 0, 0) };
                 if associated.is_null() {
@@ -1172,10 +1242,19 @@ mod overlapped {
                 handles.push(handle);
             }
             if handles.is_empty() {
-                return Err(io::Error::new(io::ErrorKind::InvalidInput, "overlapped I/O needs at least one slot"));
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "overlapped I/O needs at least one slot",
+                ));
             }
             let depth = handles.len();
-            let zero = Ov { internal: 0, internal_high: 0, offset: 0, offset_high: 0, event: std::ptr::null_mut() };
+            let zero = Ov {
+                internal: 0,
+                internal_high: 0,
+                offset: 0,
+                offset_high: 0,
+                event: std::ptr::null_mut(),
+            };
             Ok(Self {
                 files,
                 handles,
@@ -1186,13 +1265,22 @@ mod overlapped {
                 inflight: vec![None; depth],
                 in_flight: 0,
                 // Reserved up front so the run itself never grows the vector.
-                stats: Stats { latencies_us: Vec::with_capacity(LATENCY_CAPACITY), ..Stats::default() },
+                stats: Stats {
+                    latencies_us: Vec::with_capacity(LATENCY_CAPACITY),
+                    ..Stats::default()
+                },
                 last_change: None,
             })
         }
 
         /// Starts one request on `slot`, using that slot's OVERLAPPED and file handle.
-        fn submit(&mut self, slot: usize, ptr: *mut u8, stride: usize, r: Request) -> Result<(), Failure> {
+        fn submit(
+            &mut self,
+            slot: usize,
+            ptr: *mut u8,
+            stride: usize,
+            r: Request,
+        ) -> Result<(), Failure> {
             let ov = &mut self.ov[slot] as *mut Ov;
             unsafe {
                 (*ov).internal = 0;
@@ -1210,7 +1298,7 @@ mod overlapped {
                     ReadFile(handle, buf, r.len as u32, std::ptr::null_mut(), ov)
                 }
             };
-            if ok == 0 && unsafe { GetLastErrorCode() } != ERROR_IO_PENDING {
+            if ok == 0 && unsafe { get_last_error_code() } != ERROR_IO_PENDING {
                 return Err(Failure::Operation {
                     error: io::Error::last_os_error(),
                     write: r.write,
@@ -1269,11 +1357,19 @@ mod overlapped {
                 let process = GetCurrentProcess();
                 (
                     SetPriorityClass(process, 0x20),
-                    NtSetInformationProcess(process, 33, &io_priority as *const u32 as *const c_void, 4),
+                    NtSetInformationProcess(
+                        process,
+                        33,
+                        &io_priority as *const u32 as *const c_void,
+                        4,
+                    ),
                 )
             };
             if trace {
-                eprintln!("trace priority set_class_ok={} io_priority_status=0x{:x}", class_ok, io_status);
+                eprintln!(
+                    "trace priority set_class_ok={} io_priority_status=0x{:x}",
+                    class_ok, io_status
+                );
             }
             if trace {
                 let (mut session, mut mask, mut system) = (0u32, 0usize, 0usize);
@@ -1297,15 +1393,17 @@ mod overlapped {
             let mut failure: Option<Failure> = None;
             loop {
                 if failure.is_none() && !exhausted {
-                    for slot in 0..slots {
-                        if inflight[slot].is_some() {
+                    for (slot, entry) in inflight.iter_mut().enumerate() {
+                        if entry.is_some() {
                             continue;
                         }
                         let Some(request) = next() else {
                             exhausted = true;
                             break;
                         };
-                        let buffer = unsafe { std::slice::from_raw_parts_mut(ptr.add(slot * stride), request.len) };
+                        let buffer = unsafe {
+                            std::slice::from_raw_parts_mut(ptr.add(slot * stride), request.len)
+                        };
                         prepare(request, buffer);
                         let now = Instant::now();
                         if let Err(e) = self.submit(slot, ptr, stride, request) {
@@ -1314,7 +1412,7 @@ mod overlapped {
                         }
                         self.submitted_at[slot] = Some(now);
                         self.change(now, true);
-                        inflight[slot] = Some(request);
+                        *entry = Some(request);
                         outstanding += 1;
                         if let Some(counter) = observer {
                             counter.submitted(1);
@@ -1327,20 +1425,25 @@ mod overlapped {
                 let mut bytes = 0u32;
                 let mut key = 0usize;
                 let mut done: *mut Ov = std::ptr::null_mut();
-                let ok = unsafe { GetQueuedCompletionStatus(self.port, &mut bytes, &mut key, &mut done, INFINITE) };
+                let ok = unsafe {
+                    GetQueuedCompletionStatus(self.port, &mut bytes, &mut key, &mut done, INFINITE)
+                };
                 if done.is_null() {
                     return Err(Failure::System(io::Error::last_os_error()));
                 }
                 let now = Instant::now();
                 let slot = (done as usize - self.ov.as_ptr() as usize) / std::mem::size_of::<Ov>();
-                let request = inflight[slot].take().expect("completion for a slot with nothing in flight");
+                let request = inflight[slot]
+                    .take()
+                    .expect("completion for a slot with nothing in flight");
                 outstanding -= 1;
                 self.change(now, false);
                 if let Some(counter) = observer {
                     counter.completed(1);
                 }
                 if let Some(start) = self.submitted_at[slot] {
-                    let latency = now.duration_since(start).as_micros().min(u32::MAX as u128) as u32;
+                    let latency =
+                        now.duration_since(start).as_micros().min(u32::MAX as u128) as u32;
                     if trace {
                         eprintln!(
                             "trace t_ms={} slot={} write={} offset={} latency_us={} in_flight={}",
@@ -1364,7 +1467,7 @@ mod overlapped {
                         len: request.len,
                     });
                 } else if bytes as usize != request.len {
-                    failure.get_or_insert(Failure::Incomplete(bytes as i64, request.len));
+                    failure.get_or_insert(Failure::Incomplete(bytes as i64, request));
                 } else if failure.is_none() {
                     complete(request);
                 }
@@ -1406,7 +1509,9 @@ mod overlapped {
                 let mut bytes = 0u32;
                 let mut key = 0usize;
                 let mut done: *mut Ov = std::ptr::null_mut();
-                let ok = unsafe { GetQueuedCompletionStatus(self.port, &mut bytes, &mut key, &mut done, INFINITE) };
+                let ok = unsafe {
+                    GetQueuedCompletionStatus(self.port, &mut bytes, &mut key, &mut done, INFINITE)
+                };
                 if done.is_null() {
                     return Err(Failure::System(io::Error::last_os_error()));
                 }
@@ -1423,7 +1528,7 @@ mod overlapped {
                         len: r.len,
                     });
                 } else if bytes as usize != r.len {
-                    failure.get_or_insert(Failure::Incomplete(bytes as i64, r.len));
+                    failure.get_or_insert(Failure::Incomplete(bytes as i64, r));
                 } else if failure.is_none() {
                     complete(index, r);
                 }
@@ -1452,7 +1557,7 @@ mod overlapped {
         }
     }
 
-    unsafe fn GetLastErrorCode() -> i32 {
+    unsafe fn get_last_error_code() -> i32 {
         io::Error::last_os_error().raw_os_error().unwrap_or(0)
     }
 
@@ -1502,7 +1607,8 @@ mod threads {
                 let done_tx = done_tx.clone();
                 handles.push(std::thread::spawn(move || {
                     for job in rx {
-                        let buf = unsafe { std::slice::from_raw_parts_mut(job.ptr as *mut u8, job.len) };
+                        let buf =
+                            unsafe { std::slice::from_raw_parts_mut(job.ptr as *mut u8, job.len) };
                         let result = if job.write {
                             file.write_at(buf, job.offset)
                         } else {
@@ -1515,7 +1621,11 @@ mod threads {
                 }));
                 jobs.push(tx);
             }
-            Ok(Self { jobs, done, handles })
+            Ok(Self {
+                jobs,
+                done,
+                handles,
+            })
         }
 
         /// Submits the batch to the slot threads and waits for every completion.
@@ -1562,7 +1672,7 @@ mod threads {
                         }
                     }
                     Ok(n) => {
-                        failure.get_or_insert(Failure::Incomplete(n as i64, r.len));
+                        failure.get_or_insert(Failure::Incomplete(n as i64, r));
                     }
                     Err(error) => {
                         failure.get_or_insert(Failure::Operation {
@@ -1593,7 +1703,13 @@ mod threads {
 
 #[cfg(target_os = "linux")]
 impl AsyncStream for linux::Aio {
-    fn stream<N, P, C>(&mut self, ctx: StreamCtx<'_>, next: N, prepare: P, complete: C) -> std::result::Result<(), Failure>
+    fn stream<N, P, C>(
+        &mut self,
+        ctx: StreamCtx<'_>,
+        next: N,
+        prepare: P,
+        complete: C,
+    ) -> std::result::Result<(), Failure>
     where
         N: FnMut() -> Option<Request>,
         P: FnMut(Request, &mut [u8]),
@@ -1618,7 +1734,13 @@ impl AsyncStream for linux::Aio {
 
 #[cfg(target_os = "linux")]
 impl AsyncStream for io_uring::IoUring {
-    fn stream<N, P, C>(&mut self, ctx: StreamCtx<'_>, next: N, prepare: P, complete: C) -> std::result::Result<(), Failure>
+    fn stream<N, P, C>(
+        &mut self,
+        ctx: StreamCtx<'_>,
+        next: N,
+        prepare: P,
+        complete: C,
+    ) -> std::result::Result<(), Failure>
     where
         N: FnMut() -> Option<Request>,
         P: FnMut(Request, &mut [u8]),
