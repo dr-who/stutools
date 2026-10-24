@@ -180,9 +180,10 @@ fn check_live_progress(interval_args: &[&str]) {
     assert_eq!(fields[1], "/", "{line}");
     assert_eq!(fields[2], "1", "{line}");
     assert_eq!(fields[3], "/", "{line}");
+    let in_flight: u64 = fields[4].parse().unwrap();
     assert!(
-        matches!(fields[4], "0" | "1"),
-        "synchronous backend has at most one request in flight: {line}"
+        in_flight <= 8,
+        "queue depth 8 keeps at most 8 requests in flight: {line}"
     );
     let (read, rest) = metrics.split_once(", write ").unwrap();
     let (write, total) = rest.split_once(", total ").unwrap();
