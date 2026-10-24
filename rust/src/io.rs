@@ -27,7 +27,11 @@ pub fn default_backend() -> Backend {
             Backend::Libaio
         }
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(windows)]
+    {
+        Backend::Direct
+    }
+    #[cfg(all(not(windows), not(target_os = "linux")))]
     {
         Backend::Pagecache
     }
