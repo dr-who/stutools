@@ -87,7 +87,7 @@ fn sweeps(dir: &Path) -> Result<()> {
     for kib in QD_BLOCKS_KIB {
         let mut rows = String::new();
         for qd in QUEUE_DEPTHS {
-            let s = point(&file, dir, &format!("ws1 k{kib} q{qd}"), &format!("short-qd-{kib}k-q{qd}"))?;
+            let s = point(&file, dir, &format!("ws1k{kib}q{qd}"), &format!("short-qd-{kib}k-q{qd}"))?;
             if s.writes == 0 {
                 // No completed operations: a missing value, not a rate of zero. Left out of the data.
                 eprintln!("warning: {kib} KiB queue depth {qd} completed no writes; point left out of short-qd-{kib}k.dat");
@@ -105,7 +105,7 @@ fn sweeps(dir: &Path) -> Result<()> {
     let mut read_ops = String::new();
     for kib in BLOCKS_KIB {
         let bytes = kib * 1024;
-        let w = point(&file, dir, &format!("ws1 k{kib} q1"), &format!("short-bs-write-{kib}k"))?;
+        let w = point(&file, dir, &format!("ws1k{kib}q1"), &format!("short-bs-write-{kib}k"))?;
         if w.writes == 0 {
             eprintln!("warning: {kib} KiB write completed no writes; point left out of short-bs-write.dat");
         } else {
@@ -114,7 +114,7 @@ fn sweeps(dir: &Path) -> Result<()> {
         for us in &w.latencies_us {
             write_ops.push_str(&format!("{bytes} {:.3}\n", *us as f64 / 1000.));
         }
-        let r = point(&file, dir, &format!("rs1 k{kib} q1"), &format!("short-bs-read-{kib}k"))?;
+        let r = point(&file, dir, &format!("rs1k{kib}q1"), &format!("short-bs-read-{kib}k"))?;
         read_rows.push_str(&format!("{bytes} {} {} {}\n", mbit(r.read_bytes, r.seconds), mean_ms(&r.latencies_us), max_ms(&r.latencies_us)));
         for us in &r.latencies_us {
             read_ops.push_str(&format!("{bytes} {:.3}\n", *us as f64 / 1000.));
