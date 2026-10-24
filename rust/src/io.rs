@@ -538,6 +538,13 @@ impl Queue {
             State::Overlapped(port) => port.stream(ctx, next, prepare, complete),
             #[cfg(any(target_os = "macos", target_os = "freebsd"))]
             State::PosixAio(aio) => aio.stream(ctx, next, prepare, complete),
+            #[cfg(not(any(
+                windows,
+                target_os = "linux",
+                target_os = "macos",
+                target_os = "freebsd"
+            )))]
+            _ => unreachable!("no asynchronous backend exists on this platform"),
         }
     }
 
@@ -579,6 +586,13 @@ impl Queue {
                     &mut complete,
                 )?;
             }
+            #[cfg(not(any(
+                windows,
+                target_os = "linux",
+                target_os = "macos",
+                target_os = "freebsd"
+            )))]
+            _ => unreachable!("no asynchronous backend exists on this platform"),
             #[cfg(target_os = "linux")]
             State::Aio(aio) => {
                 aio.execute(
