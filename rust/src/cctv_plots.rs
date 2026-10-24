@@ -73,11 +73,16 @@ fn block_label(bytes: usize) -> String {
 }
 
 fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
+    // Camera counts sit at equal spacing: the i-th count is at position i+1 and labelled with the count.
+    let mut counts: Vec<usize> = runs.iter().map(|r| r.count).collect();
+    counts.sort_unstable();
+    counts.dedup();
+    let position = |count: usize| counts.iter().position(|&c| c == count).unwrap_or(0) as f64 + 1.;
     let dots_path = dir.join(format!("cctv-allranges{}.dat", sfx()));
     let mut dots = create(&dots_path)?;
     for run in runs {
         for &(_, us) in run.samples {
-            writeln!(dots, "{} {:.3}", run.count, us as f64 / 1000.)?;
+            writeln!(dots, "{} {:.3}", position(run.count), us as f64 / 1000.)?;
         }
     }
     dots.flush()?;
@@ -86,14 +91,11 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
     let mut rates = create(&rates_path)?;
     for run in runs {
         let mbit = run.samples.len() as f64 * run.block_bytes as f64 * 8. / run.seconds / 1e6;
-        writeln!(rates, "{} {:.1}", run.count, mbit)?;
+        writeln!(rates, "{} {:.1}", position(run.count), mbit)?;
     }
     rates.flush()?;
 
-    let mut counts: Vec<usize> = runs.iter().map(|r| r.count).collect();
-    counts.sort_unstable();
-    counts.dedup();
-    let tics = counts.iter().map(usize::to_string).collect::<Vec<_>>().join(", ");
+    let tics = counts.iter().enumerate().map(|(i, c)| format!("\"{c}\" {}", i + 1)).collect::<Vec<_>>().join(", ");
     let block = block_label(runs[0].block_bytes);
     let png = gnu_path(&dir.join(format!("cctv-allranges{}.png", sfx())));
     // With loss recorded, offered, achieved and dropped Mbit/s per camera count go on y2.
@@ -103,7 +105,7 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
         for run in runs {
             let (offered, achieved, dropped) = run.loss.unwrap();
             let seconds = run.seconds.max(1e-9);
-            writeln!(loss, "{} {:.3} {:.3} {:.3}", run.count, offered / seconds, achieved / seconds, dropped / seconds)?;
+            writeln!(loss, "{} {:.3} {:.3} {:.3}", position(run.count), offered / seconds, achieved / seconds, dropped / seconds)?;
         }
         loss.flush()?;
         (
@@ -117,13 +119,13 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
     };
     let gnu = format!(
         r##"# Per-write CCTV latency against camera count, one dot per write, with achieved Mbit/s on y2.
-# Each dot is moved by a random factor of about +/-4% of its camera count (log axis) so points at the same count do not stack.
+# Each dot is moved by a random offset of up to 0.15 of a column so points at the same count do not stack.
 # Render with:  gnuplot "{gnu}"   (writes the PNG named below)
 set terminal pngcairo size 6400,3600 font "sans,48" background rgb "white"
 set output "{png}"
 set title "spit CCTV write latency vs cameras ({io_mode}, {block} writes, q1 per camera, one dot per write){label_suffix}"
-set xlabel "cameras"
-set logscale x 2
+set xlabel "cameras (equal spacing)"
+set xrange [0.5:{xmax}]
 set ylabel "write latency (ms)"
 set y2label "achieved Mbit/s"
 set logscale y
@@ -134,12 +136,13 @@ set y2tics
 set arrow from graph 0, first {LINE_MS} to graph 1, first {LINE_MS} nohead dt 2 lw 3 lc rgb "#d62728"
 DATA = "{dots}"
 MBPS = "{rates}"
-{loss_def}plot DATA using ($1*(1+0.08*(rand(0)-0.5))):2 axes x1y1 with points pt 7 ps 0.3 lc rgb "#1f77b4" title "write latency (ms)", \
+{loss_def}plot DATA using ($1+0.3*(rand(0)-0.5)):2 axes x1y1 with points pt 7 ps 0.3 lc rgb "#1f77b4" title "write latency (ms)", \
      MBPS using 1:2 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb "#2ca02c" title "achieved Mbit/s"{loss_plot}
 "##,
         label_suffix = label_suffix(),
         loss_def = loss_def,
         loss_plot = loss_plot,
+        xmax = counts.len() as f64 + 0.5,
         gnu = gnu_path(&dir.join(format!("cctv-allranges{}.gnu", sfx()))),
         dots = gnu_path(&dots_path),
         rates = gnu_path(&rates_path),
