@@ -123,6 +123,7 @@ set terminal pngcairo size 6400,3600 font "sans,48" background rgb "white"
 set output "{png}"
 set title "spit CCTV write latency vs cameras ({io_mode}, {block} writes, q1 per camera, one dot per write){label_suffix}"
 set xlabel "cameras"
+set logscale x 2
 set ylabel "write latency (ms)"
 set y2label "achieved Mbit/s"
 set logscale y
