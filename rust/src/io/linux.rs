@@ -1,0 +1,787 @@
+// Linux asynchronous I/O: libaio and io_uring.
+use super::*;
+use crate::cli::Backend;
+use std::{
+    fs::OpenOptions,
+    time::{Duration, Instant},
+};
+pub fn uring_submit(
+    ring: &io_uring::IoUring,
+    observer: Option<&crate::progress::Counter>,
+) -> io::Result<usize> {
+    let submitted = ring.submit()?;
+    if let Some(counter) = observer {
+        counter.submitted(submitted);
+    }
+    Ok(submitted)
+}
+#[allow(clippy::too_many_arguments)]
+pub fn uring_stream<N, P, C>(
+    ring: &mut io_uring::IoUring,
+    fd: i32,
+    ptr: *mut u8,
+    stride: usize,
+    requests: &mut [Request],
+    timeout: Duration,
+    submit_batch: usize,
+    observer: Option<&crate::progress::Counter>,
+    mut next: N,
+    mut prepare: P,
+    mut complete: C,
+) -> std::result::Result<(), Failure>
+where
+    N: FnMut() -> Option<Request>,
+    P: FnMut(Request, &mut [u8]),
+    C: FnMut(Request),
+{
+    use io_uring::{opcode, types};
+    let mut pending = 0;
+    let mut finished = false;
+    let mut progress = Instant::now();
+    loop {
+        let mut direction = None;
+        let mut group = 0;
+        if !finished {
+            for (i, slot) in requests.iter_mut().enumerate() {
+                if slot.state != 0 {
+                    continue;
+                }
+                let Some(mut request) = next() else {
+                    finished = true;
+                    break;
+                };
+                assert!(request.len <= stride);
+                let buffer =
+                    unsafe { std::slice::from_raw_parts_mut(ptr.add(i * stride), request.len) };
+                prepare(request, buffer);
+                if direction.is_some_and(|previous| previous != request.write) {
+                    if uring_submit(ring, observer)? > 0 {
+                        progress = Instant::now();
+                    }
+                    group = 0;
+                }
+                direction = Some(request.write);
+                let entry = if request.write {
+                    opcode::Write::new(types::Fd(fd), buffer.as_ptr(), request.len as u32)
+                        .offset(request.offset)
+                        .build()
+                } else {
+                    opcode::Read::new(types::Fd(fd), buffer.as_mut_ptr(), request.len as u32)
+                        .offset(request.offset)
+                        .build()
+                }
+                .user_data(i as u64);
+                unsafe { ring.submission().push(&entry) }
+                    .map_err(|_| io::Error::other("submission queue full"))?;
+                request.state = 2;
+                *slot = request;
+                pending += 1;
+                group += 1;
+                if group == submit_batch {
+                    if uring_submit(ring, observer)? > 0 {
+                        progress = Instant::now();
+                    }
+                    group = 0;
+                }
+            }
+        }
+        let queued = !ring.submission().is_empty();
+        if queued && uring_submit(ring, observer)? > 0 {
+            progress = Instant::now();
+        }
+        if finished && pending == 0 {
+            return Ok(());
+        }
+        let mut completed = 0;
+        for cqe in ring.completion() {
+            if let Some(counter) = observer {
+                counter.completed(1);
+            }
+            let slot = requests
+                .get_mut(cqe.user_data() as usize)
+                .ok_or_else(|| io::Error::other("invalid completion id"))?;
+            if slot.state != 2 {
+                return Err(io::Error::other("completion for a free slot").into());
+            }
+            if cqe.result() as i64 != slot.len as i64 {
+                return Err(Failure::Incomplete(cqe.result() as i64, *slot));
+            }
+            let request = *slot;
+            slot.state = 0;
+            pending -= 1;
+            completed += 1;
+            complete(request);
+        }
+        if completed > 0 {
+            progress = Instant::now();
+            continue;
+        }
+        if progress.elapsed() > timeout {
+            return Err(Failure::Timeout);
+        }
+        if ring.params().is_feature_ext_arg() {
+            if !ring.submission().is_empty() {
+                if uring_submit(ring, observer)? > 0 {
+                    progress = Instant::now();
+                }
+                continue;
+            }
+            let wait = types::Timespec::from(Duration::from_millis(1));
+            let args = types::SubmitArgs::new().timespec(&wait);
+            if let Err(e) = ring.submitter().submit_with_args(1, &args) {
+                if !matches!(e.raw_os_error(), Some(libc::ETIME) | Some(libc::EINTR)) {
+                    return Err(e.into());
+                }
+            }
+        } else {
+            std::thread::sleep(Duration::from_micros(50));
+        }
+    }
+}
+// Linux libaio ABI (64-bit little endian). Keep layouts covered by size tests.
+#[cfg(not(all(target_pointer_width = "64", target_endian = "little")))]
+compile_error!("libaio backend currently requires 64-bit little-endian Linux");
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+struct Cb {
+    data: u64,
+    key: u32,
+    flags: u32,
+    opcode: u16,
+    priority: i16,
+    fd: i32,
+    buf: u64,
+    len: u64,
+    offset: i64,
+    reserved: u64,
+    options: u32,
+    eventfd: u32,
+}
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+struct Event {
+    data: u64,
+    obj: u64,
+    result: i64,
+    result2: i64,
+}
+#[link(name = "aio")]
+extern "C" {
+    fn io_setup(max: libc::c_int, ctx: *mut usize) -> libc::c_int;
+    fn io_submit(ctx: usize, n: libc::c_long, cbs: *mut *mut Cb) -> libc::c_int;
+    fn io_getevents(
+        ctx: usize,
+        min: libc::c_long,
+        max: libc::c_long,
+        events: *mut Event,
+        timeout: *mut libc::timespec,
+    ) -> libc::c_int;
+    fn io_destroy(ctx: usize) -> libc::c_int;
+}
+pub struct Aio {
+    ctx: usize,
+    cbs: Box<[Cb]>,
+    pointers: Box<[*mut Cb]>,
+    events: Box<[Event]>,
+}
+impl Aio {
+    pub fn new(depth: usize) -> io::Result<Self> {
+        let mut ctx = 0;
+        let ret = unsafe { io_setup(depth as i32, &mut ctx) };
+        if ret < 0 {
+            return Err(io::Error::from_raw_os_error(-ret));
+        }
+        Ok(Self {
+            ctx,
+            cbs: vec![Cb::default(); depth].into_boxed_slice(),
+            pointers: vec![std::ptr::null_mut(); depth].into_boxed_slice(),
+            events: vec![Event::default(); depth].into_boxed_slice(),
+        })
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn execute<C>(
+        &mut self,
+        fd: i32,
+        ptr: *mut u8,
+        stride: usize,
+        requests: &[Request],
+        timeout: Duration,
+        error_limit: u64,
+        errors: &mut u64,
+        submit_batch: usize,
+        observer: Option<&crate::progress::Counter>,
+        mut complete: C,
+    ) -> std::result::Result<(), Failure>
+    where
+        C: FnMut(usize, Request),
+    {
+        for (i, r) in requests.iter().enumerate() {
+            self.cbs[i] = Cb {
+                data: i as u64,
+                fd,
+                opcode: if r.write { 1 } else { 0 },
+                buf: unsafe { ptr.add(i * stride) } as u64,
+                len: r.len as u64,
+                offset: r.offset as i64,
+                ..Cb::default()
+            };
+            self.pointers[i] = &mut self.cbs[i];
+        }
+        let mut submitted = 0;
+        let mut completed = 0;
+        let mut progress = Instant::now();
+        let mut failure = None;
+        while completed < requests.len() {
+            // Fill the available batch before reaping completions. Waiting
+            // after each io_submit silently reduces qDEPTH to submit_batch.
+            while submitted < requests.len() {
+                let direction = requests[submitted].write;
+                let same_direction = requests[submitted..]
+                    .iter()
+                    .take_while(|r| r.write == direction)
+                    .count();
+                let ret = unsafe {
+                    io_submit(
+                        self.ctx,
+                        same_direction.min(submit_batch) as libc::c_long,
+                        self.pointers.as_mut_ptr().add(submitted),
+                    )
+                };
+                if ret > 0 {
+                    if let Some(counter) = observer {
+                        counter.submitted(ret as usize);
+                    }
+                    submitted += ret as usize;
+                    progress = Instant::now();
+                } else if ret == 0 || ret == -libc::EAGAIN || ret == -libc::EINTR {
+                    break;
+                } else if ret < 0 && ret != -libc::EAGAIN && ret != -libc::EINTR {
+                    *errors += 1;
+                    if (error_limit != 0 && *errors >= error_limit) || *errors >= 1024 {
+                        return Err(io::Error::from_raw_os_error(-ret).into());
+                    }
+                }
+            }
+            if completed < submitted {
+                let mut wait = libc::timespec {
+                    tv_sec: 0,
+                    tv_nsec: 1_000_000,
+                };
+                let ret = unsafe {
+                    io_getevents(
+                        self.ctx,
+                        1,
+                        (submitted - completed) as libc::c_long,
+                        self.events.as_mut_ptr(),
+                        &mut wait,
+                    )
+                };
+                if ret < 0 && ret != -libc::EINTR {
+                    return Err(io::Error::from_raw_os_error(-ret).into());
+                }
+                if ret > 0 {
+                    if let Some(counter) = observer {
+                        counter.completed(ret as usize);
+                    }
+                    progress = Instant::now();
+                    for e in &self.events[..ret as usize] {
+                        completed += 1;
+                        let r = requests
+                            .get(e.data as usize)
+                            .ok_or_else(|| io::Error::other("invalid completion id"))?;
+                        if (e.result != r.len as i64 || e.result2 != 0) && failure.is_none() {
+                            failure = Some(Failure::Incomplete(e.result, *r));
+                        }
+                        if e.result == r.len as i64 && e.result2 == 0 {
+                            complete(e.data as usize, *r);
+                        }
+                    }
+                }
+            }
+            if progress.elapsed() > timeout {
+                return Err(Failure::Timeout);
+            }
+        }
+        if let Some(e) = failure {
+            return Err(e);
+        }
+        Ok(())
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn execute_stream<N, P, C>(
+        &mut self,
+        fd: i32,
+        ptr: *mut u8,
+        stride: usize,
+        requests: &mut [Request],
+        timeout: Duration,
+        error_limit: u64,
+        errors: &mut u64,
+        submit_batch: usize,
+        observer: Option<&crate::progress::Counter>,
+        mut next: N,
+        mut prepare: P,
+        mut complete: C,
+    ) -> std::result::Result<(), Failure>
+    where
+        N: FnMut() -> Option<Request>,
+        P: FnMut(Request, &mut [u8]),
+        C: FnMut(Request),
+    {
+        let mut ready = 0;
+        let mut head = 0;
+        let mut pending = 0;
+        let mut finished = false;
+        let mut progress = Instant::now();
+        loop {
+            if head == ready {
+                ready = 0;
+                head = 0;
+                if !finished {
+                    for (i, slot) in requests.iter_mut().enumerate() {
+                        if slot.state != 0 {
+                            continue;
+                        }
+                        let Some(mut request) = next() else {
+                            finished = true;
+                            break;
+                        };
+                        assert!(request.len <= stride);
+                        // A free slot has no kernel-owned buffer. Prepare it
+                        // before publishing its stable control-block pointer.
+                        let buffer = unsafe {
+                            std::slice::from_raw_parts_mut(ptr.add(i * stride), request.len)
+                        };
+                        prepare(request, buffer);
+                        request.state = 1;
+                        *slot = request;
+                        self.cbs[i] = Cb {
+                            data: i as u64,
+                            fd,
+                            opcode: if request.write { 1 } else { 0 },
+                            buf: unsafe { ptr.add(i * stride) } as u64,
+                            len: request.len as u64,
+                            offset: request.offset as i64,
+                            ..Cb::default()
+                        };
+                        self.pointers[ready] = &mut self.cbs[i];
+                        ready += 1;
+                    }
+                }
+            }
+            while head < ready {
+                let direction = unsafe { (*self.pointers[head]).opcode };
+                let mut count = 1;
+                while head + count < ready
+                    && count < submit_batch
+                    && unsafe { (*self.pointers[head + count]).opcode } == direction
+                {
+                    count += 1;
+                }
+                let ret = unsafe {
+                    io_submit(
+                        self.ctx,
+                        count as libc::c_long,
+                        self.pointers.as_mut_ptr().add(head),
+                    )
+                };
+                if ret > 0 {
+                    if let Some(counter) = observer {
+                        counter.submitted(ret as usize);
+                    }
+                    for pointer in &self.pointers[head..head + ret as usize] {
+                        let index = unsafe { (**pointer).data as usize };
+                        requests[index].state = 2;
+                    }
+                    head += ret as usize;
+                    pending += ret as usize;
+                    progress = Instant::now();
+                } else if ret == 0 || ret == -libc::EAGAIN || ret == -libc::EINTR {
+                    break;
+                } else {
+                    *errors += 1;
+                    if (error_limit != 0 && *errors >= error_limit) || *errors >= 1024 {
+                        return Err(io::Error::from_raw_os_error(-ret).into());
+                    }
+                }
+            }
+            if finished && pending == 0 && head == ready {
+                return Ok(());
+            }
+            if pending != 0 {
+                let mut wait = libc::timespec {
+                    tv_sec: 0,
+                    tv_nsec: 1_000_000,
+                };
+                let ret = unsafe {
+                    io_getevents(
+                        self.ctx,
+                        1,
+                        pending as libc::c_long,
+                        self.events.as_mut_ptr(),
+                        &mut wait,
+                    )
+                };
+                if ret < 0 && ret != -libc::EINTR {
+                    return Err(io::Error::from_raw_os_error(-ret).into());
+                }
+                if ret > 0 {
+                    if let Some(counter) = observer {
+                        counter.completed(ret as usize);
+                    }
+                    progress = Instant::now();
+                    for event in &self.events[..ret as usize] {
+                        let slot = requests
+                            .get_mut(event.data as usize)
+                            .ok_or_else(|| io::Error::other("invalid completion id"))?;
+                        if slot.state != 2 {
+                            return Err(io::Error::other("completion for a free slot").into());
+                        }
+                        if event.result != slot.len as i64 || event.result2 != 0 {
+                            return Err(Failure::Incomplete(event.result, *slot));
+                        }
+                        let request = *slot;
+                        slot.state = 0;
+                        pending -= 1;
+                        complete(request);
+                    }
+                }
+            } else if head < ready {
+                std::thread::sleep(Duration::from_micros(50));
+            }
+            if progress.elapsed() > timeout {
+                return Err(Failure::Timeout);
+            }
+        }
+    }
+    pub fn close(&mut self) -> bool {
+        if self.ctx == 0 {
+            return true;
+        }
+        let ret = unsafe { io_destroy(self.ctx) };
+        if ret == 0 {
+            self.ctx = 0;
+            true
+        } else {
+            false
+        }
+    }
+}
+impl AsyncStream for linux::Aio {
+    fn stream<N, P, C>(
+        &mut self,
+        ctx: StreamCtx<'_>,
+        next: N,
+        prepare: P,
+        complete: C,
+    ) -> std::result::Result<(), Failure>
+    where
+        N: FnMut() -> Option<Request>,
+        P: FnMut(Request, &mut [u8]),
+        C: FnMut(Request),
+    {
+        self.execute_stream(
+            ctx.fd,
+            ctx.ptr,
+            ctx.stride,
+            ctx.requests,
+            ctx.timeout,
+            ctx.error_limit,
+            ctx.errors,
+            ctx.submit_batch,
+            ctx.observer,
+            next,
+            prepare,
+            complete,
+        )
+    }
+}
+
+impl AsyncStream for io_uring::IoUring {
+    fn stream<N, P, C>(
+        &mut self,
+        ctx: StreamCtx<'_>,
+        next: N,
+        prepare: P,
+        complete: C,
+    ) -> std::result::Result<(), Failure>
+    where
+        N: FnMut() -> Option<Request>,
+        P: FnMut(Request, &mut [u8]),
+        C: FnMut(Request),
+    {
+        linux::uring_stream(
+            self,
+            ctx.fd,
+            ctx.ptr,
+            ctx.stride,
+            ctx.requests,
+            ctx.timeout,
+            ctx.submit_batch,
+            ctx.observer,
+            next,
+            prepare,
+            complete,
+        )
+    }
+}
+
+/// Linux: libaio, or io_uring where the kernel offers it, for pagecache and direct I/O.
+pub struct Native {
+    engine: Engine,
+    /// io_uring has submissions the kernel may still own; `close` must not free their buffers.
+    pending: bool,
+}
+
+#[allow(clippy::large_enum_variant)]
+enum Engine {
+    Aio(Aio),
+    Uring(io_uring::IoUring),
+}
+
+impl Native {
+    pub fn new(
+        _file: &File,
+        backend: Backend,
+        depth: usize,
+        _slots: Vec<File>,
+    ) -> io::Result<Self> {
+        let engine = match backend {
+            Backend::Libaio => Engine::Aio(Aio::new(depth)?),
+            Backend::Uring => Engine::Uring(io_uring::IoUring::new(depth as u32)?),
+            Backend::Pagecache | Backend::Direct => match Self::default_backend() {
+                Backend::Uring => Engine::Uring(io_uring::IoUring::new(depth as u32)?),
+                _ => Engine::Aio(Aio::new(depth)?),
+            },
+        };
+        Ok(Self {
+            engine,
+            pending: false,
+        })
+    }
+}
+
+impl Native {
+    /// Probes io_uring once, so the default is what this kernel accepts (seccomp and permissions included).
+    pub fn default_backend() -> Backend {
+        if io_uring::IoUring::new(2).is_ok() {
+            Backend::Uring
+        } else {
+            Backend::Libaio
+        }
+    }
+
+    pub fn configure_open(
+        o: &mut OpenOptions,
+        path: &std::path::Path,
+        backend: Backend,
+    ) -> io::Result<()> {
+        use std::os::unix::fs::OpenOptionsExt;
+        if backend != Backend::Pagecache && super::is_direct_target(path) {
+            o.custom_flags(libc::O_DIRECT);
+        }
+        Ok(())
+    }
+
+    pub fn after_open(_file: &File, _path: &std::path::Path, _backend: Backend) -> io::Result<()> {
+        Ok(())
+    }
+
+    pub fn open_slots(
+        _path: &std::path::Path,
+        _write: bool,
+        _backend: Backend,
+        _depth: usize,
+    ) -> io::Result<Vec<File>> {
+        Ok(Vec::new())
+    }
+
+    pub fn check_target(_path: &std::path::Path, _write: bool) -> crate::Result<()> {
+        Ok(())
+    }
+}
+
+impl AsyncIo for Native {
+    fn stream<N, P, C>(
+        &mut self,
+        ctx: StreamCtx<'_>,
+        next: N,
+        prepare: P,
+        complete: C,
+    ) -> std::result::Result<(), Failure>
+    where
+        N: FnMut() -> Option<Request>,
+        P: FnMut(Request, &mut [u8]),
+        C: FnMut(Request),
+    {
+        match &mut self.engine {
+            Engine::Aio(aio) => aio.stream(ctx, next, prepare, complete),
+            Engine::Uring(ring) => {
+                self.pending = true;
+                let result = ring.stream(ctx, next, prepare, complete);
+                if result.is_ok() {
+                    self.pending = false;
+                }
+                result
+            }
+        }
+    }
+
+    fn execute<C>(&mut self, ctx: StreamCtx<'_>, complete: C) -> std::result::Result<(), Failure>
+    where
+        C: FnMut(usize, Request),
+    {
+        match &mut self.engine {
+            Engine::Aio(aio) => aio.execute(
+                ctx.fd,
+                ctx.ptr,
+                ctx.stride,
+                ctx.requests,
+                ctx.timeout,
+                ctx.error_limit,
+                ctx.errors,
+                ctx.submit_batch,
+                ctx.observer,
+                complete,
+            ),
+            Engine::Uring(ring) => uring_batch(ring, &mut self.pending, ctx, complete),
+        }
+    }
+
+    fn close(self) -> bool {
+        match self.engine {
+            Engine::Aio(mut aio) => {
+                if aio.close() {
+                    return true;
+                }
+                // The kernel may still own the request memory, so the descriptor is never freed here.
+                std::mem::forget(aio);
+                false
+            }
+            // Close the ring first. A ring with submissions in flight may still reference buffers.
+            Engine::Uring(ring) => {
+                drop(ring);
+                !self.pending
+            }
+        }
+    }
+}
+
+/// io_uring batch: queues every request in order, then waits until all of them have completed.
+fn uring_batch<C>(
+    ring: &mut io_uring::IoUring,
+    pending: &mut bool,
+    ctx: StreamCtx<'_>,
+    mut complete: C,
+) -> std::result::Result<(), Failure>
+where
+    C: FnMut(usize, Request),
+{
+    use io_uring::{opcode, types};
+    let StreamCtx {
+        fd,
+        ptr,
+        stride,
+        requests,
+        timeout,
+        submit_batch,
+        observer,
+        ..
+    } = ctx;
+    let count = requests.len();
+    *pending = true;
+    let mut direction = None;
+    for (i, r) in requests[..count].iter().enumerate() {
+        // Keep the requested order, but do not ask the Linux block
+        // plug to dispatch both directions in a single submission.
+        if direction.is_some_and(|previous| previous != r.write) {
+            linux::uring_submit(ring, observer)?;
+        }
+        direction = Some(r.write);
+        let buf = unsafe { ptr.add(i * stride) };
+        let entry = if r.write {
+            opcode::Write::new(types::Fd(fd), buf, r.len as u32)
+                .offset(r.offset)
+                .build()
+        } else {
+            opcode::Read::new(types::Fd(fd), buf, r.len as u32)
+                .offset(r.offset)
+                .build()
+        }
+        .user_data(i as u64);
+        unsafe { ring.submission().push(&entry) }
+            .map_err(|_| io::Error::other("submission queue full"))?;
+        if (i + 1) % submit_batch == 0 {
+            linux::uring_submit(ring, observer)?;
+        }
+    }
+    let mut done = 0;
+    let mut progress = Instant::now();
+    let mut failure = None;
+    // Nonblocking submission plus bounded polling gives every backend the same
+    // stall timeout; a stalled device must not trap an uninterruptible wait.
+    linux::uring_submit(ring, observer)?;
+    while done < count {
+        let before = done;
+        for cqe in ring.completion() {
+            if let Some(counter) = observer {
+                counter.completed(1);
+            }
+            done += 1;
+            let index = cqe.user_data() as usize;
+            if index >= count {
+                return Err(io::Error::other("invalid completion id").into());
+            }
+            let expected = requests[index].len;
+            if cqe.result() as i64 != expected as i64 && failure.is_none() {
+                failure = Some(Failure::Incomplete(cqe.result() as i64, requests[index]));
+            }
+            if cqe.result() as i64 == expected as i64 {
+                complete(index, requests[index]);
+            }
+        }
+        if done > before {
+            progress = Instant::now();
+        } else {
+            if progress.elapsed() > timeout {
+                return Err(Failure::Timeout);
+            }
+            if ring.params().is_feature_ext_arg() {
+                let timeout = io_uring::types::Timespec::from(Duration::from_millis(1));
+                let args = io_uring::types::SubmitArgs::new().timespec(&timeout);
+                // Submit through the accounting path before waiting.
+                if !ring.submission().is_empty() {
+                    linux::uring_submit(ring, observer)?;
+                    continue;
+                }
+                if let Err(e) = ring.submitter().submit_with_args(1, &args) {
+                    if !matches!(e.raw_os_error(), Some(libc::ETIME) | Some(libc::EINTR)) {
+                        return Err(e.into());
+                    }
+                }
+            } else {
+                std::thread::sleep(Duration::from_micros(50));
+            }
+        }
+        // Retry SQEs not accepted by a partial submit.
+        if !ring.submission().is_empty() {
+            linux::uring_submit(ring, observer)?;
+        }
+    }
+    *pending = false;
+    if let Some(e) = failure {
+        return Err(e);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn abi() {
+        assert_eq!(std::mem::size_of::<Cb>(), 64);
+        assert_eq!(std::mem::size_of::<Event>(), 32);
+        assert_eq!(std::mem::size_of::<Request>(), 24);
+    }
+}

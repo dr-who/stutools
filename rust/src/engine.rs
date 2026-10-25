@@ -702,20 +702,18 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
     // On Linux loop devices, continuously refilling pure-direction io_uring
     // queues creates block-dispatch contention at high worker counts. Keep
     // those submissions in bounded batches; mixed I/O benefits from refill.
-    let streamed = (cfg!(target_os = "linux")
+    // Verify, flush, alternate, rate and duty need the batch loop: they check, sync, switch or pace
+    // whole batches. Everything else streams where the platform's backend can.
+    let batch_only = p.verify
+        || p.work.flush
+        || p.work.alternate
+        || p.work.rate.is_some()
+        || p.work.duty.is_some();
+    let platform_streams = (cfg!(target_os = "linux")
         && !p.record_latency
-        && (p.backend == Backend::Libaio || (p.backend == Backend::Uring && mixed))
-        && !p.verify
-        && !p.work.flush
-        && !p.work.alternate
-        && p.work.rate.is_none()
-        && p.work.duty.is_none())
-        || (cfg!(any(windows, target_os = "macos", target_os = "freebsd"))
-            && !p.verify
-            && !p.work.flush
-            && !p.work.alternate
-            && p.work.rate.is_none()
-            && p.work.duty.is_none());
+        && (p.backend == Backend::Libaio || (p.backend == Backend::Uring && mixed)))
+        || cfg!(any(windows, target_os = "macos", target_os = "freebsd"));
+    let streamed = platform_streams && !batch_only;
     #[cfg(any(
         target_os = "linux",
         windows,
