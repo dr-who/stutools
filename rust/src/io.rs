@@ -61,7 +61,9 @@ pub fn open(
 ) -> io::Result<File> {
     let mut o = OpenOptions::new();
     o.read(true).write(write).create_new(create);
-    #[cfg(target_os = "linux")]
+    #[cfg(target_os = "freebsd")]
+    use std::os::unix::fs::OpenOptionsExt;
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     if backend != Backend::Pagecache {
         use std::os::unix::fs::FileTypeExt;
         let direct = std::fs::metadata(path)
@@ -83,7 +85,12 @@ pub fn open(
         }
         o.custom_flags(flags);
     }
-    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "freebsd",
+        windows
+    )))]
     if backend != Backend::Pagecache {
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,
