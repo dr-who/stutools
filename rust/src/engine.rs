@@ -7,7 +7,7 @@ use crate::{
 use std::{
     fs::File,
     io::{BufRead, BufReader},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Barrier, OnceLock,
@@ -220,6 +220,37 @@ pub struct Summary {
 pub fn run(c: Config) -> Result<Summary> {
     let records = loaded(&c)?;
     let specs = target_specs(&c);
+    let budget = memory_budget(&c, &specs, &records)?;
+    let checked = check_targets(&c, specs, &records)?;
+    let table_capacity = table_capacity(&c, &budget, records.len())?;
+    let (plans, labels) = build_plans(&c, checked, &records, table_capacity)?;
+    let position_bytes = plans
+        .iter()
+        .map(|p| p.position_capacity as u64 * std::mem::size_of::<Request>() as u64)
+        .sum::<u64>();
+    println!(
+        "backend={} workers={} fixed_pool_bytes={} memory_budget={}",
+        c.backend.name(),
+        plans.len(),
+        budget.pool_bytes + position_bytes,
+        c.memory
+    );
+    println!(
+        "using {:.3} GiB RAM for positions",
+        position_bytes as f64 / 1073741824.
+    );
+    let outcomes = execute_plans(plans, c.interval)?;
+    let (total, error) = aggregate(outcomes, &labels)?;
+    report(&c, total, error)
+}
+
+/// Memory the fixed I/O pools need, before any position tables are sized.
+struct Budget {
+    pool_bytes: u64,
+    worker_count: usize,
+}
+
+fn memory_budget(c: &Config, specs: &[Target], records: &[Request]) -> Result<Budget> {
     let max_loaded = records.iter().map(|r| r.len).max().unwrap_or(0);
     let worker_count = specs.iter().map(|t| t.jobs.len()).sum::<usize>();
     let pool_bytes = specs
@@ -241,171 +272,215 @@ pub fn run(c: Config) -> Result<Summary> {
             "I/O pools and minimum position tables",
         ));
     }
-    // Validate every target and range before creating, resizing or writing any file.
-    let mut targets = Vec::new();
-    for target in specs {
-        let path = &target.path;
-        let write = if records.is_empty() {
-            target
-                .jobs
-                .iter()
-                .any(|(w, _)| w.read_probability < 1. || w.alternate)
-        } else {
-            records.iter().any(|r| r.write)
-        } || c.precondition.is_some();
-        io::validate_target(path, write)?;
-        let existing = match File::open(path) {
-            Ok(f) => Some(f),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(e) => return Err(format!("open target for size/range validation {}: {e}; check that the path exists and your account has read access (raw Windows volumes require Administrator)", path.display())),
-        };
-        let info = existing
-            .as_ref()
-            .map(|f| io::inspect(path, f))
-            .transpose()?;
-        let actual = info.as_ref().and_then(|i| i.length);
-        let regular = info.as_ref().is_none_or(|i| i.regular);
-        let sector = info.as_ref().and_then(|i| i.sector);
-        if existing.is_none() && !write {
-            return Err(format!("read target does not exist: {}; -F is a file prefix and reads require initialized PREFIX.0001, PREFIX.0002, ... files. Create disposable test files first with the same -F PREFIX, -G SIZE and j worker count using -c ws1x1, then read with -c rs0. Writes overwrite data; choose a new test prefix", path.display()));
-        }
-        let (lo, hi) = c
-            .range
-            .or_else(|| actual.map(|n| (0, n)))
-            .ok_or("new/unsized targets need -G")?;
-        if lo >= hi {
-            return Err("empty range".into());
-        }
-        if actual.is_some_and(|n| hi > n) && !(regular && write && c.recreate) {
-            return Err(
-                "refusing I/O: range exceeds target size; writable regular files require --recreate to enlarge"
-                    .into(),
-            );
-        }
-        if let Some(pre) = &c.precondition {
-            let (start, end) = worker_range(pre, 0, lo, hi, false)?;
-            if pre.workers != 1
-                || pre.max_block as u64 > end - start
-                || (c.backend != Backend::Pagecache
-                    && (start % 512 != 0 || pre.block % 512 != 0 || pre.max_block % 512 != 0))
-            {
-                return Err("invalid preconditioning block/range".into());
-            }
-            let required = (((pre.max_block as u64 + 4095) & !4095) + 128)
-                .checked_mul(pre.depth as u64)
-                .ok_or("preconditioning memory overflow")?;
-            if required + std::mem::size_of::<Request>() as u64 > c.memory {
-                return Err("preconditioning exceeds memory budget".into());
-            }
-        }
-        for (w, index) in &target.jobs {
-            let (start, end) = worker_range(w, *index, lo, hi, !records.is_empty())?;
-            if let Some(sector) = sector {
-                if start % sector as u64 != 0
-                    || w.block % sector != 0
-                    || w.max_block % sector != 0
-                    || records
-                        .iter()
-                        .any(|r| r.offset % sector as u64 != 0 || r.len % sector != 0)
-                {
-                    return Err(format!("{}: raw Windows I/O requires offsets and lengths in multiples of {sector} bytes; worker start={start}, block={}, maximum block={}; adjust -G, k/M or -S positions", path.display(), w.block, w.max_block));
-                }
-            }
-            let count = if records.is_empty() {
-                w.positions.unwrap_or((end - start) / w.block as u64)
-            } else {
-                records.len() as u64
-            };
-            let count = count
-                .checked_mul(if w.verify { 2 } else { 1 })
-                .ok_or("operation limit overflow")?;
-            if w.passes.is_some_and(|n| n.checked_mul(count).is_none())
-                || w.range_passes
-                    .is_some_and(|n| n.checked_mul(end - start).is_none())
-            {
-                return Err("operation limit overflow".into());
-            }
-            if records.is_empty() && end - start < w.max_block as u64 {
-                return Err("block is larger than worker range".into());
-            }
-            if c.backend != Backend::Pagecache
-                && (start % 512 != 0 || (w.block % 512 != 0 || w.max_block % 512 != 0))
-            {
-                return Err("direct I/O requires sector-aligned offsets and lengths".into());
-            }
-            for r in records.iter() {
-                if r.offset < start
-                    || r.offset
-                        .checked_add(r.len as u64)
-                        .filter(|position_end| *position_end <= end)
-                        .is_none()
-                {
-                    return Err("loaded position outside range".into());
-                }
-                if c.backend != Backend::Pagecache && (r.offset % 512 != 0 || r.len % 512 != 0) {
-                    return Err("unaligned loaded position".into());
-                }
-            }
-        }
-        targets.push((target, lo, hi, existing.is_none(), actual, regular, write));
+    Ok(Budget {
+        pool_bytes,
+        worker_count,
+    })
+}
+
+/// Validates every target and range before any file is created, resized or written.
+fn check_targets(c: &Config, specs: Vec<Target>, records: &[Request]) -> Result<Vec<Checked>> {
+    specs
+        .into_iter()
+        .map(|target| check_target(c, target, records))
+        .collect()
+}
+
+/// A target that passed validation, with the byte range the run may use.
+struct Checked {
+    target: Target,
+    lo: u64,
+    hi: u64,
+    create: bool,
+    actual: Option<u64>,
+    regular: bool,
+    write: bool,
+}
+
+fn check_target(c: &Config, target: Target, records: &[Request]) -> Result<Checked> {
+    let path = &target.path;
+    let write = if records.is_empty() {
+        target
+            .jobs
+            .iter()
+            .any(|(w, _)| w.read_probability < 1. || w.alternate)
+    } else {
+        records.iter().any(|r| r.write)
+    } || c.precondition.is_some();
+    io::validate_target(path, write)?;
+    let existing = match File::open(path) {
+        Ok(f) => Some(f),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => return Err(format!("open target for size/range validation {}: {e}; check that the path exists and your account has read access (raw Windows volumes require Administrator)", path.display())),
+    };
+    let info = existing
+        .as_ref()
+        .map(|f| io::inspect(path, f))
+        .transpose()?;
+    let actual = info.as_ref().and_then(|i| i.length);
+    let regular = info.as_ref().is_none_or(|i| i.regular);
+    let sector = info.as_ref().and_then(|i| i.sector);
+    if existing.is_none() && !write {
+        return Err(format!("read target does not exist: {}; -F is a file prefix and reads require initialized PREFIX.0001, PREFIX.0002, ... files. Create disposable test files first with the same -F PREFIX, -G SIZE and j worker count using -c ws1x1, then read with -c rs0. Writes overwrite data; choose a new test prefix", path.display()));
     }
-    let table_capacity = ((c.memory - pool_bytes)
-        / worker_count as u64
+    let (lo, hi) = c
+        .range
+        .or_else(|| actual.map(|n| (0, n)))
+        .ok_or("new/unsized targets need -G")?;
+    if lo >= hi {
+        return Err("empty range".into());
+    }
+    if actual.is_some_and(|n| hi > n) && !(regular && write && c.recreate) {
+        return Err(
+            "refusing I/O: range exceeds target size; writable regular files require --recreate to enlarge"
+                .into(),
+        );
+    }
+    if let Some(pre) = &c.precondition {
+        check_precondition(pre, lo, hi, c.memory, c.backend)?;
+    }
+    for (w, index) in &target.jobs {
+        check_job(path, sector, w, *index, lo, hi, records, c.backend)?;
+    }
+    Ok(Checked {
+        target,
+        lo,
+        hi,
+        create: existing.is_none(),
+        actual,
+        regular,
+        write,
+    })
+}
+
+fn check_precondition(
+    pre: &Workload,
+    lo: u64,
+    hi: u64,
+    memory: u64,
+    backend: Backend,
+) -> Result<()> {
+    let (start, end) = worker_range(pre, 0, lo, hi, false)?;
+    if pre.workers != 1
+        || pre.max_block as u64 > end - start
+        || (backend != Backend::Pagecache
+            && (start % 512 != 0 || pre.block % 512 != 0 || pre.max_block % 512 != 0))
+    {
+        return Err("invalid preconditioning block/range".into());
+    }
+    let required = (((pre.max_block as u64 + 4095) & !4095) + 128)
+        .checked_mul(pre.depth as u64)
+        .ok_or("preconditioning memory overflow")?;
+    if required + std::mem::size_of::<Request>() as u64 > memory {
+        return Err("preconditioning exceeds memory budget".into());
+    }
+    Ok(())
+}
+
+/// Checks one worker's range, alignment and operation limits against its target.
+#[allow(clippy::too_many_arguments)]
+fn check_job(
+    path: &Path,
+    sector: Option<usize>,
+    w: &Workload,
+    index: usize,
+    lo: u64,
+    hi: u64,
+    records: &[Request],
+    backend: Backend,
+) -> Result<()> {
+    let (start, end) = worker_range(w, index, lo, hi, !records.is_empty())?;
+    if let Some(sector) = sector {
+        if start % sector as u64 != 0
+            || w.block % sector != 0
+            || w.max_block % sector != 0
+            || records
+                .iter()
+                .any(|r| r.offset % sector as u64 != 0 || r.len % sector != 0)
+        {
+            return Err(format!("{}: raw Windows I/O requires offsets and lengths in multiples of {sector} bytes; worker start={start}, block={}, maximum block={}; adjust -G, k/M or -S positions", path.display(), w.block, w.max_block));
+        }
+    }
+    let count = if records.is_empty() {
+        w.positions.unwrap_or((end - start) / w.block as u64)
+    } else {
+        records.len() as u64
+    };
+    let count = count
+        .checked_mul(if w.verify { 2 } else { 1 })
+        .ok_or("operation limit overflow")?;
+    if w.passes.is_some_and(|n| n.checked_mul(count).is_none())
+        || w.range_passes
+            .is_some_and(|n| n.checked_mul(end - start).is_none())
+    {
+        return Err("operation limit overflow".into());
+    }
+    if records.is_empty() && end - start < w.max_block as u64 {
+        return Err("block is larger than worker range".into());
+    }
+    if backend != Backend::Pagecache
+        && (start % 512 != 0 || (w.block % 512 != 0 || w.max_block % 512 != 0))
+    {
+        return Err("direct I/O requires sector-aligned offsets and lengths".into());
+    }
+    for r in records.iter() {
+        if r.offset < start
+            || r.offset
+                .checked_add(r.len as u64)
+                .filter(|position_end| *position_end <= end)
+                .is_none()
+        {
+            return Err("loaded position outside range".into());
+        }
+        if backend != Backend::Pagecache && (r.offset % 512 != 0 || r.len % 512 != 0) {
+            return Err("unaligned loaded position".into());
+        }
+    }
+    Ok(())
+}
+
+/// Position tables get whatever memory the pools leave, split evenly between workers.
+fn table_capacity(c: &Config, budget: &Budget, record_count: usize) -> Result<usize> {
+    let table_capacity = ((c.memory - budget.pool_bytes)
+        / budget.worker_count as u64
         / std::mem::size_of::<Request>() as u64) as usize;
     if table_capacity == 0 {
         return Err("no memory left for fixed position tables".into());
     }
-    if records.len() > table_capacity
+    if record_count > table_capacity
         || c.jobs
             .iter()
             .any(|w| w.positions.is_some_and(|n| n > table_capacity as u64))
     {
         return Err("requested positions exceed fixed memory budget".into());
     }
+    Ok(table_capacity)
+}
+
+/// Opens each validated target, runs any preconditioning, and makes one plan per worker.
+fn build_plans(
+    c: &Config,
+    checked: Vec<Checked>,
+    records: &Arc<[Request]>,
+    table_capacity: usize,
+) -> Result<(Vec<Plan>, Vec<PathBuf>)> {
+    let max_loaded = records.iter().map(|r| r.len).max().unwrap_or(0);
     let mut plans = Vec::new();
     let mut labels = Vec::new();
-    for (target, lo, hi, create, actual, regular, write) in targets {
+    for Checked {
+        target,
+        lo,
+        hi,
+        create,
+        actual,
+        regular,
+        write,
+    } in checked
+    {
         let path = &target.path;
-        let file = io::open(path, write, create, c.backend).map_err(|e| {
-            format!(
-                "open {} target {}: {e}",
-                if write { "read/write" } else { "read-only" },
-                path.display()
-            )
-        })?;
-        if regular && (create || actual.is_some_and(|n| hi > n)) {
-            file.set_len(hi).map_err(|e| {
-                format!("set file length to {hi} bytes for {}: {e}", path.display())
-            })?;
-        }
+        let file = open_target(c, path, write, create, actual, regular, hi)?;
         if let Some(pre) = &c.precondition {
-            let (start, end) = worker_range(pre, 0, lo, hi, false)?;
-            let plan = Plan {
-                record_latency: c.latency_out.is_some(),
-                file: file.try_clone().map_err(|e| e.to_string())?,
-                slots: io::open_slots(path, write, c.backend, pre.depth)
-                    .map_err(|e| e.to_string())?,
-                work: pre.clone(),
-                lo: start,
-                hi: end,
-                loaded: Arc::from([]),
-                seed: pre.seed.unwrap_or(c.seed),
-                backend: c.backend,
-                timeout: c.timeout,
-                duration: None,
-                verify: c.verify,
-                errors: c.errors,
-                max_len: pre.max_block,
-                position_capacity: ((c.memory
-                    - ((((pre.max_block as u64 + 4095) & !4095) + 128) * pre.depth as u64))
-                    / std::mem::size_of::<Request>() as u64)
-                    .min((end - start) / pre.block as u64)
-                    as usize,
-            };
-            let out = worker(plan, Arc::new(StartGate::new(1)), 0);
-            if let Some(e) = out.error {
-                return Err(format!("precondition {}: {e}", path.display()));
-            }
+            run_precondition(c, pre, &file, path, write, lo, hi)?;
         }
         for (w, index) in &target.jobs {
             let (start, end) = worker_range(w, *index, lo, hi, !records.is_empty())?;
@@ -436,21 +511,76 @@ pub fn run(c: Config) -> Result<Summary> {
             });
         }
     }
-    let position_bytes = plans
-        .iter()
-        .map(|p| p.position_capacity as u64 * std::mem::size_of::<Request>() as u64)
-        .sum::<u64>();
-    println!(
-        "backend={} workers={} fixed_pool_bytes={} memory_budget={}",
-        c.backend.name(),
-        plans.len(),
-        pool_bytes + position_bytes,
-        c.memory
-    );
-    println!(
-        "using {:.3} GiB RAM for positions",
-        position_bytes as f64 / 1073741824.
-    );
+    Ok((plans, labels))
+}
+
+/// Opens the target read-only or read/write, and sizes it to the range the run may touch.
+fn open_target(
+    c: &Config,
+    path: &Path,
+    write: bool,
+    create: bool,
+    actual: Option<u64>,
+    regular: bool,
+    hi: u64,
+) -> Result<File> {
+    let file = io::open(path, write, create, c.backend).map_err(|e| {
+        format!(
+            "open {} target {}: {e}",
+            if write { "read/write" } else { "read-only" },
+            path.display()
+        )
+    })?;
+    if regular && (create || actual.is_some_and(|n| hi > n)) {
+        file.set_len(hi)
+            .map_err(|e| format!("set file length to {hi} bytes for {}: {e}", path.display()))?;
+    }
+    Ok(file)
+}
+
+/// Runs the preconditioning workload over the target before the measured workers start.
+fn run_precondition(
+    c: &Config,
+    pre: &Workload,
+    file: &File,
+    path: &Path,
+    write: bool,
+    lo: u64,
+    hi: u64,
+) -> Result<()> {
+    let (start, end) = worker_range(pre, 0, lo, hi, false)?;
+    let plan = Plan {
+        record_latency: c.latency_out.is_some(),
+        file: file.try_clone().map_err(|e| e.to_string())?,
+        slots: io::open_slots(path, write, c.backend, pre.depth).map_err(|e| e.to_string())?,
+        work: pre.clone(),
+        lo: start,
+        hi: end,
+        loaded: Arc::from([]),
+        seed: pre.seed.unwrap_or(c.seed),
+        backend: c.backend,
+        timeout: c.timeout,
+        duration: None,
+        verify: c.verify,
+        errors: c.errors,
+        max_len: pre.max_block,
+        position_capacity: ((c.memory
+            - ((((pre.max_block as u64 + 4095) & !4095) + 128) * pre.depth as u64))
+            / std::mem::size_of::<Request>() as u64)
+            .min((end - start) / pre.block as u64) as usize,
+    };
+    let out = worker(plan, Arc::new(StartGate::new(1)), 0);
+    if let Some(e) = out.error {
+        return Err(format!("precondition {}: {e}", path.display()));
+    }
+    Ok(())
+}
+
+/// Runs every plan on its own blocking task, started together behind one gate.
+fn execute_plans(
+    plans: Vec<Plan>,
+    interval: f64,
+) -> Result<Vec<std::result::Result<Outcome, tokio::task::JoinError>>> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .max_blocking_threads(plans.len())
         .build()
@@ -458,9 +588,9 @@ pub fn run(c: Config) -> Result<Summary> {
     let report_duration = plans.iter().try_fold(0f64, |longest, plan| {
         work_duration(&plan.work, plan.duration).map(|duration| longest.max(duration))
     });
-    let reporter = if c.interval > 0. {
+    let reporter = if interval > 0. {
         Some(
-            crate::progress::Reporter::new(plans.len(), c.interval, report_duration)
+            crate::progress::Reporter::new(plans.len(), interval, report_duration)
                 .map_err(|e| e.to_string())?,
         )
     } else {
@@ -484,6 +614,14 @@ pub fn run(c: Config) -> Result<Summary> {
         outcomes
     });
     drop(reporter);
+    Ok(outcomes)
+}
+
+/// Merges every worker's counters into one total. The first worker error is returned with the total.
+fn aggregate(
+    outcomes: Vec<std::result::Result<Outcome, tokio::task::JoinError>>,
+    labels: &[PathBuf],
+) -> Result<(Stats, Option<String>)> {
     let mut total = Stats::default();
     let mut error = None;
     for (index, result) in outcomes.into_iter().enumerate() {
@@ -517,6 +655,11 @@ pub fn run(c: Config) -> Result<Summary> {
             error = Some("I/O cleanup failed; buffers retained".into());
         }
     }
+    Ok((total, error))
+}
+
+/// Prints the summary lines, applies the pass/fail checks, and writes the latency file.
+fn report(c: &Config, total: Stats, mut error: Option<String>) -> Result<Summary> {
     let seconds = total.seconds.max(1e-9);
     let late =
         (total.completed_reads + total.completed_writes).saturating_sub(total.reads + total.writes);
