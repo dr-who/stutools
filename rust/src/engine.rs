@@ -752,19 +752,97 @@ fn check_pattern(
     }
 }
 fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
-    let mixed = if p.loaded.is_empty() {
-        p.work.read_probability > 0. && p.work.read_probability < 1.
-    } else {
-        p.loaded.iter().any(|r| r.write) && p.loaded.iter().any(|r| !r.write)
+    let prepared = Run::prepare(p);
+    if prepared.is_err() {
+        barrier.failed.store(true, Ordering::Release);
+    }
+    barrier.ready.wait();
+    let mut run = match prepared {
+        Err(error) => return Outcome::failed(error),
+        Ok(run) if barrier.failed.load(Ordering::Acquire) => {
+            drop(run);
+            return Outcome::stopped();
+        }
+        Ok(run) => run,
     };
-    let reusable = !p.work.alternate
-        && !p.work.unique
-        && p.work.block == p.work.max_block
-        && p.loaded.is_empty()
-        && p.work.read_probability == 0.
-        && p.work.block % 4096 == 0
-        && p.lo % 4096 == 0;
-    let prepared: std::result::Result<_, Failure> = (|| {
+    run.begin(&barrier, worker_index);
+    let guard = allocation::Guard::start();
+    if run.streamed {
+        run.stream();
+    } else {
+        run.batches();
+    }
+    run.finish(guard)
+}
+
+/// One worker's measured run: its queue and position generator, the limits it runs under, and
+/// what it has measured so far.
+struct Run {
+    queue: Queue,
+    generated: crate::positions::Positions,
+    template: [u8; 4096],
+    work: Workload,
+    seed: u64,
+    reusable: bool,
+    verify: bool,
+    errors: u64,
+    record_latency: bool,
+    duration: Option<f64>,
+    limit: Option<u64>,
+    byte_limit: Option<u64>,
+    streamed: bool,
+    start: Instant,
+    progress: Option<(Arc<crate::progress::State>, usize)>,
+    stats: Stats,
+    error: Option<Failure>,
+    index: u64,
+}
+
+/// The progress counter a worker publishes to, if the run reports progress.
+fn counter(
+    progress: &Option<(Arc<crate::progress::State>, usize)>,
+) -> Option<&crate::progress::Counter> {
+    progress
+        .as_ref()
+        .map(|(state, index)| state.counter(*index))
+}
+
+impl Outcome {
+    /// The worker could not open its queue or generator.
+    fn failed(error: Failure) -> Self {
+        Self {
+            stats: Stats::default(),
+            error: Some(error),
+            retained: false,
+        }
+    }
+
+    /// Another worker failed before the start gate opened, so this one measured nothing.
+    fn stopped() -> Self {
+        Self {
+            stats: Stats::default(),
+            error: None,
+            retained: false,
+        }
+    }
+}
+
+impl Run {
+    /// Builds the queue and position generator. This runs before the start gate, so a failure here
+    /// tells the other workers to stop instead of waiting for them.
+    fn prepare(p: Plan) -> std::result::Result<Self, Failure> {
+        let mixed = if p.loaded.is_empty() {
+            p.work.read_probability > 0. && p.work.read_probability < 1.
+        } else {
+            p.loaded.iter().any(|r| r.write) && p.loaded.iter().any(|r| !r.write)
+        };
+        let reusable = !p.work.alternate
+            && !p.work.unique
+            && p.work.block == p.work.max_block
+            && p.loaded.is_empty()
+            && p.work.read_probability == 0.
+            && p.work.block % 4096 == 0
+            && p.lo % 4096 == 0;
         let mut queue = Queue::new(
             p.file,
             p.backend,
@@ -792,290 +870,360 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
         // Restore this fixed payload after a mixed-workload read overwrites a slot.
         let mut template = [0; 4096];
         pattern::fill(&mut template, 0, p.seed);
-        Ok((queue, generated, template))
-    })();
-    if prepared.is_err() {
-        barrier.failed.store(true, Ordering::Release);
+        let limit = match (
+            p.work.passes.and_then(|n| n.checked_mul(generated.len())),
+            p.work.operation_limit,
+        ) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        let byte_limit = p.work.range_passes.map(|n| n * (p.hi - p.lo));
+        let duration = work_duration(&p.work, p.duration);
+        // Verify, flush, alternate, rate and duty need the batch loop: they check, sync, switch or pace
+        // whole batches. Everything else streams where the platform's backend can.
+        let batch_only = p.verify
+            || p.work.flush
+            || p.work.alternate
+            || p.work.rate.is_some()
+            || p.work.duty.is_some();
+        // On Linux loop devices, continuously refilling pure-direction io_uring queues creates
+        // block-dispatch contention at high worker counts, so those stay in bounded batches.
+        let platform_streams = (cfg!(target_os = "linux")
+            && !p.record_latency
+            && (p.backend == Backend::Libaio || (p.backend == Backend::Uring && mixed)))
+            || cfg!(any(windows, target_os = "macos", target_os = "freebsd"));
+        Ok(Self {
+            queue,
+            generated,
+            template,
+            work: p.work,
+            seed: p.seed,
+            reusable,
+            verify: p.verify,
+            errors: p.errors,
+            record_latency: p.record_latency,
+            duration,
+            limit,
+            byte_limit,
+            streamed: platform_streams && !batch_only,
+            start: Instant::now(),
+            progress: None,
+            stats: Stats::default(),
+            error: None,
+            index: 0,
+        })
     }
-    barrier.ready.wait();
-    let (mut q, mut generated, template) = match prepared {
-        Err(error) => {
-            return Outcome {
-                stats: Stats::default(),
-                error: Some(error),
-                retained: false,
-            }
+
+    /// Starts the measured run: the shared clock, progress reporting and latency storage.
+    fn begin(&mut self, barrier: &StartGate, worker_index: usize) {
+        self.start = *barrier.start.get_or_init(Instant::now);
+        self.progress = barrier
+            .progress
+            .as_ref()
+            .map(|state| (state.clone(), worker_index));
+        if let Some(state) = &barrier.progress {
+            state.start.get_or_init(|| self.start);
         }
-        Ok(resources) if barrier.failed.load(Ordering::Acquire) => {
-            drop(resources);
-            return Outcome {
-                stats: Stats::default(),
-                error: None,
-                retained: false,
-            };
+        self.queue.observer = self.progress.clone();
+        if self.record_latency {
+            self.stats.latencies_us = Vec::with_capacity(LATENCY_CAPACITY);
         }
-        Ok(resources) => resources,
-    };
-    let start = *barrier.start.get_or_init(Instant::now);
-    let progress = barrier.progress.as_ref().map(|state| {
-        state.start.get_or_init(|| start);
-        state.counter(worker_index)
-    });
-    q.observer = barrier
-        .progress
-        .as_ref()
-        .map(|state| (state.clone(), worker_index));
-    let mut stats = Stats::default();
-    if p.record_latency {
-        stats.latencies_us = Vec::with_capacity(LATENCY_CAPACITY);
     }
-    let guard = allocation::Guard::start();
-    let mut error = None;
-    let positions = generated.len();
-    let limit = match (
-        p.work.passes.and_then(|n| n.checked_mul(positions)),
-        p.work.operation_limit,
-    ) {
-        (Some(a), Some(b)) => Some(a.min(b)),
-        (a, b) => a.or(b),
-    };
-    let byte_limit = p.work.range_passes.map(|n| n * (p.hi - p.lo));
-    let duration = work_duration(&p.work, p.duration);
-    let mut index = 0u64;
-    // On Linux loop devices, continuously refilling pure-direction io_uring
-    // queues creates block-dispatch contention at high worker counts. Keep
-    // those submissions in bounded batches; mixed I/O benefits from refill.
-    // Verify, flush, alternate, rate and duty need the batch loop: they check, sync, switch or pace
-    // whole batches. Everything else streams where the platform's backend can.
-    let batch_only = p.verify
-        || p.work.flush
-        || p.work.alternate
-        || p.work.rate.is_some()
-        || p.work.duty.is_some();
-    let platform_streams = (cfg!(target_os = "linux")
-        && !p.record_latency
-        && (p.backend == Backend::Libaio || (p.backend == Backend::Uring && mixed)))
-        || cfg!(any(windows, target_os = "macos", target_os = "freebsd"));
-    let streamed = platform_streams && !batch_only;
-    #[cfg(any(
-        target_os = "linux",
-        windows,
-        target_os = "macos",
-        target_os = "freebsd"
-    ))]
-    if streamed {
+
+    fn out_of_work(&self) -> bool {
+        self.limit.is_some_and(|n| self.index >= n)
+            || self
+                .byte_limit
+                .is_some_and(|n| self.stats.read_bytes + self.stats.write_bytes >= n)
+            || self
+                .duration
+                .is_some_and(|s| self.start.elapsed().as_secs_f64() >= s)
+    }
+
+    /// Keeps the queue full through the backend's own refill loop.
+    fn stream(&mut self) {
         let mut queued_bytes = 0u64;
-        let result = q.execute_stream(
+        let result = self.queue.execute_stream(
             || {
-                if limit.is_some_and(|n| index >= n)
-                    || byte_limit.is_some_and(|n| queued_bytes >= n)
-                    || duration.is_some_and(|s| start.elapsed().as_secs_f64() >= s)
+                if self.limit.is_some_and(|n| self.index >= n)
+                    || self.byte_limit.is_some_and(|n| queued_bytes >= n)
+                    || self
+                        .duration
+                        .is_some_and(|s| self.start.elapsed().as_secs_f64() >= s)
                 {
                     return None;
                 }
-                let request = generated.get(index);
-                index += 1;
+                let request = self.generated.get(self.index);
+                self.index += 1;
                 queued_bytes += request.len as u64;
                 Some(request)
             },
             |request, buffer| {
                 if request.write {
-                    write_pattern(buffer, request, &p.work, p.seed, reusable, &template);
+                    write_pattern(
+                        buffer,
+                        request,
+                        &self.work,
+                        self.seed,
+                        self.reusable,
+                        &self.template,
+                    );
                 }
             },
             |request| {
-                let measured =
-                    duration.is_none_or(|seconds| start.elapsed().as_secs_f64() < seconds);
-                stats.complete(request, measured);
-                stats.publish(progress);
+                let measured = self
+                    .duration
+                    .is_none_or(|seconds| self.start.elapsed().as_secs_f64() < seconds);
+                self.stats.complete(request, measured);
+                self.stats.publish(counter(&self.progress));
             },
-            p.errors,
+            self.errors,
         );
         if let Err(e) = result {
-            error = Some(e);
+            self.error = Some(e);
         }
-        if let Some(port) = q.take_stream_stats() {
-            stats.inflight_max = port.max_in_flight;
-            stats.inflight_area_ns = port.area_ns;
-            stats.inflight_time_ns = port.time_ns;
-            if p.record_latency {
-                stats.latencies_us.extend(port.latencies_us);
+        if let Some(port) = self.queue.take_stream_stats() {
+            self.stats.inflight_max = port.max_in_flight;
+            self.stats.inflight_area_ns = port.area_ns;
+            self.stats.inflight_time_ns = port.time_ns;
+            if self.record_latency {
+                self.stats.latencies_us.extend(port.latencies_us);
             }
         }
     }
-    if !streamed {
+
+    /// Submits one batch at a time and waits for it, honouring rate and duty pacing.
+    fn batches(&mut self) {
         loop {
-            if limit.is_some_and(|n| index >= n)
-                || byte_limit.is_some_and(|n| stats.read_bytes + stats.write_bytes >= n)
-                || duration.is_some_and(|s| start.elapsed().as_secs_f64() >= s)
-            {
+            if self.out_of_work() {
                 break;
             }
-            let elapsed = start.elapsed().as_secs_f64();
-            let rate_wait = p
-                .work
-                .rate
-                .map_or(0., |rate| index as f64 / rate - elapsed)
-                .max(0.);
-            let duty_wait = p.work.duty.map_or(0., |(on, off)| {
-                let phase = elapsed % (on + off);
-                if phase >= on {
-                    on + off - phase
-                } else {
-                    0.
-                }
-            });
-            let wait = rate_wait.max(duty_wait);
+            let elapsed = self.start.elapsed().as_secs_f64();
+            let wait = self.pacing_wait(elapsed);
             if wait > 0. {
-                let wait = duration.map_or(wait, |d| wait.min((d - elapsed).max(0.)));
+                let wait = self
+                    .duration
+                    .map_or(wait, |d| wait.min((d - elapsed).max(0.)));
                 std::thread::sleep(std::time::Duration::from_secs_f64(wait.min(60.)));
                 continue;
             }
-            let effective_depth = if p.work.rate.is_some() {
+            let effective_depth = if self.work.rate.is_some() {
                 1
             } else {
-                p.work.depth
+                self.work.depth
             };
-            let batch_limit = limit.map_or(effective_depth, |n| {
-                (n - index).min(effective_depth as u64) as usize
+            let batch_limit = self.limit.map_or(effective_depth, |n| {
+                (n - self.index).min(effective_depth as u64) as usize
             });
-            let batch_limit = batch_limit.min(generated.phase_remaining(index) as usize);
-            let mut count = 0;
-            let mut batch_bytes = 0u64;
-            for i in 0..batch_limit {
-                if byte_limit
-                    .is_some_and(|n| stats.read_bytes + stats.write_bytes + batch_bytes >= n)
-                {
-                    break;
-                }
-                let request = generated.get(index + i as u64);
-                count += 1;
-                batch_bytes += request.len as u64;
-                q.requests[i] = request;
-                if request.write {
-                    write_pattern(q.buffer(i), request, &p.work, p.seed, reusable, &template);
-                }
-            }
+            let batch_limit = batch_limit.min(self.generated.phase_remaining(self.index) as usize);
+            let count = self.fill_batch(batch_limit);
             let batch_started = Instant::now();
-            let result = q.execute(count, p.errors, |i, r| {
-                if r.write && p.work.verify {
-                    generated.written(index + i as u64);
+            let result = self.queue.execute(count, self.errors, |i, r| {
+                if r.write && self.work.verify {
+                    self.generated.written(self.index + i as u64);
                 }
-                let measured =
-                    duration.is_none_or(|seconds| start.elapsed().as_secs_f64() < seconds);
+                let measured = self
+                    .duration
+                    .is_none_or(|seconds| self.start.elapsed().as_secs_f64() < seconds);
                 if measured
-                    && p.record_latency
-                    && stats.latencies_us.len() < stats.latencies_us.capacity()
+                    && self.record_latency
+                    && self.stats.latencies_us.len() < self.stats.latencies_us.capacity()
                 {
-                    stats
+                    self.stats
                         .latencies_us
                         .push(batch_started.elapsed().as_micros() as u32);
                 }
-                stats.complete(r, measured);
-                stats.publish(progress);
+                self.stats.complete(r, measured);
+                self.stats.publish(counter(&self.progress));
             });
             if let Err(e) = result {
-                error = Some(e);
+                self.error = Some(e);
                 break;
             }
-            stats.publish(progress);
-            if p.work.flush && q.requests[..count].iter().any(|r| r.write) {
-                if let Err(e) = q.flush() {
-                    error = Some(e.into());
+            self.stats.publish(counter(&self.progress));
+            if self.work.flush && self.queue.requests[..count].iter().any(|r| r.write) {
+                if let Err(e) = self.queue.flush() {
+                    self.error = Some(e.into());
                     break;
                 }
             }
-            for i in 0..count {
-                let request = q.requests[i];
-                if request.verify && !request.write {
-                    if !check_pattern(q.buffer(i), request, &p.work, p.seed, &template) {
-                        error = Some(Failure::Verification);
-                        break;
-                    }
-                    generated.checked(index + i as u64);
-                    stats.verified += 1;
-                }
-            }
-            if error.is_some() {
+            self.verify_reads(count);
+            if self.error.is_some() {
                 break;
             }
-            if p.verify && !p.work.verify {
-                // Reuse the pool for verification, compacting only writes into its front.
-                let mut n = 0;
-                for i in 0..count {
-                    let r = q.requests[i];
-                    if r.write {
-                        q.requests[n] = Request { write: false, ..r };
-                        n += 1;
-                    }
-                }
-                if n > 0 {
-                    if let Err(e) = q.execute(n, p.errors, |_, _| {}) {
-                        error = Some(e);
-                        break;
-                    }
-                    for i in 0..n {
-                        let r = q.requests[i];
-                        if !check_pattern(q.buffer(i), r, &p.work, p.seed, &template) {
-                            error = Some(Failure::Verification);
-                            break;
-                        }
-                        stats.verified += 1;
-                    }
-                }
-            }
-            if error.is_some() {
+            self.verify_compacted_writes(count);
+            if self.error.is_some() {
                 break;
             }
-            index += count as u64;
+            self.index += count as u64;
         }
     }
-    let elapsed = start.elapsed().as_secs_f64();
-    stats.seconds = duration.map_or(elapsed, |seconds| elapsed.min(seconds));
-    // A time/byte/operation limit may end between a write and its scheduled
-    // metadata read. Complete those checks outside the workload counters.
-    if p.work.verify && error.is_none() {
+
+    /// Seconds to sleep before the next batch so rate and duty limits are respected.
+    fn pacing_wait(&self, elapsed: f64) -> f64 {
+        let rate_wait = self
+            .work
+            .rate
+            .map_or(0., |rate| self.index as f64 / rate - elapsed)
+            .max(0.);
+        let duty_wait = self.work.duty.map_or(0., |(on, off)| {
+            let phase = elapsed % (on + off);
+            if phase >= on {
+                on + off - phase
+            } else {
+                0.
+            }
+        });
+        rate_wait.max(duty_wait)
+    }
+
+    /// Fills the first `limit` queue slots with the next requests and their payloads. Returns how many.
+    fn fill_batch(&mut self, limit: usize) -> usize {
+        let mut count = 0;
+        let mut batch_bytes = 0u64;
+        for i in 0..limit {
+            if self
+                .byte_limit
+                .is_some_and(|n| self.stats.read_bytes + self.stats.write_bytes + batch_bytes >= n)
+            {
+                break;
+            }
+            let request = self.generated.get(self.index + i as u64);
+            count += 1;
+            batch_bytes += request.len as u64;
+            self.queue.requests[i] = request;
+            if request.write {
+                write_pattern(
+                    self.queue.buffer(i),
+                    request,
+                    &self.work,
+                    self.seed,
+                    self.reusable,
+                    &self.template,
+                );
+            }
+        }
+        count
+    }
+
+    /// Checks the reads that were scheduled for verification in this batch.
+    fn verify_reads(&mut self, count: usize) {
+        for i in 0..count {
+            let request = self.queue.requests[i];
+            if request.verify && !request.write {
+                if !check_pattern(
+                    self.queue.buffer(i),
+                    request,
+                    &self.work,
+                    self.seed,
+                    &self.template,
+                ) {
+                    self.error = Some(Failure::Verification);
+                    return;
+                }
+                self.generated.checked(self.index + i as u64);
+                self.stats.verified += 1;
+            }
+        }
+    }
+
+    /// With `--verify` on a write-only workload, reads back the batch's writes using the same pool.
+    fn verify_compacted_writes(&mut self, count: usize) {
+        if !self.verify || self.work.verify {
+            return;
+        }
+        // Reuse the pool for verification, compacting only writes into its front.
+        let mut n = 0;
+        for i in 0..count {
+            let r = self.queue.requests[i];
+            if r.write {
+                self.queue.requests[n] = Request { write: false, ..r };
+                n += 1;
+            }
+        }
+        if n == 0 {
+            return;
+        }
+        if let Err(e) = self.queue.execute(n, self.errors, |_, _| {}) {
+            self.error = Some(e);
+            return;
+        }
+        for i in 0..n {
+            let r = self.queue.requests[i];
+            if !check_pattern(
+                self.queue.buffer(i),
+                r,
+                &self.work,
+                self.seed,
+                &self.template,
+            ) {
+                self.error = Some(Failure::Verification);
+                return;
+            }
+            self.stats.verified += 1;
+        }
+    }
+
+    /// Reads back the writes whose metadata check was still pending when the limit ended the run.
+    fn verify_pending(&mut self) {
         let mut cursor = 0;
         loop {
             let mut count = 0;
-            while count < p.work.depth {
-                let Some(request) = generated.take_pending_check(&mut cursor) else {
+            while count < self.work.depth {
+                let Some(request) = self.generated.take_pending_check(&mut cursor) else {
                     break;
                 };
-                q.requests[count] = request;
+                self.queue.requests[count] = request;
                 count += 1;
             }
             if count == 0 {
                 break;
             }
-            if let Err(e) = q.execute(count, p.errors, |_, _| {}) {
-                error = Some(e);
-                break;
+            if let Err(e) = self.queue.execute(count, self.errors, |_, _| {}) {
+                self.error = Some(e);
+                return;
             }
             for i in 0..count {
-                let request = q.requests[i];
-                if !check_pattern(q.buffer(i), request, &p.work, p.seed, &template) {
-                    error = Some(Failure::Verification);
-                    break;
+                let request = self.queue.requests[i];
+                if !check_pattern(
+                    self.queue.buffer(i),
+                    request,
+                    &self.work,
+                    self.seed,
+                    &self.template,
+                ) {
+                    self.error = Some(Failure::Verification);
+                    return;
                 }
-                stats.verified += 1;
-            }
-            if error.is_some() {
-                break;
+                self.stats.verified += 1;
             }
         }
     }
-    stats.publish(progress);
-    stats.allocations = guard.count();
-    stats.submit_errors = q.submit_errors;
-    drop(guard);
-    if let Some(counter) = progress {
-        counter.finish();
-    }
-    let retained = !q.close();
-    Outcome {
-        stats,
-        error,
-        retained,
+
+    /// Closes the queue and returns what was measured. `guard` covers everything after the start
+    /// gate, so the allocation count includes the pending checks.
+    fn finish(mut self, guard: allocation::Guard) -> Outcome {
+        let elapsed = self.start.elapsed().as_secs_f64();
+        self.stats.seconds = self
+            .duration
+            .map_or(elapsed, |seconds| elapsed.min(seconds));
+        // A time/byte/operation limit may end between a write and its scheduled
+        // metadata read. Complete those checks outside the workload counters.
+        if self.work.verify && self.error.is_none() {
+            self.verify_pending();
+        }
+        self.stats.publish(counter(&self.progress));
+        self.stats.allocations = guard.count();
+        self.stats.submit_errors = self.queue.submit_errors;
+        drop(guard);
+        if let Some(counter) = counter(&self.progress) {
+            counter.finish();
+        }
+        let retained = !self.queue.close();
+        Outcome {
+            stats: self.stats,
+            error: self.error,
+            retained,
+        }
     }
 }
