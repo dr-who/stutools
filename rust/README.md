@@ -165,6 +165,6 @@ The package is named `stutools` and supplies `/usr/bin/spit`. The C package is
 Linux make/CMake defaults also use `/usr`; override PREFIX or CMAKE_INSTALL_PREFIX
 only when you deliberately want another installation location. macOS installers
 use `/usr/local`, since macOS reserves `/usr/bin` for the operating system.
-FreeBSD needs `pkg install rust`; OpenBSD needs `pkg_add rust`. Both build with
-`cargo build --release --locked` and use buffered positional I/O. CI builds and
-tests Rust and the portable C file backend in FreeBSD 15.1 and OpenBSD 7.9 VMs.
+FreeBSD needs `pkg install rust`. It builds with `cargo build --release --locked`
+and uses POSIX AIO. CI builds and tests Rust and the portable C file backend in a
+FreeBSD 15.1 VM.

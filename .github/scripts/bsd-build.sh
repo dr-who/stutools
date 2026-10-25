@@ -4,8 +4,7 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 case "$(uname -s)" in
     FreeBSD) system=freebsd ;;
-    OpenBSD) system=openbsd; ulimit -d unlimited ;;
-    *) echo 'Run this script inside FreeBSD or OpenBSD.' >&2; exit 2 ;;
+    *) echo 'Run this script inside FreeBSD.' >&2; exit 2 ;;
 esac
 version=$(awk -F '"' '/^version =/ {print $2; exit}' "$root/rust/Cargo.toml")
 work=$(mktemp -d /tmp/stutools-bsd.XXXXXXXX)
