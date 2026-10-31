@@ -296,12 +296,8 @@ fn wait_for_exit(mut child: Child, limit: Duration) -> Output {
 
 #[cfg(unix)]
 fn interrupt(child: &Child) {
-    let status = Command::new("kill")
-        .arg("-INT")
-        .arg(child.id().to_string())
-        .status()
-        .unwrap();
-    assert!(status.success());
+    let pid = libc::pid_t::try_from(child.id()).unwrap();
+    assert_eq!(unsafe { libc::kill(pid, libc::SIGINT) }, 0);
 }
 
 #[cfg(unix)]
