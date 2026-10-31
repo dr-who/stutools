@@ -218,6 +218,8 @@ pub struct Summary {
 }
 
 pub fn run(c: Config) -> Result<Summary> {
+    // Installed first, so Ctrl-C during setup still stops the run and prints the report.
+    let _signals = crate::signals::Guard::install().map_err(|e| e.to_string())?;
     let records = loaded(&c)?;
     let specs = target_specs(&c);
     let budget = memory_budget(&c, &specs, &records)?;
@@ -661,6 +663,9 @@ fn aggregate(
 /// Prints the summary lines, applies the pass/fail checks, and writes the latency file.
 fn report(c: &Config, total: Stats, mut error: Option<String>) -> Result<Summary> {
     let seconds = total.seconds.max(1e-9);
+    if crate::signals::INTERRUPTED.load(Ordering::Relaxed) {
+        eprintln!("*info* interrupted by Ctrl-C; results cover the I/O completed so far");
+    }
     let late =
         (total.completed_reads + total.completed_writes).saturating_sub(total.reads + total.writes);
     if late > 0 && total.reads + total.writes == 0 {
@@ -831,11 +836,6 @@ impl Run {
     /// Builds the queue and position generator. This runs before the start gate, so a failure here
     /// tells the other workers to stop instead of waiting for them.
     fn prepare(p: Plan) -> std::result::Result<Self, Failure> {
-        let mixed = if p.loaded.is_empty() {
-            p.work.read_probability > 0. && p.work.read_probability < 1.
-        } else {
-            p.loaded.iter().any(|r| r.write) && p.loaded.iter().any(|r| !r.write)
-        };
         let reusable = !p.work.alternate
             && !p.work.unique
             && p.work.block == p.work.max_block
@@ -890,7 +890,7 @@ impl Run {
         // block-dispatch contention at high worker counts, so those stay in bounded batches.
         let platform_streams = (cfg!(target_os = "linux")
             && !p.record_latency
-            && (p.backend == Backend::Libaio || (p.backend == Backend::Uring && mixed)))
+            && (p.backend == Backend::Libaio || p.backend == Backend::Uring))
             || cfg!(any(windows, target_os = "macos", target_os = "freebsd"));
         Ok(Self {
             queue,
@@ -931,7 +931,8 @@ impl Run {
     }
 
     fn out_of_work(&self) -> bool {
-        self.limit.is_some_and(|n| self.index >= n)
+        crate::signals::INTERRUPTED.load(Ordering::Relaxed)
+            || self.limit.is_some_and(|n| self.index >= n)
             || self
                 .byte_limit
                 .is_some_and(|n| self.stats.read_bytes + self.stats.write_bytes >= n)
@@ -945,7 +946,8 @@ impl Run {
         let mut queued_bytes = 0u64;
         let result = self.queue.execute_stream(
             || {
-                if self.limit.is_some_and(|n| self.index >= n)
+                if crate::signals::INTERRUPTED.load(Ordering::Relaxed)
+                    || self.limit.is_some_and(|n| self.index >= n)
                     || self.byte_limit.is_some_and(|n| queued_bytes >= n)
                     || self
                         .duration

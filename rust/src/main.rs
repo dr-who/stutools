@@ -4,14 +4,18 @@ static ALLOCATOR: allocation::Audited = allocation::Audited;
 mod cctv;
 mod cctv_plots;
 mod cctv_test;
+mod checked_close;
 mod cli;
 mod engine;
+mod fsfiller;
 mod info;
 mod io;
 mod memory;
 mod pattern;
 mod positions;
 mod progress;
+mod rate;
+mod signals;
 fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if let Some(pos) = args.iter().position(|a| a == "--cctv-test") {
@@ -45,7 +49,9 @@ fn main() {
     }
     let result = cli::parse(args).and_then(|config| {
         if let Some(config) = config {
-            if config.cameras.is_some() {
+            if let Some(settings) = config.fsfiller {
+                fsfiller::run(settings)
+            } else if config.cameras.is_some() {
                 cctv::run(config)
             } else {
                 engine::run(config).map(|_| ())

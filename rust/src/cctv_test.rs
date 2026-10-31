@@ -229,8 +229,8 @@ fn point(file: &str, dir: &Path, workload: &str, tag: &str) -> Result<engine::Su
 /// A console stop (Ctrl+C, window close, shutdown) ends the test with an error, so the exit code
 /// and the log both say so instead of the run just stopping.
 fn interrupted() -> Result<()> {
-    if crate::cctv::signals::INTERRUPTED.load(std::sync::atomic::Ordering::Relaxed) {
-        let kind = crate::cctv::signals::SIGNAL.load(std::sync::atomic::Ordering::Relaxed);
+    if crate::signals::INTERRUPTED.load(std::sync::atomic::Ordering::Relaxed) {
+        let kind = crate::signals::SIGNAL.load(std::sync::atomic::Ordering::Relaxed);
         return Err(format!(
             "stopped by console signal {kind} (0 Ctrl+C, 1 Ctrl+Break, 2 window close, 6 shutdown)"
         ));
