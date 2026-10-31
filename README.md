@@ -28,19 +28,10 @@ suite lives on as **spitc**, alongside fsfiller and the other utilities.
 
 ## Download and install
 
-Get [2.0.0 downloads](https://github.com/dr-who/stutools/releases/tag/v2.0.0).
-No compiler is required. Choose the package built for your operating system:
-
-| System | Download |
-|---|---|
-| Debian 12 and compatible newer systems | `stutools_*+debian12_amd64.deb` |
-| Ubuntu 24.04 / Linux Mint 22 | `stutools_*+ubuntu24.04_amd64.deb` |
-| RHEL / Rocky 9 | `stutools-*.el9.x86_64.rpm` |
-| Fedora 44 | `stutools-*.fc44.x86_64.rpm` |
-| macOS, Apple silicon or Intel | universal `.pkg` installer, or architecture-specific `.tar.gz` |
-| Windows x64 | `spit-2.0.0-windows-x86_64.exe`, or the portable `.zip` |
-
-[Installation instructions and checksums](rust/INSTALL.md) explain each option.
+The 2.0.0 release is not yet published on the
+[GitHub releases page](https://github.com/dr-who/stutools/releases), so build
+from source until it is. The packages it will provide, for Debian, Ubuntu, RHEL,
+Fedora, macOS and Windows, are described in [the installation guide](rust/INSTALL.md).
 Linux `stutools` installs Rust as `/usr/bin/spit`; the optional `stutools-c`
 package supplies `/usr/bin/spitc`, fsfiller and the remaining C tools. These are
 upstream GitHub packages, not packages in the official distro repositories.
@@ -62,7 +53,7 @@ spit -f scratch.img -c rws0k4q32j8 -t 10 --backend libaio
 ```
 
 On Windows use `.\spit.exe` from the extracted directory. The first two examples
-also work on macOS and Windows, using their buffered backend.
+also work on macOS and Windows; both use direct (unbuffered) I/O by default.
 
 Windows drive roots such as `E:` and `E:\` name a filesystem, not a test file.
 `-F` takes a **file prefix** and creates `PREFIX.0001`, `PREFIX.0002`, etc.,
@@ -76,8 +67,8 @@ spit -F E:\spit-test -G 1MiB -c rs0 -t 10 -s 0.1
 For a non-destructive raw **volume** read, run as Administrator:
 `spit -f \\.\C: -c rs0 -G 1GiB`. Keep the two leading backslashes and omit
 the trailing backslash. Spit reports the filesystem and sector size; raw Windows
-writes are currently unsupported. A virtual filesystem such as ExabaFOO may
-provide files without exposing a raw block device; use `-F` in that case.
+writes are currently unsupported. A virtual filesystem may provide files without
+exposing a raw block device; use `-F` in that case.
 
 `-G 1M` tests a decimal megabyte; `-G 1` tests a decimal gigabyte. Neither shrinks
 an existing file. Use a new prefix when comparing small and large files.
@@ -105,15 +96,23 @@ spit -F recordings/camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 7d
 
 This simulates 100 cameras at 5 Mbit/s each, using 64 KiB sequential writes into
 16 MiB files and retaining 24 hours. `-s` defaults to one second. A completed
-seven-day run produces 168 hourly data rows in `cctv-test-DATETIME.hour`, with
+seven-day run produces 168 hourly data rows in `cctv-test-<UTC time>-cameras=N.hour`, with
 average/max write latency in milliseconds. See [the CCTV guide](rust/CCTV.md)
 for Linux/Windows examples, ownership rules and allocation behavior.
 
-Linux automatically uses **io_uring** when queue creation succeeds, otherwise
-**libaio**. You can explicitly select either, synchronous `direct`, or
-`buffered` (`bufferedio`). macOS and Windows currently use buffered positional
-I/O. Explicit backend choices never silently fall back. A synchronous backend
-executes one I/O at a time per worker; its `q` controls reusable batch storage.
+Direct I/O is the default on every platform: O_DIRECT on Linux and FreeBSD,
+`F_NOCACHE` on macOS and `FILE_FLAG_NO_BUFFERING` on Windows. On Linux, direct
+I/O uses **io_uring** when queue creation succeeds, otherwise **libaio**. You can
+select `io_uring`, `libaio`, `direct` or `pagecache` (the OS page cache) explicitly.
+`--backend auto` picks the platform's own default: io_uring or libaio on Linux,
+pagecache on macOS and FreeBSD, and direct on Windows. Explicit backend choices
+never silently fall back. A synchronous backend executes one I/O at a time per
+worker; its `q` controls reusable batch storage.
+
+File-system filling is a separate mode: `spit --fsfiller -F DIR` fills DIR with a
+tree of files from 1 KiB to 16 MiB, using 150 writer threads by default. Its
+options, including `--writes`, `--synconclose`, `--cantstopthis` and `--ratelimitmbps`,
+are in `man spit`.
 
 The automatic memory budget is half the available RAM, capped at 64 GiB
 (half physical RAM on macOS; 512 MiB fallback if detection fails).

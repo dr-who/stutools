@@ -40,16 +40,18 @@ Example (writes destroy data within the selected range):
 
 | `--backend` | Platform | Operation |
 |---|---|---|
-| `libaio` | Linux, automatic fallback | Direct I/O, one kernel AIO context per worker |
-| `io_uring` | Linux, preferred automatic default | Direct I/O, one submission/completion ring per worker |
-| `direct` | Linux | Synchronous positional I/O with O_DIRECT |
-| `buffered` (`bufferedio`) | Linux, macOS, Windows | Synchronous positional I/O through the OS page cache |
+| `direct` (default) | Linux, FreeBSD, macOS, Windows | Unbuffered I/O: O_DIRECT (Linux, FreeBSD), F_NOCACHE (macOS), FILE_FLAG_NO_BUFFERING (Windows). On Linux it runs on io_uring or libaio |
+| `io_uring` (`uring`) | Linux | Direct I/O, one submission/completion ring per worker |
+| `libaio` (`aio`) | Linux | Direct I/O, one kernel AIO context per worker |
+| `pagecache` | Linux, macOS, FreeBSD, Windows | Synchronous positional I/O through the OS page cache |
 
 A synchronous backend performs one operation at a time per worker; `q` controls
 its reusable batch size, not concurrent kernel requests. Use `j` to increase
-concurrency. By default (or with `--backend auto`), Linux probes io_uring queue creation and
-selects io_uring when available, otherwise libaio. `--help` shows the detected
-default. Explicit backend requests never fall back to another implementation.
+concurrency. The default backend is `direct`. On Linux, direct I/O uses io_uring when queue
+creation succeeds, otherwise libaio. `--backend auto` selects the platform default:
+io_uring or libaio on Linux, pagecache on macOS and FreeBSD, and direct on Windows.
+`--help` shows the detected default. Explicit backend requests never fall back to
+another implementation.
 The current io_uring implementation uses ordinary read/write SQEs with stable
 buffers; registered buffers, SQPOLL, IOCP and macOS asynchronous I/O remain future
 work. Linux currently requires a 64-bit little-endian target.
@@ -59,7 +61,7 @@ The automatic default is half available RAM, capped at 64 GiB (half physical
 RAM on macOS), with a 512 MiB fallback if detection fails. Linux cgroup-v2
 limits reduce the available amount. Help shows the detected default; an
 insufficient-budget error suggests a copyable `--memory` value. Large blocks
-multiply by queue depth and worker count: 4 MiB x q64 x 32 needs over 8 GiB.
+multiply by queue depth and worker count: 4 MiB x q64 x 32 needs at least 8 GiB.
 It is **not** a whole-process RSS cap: thread stacks, Tokio, parsed arguments,
 kernel queues, and OS page cache are additional memory. Pools are allocated and
 touched at startup and reused. An allocator counter checks each successful
@@ -137,6 +139,16 @@ only with administrator authorization. The C libaio fault shim cannot inject
 faults into io_uring, so passing its non-fault tests does not establish equivalent
 fault coverage for that backend.
 
+## File-system filler
+
+`spit --fsfiller -F DIR` fills DIR with a two-level tree of files, 1 KiB to 16 MiB,
+written by 150 threads by default (`--fsfiller-threads`). `--writes` chooses
+`writethrough` (default), `buffered` or `direct`; `--synconclose` flushes each file
+before closing it; `-v` reads each file back; `--cantstopthis` retries failed writes
+with back-off instead of stopping; `--ratelimitmbps` limits the rate. Files written
+and closed without error are journalled in `fsfiller-journal.txt`, and the journal
+is verified after an outage and on the next start. `man spit` has the details.
+
 ## Packaging
 
 ```sh
@@ -161,7 +173,8 @@ still checked normally. DEBs use debhelper and dpkg-buildpackage, including
 copyright, changelog, man page, automatic shared-library dependencies and checksums.
 
 The package is named `stutools` and supplies `/usr/bin/spit`. The C package is
-`stutools-c`, with `/usr/bin/spitc`, fsfiller and the other C utilities. Native portable archives include the executable, README and license.
+`stutools-c`, with `/usr/bin/spitc`, fsfiller and the other C utilities. Native portable archives include the executable, README, INSTALL and CCTV guides,
+man page, license and third-party license notices.
 Linux make/CMake defaults also use `/usr`; override PREFIX or CMAKE_INSTALL_PREFIX
 only when you deliberately want another installation location. macOS installers
 use `/usr/local`, since macOS reserves `/usr/bin` for the operating system.

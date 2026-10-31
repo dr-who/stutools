@@ -33,7 +33,7 @@ Each camera writes sequentially with a fixed, reusable **64 KiB** buffer by
 default. `-c k64` makes that explicit; a fixed `M` size also works.
 `--filesizemb 16` means **16 MiB** and defaults to 16. File size must be a
 multiple of block size. Files rotate when full: at 5 Mbit/s, one 16 MiB file
-contains about 26.84 seconds. A final partial recording remains preallocated;
+fills in about 26.84 seconds. A final partial recording remains preallocated;
 counters include only completed payload writes, not unused reserved space.
 
 A separate allocation worker prepares one file ahead of each camera. Linux uses
@@ -63,9 +63,9 @@ samples per second; `-s 0` disables progress but keeps minute/hour summaries.
 Logs live beside the recording prefix:
 
 ```text
-cctv-test-2026-10-23_14-35-01Z.log
-cctv-test-2026-10-23_14-35-01Z.min
-cctv-test-2026-10-23_14-35-01Z.hour
+cctv-test-2026-10-23_14-35-01Z-cameras=100.log
+cctv-test-2026-10-23_14-35-01Z-cameras=100.min
+cctv-test-2026-10-23_14-35-01Z-cameras=100.hour
 ```
 
 Times are UTC; same-second runs receive a numeric suffix. Logs are created
@@ -75,11 +75,13 @@ per elapsed minute/hour. Trim surrounding whitespace from column names and
 values when importing them into analysis tools:
 
 ```text
-period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms,max_write_camera,max_write_sequence,max_write_offset,max_write_submit_s,max_write_complete_s,writes_over_200ms
+period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms,max_write_camera,max_write_sequence,max_write_offset,max_write_submit_s,max_write_complete_s,writes_over_200ms,avg_gen_ms,max_gen_ms,closes,avg_close_ms,max_close_ms,max_close_queue\n
 ```
 
-`avg_write_ms` is total completed application-write latency divided by write
-count; `max_write_ms` is the slowest completed write in that period. These
+`avg_gen_ms` and `max_gen_ms` time buffer generation, which is excluded from write
+latency. `closes`, `avg_close_ms` and `max_close_ms` count and time recording closes,
+and `max_close_queue` is the close-queue depth. `avg_write_ms` is total completed
+application-write latency divided by write count; `max_write_ms` is the slowest completed write in that period. These
 measure `write_all`, exclude pacing/buffer generation and do not measure media
 durability. CCTV uses synchronous `File::write_all` calls in Tokio blocking workers, not
 Tokio asynchronous file writes. The elapsed time includes any OS blocking or
@@ -162,4 +164,4 @@ recordings externally while a run owns the prefix.
 
 Allow about **5.4 TB** for 100 cameras at 5 Mbit/s with 24-hour retention,
 plus active/reserved files, filesystem overhead and logs. At 16 MiB this means
-roughly 322,000 recordings, replacing the original one-file-per-minute proposal.
+roughly 322,000 recordings.

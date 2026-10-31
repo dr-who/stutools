@@ -8,10 +8,12 @@ spit \- Stu's powerful I/O tester, with fixed memory pools
 .RI [ options ]
 .SH DESCRIPTION
 spit runs storage workloads across workers and reports completed operations,
-MiB/s, IOPS, elapsed seconds and verification counts. Linux supports io_uring,
-libaio, synchronous direct and buffered I/O. macOS and Windows currently use
-buffered positional I/O. The Rust implementation uses Tokio to coordinate
-long-lived workers and allocates its reusable I/O pools before measurement.
+MiB/s, IOPS, elapsed seconds and verification counts. Linux uses io_uring or
+libaio for direct I/O. Direct I/O is the default on every platform, and a
+page-cache backend is available. The Rust implementation uses Tokio to
+coordinate long-lived workers and allocates its reusable I/O pools before
+measurement. Besides workloads, spit has CCTV recording, a file-system filler
+and a block-device info mode.
 .PP
 Write workloads overwrite the selected range. Begin with a disposable file.
 A read workload does not create a missing file or enlarge an existing file.
@@ -119,9 +121,12 @@ This differs from workload T. Synchronous calls and kernel queue destruction
 cannot guarantee a bounded wait.
 .TP
 .BI \-\-backend " NAME"
-auto, io_uring, libaio, direct or buffered; bufferedio aliases buffered. Linux
-auto probes actual io_uring queue creation, falling back to libaio if unavailable.
-Other systems default to buffered. Explicit selections never switch backends.
+auto, io_uring (uring), libaio (aio), direct or pagecache. The default is direct:
+O_DIRECT on Linux and FreeBSD, F_NOCACHE on macOS and FILE_FLAG_NO_BUFFERING on
+Windows. Direct I/O on Linux runs through io_uring when queue creation succeeds,
+otherwise libaio. auto selects the platform's own default: io_uring or libaio on
+Linux, pagecache on macOS and FreeBSD, and direct on Windows. Explicit selections
+never switch backends.
 .TP
 .BI \-\-memory " SIZE"
 Budget for user I/O buffers and request/position tables. The automatic default
@@ -136,6 +141,16 @@ worker I/O loops report hot_path_allocations=0.
 Allow enlargement of existing writable regular files to fit the selected range.
 It does not make a read job writable or truncate an existing file's tail.
 .TP
+.BI \-\-info " DEVICE"
+Describe a block device: identity, queue and transfer limits, and negotiated iSCSI
+values where the OS exposes them. Performs no I/O. Use it as the only argument:
+.nf
+  spit \-\-info /dev/sdb
+.fi
+.TP
+.BI \-\-latency\-out " FILE"
+Write one latency per completed operation, in milliseconds, one per line.
+.TP
 .B \-V
 Accepted for C CLI compatibility; currently has no effect.
 .TP
@@ -144,6 +159,38 @@ Show examples, syntax and the detected default backend.
 .TP
 .B \-\-version
 Show the version and implementation.
+.SH FILE\-SYSTEM FILLER
+.nf
+  spit \-\-fsfiller \-F /data/fill \-\-cantstopthis \-v \-t 900
+.fi
+.PP
+\-\-fsfiller fills the directory DIR with a two-level tree (t000/s000 and so on)
+of files from 1 KiB to 16 MiB. Five types (txt, docx, jpg, bin and mp4) each have
+their own size distribution. Each file holds seeded pseudo-random data derived
+from its path, so \-v can regenerate and check the bytes. Writes use 150 threads
+by default; \-\-fsfiller\-threads N changes that, and \-\-fsfiller\-dirs TOP,SECOND
+sets the directory counts (default 100,100).
+.PP
+The run ends when the file system is full, at the \-G cap or the \-t limit, or on
+Ctrl\-C; the report is printed in every case. Charts are written to the working
+directory as data and gnuplot scripts, and rendered as PNG when gnuplot is installed.
+.PP
+\-\-writes MODE chooses how each write reaches the device. writethrough, the
+default, returns only after each write has reached the device. buffered is
+ordinary buffered writing. direct bypasses the cache. \-\-synconclose also flushes
+each file before it is closed. A close error is reported.
+.PP
+\-\-cantstopthis never stops on an error, including a full disk. A failed write is
+retried with exponential back-off, from 100 ms up to 10 minutes between attempts,
+and each attempt is logged. Without it, the first error ends the run.
+.PP
+A journal, fsfiller\-journal.txt in the working directory, records each file that
+was written and closed without error. When the device reappears, and on the next
+start, the most recent 1000 journalled files are verified as ok, bad (wrong size or
+contents) or missing. The journal does not record deletions.
+.PP
+\-\-ratelimitmbps N limits the write rate to N Mbit/s, using the same rate code as
+\-\-cctv.
 .SH CCTV RECORDING MODE
 .nf
   spit -F recordings/camera --cctv 100,5,24 -c k64 --filesizemb 16 -t 7d
@@ -158,14 +205,22 @@ fallocate; Windows reserves allocation size and sets EOF. Unsupported allocation
 uses a reported zero-fill fallback. Preallocation does not guarantee physical
 contiguity. This is not an exact replica of proprietary Milestone internals.
 .PP
+\-\-cctv\-io direct|pagecache selects the I/O path; direct is the default on Linux
+and Windows. \-\-link\-mbps RATE draws the link capacity on the rate chart.
+\-\-cctv\-floor\-percent PERCENT stops the run when the average over the last 10
+seconds falls below PERCENT of the camera rate (default 0, off).
+\-\-cctv\-drop\-after SECONDS counts a frame as dropped when it is still unwritten
+SECONDS after its due time (default 5).
+.PP
 Files rotate when full. At 5 Mbit/s, a 16 MiB file fills in about 26.84 seconds.
 The final partial file retains its reserved size. -t accepts durations such as
 7d; CCTV defaults to unlimited runtime. Ctrl+C/SIGTERM closes recordings and
 flushes summaries. Pending filesystem calls can delay exit.
 .PP
 Normal -s progress defaults to one second. Beside the recording prefix, each
-run creates cctv-test-UTC-DATETIME.log, .min and .hour. Progress is mirrored to
-.log. Minute/hour CSV rows contain completed write count, bytes, average and
+run creates cctv-test-<UTC time>-cameras=N.log, .min and .hour; a second run
+in the same second adds a numeric suffix. Progress is mirrored to
+\&.log. Minute/hour CSV rows contain completed write count, bytes, average and
 maximum application-write latency in milliseconds, preallocation latency and
 deletion counts. Columns are padded with spaces; trim headings and values when
 importing CSV. Write latency times a synchronous buffer write in a Tokio blocking
