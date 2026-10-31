@@ -1,7 +1,9 @@
 # Install stutools 2.0.0
 
-Download from [GitHub Releases](https://github.com/dr-who/stutools/releases/tag/v2.0.0).
-No Rust or C compiler is required. Choose your OS and architecture, then compare
+Downloads are on the [GitHub releases page](https://github.com/dr-who/stutools/releases).
+The 2.0.0 release is not published there yet; until it is, build from source (see
+[Building instead](#building-instead)). The tables below list the files the release
+is built to provide. No Rust or C compiler is required. Choose your OS and architecture, then compare
 the file's SHA-256 with the release's `SHA256SUMS` before installing.
 
 ## Linux: DEB or RPM
@@ -63,8 +65,9 @@ launch it from a terminal so you can read its output.
 
 The executable statically links the Microsoft C runtime. Visual Studio and the
 Visual C++ redistributable are not required. Delete the executable/directory to
-uninstall. The Windows build currently benchmarks regular files with buffered
-I/O; it does not implement Windows raw-device or IOCP workflows.
+uninstall. Regular files use direct (unbuffered) I/O by default; `--backend pagecache` selects
+buffered I/O. Raw volumes can be read (reads only). Raw-volume writes and IOCP are
+not implemented.
 
 ## Check the download
 
@@ -90,8 +93,8 @@ spit -f scratch.img -c rs1k4q32j4 -t 5
 Rust 2.0 supports the common C workload syntax, not every C workflow. Its data
 format differs from C spitchecker; use `spitc` for C-format verification, NUMA,
 copy/trim and other advanced C modes. Read README.md and `spit --help` before
-replacing scripts. On Linux, auto probes io_uring and otherwise selects libaio;
-macOS/Windows use buffered I/O. `--help` shows the detected default.
+replacing scripts. On Linux the default direct backend uses io_uring when available,
+otherwise libaio; Windows and macOS use direct I/O. `--help` shows the detected default.
 
 ## Building instead
 

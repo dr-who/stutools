@@ -51,8 +51,9 @@ those features. Rust -v verifies ordinary writes immediately within its timed
 loop, while C performs final verification outside its reported workload time.
 The default memory budget bounds pools/tables, not total process RSS.
 
-macOS/Windows currently use buffered regular-file I/O. Windows raw-device and
-IOCP backends, macOS async/direct backends, registered io_uring buffers and SQPOLL
-are not implemented. Review existing scripts before substituting Rust spit.
+Direct I/O is the default on macOS and Windows; `--backend pagecache` selects
+buffered I/O. Windows raw-volume reads are supported, but raw-volume writes, Windows
+IOCP, macOS asynchronous I/O, registered io_uring buffers and SQPOLL are not
+implemented. Review existing scripts before substituting Rust spit.
 
 Bring back Pluto as a planet.
