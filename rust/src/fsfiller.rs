@@ -2,12 +2,16 @@
 //! secondary directory. Each file type has its own size distribution, so the sizes form one peak per type.
 //! The run ends when the file system
 //! is full, the -G cap or -t limit is reached, or Ctrl-C; the report is printed in every case.
+mod chart;
 mod journal;
+mod stats;
 
 use crate::{
     cctv::files::Aligned, cctv::files::ALIGN, checked_close, pattern, rate, signals, Result,
 };
+use chart::{write_chart, write_sizes};
 use journal::Journal;
+use stats::{distribution, log_bands, Sample, Sizes, SAMPLE};
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Write},
@@ -60,9 +64,6 @@ impl WriteMode {
     }
 }
 
-/// One colour per file type, in the order of TYPES, so each suffix keeps its colour in the size chart.
-const COLOURS: [&str; 5] = ["#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e"];
-
 /// File types as (extension, mean KiB, s.d. KiB). Each type gets an equal share of the files.
 const TYPES: [(&str, f64, f64); 5] = [
     ("txt", 4., 1.),
@@ -71,23 +72,6 @@ const TYPES: [(&str, f64, f64); 5] = [
     ("bin", 1024., 256.),
     ("mp4", 8192., 2048.),
 ];
-/// The size histogram has 300 bins spaced evenly on a log scale from 100 bytes to 64 MiB, each about 4.6%
-/// wider than the last. Linear bins would put the 4 KiB type in one or two bins.
-const BINS: usize = 300;
-const LOW_BYTES: f64 = 100.;
-const HIGH_BYTES: f64 = 64. * 1048576.;
-
-/// The bin a size falls in; sizes outside the range go to the first or last bin.
-fn bin_of(bytes: u64) -> usize {
-    let position = (bytes.max(1) as f64 / LOW_BYTES).ln() / (HIGH_BYTES / LOW_BYTES).ln();
-    ((position * BINS as f64).floor().max(0.) as usize).min(BINS - 1)
-}
-
-/// The smallest size in bin `bin`.
-fn bin_edge(bin: usize) -> f64 {
-    LOW_BYTES * (HIGH_BYTES / LOW_BYTES).powf(bin as f64 / BINS as f64)
-}
-
 /// A uniform value in (0, 1] from a 64-bit hash (splitmix64 finaliser).
 fn unit(x: u64) -> f64 {
     let mut z = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
@@ -109,41 +93,6 @@ fn file_kind_and_size(index: usize) -> (usize, u64) {
     let kib = (mean + sd * normal).max(1.);
     (kind, (kib * 1024.).round() as u64)
 }
-
-/// Sizes written so far, per file type: count, sum and sum of squares (for mean and s.d.), and a histogram.
-struct Sizes {
-    count: [u64; TYPES.len()],
-    sum: [f64; TYPES.len()],
-    sum2: [f64; TYPES.len()],
-    hist: Vec<[u64; TYPES.len()]>,
-}
-
-impl Sizes {
-    fn new() -> Self {
-        Self {
-            count: [0; TYPES.len()],
-            sum: [0.; TYPES.len()],
-            sum2: [0.; TYPES.len()],
-            hist: vec![[0; TYPES.len()]; BINS],
-        }
-    }
-
-    fn add(&mut self, kind: usize, bytes: u64) {
-        let kib = bytes as f64 / 1024.;
-        self.count[kind] += 1;
-        self.sum[kind] += kib;
-        self.sum2[kind] += kib * kib;
-        self.hist[bin_of(bytes)][kind] += 1;
-    }
-
-    /// Mean and population s.d. of the type's sizes in KiB.
-    fn mean_sd(&self, kind: usize) -> (f64, f64) {
-        let n = self.count[kind].max(1) as f64;
-        let mean = self.sum[kind] / n;
-        (mean, (self.sum2[kind] / n - mean * mean).max(0.).sqrt())
-    }
-}
-const CHUNK: usize = 1 << 20;
 
 /// First and longest wait between retries under --cantstopthis; the wait doubles each time.
 const RETRY_MIN: Duration = Duration::from_millis(100);
@@ -167,6 +116,8 @@ impl Stop {
         }
     }
 }
+
+const CHUNK: usize = 1 << 20;
 
 struct Shared {
     start: Instant,
@@ -220,7 +171,6 @@ impl Shared {
         }
     }
 
-    /// Records why the run stopped. The first reason wins; later ones are ignored.
     /// Stops new files from starting, keeping the reason. Files already started finish, so a cap
     /// stop leaves no partial files behind.
     fn stop_new(&self, stop: Stop) {
@@ -231,6 +181,7 @@ impl Shared {
         self.no_new.store(true, Relaxed);
     }
 
+    /// Records why the run stopped. The first reason wins; later ones are ignored.
     fn finish(&self, stop: Stop) {
         let mut reason = self.reason.lock().unwrap();
         if reason.is_none() {
@@ -266,7 +217,17 @@ fn create_tree(s: &Settings) -> io::Result<()> {
 }
 
 fn is_full(e: &io::Error) -> bool {
-    e.kind() == io::ErrorKind::StorageFull || matches!(e.raw_os_error(), Some(28 | 39 | 112))
+    if e.kind() == io::ErrorKind::StorageFull {
+        return true;
+    }
+    match e.raw_os_error() {
+        #[cfg(unix)]
+        Some(code) => code == libc::ENOSPC || code == libc::EDQUOT,
+        // ERROR_HANDLE_DISK_FULL and ERROR_DISK_FULL.
+        #[cfg(windows)]
+        Some(code) => code == 39 || code == 112,
+        _ => false,
+    }
 }
 
 /// Creates the file, truncating any old one. The write mode sets how each write reaches the device.
@@ -303,7 +264,6 @@ fn create(path: &Path, mode: WriteMode) -> io::Result<File> {
     options.open(path)
 }
 
-/// Writes one file. Returns false when the run stopped first, after removing the partial file.
 /// Seed for the file at `path`, from its path bytes (FNV-1a), so a verify regenerates the same bytes.
 fn seed(path: &Path) -> u64 {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
@@ -314,14 +274,36 @@ fn seed(path: &Path) -> u64 {
     hash
 }
 
+/// Writes one file. Returns false when the run stopped first. Any failure, or a stop, removes the
+/// partial file.
 fn write_file(path: &Path, size: u64, shared: &Shared, data: &mut [u8]) -> io::Result<bool> {
     let mut file = create(path, shared.write_mode)?;
-    let seed = seed(path);
+    let outcome = write_contents(&mut file, size, seed(path), shared, data);
+    let result = match outcome {
+        Ok(true) => checked_close::close(file).map(|()| true),
+        // Drop the handle before removing the file; Windows cannot remove an open file.
+        other => {
+            drop(file);
+            other
+        }
+    };
+    if !matches!(result, Ok(true)) {
+        let _ = fs::remove_file(path);
+    }
+    result
+}
+
+/// Writes the pattern for `size` bytes into `file`. Returns false when the run stopped first.
+fn write_contents(
+    file: &mut File,
+    size: u64,
+    seed: u64,
+    shared: &Shared,
+    data: &mut [u8],
+) -> io::Result<bool> {
     let mut left = size;
     while left > 0 {
         if shared.done.load(Relaxed) {
-            drop(file);
-            let _ = fs::remove_file(path);
             return Ok(false);
         }
         let n = left.min(CHUNK as u64) as usize;
@@ -335,31 +317,15 @@ fn write_file(path: &Path, size: u64, shared: &Shared, data: &mut [u8]) -> io::R
             n
         };
         pattern::fill(&mut data[..padded], size - left, seed);
-        if let Err(e) = file.write_all(&data[..padded]) {
-            drop(file);
-            let _ = fs::remove_file(path);
-            return Err(e);
-        }
+        file.write_all(&data[..padded])?;
         left -= n as u64;
         shared.written.fetch_add(n as u64, Relaxed);
     }
     if shared.write_mode == WriteMode::Direct {
-        if let Err(e) = file.set_len(size) {
-            drop(file);
-            let _ = fs::remove_file(path);
-            return Err(e);
-        }
+        file.set_len(size)?;
     }
     if shared.sync_on_close {
-        if let Err(e) = file.sync_all() {
-            drop(file);
-            let _ = fs::remove_file(path);
-            return Err(e);
-        }
-    }
-    if let Err(e) = checked_close::close(file) {
-        let _ = fs::remove_file(path);
-        return Err(e);
+        file.sync_all()?;
     }
     Ok(true)
 }
@@ -439,7 +405,9 @@ fn failed(shared: &Shared, path: &Path, e: &io::Error, attempt: u64, delay: Dura
 
 /// Logs the end of an outage when a write succeeds again, and the retries that the file needed.
 fn recovered(shared: &Shared, path: &Path, attempt: u64) {
-    if let Some(start) = shared.outage.lock().unwrap().take() {
+    // Take the start time in its own statement, so the lock is released before verification runs.
+    let outage = shared.outage.lock().unwrap().take();
+    if let Some(start) = outage {
         eprintln!(
             "device reappeared after {:.1} s",
             start.elapsed().as_secs_f64()
@@ -535,15 +503,6 @@ fn worker(s: &Settings, shared: &Shared) {
 }
 
 /// Prints one progress line a second and stops the run on Ctrl-C or the -t limit.
-/// One 100 ms sample: when it ended, and the MiB written and files completed during it.
-struct Sample {
-    at: f64,
-    mib: f64,
-    files: f64,
-}
-
-const SAMPLE: Duration = Duration::from_millis(100);
-
 fn monitor(
     s: &Settings,
     shared: &Shared,
@@ -581,175 +540,6 @@ fn monitor(
         }
     }
     samples
-}
-
-/// Samples per moving-average window: 20 seconds of 100 ms samples.
-const WINDOW: usize = 200;
-
-/// One row: time, the log-space centre of MiB/s over the trailing 20 s, the +/-1, 2, 3 s.d. edges
-/// (symmetric on a log axis), and the raw files/s of this sample.
-struct Row {
-    at: f64,
-    v: [f64; 8],
-}
-
-/// Complete 1-second bins behind each window; a 20 s window averages 20 of them.
-const BIN_WINDOW: usize = 20;
-
-/// Mean and s.d. of the trailing 20 complete 1-second bins, for each 100 ms sample. The edges are
-/// mean +/- k s.d., with the lower edge held at zero because a speed cannot be negative.
-fn log_bands(samples: &[Sample]) -> Vec<Row> {
-    let seconds = samples.last().map_or(0, |last| last.at as usize + 1);
-    let mut mib = vec![0f64; seconds];
-    for x in samples {
-        mib[x.at as usize] += x.mib;
-    }
-    let scale = 1. / SAMPLE.as_secs_f64();
-    samples
-        .iter()
-        .filter_map(|x| {
-            let now = x.at as usize;
-            if now == 0 {
-                return None;
-            }
-            let window = &mib[now.saturating_sub(BIN_WINDOW)..now];
-            let (centre, sd) = mean_sd(window.iter().copied());
-            let edge = |k: f64, sign: f64| (centre + sign * k * sd).max(0.);
-            Some(Row {
-                at: x.at,
-                v: [
-                    centre,
-                    edge(1., -1.),
-                    edge(1., 1.),
-                    edge(2., -1.),
-                    edge(2., 1.),
-                    edge(3., -1.),
-                    edge(3., 1.),
-                    x.files * scale,
-                ],
-            })
-        })
-        .collect()
-}
-
-fn mean_sd(values: impl Iterator<Item = f64> + Clone) -> (f64, f64) {
-    let n = values.clone().count() as f64;
-    let mean = values.clone().sum::<f64>() / n;
-    let var = values.map(|v| (v - mean).powi(2)).sum::<f64>() / n;
-    (mean, var.sqrt())
-}
-
-const DATA: &str = "fsfiller-over-time.dat";
-const SCRIPT: &str = "fsfiller-over-time.gnu";
-const IMAGE: &str = "fsfiller-over-time.png";
-const SIZES_DATA: &str = "fsfiller-sizes.dat";
-const SIZES_SCRIPT: &str = "fsfiller-sizes.gnu";
-const SIZES_IMAGE: &str = "fsfiller-sizes.png";
-
-/// Writes the smoothed rows and a gnuplot script with log axes, then renders the PNG when gnuplot is installed.
-fn write_chart(s: &Settings, rows: &[Row]) -> io::Result<()> {
-    // The bands need complete 1 s bins, so a run under 2 s (20 samples) has nothing to draw.
-    if rows.len() < 20 {
-        println!("chart: skipped, run shorter than 2 s (no complete 1 s bins)");
-        return Ok(());
-    }
-    let mut dat = String::from("# time_s centre_MiB_s lo1 hi1 lo2 hi2 lo3 hi3 files_s\n");
-    for row in rows {
-        let v = row.v;
-        dat += &format!(
-            "{:.1} {:.3} {:.3} {:.3} {:.3} {:.3} {:.3} {:.3} {:.3}\n",
-            row.at, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]
-        );
-    }
-    fs::write(DATA, dat)?;
-    let mode = match s.ratelimit_mbps {
-        Some(mbit) => format!("target {mbit} Mbit/s"),
-        None => "max speed".to_string(),
-    };
-    let target_line = match s.ratelimit_mbps {
-        Some(mbit) => format!(
-            ", {} with lines dashtype 2 lc rgb 'black' axes x1y1 title 'target {mbit} Mbit/s'",
-            mbit / 8. / 1.048576
-        ),
-        None => String::new(),
-    };
-    let script = format!(
-        "set terminal pngcairo size 6400,3600 font 'sans,40' background rgb 'white'\n\
-         set output '{IMAGE}'\n\
-         set title \"spit fsfiller, write MiB/s rolling 20 s mean and +/-1, 2, 3 SD\\n{mode} (spit {})\"\n\
-         set xlabel 'time (s)'\n\
-         set ylabel 'write MiB/s, 20 s rolling mean'\n\
-         set y2label 'files/s, 0.1 s samples'\n\
-         set ytics nomirror\n\
-         set y2tics\n\
-         set grid ytics\n\
-         set key top right\n\
-         plot '{DATA}' using 1:6:7 with filledcurves fillcolor rgb '#2f6fb4' fillstyle solid 0.10 noborder axes x1y1 title 'write MiB/s +/- 3 s.d.', \\\n\
-              '{DATA}' using 1:4:5 with filledcurves fillcolor rgb '#2f6fb4' fillstyle solid 0.22 noborder axes x1y1 title '+/- 2 s.d.', \\\n\
-              '{DATA}' using 1:2:3 with filledcurves fillcolor rgb '#2f6fb4' fillstyle solid 0.45 noborder axes x1y1 title '+/- 1 s.d.', \\\n\
-              '' using 1:2 with lines lc rgb '#0b2a5b' lw 4 axes x1y1 title 'rolling mean', \\\n\
-              '' using 1:9 with points pt 7 ps 1.5 lc rgb '#2ca02c' axes x1y2 title 'files/s per sample'{target_line}\n",
-        env!("CARGO_PKG_VERSION")
-    );
-    fs::write(SCRIPT, script)?;
-    match std::process::Command::new("gnuplot").arg(SCRIPT).status() {
-        Ok(status) if status.success() => println!("chart: {IMAGE} (data {DATA}, script {SCRIPT})"),
-        Ok(status) => eprintln!("*warning* gnuplot exited with {status}; chart not rendered"),
-        Err(_) => {
-            eprintln!("*warning* gnuplot not found; run `gnuplot {SCRIPT}` to render {IMAGE}")
-        }
-    }
-    Ok(())
-}
-
-/// Distribution of the 20 s moving averages (one per sample once the window is full), with the
-/// +/-1, 2 and 3 s.d. bands as percentages of the mean and the share of windows that land inside each.
-fn distribution(samples: &[Sample]) -> Vec<String> {
-    let scale = 1. / SAMPLE.as_secs_f64();
-    if samples.len() < WINDOW {
-        return vec!["distribution: run shorter than the 20 s window".to_string()];
-    }
-    let windows: Vec<(f64, f64)> = samples
-        .windows(WINDOW)
-        .map(|w| {
-            let (mib, _) = mean_sd(w.iter().map(|x| x.mib * scale));
-            let (files, _) = mean_sd(w.iter().map(|x| x.files * scale));
-            (mib, files)
-        })
-        .collect();
-    let mut lines = vec![format!(
-        "distribution of {} 20 s moving averages (0.1 s samples):",
-        windows.len()
-    )];
-    for (name, pick) in [("MiB_per_s", 0usize), ("files_per_s", 1)] {
-        let mut values: Vec<f64> = windows
-            .iter()
-            .map(|w| if pick == 0 { w.0 } else { w.1 })
-            .collect();
-        values.sort_by(f64::total_cmp);
-        let (mean, sd) = mean_sd(values.iter().copied());
-        let at = |p: f64| values[((values.len() - 1) as f64 * p).round() as usize];
-        lines.push(format!(
-            "  {name}: median={:.1} p5={:.1} p95={:.1} mean={mean:.1} s.d.={sd:.1}",
-            at(0.5),
-            at(0.05),
-            at(0.95)
-        ));
-        for k in [1., 2., 3.] {
-            let inside = values
-                .iter()
-                .filter(|v| (**v - mean).abs() <= k * sd)
-                .count();
-            lines.push(format!(
-                "    +/-{k} s.d. = +/-{:.0}% of mean, [{:.1}, {:.1}], {:.1}% of windows inside",
-                k * sd / mean.max(f64::MIN_POSITIVE) * 100.,
-                (mean - k * sd).max(0.),
-                mean + k * sd,
-                inside as f64 * 100. / values.len() as f64
-            ));
-        }
-    }
-    lines
 }
 
 fn report(s: &Settings, shared: &Shared, samples: &[Sample]) {
@@ -792,60 +582,6 @@ fn report(s: &Settings, shared: &Shared, samples: &[Sample]) {
     }
 }
 
-/// Writes the per-type size histogram (quarter-octave bins) and renders it with gnuplot.
-fn write_sizes(shared: &Shared) -> io::Result<()> {
-    let sizes = shared.sizes.lock().unwrap();
-    let mut dat = String::from("# size_bytes_bin_start");
-    for (ext, _, _) in TYPES {
-        dat += &format!(" {ext}");
-    }
-    dat += "\n";
-    for (bin, counts) in sizes.hist.iter().enumerate() {
-        dat += &format!("{:.1}", bin_edge(bin));
-        for count in counts {
-            dat += &format!(" {count}");
-        }
-        dat += "\n";
-    }
-    fs::write(SIZES_DATA, dat)?;
-    let plots: Vec<String> = TYPES
-        .iter()
-        .enumerate()
-        .map(|(kind, (ext, _, _))| {
-            format!(
-                "'{SIZES_DATA}' using 1:{} with boxes fc rgb '{}' title '{ext}'",
-                kind + 2,
-                COLOURS[kind]
-            )
-        })
-        .collect();
-    let script = format!(
-        "set terminal pngcairo size 6400,3600 font 'sans,40' background rgb 'white'\n\
-         set output '{SIZES_IMAGE}'\n\
-         set title \"spit fsfiller, file size distribution by type (spit {})\"\n\
-         set xlabel 'file size (bytes, 300 log-spaced bins)'\n\
-         set ylabel 'files'\n\
-         set logscale x 10\n\
-         set boxwidth 0.9 relative\n\
-         set style fill transparent solid 0.5 noborder\n\
-         set key top right\n\
-         set grid\n\
-         plot {}\n",
-        env!("CARGO_PKG_VERSION"),
-        plots.join(", \\\n     ")
-    );
-    fs::write(SIZES_SCRIPT, script)?;
-    match std::process::Command::new("gnuplot")
-        .arg(SIZES_SCRIPT)
-        .status()
-    {
-        Ok(status) if status.success() => println!("sizes: {SIZES_IMAGE} (data {SIZES_DATA})"),
-        Ok(status) => eprintln!("*warning* gnuplot exited with {status}; size chart not rendered"),
-        Err(_) => eprintln!("*warning* gnuplot not found; run `gnuplot {SIZES_SCRIPT}`"),
-    }
-    Ok(())
-}
-
 pub fn run(s: Settings) -> Result<()> {
     let _signals = signals::Guard::install().map_err(|e| e.to_string())?;
     create_tree(&s).map_err(|e| format!("{}: {e}", s.root.display()))?;
@@ -866,5 +602,19 @@ pub fn run(s: Settings) -> Result<()> {
     match error {
         Some(error) => Err(error),
         None => Ok(()),
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn full_disk_errors_are_recognised_but_not_other_errnos() {
+        assert!(is_full(&io::Error::from_raw_os_error(libc::ENOSPC)));
+        assert!(is_full(&io::Error::from_raw_os_error(libc::EDQUOT)));
+        // 39 is ENOTEMPTY on Linux; it must not be taken for a full disk.
+        assert!(!is_full(&io::Error::from_raw_os_error(libc::ENOTEMPTY)));
+        assert!(!is_full(&io::Error::from_raw_os_error(libc::EIO)));
     }
 }

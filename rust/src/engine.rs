@@ -757,7 +757,13 @@ fn check_pattern(
     }
 }
 fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
-    let prepared = Run::prepare(p);
+    // A panic during setup must still reach the barrier, or every other worker waits forever.
+    let prepared = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| Run::prepare(p)))
+        .unwrap_or_else(|_| {
+            Err(Failure::from(std::io::Error::other(
+                "worker panicked during setup",
+            )))
+        });
     if prepared.is_err() {
         barrier.failed.store(true, Ordering::Release);
     }
