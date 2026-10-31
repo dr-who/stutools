@@ -179,13 +179,13 @@ fn rejects_options_that_do_not_fit() {
     );
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("--ratelimitmbps requires --fsfiller"));
-    let out = spit_in(&dir.0, &["--writethrough", "-c", "rs0k4q4", "-f", "x"]);
+    let out = spit_in(&dir.0, &["--buffered", "-c", "rs0k4q4", "-f", "x"]);
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("--writethrough requires --fsfiller"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("--buffered requires --fsfiller"));
 }
 
 #[test]
-fn writethrough_fill_writes_the_same_files() {
+fn default_fill_writes_through_and_buffered_turns_it_off() {
     let dir = Dir::new();
     let root = dir.0.join("fs");
     let out = spit_in(
@@ -198,7 +198,6 @@ fn writethrough_fill_writes_the_same_files() {
             "2,2",
             "-G",
             "8MiB",
-            "--writethrough",
         ],
     );
     let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
@@ -213,6 +212,22 @@ fn writethrough_fill_writes_the_same_files() {
         files_under(&root).len() as u64,
         "{stdout}"
     );
+
+    let root = dir.0.join("buffered");
+    let out = spit_in(
+        &dir.0,
+        &[
+            "--fsfiller",
+            "-F",
+            root.to_str().unwrap(),
+            "-G",
+            "8MiB",
+            "--buffered",
+        ],
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(out.status.success(), "{stdout}");
+    assert!(stdout.contains("write_through=false"), "{stdout}");
 }
 
 #[test]
