@@ -41,7 +41,7 @@ impl Drop for Scratch {
 #[test]
 fn help_has_cctv_section_and_seven_day_example() {
     let out = Command::new(env!("CARGO_BIN_EXE_spit"))
-        .arg("-h")
+        .args(["--help", "all"])
         .output()
         .unwrap();
     let help = String::from_utf8_lossy(&out.stdout);

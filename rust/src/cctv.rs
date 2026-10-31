@@ -1,11 +1,10 @@
 #[path = "cctv_files.rs"]
 mod files;
-#[path = "cctv_signals.rs"]
-pub(crate) mod signals;
+use crate::signals;
 #[path = "cctv_stats.rs"]
 mod stats;
 use crate::cctv_plots;
-use crate::{allocation, cli::Config, progress, Result};
+use crate::{allocation, cli::Config, progress, rate, Result};
 use stats::{Metrics, MetricsStore, Periods};
 use std::{
     fs::{File, OpenOptions},
@@ -507,7 +506,7 @@ fn camera(
         }
         return Ok((0, Vec::new()));
     };
-    let period = shared.settings.block as f64 / (shared.settings.mbps * 1e6 / 8.);
+    let period = shared.settings.block as f64 / rate::bytes_per_second(shared.settings.mbps);
     let mut due = period * (1. + index as f64 / shared.settings.count as f64);
     // Frames generated but not yet written, as the times they were generated.
     let mut backlog = std::collections::VecDeque::new();

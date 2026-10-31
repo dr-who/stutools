@@ -105,6 +105,7 @@ impl Default for Workload {
 #[derive(Debug)]
 pub struct Config {
     pub cameras: Option<crate::cctv::Settings>,
+    pub fsfiller: Option<crate::fsfiller::Settings>,
     pub files: Vec<PathBuf>,
     pub prefixes: Vec<PathBuf>,
     pub jobs: Vec<Workload>,
@@ -464,8 +465,17 @@ fn expand_options(args: Vec<String>) -> Result<Vec<String>> {
 }
 pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     let args = expand_options(args)?;
+    if let Some(pos) = args.iter().position(|a| a == "-h" || a == "--help") {
+        if args.get(pos + 1).is_some_and(|a| a == "all") {
+            help_all();
+        } else {
+            help();
+        }
+        return Ok(None);
+    }
     let mut c = Config {
         cameras: None,
+        fsfiller: None,
         files: vec![],
         prefixes: vec![],
         jobs: vec![],
@@ -499,16 +509,19 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     let mut cctv_link = None;
     let mut cctv_drop_after = None;
     let mut camera_conflict = false;
+    let mut fsfiller = false;
+    let mut fsfiller_dirs = None;
+    let mut fsfiller_target = None;
+    let mut fsfiller_threads = None;
+    let mut fsfiller_cant_stop = false;
+    let mut fsfiller_sync = false;
+    let mut fsfiller_write_through = false;
     while let Some(flag) = it.next() {
         camera_conflict |= matches!(
             flag.as_str(),
             "-f" | "-G" | "-b" | "-v" | "--recreate" | "-p" | "-S" | "-K" | "-E" | "-T"
         );
         match flag.as_str() {
-            "-h" | "--help" => {
-                help();
-                return Ok(None);
-            }
             "--version" => {
                 println!("spit {} (Rust)", env!("CARGO_PKG_VERSION"));
                 return Ok(None);
@@ -522,6 +535,22 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 c.recreate = true;
                 continue;
             }
+            "--fsfiller" => {
+                fsfiller = true;
+                continue;
+            }
+            "--cantstopthis" => {
+                fsfiller_cant_stop = true;
+                continue;
+            }
+            "--synconclose" => {
+                fsfiller_sync = true;
+                continue;
+            }
+            "--writethrough" => {
+                fsfiller_write_through = true;
+                continue;
+            }
             _ => {}
         }
         let v = it
@@ -530,6 +559,31 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         match flag.as_str() {
             "-f" => c.files.push(v.into()),
             "-F" => c.prefixes.push(v.into()),
+            "--fsfiller-threads" => {
+                let n = integer(v)?;
+                if !(1..=256).contains(&n) {
+                    return Err("--fsfiller-threads must be from 1 to 256".into());
+                }
+                fsfiller_threads = Some(n as usize);
+            }
+            "--ratelimitmbps" => {
+                let mbit: f64 = v
+                    .parse()
+                    .ok()
+                    .filter(|m: &f64| m.is_finite() && *m > 0.)
+                    .ok_or("--ratelimitmbps needs a positive Mbit/s, e.g. 1000")?;
+                fsfiller_target = Some(mbit);
+            }
+            "--fsfiller-dirs" => {
+                let (top, second) = v
+                    .split_once(',')
+                    .ok_or("--fsfiller-dirs needs TOP,SECOND, e.g. 100,100")?;
+                let (top, second) = (integer(top)?, integer(second)?);
+                if !(1..=10000).contains(&top) || !(1..=10000).contains(&second) {
+                    return Err("--fsfiller-dirs counts must be from 1 to 10000".into());
+                }
+                fsfiller_dirs = Some((top as usize, second as usize));
+            }
             "-c" => {
                 camera_block = Some(v.clone());
                 length += v.len() + 1;
@@ -628,6 +682,43 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             _ => return Err(format!("unsupported option {flag}")),
         }
     }
+    if fsfiller {
+        if c.cameras.is_some() || c.prefixes.len() != 1 || !c.files.is_empty() || !c.jobs.is_empty()
+        {
+            return Err("--fsfiller takes one -F directory, with optional -G cap, -t limit and --fsfiller-dirs; it cannot be combined with -f, -c or --cctv".into());
+        }
+        let (top, second) = fsfiller_dirs.unwrap_or((100, 100));
+        let ratelimit_mbps = fsfiller_target;
+        c.fsfiller = Some(crate::fsfiller::Settings {
+            root: c.prefixes[0].clone(),
+            top,
+            second,
+            cap: c.range.map(|(lo, hi)| hi - lo),
+            duration: if explicit_duration { c.duration } else { None },
+            ratelimit_mbps,
+            threads: fsfiller_threads.unwrap_or(150),
+            cant_stop: fsfiller_cant_stop,
+            verify: c.verify,
+            sync_on_close: fsfiller_sync,
+            write_through: fsfiller_write_through,
+        });
+        return Ok(Some(c));
+    }
+    if fsfiller_dirs.is_some() {
+        return Err("--fsfiller-dirs requires --fsfiller".into());
+    }
+    if fsfiller_target.is_some() {
+        return Err("--ratelimitmbps requires --fsfiller".into());
+    }
+    if fsfiller_cant_stop {
+        return Err("--cantstopthis requires --fsfiller".into());
+    }
+    if fsfiller_sync {
+        return Err("--synconclose requires --fsfiller".into());
+    }
+    if fsfiller_write_through {
+        return Err("--writethrough requires --fsfiller".into());
+    }
     if let Some(cameras) = &mut c.cameras {
         if camera_conflict || c.prefixes.len() != 1 || c.jobs.len() > 1 {
             return Err("--cctv requires one -F directory/prefix; supports -c kSIZE/MSIZE, --filesizemb, -t, -s, -R and --memory; regular workload/range/verification options cannot be combined".into());
@@ -702,7 +793,30 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     }
     Ok(Some(c))
 }
+/// The short overview printed by -h and by a bare run.
 fn help() {
+    println!("spit {} - Stu's I/O tester", env!("CARGO_PKG_VERSION"));
+    println!(
+        "Default backend: {} (--backend auto selects {} on this system)",
+        Backend::Direct.name(),
+        crate::io::default_backend().name()
+    );
+    println!(
+        r#"
+Command mode (-c workloads against a target, repeat -c to run several):
+  spit -f scratch.img -c rs0k4q32j4 -t 5
+  spit -F /mnt/test/f -G 1GiB -c ws1k4q32 -c rs0k4q32 -t 10
+
+App modes (each prints its report when it ends, or on Ctrl-C):
+  spit -F /mnt/cctv --cctv 100,5,24       100 cameras at 5 Mbit/s, kept 24 h
+  spit --fsfiller -F /mnt/fs -G 50GiB     fill a file system with mixed file sizes
+
+More help:
+  spit --help all      every option, workload token and backend
+  spit --version       print the version"#
+    );
+}
+fn help_all() {
     println!(
         "Default backend: {} (--backend auto selects {} on this system)",
         Backend::Direct.name(),
@@ -763,6 +877,19 @@ WORKLOAD TOKENS (whitespace allowed inside a quoted workload)
   GLOW-HIGH       per-workload GiB range; bLOW-HIGH is a byte range
                   bare G uses the target range; G_ also splits J workers
 
+APPLICATION MODES (instead of -c)
+  --cctv COUNT,MBPS,HOURS -F PREFIX   open-loop camera simulation; see [cctv] above
+  --fsfiller -F DIR           fill DIR with directories and files of 1 KiB to 16 MiB
+                  --fsfiller-dirs TOP,SECOND  directory counts (default 100,100)
+                  --fsfiller-threads N  parallel writers (default 150, 1 to 256)
+                  --ratelimitmbps N  limit the fill to N Mbit/s, the same unit as --cctv
+                  --cantstopthis  retry failed writes, including a full disk, with exponential back-off up to 10 min
+                  -v  read each file back after writing and check it
+                  --synconclose  flush each file to the device before closing it
+                  --writethrough  open each file write-through: every write reaches the device before it returns
+                  -G SIZE caps the bytes written; -t SECONDS sets a time limit
+                  runs until the file system is full, then reports; Ctrl-C reports early
+
 VERIFICATION, RESOURCES AND DIAGNOSTICS
   -v              read back each write; verification reads are not workload ops
   -R SEED         repeatable random seed (default 1)
@@ -776,7 +903,7 @@ VERIFICATION, RESOURCES AND DIAGNOSTICS
   --backend NAME  auto | io_uring | libaio | direct | pagecache
   --memory SIZE   buffer/table budget (automatic default shown above); excludes stacks,
                   runtime, kernel queues and OS page cache
-  -h, --help      this help and the detected backend; --version prints version
+  -h, --help      short help; --help all for everything; --version prints version
 
 Linux auto probes io_uring queue creation, then uses libaio if unavailable.
 Linux administrator enable command:
