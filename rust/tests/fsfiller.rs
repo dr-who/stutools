@@ -1,8 +1,12 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::{Child, Command, Output, Stdio},
+    process::{Command, Output},
     sync::atomic::{AtomicU64, Ordering},
+};
+#[cfg(unix)]
+use std::{
+    process::{Child, Stdio},
     thread,
     time::{Duration, Instant},
 };
@@ -399,6 +403,7 @@ fn default_help_is_short_and_points_to_full_help() {
     assert!(full.contains("APPLICATION MODES"));
 }
 
+#[cfg(any(windows, target_os = "linux", target_os = "freebsd"))]
 #[test]
 fn direct_writes_fill_and_verify() {
     let dir = Dir::new();

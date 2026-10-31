@@ -173,6 +173,8 @@ struct Shared {
     /// Bytes per second across all workers; None runs at full speed.
     rate: Option<f64>,
     done: AtomicBool,
+    /// Set when no new file may start, such as at the -G cap. Files already started still finish.
+    no_new: AtomicBool,
     reason: Mutex<Option<Stop>>,
     error: Mutex<Option<String>>,
     next: AtomicUsize,
@@ -203,6 +205,7 @@ impl Shared {
             write_mode: s.write_mode,
             rate: s.ratelimit_mbps.map(rate::bytes_per_second),
             done: AtomicBool::new(false),
+            no_new: AtomicBool::new(false),
             reason: Mutex::new(None),
             error: Mutex::new(None),
             next: AtomicUsize::new(0),
@@ -218,6 +221,16 @@ impl Shared {
     }
 
     /// Records why the run stopped. The first reason wins; later ones are ignored.
+    /// Stops new files from starting, keeping the reason. Files already started finish, so a cap
+    /// stop leaves no partial files behind.
+    fn stop_new(&self, stop: Stop) {
+        let mut reason = self.reason.lock().unwrap();
+        if reason.is_none() {
+            *reason = Some(stop);
+        }
+        self.no_new.store(true, Relaxed);
+    }
+
     fn finish(&self, stop: Stop) {
         let mut reason = self.reason.lock().unwrap();
         if reason.is_none() {
@@ -463,12 +476,12 @@ fn pace(shared: &Shared, rate: f64, n: u64) {
 
 fn worker(s: &Settings, shared: &Shared) {
     let mut data = Aligned::new(CHUNK);
-    while !shared.done.load(Relaxed) {
+    while !shared.done.load(Relaxed) && !shared.no_new.load(Relaxed) {
         let index = shared.next.fetch_add(1, Relaxed);
         let (kind, size) = file_kind_and_size(index);
         if let Some(cap) = s.cap {
             if shared.reserved.fetch_add(size, Relaxed) + size > cap {
-                shared.finish(Stop::Cap);
+                shared.stop_new(Stop::Cap);
                 return;
             }
         }
