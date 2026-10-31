@@ -184,7 +184,7 @@ each file before it is closed. A close error is reported.
 retried with exponential back-off, from 100 ms up to 10 minutes between attempts,
 and each attempt is logged. Without it, the first error ends the run.
 .PP
-A journal, fsfiller\-journal.txt in the working directory, records each file that
+A journal, fsfiller\-journal.txt in the target directory, records each file that
 was written and closed without error. When the device reappears, and on the next
 start, the most recent 1000 journalled files are verified as ok, bad (wrong size or
 contents) or missing. The journal does not record deletions.

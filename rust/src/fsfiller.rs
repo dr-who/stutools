@@ -190,8 +190,12 @@ impl Shared {
         self.done.store(true, Relaxed);
     }
 
+    /// Records the first error that stopped the run; later ones are ignored, as with the stop reason.
     fn fail(&self, error: String) {
-        *self.error.lock().unwrap() = Some(error);
+        let mut slot = self.error.lock().unwrap();
+        if slot.is_none() {
+            *slot = Some(error);
+        }
         self.done.store(true, Relaxed);
     }
 }
@@ -587,7 +591,7 @@ pub fn run(s: Settings) -> Result<()> {
     create_tree(&s).map_err(|e| format!("{}: {e}", s.root.display()))?;
     let previous = journal::read_tail(&s.root).map_err(|e| format!("{}: {e}", journal::FILE))?;
     verify_entries("restart", &previous);
-    let journal = Journal::open().map_err(|e| format!("{}: {e}", journal::FILE))?;
+    let journal = Journal::open(&s.root).map_err(|e| format!("{}: {e}", journal::FILE))?;
     let shared = Shared::new(&s, journal);
     let samples = thread::scope(|scope| {
         let handles: Vec<_> = (0..s.threads)

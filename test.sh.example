@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Template. Copy to test.sh, fill in each #### value, and keep test.sh out of git.
+# Log in to the Exaba iSCSI target, run a spit CCTV workload on it, then log out.
+set -euo pipefail
+
+PORTAL=####  # set for your site
+TARGET=####  # set for your site
+CHAP_USER=####  # set for your site
+CHAP_SECRET=####  # set for your site
+
+SPIT=####  # set for your site
+CAMERAS=100
+MBPS=5            # decimal Mbit/s per camera
+RETAIN_HOURS=1
+DURATION_S=300
+
+MNT=####  # set for your site
+PREFIX=####  # set for your site
+RESULTS=####  # set for your site
+
+run() { printf '+ %s\n' "$*" >&2; "$@"; }
+die() { echo "ERROR: $*" >&2; exit 1; }
+
+[ "$(id -u)" -eq 0 ] || die "run as root"
+command -v iscsiadm >/dev/null || die "iscsiadm not found (dnf install iscsi-initiator-utils)"
+command -v mkfs.xfs >/dev/null || die "mkfs.xfs not found (dnf install xfsprogs)"
+[ -x "$SPIT" ] || die "$SPIT not found"
+"$SPIT" --help 2>&1 | grep -q -- --cctv || die "$SPIT does not support --cctv"
+
+mkdir -p "$RESULTS"
+exec > >(tee -a "$RESULTS/test.log") 2>&1
+
+LOGGED_IN=0
+MOUNTED=0
+cleanup() {
+    local rc=$?
+    set +e
+    if [ "$MOUNTED" = 1 ]; then
+        cp -p "$(dirname "$PREFIX")"/cctv-test-* "$RESULTS"/ 2>/dev/null
+        run sync
+        run umount "$MNT" || { sleep 2; run umount "$MNT"; }
+    fi
+    if [ "$LOGGED_IN" = 1 ]; then
+        run iscsiadm -m node -T "$TARGET" -p "$PORTAL" --logout
+    fi
+    iscsiadm -m node -T "$TARGET" -p "$PORTAL" -o delete >/dev/null 2>&1
+    echo "results: $RESULTS (exit $rc)"
+    exit "$rc"
+}
+trap cleanup EXIT
+
+# Login. The node is created directly rather than through sendtargets discovery,
+# so a target that advertises a private address cannot redirect the login.
+systemctl is-active --quiet iscsid || run systemctl start iscsid
+iscsiadm -m node -T "$TARGET" -p "$PORTAL" >/dev/null 2>&1 ||
+    run iscsiadm -m node -T "$TARGET" -p "$PORTAL" -o new
+run iscsiadm -m node -T "$TARGET" -p "$PORTAL" -o update -n node.startup -v manual
+run iscsiadm -m node -T "$TARGET" -p "$PORTAL" -o update -n node.session.auth.authmethod -v CHAP
+# New nodes default to MD5 only, which FIPS mode removes, leaving no CHAP algorithm.
+run iscsiadm -m node -T "$TARGET" -p "$PORTAL" -o update -n node.session.auth.chap_algs -v SHA3-256,SHA256,SHA1
+run iscsiadm -m node -T "$TARGET" -p "$PORTAL" -o update -n node.session.auth.username -v "$CHAP_USER"
+run iscsiadm -m node -T "$TARGET" -p "$PORTAL" -o update -n node.session.auth.password -v "$CHAP_SECRET"
+if iscsiadm -m session 2>/dev/null | grep -qF "$TARGET"; then
+    echo "already logged in to $TARGET; reusing the session"
+else
+    run iscsiadm -m node -T "$TARGET" -p "$PORTAL" --login
+fi
+LOGGED_IN=1
+
+DEV=
+LINK=
+udevadm settle
+for _ in $(seq 30); do
+    for l in /dev/disk/by-path/ip-"$PORTAL"-iscsi-"$TARGET"-lun-*; do
+        case $l in *-part*) continue ;; esac
+        if [ -e "$l" ]; then LINK=$l; DEV=$(readlink -f "$l"); break 2; fi
+    done
+    sleep 1
+done
+[ -n "$DEV" ] || die "no block device appeared for $TARGET"
+
+echo
+echo "=== iSCSI target $TARGET is local block device $DEV"
+echo "=== ($LINK)"
+run lsblk -o NAME,SIZE,TYPE,TRAN,VENDOR,MODEL,SERIAL,FSTYPE "$DEV"
+echo
+
+SIZE=$(blockdev --getsize64 "$DEV")
+NEED=$(( CAMERAS * MBPS * 1000000 / 8 * DURATION_S + CAMERAS * 2 * 16 * 1024 * 1024 ))
+echo "device size $(( SIZE / 1000000000 )) GB; this run needs about $(( NEED / 1000000000 )) GB"
+[ "$SIZE" -ge "$NEED" ] || echo "WARNING: the device may fill before the run finishes"
+
+# Only a device with no recognisable contents is formatted.
+FSTYPE=$(blkid -p -o value -s TYPE "$DEV" || true)
+PTTYPE=$(blkid -p -o value -s PTTYPE "$DEV" || true)
+[ -z "$PTTYPE" ] || die "$DEV has a $PTTYPE partition table; refusing to format it"
+if [ -z "$FSTYPE" ]; then
+    echo "$DEV is blank; creating XFS"
+    run mkfs.xfs -K -L exaba-cctv "$DEV"
+    FSTYPE=xfs
+fi
+case $FSTYPE in
+    xfs | ext4) ;;
+    *) die "$DEV contains $FSTYPE; refusing to use it" ;;
+esac
+
+mkdir -p "$MNT"
+! mountpoint -q "$MNT" || die "$MNT is already mounted"
+run mount "$DEV" "$MNT"
+MOUNTED=1
+run df -h "$MNT"
+
+run "$SPIT" -F "$PREFIX" --cctv "$CAMERAS,$MBPS,$RETAIN_HOURS" -c k64 --filesizemb 16 -t "$DURATION_S" -s 1

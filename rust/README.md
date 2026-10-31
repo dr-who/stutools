@@ -146,7 +146,7 @@ written by 150 threads by default (`--fsfiller-threads`). `--writes` chooses
 `writethrough` (default), `buffered` or `direct`; `--synconclose` flushes each file
 before closing it; `-v` reads each file back; `--cantstopthis` retries failed writes
 with back-off instead of stopping; `--ratelimitmbps` limits the rate. Files written
-and closed without error are journalled in `fsfiller-journal.txt`, and the journal
+and closed without error are journalled in `fsfiller-journal.txt` in the target directory, and the journal
 is verified after an outage and on the next start. `man spit` has the details.
 
 ## Packaging

@@ -59,6 +59,12 @@ fn files_under(root: &Path) -> Vec<(PathBuf, u64)> {
             let path = entry.path();
             if entry.file_type().unwrap().is_dir() {
                 pending.push(path);
+            } else if path
+                .file_name()
+                .is_some_and(|name| name == "fsfiller-journal.txt")
+            {
+                // The journal is bookkeeping in the root, not a data file.
+                continue;
             } else {
                 found.push((path.clone(), entry.metadata().unwrap().len()));
             }
