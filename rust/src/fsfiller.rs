@@ -4,7 +4,9 @@
 //! is full, the -G cap or -t limit is reached, or Ctrl-C; the report is printed in every case.
 mod journal;
 
-use crate::{checked_close, pattern, rate, signals, Result};
+use crate::{
+    cctv::files::Aligned, cctv::files::ALIGN, checked_close, pattern, rate, signals, Result,
+};
 use journal::Journal;
 use std::{
     fs::{self, File, OpenOptions},
@@ -33,8 +35,29 @@ pub struct Settings {
     pub verify: bool,
     /// Flush each file to the device before it is closed.
     pub sync_on_close: bool,
-    /// Open each file write-through, so every write reaches the device before it returns.
-    pub write_through: bool,
+    /// How each write reaches the device.
+    pub write_mode: WriteMode,
+}
+
+/// How each file's writes reach the device.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum WriteMode {
+    /// Ordinary buffered writes; the file system writes them back later.
+    Buffered,
+    /// Each write reaches the device before it returns.
+    WriteThrough,
+    /// Bypasses the file system cache, like O_DIRECT.
+    Direct,
+}
+
+impl WriteMode {
+    pub fn name(self) -> &'static str {
+        match self {
+            WriteMode::Buffered => "buffered",
+            WriteMode::WriteThrough => "writethrough",
+            WriteMode::Direct => "direct",
+        }
+    }
 }
 
 /// One colour per file type, in the order of TYPES, so each suffix keeps its colour in the size chart.
@@ -167,7 +190,7 @@ struct Shared {
     outage: Mutex<Option<Instant>>,
     journal: Journal,
     sync_on_close: bool,
-    write_through: bool,
+    write_mode: WriteMode,
     sizes: Mutex<Sizes>,
 }
 
@@ -177,7 +200,7 @@ impl Shared {
             start: Instant::now(),
             journal,
             sync_on_close: s.sync_on_close,
-            write_through: s.write_through,
+            write_mode: s.write_mode,
             rate: s.ratelimit_mbps.map(rate::bytes_per_second),
             done: AtomicBool::new(false),
             reason: Mutex::new(None),
@@ -233,20 +256,35 @@ fn is_full(e: &io::Error) -> bool {
     e.kind() == io::ErrorKind::StorageFull || matches!(e.raw_os_error(), Some(28 | 39 | 112))
 }
 
-/// Creates the file, truncating any old one. With `write_through`, each write reaches the device before it returns.
-fn create(path: &Path, write_through: bool) -> io::Result<File> {
+/// Creates the file, truncating any old one. The write mode sets how each write reaches the device.
+fn create(path: &Path, mode: WriteMode) -> io::Result<File> {
     let mut options = OpenOptions::new();
     options.write(true).create(true).truncate(true);
-    if write_through {
-        #[cfg(windows)]
-        {
-            use std::os::windows::fs::OpenOptionsExt;
-            options.custom_flags(0x8000_0000); // FILE_FLAG_WRITE_THROUGH
+    match mode {
+        WriteMode::Buffered => {}
+        WriteMode::WriteThrough => {
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::OpenOptionsExt;
+                options.custom_flags(0x8000_0000); // FILE_FLAG_WRITE_THROUGH
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.custom_flags(libc::O_SYNC);
+            }
         }
-        #[cfg(any(target_os = "linux", target_os = "macos", target_os = "freebsd"))]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.custom_flags(libc::O_SYNC);
+        WriteMode::Direct => {
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::OpenOptionsExt;
+                options.custom_flags(0x2000_0000); // FILE_FLAG_NO_BUFFERING
+            }
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.custom_flags(libc::O_DIRECT);
+            }
         }
     }
     options.open(path)
@@ -264,7 +302,7 @@ fn seed(path: &Path) -> u64 {
 }
 
 fn write_file(path: &Path, size: u64, shared: &Shared, data: &mut [u8]) -> io::Result<bool> {
-    let mut file = create(path, shared.write_through)?;
+    let mut file = create(path, shared.write_mode)?;
     let seed = seed(path);
     let mut left = size;
     while left > 0 {
@@ -277,14 +315,27 @@ fn write_file(path: &Path, size: u64, shared: &Shared, data: &mut [u8]) -> io::R
         if let Some(rate) = shared.rate {
             pace(shared, rate, n as u64);
         }
-        pattern::fill(&mut data[..n], size - left, seed);
-        if let Err(e) = file.write_all(&data[..n]) {
+        // Direct writes must be whole aligned blocks; the padding is cut off by set_len below.
+        let padded = if shared.write_mode == WriteMode::Direct {
+            n.next_multiple_of(ALIGN)
+        } else {
+            n
+        };
+        pattern::fill(&mut data[..padded], size - left, seed);
+        if let Err(e) = file.write_all(&data[..padded]) {
             drop(file);
             let _ = fs::remove_file(path);
             return Err(e);
         }
         left -= n as u64;
         shared.written.fetch_add(n as u64, Relaxed);
+    }
+    if shared.write_mode == WriteMode::Direct {
+        if let Err(e) = file.set_len(size) {
+            drop(file);
+            let _ = fs::remove_file(path);
+            return Err(e);
+        }
     }
     if shared.sync_on_close {
         if let Err(e) = file.sync_all() {
@@ -411,7 +462,7 @@ fn pace(shared: &Shared, rate: f64, n: u64) {
 }
 
 fn worker(s: &Settings, shared: &Shared) {
-    let mut data = vec![0u8; CHUNK];
+    let mut data = Aligned::new(CHUNK);
     while !shared.done.load(Relaxed) {
         let index = shared.next.fetch_add(1, Relaxed);
         let (kind, size) = file_kind_and_size(index);
@@ -699,8 +750,9 @@ fn report(s: &Settings, shared: &Shared, samples: &[Sample]) {
     let mib = shared.written.load(Relaxed) as f64 / 1048576.;
     println!("fsfiller: stopped: {stop}");
     println!(
-        "sync_on_close={} write_through={}",
-        s.sync_on_close, s.write_through
+        "sync_on_close={} write_mode={}",
+        s.sync_on_close,
+        s.write_mode.name()
     );
     println!(
         "directories={} files={files} MiB={mib:.1} elapsed={elapsed:.3} files_per_s={:.0} MiB_per_s={:.1}",

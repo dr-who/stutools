@@ -8,7 +8,7 @@ use std::{
 };
 const MAGIC: &[u8; 8] = b"SPITCAM1";
 /// Direct I/O needs buffers, offsets and lengths aligned to the device sector size.
-const ALIGN: usize = 4096;
+pub const ALIGN: usize = 4096;
 
 /// Zeroed buffer whose data starts on an `ALIGN` boundary.
 pub struct Aligned {
