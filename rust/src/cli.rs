@@ -515,7 +515,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     let mut fsfiller_threads = None;
     let mut fsfiller_cant_stop = false;
     let mut fsfiller_sync = false;
-    let mut fsfiller_write_through = false;
+    let mut fsfiller_buffered = false;
     while let Some(flag) = it.next() {
         camera_conflict |= matches!(
             flag.as_str(),
@@ -547,8 +547,8 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 fsfiller_sync = true;
                 continue;
             }
-            "--writethrough" => {
-                fsfiller_write_through = true;
+            "--buffered" => {
+                fsfiller_buffered = true;
                 continue;
             }
             _ => {}
@@ -700,7 +700,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             cant_stop: fsfiller_cant_stop,
             verify: c.verify,
             sync_on_close: fsfiller_sync,
-            write_through: fsfiller_write_through,
+            write_through: !fsfiller_buffered,
         });
         return Ok(Some(c));
     }
@@ -716,8 +716,8 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     if fsfiller_sync {
         return Err("--synconclose requires --fsfiller".into());
     }
-    if fsfiller_write_through {
-        return Err("--writethrough requires --fsfiller".into());
+    if fsfiller_buffered {
+        return Err("--buffered requires --fsfiller".into());
     }
     if let Some(cameras) = &mut c.cameras {
         if camera_conflict || c.prefixes.len() != 1 || c.jobs.len() > 1 {
@@ -886,7 +886,7 @@ APPLICATION MODES (instead of -c)
                   --cantstopthis  retry failed writes, including a full disk, with exponential back-off up to 10 min
                   -v  read each file back after writing and check it
                   --synconclose  flush each file to the device before closing it
-                  --writethrough  open each file write-through: every write reaches the device before it returns
+                  --buffered  plain buffered writes, as an ordinary app: no write-through
                   -G SIZE caps the bytes written; -t SECONDS sets a time limit
                   runs until the file system is full, then reports; Ctrl-C reports early
 
