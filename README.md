@@ -109,7 +109,7 @@ pagecache on macOS and FreeBSD, and direct on Windows. Explicit backend choices
 never silently fall back. A synchronous backend executes one I/O at a time per
 worker; its `q` controls reusable batch storage.
 
-File-system filling is a separate mode: `spit --fsfiller -F DIR` fills DIR with a
+File-system filling is a separate mode: `spit -F DIR --fsfiller` fills DIR with a
 tree of files from 1 KiB to 16 MiB, using 150 writer threads by default. Its
 options, including `--writes`, `--synconclose`, `--cantstopthis` and `--ratelimitmbps`,
 are in `man spit`.

@@ -817,8 +817,8 @@ Command mode (-c workloads against a target, repeat -c to run several):
   spit -F /mnt/test/f -G 1GiB -c ws1k4q32 -c rs0k4q32 -t 10
 
 App modes (each prints its report when it ends, or on Ctrl-C):
-  spit -F /mnt/cctv --cctv 100,5,24       100 cameras at 5 Mbit/s, kept 24 h
-  spit --fsfiller -F /mnt/fs -G 50GiB     fill a file system with mixed file sizes
+  spit -F /mnt/cctv --cctv 100,5,24  # 100 cameras at 5 Mbit/s, kept 24 h
+  spit -F /mnt/fs --fsfiller -G 50GiB  # fill a file system with mixed file sizes
 
 More help:
   spit --help all      every option, workload token and backend

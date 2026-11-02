@@ -141,7 +141,7 @@ fault coverage for that backend.
 
 ## File-system filler
 
-`spit --fsfiller -F DIR` fills DIR with a two-level tree of files, 1 KiB to 16 MiB,
+`spit -F DIR --fsfiller` fills DIR with a two-level tree of files, 1 KiB to 16 MiB,
 written by 150 threads by default (`--fsfiller-threads`). `--writes` chooses
 `writethrough` (default), `buffered` or `direct`; `--synconclose` flushes each file
 before closing it; `-v` reads each file back; `--cantstopthis` retries failed writes
