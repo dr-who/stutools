@@ -12,7 +12,7 @@ use std::{
 
 pub const FILE: &str = "fsfiller-journal.txt";
 /// How many of the most recent entries are kept in memory and re-verified.
-pub const KEEP: usize = 1000;
+const KEEP: usize = 1000;
 
 pub struct Journal {
     root: PathBuf,

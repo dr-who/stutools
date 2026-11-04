@@ -1,40 +1,11 @@
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, SeekFrom, Write},
-    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 const MAGIC: &[u8; 8] = b"SPITCAM1";
-/// Direct I/O needs buffers, offsets and lengths aligned to the device sector size.
-pub const ALIGN: usize = 4096;
-
-/// Zeroed buffer whose data starts on an `ALIGN` boundary.
-pub struct Aligned {
-    raw: Vec<u8>,
-    start: usize,
-    len: usize,
-}
-impl Aligned {
-    pub fn new(len: usize) -> Self {
-        let raw = vec![0; len + ALIGN];
-        let start = raw.as_ptr().align_offset(ALIGN);
-        Self { raw, start, len }
-    }
-}
-impl Deref for Aligned {
-    type Target = [u8];
-    fn deref(&self) -> &[u8] {
-        &self.raw[self.start..self.start + self.len]
-    }
-}
-impl DerefMut for Aligned {
-    fn deref_mut(&mut self) -> &mut [u8] {
-        &mut self.raw[self.start..self.start + self.len]
-    }
-}
-
 pub fn now() -> io::Result<u64> {
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)

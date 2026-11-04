@@ -1,3 +1,8 @@
+use crate::iscsi::{
+    connection::Connection,
+    lanes::Policy,
+    report::{self as iscsi_report, Path as IscsiPath},
+};
 use crate::{
     allocation,
     cli::{Backend, Config, Workload},
@@ -6,7 +11,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -14,11 +19,21 @@ use std::{
     },
     time::Instant,
 };
+/// What a worker runs over: the paths of an iSCSI target, with the settings to log in with.
+struct IscsiPlan {
+    paths: Vec<IscsiPath>,
+    initiator: String,
+    chap: Option<(String, Vec<u8>)>,
+    policy: Policy,
+}
+
 struct Plan {
     record_latency: bool,
-    file: File,
+    /// None for an iSCSI target, which has no file.
+    file: Option<File>,
     /// Windows only: one file per queue slot.
     slots: Vec<File>,
+    iscsi: Option<IscsiPlan>,
     work: Workload,
     lo: u64,
     hi: u64,
@@ -32,8 +47,15 @@ struct Plan {
     max_len: usize,
     position_capacity: usize,
 }
+/// How many wrong offsets a worker keeps for the report.
+const INCORRECT_SAMPLES: usize = 16;
+
 #[derive(Default)]
 struct Stats {
+    /// Blocks whose contents did not match what was written.
+    incorrect: u64,
+    incorrect_offsets: [u64; INCORRECT_SAMPLES],
+    incorrect_offsets_len: u8,
     reads: u64,
     writes: u64,
     read_bytes: u64,
@@ -105,6 +127,8 @@ impl StartGate {
 struct Target {
     path: PathBuf,
     jobs: Vec<(Workload, usize)>,
+    /// The iSCSI paths of this target; empty for a file target.
+    iscsi: Vec<IscsiPath>,
 }
 fn worker_range(
     w: &Workload,
@@ -125,7 +149,19 @@ fn worker_range(
     let last = blocks * (index + 1) as u64 / w.workers as u64;
     Ok((lo + first * w.block as u64, lo + last * w.block as u64))
 }
-fn target_specs(c: &Config) -> Vec<Target> {
+fn target_specs(c: &Config, iscsi: &[IscsiPath]) -> Vec<Target> {
+    if !iscsi.is_empty() {
+        let jobs = c
+            .jobs
+            .iter()
+            .flat_map(|w| (0..w.workers).map(move |index| (w.clone(), index)))
+            .collect::<Vec<_>>();
+        return vec![Target {
+            path: PathBuf::from("iscsi"),
+            jobs,
+            iscsi: iscsi.to_vec(),
+        }];
+    }
     let jobs = c
         .jobs
         .iter()
@@ -137,6 +173,7 @@ fn target_specs(c: &Config) -> Vec<Target> {
         .map(|path| Target {
             path: path.clone(),
             jobs: jobs.clone(),
+            iscsi: Vec::new(),
         })
         .collect::<Vec<_>>();
     let mut sequence = 0;
@@ -148,15 +185,54 @@ fn target_specs(c: &Config) -> Vec<Target> {
             targets.push(Target {
                 path: name.into(),
                 jobs: vec![job.clone()],
+                iscsi: Vec::new(),
             });
         }
     }
     targets
 }
+/// `s0v` with `-S FILE`: writes the positions file as N write/read pairs. Each pair writes a block and
+/// then reads the same block back, so a replay verifies every write. N is the workload's position count
+/// (`P`), or the range divided by the block size. Offsets are random for `s0` and sequential for `s1`.
+fn write_verify_positions(c: &Config, path: &Path) -> Result<()> {
+    let Some(w) = c.jobs.iter().find(|w| w.write_verify) else {
+        return Ok(());
+    };
+    let (lo, hi) = c
+        .range
+        .ok_or("s0v with -S needs -G SIZE to set the range the pairs cover")?;
+    let block = w.block as u64;
+    let blocks = (hi - lo) / block;
+    if blocks == 0 {
+        return Err("range is smaller than one block".into());
+    }
+    let count = w.positions.unwrap_or(blocks);
+    let sequential = w.sequential >= 1.;
+    let mut state = c.seed.max(1);
+    let mut out = std::io::BufWriter::new(
+        File::create(path).map_err(|e| format!("{}: {e}", path.display()))?,
+    );
+    for i in 0..count {
+        let index = if sequential {
+            i % blocks
+        } else {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state % blocks
+        };
+        let offset = lo + index * block;
+        writeln!(out, "{offset} W {}", w.block).map_err(|e| e.to_string())?;
+        writeln!(out, "{offset} R {}", w.block).map_err(|e| e.to_string())?;
+    }
+    out.flush().map_err(|e| e.to_string())
+}
+
 fn loaded(c: &Config) -> Result<Arc<[Request]>> {
     let Some(path) = &c.positions_file else {
         return Ok(Arc::from([]));
     };
+    write_verify_positions(c, path)?;
     let file = File::open(path).map_err(|e| e.to_string())?;
     if file.metadata().map_err(|e| e.to_string())?.len() > c.memory / 4 {
         return Err("positions input exceeds memory budget".into());
@@ -221,7 +297,13 @@ pub fn run(c: Config) -> Result<Summary> {
     // Installed first, so Ctrl-C during setup still stops the run and prints the report.
     let _signals = crate::signals::Guard::install().map_err(|e| e.to_string())?;
     let records = loaded(&c)?;
-    let specs = target_specs(&c);
+    let iscsi = c
+        .iscsi
+        .iter()
+        .map(|p| iscsi_report::parse_path(p))
+        .collect::<Result<Vec<_>>>()?;
+    crate::iscsi::connection::set_dump(c.dump);
+    let specs = target_specs(&c, &iscsi);
     let budget = memory_budget(&c, &specs, &records)?;
     let checked = check_targets(&c, specs, &records)?;
     let table_capacity = table_capacity(&c, &budget, records.len())?;
@@ -243,7 +325,9 @@ pub fn run(c: Config) -> Result<Summary> {
     );
     let outcomes = execute_plans(plans, c.interval)?;
     let (total, error) = aggregate(outcomes, &labels)?;
-    report(&c, total, error)
+    let summary = report(&c, total, error);
+    crate::iscsi::connection::print_totals();
+    summary
 }
 
 /// Memory the fixed I/O pools need, before any position tables are sized.
@@ -299,7 +383,61 @@ struct Checked {
     write: bool,
 }
 
+/// Sizes an iSCSI target with a probe login, then checks the workload against the LUN.
+fn check_iscsi(c: &Config, target: Target, records: &[Request]) -> Result<Checked> {
+    let write = if records.is_empty() {
+        target
+            .jobs
+            .iter()
+            .any(|(w, _)| w.read_probability < 1. || w.alternate)
+    } else {
+        records.iter().any(|r| r.write)
+    };
+    if c.precondition.is_some() {
+        return Err("preconditioning is not supported over iSCSI yet".into());
+    }
+    let initiator = c
+        .iscsi_initiator
+        .as_deref()
+        .ok_or("--iscsi needs --iscsi-initiator IQN")?;
+    let chap = iscsi_report::chap_from_config(c)?;
+    let chap_ref = chap.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
+    let probe = Connection::open(&target.iscsi, initiator, chap_ref, c.iscsi_policy, c.seed)?;
+    let capacity = probe.capacity_bytes();
+    let (lo, hi) = c.range.unwrap_or((0, capacity));
+    if lo >= hi {
+        return Err("empty range".into());
+    }
+    if hi > capacity {
+        return Err(format!("range exceeds the LUN size of {capacity} bytes"));
+    }
+    for (w, index) in &target.jobs {
+        check_job(
+            &target.path,
+            Some(probe.block_len() as usize),
+            w,
+            *index,
+            lo,
+            hi,
+            records,
+            c.backend,
+        )?;
+    }
+    Ok(Checked {
+        target,
+        lo,
+        hi,
+        create: false,
+        actual: Some(capacity),
+        regular: true,
+        write,
+    })
+}
+
 fn check_target(c: &Config, target: Target, records: &[Request]) -> Result<Checked> {
+    if !target.iscsi.is_empty() {
+        return check_iscsi(c, target, records);
+    }
     let path = &target.path;
     let write = if records.is_empty() {
         target
@@ -469,6 +607,7 @@ fn build_plans(
     let max_loaded = records.iter().map(|r| r.len).max().unwrap_or(0);
     let mut plans = Vec::new();
     let mut labels = Vec::new();
+    let iscsi_chap = iscsi_report::chap_from_config(c)?;
     for Checked {
         target,
         lo,
@@ -480,18 +619,42 @@ fn build_plans(
     } in checked
     {
         let path = &target.path;
-        let file = open_target(c, path, write, create, actual, regular, hi)?;
-        if let Some(pre) = &c.precondition {
-            run_precondition(c, pre, &file, path, write, lo, hi)?;
-        }
+        let iscsi = (!target.iscsi.is_empty()).then(|| IscsiPlan {
+            paths: target.iscsi.clone(),
+            initiator: c.iscsi_initiator.clone().unwrap_or_default(),
+            chap: iscsi_chap.clone(),
+            policy: c.iscsi_policy,
+        });
+        let file = match iscsi {
+            Some(_) => None,
+            None => {
+                let file = open_target(c, path, write, create, actual, regular, hi)?;
+                if let Some(pre) = &c.precondition {
+                    run_precondition(c, pre, &file, path, write, lo, hi)?;
+                }
+                Some(file)
+            }
+        };
         for (w, index) in &target.jobs {
             let (start, end) = worker_range(w, *index, lo, hi, !records.is_empty())?;
             labels.push(path.clone());
             plans.push(Plan {
                 record_latency: c.latency_out.is_some(),
-                file: file.try_clone().map_err(|e| e.to_string())?,
-                slots: io::open_slots(path, write, c.backend, w.depth)
-                    .map_err(|e| e.to_string())?,
+                file: match &file {
+                    Some(file) => Some(file.try_clone().map_err(|e| e.to_string())?),
+                    None => None,
+                },
+                slots: match iscsi {
+                    Some(_) => Vec::new(),
+                    None => io::open_slots(path, write, c.backend, w.depth)
+                        .map_err(|e| e.to_string())?,
+                },
+                iscsi: iscsi.as_ref().map(|i| IscsiPlan {
+                    paths: i.paths.clone(),
+                    initiator: i.initiator.clone(),
+                    chap: i.chap.clone(),
+                    policy: i.policy,
+                }),
                 work: w.clone(),
                 lo: start,
                 hi: end,
@@ -553,7 +716,8 @@ fn run_precondition(
     let (start, end) = worker_range(pre, 0, lo, hi, false)?;
     let plan = Plan {
         record_latency: c.latency_out.is_some(),
-        file: file.try_clone().map_err(|e| e.to_string())?,
+        file: Some(file.try_clone().map_err(|e| e.to_string())?),
+        iscsi: None,
         slots: io::open_slots(path, write, c.backend, pre.depth).map_err(|e| e.to_string())?,
         work: pre.clone(),
         lo: start,
@@ -637,6 +801,13 @@ fn aggregate(
         total.allocations += s.allocations;
         total.submit_errors += s.submit_errors;
         total.verified += s.verified;
+        total.incorrect += s.incorrect;
+        for &offset in &s.incorrect_offsets[..s.incorrect_offsets_len as usize] {
+            if (total.incorrect_offsets_len as usize) < INCORRECT_SAMPLES {
+                total.incorrect_offsets[total.incorrect_offsets_len as usize] = offset;
+                total.incorrect_offsets_len += 1;
+            }
+        }
         total.latencies_us.extend(s.latencies_us);
         total.inflight_max = total.inflight_max.max(s.inflight_max);
         total.inflight_area_ns += s.inflight_area_ns;
@@ -700,8 +871,20 @@ fn report(c: &Config, total: Stats, mut error: Option<String>) -> Result<Summary
     if let Some(e) = error {
         return Err(e);
     }
-    if c.verify {
-        eprintln!("verification: incorrect 0, ioerrors 0");
+    if c.verify || c.jobs.iter().any(|w| w.verify || w.write_verify) {
+        eprintln!(
+            "verification: checked {}, incorrect {}",
+            total.verified, total.incorrect
+        );
+        for offset in &total.incorrect_offsets[..total.incorrect_offsets_len as usize] {
+            eprintln!("*error* verification mismatch: wrong contents at offset {offset}");
+        }
+        if total.incorrect > 0 {
+            return Err(format!(
+                "verification mismatch: {} blocks had wrong contents",
+                total.incorrect
+            ));
+        }
     }
     if total.allocations != 0 {
         return Err(format!("hot path allocated {} times", total.allocations));
@@ -791,6 +974,12 @@ fn worker(p: Plan, barrier: Arc<StartGate>, worker_index: usize) -> Outcome {
 struct Run {
     queue: Queue,
     generated: crate::positions::Positions,
+    /// `v` workloads: the pairs' own generator state, and the read due after the last write.
+    wv_count: u64,
+    wv_state: u64,
+    wv_pending: Option<Request>,
+    wv_lo: u64,
+    wv_hi: u64,
     template: [u8; 4096],
     work: Workload,
     seed: u64,
@@ -849,15 +1038,26 @@ impl Run {
             && p.work.read_probability == 0.
             && p.work.block % 4096 == 0
             && p.lo % 4096 == 0;
-        let mut queue = Queue::new(
-            p.file,
-            p.backend,
-            p.work.depth,
-            p.max_len,
-            p.timeout,
-            p.work.submit_batch,
-            p.slots,
-        )?;
+        let mut queue = match &p.iscsi {
+            Some(iscsi) => {
+                let chap = iscsi.chap.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
+                let connection =
+                    Connection::open(&iscsi.paths, &iscsi.initiator, chap, iscsi.policy, p.seed)
+                        .map_err(|e| Failure::from(std::io::Error::other(e)))?;
+                Queue::over_connection(connection, p.work.depth, p.max_len, p.timeout)?
+            }
+            None => Queue::new(
+                p.file.ok_or_else(|| {
+                    Failure::from(std::io::Error::other("file target without a file"))
+                })?,
+                p.backend,
+                p.work.depth,
+                p.max_len,
+                p.timeout,
+                p.work.submit_batch,
+                p.slots,
+            )?,
+        };
         let generated = crate::positions::Positions::new(
             &p.work,
             p.lo,
@@ -898,7 +1098,13 @@ impl Run {
             && !p.record_latency
             && (p.backend == Backend::Libaio || p.backend == Backend::Uring))
             || cfg!(any(windows, target_os = "macos", target_os = "freebsd"));
+        let (wv_lo, wv_hi) = (p.lo, p.hi);
         Ok(Self {
+            wv_lo,
+            wv_hi,
+            wv_count: 0,
+            wv_state: p.seed.max(1),
+            wv_pending: None,
             queue,
             generated,
             template,
@@ -1027,7 +1233,9 @@ impl Run {
             let count = self.fill_batch(batch_limit);
             let batch_started = Instant::now();
             let result = self.queue.execute(count, self.errors, |i, r| {
-                if r.write && self.work.verify {
+                // Write-verify writes its own offsets (fill_write_verify), so the position plan is not
+                // written and must not be checked back.
+                if r.write && self.work.verify && !self.work.write_verify {
                     self.generated.written(self.index + i as u64);
                 }
                 let measured = self
@@ -1086,7 +1294,57 @@ impl Run {
     }
 
     /// Fills the first `limit` queue slots with the next requests and their payloads. Returns how many.
+    /// `v` workloads: fills the batch with write, then the read of that block, alternating. Each read
+    /// names the same offset as the write before it, and a batch deeper than one slot can overlap the two.
+    fn fill_write_verify(&mut self, limit: usize) -> usize {
+        let block = self.work.block as u64;
+        let blocks = ((self.wv_hi - self.wv_lo) / block).max(1);
+        let mut count = 0;
+        while count < limit {
+            if let Some(read) = self.wv_pending.take() {
+                self.queue.requests[count] = read;
+            } else {
+                let index = if self.work.sequential >= 1. {
+                    self.wv_count % blocks
+                } else {
+                    self.wv_state ^= self.wv_state << 13;
+                    self.wv_state ^= self.wv_state >> 7;
+                    self.wv_state ^= self.wv_state << 17;
+                    self.wv_state % blocks
+                };
+                self.wv_count += 1;
+                let request = Request {
+                    offset: self.wv_lo + index * block,
+                    len: self.work.block,
+                    write: true,
+                    verify: false,
+                    seed: 0,
+                    state: 0,
+                };
+                self.queue.requests[count] = request;
+                write_pattern(
+                    self.queue.buffer(count),
+                    request,
+                    &self.work,
+                    self.seed,
+                    self.reusable,
+                    &self.template,
+                );
+                self.wv_pending = Some(Request {
+                    write: false,
+                    verify: true,
+                    ..request
+                });
+            }
+            count += 1;
+        }
+        count
+    }
+
     fn fill_batch(&mut self, limit: usize) -> usize {
+        if self.work.write_verify {
+            return self.fill_write_verify(limit);
+        }
         let mut count = 0;
         let mut batch_bytes = 0u64;
         for i in 0..limit {
@@ -1115,6 +1373,17 @@ impl Run {
     }
 
     /// Checks the reads that were scheduled for verification in this batch.
+    /// Counts a block whose contents are wrong and keeps the first few offsets. Keeps going, so every wrong
+    /// block is counted. Fixed-size storage, so a bad run does not allocate in the timed loop.
+    fn record_incorrect(&mut self, offset: u64) {
+        self.stats.incorrect += 1;
+        let n = self.stats.incorrect_offsets_len as usize;
+        if n < INCORRECT_SAMPLES {
+            self.stats.incorrect_offsets[n] = offset;
+            self.stats.incorrect_offsets_len += 1;
+        }
+    }
+
     fn verify_reads(&mut self, count: usize) {
         for i in 0..count {
             let request = self.queue.requests[i];
@@ -1126,10 +1395,11 @@ impl Run {
                     self.seed,
                     &self.template,
                 ) {
-                    self.error = Some(Failure::Verification);
-                    return;
+                    self.record_incorrect(request.offset);
                 }
-                self.generated.checked(self.index + i as u64);
+                if !self.work.write_verify {
+                    self.generated.checked(self.index + i as u64);
+                }
                 self.stats.verified += 1;
             }
         }
@@ -1165,8 +1435,7 @@ impl Run {
                 self.seed,
                 &self.template,
             ) {
-                self.error = Some(Failure::Verification);
-                return;
+                self.record_incorrect(r.offset);
             }
             self.stats.verified += 1;
         }
@@ -1174,6 +1443,9 @@ impl Run {
 
     /// Reads back the writes whose metadata check was still pending when the limit ended the run.
     fn verify_pending(&mut self) {
+        if self.work.write_verify {
+            return;
+        }
         let mut cursor = 0;
         loop {
             let mut count = 0;
@@ -1200,8 +1472,7 @@ impl Run {
                     self.seed,
                     &self.template,
                 ) {
-                    self.error = Some(Failure::Verification);
-                    return;
+                    self.record_incorrect(request.offset);
                 }
                 self.stats.verified += 1;
             }

@@ -7,7 +7,8 @@ mod journal;
 mod stats;
 
 use crate::{
-    cctv::files::Aligned, cctv::files::ALIGN, checked_close, pattern, rate, signals, Result,
+    aligned::{AlignedBuf, DIRECT_ALIGN},
+    checked_close, pattern, rate, signals, Result,
 };
 use chart::{write_chart, write_sizes};
 use journal::Journal;
@@ -316,7 +317,7 @@ fn write_contents(
         }
         // Direct writes must be whole aligned blocks; the padding is cut off by set_len below.
         let padded = if shared.write_mode == WriteMode::Direct {
-            n.next_multiple_of(ALIGN)
+            n.next_multiple_of(DIRECT_ALIGN)
         } else {
             n
         };
@@ -447,7 +448,7 @@ fn pace(shared: &Shared, rate: f64, n: u64) {
 }
 
 fn worker(s: &Settings, shared: &Shared) {
-    let mut data = Aligned::new(CHUNK);
+    let mut data = AlignedBuf::new(CHUNK);
     while !shared.done.load(Relaxed) && !shared.no_new.load(Relaxed) {
         let index = shared.next.fetch_add(1, Relaxed);
         let (kind, size) = file_kind_and_size(index);

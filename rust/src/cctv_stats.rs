@@ -97,7 +97,7 @@ impl MetricsStore {
         }
     }
 }
-pub const HEADER: &str = "period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms,max_write_camera,max_write_sequence,max_write_offset,max_write_submit_s,max_write_complete_s,writes_over_200ms,avg_gen_ms,max_gen_ms,closes,avg_close_ms,max_close_ms,max_close_queue\n";
+const HEADER: &str = "period,utc_start,elapsed_start_s,seconds,status,write_ops,write_bytes,avg_write_ms,max_write_ms,preallocated_files,avg_preallocation_ms,max_preallocation_ms,deleted_files,file_rotations,preallocation_waits,avg_preallocation_wait_ms,max_preallocation_wait_ms,max_write_camera,max_write_sequence,max_write_offset,max_write_submit_s,max_write_complete_s,writes_over_200ms,avg_gen_ms,max_gen_ms,closes,avg_close_ms,max_close_ms,max_close_queue\n";
 
 fn padded_csv(out: &mut impl Write, row: &str) -> io::Result<()> {
     for (index, (name, value)) in HEADER

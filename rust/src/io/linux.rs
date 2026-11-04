@@ -2,10 +2,10 @@
 use super::*;
 use crate::cli::Backend;
 use std::{
-    fs::OpenOptions,
+    fs::{File, OpenOptions},
     time::{Duration, Instant},
 };
-pub fn uring_submit(
+fn uring_submit(
     ring: &io_uring::IoUring,
     observer: Option<&crate::progress::Counter>,
 ) -> io::Result<usize> {
@@ -16,7 +16,7 @@ pub fn uring_submit(
     Ok(submitted)
 }
 #[allow(clippy::too_many_arguments)]
-pub fn uring_stream<N, P, C>(
+fn uring_stream<N, P, C>(
     ring: &mut io_uring::IoUring,
     fd: i32,
     ptr: *mut u8,
@@ -178,7 +178,7 @@ extern "C" {
     ) -> libc::c_int;
     fn io_destroy(ctx: usize) -> libc::c_int;
 }
-pub struct Aio {
+struct Aio {
     ctx: usize,
     cbs: Box<[Cb]>,
     pointers: Box<[*mut Cb]>,

@@ -79,7 +79,7 @@ fn parse_cameras(text: &str) -> Result<(usize, usize, usize, f64)> {
 }
 /// The camera counts a range runs: every linear step, or each count a ratio times the last.
 /// The end is always included.
-pub fn camera_counts(s: &Settings) -> Vec<usize> {
+fn camera_counts(s: &Settings) -> Vec<usize> {
     if s.count_ratio == 1. {
         return (s.count..=s.count_end).step_by(s.count_step).collect();
     }
@@ -410,7 +410,7 @@ impl Logs {
 }
 
 fn allocate(shared: Arc<Shared>) -> Result<()> {
-    let zeroes = files::Aligned::new(65536);
+    let zeroes = crate::aligned::AlignedBuf::new(65536);
     let mut sequence = vec![0u64; shared.settings.count];
     while !shared.stopping() {
         let mut work = false;
@@ -483,7 +483,7 @@ fn fill(buffer: &mut [u8], state: &mut u64) {
 fn camera(
     shared: Arc<Shared>,
     index: usize,
-    mut buffer: files::Aligned,
+    mut buffer: crate::aligned::AlignedBuf,
     seed: u64,
 ) -> Result<(u64, Vec<(f64, u32)>)> {
     let mut current = shared.take(index, false).map_err(|e| e.to_string())?;
@@ -803,8 +803,8 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
             ..Metrics::default()
         })
         .map_err(|e| e.to_string())?;
-    let buffers: Vec<files::Aligned> = (0..settings.count)
-        .map(|_| files::Aligned::new(settings.block))
+    let buffers: Vec<crate::aligned::AlignedBuf> = (0..settings.count)
+        .map(|_| crate::aligned::AlignedBuf::new(settings.block))
         .collect();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .max_blocking_threads(settings.count + 1)

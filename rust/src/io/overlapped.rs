@@ -12,7 +12,7 @@ use std::time::Instant;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct Ov {
+struct Ov {
     internal: usize,
     internal_high: usize,
     offset: u32,

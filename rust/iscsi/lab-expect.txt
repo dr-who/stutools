@@ -1,0 +1,6 @@
+# Expected state of the lab targets (spitlunsbc-N). Keep in step with the LIO configuration.
+# target        lun-group  auth  digest-required  alua-state          size-gib  chap-algorithms
+spitlunsbc-1    A          none  no               active/optimized    20        -
+spitlunsbc-2    A          none  yes              standby             20        -
+spitlunsbc-3    A          chap  no               active/optimized    20        6,7,8
+spitlunsbc-4    B          none  no               active/optimized    10        -

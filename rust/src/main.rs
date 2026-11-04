@@ -1,6 +1,7 @@
 mod allocation;
 #[global_allocator]
 static ALLOCATOR: allocation::Audited = allocation::Audited;
+mod aligned;
 mod cctv;
 mod cctv_plots;
 mod cctv_test;
@@ -10,6 +11,7 @@ mod engine;
 mod fsfiller;
 mod info;
 mod io;
+mod iscsi;
 mod memory;
 mod pattern;
 mod positions;
@@ -53,6 +55,12 @@ fn main() {
                 fsfiller::run(settings)
             } else if config.cameras.is_some() {
                 cctv::run(config)
+            } else if !config.iscsi.is_empty() && config.jobs.is_empty() {
+                if config.scsitest {
+                    iscsi::scsitest::run(&config)
+                } else {
+                    iscsi::report::run(&config)
+                }
             } else {
                 engine::run(config).map(|_| ())
             }

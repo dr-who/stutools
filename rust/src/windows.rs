@@ -102,7 +102,7 @@ fn ioctl(file: &File, code: u32, output: &mut [u8]) -> io::Result<usize> {
     }
 }
 
-pub fn inspect(path: &Path, file: &File) -> crate::Result<super::TargetInfo> {
+pub fn inspect(path: &Path, file: &File) -> crate::Result<super::target::TargetInfo> {
     let describe = drive(path).and_then(filesystem);
     let hint = match (drive(path), &describe) {
         (Some(d), Some(fs)) => format!("{d}: has a {fs} filesystem; if it is virtual, it may not expose a raw block device. For a file test use -F {d}:\\spit-test -G 1MiB -c ws1x1, then -c rs0"),
@@ -133,7 +133,7 @@ pub fn inspect(path: &Path, file: &File) -> crate::Result<super::TargetInfo> {
             path.display()
         );
     }
-    Ok(super::TargetInfo {
+    Ok(super::target::TargetInfo {
         length: Some(length as u64),
         regular: false,
         sector: Some(sector),

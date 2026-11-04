@@ -117,3 +117,21 @@ mod tests {
         }
     }
 }
+#[cfg(test)]
+mod cached_round_trip {
+    use super::*;
+    #[test]
+    fn cached_write_then_check_matches_at_4k_offsets() {
+        let seed = 7;
+        let mut template = [0u8; 4096];
+        fill(&mut template, 0, seed);
+        for offset in [0u64, 4096, 9662464, 53248, 1642496, 23896064] {
+            let mut buf = vec![0u8; 4096];
+            fill_cached(&mut buf, offset, seed, &template);
+            assert!(
+                matches_cached(&buf, offset, seed, &template),
+                "offset {offset}"
+            );
+        }
+    }
+}
