@@ -1,6 +1,6 @@
 //! The queue: one worker's buffers and in-flight requests, run on the platform backend.
 
-use super::{AsyncIo, Failure, Native, Request, StreamCtx, StreamStats};
+use super::{AsyncIo, Failure, Native, Next, Request, StreamCtx, StreamStats};
 use crate::cli::Backend;
 use std::{
     alloc::{alloc_zeroed, dealloc, Layout},
@@ -43,8 +43,8 @@ pub struct Queue {
     stride: usize,
     /// The file the native backend submits to; None for an iSCSI connection.
     file: Option<File>,
-    /// Set for an iSCSI workload: the queue's requests run through the connection instead.
-    connection: Option<crate::iscsi::connection::Connection>,
+    /// Set for a path workload: the queue's requests run through the pool instead.
+    connection: Option<crate::paths::MultiPool>,
     pub observer: Option<(std::sync::Arc<crate::progress::State>, usize)>,
     timeout: Duration,
     submit_batch: usize,
@@ -88,7 +88,7 @@ impl Queue {
     }
     /// A queue whose requests run over an iSCSI connection, with the same buffers as a file queue.
     pub fn over_connection(
-        mut connection: crate::iscsi::connection::Connection,
+        mut connection: crate::paths::MultiPool,
         depth: usize,
         max_len: usize,
         timeout: f64,
@@ -115,6 +115,24 @@ impl Queue {
             timeout: Duration::from_secs_f64(timeout),
             submit_errors: 0,
         })
+    }
+    /// The start of the arena: slot `i`'s buffer begins `i * stride()` bytes in. Valid while the queue lives.
+    pub fn arena_base(&self) -> *mut u8 {
+        self.arena.as_ref().unwrap().ptr.as_ptr()
+    }
+    /// The number of endpoints the queue's requests run over: 1 for a file or a single connection.
+    pub fn endpoints(&self) -> usize {
+        self.connection.as_ref().map_or(1, |c| c.endpoints())
+    }
+
+    /// Lets write-verify read-backs run while their writes are in flight. Only a connection uses it.
+    pub fn set_race(&mut self, on: bool) {
+        if let Some(connection) = self.connection.as_mut() {
+            connection.set_race(on);
+        }
+    }
+    pub fn stride(&self) -> usize {
+        self.stride
     }
     pub fn buffer(&mut self, index: usize) -> &mut [u8] {
         assert!(index < self.requests.len());
@@ -152,9 +170,9 @@ impl Queue {
         error_limit: u64,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         let fd = self.file.as_ref().map_or(-1, raw_fd);
         let ptr = self.arena.as_ref().unwrap().ptr.as_ptr();

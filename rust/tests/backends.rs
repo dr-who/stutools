@@ -327,7 +327,7 @@ fn aio_shim() -> Target {
 fn timed_reports_exclude_late_completions_and_stop_at_the_deadline() {
     let target = Target::new();
     let shim = aio_shim();
-    for (extra, expected) in [(&["-v"][..], "8,0"), (&[][..], "9,0")] {
+    for (extra, expected) in [(&["-v"][..], "9,0"), (&[][..], "9,0")] {
         let out = Command::new(env!("CARGO_BIN_EXE_spit"))
             .arg("-f")
             .arg(&target.0)

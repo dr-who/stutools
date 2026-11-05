@@ -13,6 +13,8 @@ mod info;
 mod io;
 mod iscsi;
 mod memory;
+mod nvme;
+mod paths;
 mod pattern;
 mod positions;
 mod progress;
@@ -55,9 +57,15 @@ fn main() {
                 fsfiller::run(settings)
             } else if config.cameras.is_some() {
                 cctv::run(config)
+            } else if !config.nvmeof.is_empty() && config.jobs.is_empty() {
+                if !config.iscsi.is_empty() {
+                    Err("paths of both kinds need a -c workload to run over them".into())
+                } else {
+                    nvme::report(&config.nvmeof)
+                }
             } else if !config.iscsi.is_empty() && config.jobs.is_empty() {
-                if config.scsitest {
-                    iscsi::scsitest::run(&config)
+                if config.compliance {
+                    iscsi::compliance::run(&config)
                 } else {
                     iscsi::report::run(&config)
                 }

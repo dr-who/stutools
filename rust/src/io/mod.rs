@@ -178,6 +178,16 @@ impl StreamStats {
     }
 }
 
+/// What a stream's source offers when a slot is free.
+pub enum Next {
+    /// The next request, to submit now.
+    Request(Request),
+    /// The next request must wait: it overlaps one in flight, so the stream waits for a completion and asks again.
+    Wait,
+    /// No more requests. The stream finishes what is in flight and returns.
+    Done,
+}
+
 /// The streaming contract every asynchronous backend implements, so Linux and Windows run through
 /// the same code: libaio and io_uring on Linux, WinAio (overlapped I/O) on Windows. Each keeps the
 /// queue full, refilling a slot as soon as its request completes.
@@ -190,9 +200,9 @@ pub trait AsyncStream {
         complete: C,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request);
+        C: FnMut(usize, Request);
 }
 
 /// The asynchronous backend a queue runs on. Each platform module provides `Native`, which implements
@@ -207,9 +217,9 @@ pub trait AsyncIo: Sized {
         complete: C,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request);
+        C: FnMut(usize, Request);
 
     /// Runs one batch: `ctx.requests` occupy slots from 0, and the call returns once every one has completed.
     fn execute<C>(&mut self, ctx: StreamCtx<'_>, complete: C) -> std::result::Result<(), Failure>

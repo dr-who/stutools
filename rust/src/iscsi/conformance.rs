@@ -1,11 +1,11 @@
-//! The SCSI operations cases of `--scsitest`: UNMAP, COMPARE AND WRITE (ATS) and PERSISTENT RESERVE.
+//! The SCSI operations cases of `--compliance`: UNMAP, COMPARE AND WRITE (ATS) and PERSISTENT RESERVE.
 //! Each case states what SBC-3 or SPC-4 requires, then checks the target against it. Every case
 //! that changes data writes to the last block of the LUN, and the original block is written back.
 
+use super::compliance::{case, Case};
 use super::ops::{self, CHECK_CONDITION, RESERVATION_CONFLICT};
 use super::report::Path;
 use super::scsi;
-use super::scsitest::{case, Case};
 use super::session::{self, Outcome, Session};
 use crate::Result;
 

@@ -34,14 +34,18 @@ pub struct Config {
     pub latency_out: Option<PathBuf>,
     /// `--iscsi HOST[:PORT]/IQN`, one per target path.
     pub iscsi: Vec<String>,
+    /// `--nvmeof HOST[:PORT]/NQN[/NSID]`, one per NVMe-oF (NVMe/TCP) path.
+    pub nvmeof: Vec<String>,
     pub iscsi_initiator: Option<String>,
     pub chap_user: Option<String>,
     pub chap_secret_file: Option<PathBuf>,
-    /// `--scsitest`: run the test matrix over the `--iscsi` targets instead of reporting them.
-    pub scsitest: bool,
-    pub scsitest_expect: Option<PathBuf>,
+    /// `--compliance`: run the test matrix over the `--iscsi` targets instead of reporting them.
+    pub compliance: bool,
+    pub compliance_expect: Option<PathBuf>,
+    /// `--compliance-report FILE`: also write the compliance table and the failed cases as Markdown.
+    pub compliance_report: Option<PathBuf>,
     /// How a workload over several `--iscsi` paths picks a path for each request.
-    pub iscsi_policy: crate::iscsi::lanes::Policy,
+    pub path_policy: crate::paths::Policy,
     /// `-d N`: print the first N commands sent to the iSCSI paths, with their verify bit.
     pub dump: u64,
 }
@@ -116,12 +120,14 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         expected: None,
         latency_out: None,
         iscsi: Vec::new(),
+        nvmeof: Vec::new(),
         iscsi_initiator: None,
         chap_user: None,
         chap_secret_file: None,
-        scsitest: false,
-        scsitest_expect: None,
-        iscsi_policy: crate::iscsi::lanes::Policy::RoundRobin,
+        compliance: false,
+        compliance_expect: None,
+        compliance_report: None,
+        path_policy: crate::paths::Policy::RoundRobin,
         dump: 0,
     };
     if args.is_empty() {
@@ -160,8 +166,8 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 c.verify = true;
                 continue;
             }
-            "--scsitest" => {
-                c.scsitest = true;
+            "--compliance" => {
+                c.compliance = true;
                 continue;
             }
             "-V" => continue,
@@ -188,11 +194,13 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             .ok_or_else(|| format!("missing value for {flag}"))?;
         match flag.as_str() {
             "-f" => c.files.push(v.into()),
-            "--iscsi" => c.iscsi.push(v.to_string()),
-            "--scsitest-expect" => c.scsitest_expect = Some(v.into()),
+            "--iscsi" => c.iscsi.extend(crate::paths::expand_connections(v)?),
+            "--nvmeof" => c.nvmeof.extend(crate::paths::expand_connections(v)?),
+            "--compliance-expect" => c.compliance_expect = Some(v.into()),
+            "--compliance-report" => c.compliance_report = Some(v.into()),
             "--iscsi-initiator" => c.iscsi_initiator = Some(v.to_string()),
             "-d" => c.dump = integer(v)?,
-            "--iscsi-policy" => c.iscsi_policy = crate::iscsi::lanes::Policy::parse(v)?,
+            "--iscsi-policy" | "--policy" => c.path_policy = crate::paths::Policy::parse(v)?,
             "--chap-user" => c.chap_user = Some(v.to_string()),
             "--chap-secret-file" => c.chap_secret_file = Some(v.into()),
             "-F" => c.prefixes.push(v.into()),
@@ -420,6 +428,15 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     }
     if cctv_drop_after.is_some() {
         return Err("--cctv-drop-after requires --cctv".into());
+    }
+    if !c.nvmeof.is_empty() {
+        if !c.files.is_empty() || !c.prefixes.is_empty() || fsfiller || c.cameras.is_some() {
+            return Err("--nvmeof cannot be combined with -f, -F, --fsfiller or --cctv".into());
+        }
+        if !c.iscsi.is_empty() && c.iscsi_initiator.is_none() {
+            return Err("--iscsi needs --iscsi-initiator IQN".into());
+        }
+        return Ok(Some(c));
     }
     if !c.iscsi.is_empty() {
         if c.iscsi_initiator.is_none() {

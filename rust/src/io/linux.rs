@@ -30,13 +30,16 @@ fn uring_stream<N, P, C>(
     mut complete: C,
 ) -> std::result::Result<(), Failure>
 where
-    N: FnMut() -> Option<Request>,
+    N: FnMut() -> Next,
     P: FnMut(Request, &mut [u8]),
-    C: FnMut(Request),
+    C: FnMut(usize, Request),
 {
     use io_uring::{opcode, types};
     let mut pending = 0;
     let mut finished = false;
+    // The first failed transfer. Issuing stops, the transfers in flight are reaped (and still counted if
+    // they succeeded), and the failure is returned at the end.
+    let mut failure: Option<Failure> = None;
     let mut progress = Instant::now();
     loop {
         let mut direction = None;
@@ -46,9 +49,13 @@ where
                 if slot.state != 0 {
                     continue;
                 }
-                let Some(mut request) = next() else {
-                    finished = true;
-                    break;
+                let mut request = match next() {
+                    Next::Request(request) => request,
+                    Next::Wait => break,
+                    Next::Done => {
+                        finished = true;
+                        break;
+                    }
                 };
                 assert!(request.len <= stride);
                 let buffer =
@@ -90,7 +97,7 @@ where
             progress = Instant::now();
         }
         if finished && pending == 0 {
-            return Ok(());
+            return failure.map_or(Ok(()), Err);
         }
         let mut completed = 0;
         for cqe in ring.completion() {
@@ -103,14 +110,16 @@ where
             if slot.state != 2 {
                 return Err(io::Error::other("completion for a free slot").into());
             }
-            if cqe.result() as i64 != slot.len as i64 {
-                return Err(Failure::Incomplete(cqe.result() as i64, *slot));
-            }
             let request = *slot;
             slot.state = 0;
             pending -= 1;
             completed += 1;
-            complete(request);
+            if cqe.result() as i64 != request.len as i64 {
+                failure.get_or_insert(Failure::Incomplete(cqe.result() as i64, request));
+                finished = true;
+                continue;
+            }
+            complete(cqe.user_data() as usize, request);
         }
         if completed > 0 {
             progress = Instant::now();
@@ -324,14 +333,17 @@ impl Aio {
         mut complete: C,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         let mut ready = 0;
         let mut head = 0;
         let mut pending = 0;
         let mut finished = false;
+        // The first failed transfer: issuing stops, the transfers in flight are reaped (successes still count),
+        // and the failure is returned at the end.
+        let mut failure: Option<Failure> = None;
         let mut progress = Instant::now();
         loop {
             if head == ready {
@@ -342,9 +354,13 @@ impl Aio {
                         if slot.state != 0 {
                             continue;
                         }
-                        let Some(mut request) = next() else {
-                            finished = true;
-                            break;
+                        let mut request = match next() {
+                            Next::Request(request) => request,
+                            Next::Wait => break,
+                            Next::Done => {
+                                finished = true;
+                                break;
+                            }
                         };
                         assert!(request.len <= stride);
                         // A free slot has no kernel-owned buffer. Prepare it
@@ -406,7 +422,7 @@ impl Aio {
                 }
             }
             if finished && pending == 0 && head == ready {
-                return Ok(());
+                return failure.map_or(Ok(()), Err);
             }
             if pending != 0 {
                 let mut wait = libc::timespec {
@@ -437,13 +453,15 @@ impl Aio {
                         if slot.state != 2 {
                             return Err(io::Error::other("completion for a free slot").into());
                         }
-                        if event.result != slot.len as i64 || event.result2 != 0 {
-                            return Err(Failure::Incomplete(event.result, *slot));
-                        }
                         let request = *slot;
                         slot.state = 0;
                         pending -= 1;
-                        complete(request);
+                        if event.result != request.len as i64 || event.result2 != 0 {
+                            failure.get_or_insert(Failure::Incomplete(event.result, request));
+                            finished = true;
+                            continue;
+                        }
+                        complete(event.data as usize, request);
                     }
                 }
             } else if head < ready {
@@ -476,9 +494,9 @@ impl AsyncStream for linux::Aio {
         complete: C,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         self.execute_stream(
             ctx.fd,
@@ -506,9 +524,9 @@ impl AsyncStream for io_uring::IoUring {
         complete: C,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         linux::uring_stream(
             self,
@@ -610,9 +628,9 @@ impl AsyncIo for Native {
         complete: C,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         match &mut self.engine {
             Engine::Aio(aio) => aio.stream(ctx, next, prepare, complete),

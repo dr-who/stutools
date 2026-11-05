@@ -1,7 +1,7 @@
 // Windows asynchronous I/O: overlapped files on one completion port.
 //! Windows overlapped I/O: a batch of requests is submitted at once, each with its own
 //! OVERLAPPED, and the completion port reports them as they finish.
-use super::{Failure, Request, StreamStats, LATENCY_CAPACITY};
+use super::{Failure, Next, Request, StreamStats, LATENCY_CAPACITY};
 use crate::cli::Backend;
 use std::ffi::c_void;
 use std::fs::File;
@@ -179,9 +179,9 @@ impl WinAio {
         observer: Option<&crate::progress::Counter>,
     ) -> Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         let slots = self.ov.len();
         let trace = self.trace;
@@ -233,9 +233,13 @@ impl WinAio {
                     if entry.is_some() {
                         continue;
                     }
-                    let Some(request) = next() else {
-                        exhausted = true;
-                        break;
+                    let request = match next() {
+                        Next::Request(request) => request,
+                        Next::Wait => break,
+                        Next::Done => {
+                            exhausted = true;
+                            break;
+                        }
                     };
                     let buffer = unsafe {
                         std::slice::from_raw_parts_mut(ptr.add(slot * stride), request.len)
@@ -256,6 +260,11 @@ impl WinAio {
                 }
             }
             if outstanding == 0 {
+                // A wait with nothing in flight is retried, not treated as the end of the run.
+                if !exhausted && failure.is_none() {
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                    continue;
+                }
                 break;
             }
             let mut bytes = 0u32;
@@ -304,7 +313,7 @@ impl WinAio {
             } else if bytes as usize != request.len {
                 failure.get_or_insert(Failure::Incomplete(bytes as i64, request));
             } else if failure.is_none() {
-                complete(request);
+                complete(slot, request);
             }
         }
         self.inflight = inflight;
@@ -383,9 +392,9 @@ impl super::AsyncStream for WinAio {
         complete: C,
     ) -> Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         self.execute_stream(ctx.ptr, ctx.stride, next, prepare, complete, ctx.observer)
     }
@@ -458,9 +467,9 @@ impl super::AsyncIo for WinAio {
         complete: C,
     ) -> Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         super::AsyncStream::stream(self, ctx, next, prepare, complete)
     }

@@ -99,9 +99,11 @@ Workload `RSEED` overrides global `-R`. Progress defaults to one second;
 without worker heap allocations; the reporter is separate from I/O workers.
 qDEPTH allows asynchronous backends to batch submissions up to the depth;
 qMIN-MAX explicitly limits submission groups to MIN and queue depth to MAX.
-Libaio refills freed queue slots continuously. io_uring uses bounded batches for
-pure read/write workloads and continuous refill for mixed workloads; this avoids
-a measured Linux block-dispatch contention regression with many RAM-device workers.
+Libaio and io_uring refill freed queue slots continuously, so the queue stays at
+its depth for verify, rate and duty workloads too. Verify reads each write back as
+soon as the write completes, and a request waits only while it overlaps one in
+flight. Only `F` flushing runs in batches, because a flush must wait for every
+earlier write.
 
 This is not full C syntax or output compatibility. NUMA policy, position output,
 coverage/GC/copy modes, changing rate schedules, benchmark logs and latency

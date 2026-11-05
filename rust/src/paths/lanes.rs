@@ -1,8 +1,15 @@
-//! Choosing which target path each request uses when a workload runs over several iSCSI targets.
+//! Choosing which target path each request uses when a workload runs over several paths (iSCSI or NVMe-oF).
 //! Each request names one path. The policy decides the order: round robin, reverse round robin,
 //! random, or fastest (the path with the lowest recent average latency).
 
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize, Ordering::Relaxed};
+
+/// A path's tier, from its ALUA state. Requests go to the lowest tier that has a path in rotation: optimized
+/// paths first, then non-optimized ones only when no optimized path is usable. A standby, unavailable,
+/// transitioning or offline path is in tier 2 and never takes I/O.
+pub const TIER_OPTIMIZED: u8 = 0;
+pub const TIER_NON_OPTIMIZED: u8 = 1;
+pub const TIER_STANDBY: u8 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Policy {
@@ -20,7 +27,7 @@ impl Policy {
             "random" => Ok(Self::Random),
             "fastest" => Ok(Self::Fastest),
             other => Err(format!(
-                "--iscsi-policy takes rr, rrr, random or fastest, not {other}"
+                "--policy takes rr, rrr, random or fastest, not {other}"
             )),
         }
     }
@@ -36,12 +43,14 @@ pub struct Lanes {
     latency_ns: Vec<AtomicU64>,
     /// Set when a path reports that it cannot serve I/O (standby, unavailable or transitioning).
     unavailable: Vec<AtomicBool>,
+    /// Each path's tier, one of the `TIER_` values.
+    tier: Vec<AtomicU8>,
 }
 
 impl Lanes {
     pub fn new(paths: usize, policy: Policy, seed: u64) -> Result<Self, String> {
         if paths == 0 {
-            return Err("a workload needs at least one iSCSI path".into());
+            return Err("a workload needs at least one path".into());
         }
         Ok(Self {
             paths,
@@ -50,6 +59,7 @@ impl Lanes {
             seed: AtomicU64::new(seed.max(1)),
             latency_ns: (0..paths).map(|_| AtomicU64::new(0)).collect(),
             unavailable: (0..paths).map(|_| AtomicBool::new(false)).collect(),
+            tier: (0..paths).map(|_| AtomicU8::new(TIER_OPTIMIZED)).collect(),
         })
     }
 
@@ -71,7 +81,37 @@ impl Lanes {
         let start = self.pick();
         (0..self.paths)
             .map(|k| (start + k) % self.paths)
-            .find(|&i| !self.unavailable[i].load(Relaxed))
+            .find(|&i| self.is_usable(i))
+    }
+
+    /// Sets a path's tier, from its ALUA state when it was opened or reconnected.
+    pub fn set_tier(&self, path: usize, tier: u8) {
+        self.tier[path].store(tier, Relaxed);
+    }
+
+    /// The lowest tier with a path in rotation, if that tier can take I/O at all.
+    fn best_tier(&self) -> Option<u8> {
+        (0..self.paths)
+            .filter(|&i| !self.unavailable[i].load(Relaxed))
+            .map(|i| self.tier[i].load(Relaxed))
+            .min()
+            .filter(|&tier| tier < TIER_STANDBY)
+    }
+
+    /// How many paths can take I/O at the best tier: the paths a request can be sent to.
+    pub fn usable_count(&self) -> usize {
+        let best = self.best_tier();
+        (0..self.paths)
+            .filter(|&i| {
+                !self.unavailable[i].load(Relaxed) && Some(self.tier[i].load(Relaxed)) == best
+            })
+            .count()
+    }
+
+    /// Whether `path` may take a request now: it is in rotation and in the best tier.
+    pub fn is_usable(&self, path: usize) -> bool {
+        !self.unavailable[path].load(Relaxed)
+            && Some(self.tier[path].load(Relaxed)) == self.best_tier()
     }
 
     /// Like `pick_available`, but never `avoid` unless no other path is available. Verify reads use it to
@@ -85,13 +125,8 @@ impl Lanes {
         };
         (0..self.paths)
             .map(|k| (start + k) % self.paths)
-            .find(|&i| i != avoid && !self.unavailable[i].load(Relaxed))
+            .find(|&i| i != avoid && self.is_usable(i))
             .or_else(|| self.pick_available())
-    }
-
-    /// Whether `path` has been taken out of rotation.
-    pub fn is_unavailable(&self, path: usize) -> bool {
-        self.unavailable[path].load(Relaxed)
     }
 
     /// Takes `path` out of rotation after the target reported it unavailable.
@@ -207,5 +242,68 @@ mod tests {
     #[test]
     fn zero_paths_is_an_error() {
         assert!(Lanes::new(0, Policy::RoundRobin, 1).is_err());
+    }
+
+    /// Lanes for `tiers`, one per path, with nothing unavailable.
+    fn with_tiers(tiers: &[u8]) -> Lanes {
+        let lanes = Lanes::new(tiers.len(), Policy::RoundRobin, 1).unwrap();
+        for (path, &tier) in tiers.iter().enumerate() {
+            lanes.set_tier(path, tier);
+        }
+        lanes
+    }
+
+    /// Every request goes to an optimized path while one is usable; the other paths get none.
+    #[test]
+    fn optimized_paths_take_everything_before_non_optimized() {
+        let lanes = with_tiers(&[TIER_NON_OPTIMIZED, TIER_OPTIMIZED, TIER_OPTIMIZED]);
+        for _ in 0..20 {
+            let path = lanes.pick_available().unwrap();
+            assert_ne!(path, 0, "a non-optimized path took a request");
+        }
+        assert_eq!(lanes.usable_count(), 2);
+    }
+
+    /// Standby paths never take I/O, even when they are the only ones left.
+    #[test]
+    fn standby_paths_never_take_io() {
+        let lanes = with_tiers(&[TIER_OPTIMIZED, TIER_STANDBY, TIER_STANDBY]);
+        for _ in 0..20 {
+            assert_eq!(lanes.pick_available(), Some(0));
+        }
+        assert!(!lanes.is_usable(1) && !lanes.is_usable(2));
+        let only_standby = with_tiers(&[TIER_STANDBY, TIER_STANDBY]);
+        assert_eq!(only_standby.pick_available(), None);
+        assert_eq!(only_standby.usable_count(), 0);
+    }
+
+    /// Non-optimized paths take I/O only when no optimized path is usable.
+    #[test]
+    fn non_optimized_is_the_fallback() {
+        let lanes = with_tiers(&[TIER_NON_OPTIMIZED, TIER_STANDBY]);
+        assert_eq!(lanes.pick_available(), Some(0));
+        assert!(lanes.is_usable(0));
+        assert!(!lanes.is_usable(1));
+    }
+
+    /// An unavailable optimized path hands its requests to the next usable path in its tier, and a
+    /// non-optimized path only once the optimized ones are gone.
+    #[test]
+    fn unavailable_optimized_path_falls_through() {
+        let lanes = with_tiers(&[TIER_OPTIMIZED, TIER_OPTIMIZED, TIER_NON_OPTIMIZED]);
+        lanes.mark_unavailable(0);
+        assert_eq!(lanes.pick_available(), Some(1));
+        lanes.mark_unavailable(1);
+        assert_eq!(lanes.pick_available(), Some(2));
+    }
+
+    /// A verify read avoids the path that wrote, but never leaves the tier.
+    #[test]
+    fn avoiding_stays_in_the_tier() {
+        let lanes = with_tiers(&[TIER_OPTIMIZED, TIER_STANDBY, TIER_OPTIMIZED]);
+        for _ in 0..10 {
+            let path = lanes.pick_available_avoiding(0).unwrap();
+            assert_eq!(path, 2);
+        }
     }
 }

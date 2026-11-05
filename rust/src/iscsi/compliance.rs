@@ -1,7 +1,7 @@
-//! `--scsitest`: runs a matrix of cases over the `--iscsi` targets and scores them. Each case states
+//! `--compliance`: runs a matrix of cases over the `--iscsi` targets and scores them. Each case states
 //! what the target should do; the case passes when the login or SCSI result matches that.
 //!
-//! The expectations come from a file (`--scsitest-expect`), one line per target:
+//! The expectations come from a file (`--compliance-expect`), one line per target:
 //!     # target  lun-group  auth  digest-required  alua-state  size-gib
 //!     spitlunsbc-1  A  none  no  active/optimized  20
 
@@ -151,11 +151,11 @@ pub fn run(config: &Config) -> Result<()> {
     let initiator = config
         .iscsi_initiator
         .as_deref()
-        .ok_or("--scsitest needs --iscsi-initiator IQN")?;
+        .ok_or("--compliance needs --iscsi-initiator IQN")?;
     let expect_file = config
-        .scsitest_expect
+        .compliance_expect
         .as_ref()
-        .ok_or("--scsitest needs --scsitest-expect FILE")?;
+        .ok_or("--compliance needs --compliance-expect FILE")?;
     let expectations = parse_expectations(expect_file)?;
     let paths: Vec<Path> = config
         .iscsi
@@ -182,7 +182,7 @@ pub fn run(config: &Config) -> Result<()> {
                 "login",
                 short(p).into(),
                 "profile line".into(),
-                "missing from --scsitest-expect".into(),
+                "missing from --compliance-expect".into(),
                 false,
             ));
             continue;
@@ -528,6 +528,10 @@ pub fn run(config: &Config) -> Result<()> {
         "total",
         percent(passed, total)
     );
+    if let Some(path) = &config.compliance_report {
+        write_report(path, &cases)?;
+        println!("compliance report written to {}", path.display());
+    }
     if failed > 0 {
         println!();
         println!("failed cases:");
@@ -540,6 +544,72 @@ pub fn run(config: &Config) -> Result<()> {
         return Err(format!("{failed} of {total} cases failed"));
     }
     Ok(())
+}
+
+/// The features in the order the matrix runs them, with the specification each one tests against.
+const FEATURES: [(&str, &str); 10] = [
+    ("login", "RFC 7143: login phase"),
+    (
+        "identity",
+        "SPC-4: INQUIRY standard data and VPD 0x80, 0x83",
+    ),
+    (
+        "scsi",
+        "SPC-4: TEST UNIT READY, REQUEST SENSE, MODE SENSE, REPORT LUNS",
+    ),
+    ("chap", "RFC 7143: CHAP authentication"),
+    ("session", "RFC 7143: session and command numbering"),
+    (
+        "spc",
+        "SPC-4: remaining mandatory commands and invalid opcodes",
+    ),
+    ("unmap", "SBC-3: UNMAP"),
+    ("ats", "SBC-3: COMPARE AND WRITE"),
+    ("pr", "SPC-4: PERSISTENT RESERVE IN and OUT"),
+    ("mpio", "SPC-4: REPORT and SET TARGET PORT GROUPS (ALUA)"),
+];
+
+/// Writes the compliance report: one row per feature with its specification and result, then every
+/// failed case with what was expected and what came back.
+fn write_report(path: &FsPath, cases: &[Case]) -> Result<()> {
+    let mut out = String::from("# iSCSI compliance report\n\n");
+    out.push_str("| Feature | Specification | Cases | Passed | Failed | Score | Result |\n");
+    out.push_str("|---|---|---:|---:|---:|---:|---|\n");
+    for (section, reference) in FEATURES {
+        let of: Vec<&Case> = cases.iter().filter(|c| c.section == section).collect();
+        let ok = of.iter().filter(|c| c.passed).count();
+        let result = if of.is_empty() {
+            "not run"
+        } else if ok == of.len() {
+            "pass"
+        } else {
+            "FAIL"
+        };
+        out.push_str(&format!(
+            "| {section} | {reference} | {} | {ok} | {} | {:.1}% | {result} |\n",
+            of.len(),
+            of.len() - ok,
+            percent(ok, of.len())
+        ));
+    }
+    let total = cases.len();
+    let passed = cases.iter().filter(|c| c.passed).count();
+    out.push_str(&format!(
+        "| **total** | | {total} | {passed} | {} | {:.1}% | |\n",
+        total - passed,
+        percent(passed, total)
+    ));
+    let failed: Vec<&Case> = cases.iter().filter(|c| !c.passed).collect();
+    if !failed.is_empty() {
+        out.push_str("\n## Failed cases\n\n");
+        for c in failed {
+            out.push_str(&format!(
+                "- **{}**, {}: expected `{}`, got `{}`\n",
+                c.section, c.name, c.expected, c.actual
+            ));
+        }
+    }
+    std::fs::write(path, out).map_err(|e| format!("writing {}: {e}", path.display()))
 }
 
 fn percent(ok: usize, total: usize) -> f64 {

@@ -1,5 +1,5 @@
 // POSIX AIO for macOS and FreeBSD.
-use super::{AsyncStream, Failure, Request, StreamCtx, StreamStats, LATENCY_CAPACITY};
+use super::{AsyncStream, Failure, Next, Request, StreamCtx, StreamStats, LATENCY_CAPACITY};
 use crate::cli::Backend;
 use std::{
     ffi::c_void,
@@ -275,9 +275,9 @@ impl AsyncStream for PosixAio {
         mut complete: C,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         let slots = self.cbs.len();
         let mut outstanding = 0usize;
@@ -289,12 +289,16 @@ impl AsyncStream for PosixAio {
                     if self.inflight[slot].is_some() {
                         continue;
                     }
-                    let request = match self.parked.take().or_else(&mut next) {
+                    let request = match self.parked.take() {
                         Some(request) => request,
-                        None => {
-                            exhausted = true;
-                            break;
-                        }
+                        None => match next() {
+                            Next::Request(request) => request,
+                            Next::Wait => break,
+                            Next::Done => {
+                                exhausted = true;
+                                break;
+                            }
+                        },
                     };
                     let buffer = unsafe {
                         std::slice::from_raw_parts_mut(ctx.ptr.add(slot * ctx.stride), request.len)
@@ -314,7 +318,8 @@ impl AsyncStream for PosixAio {
                 }
             }
             if outstanding == 0 {
-                if self.parked.is_some() && failure.is_none() {
+                // Nothing in flight: a parked request or a pending wait is retried, not dropped.
+                if (self.parked.is_some() || !exhausted) && failure.is_none() {
                     std::thread::sleep(Duration::from_millis(1));
                     continue;
                 }
@@ -328,7 +333,7 @@ impl AsyncStream for PosixAio {
                 if let Some((request, result)) = self.finish(slot, ctx.observer) {
                     outstanding -= 1;
                     match outcome(request, result) {
-                        Ok(()) if failure.is_none() => complete(request),
+                        Ok(()) if failure.is_none() => complete(slot, request),
                         Ok(()) => {}
                         Err(e) => {
                             failure.get_or_insert(e);
@@ -404,9 +409,9 @@ impl super::AsyncIo for PosixAio {
         complete: C,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         super::AsyncStream::stream(self, ctx, next, prepare, complete)
     }

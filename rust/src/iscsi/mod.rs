@@ -2,13 +2,12 @@
 //! target without the operating system's initiator. Login comes first; SCSI commands come later.
 
 pub mod chap;
+pub mod compliance;
 pub mod conformance;
 pub mod connection;
 pub mod crc32c;
-pub mod lanes;
 pub mod ops;
 pub mod pdu;
 pub mod report;
 pub mod scsi;
-pub mod scsitest;
 pub mod session;

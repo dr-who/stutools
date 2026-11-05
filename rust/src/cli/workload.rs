@@ -67,8 +67,10 @@ pub struct Workload {
     pub unique: bool,
     pub unique_verify: bool,
     pub flush: bool,
-    /// Bare `v`: each write is followed at once by a read of the same block, on another path.
+    /// Bare `v`: each write is followed by a read of the same block once it completes.
     pub write_verify: bool,
+    /// Uppercase `V`: like `v`, but the read is sent while the write is still in flight, so it can overtake it.
+    pub write_verify_race: bool,
 }
 impl Default for Workload {
     fn default() -> Self {
@@ -103,6 +105,7 @@ impl Default for Workload {
             unique_verify: false,
             flush: false,
             write_verify: false,
+            write_verify_race: false,
         }
     }
 }
@@ -119,6 +122,7 @@ pub(crate) fn workload(s: &str) -> Result<Workload> {
     let mut probability = None;
     let mut explicit_sequential = false;
     let mut write_verify = false;
+    let mut write_verify_race = false;
     let mut explicit_depth = false;
     let bytes = s.as_bytes();
     let mut i = 0;
@@ -196,6 +200,10 @@ pub(crate) fn workload(s: &str) -> Result<Workload> {
                 w.rate = Some(rate);
             }
             'v' if value.is_empty() => write_verify = true,
+            'V' if value.is_empty() => {
+                write_verify = true;
+                write_verify_race = true;
+            }
             'W' => {
                 let (on, off) = value.split_once([':', '-']).unwrap_or((value, value));
                 let on = finite(on)?;
@@ -287,6 +295,7 @@ pub(crate) fn workload(s: &str) -> Result<Workload> {
         // Writes only, each verified at once; a single queue slot so the read follows its write.
         w.read_probability = 0.;
         w.write_verify = true;
+        w.write_verify_race = write_verify_race;
         // One slot unless `q` was given: with more, a read can overtake its write, which is the point.
         if !explicit_depth {
             w.depth = 1;

@@ -4,6 +4,7 @@
 use super::chap;
 use super::crc32c::crc32c;
 use super::pdu::{self, LoginRequest, LoginResponse, Stage, BHS_LEN, NO_TTT};
+use crate::paths::{Done, SENSE_CAPACITY};
 use crate::Result;
 use std::{
     io::{Read, Write},
@@ -40,6 +41,8 @@ pub struct Session {
     cmd_sn: u32,
     exp_stat_sn: u32,
     max_cmd_sn: u32,
+    /// The lane tier of this portal from its ALUA state, read when the session opened.
+    pub access_tier: Option<u8>,
     /// Reused for every outgoing PDU, so a command allocates nothing once warm.
     tx: Vec<u8>,
     /// Reused for every incoming data segment.
@@ -52,8 +55,6 @@ pub struct Session {
 
 /// Most commands in flight on one session.
 pub const MAX_INFLIGHT: usize = 128;
-/// Room for the sense data of a command, which the target may send in full.
-const SENSE_CAPACITY: usize = 64;
 
 /// One command in flight: its task tag, the buffer its data moves through, and its progress.
 struct Inflight {
@@ -66,17 +67,6 @@ struct Inflight {
     status: Option<u8>,
     sense: [u8; SENSE_CAPACITY],
     sense_len: usize,
-}
-
-/// A command that finished.
-#[derive(Debug, Clone, Copy)]
-pub struct Done {
-    pub tag: usize,
-    pub status: u8,
-    /// The target said this path cannot serve I/O (standby, transitioning or unavailable).
-    pub unavailable: bool,
-    pub sense: [u8; SENSE_CAPACITY],
-    pub sense_len: usize,
 }
 
 /// What a SCSI command returned: the status, sense data when there is any, and the data read.
@@ -365,6 +355,7 @@ pub fn login_as(
     let exp_cmd_sn = u32::from_be_bytes([raw[28], raw[29], raw[30], raw[31]]);
     let max_cmd_sn = u32::from_be_bytes([raw[32], raw[33], raw[34], raw[35]]);
     Ok(Session {
+        access_tier: None,
         stream,
         tx: Vec::with_capacity(BHS_LEN + RX_CAPACITY + 16),
         rx: Vec::with_capacity(RX_CAPACITY),
@@ -563,6 +554,7 @@ impl Session {
                             let tag = inf.tag;
                             self.inflight.swap_remove(idx);
                             return Ok(Done {
+                                code: 0,
                                 tag,
                                 status,
                                 unavailable: false,
@@ -592,6 +584,7 @@ impl Session {
                         && inf.sense[12] == 0x04
                         && matches!(inf.sense[13], 0x0a..=0x0c);
                     return Ok(Done {
+                        code: 0,
                         tag: inf.tag,
                         status: bhs[3],
                         unavailable,

@@ -12,9 +12,10 @@ pub(super) fn help() {
     );
     println!(
         r#"
-Command mode (-c workloads against a target, repeat -c to run several):
-  spit -f scratch.img -c rs0k4q32j4 -t 5
-  spit -F /mnt/test/f -G 1GiB -c ws1k4q32 -c rs0k4q32 -t 10
+Targets, one example each (-c sets the workload; repeat it to run several):
+  spit -f /dev/sdb -c rs0k4q32j4 -t 5  # file or block device
+  spit --iscsi 10.0.0.5/iqn.2026-10.com.example:lun --iscsi-initiator iqn.2026-11.com.example:spit -c rs0k4q32j4 -t 5  # iSCSI
+  spit --nvmeof 10.0.0.5/nqn.2026-10.com.example:subsys  # NVMe-oF (NVMe/TCP): identify the subsystem
 
 App modes (each prints its report when it ends, or on Ctrl-C):
   spit -F /mnt/cctv --cctv 100,5,24  # 100 cameras at 5 Mbit/s, kept 24 h

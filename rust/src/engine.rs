@@ -1,15 +1,15 @@
-use crate::iscsi::{
-    connection::Connection,
-    lanes::Policy,
-    report::{self as iscsi_report, Path as IscsiPath},
-};
+use crate::iscsi::{connection::IscsiFabric, report as iscsi_report};
+use crate::nvme::{controller::random_hostid, session::NvmeFabric};
+use crate::paths::{open_paths, PathSpec, Policy};
 use crate::{
     allocation,
     cli::{Backend, Config, Workload},
-    io::{self, Failure, Queue, Request},
+    io::{self, Failure, Next, Queue, Request},
     pattern, Result,
 };
 use std::{
+    cell::RefCell,
+    collections::VecDeque,
     fs::File,
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
@@ -17,13 +17,15 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Barrier, OnceLock,
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
-/// What a worker runs over: the paths of an iSCSI target, with the settings to log in with.
-struct IscsiPlan {
-    paths: Vec<IscsiPath>,
+/// What a worker runs over: the paths of a target (iSCSI, NVMe-oF or both), with the settings to open them.
+#[derive(Clone)]
+struct PathPlan {
+    paths: Vec<PathSpec>,
     initiator: String,
     chap: Option<(String, Vec<u8>)>,
+    hostid: [u8; 16],
     policy: Policy,
 }
 
@@ -33,7 +35,7 @@ struct Plan {
     file: Option<File>,
     /// Windows only: one file per queue slot.
     slots: Vec<File>,
-    iscsi: Option<IscsiPlan>,
+    paths: Option<PathPlan>,
     work: Workload,
     lo: u64,
     hi: u64,
@@ -96,6 +98,48 @@ impl Stats {
         }
     }
 }
+/// The next block for write-verify: in order when `sequential`, else a xorshift draw.
+fn write_verify_index(work: &Workload, blocks: u64, count: &mut u64, state: &mut u64) -> u64 {
+    let index = if work.sequential >= 1. {
+        *count % blocks
+    } else {
+        *state ^= *state << 13;
+        *state ^= *state >> 7;
+        *state ^= *state << 17;
+        *state % blocks
+    };
+    *count += 1;
+    index
+}
+
+/// Counts a block whose contents are wrong and keeps the first few offsets. Keeps going, so every wrong
+/// block is counted. Fixed-size storage, so a bad run does not allocate in the timed loop.
+fn count_incorrect(stats: &mut Stats, offset: u64) {
+    stats.incorrect += 1;
+    let n = stats.incorrect_offsets_len as usize;
+    if n < INCORRECT_SAMPLES {
+        stats.incorrect_offsets[n] = offset;
+        stats.incorrect_offsets_len += 1;
+    }
+}
+
+/// Seconds to wait before the request at `index` so the rate and duty limits hold.
+fn pacing_wait(work: &Workload, index: u64, elapsed: f64) -> f64 {
+    let rate_wait = work
+        .rate
+        .map_or(0., |rate| index as f64 / rate - elapsed)
+        .max(0.);
+    let duty_wait = work.duty.map_or(0., |(on, off)| {
+        let phase = elapsed % (on + off);
+        if phase >= on {
+            on + off - phase
+        } else {
+            0.
+        }
+    });
+    rate_wait.max(duty_wait)
+}
+
 fn work_duration(work: &Workload, fallback: Option<f64>) -> Option<f64> {
     if work.passes.is_some() || work.range_passes.is_some() {
         None
@@ -127,8 +171,8 @@ impl StartGate {
 struct Target {
     path: PathBuf,
     jobs: Vec<(Workload, usize)>,
-    /// The iSCSI paths of this target; empty for a file target.
-    iscsi: Vec<IscsiPath>,
+    /// The paths of this target; empty for a file target.
+    paths: Vec<PathSpec>,
 }
 fn worker_range(
     w: &Workload,
@@ -149,17 +193,17 @@ fn worker_range(
     let last = blocks * (index + 1) as u64 / w.workers as u64;
     Ok((lo + first * w.block as u64, lo + last * w.block as u64))
 }
-fn target_specs(c: &Config, iscsi: &[IscsiPath]) -> Vec<Target> {
-    if !iscsi.is_empty() {
+fn target_specs(c: &Config, paths: &[PathSpec]) -> Vec<Target> {
+    if !paths.is_empty() {
         let jobs = c
             .jobs
             .iter()
             .flat_map(|w| (0..w.workers).map(move |index| (w.clone(), index)))
             .collect::<Vec<_>>();
         return vec![Target {
-            path: PathBuf::from("iscsi"),
+            path: PathBuf::from("paths"),
             jobs,
-            iscsi: iscsi.to_vec(),
+            paths: paths.to_vec(),
         }];
     }
     let jobs = c
@@ -173,7 +217,7 @@ fn target_specs(c: &Config, iscsi: &[IscsiPath]) -> Vec<Target> {
         .map(|path| Target {
             path: path.clone(),
             jobs: jobs.clone(),
-            iscsi: Vec::new(),
+            paths: Vec::new(),
         })
         .collect::<Vec<_>>();
     let mut sequence = 0;
@@ -185,7 +229,7 @@ fn target_specs(c: &Config, iscsi: &[IscsiPath]) -> Vec<Target> {
             targets.push(Target {
                 path: name.into(),
                 jobs: vec![job.clone()],
-                iscsi: Vec::new(),
+                paths: Vec::new(),
             });
         }
     }
@@ -297,13 +341,16 @@ pub fn run(c: Config) -> Result<Summary> {
     // Installed first, so Ctrl-C during setup still stops the run and prints the report.
     let _signals = crate::signals::Guard::install().map_err(|e| e.to_string())?;
     let records = loaded(&c)?;
-    let iscsi = c
+    let mut paths = c
         .iscsi
         .iter()
-        .map(|p| iscsi_report::parse_path(p))
+        .map(|p| iscsi_report::parse_path(p).map(PathSpec::Iscsi))
         .collect::<Result<Vec<_>>>()?;
-    crate::iscsi::connection::set_dump(c.dump);
-    let specs = target_specs(&c, &iscsi);
+    for p in &c.nvmeof {
+        paths.push(PathSpec::Nvmeof(crate::nvme::parse_path(p)?));
+    }
+    crate::paths::set_dump(c.dump);
+    let specs = target_specs(&c, &paths);
     let budget = memory_budget(&c, &specs, &records)?;
     let checked = check_targets(&c, specs, &records)?;
     let table_capacity = table_capacity(&c, &budget, records.len())?;
@@ -326,7 +373,7 @@ pub fn run(c: Config) -> Result<Summary> {
     let outcomes = execute_plans(plans, c.interval)?;
     let (total, error) = aggregate(outcomes, &labels)?;
     let summary = report(&c, total, error);
-    crate::iscsi::connection::print_totals();
+    crate::paths::print_totals();
     summary
 }
 
@@ -383,8 +430,8 @@ struct Checked {
     write: bool,
 }
 
-/// Sizes an iSCSI target with a probe login, then checks the workload against the LUN.
-fn check_iscsi(c: &Config, target: Target, records: &[Request]) -> Result<Checked> {
+/// Sizes the paths of a target with a probe open, then checks the workload against the LUN.
+fn check_paths(c: &Config, target: Target, records: &[Request]) -> Result<Checked> {
     let write = if records.is_empty() {
         target
             .jobs
@@ -394,15 +441,19 @@ fn check_iscsi(c: &Config, target: Target, records: &[Request]) -> Result<Checke
         records.iter().any(|r| r.write)
     };
     if c.precondition.is_some() {
-        return Err("preconditioning is not supported over iSCSI yet".into());
+        return Err("preconditioning is not supported over iSCSI or NVMe-oF yet".into());
     }
-    let initiator = c
-        .iscsi_initiator
-        .as_deref()
-        .ok_or("--iscsi needs --iscsi-initiator IQN")?;
+    let initiator = c.iscsi_initiator.as_deref().unwrap_or("");
     let chap = iscsi_report::chap_from_config(c)?;
     let chap_ref = chap.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
-    let probe = Connection::open(&target.iscsi, initiator, chap_ref, c.iscsi_policy, c.seed)?;
+    let hostid = random_hostid()?;
+    let probe = open_paths(
+        &target.paths,
+        IscsiFabric::new(initiator, chap_ref),
+        NvmeFabric::new(crate::nvme::DEFAULT_HOSTNQN, hostid),
+        c.path_policy,
+        c.seed,
+    )?;
     let capacity = probe.capacity_bytes();
     let (lo, hi) = c.range.unwrap_or((0, capacity));
     if lo >= hi {
@@ -435,8 +486,8 @@ fn check_iscsi(c: &Config, target: Target, records: &[Request]) -> Result<Checke
 }
 
 fn check_target(c: &Config, target: Target, records: &[Request]) -> Result<Checked> {
-    if !target.iscsi.is_empty() {
-        return check_iscsi(c, target, records);
+    if !target.paths.is_empty() {
+        return check_paths(c, target, records);
     }
     let path = &target.path;
     let write = if records.is_empty() {
@@ -619,13 +670,15 @@ fn build_plans(
     } in checked
     {
         let path = &target.path;
-        let iscsi = (!target.iscsi.is_empty()).then(|| IscsiPlan {
-            paths: target.iscsi.clone(),
+        let hostid = random_hostid()?;
+        let paths = (!target.paths.is_empty()).then(|| PathPlan {
+            paths: target.paths.clone(),
             initiator: c.iscsi_initiator.clone().unwrap_or_default(),
             chap: iscsi_chap.clone(),
-            policy: c.iscsi_policy,
+            hostid,
+            policy: c.path_policy,
         });
-        let file = match iscsi {
+        let file = match paths {
             Some(_) => None,
             None => {
                 let file = open_target(c, path, write, create, actual, regular, hi)?;
@@ -644,17 +697,12 @@ fn build_plans(
                     Some(file) => Some(file.try_clone().map_err(|e| e.to_string())?),
                     None => None,
                 },
-                slots: match iscsi {
+                slots: match paths {
                     Some(_) => Vec::new(),
                     None => io::open_slots(path, write, c.backend, w.depth)
                         .map_err(|e| e.to_string())?,
                 },
-                iscsi: iscsi.as_ref().map(|i| IscsiPlan {
-                    paths: i.paths.clone(),
-                    initiator: i.initiator.clone(),
-                    chap: i.chap.clone(),
-                    policy: i.policy,
-                }),
+                paths: paths.clone(),
                 work: w.clone(),
                 lo: start,
                 hi: end,
@@ -717,7 +765,7 @@ fn run_precondition(
     let plan = Plan {
         record_latency: c.latency_out.is_some(),
         file: Some(file.try_clone().map_err(|e| e.to_string())?),
-        iscsi: None,
+        paths: None,
         slots: io::open_slots(path, write, c.backend, pre.depth).map_err(|e| e.to_string())?,
         work: pre.clone(),
         lo: start,
@@ -978,6 +1026,10 @@ struct Run {
     wv_count: u64,
     wv_state: u64,
     wv_pending: Option<Request>,
+    /// The streamed run's in-flight and owed-read lists, created before the timed loop so it does not allocate.
+    flight: Vec<Request>,
+    owed: VecDeque<Request>,
+    held: Vec<Request>,
     wv_lo: u64,
     wv_hi: u64,
     template: [u8; 4096],
@@ -996,6 +1048,241 @@ struct Run {
     stats: Stats,
     error: Option<Failure>,
     index: u64,
+}
+
+/// One streamed run's source and completion handling. The backend calls `source` for each free slot and
+/// `finish` for each completion; both reach this state through one `RefCell`.
+struct Stream<'a> {
+    generated: &'a mut crate::positions::Positions,
+    stats: &'a mut Stats,
+    work: &'a Workload,
+    template: &'a [u8; 4096],
+    seed: u64,
+    /// Whether written blocks are read back: `-v`, or a `v` or `U` workload.
+    read_back: bool,
+    /// Whether read-backs are workload operations: a `v` or `U` workload's reads are, a `-v` read-back is not.
+    counted_read_backs: bool,
+    /// Whether a read-back may run while its write is still in flight: `V` across several endpoints does.
+    race: bool,
+    duration: Option<f64>,
+    start: Instant,
+    progress: &'a Option<(Arc<crate::progress::State>, usize)>,
+    limit: Option<u64>,
+    byte_limit: Option<u64>,
+    /// The worker's range, for write-verify's own offsets.
+    lo: u64,
+    hi: u64,
+    /// The next position in the plan.
+    index: u64,
+    wv_count: u64,
+    wv_state: u64,
+    /// Write-verify requests handed out, writes and read-backs both, which the operation limit counts.
+    wv_ops: u64,
+    /// Bytes handed to the backend that count toward the byte limit.
+    queued_bytes: u64,
+    /// Requests handed to the backend and not yet completed.
+    outstanding: usize,
+    /// Those requests, kept when writes are read back, so a new request can be checked against them.
+    in_flight: Vec<Request>,
+    /// Read-backs of completed writes, owed now.
+    due: VecDeque<Request>,
+    /// Requests taken from the source but not yet handed out, newest last: each overlaps something that
+    /// must finish first, so it waits its turn.
+    held: Vec<Request>,
+    /// Slot `i`'s buffer begins `i * stride` bytes past `base`.
+    base: *mut u8,
+    stride: usize,
+}
+
+impl Stream<'_> {
+    /// The next request for a free slot, or Wait while one overlaps another in flight, or Done once the
+    /// run has stopped and nothing is owed.
+    fn source(&mut self) -> Next {
+        self.pace();
+        let candidate = match self.held.pop() {
+            Some(request) => Some(request),
+            None => match self.due.pop_front() {
+                Some(request) => Some(request),
+                None if self.stopped() => None,
+                None => self.plan_request(),
+            },
+        };
+        let Some(mut request) = candidate else {
+            return if self.outstanding == 0 {
+                Next::Done
+            } else {
+                Next::Wait
+            };
+        };
+        // A write goes after the owed read-back of its extent: that read is issued first, and the write waits.
+        if request.write {
+            if let Some(at) = self.due.iter().position(|d| self.gates(&request, d)) {
+                self.held.push(request);
+                request = self.due.remove(at).expect("the owed read is in the list");
+            }
+        }
+        if (self.work.rate.is_some() && self.outstanding > 0) || self.overlaps(&request) {
+            self.held.push(request);
+            return Next::Wait;
+        }
+        // A `-v` read-back is verification, not an operation, so it is outside the limits.
+        if !request.verify || self.counted_read_backs {
+            self.queued_bytes += request.len as u64;
+        }
+        if self.work.write_verify {
+            self.wv_ops += 1;
+        }
+        self.outstanding += 1;
+        if self.read_back {
+            self.in_flight.push(request);
+        }
+        // With more than one endpoint the read-back is owed as the write is issued, so it can race the write.
+        if self.race && request.write && self.read_back {
+            self.due.push_back(read_back_of(&request));
+        }
+        Next::Request(request)
+    }
+
+    /// Records one completion. A write that verifies is owed a read-back of the same extent. A read-back is
+    /// checked against its slot's buffer and counted as verification, not as an operation.
+    fn finish(&mut self, slot: usize, request: Request) {
+        self.outstanding -= 1;
+        if self.read_back {
+            let at = self
+                .in_flight
+                .iter()
+                .position(|f| same_io(f, &request))
+                .expect("completion for a request that is not in flight");
+            self.in_flight.swap_remove(at);
+        }
+        if request.verify && !request.write {
+            // SAFETY: the backend has finished this slot's transfer and does not reuse its buffer until
+            // this call returns, and the slot lies within the arena of `request.len` bytes.
+            let buffer = unsafe {
+                std::slice::from_raw_parts(self.base.add(slot * self.stride), request.len)
+            };
+            if !check_pattern(buffer, request, self.work, self.seed, self.template) {
+                count_incorrect(self.stats, request.offset);
+            }
+            self.stats.verified += 1;
+        } else if request.write && self.read_back && !self.race {
+            self.due.push_back(read_back_of(&request));
+        }
+        // A read-back that completes after the limit is verification outside the workload's counts.
+        let is_read_back = request.verify && !request.write;
+        if !is_read_back || (self.counted_read_backs && !self.limit_reached()) {
+            let measured = self
+                .duration
+                .is_none_or(|seconds| self.start.elapsed().as_secs_f64() < seconds);
+            self.stats.complete(request, measured);
+        }
+        self.stats.publish(counter(self.progress));
+    }
+
+    /// True once the run has no more new requests to issue.
+    fn stopped(&self) -> bool {
+        crate::signals::INTERRUPTED.load(Ordering::Relaxed)
+            || self.limit_reached()
+            || self
+                .duration
+                .is_some_and(|s| self.start.elapsed().as_secs_f64() >= s)
+    }
+
+    /// True once the operation or byte limit is reached. Plan slots count whether they are reads, writes
+    /// or verified checks, as the position plan lays them out; write-verify counts its own requests.
+    fn limit_reached(&self) -> bool {
+        self.limit.is_some_and(|n| self.ops() >= n)
+            || self.byte_limit.is_some_and(|n| self.queued_bytes >= n)
+    }
+
+    /// The operations counted against the limit and the rate: plan slots, or write-verify requests.
+    fn ops(&self) -> u64 {
+        if self.work.write_verify {
+            self.wv_ops
+        } else {
+            self.index
+        }
+    }
+
+    /// The next plan request, or None once the limit is reached. Plan reads of verified writes are skipped:
+    /// each write's read-back is owed on its completion instead. Skipped slots still count toward the limit.
+    fn plan_request(&mut self) -> Option<Request> {
+        if self.work.write_verify {
+            let block = self.work.block as u64;
+            let blocks = ((self.hi - self.lo) / block).max(1);
+            let index =
+                write_verify_index(self.work, blocks, &mut self.wv_count, &mut self.wv_state);
+            return Some(Request {
+                offset: self.lo + index * block,
+                len: self.work.block,
+                write: true,
+                verify: false,
+                seed: 0,
+                state: 0,
+            });
+        }
+        loop {
+            if self.limit_reached() {
+                return None;
+            }
+            let request = self.generated.get(self.index);
+            self.index += 1;
+            if !request.verify || request.write {
+                return Some(request);
+            }
+        }
+    }
+
+    /// True when `request` overlaps a request that must finish first: any request in flight, or any owed
+    /// read-back, where at least one of the two writes. Reads of different extents never wait.
+    fn overlaps(&self, request: &Request) -> bool {
+        self.read_back
+            && (self.in_flight.iter().any(|f| self.gates(request, f))
+                || self.due.iter().any(|d| self.gates(request, d)))
+    }
+
+    /// Whether `candidate` may not be in flight with `other`. They conflict when they overlap and one writes.
+    /// Under write-verify across paths, a read-back may be issued while its own write is in flight. That is the
+    /// only such pair: a write cannot start on an extent while an earlier write's read-back is still pending,
+    /// so any read-back of the extent that overlaps an in-flight write is that write's own.
+    fn gates(&self, candidate: &Request, other: &Request) -> bool {
+        let own_read_back = self.race && candidate.verify && !candidate.write && other.write;
+        conflict(candidate, other) && !own_read_back
+    }
+
+    /// Sleeps through rate and duty off-times before the next request.
+    fn pace(&self) {
+        loop {
+            let elapsed = self.start.elapsed().as_secs_f64();
+            let wait = pacing_wait(self.work, self.ops(), elapsed);
+            let wait = self
+                .duration
+                .map_or(wait, |d| wait.min((d - elapsed).max(0.)));
+            if wait <= 0. {
+                return;
+            }
+            std::thread::sleep(Duration::from_secs_f64(wait.min(60.)));
+        }
+    }
+}
+
+/// The read-back a verified write is owed: the same extent, read and checked.
+fn read_back_of(write: &Request) -> Request {
+    Request {
+        write: false,
+        verify: true,
+        ..*write
+    }
+}
+
+/// Whether two requests move the same bytes the same way. The backend's `state` is not part of it.
+fn same_io(a: &Request, b: &Request) -> bool {
+    a.offset == b.offset && a.len == b.len && a.write == b.write && a.verify == b.verify
+}
+
+/// Whether two requests may not be in flight together: they overlap and at least one writes.
+fn conflict(a: &Request, b: &Request) -> bool {
+    (a.write || b.write) && a.offset < b.offset + b.len as u64 && b.offset < a.offset + a.len as u64
 }
 
 /// The progress counter a worker publishes to, if the run reports progress.
@@ -1038,12 +1325,17 @@ impl Run {
             && p.work.read_probability == 0.
             && p.work.block % 4096 == 0
             && p.lo % 4096 == 0;
-        let mut queue = match &p.iscsi {
-            Some(iscsi) => {
-                let chap = iscsi.chap.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
-                let connection =
-                    Connection::open(&iscsi.paths, &iscsi.initiator, chap, iscsi.policy, p.seed)
-                        .map_err(|e| Failure::from(std::io::Error::other(e)))?;
+        let mut queue = match &p.paths {
+            Some(plan) => {
+                let chap = plan.chap.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
+                let connection = open_paths(
+                    &plan.paths,
+                    IscsiFabric::new(&plan.initiator, chap),
+                    NvmeFabric::new(crate::nvme::DEFAULT_HOSTNQN, plan.hostid),
+                    plan.policy,
+                    p.seed,
+                )
+                .map_err(|e| Failure::from(std::io::Error::other(e)))?;
                 Queue::over_connection(connection, p.work.depth, p.max_len, p.timeout)?
             }
             None => Queue::new(
@@ -1085,10 +1377,13 @@ impl Run {
         };
         let byte_limit = p.work.range_passes.map(|n| n * (p.hi - p.lo));
         let duration = work_duration(&p.work, p.duration);
-        // Verify, flush, alternate, rate and duty need the batch loop: they check, sync, switch or pace
-        // whole batches. Everything else streams where the platform's backend can.
-        let batch_only = p.verify
-            || p.work.flush
+        // A flush is a barrier: every write before it must finish first. That is the only reason left for a
+        // batch. Verify, alternate, rate and duty stream too: verification reads back each write as it
+        // completes, and pacing waits inside the source.
+        let batch_only = p.work.flush;
+        let needs_stream = p.verify
+            || p.work.verify
+            || p.work.write_verify
             || p.work.alternate
             || p.work.rate.is_some()
             || p.work.duty.is_some();
@@ -1099,12 +1394,16 @@ impl Run {
             && (p.backend == Backend::Libaio || p.backend == Backend::Uring))
             || cfg!(any(windows, target_os = "macos", target_os = "freebsd"));
         let (wv_lo, wv_hi) = (p.lo, p.hi);
+        let depth = queue.requests.len();
         Ok(Self {
             wv_lo,
             wv_hi,
             wv_count: 0,
             wv_state: p.seed.max(1),
             wv_pending: None,
+            flight: Vec::with_capacity(depth),
+            owed: VecDeque::with_capacity(depth),
+            held: Vec::with_capacity(depth),
             queue,
             generated,
             template,
@@ -1117,7 +1416,7 @@ impl Run {
             duration,
             limit,
             byte_limit,
-            streamed: platform_streams && !batch_only,
+            streamed: (platform_streams || needs_stream) && !batch_only,
             start: Instant::now(),
             progress: None,
             stats: Stats::default(),
@@ -1154,24 +1453,43 @@ impl Run {
     }
 
     /// Keeps the queue full through the backend's own refill loop.
+    /// Streams the run: the backend keeps the queue full, asking `source` for each free slot and reporting
+    /// each completion to `finish`. Writes that verify are read back as soon as they complete.
     fn stream(&mut self) {
-        let mut queued_bytes = 0u64;
+        let read_back = self.verify || self.work.verify || self.work.write_verify;
+        // `V` lets a read-back overtake its write only across more than one endpoint; on one it waits, as `v` does.
+        let race = read_back && self.work.write_verify_race && self.queue.endpoints() > 1;
+        self.queue.set_race(race);
+        let state = RefCell::new(Stream {
+            generated: &mut self.generated,
+            stats: &mut self.stats,
+            work: &self.work,
+            template: &self.template,
+            seed: self.seed,
+            read_back,
+            counted_read_backs: self.work.verify || self.work.write_verify,
+            race,
+            duration: self.duration,
+            start: self.start,
+            progress: &self.progress,
+            limit: self.limit,
+            byte_limit: self.byte_limit,
+            lo: self.wv_lo,
+            hi: self.wv_hi,
+            index: self.index,
+            wv_count: self.wv_count,
+            wv_state: self.wv_state,
+            wv_ops: 0,
+            queued_bytes: 0,
+            outstanding: 0,
+            in_flight: std::mem::take(&mut self.flight),
+            due: std::mem::take(&mut self.owed),
+            held: std::mem::take(&mut self.held),
+            base: self.queue.arena_base(),
+            stride: self.queue.stride(),
+        });
         let result = self.queue.execute_stream(
-            || {
-                if crate::signals::INTERRUPTED.load(Ordering::Relaxed)
-                    || self.limit.is_some_and(|n| self.index >= n)
-                    || self.byte_limit.is_some_and(|n| queued_bytes >= n)
-                    || self
-                        .duration
-                        .is_some_and(|s| self.start.elapsed().as_secs_f64() >= s)
-                {
-                    return None;
-                }
-                let request = self.generated.get(self.index);
-                self.index += 1;
-                queued_bytes += request.len as u64;
-                Some(request)
-            },
+            || state.borrow_mut().source(),
             |request, buffer| {
                 if request.write {
                     write_pattern(
@@ -1184,15 +1502,16 @@ impl Run {
                     );
                 }
             },
-            |request| {
-                let measured = self
-                    .duration
-                    .is_none_or(|seconds| self.start.elapsed().as_secs_f64() < seconds);
-                self.stats.complete(request, measured);
-                self.stats.publish(counter(&self.progress));
-            },
+            |slot, request| state.borrow_mut().finish(slot, request),
             self.errors,
         );
+        let stream = state.into_inner();
+        self.flight = stream.in_flight;
+        self.owed = stream.due;
+        self.held = stream.held;
+        self.index = stream.index;
+        self.wv_count = stream.wv_count;
+        self.wv_state = stream.wv_state;
         if let Err(e) = result {
             self.error = Some(e);
         }
@@ -1277,20 +1596,7 @@ impl Run {
 
     /// Seconds to sleep before the next batch so rate and duty limits are respected.
     fn pacing_wait(&self, elapsed: f64) -> f64 {
-        let rate_wait = self
-            .work
-            .rate
-            .map_or(0., |rate| self.index as f64 / rate - elapsed)
-            .max(0.);
-        let duty_wait = self.work.duty.map_or(0., |(on, off)| {
-            let phase = elapsed % (on + off);
-            if phase >= on {
-                on + off - phase
-            } else {
-                0.
-            }
-        });
-        rate_wait.max(duty_wait)
+        pacing_wait(&self.work, self.index, elapsed)
     }
 
     /// Fills the first `limit` queue slots with the next requests and their payloads. Returns how many.
@@ -1304,15 +1610,8 @@ impl Run {
             if let Some(read) = self.wv_pending.take() {
                 self.queue.requests[count] = read;
             } else {
-                let index = if self.work.sequential >= 1. {
-                    self.wv_count % blocks
-                } else {
-                    self.wv_state ^= self.wv_state << 13;
-                    self.wv_state ^= self.wv_state >> 7;
-                    self.wv_state ^= self.wv_state << 17;
-                    self.wv_state % blocks
-                };
-                self.wv_count += 1;
+                let index =
+                    write_verify_index(&self.work, blocks, &mut self.wv_count, &mut self.wv_state);
                 let request = Request {
                     offset: self.wv_lo + index * block,
                     len: self.work.block,
@@ -1372,16 +1671,9 @@ impl Run {
         count
     }
 
-    /// Checks the reads that were scheduled for verification in this batch.
-    /// Counts a block whose contents are wrong and keeps the first few offsets. Keeps going, so every wrong
-    /// block is counted. Fixed-size storage, so a bad run does not allocate in the timed loop.
+    /// Counts a block whose contents are wrong.
     fn record_incorrect(&mut self, offset: u64) {
-        self.stats.incorrect += 1;
-        let n = self.stats.incorrect_offsets_len as usize;
-        if n < INCORRECT_SAMPLES {
-            self.stats.incorrect_offsets[n] = offset;
-            self.stats.incorrect_offsets_len += 1;
-        }
+        count_incorrect(&mut self.stats, offset);
     }
 
     fn verify_reads(&mut self, count: usize) {

@@ -1,5 +1,5 @@
 // Platforms with no asynchronous I/O interface. Every queue fails to open here.
-use super::{AsyncIo, Backend, Failure, Request, StreamCtx};
+use super::{AsyncIo, Backend, Failure, Next, Request, StreamCtx};
 use std::{
     fs::{File, OpenOptions},
     io,
@@ -67,9 +67,9 @@ impl AsyncIo for Native {
         _complete: C,
     ) -> std::result::Result<(), Failure>
     where
-        N: FnMut() -> Option<Request>,
+        N: FnMut() -> Next,
         P: FnMut(Request, &mut [u8]),
-        C: FnMut(Request),
+        C: FnMut(usize, Request),
     {
         unreachable!("Native::new never succeeds on this platform")
     }
