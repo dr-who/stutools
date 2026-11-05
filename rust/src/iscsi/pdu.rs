@@ -17,6 +17,20 @@ pub const SCSI_RESPONSE: u8 = 0x21;
 pub const DATA_OUT: u8 = 0x05;
 pub const DATA_IN: u8 = 0x25;
 pub const R2T: u8 = 0x31;
+/// Task management (RFC 7143 11.5, 11.6) and the target's Reject of a PDU it cannot take (11.17).
+pub const TASK_MANAGEMENT_REQUEST: u8 = 0x02;
+pub const TASK_MANAGEMENT_RESPONSE: u8 = 0x22;
+pub const REJECT: u8 = 0x3f;
+/// Task management functions (RFC 7143 11.5.1).
+pub const TMF_ABORT_TASK: u8 = 1;
+pub const TMF_ABORT_TASK_SET: u8 = 2;
+pub const TMF_CLEAR_TASK_SET: u8 = 3;
+pub const TMF_LOGICAL_UNIT_RESET: u8 = 5;
+/// The functions RFC 7144 6.3 adds.
+pub const TMF_QUERY_TASK: u8 = 9;
+pub const TMF_QUERY_TASK_SET: u8 = 10;
+pub const TMF_I_T_NEXUS_RESET: u8 = 11;
+pub const TMF_QUERY_ASYNC_EVENT: u8 = 12;
 /// The task tag a target uses when it does not expect a reply (RFC 7143 11.10.4).
 pub const NO_TTT: u32 = 0xffff_ffff;
 const IMMEDIATE: u8 = 0x40;
@@ -186,21 +200,48 @@ pub struct ScsiCommand<'a> {
 }
 
 impl ScsiCommand<'_> {
+    /// The BHS. A CDB longer than 16 bytes puts its first 16 here and the rest in the Extended CDB AHS
+    /// (`extended_cdb`), whose length goes in TotalAHSLength (RFC 7143 11.2.1.5, 11.3.5).
     pub fn encode(&self) -> Result<[u8; BHS_LEN]> {
-        if self.cdb.is_empty() || self.cdb.len() > 16 {
-            return Err(format!("CDB must be 1 to 16 bytes, not {}", self.cdb.len()));
+        if self.cdb.is_empty() || self.cdb.len() > MAX_CDB {
+            return Err(format!(
+                "CDB must be 1 to {MAX_CDB} bytes, not {}",
+                self.cdb.len()
+            ));
         }
         let mut bhs = [0u8; BHS_LEN];
         bhs[0] = SCSI_COMMAND;
+        bhs[4] = (extended_cdb(self.cdb).len() / 4) as u8;
         bhs[1] = TRANSIT | (if self.read { 0x40 } else { 0 }) | (if self.write { 0x20 } else { 0 });
         bhs[8..16].copy_from_slice(&self.lun.to_be_bytes());
         bhs[16..20].copy_from_slice(&self.itt.to_be_bytes());
         bhs[20..24].copy_from_slice(&self.expected.to_be_bytes());
         bhs[24..28].copy_from_slice(&self.cmd_sn.to_be_bytes());
         bhs[28..32].copy_from_slice(&self.exp_stat_sn.to_be_bytes());
-        bhs[32..32 + self.cdb.len()].copy_from_slice(self.cdb);
+        let n = self.cdb.len().min(16);
+        bhs[32..32 + n].copy_from_slice(&self.cdb[..n]);
         Ok(bhs)
     }
+}
+
+/// The largest CDB spit sends: the 32-byte variable-length CDBs (operation code 7Fh).
+const MAX_CDB: usize = 32;
+
+/// The Extended CDB AHS for the bytes of a CDB past the 16th (RFC 7143 11.2.2.3): AHSLength (the CDB
+/// length less 15, counting the reserved byte), AHSType 1, a reserved byte, then the spill, padded to
+/// 4 bytes. Empty for a CDB of 16 bytes or fewer.
+pub fn extended_cdb(cdb: &[u8]) -> Vec<u8> {
+    if cdb.len() <= 16 {
+        return Vec::new();
+    }
+    let spill = &cdb[16..];
+    let mut ahs = Vec::with_capacity(4 + padded(spill.len()));
+    ahs.extend_from_slice(&((cdb.len() - 15) as u16).to_be_bytes());
+    ahs.push(0x01);
+    ahs.push(0);
+    ahs.extend_from_slice(spill);
+    ahs.resize(4 + padded(spill.len()), 0);
+    ahs
 }
 
 /// Data-Out PDU header (RFC 7143 11.7) for `data_len` bytes of write data the target asked for with R2T.
@@ -236,6 +277,32 @@ pub fn nop_out(lun: u64, itt: u32, ttt: u32, cmd_sn: u32, exp_stat_sn: u32) -> [
     bhs[20..24].copy_from_slice(&ttt.to_be_bytes());
     bhs[24..28].copy_from_slice(&cmd_sn.to_be_bytes());
     bhs[28..32].copy_from_slice(&exp_stat_sn.to_be_bytes());
+    bhs
+}
+
+/// Sets the data segment length of a header, for a PDU that carries data (a NOP-Out ping).
+pub fn set_data_len(bhs: &mut [u8; BHS_LEN], len: usize) {
+    bhs[5..8].copy_from_slice(&(len as u32).to_be_bytes()[1..]);
+}
+
+/// Task Management Function Request (RFC 7143 11.5), sent immediate. `referenced` is the task tag
+/// ABORT TASK names; other functions carry 0xffffffff there. `ref_cmd_sn` is the CmdSN of that task.
+pub fn task_management_request(
+    function: u8,
+    itt: u32,
+    referenced: u32,
+    cmd_sn: u32,
+    exp_stat_sn: u32,
+    ref_cmd_sn: u32,
+) -> [u8; BHS_LEN] {
+    let mut bhs = [0u8; BHS_LEN];
+    bhs[0] = TASK_MANAGEMENT_REQUEST | IMMEDIATE;
+    bhs[1] = TRANSIT | (function & 0x7f);
+    bhs[16..20].copy_from_slice(&itt.to_be_bytes());
+    bhs[20..24].copy_from_slice(&referenced.to_be_bytes());
+    bhs[24..28].copy_from_slice(&cmd_sn.to_be_bytes());
+    bhs[28..32].copy_from_slice(&exp_stat_sn.to_be_bytes());
+    bhs[32..36].copy_from_slice(&ref_cmd_sn.to_be_bytes());
     bhs
 }
 
@@ -382,6 +449,49 @@ mod tests {
         pdu[36] = 0x02;
         pdu[37] = 0x01;
         assert_eq!(LoginResponse::decode(&pdu).unwrap().status, (2, 1));
+    }
+
+    #[test]
+    fn a_32_byte_cdb_spills_into_the_extended_cdb_ahs() {
+        let cdb: Vec<u8> = (0..32).collect();
+        let ahs = extended_cdb(&cdb);
+        assert_eq!(ahs.len(), 20);
+        assert_eq!(&ahs[..4], &[0, 17, 0x01, 0]);
+        assert_eq!(&ahs[4..], &cdb[16..]);
+        let command = ScsiCommand {
+            lun: 0,
+            itt: 1,
+            cmd_sn: 1,
+            exp_stat_sn: 1,
+            cdb: &cdb,
+            read: true,
+            write: false,
+            expected: 512,
+        };
+        let bhs = command.encode().unwrap();
+        assert_eq!(bhs[4], 5, "TotalAHSLength in 4-byte words");
+        assert_eq!(&bhs[32..48], &cdb[..16]);
+        assert!(extended_cdb(&cdb[..16]).is_empty());
+    }
+
+    #[test]
+    fn task_management_request_is_immediate_with_its_function_and_tags() {
+        let bhs = task_management_request(TMF_ABORT_TASK, 9, 0x1234, 5, 6, 4);
+        assert_eq!(bhs[0], 0x42, "task management with the immediate bit");
+        assert_eq!(bhs[1], 0x80 | 1);
+        assert_eq!(&bhs[16..20], &9u32.to_be_bytes());
+        assert_eq!(&bhs[20..24], &0x1234u32.to_be_bytes());
+        assert_eq!(&bhs[24..28], &5u32.to_be_bytes());
+        assert_eq!(&bhs[28..32], &6u32.to_be_bytes());
+        assert_eq!(&bhs[32..36], &4u32.to_be_bytes());
+    }
+
+    #[test]
+    fn nop_ping_carries_its_data_length() {
+        let mut bhs = nop_out(0, 3, NO_TTT, 1, 1);
+        set_data_len(&mut bhs, 0x0102);
+        assert_eq!(&bhs[4..8], &[0, 0, 1, 2]);
+        assert_eq!(bhs[0], 0x40);
     }
 
     #[test]

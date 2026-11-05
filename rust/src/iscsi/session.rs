@@ -28,6 +28,16 @@ pub struct Negotiated {
     pub tsih: u16,
     /// The CHAP algorithm the target chose (CHAP_A), when the login used CHAP.
     pub chap_algorithm: Option<u32>,
+    /// Every key the target answered in the operational stage, as it sent them.
+    pub keys: Vec<(String, String)>,
+}
+
+/// How a target answered a task management request: a response code (RFC 7143 11.6.1: 0 function
+/// complete, 1 task does not exist, 5 not supported, 255 rejected), or a Reject PDU with its reason.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TaskAnswer {
+    Response(u8),
+    Rejected(u8),
 }
 
 /// Largest data segment the session accepts: the MaxRecvDataSegmentLength it offers, plus digest room.
@@ -51,7 +61,12 @@ pub struct Session {
     sense: Vec<u8>,
     /// Commands sent and not yet finished, routed by task tag.
     inflight: Vec<Inflight>,
+    /// Data-In bytes of the last command that finished.
+    last_received: usize,
 }
+
+/// The start of the error a command gets when the target rejects its PDU, followed by the reason.
+pub const REJECTED: &str = "target rejected the PDU, reason";
 
 /// Most commands in flight on one session.
 pub const MAX_INFLIGHT: usize = 128;
@@ -74,7 +89,11 @@ struct Inflight {
 pub struct Outcome {
     pub status: u8,
     pub sense: Vec<u8>,
+    /// The read buffer, as long as was asked for.
     pub data: Vec<u8>,
+    /// How many bytes of it the target sent (Data-In), which is less than asked for when the target had
+    /// less (SPC-6 4.2.5.6).
+    pub received: usize,
 }
 
 /// Adds the default iSCSI port when the portal has none: `HOST`, `IPv4` and `[IPv6]` get `:3260`, and
@@ -240,6 +259,44 @@ pub fn login_as(
     digest: &str,
     chap_offer: &str,
 ) -> Result<Session> {
+    let keys = operational_keys(initiator, target, digest);
+    login_with_keys(portal, target, initiator, isid, chap, chap_offer, keys)
+}
+
+/// Logs in offering exactly `offer` in the operational stage (after the initiator and target names and
+/// the session type), and logs out at once. Returns what the target answered. The data path assumes
+/// spit's own keys, so a session negotiated this way runs no commands.
+pub fn negotiate(
+    portal: &str,
+    target: &str,
+    initiator: &str,
+    chap: Option<(&str, &[u8])>,
+    offer: &[(&str, &str)],
+) -> Result<Negotiated> {
+    let mut keys: Vec<(String, String)> = [
+        ("InitiatorName", initiator),
+        ("TargetName", target),
+        ("SessionType", "Normal"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect();
+    keys.extend(offer.iter().map(|(k, v)| (k.to_string(), v.to_string())));
+    let session = login_with_keys(portal, target, initiator, random_isid(), chap, "5,6", keys)?;
+    let negotiated = session.negotiated.clone();
+    session.logout()?;
+    Ok(negotiated)
+}
+
+fn login_with_keys(
+    portal: &str,
+    target: &str,
+    initiator: &str,
+    isid: [u8; 6],
+    chap: Option<(&str, &[u8])>,
+    chap_offer: &str,
+    keys: Vec<(String, String)>,
+) -> Result<Session> {
     let mut stream = connect_stream(portal)?;
     let pairs = |list: &[(&str, &str)]| -> Vec<(String, String)> {
         list.iter()
@@ -331,7 +388,7 @@ pub fn login_as(
             current: Stage::Operational,
             next: Stage::FullFeature,
             transit: true,
-            text: operational_keys(initiator, target, digest),
+            text: keys,
         },
     )?;
     if !response.transit || response.next != Stage::FullFeature as u8 {
@@ -353,6 +410,7 @@ pub fn login_as(
         rx: Vec::with_capacity(RX_CAPACITY),
         sense: Vec::with_capacity(256),
         inflight: Vec::with_capacity(MAX_INFLIGHT),
+        last_received: 0,
         negotiated: Negotiated {
             header_digest: digest("HeaderDigest"),
             data_digest: digest("DataDigest"),
@@ -360,6 +418,7 @@ pub fn login_as(
             initial_r2t: value(&response.text, "InitialR2T") != Some("No"),
             tsih: response.tsih,
             chap_algorithm,
+            keys: response.text.clone(),
         },
         itt: LOGIN_ITT + 1,
         cmd_sn: exp_cmd_sn,
@@ -385,7 +444,7 @@ impl Session {
 
     /// Sends one PDU: the header, its digest, the data segment padded to 4 bytes, and the data digest
     /// when negotiated. The digests cover the header, and the data with its padding.
-    fn frame(&mut self, header: &[u8; BHS_LEN], data: &[u8]) -> Result<()> {
+    fn frame(&mut self, header: &[u8], data: &[u8]) -> Result<()> {
         self.tx.clear();
         self.tx.extend_from_slice(header);
         if self.negotiated.header_digest {
@@ -489,7 +548,13 @@ impl Session {
         };
         self.cmd_sn = self.cmd_sn.wrapping_add(1);
         let header = command.encode()?;
-        self.frame(&header, &[])?;
+        if cdb.len() > 16 {
+            let mut long = header.to_vec();
+            long.extend_from_slice(&pdu::extended_cdb(cdb));
+            self.frame(&long, &[])?;
+        } else {
+            self.frame(&header, &[])?;
+        }
         self.inflight.push(Inflight {
             itt,
             tag,
@@ -544,6 +609,7 @@ impl Session {
                     if bhs[1] & 0x80 != 0 {
                         if let Some(status) = inf.status {
                             let tag = inf.tag;
+                            self.last_received = inf.received;
                             self.inflight.swap_remove(idx);
                             return Ok(Done {
                                 code: 0,
@@ -566,6 +632,7 @@ impl Session {
                     }
                     self.observe(pdu::sequence(&bhs));
                     let mut inf = self.inflight.swap_remove(idx);
+                    self.last_received = inf.received;
                     if self.rx.len() >= 2 {
                         let n = u16::from_be_bytes([self.rx[0], self.rx[1]]) as usize;
                         let end = (2 + n).min(self.rx.len()).min(2 + SENSE_CAPACITY);
@@ -597,13 +664,14 @@ impl Session {
                     }
                     self.send_write(buf, len, &r)?;
                 }
-                pdu::NOP_IN => {
-                    let n = pdu::decode_nop_in(&bhs)?;
-                    self.observe(n.seq);
-                    if n.ttt != NO_TTT {
-                        let reply = pdu::nop_out(0, NO_TTT, n.ttt, self.cmd_sn, self.exp_stat_sn);
-                        self.frame(&reply, &[])?;
-                    }
+                pdu::NOP_IN => self.answer_nop(&bhs)?,
+                // RFC 7143 11.17: the target refuses a PDU it cannot take (reason 05h, command not
+                // supported; 09h, invalid PDU field). The command it carried is over.
+                pdu::REJECT => {
+                    self.observe(pdu::sequence(&bhs));
+                    let rejected = pdu::be32(&self.rx, 16);
+                    self.inflight.retain(|i| i.itt != rejected);
+                    return Err(format!("{REJECTED} {:#04x}", bhs[2]));
                 }
                 other => return Err(format!("unexpected PDU opcode {other:#x}")),
             }
@@ -684,7 +752,90 @@ impl Session {
             status,
             sense: self.sense.clone(),
             data,
+            received: self.last_received,
         })
+    }
+
+    /// Answers a NOP-In that asks for a reply (it carries a target transfer tag), and records its
+    /// sequence numbers.
+    fn answer_nop(&mut self, bhs: &[u8; BHS_LEN]) -> Result<()> {
+        let n = pdu::decode_nop_in(bhs)?;
+        self.observe(n.seq);
+        if n.ttt != NO_TTT {
+            let reply = pdu::nop_out(0, NO_TTT, n.ttt, self.cmd_sn, self.exp_stat_sn);
+            self.frame(&reply, &[])?;
+        }
+        Ok(())
+    }
+
+    /// Sends a task management function for LUN 0 and waits for the answer. `referenced` is the task
+    /// tag ABORT TASK names, with `ref_cmd_sn` its CmdSN; other functions ignore both. Only for a session
+    /// with nothing in flight.
+    pub fn task_management(
+        &mut self,
+        function: u8,
+        referenced: u32,
+        ref_cmd_sn: u32,
+    ) -> Result<TaskAnswer> {
+        if !self.inflight.is_empty() {
+            return Err("a command is in flight on this session".into());
+        }
+        let itt = self.next_itt();
+        // ABORT TASK and QUERY TASK name a task (RFC 7143 11.5.1, RFC 7144 6.3).
+        let rtt = if matches!(function, pdu::TMF_ABORT_TASK | pdu::TMF_QUERY_TASK) {
+            referenced
+        } else {
+            NO_TTT
+        };
+        let header = pdu::task_management_request(
+            function,
+            itt,
+            rtt,
+            self.cmd_sn,
+            self.exp_stat_sn,
+            ref_cmd_sn,
+        );
+        self.frame(&header, &[])?;
+        loop {
+            let bhs = self.recv()?;
+            match bhs[0] & 0x3f {
+                pdu::TASK_MANAGEMENT_RESPONSE if pdu::be32(&bhs, 16) == itt => {
+                    self.observe(pdu::sequence(&bhs));
+                    return Ok(TaskAnswer::Response(bhs[2]));
+                }
+                pdu::REJECT => return Ok(TaskAnswer::Rejected(bhs[2])),
+                pdu::NOP_IN => self.answer_nop(&bhs)?,
+                other => return Err(format!("unexpected PDU opcode {other:#x}")),
+            }
+        }
+    }
+
+    /// The CmdSN the next command will carry, which ABORT TASK uses to name a task.
+    pub fn cmd_sn(&self) -> u32 {
+        self.cmd_sn
+    }
+
+    /// Sends a NOP-Out ping carrying `data` and returns the data of the NOP-In that answers it
+    /// (RFC 7143 11.18: the target echoes the ping's data under its task tag).
+    pub fn ping(&mut self, data: &[u8]) -> Result<Vec<u8>> {
+        if !self.inflight.is_empty() {
+            return Err("a command is in flight on this session".into());
+        }
+        let itt = self.next_itt();
+        let mut header = pdu::nop_out(0, itt, NO_TTT, self.cmd_sn, self.exp_stat_sn);
+        pdu::set_data_len(&mut header, data.len());
+        self.frame(&header, data)?;
+        loop {
+            let bhs = self.recv()?;
+            if bhs[0] & 0x3f != pdu::NOP_IN {
+                return Err(format!("unexpected PDU opcode {:#x}", bhs[0] & 0x3f));
+            }
+            if pdu::be32(&bhs, 16) == itt {
+                self.observe(pdu::sequence(&bhs));
+                return Ok(self.rx.clone());
+            }
+            self.answer_nop(&bhs)?;
+        }
     }
 
     /// Logs out and closes the session. A failed logout is returned, not ignored.

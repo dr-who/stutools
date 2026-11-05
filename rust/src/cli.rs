@@ -43,6 +43,8 @@ pub struct Config {
     pub compliance: bool,
     /// `--compliance-report FILE`: also write the compliance table and the failed cases as Markdown.
     pub compliance_report: Option<PathBuf>,
+    /// `--sbc 3|4|5`: the SCSI Block Commands edition the `sbc` and `features` sections judge against.
+    pub sbc: u8,
     /// How a workload over several `--iscsi` paths picks a path for each request.
     pub path_policy: crate::paths::Policy,
     /// `-d N`: print the first N commands sent to the iSCSI paths, with their verify bit.
@@ -88,6 +90,14 @@ fn expand_options(args: Vec<String>) -> Result<Vec<String>> {
     }
     Ok(out)
 }
+/// The SBC edition `--sbc` names: SBC-3, SBC-4 or SBC-5, the editions spit's command table holds.
+fn sbc_edition(v: &str) -> Result<u8> {
+    match v {
+        "3" | "4" | "5" => Ok(v.parse().unwrap_or(4)),
+        _ => Err("--sbc takes 3, 4 or 5".into()),
+    }
+}
+
 pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     let args = expand_options(args)?;
     if let Some(pos) = args.iter().position(|a| a == "-h" || a == "--help") {
@@ -125,6 +135,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         chap_secret_file: None,
         compliance: false,
         compliance_report: None,
+        sbc: 4,
         path_policy: crate::paths::Policy::RoundRobin,
         dump: 0,
     };
@@ -195,6 +206,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             "--iscsi" | "--scsi" => c.iscsi.extend(crate::paths::expand_connections(v)?),
             "--nvmeof" | "--nvme" => c.nvmeof.extend(crate::paths::expand_connections(v)?),
             "--compliance-report" => c.compliance_report = Some(v.into()),
+            "--sbc" => c.sbc = sbc_edition(v)?,
             "--iscsi-initiator" => c.iscsi_initiator = Some(v.to_string()),
             "-d" => c.dump = integer(v)?,
             "--iscsi-policy" | "--policy" => c.path_policy = crate::paths::Policy::parse(v)?,
@@ -513,5 +525,13 @@ mod tests {
     #[test]
     fn accepts_the_reported_large_block_workload() {
         assert!(workload("wk4096s0j32G400R42").is_ok());
+    }
+
+    #[test]
+    fn sbc_takes_three_four_or_five() {
+        assert_eq!(sbc_edition("3").unwrap(), 3);
+        assert_eq!(sbc_edition("5").unwrap(), 5);
+        assert_eq!(sbc_edition("6").unwrap_err(), "--sbc takes 3, 4 or 5");
+        assert!(sbc_edition("x").is_err());
     }
 }

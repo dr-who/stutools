@@ -15,22 +15,30 @@ const SET_TARGET_PORT_GROUPS: u8 = 0x0a;
 pub const CHECK_CONDITION: u8 = 0x02;
 pub const RESERVATION_CONFLICT: u8 = 0x18;
 
-/// PERSISTENT RESERVE OUT service actions (SPC-4 6.16).
+/// PERSISTENT RESERVE OUT service actions (SPC-6 6.15).
 pub const PR_REGISTER: u8 = 0x00;
 pub const PR_RESERVE: u8 = 0x01;
 pub const PR_RELEASE: u8 = 0x02;
 pub const PR_CLEAR: u8 = 0x03;
 pub const PR_PREEMPT: u8 = 0x04;
+pub const PR_PREEMPT_AND_ABORT: u8 = 0x05;
+pub const PR_REGISTER_AND_IGNORE: u8 = 0x06;
 
-/// Reservation type for the scope field: write exclusive.
+/// Reservation types (SPC-6 6.15.3), in the type field with the LU scope (0).
 pub const PR_WRITE_EXCLUSIVE: u8 = 0x01;
+pub const PR_WRITE_EXCLUSIVE_REGISTRANTS: u8 = 0x05;
 
-/// PERSISTENT RESERVE IN service actions (SPC-4 6.15).
+/// PERSISTENT RESERVE IN service actions (SPC-6 6.14).
 pub const PR_IN_READ_KEYS: u8 = 0x00;
 pub const PR_IN_READ_RESERVATIONS: u8 = 0x01;
 pub const PR_IN_REPORT_CAPABILITIES: u8 = 0x02;
+pub const PR_IN_READ_FULL_STATUS: u8 = 0x03;
 
-/// UNMAP of one block descriptor (SBC-3 5.25). The parameter list is an 8-byte header (the data
+/// The SPC-2 reservation commands, RESERVE(6) and RELEASE(6), with nothing in the CDB but the opcode.
+pub const RESERVE_6: [u8; 6] = [0x16, 0, 0, 0, 0, 0];
+pub const RELEASE_6: [u8; 6] = [0x17, 0, 0, 0, 0, 0];
+
+/// UNMAP of one block descriptor (SBC-5 5.31). The parameter list is an 8-byte header (the data
 /// length excludes its own two bytes, then the block descriptor length) and one 16-byte descriptor.
 pub fn unmap(s: &mut Session, lba: u64, blocks: u32) -> Result<Outcome> {
     let mut list = [0u8; 24];
@@ -42,7 +50,7 @@ pub fn unmap(s: &mut Session, lba: u64, blocks: u32) -> Result<Outcome> {
     s.command(&cdb, 0, Some(&list))
 }
 
-/// COMPARE AND WRITE (SBC-3 5.3): `data` is `blocks` blocks to compare, then `blocks` to write.
+/// COMPARE AND WRITE (SBC-5 5.4): `data` is `blocks` blocks to compare, then `blocks` to write.
 /// The LBA is 8 bytes at 2 to 9 and the block count is one byte at 13.
 pub fn compare_and_write(s: &mut Session, lba: u64, blocks: u8, data: &[u8]) -> Result<Outcome> {
     let mut cdb = [0u8; 16];
@@ -59,7 +67,7 @@ pub fn persistent_reserve_in(s: &mut Session, action: u8, alloc: u16) -> Result<
     s.command(&cdb, alloc as u32, None)
 }
 
-/// PERSISTENT RESERVE OUT parameter list (SPC-4 6.16.4). Bytes 0 to 7 hold the reservation key and
+/// PERSISTENT RESERVE OUT parameter list (SPC-6 6.15.4). Bytes 0 to 7 hold the reservation key and
 /// 8 to 15 the service action reservation key. Byte 20 carries the flags; this list sets none.
 pub fn pr_parameters(key: u64, service_key: u64) -> [u8; 24] {
     let mut list = [0u8; 24];
@@ -92,11 +100,17 @@ pub fn persistent_reserve_out(
     s.command(&cdb, 0, Some(list))
 }
 
-/// SET TARGET PORT GROUPS (SPC-4 6.36) for one group. Each group descriptor is four bytes: the
-/// asymmetric access state (low nibble of byte 0), then the group ID in bytes 2 and 3.
-pub fn set_port_group_state(s: &mut Session, group: u16, state: u8) -> Result<Outcome> {
+/// The SET TARGET PORT GROUPS parameter list for one group (SPC-5 tables 297, 298): four reserved
+/// bytes, then the descriptor: the asymmetric access state in the low nibble of byte 0 and the group in
+/// bytes 2 and 3.
+pub fn port_group_list(group: u16, state: u8) -> [u8; 8] {
     let g = group.to_be_bytes();
-    let list = [state & 0x0f, 0, g[0], g[1]];
+    [0, 0, 0, 0, state & 0x0f, 0, g[0], g[1]]
+}
+
+/// SET TARGET PORT GROUPS (SPC-6 6.43) for one group.
+pub fn set_port_group_state(s: &mut Session, group: u16, state: u8) -> Result<Outcome> {
+    let list = port_group_list(group, state);
     let n = (list.len() as u32).to_be_bytes();
     let cdb = [
         MAINTENANCE_OUT,
@@ -113,4 +127,17 @@ pub fn set_port_group_state(s: &mut Session, group: u16, state: u8) -> Result<Ou
         0,
     ];
     s.command(&cdb, 0, Some(&list))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_port_groups_list_starts_with_four_reserved_bytes() {
+        assert_eq!(
+            port_group_list(0x0102, 0x1),
+            [0, 0, 0, 0, 0x01, 0, 0x01, 0x02]
+        );
+    }
 }
