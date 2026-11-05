@@ -11,6 +11,7 @@ use std::{
 
 use super::{
     controller::{self, Association, Controller},
+    identify,
     link::{Data, Link},
     sqe::{Command, Completion},
     Result,
@@ -43,8 +44,8 @@ impl Host {
         let mut admin = Controller::connect(&assoc)?;
         let cap = admin.property_get(controller::CAP, true)?;
         admin.enable()?;
-        let inline = controller::parse_controller(&admin.identify(controller::CNS_CONTROLLER, 0)?)
-            .inline_bytes;
+        let inline =
+            identify::parse_controller(&admin.identify(identify::CNS_CONTROLLER, 0)?).inline_bytes;
         let sqsize = IO_SQSIZE.min((cap & 0xffff) as u16);
         let io = controller::connect_io_queue(&assoc, admin.cntlid(), 1, sqsize)?;
         Ok(Self {

@@ -172,7 +172,7 @@ impl Rev {
     /// Whether the revision the controller implements (`vs`) requires this row.
     pub fn defined_in(&self, vs: u32) -> bool {
         let v = version(vs);
-        v >= self.due && self.max.map_or(true, |max| v < max)
+        v >= self.due && self.max.is_none_or(|max| v < max)
     }
 
     /// The row as a case name: "NVMe 1.4 ANA log page".

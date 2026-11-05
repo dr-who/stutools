@@ -1,41 +1,30 @@
 //! The nvme-io cases of `--compliance` (NVMe NVM Command Set Specification): what Windows sends a
-//! namespace once it is a disk. Reads and writes (NTFS), the FUA bit (NTFS metadata and log writes),
-//! errors for a block past the end and an inactive namespace, a read of the largest transfer (MDTS)
-//! and the refusal of a larger one, Flush (NTFS flushes the write cache), and the optional commands
-//! ONCS lists: Compare, Write Zeroes and Dataset Management deallocate (Windows TRIM). A command ONCS
-//! does not list must be refused as Invalid Command Opcode.
-//! NVM 1.1: Read 3.3.4, Write 3.3.6, Compare 3.3.1, Dataset Management 3.3.3, Write Zeroes 3.3.8 (FUA is
-//! CDW12 bit 30, Figure 53); Base 2.1 Figure 312 MDTS. SCSI-NVMe 1.5 maps Windows' SCSI commands onto
-//! these: READ/WRITE 5.3 and 5.8, SYNCHRONIZE CACHE 5.5 (Flush), UNMAP 5.6 (Dataset Management).
+//! namespace once it is a disk. For each namespace: the first and last blocks read, the namespace's
+//! limits (`io_limit_cases`), a write and its read-back (NTFS), the FUA bit (NTFS metadata and log
+//! writes), the optional commands ONCS lists (`oncs_cases`), and Flush (NTFS flushes the write cache);
+//! then a read and a write of an inactive namespace. NVM 1.1: Read 3.3.4, Write 3.3.6 (FUA is CDW12
+//! bit 30, Figure 53). SCSI-NVMe 1.5 maps Windows' READ/WRITE (5.3, 5.8) and SYNCHRONIZE CACHE (5.5,
+//! Flush) onto these.
 //! Data is changed only in the 8 blocks from 16 before the end (`AREA`), and what was there is
 //! written back. Runs on its own association, as a host of its own.
 
-use super::compliance::{
-    status_case, Target, COMPARE_FAILURE, INVALID_FIELD, INVALID_NAMESPACE, INVALID_OPCODE,
-    LBA_OUT_OF_RANGE, SUCCESS,
-};
-use super::controller::{self, NamespaceInfo};
+use super::compliance::Target;
+use super::controller;
 use super::host::Host;
+use super::identify::NamespaceInfo;
 use super::identify_cases::Facts;
 use super::link::Data;
 use super::nvm;
 use super::revisions as rev;
 use super::sqe::{self, Completion};
-use super::DEFAULT_HOSTNQN;
+use super::verdict::{status_case, INVALID_NAMESPACE, SUCCESS};
+use super::{io_limit_cases, oncs_cases, DEFAULT_HOSTNQN};
 use crate::compliance::{case, Case};
 use crate::Result;
 
 /// The blocks the cases may change: `AREA` blocks starting this many blocks before the end.
 pub const AREA_FROM_END: u64 = 16;
 pub const AREA: u16 = 8;
-
-/// ONCS bits for the optional commands.
-const ONCS_COMPARE: u16 = 1 << 0;
-const ONCS_DSM: u16 = 1 << 2;
-const ONCS_WRITE_ZEROES: u16 = 1 << 3;
-
-/// The largest transfer tried: a larger MDTS is tested only up to this.
-const LARGEST: usize = 1 << 20;
 
 /// What the I/O cases found, for the windows section.
 pub struct IoFacts {
@@ -45,11 +34,13 @@ pub struct IoFacts {
     pub trim: Option<bool>,
 }
 
-fn ok(done: &Result<Completion>) -> bool {
+/// Whether a command completed with success.
+pub fn ok(done: &Result<Completion>) -> bool {
     matches!(done, Ok(d) if d.ok())
 }
 
-fn read_blocks(h: &mut Host, nsid: u32, lba: u64, blocks: u16, len: usize) -> Result<Vec<u8>> {
+/// Reads `blocks` blocks of `len` bytes from `lba`, failing on any status but success.
+pub fn read_blocks(h: &mut Host, nsid: u32, lba: u64, blocks: u16, len: usize) -> Result<Vec<u8>> {
     let mut buf = vec![0u8; len * blocks as usize];
     let done = h.io(nvm::read(nsid, lba, blocks), Data::In(&mut buf))?;
     if !done.ok() {
@@ -60,10 +51,17 @@ fn read_blocks(h: &mut Host, nsid: u32, lba: u64, blocks: u16, len: usize) -> Re
 }
 
 /// One block: its namespace, LBA and length in bytes.
-type Block = (u32, u64, usize);
+pub type Block = (u32, u64, usize);
 
 /// A case that a read of `block` returns `want`, named by `what`.
-fn holds(cases: &mut Vec<Case>, h: &mut Host, name: String, block: Block, want: &[u8], what: &str) {
+pub fn holds(
+    cases: &mut Vec<Case>,
+    h: &mut Host,
+    name: String,
+    block: Block,
+    want: &[u8],
+    what: &str,
+) {
     let (nsid, lba, len) = block;
     let got = read_blocks(h, nsid, lba, 1, len);
     cases.push(case(
@@ -174,78 +172,7 @@ fn namespace(
             &done,
         );
     }
-    let done = h.io(nvm::read(nsid, ns.blocks, 1), Data::In(&mut one));
-    status_case(
-        cases,
-        io,
-        format!(
-            "{name} ns {nsid} {} read past the end",
-            rev::READ_WRITE.name()
-        ),
-        &[LBA_OUT_OF_RANGE],
-        "LBA Out of Range",
-        &done,
-    );
-    let mut two = vec![0u8; 2 * len];
-    let done = h.io(nvm::read(nsid, ns.blocks - 1, 2), Data::In(&mut two));
-    status_case(
-        cases,
-        io,
-        format!(
-            "{name} ns {nsid} {} read across the end",
-            rev::READ_WRITE.name()
-        ),
-        &[LBA_OUT_OF_RANGE],
-        "LBA Out of Range",
-        &done,
-    );
-    let done = h.send(nvm::write(nsid, ns.blocks, 1), &one);
-    status_case(
-        cases,
-        io,
-        format!(
-            "{name} ns {nsid} {} write past the end",
-            rev::READ_WRITE.name()
-        ),
-        &[LBA_OUT_OF_RANGE],
-        "LBA Out of Range",
-        &done,
-    );
-
-    // Base 2.1 Figure 312: a transfer over MDTS is Invalid Field in Command. The largest transfer: MDTS in units of the minimum page size (CAP.MPSMIN), 0 for no limit.
-    let page = 4096usize << ((facts.cap >> 48) & 0xf);
-    let limit = (facts.ctrl.mdts != 0).then(|| page << facts.ctrl.mdts);
-    let biggest = limit.unwrap_or(LARGEST).min(LARGEST) / len * len;
-    let blocks = (biggest / len)
-        .min(u16::MAX as usize + 1)
-        .min(ns.blocks as usize);
-    let mut big = vec![0u8; blocks * len];
-    let done = h.io(nvm::read(nsid, 0, blocks as u16), Data::In(&mut big));
-    status_case(
-        cases,
-        io,
-        format!(
-            "{name} ns {nsid} read of {} KiB (MDTS {})",
-            blocks * len / 1024,
-            limit.map_or("none".into(), |l| format!("{} KiB", l / 1024))
-        ),
-        &[SUCCESS],
-        "success",
-        &done,
-    );
-    if let Some(l) = limit.filter(|&l| l < LARGEST && (l / len + 1) as u64 <= ns.blocks) {
-        let n = l / len + 1;
-        let mut over = vec![0u8; n * len];
-        let done = h.io(nvm::read(nsid, 0, n as u16), Data::In(&mut over));
-        status_case(
-            cases,
-            io,
-            format!("{name} ns {nsid} read larger than MDTS"),
-            &[INVALID_FIELD],
-            "Invalid Field in Command",
-            &done,
-        );
-    }
+    io_limit_cases::run(h, name, nsid, ns, facts, cases);
 
     if ns.blocks < 2 * AREA_FROM_END {
         cases.push(case(
@@ -322,149 +249,16 @@ fn namespace(
         ok(&done) && fua == b,
     ));
 
-    // NVM 1.1 3.3.1: Compare; a miscompare is Compare Failure (Figure 19). The block holds B, so comparing B matches and comparing A miscompares.
-    let oncs = facts.ctrl.oncs;
-    if oncs & ONCS_COMPARE != 0 {
-        let done = h.send(
-            nvm::block_command(sqe::OP_COMPARE, nsid, base, 1, false),
-            &b,
-        );
-        status_case(
-            cases,
-            io,
-            format!("{name} ns {nsid} {}, data matches", rev::COMPARE.name()),
-            &[SUCCESS],
-            "success",
-            &done,
-        );
-        let done = h.send(
-            nvm::block_command(sqe::OP_COMPARE, nsid, base, 1, false),
-            &a,
-        );
-        status_case(
-            cases,
-            io,
-            format!("{name} ns {nsid} {}, data differs", rev::COMPARE.name()),
-            &[COMPARE_FAILURE],
-            "Compare Failure",
-            &done,
-        );
-    } else {
-        let done = h.send(
-            nvm::block_command(sqe::OP_COMPARE, nsid, base, 1, false),
-            &b,
-        );
-        status_case(
-            cases,
-            io,
-            format!(
-                "{name} ns {nsid} {} (ONCS bit 0 clear)",
-                rev::COMPARE.name()
-            ),
-            &[INVALID_OPCODE],
-            "Invalid Command Opcode",
-            &done,
-        );
-    }
-
-    // Write Zeroes on the next block, which holds C first so the zeros are visible.
-    let zlba = base + 1;
-    let _ = h.send(nvm::write(nsid, zlba, 1), &c);
-    let done = h.io(nvm::write_zeroes(nsid, zlba, 1), Data::None);
-    if oncs & ONCS_WRITE_ZEROES != 0 {
-        if status_case(
-            cases,
-            io,
-            format!("{name} ns {nsid} {}", rev::WRITE_ZEROES.name()),
-            &[SUCCESS],
-            "success",
-            &done,
-        ) {
-            holds(
-                cases,
-                h,
-                format!(
-                    "{name} ns {nsid} {} reads back zeros",
-                    rev::WRITE_ZEROES.name()
-                ),
-                (nsid, zlba, len),
-                &vec![0u8; len],
-                "zeros",
-            );
-        }
-    } else {
-        status_case(
-            cases,
-            io,
-            format!(
-                "{name} ns {nsid} {} (ONCS bit 3 clear)",
-                rev::WRITE_ZEROES.name()
-            ),
-            &[INVALID_OPCODE],
-            "Invalid Command Opcode",
-            &done,
-        );
-    }
-
-    // NVM 1.1 3.3.3 (Figure 45 AD: "may deallocate"): afterwards the block reads as DLFEAT.DRB says
-    // a deallocated block does (zeros for 001b), or, if it was not deallocated, as the data that was there.
-    let dlba = base + 2;
-    let _ = h.send(nvm::write(nsid, dlba, 1), &c);
-    let done = h.send(nvm::deallocate(nsid), &nvm::range(dlba, 1));
-    if oncs & ONCS_DSM != 0 {
-        let worked = status_case(
-            cases,
-            io,
-            format!(
-                "{name} ns {nsid} {} deallocate",
-                rev::DATASET_MANAGEMENT.name()
-            ),
-            &[SUCCESS],
-            "success",
-            &done,
-        );
-        let mut ok_after = false;
-        if worked {
-            let after = read_blocks(h, nsid, dlba, 1, len);
-            let zeros_only = rev::DLFEAT_FIELD.defined_in(facts.vs) && ns.dlfeat & 0x7 == 1;
-            ok_after = matches!(&after, Ok(d) if d.iter().all(|&x| x == 0) || *d == c);
-            cases.push(case(
-                io,
-                format!(
-                    "{name} ns {nsid} {} read after deallocate",
-                    rev::DATASET_MANAGEMENT.name()
-                ),
-                if zeros_only {
-                    format!(
-                        "zeros ({} DRB 001b), or the data if not deallocated",
-                        rev::DLFEAT_FIELD.name()
-                    )
-                } else {
-                    "zeros or the data".into()
-                },
-                match &after {
-                    Ok(d) if d.iter().all(|&x| x == 0) => "zeros".into(),
-                    Ok(d) if *d == c => "the data".into(),
-                    Ok(_) => "other data".into(),
-                    Err(e) => e.clone(),
-                },
-                ok_after,
-            ));
-        }
-        out.trim = Some(worked && ok_after);
-    } else {
-        status_case(
-            cases,
-            io,
-            format!(
-                "{name} ns {nsid} {} (ONCS bit 2 clear)",
-                rev::DATASET_MANAGEMENT.name()
-            ),
-            &[INVALID_OPCODE],
-            "Invalid Command Opcode",
-            &done,
-        );
-    }
+    oncs_cases::run(
+        h,
+        name,
+        (nsid, base, len),
+        ns,
+        facts,
+        [&a, &b, &c],
+        out,
+        cases,
+    );
 
     let done = h.io(nvm::flush(nsid), Data::None);
     out.flush &= status_case(

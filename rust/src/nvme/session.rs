@@ -8,10 +8,10 @@ use std::{
 };
 
 use super::{
-    controller::{
-        connect_io_queue, parse_active_namespaces, parse_controller, parse_namespace,
-        random_hostid, Association, Controller, CAP, CNS_ACTIVE_NAMESPACES, CNS_CONTROLLER,
-        CNS_NAMESPACE, KATO_MS,
+    controller::{connect_io_queue, random_hostid, Association, Controller, CAP, KATO_MS},
+    identify::{
+        parse_active_namespaces, parse_controller, parse_namespace, CNS_ACTIVE_NAMESPACES,
+        CNS_CONTROLLER, CNS_NAMESPACE,
     },
     link::Link,
     pdu::{self, Pdu},

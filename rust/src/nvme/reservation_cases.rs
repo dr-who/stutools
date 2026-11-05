@@ -1,5 +1,5 @@
-//! NVMe reservations (NVMe base specification, Reservations, and the NVM Command Set's Reservation
-//! Register, Report, Acquire and Release) and the nvme-resv cases of `--compliance`. Windows Failover
+//! The nvme-resv cases of `--compliance`: every reservation command (`reservation`) and type, with
+//! four hosts. Windows Failover
 //! Clustering arbitrates for a disk with SCSI persistent reservations; on NVMe, stornvme turns them
 //! into these commands, so a namespace a cluster shares must implement them.
 //!
@@ -15,70 +15,35 @@
 //! Windows' PERSISTENT RESERVE onto them: SCSI type 5h (Write Exclusive, Registrants Only, which
 //! clustering takes) is RTYPE 3h, REGISTER AND IGNORE EXISTING KEY is Register with IEKEY.
 
-use super::compliance::{
-    status_case, Target, HOST_ID_INCONSISTENT, INVALID_FIELD, INVALID_OPCODE, RESERVATION_CONFLICT,
-    SUCCESS,
-};
+use super::compliance::Target;
 use super::controller;
 use super::host::Host;
 use super::identify_cases::Facts;
 use super::io_cases::AREA_FROM_END;
 use super::link::Data;
 use super::nvm;
+use super::reservation::{
+    allowed, register, report, two_keys, ACQUIRE, CLEAR, FEAT_RESV_MASK, FEAT_RESV_PERSIST,
+    LOG_RESERVATION, ONCS_RESERVATIONS, PREEMPT, PREEMPT_AND_ABORT, REGISTER, RELEASE, REPLACE,
+    TYPES, UNREGISTER,
+};
+use super::reservation_hosts::{
+    Hosts, A, A2, B, C, HOST_A, HOST_B, HOST_C, KEY_A, KEY_B, KEY_C, NAMES,
+};
 use super::revisions as rev;
-use super::sqe::{self, Command, Completion};
+use super::sqe::{self, Command};
+use super::verdict::{
+    status_case, HOST_ID_INCONSISTENT, INVALID_FIELD, INVALID_OPCODE, RESERVATION_CONFLICT, SUCCESS,
+};
 use crate::compliance::{case, Case};
 use crate::Result;
 
-/// ONCS bit 5: the controller supports reservations.
-const ONCS_RESERVATIONS: u16 = 1 << 5;
-/// The reservation notification log page.
-const LOG_RESERVATION: u8 = 0x80;
-/// The namespace features a controller with reservations supports (Base 2.1 8.1.22, Figures 32 and
-/// 385).
-const FEAT_RESV_MASK: u8 = 0x82;
-const FEAT_RESV_PERSIST: u8 = 0x83;
-
-/// Register actions (RREGA), acquire actions (RACQA) and release actions (RRELA).
-const REGISTER: u8 = 0;
-const UNREGISTER: u8 = 1;
-const REPLACE: u8 = 2;
-const ACQUIRE: u8 = 0;
-const PREEMPT: u8 = 1;
-const PREEMPT_AND_ABORT: u8 = 2;
-const RELEASE: u8 = 0;
-const CLEAR: u8 = 1;
-
-/// Reservation types and their names. RESCAP bit N says type N is supported.
-const TYPES: [(u8, &str); 6] = [
-    (1, "Write Exclusive"),
-    (2, "Exclusive Access"),
-    (3, "Write Exclusive, Registrants Only"),
-    (4, "Exclusive Access, Registrants Only"),
-    (5, "Write Exclusive, All Registrants"),
-    (6, "Exclusive Access, All Registrants"),
-];
 /// The type Windows clustering takes: Write Exclusive, Registrants Only.
 const WERO: u8 = 3;
 
-/// Keys for the cases: distinct, and marked so a stray key is easy to spot.
-const KEY_A: u64 = 0x5350_4954_4e56_00a1;
-const KEY_B: u64 = 0x5350_4954_4e56_00b2;
+/// A replacement key for B, and a key no host registers.
 const KEY_B2: u64 = 0x5350_4954_4e56_00b3;
-const KEY_C: u64 = 0x5350_4954_4e56_00c4;
 const KEY_WRONG: u64 = 0x5350_4954_4e56_00ee;
-
-/// The host NQN of each host. A and A2 share one, as two paths of one host do.
-const HOST_A: &str = "nqn.2026-11.com.stutools:spit-resv-a";
-const HOST_B: &str = "nqn.2026-11.com.stutools:spit-resv-b";
-const HOST_C: &str = "nqn.2026-11.com.stutools:spit-resv-c";
-
-/// Indexes of the hosts.
-const A: usize = 0;
-const A2: usize = 1;
-const B: usize = 2;
-const C: usize = 3;
-const NAMES: [&str; 4] = ["A", "A2", "B", "C"];
 
 /// The outcome for the windows section.
 pub struct Verdict {
@@ -86,292 +51,6 @@ pub struct Verdict {
     pub supported: bool,
     /// Every reservation case passed and Write Exclusive, Registrants Only is supported.
     pub clustering: bool,
-}
-
-/// Reservation Register: `action` is RREGA; the data is `register_data`.
-pub fn register(nsid: u32, action: u8, ignore_key: bool) -> Command {
-    let mut cmd = Command::new(sqe::OP_RESV_REGISTER, 0);
-    cmd.set_nsid(nsid);
-    cmd.set_u32(40, action as u32 | (ignore_key as u32) << 3);
-    cmd
-}
-
-/// Reservation Acquire: `action` is RACQA and `rtype` the reservation type; the data is two keys.
-pub fn acquire(nsid: u32, action: u8, rtype: u8) -> Command {
-    let mut cmd = Command::new(sqe::OP_RESV_ACQUIRE, 0);
-    cmd.set_nsid(nsid);
-    cmd.set_u32(40, action as u32 | (rtype as u32) << 8);
-    cmd
-}
-
-/// Reservation Release: `action` is RRELA and `rtype` the type held; the data is the current key.
-pub fn release(nsid: u32, action: u8, rtype: u8) -> Command {
-    let mut cmd = Command::new(sqe::OP_RESV_RELEASE, 0);
-    cmd.set_nsid(nsid);
-    cmd.set_u32(40, action as u32 | (rtype as u32) << 8);
-    cmd
-}
-
-/// Reservation Report of `len` bytes; `extended` asks for the extended data structure (EDS), which
-/// carries 128-bit host identifiers.
-pub fn report(nsid: u32, len: usize, extended: bool) -> Command {
-    let mut cmd = Command::new(sqe::OP_RESV_REPORT, 0);
-    cmd.set_nsid(nsid);
-    cmd.set_u32(40, (len / 4 - 1) as u32);
-    cmd.set_u32(44, extended as u32);
-    cmd
-}
-
-/// Two keys as the 16 bytes Register (current, new) and Acquire (current, preempt) take.
-pub fn two_keys(first: u64, second: u64) -> [u8; 16] {
-    let mut d = [0u8; 16];
-    d[0..8].copy_from_slice(&first.to_le_bytes());
-    d[8..16].copy_from_slice(&second.to_le_bytes());
-    d
-}
-
-/// One registrant in an extended report.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Registrant {
-    pub cntlid: u16,
-    /// RCSTS bit 0: this host holds the reservation.
-    pub holds: bool,
-    pub key: u64,
-    pub hostid: [u8; 16],
-}
-
-/// A Reservation Report with the extended data structure.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Report {
-    pub generation: u32,
-    /// RTYPE: the reservation type held, 0 for none.
-    pub rtype: u8,
-    pub registrants: Vec<Registrant>,
-}
-
-/// Parses an extended Reservation Report: a 64-byte header (generation at 0, RTYPE at 4, the
-/// registrant count REGCTL at 5-6), then a 64-byte entry per registrant (CNTLID at 0, RCSTS at 2,
-/// the key at 8, the 128-bit host identifier at 16).
-pub fn parse_report(d: &[u8]) -> Report {
-    let count = u16::from_le_bytes([d[5], d[6]]) as usize;
-    let registrants = (0..count)
-        .filter_map(|i| d.get(64 + 64 * i..128 + 64 * i))
-        .map(|e| Registrant {
-            cntlid: u16::from_le_bytes([e[0], e[1]]),
-            holds: e[2] & 1 != 0,
-            key: u64::from_le_bytes(e[8..16].try_into().unwrap()),
-            hostid: e[16..32].try_into().unwrap(),
-        })
-        .collect();
-    Report {
-        generation: u32::from_le_bytes(d[0..4].try_into().unwrap()),
-        rtype: d[4],
-        registrants,
-    }
-}
-
-/// Whether a host that does not hold the reservation may read and write under `rtype`, when it is
-/// registered and when it is not (the base specification's command behaviour table).
-pub fn allowed(rtype: u8, registered: bool) -> (bool, bool) {
-    match rtype {
-        1 => (true, false),
-        2 => (false, false),
-        3 | 5 => (true, registered),
-        4 | 6 => (registered, registered),
-        _ => (true, true),
-    }
-}
-
-/// The hosts, the namespace and block the cases use, and whether every case so far passed.
-struct Run<'a> {
-    hosts: Vec<Host>,
-    ids: [[u8; 16]; 4],
-    nsid: u32,
-    lba: u64,
-    original: Vec<u8>,
-    label: String,
-    all: bool,
-    cases: &'a mut Vec<Case>,
-}
-
-impl Run<'_> {
-    fn check(
-        &mut self,
-        name: &str,
-        want: &[(u8, u8)],
-        expected: &str,
-        done: &Result<Completion>,
-    ) -> bool {
-        let passed = status_case(
-            self.cases,
-            "nvme-resv",
-            format!("{} {name}", self.label),
-            want,
-            expected,
-            done,
-        );
-        self.all &= passed;
-        passed
-    }
-
-    fn fact(&mut self, name: &str, expected: String, actual: String, passed: bool) {
-        self.all &= passed;
-        self.cases.push(case(
-            "nvme-resv",
-            format!("{} {name}", self.label),
-            expected,
-            actual,
-            passed,
-        ));
-    }
-
-    fn register(
-        &mut self,
-        who: usize,
-        action: u8,
-        ignore: bool,
-        current: u64,
-        new: u64,
-    ) -> Result<Completion> {
-        let nsid = self.nsid;
-        self.hosts[who].send(register(nsid, action, ignore), &two_keys(current, new))
-    }
-
-    fn acquire(
-        &mut self,
-        who: usize,
-        action: u8,
-        rtype: u8,
-        current: u64,
-        preempt: u64,
-    ) -> Result<Completion> {
-        let nsid = self.nsid;
-        self.hosts[who].send(acquire(nsid, action, rtype), &two_keys(current, preempt))
-    }
-
-    fn release(&mut self, who: usize, action: u8, rtype: u8, key: u64) -> Result<Completion> {
-        let nsid = self.nsid;
-        self.hosts[who].send(release(nsid, action, rtype), &key.to_le_bytes())
-    }
-
-    fn report(&mut self, who: usize) -> Result<Report> {
-        let mut buf = vec![0u8; 4096];
-        let nsid = self.nsid;
-        let done = self.hosts[who].io(report(nsid, buf.len(), true), Data::In(&mut buf))?;
-        if !done.ok() {
-            let (sct, sc) = done.code();
-            return Err(format!(
-                "Reservation Report: status type {sct:#x} code {sc:#04x}"
-            ));
-        }
-        Ok(parse_report(&buf))
-    }
-
-    /// The registrants as (host, key) pairs by host letter, and the hosts that hold.
-    fn show(&self, r: &Report) -> String {
-        let who = |id: &[u8; 16]| {
-            [A, B, C]
-                .into_iter()
-                .find(|&i| &self.ids[i] == id)
-                .map_or("another host", |i| NAMES[i])
-        };
-        let regs: Vec<String> = r
-            .registrants
-            .iter()
-            .map(|g| {
-                format!(
-                    "{}{}",
-                    who(&g.hostid),
-                    if g.holds { " (holds)" } else { "" }
-                )
-            })
-            .collect();
-        format!("type {}, registrants [{}]", r.rtype, regs.join(", "))
-    }
-
-    /// Checks a report against the expected type, registered hosts and holding hosts. Hosts are
-    /// compared as a set: a host with two controllers may be listed once or once per controller.
-    fn expect_report(&mut self, name: &str, rtype: u8, registered: &[usize], holding: &[usize]) {
-        let r = self.report(C);
-        let expected = format!(
-            "type {rtype}, registrants [{}]",
-            registered
-                .iter()
-                .map(|&i| format!(
-                    "{}{}",
-                    NAMES[i],
-                    if holding.contains(&i) { " (holds)" } else { "" }
-                ))
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        let (actual, passed) = match &r {
-            Ok(r) => {
-                let mut hosts: Vec<(usize, bool, u64)> = Vec::new();
-                let mut unknown = false;
-                for g in &r.registrants {
-                    match [A, B, C].into_iter().find(|&i| self.ids[i] == g.hostid) {
-                        Some(i) if !hosts.iter().any(|h| h.0 == i) => {
-                            hosts.push((i, g.holds, g.key))
-                        }
-                        Some(_) => {}
-                        None => unknown = true,
-                    }
-                }
-                hosts.sort();
-                let want_key = |i: usize| match i {
-                    A => KEY_A,
-                    B => KEY_B,
-                    _ => KEY_C,
-                };
-                let ok = !unknown
-                    && r.rtype == rtype
-                    && hosts.len() == registered.len()
-                    && hosts.iter().all(|&(i, holds, key)| {
-                        registered.contains(&i)
-                            && holds == holding.contains(&i)
-                            && key == want_key(i)
-                    });
-                (self.show(r), ok)
-            }
-            Err(e) => (e.clone(), false),
-        };
-        self.fact(name, expected, actual, passed);
-    }
-
-    /// A read or a write (of the block's own data) by host `who`, which must be allowed or must
-    /// conflict.
-    fn access(&mut self, kind: &str, who: usize, write: bool, allowed: bool) {
-        let (nsid, lba) = (self.nsid, self.lba);
-        let original = self.original.clone();
-        let done = if write {
-            self.hosts[who].send(nvm::write(nsid, lba, 1), &original)
-        } else {
-            let mut buf = vec![0u8; original.len()];
-            self.hosts[who].io(nvm::read(nsid, lba, 1), Data::In(&mut buf))
-        };
-        let op = if write { "write" } else { "read" };
-        let role = match who {
-            A => "host A",
-            A2 => "host A on its second path",
-            B => "host B",
-            _ => "host C (never registered)",
-        };
-        self.check(
-            &format!("{kind}: {role} {op}"),
-            if allowed {
-                &[SUCCESS]
-            } else {
-                &[RESERVATION_CONFLICT]
-            },
-            if allowed {
-                "success"
-            } else {
-                "Reservation Conflict"
-            },
-            &done,
-        );
-    }
 }
 
 /// Runs the nvme-resv cases on the first namespace in `facts`.
@@ -473,7 +152,7 @@ pub fn run(t: &Target, name: &str, facts: &Facts, cases: &mut Vec<Case>) -> Verd
     let lba = ns.blocks - AREA_FROM_END + 7;
     let mut original = vec![0u8; len];
     let read = hosts[C].io(nvm::read(nsid, lba, 1), Data::In(&mut original));
-    let mut r = Run {
+    let mut r = Hosts {
         hosts,
         ids,
         nsid,
@@ -739,55 +418,5 @@ pub fn run(t: &Target, name: &str, facts: &Facts, cases: &mut Vec<Case>) -> Verd
     Verdict {
         supported,
         clustering: r.all && rescap & (1 << WERO) != 0,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn commands_put_the_action_type_and_flags_in_cdw10() {
-        let c = register(1, REPLACE, true);
-        assert_eq!(c.0[0], sqe::OP_RESV_REGISTER);
-        assert_eq!(&c.0[40..44], &(2u32 | 8).to_le_bytes());
-        let c = acquire(1, PREEMPT_AND_ABORT, WERO);
-        assert_eq!(&c.0[40..44], &(2u32 | 3 << 8).to_le_bytes());
-        let c = release(1, CLEAR, 0);
-        assert_eq!(c.0[0], sqe::OP_RESV_RELEASE);
-        assert_eq!(&c.0[40..44], &1u32.to_le_bytes());
-        let c = report(1, 4096, true);
-        assert_eq!(&c.0[40..44], &1023u32.to_le_bytes());
-        assert_eq!(&c.0[44..48], &1u32.to_le_bytes());
-        assert_eq!(&two_keys(1, 2)[8..16], &2u64.to_le_bytes());
-    }
-
-    #[test]
-    fn an_extended_report_lists_each_registrant() {
-        let mut d = vec![0u8; 256];
-        d[0..4].copy_from_slice(&7u32.to_le_bytes());
-        d[4] = WERO;
-        d[5] = 2;
-        d[64] = 1;
-        d[66] = 1;
-        d[72..80].copy_from_slice(&KEY_A.to_le_bytes());
-        d[80..96].copy_from_slice(&[0xaa; 16]);
-        d[136..144].copy_from_slice(&KEY_B.to_le_bytes());
-        let r = parse_report(&d);
-        assert_eq!(r.generation, 7);
-        assert_eq!(r.rtype, WERO);
-        assert_eq!(r.registrants.len(), 2);
-        assert!(r.registrants[0].holds && !r.registrants[1].holds);
-        assert_eq!(r.registrants[0].hostid, [0xaa; 16]);
-        assert_eq!(r.registrants[1].key, KEY_B);
-    }
-
-    #[test]
-    fn access_follows_the_reservation_type() {
-        assert_eq!(allowed(1, true), (true, false));
-        assert_eq!(allowed(2, true), (false, false));
-        assert_eq!(allowed(3, true), (true, true));
-        assert_eq!(allowed(3, false), (true, false));
-        assert_eq!(allowed(6, false), (false, false));
     }
 }
