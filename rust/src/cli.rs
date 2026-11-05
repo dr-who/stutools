@@ -194,8 +194,8 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             .ok_or_else(|| format!("missing value for {flag}"))?;
         match flag.as_str() {
             "-f" => c.files.push(v.into()),
-            "--iscsi" => c.iscsi.extend(crate::paths::expand_connections(v)?),
-            "--nvmeof" => c.nvmeof.extend(crate::paths::expand_connections(v)?),
+            "--iscsi" | "--scsi" => c.iscsi.extend(crate::paths::expand_connections(v)?),
+            "--nvmeof" | "--nvme" => c.nvmeof.extend(crate::paths::expand_connections(v)?),
             "--compliance-expect" => c.compliance_expect = Some(v.into()),
             "--compliance-report" => c.compliance_report = Some(v.into()),
             "--iscsi-initiator" => c.iscsi_initiator = Some(v.to_string()),

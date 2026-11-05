@@ -29,6 +29,11 @@ pub const CNS_NAMESPACE: u32 = 0x00;
 pub const CNS_CONTROLLER: u32 = 0x01;
 pub const CNS_ACTIVE_NAMESPACES: u32 = 0x02;
 
+/// The discovery subsystem's NQN, which a discovery controller serves.
+pub const DISCOVERY_NQN: &str = "nqn.2014-08.org.nvmexpress.discovery";
+/// Log page ID of the discovery log.
+pub const LOG_DISCOVERY: u8 = 0x70;
+
 /// The connection parameters for one association.
 pub struct Association<'a> {
     pub addr: SocketAddr,
@@ -113,6 +118,18 @@ impl Controller {
         let mut buf = vec![0u8; 4096];
         let done = self.submit(cmd, Data::In(&mut buf))?;
         check(&done, "Identify")?;
+        Ok(buf)
+    }
+
+    /// Reads `len` bytes of a log page from `offset`. The length is in whole dwords.
+    pub fn get_log_page(&mut self, lid: u8, offset: u64, len: usize) -> Result<Vec<u8>> {
+        let mut cmd = Command::new(sqe::OP_GET_LOG_PAGE, 0);
+        cmd.set_u32(40, ((len / 4 - 1) as u32) << 16 | lid as u32);
+        cmd.set_u32(48, offset as u32);
+        cmd.set_u32(52, (offset >> 32) as u32);
+        let mut buf = vec![0u8; len];
+        let done = self.submit(cmd, Data::In(&mut buf))?;
+        check(&done, "Get Log Page")?;
         Ok(buf)
     }
 

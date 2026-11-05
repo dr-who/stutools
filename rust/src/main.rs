@@ -60,11 +60,26 @@ fn main() {
             } else if !config.nvmeof.is_empty() && config.jobs.is_empty() {
                 if !config.iscsi.is_empty() {
                     Err("paths of both kinds need a -c workload to run over them".into())
+                } else if config.nvmeof.iter().all(|t| !t.contains('/')) {
+                    nvme::discover(&config.nvmeof)
+                } else if config.nvmeof.iter().any(|t| !t.contains('/')) {
+                    Err(
+                        "--nvmeof takes HOST alone to list subsystems, or HOST/NQN to identify one"
+                            .into(),
+                    )
                 } else {
                     nvme::report(&config.nvmeof)
                 }
             } else if !config.iscsi.is_empty() && config.jobs.is_empty() {
-                if config.compliance {
+                if config.iscsi.iter().all(|t| !t.contains('/')) {
+                    let initiator = config.iscsi_initiator.clone().unwrap_or_default();
+                    iscsi::report::discover(&config.iscsi, &initiator)
+                } else if config.iscsi.iter().any(|t| !t.contains('/')) {
+                    Err(
+                        "--iscsi takes HOST alone to list targets, or HOST/IQN to report one"
+                            .into(),
+                    )
+                } else if config.compliance {
                     iscsi::compliance::run(&config)
                 } else {
                     iscsi::report::run(&config)

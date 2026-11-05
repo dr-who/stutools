@@ -34,6 +34,16 @@ pub fn parse_path(text: &str) -> Result<session::NvmePath> {
         ),
         None => None,
     };
+    let addr = host_address(host)?;
+    Ok(session::NvmePath {
+        addr,
+        subnqn: nqn.to_string(),
+        nsid,
+    })
+}
+
+/// The socket address of `host`, with the NVMe/TCP port unless the host names one.
+fn host_address(host: &str) -> Result<SocketAddr> {
     let with_port = if host.matches(':').count() > 1 && !host.starts_with('[') {
         format!("[{host}]:{DEFAULT_PORT}")
     } else if host.contains(':') {
@@ -41,16 +51,69 @@ pub fn parse_path(text: &str) -> Result<session::NvmePath> {
     } else {
         format!("{host}:{DEFAULT_PORT}")
     };
-    let addr = with_port
+    with_port
         .to_socket_addrs()
         .map_err(|e| format!("--nvmeof {host}: {e}"))?
         .next()
-        .ok_or_else(|| format!("--nvmeof {host}: no address"))?;
-    Ok(session::NvmePath {
+        .ok_or_else(|| format!("--nvmeof {host}: no address"))
+}
+
+/// One record of the discovery log page: a subsystem and the address it is reachable on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Discovered {
+    pub subnqn: String,
+    pub transport: String,
+    pub traddr: String,
+    pub trsvcid: String,
+}
+
+/// Connects to a discovery controller and reads its log page: one record per subsystem it reports.
+pub fn discover_subsystems(host: &str) -> Result<Vec<Discovered>> {
+    let addr = host_address(host)?;
+    let hostid = controller::random_hostid()?;
+    let assoc = Association {
         addr,
-        subnqn: nqn.to_string(),
-        nsid,
-    })
+        subnqn: controller::DISCOVERY_NQN,
+        hostnqn: DEFAULT_HOSTNQN,
+        hostid,
+    };
+    let mut c = Controller::connect(&assoc)?;
+    c.enable()?;
+    let header = c.get_log_page(controller::LOG_DISCOVERY, 0, 1024)?;
+    let records = u64::from_le_bytes(header[8..16].try_into().unwrap_or([0; 8])) as usize;
+    let log = c.get_log_page(controller::LOG_DISCOVERY, 0, 1024 + records * 1024)?;
+    Ok(log[1024..]
+        .chunks_exact(1024)
+        .map(|r| Discovered {
+            transport: match r[0] {
+                3 => "tcp".into(),
+                other => format!("transport {other}"),
+            },
+            traddr: ascii(&r[512..768]),
+            trsvcid: ascii(&r[32..64]),
+            subnqn: ascii(&r[256..512]),
+        })
+        .collect())
+}
+
+/// `--nvmeof HOST` with no NQN: lists the subsystems the discovery controller reports.
+pub fn discover(hosts: &[String]) -> Result<()> {
+    for host in hosts {
+        println!("{host}");
+        for d in discover_subsystems(host)? {
+            println!(
+                "  {}\n    {} {}:{}",
+                d.subnqn, d.transport, d.traddr, d.trsvcid
+            );
+        }
+    }
+    Ok(())
+}
+
+fn ascii(b: &[u8]) -> String {
+    String::from_utf8_lossy(b)
+        .trim_end_matches(['\0', ' '])
+        .to_string()
 }
 
 /// Connects to a subsystem, enables the controller and identifies it and its namespaces.

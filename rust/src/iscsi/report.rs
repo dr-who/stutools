@@ -292,6 +292,21 @@ fn fit(text: &str) -> String {
 }
 
 /// Prints the table and the verdict. Returns an error when the paths are not one LUN.
+/// `--iscsi HOST` with no IQN: lists the targets the portal reports with SendTargets, and the addresses each
+/// one is reachable on.
+pub fn discover(hosts: &[String], initiator: &str) -> Result<()> {
+    for host in hosts {
+        println!("{host}");
+        for target in super::session::discover_targets(host, initiator)? {
+            println!("  {}", target.target);
+            for address in &target.addresses {
+                println!("    {address}");
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn run(config: &Config) -> Result<()> {
     let initiator = config
         .iscsi_initiator

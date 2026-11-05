@@ -8,6 +8,9 @@ const LOGIN_RESPONSE: u8 = 0x23;
 const LOGOUT_REQUEST: u8 = 0x06;
 const LOGOUT_RESPONSE: u8 = 0x26;
 pub const NOP_OUT: u8 = 0x00;
+/// Text Request and Text Response: the key=value exchange of discovery (SendTargets).
+pub const TEXT_REQUEST: u8 = 0x04;
+pub const TEXT_RESPONSE: u8 = 0x24;
 pub const NOP_IN: u8 = 0x20;
 pub const SCSI_COMMAND: u8 = 0x01;
 pub const SCSI_RESPONSE: u8 = 0x21;
@@ -229,6 +232,26 @@ pub fn nop_out(lun: u64, itt: u32, ttt: u32, cmd_sn: u32, exp_stat_sn: u32) -> [
     bhs[0] = NOP_OUT | 0x40;
     bhs[1] = TRANSIT;
     bhs[8..16].copy_from_slice(&lun.to_be_bytes());
+    bhs[16..20].copy_from_slice(&itt.to_be_bytes());
+    bhs[20..24].copy_from_slice(&ttt.to_be_bytes());
+    bhs[24..28].copy_from_slice(&cmd_sn.to_be_bytes());
+    bhs[28..32].copy_from_slice(&exp_stat_sn.to_be_bytes());
+    bhs
+}
+
+/// Text Request header for `data_len` bytes of text, which is one final PDU. `ttt` names the target
+/// transfer tag of a continuation, or `NO_TTT` to start a new exchange.
+pub fn text_request(
+    itt: u32,
+    ttt: u32,
+    cmd_sn: u32,
+    exp_stat_sn: u32,
+    data_len: usize,
+) -> [u8; BHS_LEN] {
+    let mut bhs = [0u8; BHS_LEN];
+    bhs[0] = TEXT_REQUEST;
+    bhs[1] = 0x80; // Final
+    bhs[5..8].copy_from_slice(&(data_len as u32).to_be_bytes()[1..]);
     bhs[16..20].copy_from_slice(&itt.to_be_bytes());
     bhs[20..24].copy_from_slice(&ttt.to_be_bytes());
     bhs[24..28].copy_from_slice(&cmd_sn.to_be_bytes());

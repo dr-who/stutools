@@ -5,6 +5,7 @@ pub const OP_FLUSH: u8 = 0x00;
 pub const OP_WRITE: u8 = 0x01;
 pub const OP_READ: u8 = 0x02;
 pub const OP_IDENTIFY: u8 = 0x06;
+pub const OP_GET_LOG_PAGE: u8 = 0x02;
 pub const OP_KEEP_ALIVE: u8 = 0x18;
 /// Fabrics commands share one opcode; the fabric command type sits in byte 4.
 pub const OP_FABRICS: u8 = 0x7f;

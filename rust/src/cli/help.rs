@@ -12,10 +12,16 @@ pub(super) fn help() {
     );
     println!(
         r#"
-Targets, one example each (-c sets the workload; repeat it to run several):
-  spit -f /dev/sdb -c rs0k4q32j4 -t 5  # file or block device
-  spit --iscsi 10.0.0.5/iqn.2026-10.com.example:lun --iscsi-initiator iqn.2026-11.com.example:spit -c rs0k4q32j4 -t 5  # iSCSI
-  spit --nvmeof 10.0.0.5/nqn.2026-10.com.example:subsys  # NVMe-oF (NVMe/TCP): identify the subsystem
+Command mode (-c sets the workload, -t the seconds):
+  spit -f scratch.img -G 16MiB -c ws1k4q32j4x1 -v
+  spit -f scratch.img -c rs0k4q32j4 -t 5
+  spit -f scratch.img -c rws0k4q32j8 -t 10 --backend libaio
+
+Network block devices (iSCSI and NVMe/TCP; --scsi and --nvmeof are also accepted):
+  discover iSCSI targets:    spit --iscsi 10.0.0.5 --iscsi-initiator iqn.2026-11.com.example:spit
+  discover NVMe subsystems:  spit --nvme 10.0.0.5
+  connect to an iSCSI target and run: spit --iscsi 10.0.0.5/iqn.2026-10.com.example:lun --iscsi-initiator iqn.2026-11.com.example:spit -c rs0k4q32j4 -t 5
+  connect to an NVMe subsystem and run: spit --nvme 10.0.0.5/nqn.2026-10.com.example:subsys -c rs0k4q32j4 -t 5
 
 App modes (each prints its report when it ends, or on Ctrl-C):
   spit -F /mnt/cctv --cctv 100,5,24  # 100 cameras at 5 Mbit/s, kept 24 h
