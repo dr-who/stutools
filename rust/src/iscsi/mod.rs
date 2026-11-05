@@ -6,6 +6,7 @@ pub mod compliance;
 pub mod conformance;
 pub mod connection;
 pub mod crc32c;
+pub mod initiator;
 pub mod ops;
 pub mod pdu;
 pub mod report;

@@ -39,9 +39,8 @@ pub struct Config {
     pub iscsi_initiator: Option<String>,
     pub chap_user: Option<String>,
     pub chap_secret_file: Option<PathBuf>,
-    /// `--compliance`: run the test matrix over the `--iscsi` targets instead of reporting them.
+    /// `--compliance`: test every `--iscsi` and `--nvme` target against the standards and score it.
     pub compliance: bool,
-    pub compliance_expect: Option<PathBuf>,
     /// `--compliance-report FILE`: also write the compliance table and the failed cases as Markdown.
     pub compliance_report: Option<PathBuf>,
     /// How a workload over several `--iscsi` paths picks a path for each request.
@@ -125,7 +124,6 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         chap_user: None,
         chap_secret_file: None,
         compliance: false,
-        compliance_expect: None,
         compliance_report: None,
         path_policy: crate::paths::Policy::RoundRobin,
         dump: 0,
@@ -196,7 +194,6 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             "-f" => c.files.push(v.into()),
             "--iscsi" | "--scsi" => c.iscsi.extend(crate::paths::expand_connections(v)?),
             "--nvmeof" | "--nvme" => c.nvmeof.extend(crate::paths::expand_connections(v)?),
-            "--compliance-expect" => c.compliance_expect = Some(v.into()),
             "--compliance-report" => c.compliance_report = Some(v.into()),
             "--iscsi-initiator" => c.iscsi_initiator = Some(v.to_string()),
             "-d" => c.dump = integer(v)?,
@@ -429,19 +426,22 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     if cctv_drop_after.is_some() {
         return Err("--cctv-drop-after requires --cctv".into());
     }
+    if !c.iscsi.is_empty() && c.iscsi_initiator.is_none() {
+        let (name, from) = crate::iscsi::initiator::default_name();
+        println!("# using --iscsi-initiator {name}");
+        println!("#   from {from}; give --iscsi-initiator IQN to override");
+        c.iscsi_initiator = Some(name);
+    }
+    if c.compliance && c.iscsi.is_empty() && c.nvmeof.is_empty() {
+        return Err("--compliance needs --iscsi or --nvme hosts or targets".into());
+    }
     if !c.nvmeof.is_empty() {
         if !c.files.is_empty() || !c.prefixes.is_empty() || fsfiller || c.cameras.is_some() {
             return Err("--nvmeof cannot be combined with -f, -F, --fsfiller or --cctv".into());
         }
-        if !c.iscsi.is_empty() && c.iscsi_initiator.is_none() {
-            return Err("--iscsi needs --iscsi-initiator IQN".into());
-        }
         return Ok(Some(c));
     }
     if !c.iscsi.is_empty() {
-        if c.iscsi_initiator.is_none() {
-            return Err("--iscsi needs --iscsi-initiator IQN".into());
-        }
         if !c.files.is_empty() || !c.prefixes.is_empty() || fsfiller || c.cameras.is_some() {
             return Err("--iscsi reports on targets; it cannot be combined with -f, -F, --fsfiller or --cctv".into());
         }

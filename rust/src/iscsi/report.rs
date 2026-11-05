@@ -292,19 +292,140 @@ fn fit(text: &str) -> String {
 }
 
 /// Prints the table and the verdict. Returns an error when the paths are not one LUN.
-/// `--iscsi HOST` with no IQN: lists the targets the portal reports with SendTargets, and the addresses each
-/// one is reachable on.
-pub fn discover(hosts: &[String], initiator: &str) -> Result<()> {
-    for host in hosts {
-        println!("{host}");
+/// `--iscsi HOST` with no IQN: lists the targets the portal reports with SendTargets, then logs in to each
+/// at every address it gives and prints a row of what its LUN reports: size, block size, vendor,
+/// product, revision, serial, ALUA state, authentication and digest. A target that refuses the login
+/// says why. CHAP targets are logged in to with `--chap-user` and `--chap-secret-file` when given.
+pub fn discover(config: &Config) -> Result<()> {
+    let initiator = config.iscsi_initiator.as_deref().unwrap_or_default();
+    let secret = chap_from_config(config)?;
+    let chap = secret.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
+    let mut rows = vec![DISCOVERY_COLUMNS.map(String::from).to_vec()];
+    let mut first = None;
+    for host in &config.iscsi {
         for target in super::session::discover_targets(host, initiator)? {
-            println!("  {}", target.target);
             for address in &target.addresses {
-                println!("    {address}");
+                let path = Path {
+                    portal: address.clone(),
+                    target: target.target.clone(),
+                };
+                let row = match collect(&path, initiator, chap) {
+                    Ok(c) => {
+                        first.get_or_insert_with(|| format!("{address}/{}", target.target));
+                        discovery_row(&path, &c)
+                    }
+                    Err(e) => {
+                        let mut row = vec![target.target.clone(), address.clone()];
+                        row.extend(
+                            std::iter::repeat("-".to_string()).take(DISCOVERY_COLUMNS.len() - 3),
+                        );
+                        row.push(refusal(&e));
+                        row
+                    }
+                };
+                rows.push(row);
             }
         }
     }
+    print_columns(&rows);
+    if let Some(path) = first {
+        println!("# run a workload: spit --iscsi {path} -c rs0k4q32j4 -t 5");
+    }
     Ok(())
+}
+
+const DISCOVERY_COLUMNS: [&str; 12] = [
+    "TARGET", "ADDRESS", "SIZE", "BLOCK", "VENDOR", "PRODUCT", "REV", "SERIAL", "ALUA", "AUTH",
+    "DIGEST", "NOTE",
+];
+
+/// One row of the discovery table for a target spit logged in to.
+fn discovery_row(path: &Path, c: &Collected) -> Vec<String> {
+    let alua = c
+        .own_port
+        .and_then(|port| c.groups.iter().find(|g| g.ports.contains(&port)))
+        .map(|g| format!("{} (group {})", scsi::state_name(g.state), g.id))
+        .unwrap_or_else(|| "-".into());
+    vec![
+        path.target.clone(),
+        path.portal.clone(),
+        human_bytes((c.last_lba + 1) * c.block_len as u64),
+        c.block_len.to_string(),
+        c.inquiry.vendor.clone(),
+        c.inquiry.product.clone(),
+        c.inquiry.revision.clone(),
+        c.serial.clone(),
+        alua,
+        if c.login.chap_algorithm.is_some() {
+            "CHAP"
+        } else {
+            "none"
+        }
+        .into(),
+        if c.login.header_digest {
+            "CRC32C"
+        } else {
+            "none"
+        }
+        .into(),
+        String::new(),
+    ]
+}
+
+/// Why a login was refused, in a few words, with what to do about it.
+fn refusal(error: &str) -> String {
+    if error.contains("authentication failure") {
+        "needs CHAP: --chap-user, --chap-secret-file".into()
+    } else if error.contains("authorization failure") {
+        "refused: initiator not in the target's ACL".into()
+    } else {
+        error
+            .trim_start_matches("*error* ")
+            .chars()
+            .take(60)
+            .collect()
+    }
+}
+
+/// `bytes` in the largest binary unit that keeps it at 1 or more, to one decimal place.
+pub fn human_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 6] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit + 1 < UNITS.len() {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
+}
+
+/// Prints rows as left-aligned columns two spaces apart; the last column is not padded.
+pub fn print_columns(rows: &[Vec<String>]) {
+    let columns = rows.iter().map(|r| r.len()).max().unwrap_or(0);
+    let widths: Vec<usize> = (0..columns)
+        .map(|i| {
+            rows.iter()
+                .filter_map(|r| r.get(i))
+                .map(|c| c.chars().count())
+                .max()
+                .unwrap_or(0)
+        })
+        .collect();
+    for row in rows {
+        let mut line = String::new();
+        for (i, cell) in row.iter().enumerate() {
+            if i + 1 == row.len() {
+                line.push_str(cell);
+            } else {
+                line.push_str(&format!("{cell:<width$}  ", width = widths[i]));
+            }
+        }
+        println!("{}", line.trim_end());
+    }
 }
 
 pub fn run(config: &Config) -> Result<()> {
@@ -407,4 +528,28 @@ pub fn run(config: &Config) -> Result<()> {
     }
     println!("verdict: {} paths are the same LUN", paths.len());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sizes_use_the_largest_unit() {
+        assert_eq!(human_bytes(512), "512 B");
+        assert_eq!(human_bytes(20 * 1024 * 1024 * 1024), "20.0 GiB");
+        assert_eq!(human_bytes(1536), "1.5 KiB");
+    }
+
+    #[test]
+    fn refusals_say_what_to_do() {
+        assert!(
+            refusal("login refused: status class 2 detail 1 (authentication failure)")
+                .contains("--chap-user")
+        );
+        assert!(
+            refusal("login refused: status class 2 detail 2 (authorization failure)")
+                .contains("ACL")
+        );
+    }
 }

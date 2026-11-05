@@ -1,122 +1,441 @@
-//! `--compliance`: runs a matrix of cases over the `--iscsi` targets and scores them. Each case states
-//! what the target should do; the case passes when the login or SCSI result matches that.
+//! The iSCSI cases of `--compliance`. Every `--iscsi` HOST is discovered (SendTargets) and each target
+//! it reports is tested at every address it gives; HOST/IQN tests that target. The expectations come
+//! from RFC 7143, SPC-4 and SBC-3 and from what the target itself reports, never from a profile:
+//! - login: each digest offer is answered with a value that was offered, and "CRC32C,None" gets
+//!   CRC32C when the target takes CRC32C alone; a CHAP target refuses no credentials and a wrong
+//!   secret;
+//! - identity: paths whose LUN designators (VPD 0x83) agree report one LUN, and the verdict does not
+//!   depend on the order the paths are compared in;
+//! - scsi: the identity commands answer, the capacity is sane, and the answering port is in a group
+//!   REPORT TARGET PORT GROUPS lists;
+//! - chap: CHAP_A 5 to 8 are accepted as offered or refused, any other value is refused, and a wrong
+//!   secret is refused for every accepted value;
+//! - session, and the SCSI operations in `conformance`.
 //!
-//! The expectations come from a file (`--compliance-expect`), one line per target:
-//!     # target  lun-group  auth  digest-required  alua-state  size-gib
-//!     spitlunsbc-1  A  none  no  active/optimized  20
+//! A target that refuses this initiator (its ACL) or needs CHAP without credentials is tested no further.
 
 use super::report::{self, identity_differences, Collected, Path};
-use super::session::Negotiated;
+use super::session::{self, Negotiated};
+use crate::compliance::{case, Case};
 use crate::{cli::Config, Result};
-use std::path::Path as FsPath;
 
-/// What one target is expected to do.
-#[derive(Debug, Clone)]
-struct Expect {
-    name: String,
-    group: String,
-    chap: bool,
-    digest_required: bool,
-    alua: String,
-    size_gib: f64,
-    /// CHAP algorithms (CHAP_A values) the target accepts. Empty for targets without CHAP.
-    chap_algs: Vec<u32>,
-}
+/// The CHAP_A values defined for iSCSI (MD5, SHA-1, SHA-256, SHA3-256), all of which spit implements.
+const DEFINED_CHAP: [u32; 4] = [5, 6, 7, 8];
 
-fn parse_expectations(path: &FsPath) -> Result<Vec<Expect>> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let mut out = Vec::new();
-    for (n, line) in text.lines().enumerate() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let f: Vec<&str> = line.split_whitespace().collect();
-        if f.len() != 6 && f.len() != 7 {
-            return Err(format!(
-                "{}:{}: expected 6 or 7 fields, found {}",
-                path.display(),
-                n + 1,
-                f.len()
-            ));
-        }
-        let chap_algs = match f.get(6) {
-            Some(list) if *list != "-" => list
-                .split(',')
-                .map(|a| {
-                    a.parse::<u32>().map_err(|_| {
-                        format!("{}:{}: bad CHAP algorithm {a}", path.display(), n + 1)
-                    })
-                })
-                .collect::<Result<Vec<u32>>>()?,
-            _ => Vec::new(),
-        };
-        out.push(Expect {
-            name: f[0].to_string(),
-            group: f[1].to_string(),
-            chap: match f[2] {
-                "chap" => true,
-                "none" => false,
-                other => {
-                    return Err(format!(
-                        "{}:{}: auth must be none or chap, not {other}",
-                        path.display(),
-                        n + 1
-                    ))
-                }
-            },
-            digest_required: match f[3] {
-                "yes" => true,
-                "no" => false,
-                other => {
-                    return Err(format!(
-                        "{}:{}: digest-required must be yes or no, not {other}",
-                        path.display(),
-                        n + 1
-                    ))
-                }
-            },
-            alua: f[4].to_string(),
-            chap_algs,
-            size_gib: f[5]
-                .parse()
-                .map_err(|_| format!("{}:{}: size-gib must be a number", path.display(), n + 1))?,
-        });
-    }
-    Ok(out)
-}
+/// Orderings are tried over every subset of up to this many paths, and over pairs beyond it.
+const ORDERING_LIMIT: usize = 5;
 
 /// The short name of a target: the part after the last colon of its IQN.
 pub(super) fn short(path: &Path) -> &str {
     path.target.rsplit(':').next().unwrap_or(&path.target)
 }
 
-/// The CHAP_A values this initiator implements: MD5, SHA-1, SHA-256 and SHA3-256.
-const IMPLEMENTED_CHAP: [u32; 4] = [5, 6, 7, 8];
-
-/// One scored case.
-pub(super) struct Case {
-    pub(super) section: &'static str,
-    pub(super) name: String,
-    pub(super) expected: String,
-    pub(super) actual: String,
-    pub(super) passed: bool,
+/// A target that can be logged in to, and whether it needs CHAP.
+struct Reachable<'a> {
+    path: &'a Path,
+    chap: bool,
 }
 
-pub(super) fn case(
-    section: &'static str,
-    name: String,
-    expected: String,
-    actual: String,
-    passed: bool,
-) -> Case {
-    Case {
-        section,
-        name,
-        expected,
-        actual,
-        passed,
+/// Adds the iSCSI cases for the `--iscsi` targets to `cases`, and the targets tested no further to
+/// `untested`.
+pub fn cases(
+    config: &Config,
+    cases: &mut Vec<Case>,
+    untested: &mut Vec<(String, String)>,
+) -> Result<()> {
+    let initiator = config.iscsi_initiator.as_deref().unwrap_or_default();
+    let paths = targets(&config.iscsi, initiator)?;
+    let secret = report::chap_from_config(config)?;
+    let chap_good = secret.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
+    let wrong = b"not-the-secret".to_vec();
+    let chap_bad = config.chap_user.as_deref().map(|u| (u, wrong.as_slice()));
+
+    // Section 1: login. Without credentials first, so a CHAP target shows itself by refusing.
+    let mut reachable = Vec::new();
+    for p in &paths {
+        let name = format!("{} at {}", short(p), p.portal);
+        let probe = session::login(&p.portal, &p.target, initiator, None, "CRC32C,None");
+        let chap = match probe {
+            Ok(s) => {
+                let _ = s.logout();
+                false
+            }
+            Err(e) if e.contains("authentication failure") => {
+                cases.push(case(
+                    "login",
+                    format!("{name} no credentials"),
+                    "refused (authentication failure)".into(),
+                    "refused (authentication failure)".into(),
+                    true,
+                ));
+                if chap_good.is_none() {
+                    untested.push((
+                        name,
+                        "needs CHAP: give --chap-user and --chap-secret-file".into(),
+                    ));
+                    continue;
+                }
+                true
+            }
+            Err(e) => {
+                untested.push((name, format!("login refused: {}", short_reason(&e))));
+                continue;
+            }
+        };
+        let creds = if chap { chap_good } else { None };
+        login_digests(p, &name, initiator, creds, cases);
+        if chap {
+            let (actual, passed) = match report_login(p, initiator, chap_bad, "CRC32C,None") {
+                Ok(_) => ("ok (wrong secret accepted)".to_string(), false),
+                Err(e) => (
+                    format!("refused ({})", short_reason(&e)),
+                    e.contains("authentication failure"),
+                ),
+            };
+            cases.push(case(
+                "login",
+                format!("{name} wrong secret"),
+                "refused (authentication failure)".into(),
+                actual,
+                passed,
+            ));
+        }
+        reachable.push(Reachable { path: p, chap });
     }
+    let creds_of = |r: &Reachable| if r.chap { chap_good } else { None };
+
+    // Section 2: identity, over every ordering of every subset of the paths (pairs past the limit).
+    let collected: Vec<Result<Collected>> = reachable
+        .iter()
+        .map(|r| report::collect(r.path, initiator, creds_of(r)))
+        .collect();
+    let groups = if reachable.len() <= ORDERING_LIMIT {
+        orderings(reachable.len())
+    } else {
+        pairs(reachable.len())
+    };
+    for order in groups.into_iter().filter(|o| o.len() > 1) {
+        let names: Vec<&str> = order.iter().map(|&i| short(reachable[i].path)).collect();
+        let results: Vec<Result<Collected>> = order.iter().map(|&i| collected[i].clone()).collect();
+        let keys: Vec<Option<String>> = results
+            .iter()
+            .map(|r| r.as_ref().ok().map(lun_key))
+            .collect();
+        if keys.iter().any(|k| k.is_none()) {
+            cases.push(case(
+                "identity",
+                names.join(" + "),
+                "every path answers".into(),
+                "a path failed".into(),
+                false,
+            ));
+            continue;
+        }
+        let expect_same = keys.windows(2).all(|w| w[0] == w[1]);
+        let differences = identity_differences(&results);
+        let actual_same = differences.is_empty();
+        cases.push(case(
+            "identity",
+            names.join(" + "),
+            if expect_same {
+                "same LUN"
+            } else {
+                "different LUN"
+            }
+            .into(),
+            if actual_same {
+                "same LUN".to_string()
+            } else {
+                format!("different: {}", differences.join(", "))
+            },
+            actual_same == expect_same,
+        ));
+    }
+
+    // Section 3: each target's SCSI answers, its capacity, and its port in REPORT TARGET PORT GROUPS.
+    let mut standby = vec![false; reachable.len()];
+    for (i, (r, result)) in reachable.iter().zip(&collected).enumerate() {
+        let name = short(r.path);
+        let c = match result {
+            Err(err) => {
+                cases.push(case(
+                    "scsi",
+                    format!("{name} commands"),
+                    "all answer".into(),
+                    format!("failed: {}", short_reason(err)),
+                    false,
+                ));
+                continue;
+            }
+            Ok(c) => c,
+        };
+        cases.push(case(
+            "scsi",
+            format!("{name} INQUIRY, VPD 0x80/0x83, READ CAPACITY(16), REPORT TPG"),
+            "all answer".into(),
+            "all answer".into(),
+            true,
+        ));
+        let size_ok = c.last_lba > 0 && c.block_len >= 512 && c.block_len.is_power_of_two();
+        cases.push(case(
+            "scsi",
+            format!("{name} capacity"),
+            "blocks > 0 of 512 B or more, a power of two".into(),
+            format!("{} blocks of {} B", c.last_lba + 1, c.block_len),
+            size_ok,
+        ));
+        let own = c
+            .own_port
+            .and_then(|port| c.groups.iter().find(|g| g.ports.contains(&port)))
+            .map(|g| super::scsi::state_name(g.state).to_string());
+        standby[i] = own.as_deref() == Some("standby");
+        cases.push(case(
+            "scsi",
+            format!("{name} ALUA state"),
+            "its port in a listed group".into(),
+            own.clone().unwrap_or_else(|| "port not listed".into()),
+            own.is_some(),
+        ));
+    }
+
+    // Section 4: CHAP algorithms, on every CHAP target, each CHAP_A value offered alone.
+    if let Some(good) = chap_good {
+        for r in reachable.iter().filter(|r| r.chap) {
+            let p = r.path;
+            let mut accepted = Vec::new();
+            for a in 1..=10u32 {
+                let defined = DEFINED_CHAP.contains(&a);
+                let (actual, passed) = match session::login_with_offer(
+                    &p.portal,
+                    &p.target,
+                    initiator,
+                    Some(good),
+                    "CRC32C,None",
+                    &a.to_string(),
+                ) {
+                    Ok(s) => {
+                        let got = s.negotiated.chap_algorithm;
+                        let _ = s.logout();
+                        if got == Some(a) {
+                            accepted.push(a);
+                        }
+                        (
+                            format!("ok CHAP_A={}", got.unwrap_or(0)),
+                            defined && got == Some(a),
+                        )
+                    }
+                    Err(err) => (format!("refused ({})", short_reason(&err)), true),
+                };
+                cases.push(case(
+                    "chap",
+                    format!("{} offer CHAP_A={a}", short(p)),
+                    if defined {
+                        format!("ok CHAP_A={a}, or refused")
+                    } else {
+                        "refused".into()
+                    },
+                    actual,
+                    passed,
+                ));
+            }
+            cases.push(case(
+                "chap",
+                format!("{} accepts a defined algorithm", short(p)),
+                "one of CHAP_A 5, 6, 7, 8".into(),
+                format!("{accepted:?}"),
+                !accepted.is_empty(),
+            ));
+            for a in accepted {
+                let (actual, passed) = match session::login_with_offer(
+                    &p.portal,
+                    &p.target,
+                    initiator,
+                    chap_bad,
+                    "CRC32C,None",
+                    &a.to_string(),
+                ) {
+                    Ok(s) => {
+                        let _ = s.logout();
+                        ("ok (wrong secret accepted)".to_string(), false)
+                    }
+                    Err(err) => (format!("refused ({})", short_reason(&err)), true),
+                };
+                cases.push(case(
+                    "chap",
+                    format!("{} wrong secret CHAP_A={a}", short(p)),
+                    "refused".into(),
+                    actual,
+                    passed,
+                ));
+            }
+        }
+    }
+
+    // Section 5: sessions. Repeated login and logout on one target, several sessions open at once, and a
+    // login after everything has logged out. Each login must get its own session handle (TSIH).
+    for r in &reachable {
+        sessions(r.path, initiator, creds_of(r), cases);
+    }
+
+    // Section 6: SBC and SPC operations (UNMAP, COMPARE AND WRITE, PERSISTENT RESERVE). A LUN in the
+    // standby state is checked for refusing data commands instead.
+    let ops: Vec<(&Path, super::conformance::Creds, bool)> = reachable
+        .iter()
+        .zip(&standby)
+        .map(|(r, &sb)| (r.path, creds_of(r), sb))
+        .collect();
+    super::conformance::run(&ops, initiator, cases);
+    Ok(())
+}
+
+/// The targets to test: each HOST/IQN as given, and every target a HOST alone reports, at each of its
+/// addresses.
+fn targets(entries: &[String], initiator: &str) -> Result<Vec<Path>> {
+    let mut out = Vec::new();
+    for entry in entries {
+        if entry.contains('/') {
+            out.push(report::parse_path(entry)?);
+            continue;
+        }
+        for t in session::discover_targets(entry, initiator)? {
+            for address in t.addresses {
+                out.push(Path {
+                    portal: address,
+                    target: t.target.clone(),
+                });
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// The LUN's own designators (association 0), which name it the same way on every path.
+fn lun_key(c: &Collected) -> String {
+    let mut ids: Vec<String> = c
+        .designators
+        .iter()
+        .filter(|d| d.association == 0)
+        .map(|d| format!("{}:{}", d.kind, d.value))
+        .collect();
+    ids.sort();
+    ids.join(",")
+}
+
+/// The three digest offers. Each must be answered with a value it offered; "CRC32C,None" must log in
+/// when either alone does, with CRC32C when the target takes it (RFC 7143: the first value it supports).
+fn login_digests(
+    p: &Path,
+    name: &str,
+    initiator: &str,
+    creds: Option<(&str, &[u8])>,
+    cases: &mut Vec<Case>,
+) {
+    let none = report_login(p, initiator, creds, "None");
+    let crc = report_login(p, initiator, creds, "CRC32C");
+    let both = report_login(p, initiator, creds, "CRC32C,None");
+    let shown = |r: &Result<Negotiated>| match r {
+        Ok(n) => format!("ok digest={}", digest_name(n.header_digest)),
+        Err(e) => format!("refused ({})", short_reason(e)),
+    };
+    cases.push(case(
+        "login",
+        format!("{name} digest=None"),
+        "ok digest=none, or refused".into(),
+        shown(&none),
+        none.as_ref().map_or(true, |n| !n.header_digest),
+    ));
+    cases.push(case(
+        "login",
+        format!("{name} digest=CRC32C"),
+        "ok digest=CRC32C, or refused".into(),
+        shown(&crc),
+        crc.as_ref().map_or(true, |n| n.header_digest),
+    ));
+    let expected = if crc.is_ok() {
+        "ok digest=CRC32C"
+    } else if none.is_ok() {
+        "ok digest=none"
+    } else {
+        "ok"
+    };
+    let passed = match &both {
+        Ok(n) => crc.is_ok() == n.header_digest || (crc.is_err() && none.is_err()),
+        Err(_) => false,
+    };
+    cases.push(case(
+        "login",
+        format!("{name} digest=CRC32C,None"),
+        expected.into(),
+        shown(&both),
+        passed,
+    ));
+}
+
+/// Five login and logout cycles, three sessions at once with distinct handles, and a login after.
+fn sessions(p: &Path, initiator: &str, creds: Option<(&str, &[u8])>, cases: &mut Vec<Case>) {
+    let name = short(p).to_string();
+    let login_one = || session::login(&p.portal, &p.target, initiator, creds, "CRC32C,None");
+    let cycle = |label: String, cases: &mut Vec<Case>| {
+        let (actual, passed) = match login_one() {
+            Ok(s) => {
+                let tsih = s.negotiated.tsih;
+                let out = s.logout();
+                (
+                    format!(
+                        "tsih {tsih}, logout {}",
+                        if out.is_ok() { "ok" } else { "failed" }
+                    ),
+                    out.is_ok(),
+                )
+            }
+            Err(err) => (format!("refused ({})", short_reason(&err)), false),
+        };
+        cases.push(case(
+            "session",
+            label,
+            "login ok, logout ok".into(),
+            actual,
+            passed,
+        ));
+    };
+    for k in 1..=5 {
+        cycle(format!("{name} login/logout cycle {k}"), cases);
+    }
+    let mut open = Vec::new();
+    let mut failure = None;
+    for _ in 0..3 {
+        match login_one() {
+            Ok(s) => open.push(s),
+            Err(err) => {
+                failure = Some(short_reason(&err));
+                break;
+            }
+        }
+    }
+    let mut handles: Vec<u16> = open.iter().map(|s| s.negotiated.tsih).collect();
+    handles.sort_unstable();
+    handles.dedup();
+    let distinct = handles.len() == 3;
+    let mut logouts_ok = true;
+    for s in open {
+        logouts_ok &= s.logout().is_ok();
+    }
+    let actual = match &failure {
+        Some(reason) => format!("refused ({reason})"),
+        None => format!(
+            "3 sessions, {} distinct handles, logouts {}",
+            handles.len(),
+            if logouts_ok { "ok" } else { "failed" }
+        ),
+    };
+    cases.push(case(
+        "session",
+        format!("{name} 3 sessions at once"),
+        "3 distinct handles, logouts ok".into(),
+        actual,
+        distinct && logouts_ok && failure.is_none(),
+    ));
+    cycle(format!("{name} login after all logouts"), cases);
 }
 
 /// All orderings of every non-empty subset of `0..n`. Their verdicts must not depend on the order.
@@ -138,485 +457,18 @@ fn orderings(n: usize) -> Vec<Vec<usize>> {
     out
 }
 
+/// Every ordered pair of distinct indices below `n`.
+fn pairs(n: usize) -> Vec<Vec<usize>> {
+    (0..n)
+        .flat_map(|a| (0..n).filter(move |&b| b != a).map(move |b| vec![a, b]))
+        .collect()
+}
+
 fn digest_name(on: bool) -> &'static str {
     if on {
         "CRC32C"
     } else {
         "none"
-    }
-}
-
-/// Runs the matrix and prints each case and the score.
-pub fn run(config: &Config) -> Result<()> {
-    let initiator = config
-        .iscsi_initiator
-        .as_deref()
-        .ok_or("--compliance needs --iscsi-initiator IQN")?;
-    let expect_file = config
-        .compliance_expect
-        .as_ref()
-        .ok_or("--compliance needs --compliance-expect FILE")?;
-    let expectations = parse_expectations(expect_file)?;
-    let paths: Vec<Path> = config
-        .iscsi
-        .iter()
-        .map(|p| report::parse_path(p))
-        .collect::<Result<_>>()?;
-    let secret = match (&config.chap_user, &config.chap_secret_file) {
-        (Some(_), Some(file)) => Some(report::read_secret(file)?),
-        (None, None) => None,
-        _ => return Err("CHAP needs both --chap-user and --chap-secret-file".into()),
-    };
-    let user = config.chap_user.clone().unwrap_or_default();
-    let chap_good = secret.as_deref().map(|s| (user.as_str(), s));
-    let wrong = b"not-the-secret".to_vec();
-    let chap_bad = config.chap_user.as_deref().map(|u| (u, wrong.as_slice()));
-
-    let mut cases = Vec::new();
-    let expect_of = |p: &Path| expectations.iter().find(|e| e.name == short(p)).cloned();
-
-    // Section 1: login, for each digest offer and each credential mode.
-    for p in &paths {
-        let Some(e) = expect_of(p) else {
-            cases.push(case(
-                "login",
-                short(p).into(),
-                "profile line".into(),
-                "missing from --compliance-expect".into(),
-                false,
-            ));
-            continue;
-        };
-        for digest in ["None", "CRC32C", "CRC32C,None"] {
-            for creds in ["none", "correct", "wrong"] {
-                let (expect_ok, expect_digest) = (
-                    !((e.chap && creds != "correct") || (digest == "None" && e.digest_required)),
-                    if digest == "None" { "none" } else { "CRC32C" },
-                );
-                let result: Result<Negotiated> = match creds {
-                    "none" => report_login(p, initiator, None, digest),
-                    "correct" => report_login(p, initiator, chap_good, digest),
-                    _ => report_login(p, initiator, chap_bad, digest),
-                };
-                let (actual, passed) = match &result {
-                    Ok(n) => {
-                        let got = digest_name(n.header_digest);
-                        (
-                            format!("ok digest={got}"),
-                            expect_ok && got == expect_digest,
-                        )
-                    }
-                    Err(err) => (format!("refused ({})", short_reason(err)), !expect_ok),
-                };
-                let expected = if expect_ok {
-                    format!("ok digest={expect_digest}")
-                } else {
-                    "refused".to_string()
-                };
-                cases.push(case(
-                    "login",
-                    format!("{} digest={digest} creds={creds}", short(p)),
-                    expected,
-                    actual,
-                    passed,
-                ));
-            }
-        }
-    }
-
-    // Section 2: identity over every ordering of every subset of the targets.
-    let collected: Vec<Result<Collected>> = paths
-        .iter()
-        .map(|p| report::collect(p, initiator, chap_good))
-        .collect();
-    for order in orderings(paths.len()) {
-        let names: Vec<&str> = order.iter().map(|&i| short(&paths[i])).collect();
-        let groups: Vec<String> = order
-            .iter()
-            .map(|&i| {
-                expect_of(&paths[i])
-                    .map(|e| e.group)
-                    .unwrap_or_else(|| "?".into())
-            })
-            .collect();
-        let expect_same = groups.windows(2).all(|w| w[0] == w[1]);
-        let results: Vec<Result<Collected>> = order
-            .iter()
-            .map(|&i| match &collected[i] {
-                Ok(c) => Ok(c.clone()),
-                Err(e) => Err(e.clone()),
-            })
-            .collect();
-        let differences = identity_differences(&results);
-        let all_ok = results.iter().all(|r| r.is_ok());
-        let actual_same = all_ok && differences.is_empty();
-        let expected = if expect_same {
-            "same LUN"
-        } else {
-            "different LUN"
-        };
-        let actual = if !all_ok {
-            "a path failed".to_string()
-        } else if actual_same {
-            "same LUN".to_string()
-        } else {
-            format!("different: {}", differences.join(", "))
-        };
-        cases.push(case(
-            "identity",
-            names.join(" + "),
-            expected.into(),
-            actual,
-            actual_same == expect_same,
-        ));
-    }
-
-    // Section 3: each target's SCSI answers and its ALUA state and size.
-    for (p, result) in paths.iter().zip(&collected) {
-        let Some(e) = expect_of(p) else { continue };
-        match result {
-            Err(err) => cases.push(case(
-                "scsi",
-                format!("{} commands", short(p)),
-                "all answer".into(),
-                format!("failed: {}", short_reason(err)),
-                false,
-            )),
-            Ok(c) => {
-                cases.push(case(
-                    "scsi",
-                    format!(
-                        "{} INQUIRY, VPD 0x80/0x83, READ CAPACITY(16), REPORT TPG",
-                        short(p)
-                    ),
-                    "all answer".into(),
-                    "all answer".into(),
-                    true,
-                ));
-                let own = c
-                    .own_port
-                    .and_then(|port| c.groups.iter().find(|g| g.ports.contains(&port)))
-                    .map(|g| super::scsi::state_name(g.state).to_string())
-                    .unwrap_or_else(|| "unknown".into());
-                cases.push(case(
-                    "scsi",
-                    format!("{} ALUA state", short(p)),
-                    e.alua.clone(),
-                    own.clone(),
-                    own == e.alua,
-                ));
-                let size = (c.last_lba + 1) as f64 * c.block_len as f64 / 1_073_741_824.0;
-                let size_ok = (size - e.size_gib).abs() < 0.005;
-                cases.push(case(
-                    "scsi",
-                    format!("{} size", short(p)),
-                    format!("{} GiB", e.size_gib),
-                    format!("{size:.2} GiB"),
-                    size_ok,
-                ));
-                let chap_seen = c.login.chap_algorithm.is_some();
-                cases.push(case(
-                    "scsi",
-                    format!("{} auth", short(p)),
-                    if e.chap { "CHAP" } else { "none" }.into(),
-                    if chap_seen { "CHAP" } else { "none" }.into(),
-                    chap_seen == e.chap,
-                ));
-            }
-        }
-    }
-
-    // Section 4: CHAP algorithms. Each CHAP_A value is offered alone with the right secret. A value passes
-    // when the target accepts it and spit implements it. The wrong secret is tried for every value the
-    // target accepts.
-    if let Some(good) = chap_good {
-        for p in &paths {
-            let Some(e) = expect_of(p) else { continue };
-            if !e.chap {
-                continue;
-            }
-            for a in 1..=10u32 {
-                let expect_ok = e.chap_algs.contains(&a) && IMPLEMENTED_CHAP.contains(&a);
-                let offer = a.to_string();
-                let (actual, passed) = match super::session::login_with_offer(
-                    &p.portal,
-                    &p.target,
-                    initiator,
-                    Some(good),
-                    "CRC32C,None",
-                    &offer,
-                ) {
-                    Ok(session) => {
-                        let got = session.negotiated.chap_algorithm;
-                        let _ = session.logout();
-                        (
-                            format!("ok CHAP_A={}", got.unwrap_or(0)),
-                            expect_ok && got == Some(a),
-                        )
-                    }
-                    Err(err) => (format!("refused ({})", short_reason(&err)), !expect_ok),
-                };
-                let expected = if expect_ok {
-                    format!("ok CHAP_A={a}")
-                } else {
-                    "refused".into()
-                };
-                cases.push(case(
-                    "chap",
-                    format!("{} offer CHAP_A={a}", short(p)),
-                    expected,
-                    actual,
-                    passed,
-                ));
-            }
-            for &a in &e.chap_algs {
-                let (actual, passed) = match super::session::login_with_offer(
-                    &p.portal,
-                    &p.target,
-                    initiator,
-                    chap_bad,
-                    "CRC32C,None",
-                    &a.to_string(),
-                ) {
-                    Ok(session) => {
-                        let _ = session.logout();
-                        ("ok (wrong secret accepted)".to_string(), false)
-                    }
-                    Err(err) => (format!("refused ({})", short_reason(&err)), true),
-                };
-                cases.push(case(
-                    "chap",
-                    format!("{} wrong secret CHAP_A={a}", short(p)),
-                    "refused".into(),
-                    actual,
-                    passed,
-                ));
-            }
-        }
-    }
-
-    // Section 5: sessions. Repeated login and logout on one target, several sessions open at once, and a
-    // login after everything has logged out. Each login must get its own session handle (TSIH).
-    for p in &paths {
-        let Some(e) = expect_of(p) else { continue };
-        let creds = if e.chap { chap_good } else { None };
-        if e.chap && creds.is_none() {
-            continue;
-        }
-        let name = short(p).to_string();
-        let login_one =
-            || super::session::login(&p.portal, &p.target, initiator, creds, "CRC32C,None");
-        for k in 1..=5 {
-            let (actual, passed) = match login_one() {
-                Ok(session) => {
-                    let tsih = session.negotiated.tsih;
-                    let out = session.logout();
-                    (
-                        format!(
-                            "tsih {tsih}, logout {}",
-                            if out.is_ok() { "ok" } else { "failed" }
-                        ),
-                        out.is_ok(),
-                    )
-                }
-                Err(err) => (format!("refused ({})", short_reason(&err)), false),
-            };
-            cases.push(case(
-                "session",
-                format!("{name} login/logout cycle {k}"),
-                "login ok, logout ok".into(),
-                actual,
-                passed,
-            ));
-        }
-        let mut open = Vec::new();
-        let mut failure = None;
-        for _ in 0..3 {
-            match login_one() {
-                Ok(session) => open.push(session),
-                Err(err) => {
-                    failure = Some(short_reason(&err));
-                    break;
-                }
-            }
-        }
-        let mut handles: Vec<u16> = open.iter().map(|s| s.negotiated.tsih).collect();
-        handles.sort_unstable();
-        handles.dedup();
-        let distinct = handles.len() == 3;
-        let mut logouts_ok = true;
-        for session in open {
-            logouts_ok &= session.logout().is_ok();
-        }
-        let actual = match &failure {
-            Some(reason) => format!("refused ({reason})"),
-            None => format!(
-                "3 sessions, {} distinct handles, logouts {}",
-                handles.len(),
-                if logouts_ok { "ok" } else { "failed" }
-            ),
-        };
-        cases.push(case(
-            "session",
-            format!("{name} 3 sessions at once"),
-            "3 distinct handles, logouts ok".into(),
-            actual,
-            distinct && logouts_ok && failure.is_none(),
-        ));
-        let (actual, passed) = match login_one() {
-            Ok(session) => {
-                let tsih = session.negotiated.tsih;
-                let out = session.logout();
-                (
-                    format!(
-                        "login ok, tsih {tsih}, logout {}",
-                        if out.is_ok() { "ok" } else { "failed" }
-                    ),
-                    out.is_ok(),
-                )
-            }
-            Err(err) => (format!("refused ({})", short_reason(&err)), false),
-        };
-        cases.push(case(
-            "session",
-            format!("{name} login after all logouts"),
-            "login ok, logout ok".into(),
-            actual,
-            passed,
-        ));
-    }
-
-    // Section 6: SBC and SPC operations (UNMAP, COMPARE AND WRITE, PERSISTENT RESERVE) on every target
-    // whose credentials are known.
-    let mut ops_targets: Vec<(&Path, super::conformance::Creds, bool)> = Vec::new();
-    for p in &paths {
-        let Some(e) = expect_of(p) else { continue };
-        if e.chap && chap_good.is_none() {
-            continue;
-        }
-        ops_targets.push((
-            p,
-            if e.chap { chap_good } else { None },
-            e.alua == "standby",
-        ));
-    }
-    super::conformance::run(&ops_targets, initiator, &mut cases);
-
-    print_cases(&cases);
-    let total = cases.len();
-    let passed = cases.iter().filter(|c| c.passed).count();
-    let failed = total - passed;
-    println!();
-    println!(
-        "{:<12}{:>8}{:>8}{:>8}{:>9}",
-        "section", "cases", "passed", "failed", "score"
-    );
-    for section in [
-        "login", "identity", "scsi", "chap", "session", "spc", "unmap", "ats", "pr", "mpio",
-    ] {
-        let of: Vec<&Case> = cases.iter().filter(|c| c.section == section).collect();
-        let ok = of.iter().filter(|c| c.passed).count();
-        println!(
-            "{section:<12}{:>8}{ok:>8}{:>8}{:>8.1}%",
-            of.len(),
-            of.len() - ok,
-            percent(ok, of.len())
-        );
-    }
-    println!(
-        "{:<12}{total:>8}{passed:>8}{failed:>8}{:>8.1}%",
-        "total",
-        percent(passed, total)
-    );
-    if let Some(path) = &config.compliance_report {
-        write_report(path, &cases)?;
-        println!("compliance report written to {}", path.display());
-    }
-    if failed > 0 {
-        println!();
-        println!("failed cases:");
-        for c in cases.iter().filter(|c| !c.passed) {
-            println!(
-                "  [{}] {}: expected {}, got {}",
-                c.section, c.name, c.expected, c.actual
-            );
-        }
-        return Err(format!("{failed} of {total} cases failed"));
-    }
-    Ok(())
-}
-
-/// The features in the order the matrix runs them, with the specification each one tests against.
-const FEATURES: [(&str, &str); 10] = [
-    ("login", "RFC 7143: login phase"),
-    (
-        "identity",
-        "SPC-4: INQUIRY standard data and VPD 0x80, 0x83",
-    ),
-    (
-        "scsi",
-        "SPC-4: TEST UNIT READY, REQUEST SENSE, MODE SENSE, REPORT LUNS",
-    ),
-    ("chap", "RFC 7143: CHAP authentication"),
-    ("session", "RFC 7143: session and command numbering"),
-    (
-        "spc",
-        "SPC-4: remaining mandatory commands and invalid opcodes",
-    ),
-    ("unmap", "SBC-3: UNMAP"),
-    ("ats", "SBC-3: COMPARE AND WRITE"),
-    ("pr", "SPC-4: PERSISTENT RESERVE IN and OUT"),
-    ("mpio", "SPC-4: REPORT and SET TARGET PORT GROUPS (ALUA)"),
-];
-
-/// Writes the compliance report: one row per feature with its specification and result, then every
-/// failed case with what was expected and what came back.
-fn write_report(path: &FsPath, cases: &[Case]) -> Result<()> {
-    let mut out = String::from("# iSCSI compliance report\n\n");
-    out.push_str("| Feature | Specification | Cases | Passed | Failed | Score | Result |\n");
-    out.push_str("|---|---|---:|---:|---:|---:|---|\n");
-    for (section, reference) in FEATURES {
-        let of: Vec<&Case> = cases.iter().filter(|c| c.section == section).collect();
-        let ok = of.iter().filter(|c| c.passed).count();
-        let result = if of.is_empty() {
-            "not run"
-        } else if ok == of.len() {
-            "pass"
-        } else {
-            "FAIL"
-        };
-        out.push_str(&format!(
-            "| {section} | {reference} | {} | {ok} | {} | {:.1}% | {result} |\n",
-            of.len(),
-            of.len() - ok,
-            percent(ok, of.len())
-        ));
-    }
-    let total = cases.len();
-    let passed = cases.iter().filter(|c| c.passed).count();
-    out.push_str(&format!(
-        "| **total** | | {total} | {passed} | {} | {:.1}% | |\n",
-        total - passed,
-        percent(passed, total)
-    ));
-    let failed: Vec<&Case> = cases.iter().filter(|c| !c.passed).collect();
-    if !failed.is_empty() {
-        out.push_str("\n## Failed cases\n\n");
-        for c in failed {
-            out.push_str(&format!(
-                "- **{}**, {}: expected `{}`, got `{}`\n",
-                c.section, c.name, c.expected, c.actual
-            ));
-        }
-    }
-    std::fs::write(path, out).map_err(|e| format!("writing {}: {e}", path.display()))
-}
-
-fn percent(ok: usize, total: usize) -> f64 {
-    if total == 0 {
-        100.0
-    } else {
-        100.0 * ok as f64 / total as f64
     }
 }
 
@@ -627,11 +479,7 @@ fn report_login(
     chap: Option<(&str, &[u8])>,
     digest: &str,
 ) -> Result<Negotiated> {
-    let session = if chap.is_some() {
-        report::login_with_fallback(p, initiator, chap, digest)?
-    } else {
-        super::session::login(&p.portal, &p.target, initiator, None, digest)?
-    };
+    let session = session::login(&p.portal, &p.target, initiator, chap, digest)?;
     let negotiated = session.negotiated.clone();
     let _ = session.logout();
     Ok(negotiated)
@@ -644,15 +492,28 @@ fn short_reason(error: &str) -> String {
     }
 }
 
-fn print_cases(cases: &[Case]) {
-    for c in cases {
-        println!(
-            "{}  {:<9} {:<58} expect {:<22} got {}",
-            if c.passed { "PASS" } else { "FAIL" },
-            c.section,
-            c.name,
-            c.expected,
-            c.actual
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn orderings_cover_every_subset_in_every_order() {
+        // 3 + 6 + 6 orderings of the subsets of three paths.
+        assert_eq!(orderings(3).len(), 15);
+        assert!(orderings(3).contains(&vec![2, 0, 1]));
+    }
+
+    #[test]
+    fn pairs_are_ordered_and_distinct() {
+        assert_eq!(pairs(3).len(), 6);
+        assert!(pairs(3).iter().all(|p| p[0] != p[1]));
+    }
+
+    #[test]
+    fn reasons_are_taken_from_the_brackets() {
+        assert_eq!(
+            short_reason("login refused (authentication failure)"),
+            "authentication failure"
         );
     }
 }

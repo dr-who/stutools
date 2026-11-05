@@ -1,3 +1,12 @@
+stutools (2.1.0-1) unstable; urgency=medium
+
+  * iSCSI SendTargets and NVMe/TCP discovery, with each LUN's details.
+  * --compliance tests every iSCSI and NVMe/TCP target against the
+    standards.
+  * The initiator name defaults to the host's; spit -h fits 80 columns.
+
+ -- Stuart Inglis <stuart.inglis@gmail.com>  Thu, 05 Nov 2026 12:00:00 +1300
+
 stutools (2.0.0-1) unstable; urgency=medium
 
   * Package the Rust implementation of spit with offline dependency sources.

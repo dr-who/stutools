@@ -2,11 +2,11 @@
 //! Each case states what SBC-3 or SPC-4 requires, then checks the target against it. Every case
 //! that changes data writes to the last block of the LUN, and the original block is written back.
 
-use super::compliance::{case, Case};
 use super::ops::{self, CHECK_CONDITION, RESERVATION_CONFLICT};
 use super::report::Path;
 use super::scsi;
 use super::session::{self, Outcome, Session};
+use crate::compliance::{case, Case};
 use crate::Result;
 
 /// Credentials for one target: the CHAP user and secret, when the target requires CHAP.

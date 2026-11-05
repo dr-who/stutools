@@ -12,20 +12,25 @@ pub(super) fn help() {
     );
     println!(
         r#"
-Command mode (-c sets the workload, -t the seconds):
-  spit -f scratch.img -G 16MiB -c ws1k4q32j4x1 -v
-  spit -f scratch.img -c rs0k4q32j4 -t 5
-  spit -f scratch.img -c rws0k4q32j8 -t 10 --backend libaio
+Run workloads on a block device or file (-c the workload, -t the seconds):
+  spit -f /dev/nvme0n1 -c rs0k4q32j4 -t 5      # random 4 KiB reads
+  spit -f /dev/sdb -c rws0k64q16j8 -t 30       # 64 KiB read/write: overwrites
+  spit -f scratch.img -G 16MiB -c ws1k4q32j4x1 -v   # write once, verify
 
-Network block devices (iSCSI and NVMe/TCP; --scsi and --nvmeof are also accepted):
-  discover iSCSI targets:    spit --iscsi 10.0.0.5 --iscsi-initiator iqn.2026-11.com.example:spit
-  discover NVMe subsystems:  spit --nvme 10.0.0.5
-  connect to an iSCSI target and run: spit --iscsi 10.0.0.5/iqn.2026-10.com.example:lun --iscsi-initiator iqn.2026-11.com.example:spit -c rs0k4q32j4 -t 5
-  connect to an NVMe subsystem and run: spit --nvme 10.0.0.5/nqn.2026-10.com.example:subsys -c rs0k4q32j4 -t 5
+Discover the targets on a host[:port] (--nvmeof and --scsi work too):
+  spit --nvme 10.0.0.5     # port 4420 -> nqn.2026-10.com.example:subsys
+  spit --iscsi 10.0.0.5    # port 3260 -> iqn.2026-10.com.example:lun
+
+Connect to a target and run a workload:
+  spit --nvme 10.0.0.5/nqn.2026-10.com.example:subsys -c rs0k4q32j4 -t 5
+  spit --iscsi 10.0.0.5/iqn.2026-10.com.example:lun -c rs0k4q32j4 -t 5
+
+Test every target on the hosts against the iSCSI and NVMe standards:
+  spit --iscsi 10.0.0.5 --nvme 10.0.0.6 --compliance
 
 App modes (each prints its report when it ends, or on Ctrl-C):
-  spit -F /mnt/cctv --cctv 100,5,24  # 100 cameras at 5 Mbit/s, kept 24 h
-  spit -F /mnt/fs --fsfiller -G 50GiB  # fill a file system with mixed file sizes
+  spit -F /mnt/cctv --cctv 100,5,24     # 100 cameras, 5 Mbit/s, kept 24 h
+  spit -F /mnt/fs --fsfiller -G 50GiB   # fill with mixed file sizes
 
 More help:
   spit --help all      every option, workload token and backend
@@ -71,6 +76,32 @@ TARGETS AND RUN LIMITS
                   C layout: time / workers / in-flight, read/write MB/s and IOPS,
                   average bytes per I/O, cumulative GiB
   --recreate      permit enlargement of an existing writable regular file
+
+NETWORK BLOCK DEVICES (iSCSI and NVMe/TCP, spoken by spit itself)
+  --iscsi HOST[:PORT]
+                  list the targets a portal reports (SendTargets discovery);
+                  PORT defaults to 3260 (4420 for --nvme)
+  --iscsi HOST[:PORT]/IQN[,N]
+                  report on a target, or run -c workloads over it; N
+                  connections; repeat for several paths
+  --nvme HOST[:PORT]
+                  list the subsystems a discovery controller reports
+  --nvme HOST[:PORT]/NQN[/NSID][,N]
+                  identify a subsystem, or run -c workloads over it
+  --scsi, --nvmeof  the same as --iscsi and --nvme
+  --iscsi-initiator IQN
+                  the name spit logs in with; default: InitiatorName in
+                  /etc/iscsi/initiatorname.iscsi, else iqn.2026-11.spit:HOST
+  --chap-user NAME, --chap-secret-file FILE
+                  CHAP login; the secret is read from the file
+  --policy rr|rrr|random|fastest
+                  how a workload over several paths picks one (default rr)
+  --compliance    test every target the --iscsi and --nvme hosts report (or
+                  each HOST/IQN, HOST/NQN given) against RFC 7143, SPC-4,
+                  SBC-3 and the NVMe and NVMe-oF specifications, and score it
+  --compliance-report OUT
+                  also write the score table and failed cases as Markdown
+  -d N            print the first N commands sent to the paths
 
 WORKLOAD TOKENS (whitespace allowed inside a quoted workload)
   r / w / rw      reads / writes / 50:50 mix; rrw means 2:1 reads:writes

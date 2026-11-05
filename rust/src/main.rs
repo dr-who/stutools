@@ -7,6 +7,7 @@ mod cctv_plots;
 mod cctv_test;
 mod checked_close;
 mod cli;
+mod compliance;
 mod engine;
 mod fsfiller;
 mod info;
@@ -57,6 +58,8 @@ fn main() {
                 fsfiller::run(settings)
             } else if config.cameras.is_some() {
                 cctv::run(config)
+            } else if config.compliance {
+                compliance::run(&config)
             } else if !config.nvmeof.is_empty() && config.jobs.is_empty() {
                 if !config.iscsi.is_empty() {
                     Err("paths of both kinds need a -c workload to run over them".into())
@@ -72,15 +75,12 @@ fn main() {
                 }
             } else if !config.iscsi.is_empty() && config.jobs.is_empty() {
                 if config.iscsi.iter().all(|t| !t.contains('/')) {
-                    let initiator = config.iscsi_initiator.clone().unwrap_or_default();
-                    iscsi::report::discover(&config.iscsi, &initiator)
+                    iscsi::report::discover(&config)
                 } else if config.iscsi.iter().any(|t| !t.contains('/')) {
                     Err(
                         "--iscsi takes HOST alone to list targets, or HOST/IQN to report one"
                             .into(),
                     )
-                } else if config.compliance {
-                    iscsi::compliance::run(&config)
                 } else {
                     iscsi::report::run(&config)
                 }

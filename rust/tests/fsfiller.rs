@@ -393,7 +393,13 @@ fn default_help_is_short_and_points_to_full_help() {
     assert!(out.status.success());
     let help = String::from_utf8_lossy(&out.stdout).into_owned();
     let lines = help.lines().count();
-    assert!(lines <= 25, "default help is {lines} lines:\n{help}");
+    assert!(lines <= 26, "default help is {lines} lines:\n{help}");
+    for line in help.lines() {
+        assert!(
+            line.chars().count() <= 80,
+            "default help line over 80 columns:\n{line}"
+        );
+    }
     assert!(help.contains("--help all"), "{help}");
     assert!(help.contains("--fsfiller"), "{help}");
     assert!(help.contains("--cctv"), "{help}");

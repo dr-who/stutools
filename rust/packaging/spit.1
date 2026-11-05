@@ -1,4 +1,4 @@
-.TH SPIT 1 "October 2026" "stutools 2.0.0" "User Commands"
+.TH SPIT 1 "November 2026" "stutools 2.1.0" "User Commands"
 .SH NAME
 spit \- Stu's powerful I/O tester, with fixed memory pools
 .SH SYNOPSIS
@@ -42,6 +42,26 @@ Only overwrite the middle 512 KiB of an existing file:
 .nf
   spit -f scratch.img -G 256KiB-768KiB -c ws1k4q8x1 -v
 .fi
+.PP
+List the targets an iSCSI portal or an NVMe/TCP discovery controller reports:
+.PP
+.nf
+  spit --iscsi 10.0.0.5
+  spit --nvme 10.0.0.5
+.fi
+.PP
+Test every target on two hosts against the iSCSI and NVMe standards:
+.PP
+.nf
+  spit \-\-iscsi 10.0.0.5 \-\-nvme 10.0.0.6 \-\-compliance
+.fi
+.PP
+Connect to one and read it randomly for five seconds:
+.PP
+.nf
+  spit --iscsi 10.0.0.5/iqn.2026-10.com.example:lun -c rs0k4q32j4 -t 5
+  spit --nvme 10.0.0.5/nqn.2026-10.com.example:subsys -c rs0k4q32j4 -t 5
+.fi
 .SH OPTIONS
 .TP
 .BI \-f " FILE"
@@ -53,6 +73,38 @@ One target per expanded worker, PREFIX.0001, PREFIX.0002, and so on.
 PREFIX is a filename prefix, not a directory. Read workloads require files
 initialized earlier, for example using -c ws1x1 with the same prefix, size
 and worker count. Reading never creates missing files.
+.TP
+.BI \-\-iscsi " HOST[:PORT][/IQN][,N]"
+An iSCSI target, reached by spit's own initiator. HOST alone lists the
+targets the portal reports (SendTargets discovery). HOST/IQN reports on the
+target, or runs the -c workloads over it with N connections. Repeat for
+several paths. PORT defaults to 3260. \-\-scsi is the same option.
+.TP
+.BI \-\-nvme " HOST[:PORT][/NQN[/NSID]][,N]"
+An NVMe/TCP subsystem. HOST alone lists the subsystems the discovery
+controller reports; HOST/NQN identifies it, or runs the -c workloads over it.
+PORT defaults to 4420.
+\-\-nvmeof is the same option.
+.TP
+.BI \-\-iscsi\-initiator " IQN"
+The initiator name spit logs in with. The default is InitiatorName in
+/etc/iscsi/initiatorname.iscsi, so a target that admits this host admits
+spit; without that file, iqn.2026\-11.spit:HOST.
+.TP
+.B \-\-compliance
+Test every target the \-\-iscsi and \-\-nvme hosts report, or each HOST/IQN
+and HOST/NQN given, against RFC 7143, SPC\-4 and SBC\-3 and the NVMe base and
+NVMe\-oF specifications, then print each case and a score per section. It
+needs no other options; a CHAP target is tested past login only with
+\-\-chap\-user and \-\-chap\-secret\-file. The SCSI operations cases write
+the last block of a LUN and write the original back; the NVMe cases only
+read. \-\-compliance\-report OUT also writes the table as Markdown.
+.TP
+.BI \-\-chap\-user " NAME" " \-\-chap\-secret\-file" " FILE"
+Log in with CHAP. The secret is read from FILE, never from the command line.
+.TP
+.BI \-\-policy " rr|rrr|random|fastest"
+How a workload over several paths picks a path for each request (default rr).
 .TP
 .BI \-G " SIZE or LOW-HIGH"
 Select [0,SIZE) or [LOW,HIGH), with the upper bound excluded. Bare numbers mean

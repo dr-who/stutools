@@ -77,15 +77,20 @@ pub struct Outcome {
     pub data: Vec<u8>,
 }
 
-/// Adds the default iSCSI port when the portal has none.
+/// Adds the default iSCSI port when the portal has none: `HOST`, `IPv4` and `[IPv6]` get `:3260`, and
+/// a bare IPv6 address is bracketed first.
 fn with_port(portal: &str) -> String {
-    let has_port = portal
-        .rfind(':')
-        .is_some_and(|i| !portal[..i].contains(':') && portal[i + 1..].parse::<u16>().is_ok());
-    if has_port {
-        portal.to_string()
-    } else {
-        format!("{portal}:3260")
+    if portal.starts_with('[') {
+        return if portal.contains("]:") {
+            portal.to_string()
+        } else {
+            format!("{portal}:3260")
+        };
+    }
+    match portal.matches(':').count() {
+        0 => format!("{portal}:3260"),
+        1 => portal.to_string(),
+        _ => format!("[{portal}]:3260"),
     }
 }
 
@@ -701,6 +706,10 @@ mod tests {
         assert_eq!(with_port("10.0.0.1"), "10.0.0.1:3260");
         assert_eq!(with_port("10.0.0.1:3261"), "10.0.0.1:3261");
         assert_eq!(with_port("host.example"), "host.example:3260");
+        assert_eq!(with_port("::1"), "[::1]:3260");
+        assert_eq!(with_port("fe80::1:2"), "[fe80::1:2]:3260");
+        assert_eq!(with_port("[::1]"), "[::1]:3260");
+        assert_eq!(with_port("[::1]:3261"), "[::1]:3261");
     }
 
     #[test]
