@@ -34,6 +34,8 @@ const ISID_A: [u8; 6] = [0x80, 0xa1, 0x53, 0x50, 0x00, 0x01];
 const ISID_A2: [u8; 6] = [0x80, 0xa1, 0x53, 0x50, 0x00, 0x02];
 const ISID_B: [u8; 6] = [0x80, 0xb2, 0x53, 0x50, 0x00, 0x01];
 const ISID_C: [u8; 6] = [0x80, 0xc3, 0x53, 0x50, 0x00, 0x01];
+/// The port that checks two ports of A's initiator are two I_T nexuses (`ports_of_one_initiator`).
+const ISID_SIBLING: [u8; 6] = [0x80, 0xd4, 0x53, 0x50, 0x00, 0x01];
 
 /// The six reservation types (SPC-6 6.14.3.3) and their names.
 const TYPES: [(u8, &str); 6] = [
@@ -107,8 +109,9 @@ impl Capabilities {
 
 /// What the reservation run found, for the Windows cases.
 pub(super) struct Findings {
-    /// Every case Windows clustering relies on passed.
-    pub cluster: bool,
+    /// Every case Windows clustering relies on passed; None when they could not be run (one
+    /// initiator name, on a target that does not tell its ports apart).
+    pub cluster: Option<bool>,
     pub capabilities: Option<Capabilities>,
 }
 
@@ -305,22 +308,25 @@ pub(super) fn clean_slate(
     );
 }
 
-/// Runs every reservation case on one LUN.
+/// Runs every reservation case on one LUN. Port A logs in as `initiator`; B and C as `second` when
+/// given, so they are another initiator as a second cluster node is, else as `initiator` too.
 pub(super) fn run(
     path: &Path,
     initiator: &str,
+    second: Option<&str>,
     creds: Creds,
     name: &str,
     cases: &mut Vec<Case>,
 ) -> Findings {
     let mut findings = Findings {
-        cluster: false,
+        cluster: Some(false),
         capabilities: None,
     };
+    let other = second.unwrap_or(initiator);
     let (mut a, mut b, mut c) = match (
         open(path, initiator, creds, ISID_A),
-        open(path, initiator, creds, ISID_B),
-        open(path, initiator, creds, ISID_C),
+        open(path, other, creds, ISID_B),
+        open(path, other, creds, ISID_C),
     ) {
         (Ok(a), Ok(b), Ok(c)) => (a, b, c),
         (Err(err), _, _) | (_, Err(err), _) | (_, _, Err(err)) => {
@@ -362,9 +368,47 @@ pub(super) fn run(
         target,
         original,
         cluster: true,
+        c_name: if second.is_some() {
+            "C (not registered, B's initiator name)"
+        } else {
+            "C (not registered)"
+        },
+        separate: false,
     };
     findings.capabilities = t.capabilities(&mut a);
     let caps = findings.capabilities.unwrap_or_default();
+    let separate = match open(path, initiator, creds, ISID_SIBLING) {
+        Ok(mut sibling) => {
+            let _ = unit_attentions(&mut sibling);
+            let separate = t.ports_of_one_initiator(&mut a, &mut sibling);
+            let _ = sibling.logout();
+            separate
+        }
+        Err(err) => {
+            t.verdict(
+                "a second port of A's initiator",
+                "login ok".into(),
+                err,
+                false,
+                false,
+            );
+            false
+        }
+    };
+    t.separate = separate;
+    if second.is_none() && !separate {
+        super::cases::record_info(
+            cases,
+            SECTION,
+            format!("{name} reservations between initiator ports"),
+            "not tested: this target takes ports of one IQN for one I_T nexus; give a second name \
+             it admits with --iscsi-initiator IQN,IQN2",
+        );
+        findings.cluster = None;
+        let _ = (a.logout(), b.logout(), c.logout());
+        clean_slate(path, initiator, creds, name, cases);
+        return findings;
+    }
     t.registration(&mut a, &mut b, &mut c);
     for (kind, label) in TYPES {
         t.reservation_type(&mut a, &mut b, &mut c, &caps, kind, label);
@@ -381,7 +425,7 @@ pub(super) fn run(
         t.clearing(&mut a, &mut b, &mut c);
         let _ = a.logout();
     }
-    findings.cluster = t.cluster;
+    findings.cluster = Some(t.cluster);
     let _ = b.logout();
     let _ = c.logout();
     clean_slate(path, initiator, creds, name, cases);
@@ -395,6 +439,11 @@ struct Run<'a> {
     target: u32,
     original: Vec<u8>,
     cluster: bool,
+    /// What C is called: it shares B's initiator name when a second name was given.
+    c_name: &'static str,
+    /// The target told two ports of one initiator apart (`ports_of_one_initiator`); only then do C's
+    /// cases, on a port that shares a registrant's name, count for clustering.
+    separate: bool,
 }
 
 impl Run<'_> {
@@ -537,6 +586,35 @@ impl Run<'_> {
         passed.then_some(caps)
     }
 
+    /// Two initiator ports of one iSCSI initiator are two I_T nexuses: an iSCSI initiator port is named
+    /// by the initiator name and the ISID together (RFC 7143 4.2.7.1, 11.12.5), and persistent
+    /// reservations are held and registered per I_T nexus (SPC-6 5.14.6). So B, registered but not
+    /// holding, may RELEASE while A holds, and gets GOOD (SPC-6 5.14.11.2.2). A target that takes B for
+    /// A's nexus, or for an unregistered one because it shares A's name, answers otherwise; every
+    /// case between the two would then show that instead. Leaves no registration behind.
+    fn ports_of_one_initiator(&mut self, a: &mut Session, sibling: &mut Session) -> bool {
+        let b = sibling;
+        let setup = [
+            out(a, ops::PR_REGISTER, 0, 0, KEY_A),
+            out(b, ops::PR_REGISTER, 0, 0, KEY_B),
+            out(a, ops::PR_RESERVE, 1, KEY_A, 0),
+        ];
+        let ready = setup.iter().all(|r| matches!(r, Ok(o) if o.status == 0));
+        let passed = ready
+            && self.status(
+                "two ports of one initiator are two I_T nexuses: its second port RELEASE while A holds",
+                &[Want::Good],
+                out(b, ops::PR_RELEASE, 1, KEY_B, 0),
+                // Windows' MPIO paths differ only in the ISID qualifier (see second_path), which this
+                // port does not model, so it does not decide the clustering verdict.
+                false,
+            );
+        let _ = out(a, ops::PR_CLEAR, 0, KEY_A, 0);
+        let _ = unit_attentions(a);
+        let _ = unit_attentions(b);
+        passed
+    }
+
     /// SPC-6 5.14.7: registering, tables 68 and 69, and the PRgeneration count (6.16.2).
     fn registration(&mut self, a: &mut Session, b: &mut Session, c: &mut Session) {
         self.keys_are(c, "READ KEYS after CLEAR", vec![], true);
@@ -656,7 +734,7 @@ impl Run<'_> {
                 registrants || !exclusive_access,
                 registrants,
             ),
-            ("C (not registered)", !exclusive_access, false),
+            (self.c_name, !exclusive_access, false),
         ];
         for (i, (who, may_read, may_write)) in rules.into_iter().enumerate() {
             let s: &mut Session = match i {
@@ -664,6 +742,9 @@ impl Run<'_> {
                 1 => &mut *b,
                 _ => &mut *c,
             };
+            // A cluster's unregistered node has a name of its own; C shares one, so its answers count
+            // for clustering only on a target that tells ports of one name apart.
+            let cluster = cluster && (i < 2 || self.separate);
             let read = self.read(s);
             self.access(&format!("{tag}: {who} READ"), may_read, read, cluster);
             let write = self.write(s);

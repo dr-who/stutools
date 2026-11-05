@@ -296,7 +296,13 @@ pub fn cases(
             protocol_level: r.level,
         })
         .collect();
-    super::conformance::run(&targets, initiator, config.sbc, cases);
+    super::conformance::run(
+        &targets,
+        initiator,
+        config.iscsi_second_initiator.as_deref(),
+        config.sbc,
+        cases,
+    );
     Ok(())
 }
 

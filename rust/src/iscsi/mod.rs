@@ -14,6 +14,7 @@ pub mod connection;
 pub mod crc32c;
 mod disk;
 mod feature_sets;
+mod header_digest;
 mod host_traces;
 pub mod initiator;
 mod negotiation;

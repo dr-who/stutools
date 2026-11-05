@@ -287,7 +287,8 @@ fn replay(
     steps: &[Step],
     disk: &Disk,
     cases: &mut Vec<Case>,
-) {
+) -> bool {
+    let mut all = true;
     for step in steps {
         let label = format!("{name} {host}: {}", step.what);
         let result = match step.check {
@@ -316,6 +317,7 @@ fn replay(
                 .map(|o| judge(step, &o, disk)),
         };
         let (actual, passed) = result.unwrap_or_else(|e| (e, false));
+        all &= passed;
         record(
             cases,
             section,
@@ -325,9 +327,11 @@ fn replay(
             passed,
         );
     }
+    all
 }
 
-pub(super) fn windows(s: &mut Session, name: &str, disk: &Disk, cases: &mut Vec<Case>) {
+/// Replays the Windows Server 2022 trace; returns whether every command answered as it must.
+pub(super) fn windows(s: &mut Session, name: &str, disk: &Disk, cases: &mut Vec<Case>) -> bool {
     replay(
         s,
         name,
@@ -336,11 +340,11 @@ pub(super) fn windows(s: &mut Session, name: &str, disk: &Disk, cases: &mut Vec<
         WINDOWS_2022,
         disk,
         cases,
-    );
+    )
 }
 
 pub(super) fn linux(s: &mut Session, name: &str, disk: &Disk, cases: &mut Vec<Case>) {
-    replay(
+    let _ = replay(
         s,
         name,
         "Linux open-iscsi scan",

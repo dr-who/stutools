@@ -7,7 +7,9 @@
 //! that destroy data or change device state are never sent; REPORT SUPPORTED OPERATION CODES is asked
 //! about them instead. When it lists commands, its list must agree with what each command did.
 
-use super::cases::{be16, describe, open, read_block, record, refused, Creds, Probe, Seen, Want};
+use super::cases::{
+    be16, describe, open, open_with, read_block, record, refused, Creds, Probe, Seen, Want,
+};
 use super::command_set::{Row, Rule, ROWS};
 use super::disk::Disk;
 use super::report::Path;
@@ -18,6 +20,8 @@ use crate::Result;
 const SECTION: &str = "sbc";
 /// The start of a probe's answer when the connection failed under it.
 const DROPPED: &str = "connection failed";
+/// The operation code of the variable-length (32-byte) CDBs.
+const VARIABLE_LENGTH: u8 = 0x7f;
 
 /// Where the probes read and write: the second-to-last block and its original data.
 struct Block {
@@ -108,12 +112,9 @@ fn probe(s: &mut Session, row: &Row, b: &Block, disk: &Disk) -> Option<Probe> {
     let len = b.len as u32;
     let zeros = vec![0u8; b.len];
     let reads_back = |s: &mut Session| read_block(s, lba32, b.len).is_ok_and(|d| d == b.original);
-    // SBC-5 4.21.2: without type 2 protection the 32-byte medium access commands are INVALID COMMAND
-    // OPERATION CODE.
-    let type2 = disk
-        .rc16
-        .get(12)
-        .is_some_and(|p| p & 0x01 != 0 && (p >> 1) & 0x7 == 1);
+    // SBC-5 4.21.2: without type 2 protection the type-2-only commands are INVALID COMMAND OPERATION
+    // CODE.
+    let type2 = type_2_protection(disk);
     let thirty_two = |o: &Outcome| {
         if type2 {
             o.status == 0
@@ -186,10 +187,8 @@ fn probe(s: &mut Session, row: &Row, b: &Block, disk: &Disk) -> Option<Probe> {
             s.command(&cdb32(0x000d, b.lba, 1), 0, Some(&b.original)),
             thirty_two,
         ),
-        "ORWRITE (32)" => judge(
-            s.command(&cdb32(0x000e, b.lba, 1), 0, Some(&zeros)),
-            thirty_two,
-        ),
+        // ORWRITE (32), WRITE SCATTERED (32) and GET LBA STATUS (32) need no type 2 protection.
+        "ORWRITE (32)" => judge(s.command(&cdb32(0x000e, b.lba, 1), 0, Some(&zeros)), good),
         "WRITE ATOMIC (32)" | "WRITE SCATTERED (32)" if type2 => Probe {
             section: SECTION,
             supported: true,
@@ -200,7 +199,7 @@ fn probe(s: &mut Session, row: &Row, b: &Block, disk: &Disk) -> Option<Probe> {
             s.command(&cdb32(0x000f, b.lba, 1), 0, Some(&b.original)),
             thirty_two,
         ),
-        "WRITE SCATTERED (32)" => judge(s.command(&cdb32(0x0011, 0, 0), 0, None), thirty_two),
+        "WRITE SCATTERED (32)" => judge(s.command(&cdb32(0x0011, 0, 0), 0, None), good),
         "GET LBA STATUS (32)" => {
             let mut c = cdb32(0x0012, b.lba, 1);
             c[28..32].copy_from_slice(&64u32.to_be_bytes());
@@ -406,13 +405,17 @@ pub(super) fn run(
         original,
     };
     let mut spc2_probes = None;
+    let mut plain = None;
     for row in ROWS {
         let rule = row.rule(edition);
         let label = format!("{name} {}", title(row, edition));
         if let Rule::NotSent(why) = rule {
             let (actual, passed) = not_sent(row, disk, why);
             if row.in_sbc(edition) && row.sbc.and_then(|s| s.mandatory_from).is_some() {
-                record(cases, SECTION, label, expected(&rule), actual, passed);
+                let expected = format!(
+                    "mandatory, so REPORT SUPPORTED OPERATION CODES says supported (not sent: {why})"
+                );
+                record(cases, SECTION, label, expected, actual, passed);
             } else {
                 super::cases::record_info(cases, SECTION, label, actual);
             }
@@ -439,6 +442,20 @@ pub(super) fn run(
                     }
                 })
             }
+            // A 32-byte CDB travels in an Extended CDB AHS; it goes on a session without header
+            // digests so a target that digests the AHS wrongly (`header_digest`) is judged here on the
+            // command alone.
+            (None, _) if row.opcode == VARIABLE_LENGTH => {
+                if plain.is_none() {
+                    plain = open_with(path, initiator, creds, session::random_isid(), "None")
+                        .ok()
+                        .map(|mut p| {
+                            let _ = super::cases::unit_attentions(&mut p);
+                            p
+                        });
+                }
+                plain.as_mut().and_then(|p| probe(p, row, &block, disk))
+            }
             (None, _) => probe(s, row, &block, disk),
         };
         // A probe that cost the connection is that row's failure only: the rest run on a new session.
@@ -446,7 +463,9 @@ pub(super) fn run(
             .as_ref()
             .is_some_and(|p| p.actual.starts_with(DROPPED))
         {
-            if let Ok(mut again) = open(path, initiator, creds, session::random_isid()) {
+            if row.opcode == VARIABLE_LENGTH {
+                plain = None;
+            } else if let Ok(mut again) = open(path, initiator, creds, session::random_isid()) {
                 let _ = super::cases::unit_attentions(&mut again);
                 *s = again;
             }
@@ -463,33 +482,80 @@ pub(super) fn run(
             continue;
         };
         let strict = matches!(rule, Rule::Mandatory | Rule::Host);
-        let mut passed = p.passed && (p.supported || !strict);
-        let mut actual = if p.section == SECTION {
-            p.actual.clone()
+        let expected = if TYPE_2_ONLY.contains(&row.name) && !type_2_protection(disk) {
+            "a clean refusal: no type 2 protection (SBC-5 4.21.2.4)".to_string()
         } else {
-            format!(
+            expected(&rule)
+        };
+        // SPC-6 6.32: the all_commands list names exactly the commands the device server supports.
+        let rsoc = disk
+            .lists(row.opcode, row.service_action)
+            .filter(|&listed| listed != p.supported && p.actual != "no answer")
+            .map(|listed| {
+                if listed {
+                    "RSOC lists it"
+                } else {
+                    "RSOC does not list it"
+                }
+            });
+        // A command another section judged is that section's verdict: here it is only noted, unless
+        // REPORT SUPPORTED OPERATION CODES contradicts what it found.
+        if p.section != SECTION {
+            let seen = format!(
                 "see {}: {}",
                 p.section,
                 if p.passed { "passed" } else { "failed" }
-            )
-        };
-        if !p.supported && !strict {
-            actual = format!("refused ({})", p.actual);
-        }
-        // SPC-6 6.32: the all_commands list names exactly the commands the device server supports.
-        if let Some(listed) = disk.lists(row.opcode, row.service_action) {
-            if listed != p.supported && p.actual != "no answer" {
-                passed = false;
-                actual.push_str(if listed {
-                    "; RSOC lists it"
-                } else {
-                    "; RSOC does not list it"
-                });
+            );
+            match rsoc {
+                Some(why) => {
+                    record(
+                        cases,
+                        SECTION,
+                        label,
+                        expected,
+                        format!("{seen}; {why}"),
+                        false,
+                    );
+                }
+                None => super::cases::record_info(cases, SECTION, label, seen),
             }
+            continue;
         }
-        record(cases, SECTION, label, expected(&rule), actual, passed);
+        let mut actual = if p.supported || strict {
+            p.actual.clone()
+        } else {
+            format!("refused ({})", p.actual)
+        };
+        if let Some(why) = rsoc {
+            actual.push_str("; ");
+            actual.push_str(why);
+        }
+        let passed = p.passed && (p.supported || !strict) && rsoc.is_none();
+        record(cases, SECTION, label, expected, actual, passed);
+    }
+    if let Some(p) = plain {
+        let _ = p.logout();
     }
 }
+
+/// Whether the LUN has type 2 protection enabled: PROT_EN set and P_TYPE 1 in READ CAPACITY (16).
+fn type_2_protection(disk: &Disk) -> bool {
+    disk.rc16
+        .get(12)
+        .is_some_and(|p| p & 0x01 != 0 && (p >> 1) & 0x7 == 1)
+}
+
+/// The 32-byte commands a device server processes only with type 2 protection enabled (SBC-5 5.19,
+/// 5.39, 5.43, 5.47, 5.49, 5.54, 5.58).
+pub(super) const TYPE_2_ONLY: [&str; 7] = [
+    "READ (32)",
+    "VERIFY (32)",
+    "WRITE (32)",
+    "WRITE AND VERIFY (32)",
+    "WRITE ATOMIC (32)",
+    "WRITE SAME (32)",
+    "WRITE STREAM (32)",
+];
 
 /// The verdict for a row that is never sent: FORMAT UNIT is mandatory, so REPORT SUPPORTED OPERATION
 /// CODES must not deny it; for the others the RSOC answer is recorded.

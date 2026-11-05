@@ -12,7 +12,7 @@ mod report;
 mod score;
 mod sections;
 
-pub use case::{case, info, should, Case};
+pub use case::{case, info, should, Case, Verdict};
 
 /// Runs the iSCSI and NVMe/TCP cases, prints each case and the score, writes the Markdown report
 /// when asked, and fails when any "shall" case fails.

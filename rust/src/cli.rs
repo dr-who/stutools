@@ -37,6 +37,9 @@ pub struct Config {
     /// `--nvmeof HOST[:PORT]/NQN[/NSID]`, one per NVMe-oF (NVMe/TCP) path.
     pub nvmeof: Vec<String>,
     pub iscsi_initiator: Option<String>,
+    /// The second name of `--iscsi-initiator A,B`: the other host `--compliance` uses for the
+    /// persistent reservation cases, so two of its ports are two initiators, as two cluster nodes are.
+    pub iscsi_second_initiator: Option<String>,
     pub chap_user: Option<String>,
     pub chap_secret_file: Option<PathBuf>,
     /// `--compliance`: test every `--iscsi` and `--nvme` target against the standards and score it.
@@ -98,6 +101,18 @@ fn sbc_edition(v: &str) -> Result<u8> {
     }
 }
 
+/// `--iscsi-initiator A[,B]`: the name spit logs in with, and optionally a second one.
+fn initiators(v: &str) -> Result<(String, Option<String>)> {
+    let names: Vec<&str> = v.split(',').map(str::trim).collect();
+    match names.as_slice() {
+        [a] if !a.is_empty() => Ok((a.to_string(), None)),
+        [a, b] if !a.is_empty() && !b.is_empty() && a != b => {
+            Ok((a.to_string(), Some(b.to_string())))
+        }
+        _ => Err("--iscsi-initiator takes IQN or IQN,IQN (two different names)".into()),
+    }
+}
+
 pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     let args = expand_options(args)?;
     if let Some(pos) = args.iter().position(|a| a == "-h" || a == "--help") {
@@ -131,6 +146,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         iscsi: Vec::new(),
         nvmeof: Vec::new(),
         iscsi_initiator: None,
+        iscsi_second_initiator: None,
         chap_user: None,
         chap_secret_file: None,
         compliance: false,
@@ -207,7 +223,11 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             "--nvmeof" | "--nvme" => c.nvmeof.extend(crate::paths::expand_connections(v)?),
             "--compliance-report" => c.compliance_report = Some(v.into()),
             "--sbc" => c.sbc = sbc_edition(v)?,
-            "--iscsi-initiator" => c.iscsi_initiator = Some(v.to_string()),
+            "--iscsi-initiator" => {
+                let (first, second) = initiators(v)?;
+                c.iscsi_initiator = Some(first);
+                c.iscsi_second_initiator = second;
+            }
             "-d" => c.dump = integer(v)?,
             "--iscsi-policy" | "--policy" => c.path_policy = crate::paths::Policy::parse(v)?,
             "--chap-user" => c.chap_user = Some(v.to_string()),
@@ -525,6 +545,18 @@ mod tests {
     #[test]
     fn accepts_the_reported_large_block_workload() {
         assert!(workload("wk4096s0j32G400R42").is_ok());
+    }
+
+    #[test]
+    fn the_initiator_option_takes_one_or_two_names() {
+        assert_eq!(initiators("iqn.a").unwrap(), ("iqn.a".into(), None));
+        assert_eq!(
+            initiators("iqn.a,iqn.b").unwrap(),
+            ("iqn.a".into(), Some("iqn.b".into()))
+        );
+        assert!(initiators("iqn.a,iqn.a").is_err());
+        assert!(initiators("iqn.a,").is_err());
+        assert!(initiators("a,b,c").is_err());
     }
 
     #[test]

@@ -16,7 +16,8 @@ const SECTION: &str = "windows";
 pub(super) struct Facts {
     pub unique_id: bool,
     pub enumeration: bool,
-    pub cluster: bool,
+    /// None: the reservation cases could not be run (see pr).
+    pub cluster: Option<bool>,
     pub flush: bool,
     pub alua: super::alua::Findings,
     pub trim: bool,
@@ -27,6 +28,10 @@ pub(super) struct Facts {
     pub dpofua: bool,
     pub mode_sense_6: bool,
 }
+
+/// What Windows Failover Clustering needs of the persistent reservation commands.
+const CLUSTERING: &str = "REGISTER AND IGNORE, RESERVE and PREEMPT type 5, READ KEYS, \
+    READ RESERVATION, RELEASE, CLEAR, kept across reinstatement";
 
 pub(super) fn run(name: &str, f: &Facts, cases: &mut Vec<Case>) {
     let label = |what: &str| format!("{name} {what}");
@@ -41,12 +46,12 @@ pub(super) fn run(name: &str, f: &Facts, cases: &mut Vec<Case>) {
     record(
         cases,
         SECTION,
-        label("disk.sys enumeration: every disk command answers"),
-        "all disk cases pass",
+        label("disk.sys enumeration: the Windows Server 2022 online commands answer"),
+        "every replayed command GOOD",
         if f.enumeration {
-            "all pass"
+            "all GOOD"
         } else {
-            "a disk case failed"
+            "a replayed command failed (see windows above)"
         },
         f.enumeration,
     );
@@ -64,14 +69,23 @@ pub(super) fn run(name: &str, f: &Facts, cases: &mut Vec<Case>) {
         },
         f.mode_sense_6,
     );
-    record(
-        cases,
-        SECTION,
-        label("Failover Clustering: SCSI-3 persistent reservations"),
-        "REGISTER AND IGNORE, RESERVE and PREEMPT type 5, READ KEYS, READ RESERVATION, RELEASE, CLEAR, kept across reinstatement",
-        if f.cluster { "all behave" } else { "a clustering case failed (see pr)" },
-        f.cluster,
-    );
+    let clustering = label("Failover Clustering: SCSI-3 persistent reservations");
+    match f.cluster {
+        Some(all) => {
+            let actual = if all {
+                "all behave"
+            } else {
+                "a clustering case failed (see pr)"
+            };
+            record(cases, SECTION, clustering, CLUSTERING, actual, all);
+        }
+        None => super::cases::record_info(
+            cases,
+            SECTION,
+            clustering,
+            "not tested (see pr): needs a second initiator name",
+        ),
+    }
     record(
         cases,
         SECTION,
@@ -105,7 +119,11 @@ pub(super) fn run(name: &str, f: &Facts, cases: &mut Vec<Case>) {
         SECTION,
         label("TRIM (UNMAP)"),
         "supported, or cleanly not offered",
-        if f.trim { "supported" } else { "not offered" },
+        match (f.trim, f.provisioning_clean) {
+            (true, _) => "supported",
+            (false, true) => "not offered",
+            (false, false) => "not offered, and a provisioning case failed (see unmap)",
+        },
         f.trim || f.provisioning_clean,
     );
     record(

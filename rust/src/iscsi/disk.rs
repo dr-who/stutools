@@ -61,8 +61,6 @@ pub(super) struct Disk {
     /// A VPD 83h designator of association 0 (the LUN) that names it uniquely: NAA, EUI-64 or SCSI
     /// name string.
     pub unique_id: bool,
-    /// Every disk case passed.
-    pub answered: bool,
 }
 
 impl Disk {
@@ -374,7 +372,6 @@ pub(super) fn run(s: &mut Session, name: &str, cases: &mut Vec<Case>, seen: &mut
     mode_pages(s, name, cases, seen, &mut disk);
     operation_codes(s, name, cases, seen, &mut disk);
     others(s, name, cases, seen, &mut disk);
-    disk.answered = cases[first..].iter().all(|c| c.passed);
     disk
 }
 

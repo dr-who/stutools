@@ -86,10 +86,13 @@ controller reports; HOST/NQN identifies it, or runs the -c workloads over it.
 PORT defaults to 4420.
 \-\-nvmeof is the same option.
 .TP
-.BI \-\-iscsi\-initiator " IQN"
+.BI \-\-iscsi\-initiator " IQN[,IQN2]"
 The initiator name spit logs in with. The default is InitiatorName in
 /etc/iscsi/initiatorname.iscsi, so a target that admits this host admits
-spit; without that file, iqn.2026\-11.spit:HOST.
+spit; without that file, iqn.2026\-11.spit:HOST. With IQN2, a second name the
+target admits, \-\-compliance tests persistent reservations between two
+initiators, as between two cluster nodes; with one name its ports differ
+only by ISID, as one host's MPIO paths do.
 .TP
 .B \-\-compliance
 Test every target the \-\-iscsi and \-\-nvme hosts report, or each HOST/IQN
@@ -110,6 +113,16 @@ Use test LUNs. Cases that change data write a few blocks near the end of a
 LUN or namespace and write the original data back; others reset the LUN,
 take and clear reservations, and move an ALUA group to another state and
 back. \-\-compliance\-report OUT also writes the table as Markdown.
+.TP
+.BI \-\-sbc " 3|4|5"
+The SBC edition \-\-compliance judges a block device against (default 4).
+Each block command and feature set carries the first and last edition that
+defines it: a command the edition makes mandatory must work, one it does not
+define (newer, or made obsolete, such as MODE SENSE (6) in SBC\-5) passes when
+it works or is refused cleanly, and a command Windows, macOS or Linux sends is
+held to its rule in every edition. The SBC feature sets (SBC Base 2010, SBC
+Base 2016, Basic Provisioning 2016, Drive Maintenance 2016) start in SBC\-4;
+Discovery 2016 comes from SPC\-5 and always applies.
 .TP
 .BI \-\-chap\-user " NAME" " \-\-chap\-secret\-file" " FILE"
 Log in with CHAP. The secret is read from FILE, never from the command line.

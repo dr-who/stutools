@@ -70,16 +70,17 @@ pub(super) fn run(
         show(&abort),
         ok,
     );
-    // SAM-6 7.2, 7.3: with nothing in the task set these complete.
+    // SAM-6 7.2, 7.3: with nothing in the task set these complete. RFC 7143 11.6.1 lets a target
+    // answer "function not supported" (5); Discovery 2016 requires both (see features).
     let set = s.task_management(pdu::TMF_ABORT_TASK_SET, 0, 0);
     seen.fact("TMF ABORT TASK SET", answer_is(&set, &[0]));
     record(
         cases,
         SECTION,
         label("ABORT TASK SET"),
-        "function complete (0)",
+        "function complete (0), or not supported (5)",
         show(&set),
-        answer_is(&set, &[0]),
+        answer_is(&set, &[0, 5]),
     );
     let clear = s.task_management(pdu::TMF_CLEAR_TASK_SET, 0, 0);
     seen.fact("TMF CLEAR TASK SET", answer_is(&clear, &[0]));

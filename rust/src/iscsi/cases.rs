@@ -15,15 +15,26 @@ pub(super) type Creds<'a> = Option<(&'a str, &'a [u8])>;
 const DIGEST: &str = "CRC32C,None";
 const CHAP_OFFER: &str = "5,6,7,8";
 
-/// Logs in to the target as the initiator port `isid` (one I_T nexus per ISID).
+/// Logs in to the target as the initiator port `isid` (one I_T nexus per ISID), offering CRC32C digests.
 pub(super) fn open(path: &Path, initiator: &str, creds: Creds, isid: [u8; 6]) -> Result<Session> {
+    open_with(path, initiator, creds, isid, DIGEST)
+}
+
+/// `open`, offering `digest` for HeaderDigest and DataDigest.
+pub(super) fn open_with(
+    path: &Path,
+    initiator: &str,
+    creds: Creds,
+    isid: [u8; 6],
+    digest: &str,
+) -> Result<Session> {
     session::login_as(
         &path.portal,
         &path.target,
         initiator,
         isid,
         creds,
-        DIGEST,
+        digest,
         CHAP_OFFER,
     )
 }
@@ -170,6 +181,14 @@ pub(super) fn record_info(
     actual: impl Into<String>,
 ) {
     cases.push(crate::compliance::info(section, name, actual.into()));
+}
+
+/// Whether none of `cases` failed: passes, warnings (a "should" missed) and information all count as
+/// clean.
+pub(super) fn no_failures(cases: &[Case]) -> bool {
+    cases
+        .iter()
+        .all(|c| c.verdict() != crate::compliance::Verdict::Fail)
 }
 
 /// Like `expect`, for a clause that says "should".

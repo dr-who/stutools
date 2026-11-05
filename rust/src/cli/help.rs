@@ -89,9 +89,10 @@ NETWORK BLOCK DEVICES (iSCSI and NVMe/TCP, spoken by spit itself)
   --nvme HOST[:PORT]/NQN[/NSID][,N]
                   identify a subsystem, or run -c workloads over it
   --scsi, --nvmeof  the same as --iscsi and --nvme
-  --iscsi-initiator IQN
+  --iscsi-initiator IQN[,IQN2]
                   the name spit logs in with; default: InitiatorName in
-                  /etc/iscsi/initiatorname.iscsi, else iqn.2026-11.spit:HOST
+                  /etc/iscsi/initiatorname.iscsi, else iqn.2026-11.spit:HOST;
+                  --compliance tests reservations between two hosts with IQN2
   --chap-user NAME, --chap-secret-file FILE
                   CHAP login; the secret is read from the file
   --policy rr|rrr|random|fastest
@@ -103,6 +104,9 @@ NETWORK BLOCK DEVICES (iSCSI and NVMe/TCP, spoken by spit itself)
                   Clustering send, reservations included. Use test LUNs: it
                   writes near the end of each LUN (and puts the data back),
                   resets the LUN, takes reservations and moves ALUA states
+  --sbc 3|4|5     the SBC edition --compliance judges block commands and
+                  feature sets against (default 4): each command counts only
+                  in the editions that define it
   --compliance-report OUT
                   also write the score table and failed cases as Markdown
   -d N            print the first N commands sent to the paths

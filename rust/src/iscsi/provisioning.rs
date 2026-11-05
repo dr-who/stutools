@@ -7,7 +7,8 @@
 
 use super::block_io::cdb16;
 use super::cases::{
-    be32, be64, expect, read_block, record, write_block, Seen, Want, REFUSED, REFUSED_SA,
+    be32, be64, expect, expect_should, read_block, record, write_block, Seen, Want, REFUSED,
+    REFUSED_SA,
 };
 use super::disk::Disk;
 use super::ops;
@@ -24,7 +25,7 @@ const WS_NDOB: u8 = 0x01;
 pub(super) struct Findings {
     /// The LUN advertises UNMAP and it works: Windows sends TRIM.
     pub trim: bool,
-    /// The provisioning cases all passed (a LUN that does not provision passes by refusing cleanly).
+    /// No provisioning case failed (a LUN that does not provision passes by refusing cleanly).
     pub clean: bool,
 }
 
@@ -224,23 +225,36 @@ pub(super) fn run(
         );
     }
 
-    // SBC-5 5.53 and table 149: WRITE SAME (16) with UNMAP works when LBPWS is set. On a fully
-    // provisioned LUN (LBPME 0) the device server ignores the UNMAP bit (it writes) or reports an invalid
-    // field in the CDB; otherwise it is an invalid field. NDOB sends no data; with UNMAP it unmaps
-    // (A.3.3.7 needs it then). Any block written is restored below.
+    // SBC-5 5.53 and table 149: WRITE SAME (16) with UNMAP works when LBPWS is set. Without LBPWS the
+    // device does not support that use (SBC-5 6.6.9), and SBC-5 names no sense code for it: an
+    // unsupported value in a CDB field is INVALID FIELD IN CDB by SPC-6's general rule, so a different
+    // answer only warns. On a fully provisioned LUN (LBPME 0) ignoring the UNMAP bit (writing) is also
+    // allowed. NDOB sends no data; with UNMAP it unmaps (A.3.3.7 needs it then). Any block written is
+    // restored below.
     let zeros = vec![0u8; len];
     let ws_wants: Vec<Want> = match (lbpws, lbpme) {
         (true, _) => vec![Want::Good],
         (false, false) => vec![Want::Good, Want::Ascq(0x5, 0x24, 0x00)],
         (false, true) => vec![Want::Ascq(0x5, 0x24, 0x00)],
     };
-    let answer = expect(
-        cases,
-        SECTION,
-        label("WRITE SAME (16) with UNMAP"),
-        &ws_wants,
-        s.command(&cdb16(0x93, WS_UNMAP, target as u64, 1), 0, Some(&zeros)),
-    );
+    let unmap = s.command(&cdb16(0x93, WS_UNMAP, target as u64, 1), 0, Some(&zeros));
+    let answer = if lbpws {
+        expect(
+            cases,
+            SECTION,
+            label("WRITE SAME (16) with UNMAP"),
+            &ws_wants,
+            unmap,
+        )
+    } else {
+        expect_should(
+            cases,
+            SECTION,
+            label("WRITE SAME (16) with UNMAP"),
+            &ws_wants,
+            unmap,
+        )
+    };
     seen.fact("WRITE SAME (16) UNMAP", lbpws && answer.0);
     seen.answer("WRITE SAME (16)", SECTION, &answer);
     let mut ndob_wants = vec![Want::Good, Want::Ascq(0x5, 0x24, 0x00)];
@@ -272,6 +286,6 @@ pub(super) fn run(
     }
     Findings {
         trim: lbpme && lbpu && unmapped,
-        clean: cases[first..].iter().all(|c| c.passed),
+        clean: super::cases::no_failures(&cases[first..]),
     }
 }

@@ -5,12 +5,12 @@
 //! to fails one case in each section. A LUN reached through a standby port runs only the standby cases
 //! of `mpio`. Every data-changing case writes the original data back.
 
-use super::cases::{open, record, short_name, unit_attentions, Creds, Seen};
+use super::cases::{no_failures, open, record, short_name, unit_attentions, Creds, Seen};
 use super::report::Path;
 use super::session;
 use super::{
-    alua, block_commands, block_io, compare_and_write, disk, feature_sets, host_traces, odx,
-    provisioning, reservations, spc_commands, task_management, windows,
+    alua, block_commands, block_io, compare_and_write, disk, feature_sets, header_digest,
+    host_traces, odx, provisioning, reservations, spc_commands, task_management, windows,
 };
 use crate::compliance::Case;
 
@@ -27,11 +27,13 @@ pub(super) struct Target<'a> {
     pub protocol_level: Option<u32>,
 }
 
-fn all_passed(cases: &[Case]) -> bool {
-    cases.iter().all(|c| c.passed)
-}
-
-pub(super) fn run(targets: &[Target], initiator: &str, edition: u8, cases: &mut Vec<Case>) {
+pub(super) fn run(
+    targets: &[Target],
+    initiator: &str,
+    second: Option<&str>,
+    edition: u8,
+    cases: &mut Vec<Case>,
+) {
     for t in targets {
         let name = short_name(t.path);
         // Before this target's session opens, so the unit attentions a CLEAR raises are not its first
@@ -70,7 +72,7 @@ pub(super) fn run(targets: &[Target], initiator: &str, edition: u8, cases: &mut 
         compare_and_write::run(&mut s, &name, &disk, cases, &mut seen);
         let first = cases.len();
         let odx = odx::run(&mut s, &name, &disk, cases, &mut seen);
-        let odx_clean = all_passed(&cases[first..]);
+        let odx_clean = no_failures(&cases[first..]);
         let alua = alua::run(
             &mut s,
             t.path,
@@ -81,12 +83,12 @@ pub(super) fn run(targets: &[Target], initiator: &str, edition: u8, cases: &mut 
             cases,
             &mut seen,
         );
-        host_traces::windows(&mut s, &name, &disk, cases);
+        let windows_online = host_traces::windows(&mut s, &name, &disk, cases);
         // The reservation and reset cases use sessions of their own; this one would sit idle meanwhile.
         let _ = s.logout();
         let first = cases.len();
-        let pr = reservations::run(t.path, initiator, t.creds, &name, cases);
-        let pr_ok = all_passed(&cases[first..]);
+        let pr = reservations::run(t.path, initiator, second, t.creds, &name, cases);
+        let pr_ok = no_failures(&cases[first..]);
         seen.note("PERSISTENT RESERVE IN", "pr", true, pr_ok, "see pr");
         seen.note("PERSISTENT RESERVE OUT", "pr", true, pr_ok, "see pr");
         task_management::run(
@@ -98,6 +100,7 @@ pub(super) fn run(targets: &[Target], initiator: &str, edition: u8, cases: &mut 
             cases,
             &mut seen,
         );
+        header_digest::run(t.path, initiator, t.creds, &name, disk.block_len, cases);
         match open(t.path, initiator, t.creds, session::random_isid()) {
             Ok(mut s) => {
                 let _ = unit_attentions(&mut s);
@@ -125,7 +128,7 @@ pub(super) fn run(targets: &[Target], initiator: &str, edition: u8, cases: &mut 
             &name,
             &windows::Facts {
                 unique_id: disk.unique_id,
-                enumeration: disk.answered,
+                enumeration: windows_online,
                 cluster: pr.cluster,
                 flush: io.flush,
                 alua,
