@@ -28,6 +28,7 @@ pub const CSTS: u32 = 0x1c;
 pub const CNS_NAMESPACE: u32 = 0x00;
 pub const CNS_CONTROLLER: u32 = 0x01;
 pub const CNS_ACTIVE_NAMESPACES: u32 = 0x02;
+pub const CNS_NS_DESCRIPTORS: u32 = 0x03;
 
 /// The discovery subsystem's NQN, which a discovery controller serves.
 pub const DISCOVERY_NQN: &str = "nqn.2014-08.org.nvmexpress.discovery";
@@ -121,6 +122,15 @@ impl Controller {
         Ok(buf)
     }
 
+    /// Runs Identify with the given CNS and NSID into `buf` (4096 bytes), returning the completion
+    /// rather than failing on an error status.
+    pub fn identify_status(&mut self, cns: u32, nsid: u32, buf: &mut [u8]) -> Result<Completion> {
+        let mut cmd = Command::new(sqe::OP_IDENTIFY, 0);
+        cmd.set_nsid(nsid);
+        cmd.set_u32(40, cns);
+        self.submit(cmd, Data::In(buf))
+    }
+
     /// Reads `len` bytes of a log page from `offset`. The length is in whole dwords.
     pub fn get_log_page(&mut self, lid: u8, offset: u64, len: usize) -> Result<Vec<u8>> {
         let mut cmd = Command::new(sqe::OP_GET_LOG_PAGE, 0);
@@ -137,6 +147,54 @@ impl Controller {
     pub fn keep_alive(&mut self) -> Result<()> {
         let done = self.submit(Command::new(sqe::OP_KEEP_ALIVE, 0), Data::None)?;
         check(&done, "Keep Alive")
+    }
+
+    /// Get Features for `fid` with `cdw11`, returning the completion; `buf` receives any data.
+    pub fn get_features(
+        &mut self,
+        fid: u8,
+        cdw11: u32,
+        buf: Option<&mut [u8]>,
+    ) -> Result<Completion> {
+        let mut cmd = Command::new(sqe::OP_GET_FEATURES, 0);
+        cmd.set_u32(40, fid as u32);
+        cmd.set_u32(44, cdw11);
+        self.submit(cmd, buf.map_or(Data::None, Data::In))
+    }
+
+    /// Get Log Page `lid` for `nsid` with log specific field `lsp`, into `buf` (whole dwords), returning
+    /// the completion rather than failing on an error status.
+    pub fn log_page(&mut self, lid: u8, nsid: u32, lsp: u8, buf: &mut [u8]) -> Result<Completion> {
+        let mut cmd = Command::new(sqe::OP_GET_LOG_PAGE, 0);
+        cmd.set_nsid(nsid);
+        cmd.set_u32(
+            40,
+            ((buf.len() / 4 - 1) as u32) << 16 | ((lsp as u32 & 0x7f) << 8) | lid as u32,
+        );
+        self.submit(cmd, Data::In(buf))
+    }
+
+    /// Sends one admin command without waiting for it, for a command that completes later (an
+    /// Asynchronous Event Request). Returns its command ID.
+    pub fn post(&mut self, mut cmd: Command) -> Result<u16> {
+        let cid = self.next_cid;
+        self.next_cid = self.next_cid.wrapping_add(1).max(1);
+        cmd.0[2..4].copy_from_slice(&cid.to_le_bytes());
+        cmd.set_data(0, false);
+        self.link.send_capsule(&cmd.0, &[])?;
+        Ok(cid)
+    }
+
+    /// Reads the next completion on the admin queue, whichever command it is for.
+    pub fn next_completion(&mut self) -> Result<Completion> {
+        let p = self.link.read()?;
+        match p.kind {
+            super::pdu::CAPSULE_RESP => Ok(Completion::parse(&super::pdu::parse_capsule_resp(&p)?)),
+            super::pdu::TERM_C2H | super::pdu::TERM_H2C => Err(super::pdu::describe_term(&p)),
+            other => Err(format!(
+                "NVMe/TCP: unexpected PDU type {other:#x} on the admin queue"
+            )),
+        }
     }
 
     /// Runs one admin command to completion, moving data as `data` describes.
@@ -208,7 +266,7 @@ pub fn random_hostid() -> Result<[u8; 16]> {
     Ok(id)
 }
 
-/// The fields of Identify Controller that spit reports.
+/// The fields of Identify Controller that spit reports or tests.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ControllerInfo {
     /// Bytes of write data the controller takes in the capsule (IOCCSZ less the 64-byte command).
@@ -221,32 +279,100 @@ pub struct ControllerInfo {
     /// Maximum data transfer size as a power of two in units of the minimum page size, 0 for none.
     pub mdts: u8,
     pub nqn: String,
+    /// CMIC: bit 1 more than one controller, bit 3 ANA reporting.
+    pub cmic: u8,
+    pub cntlid: u16,
+    /// VER: the version in the same form as the VS property.
+    pub ver: u32,
+    /// AERL: the asynchronous event requests outstanding at once, 0-based.
+    pub aerl: u8,
+    /// KAS: the keep-alive timer granularity in 100 ms units.
+    pub kas: u16,
+    /// ANACAP, ANAGRPMAX and NANAGRPID: the ANA states and groups the controller can report.
+    pub anacap: u8,
+    pub anagrpmax: u32,
+    pub nanagrpid: u32,
+    /// SQES and CQES: required (low nibble) and largest (high nibble) entry sizes as powers of two.
+    pub sqes: u8,
+    pub cqes: u8,
+    /// ONCS: optional NVM commands (bit 0 Compare, 2 Dataset Management, 3 Write Zeroes,
+    /// 5 Reservations).
+    pub oncs: u16,
+    /// FUSES: bit 0 fused Compare and Write.
+    pub fuses: u16,
+    /// VWC: bit 0 a volatile write cache is present.
+    pub vwc: u8,
+    /// SGLS: SGL support; bits 1:0 are non-zero when SGLs are supported, which fabrics need.
+    pub sgls: u32,
+    /// IOCCSZ and IORCSZ: the I/O command and response capsule sizes in 16-byte units.
+    pub ioccsz: u32,
+    pub iorcsz: u32,
 }
 
 pub fn parse_controller(d: &[u8]) -> ControllerInfo {
-    let ioccsz = u32::from_le_bytes([d[1792], d[1793], d[1794], d[1795]]) as usize;
+    let u16_at = |at: usize| u16::from_le_bytes([d[at], d[at + 1]]);
+    let u32_at = |at: usize| u32::from_le_bytes([d[at], d[at + 1], d[at + 2], d[at + 3]]);
+    let ioccsz = u32_at(1792);
     ControllerInfo {
-        inline_bytes: (ioccsz * 16).saturating_sub(64),
+        inline_bytes: (ioccsz as usize * 16).saturating_sub(64),
         serial: ascii(&d[4..24]),
         model: ascii(&d[24..64]),
         firmware: ascii(&d[64..72]),
-        namespaces: u32::from_le_bytes([d[516], d[517], d[518], d[519]]),
+        namespaces: u32_at(516),
         mdts: d[77],
         nqn: ascii(&d[768..1024]),
+        cmic: d[76],
+        cntlid: u16_at(78),
+        ver: u32_at(80),
+        aerl: d[259],
+        kas: u16_at(320),
+        anacap: d[343],
+        anagrpmax: u32_at(344),
+        nanagrpid: u32_at(348),
+        sqes: d[512],
+        cqes: d[513],
+        oncs: u16_at(520),
+        fuses: u16_at(522),
+        vwc: d[525],
+        sgls: u32_at(536),
+        ioccsz,
+        iorcsz: u32_at(1796),
     }
 }
 
-/// The fields of Identify Namespace that spit reports.
+/// The fields of Identify Namespace that spit reports or tests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NamespaceInfo {
-    /// Namespace size in logical blocks.
+    /// Namespace size in logical blocks (NSZE).
     pub blocks: u64,
     pub block_len: u32,
+    /// NCAP and NUSE: the capacity and the blocks in use.
+    pub capacity: u64,
+    pub used: u64,
+    /// NLBAF (0-based) and the format index FLBAS selects.
+    pub formats: u8,
+    pub format: u8,
+    /// NMIC bit 0: the namespace may be attached to more than one controller.
+    pub nmic: u8,
+    /// RESCAP: bit 1 to 6 the reservation types 1 to 6, bit 7 Ignore Existing Key.
+    pub rescap: u8,
+    /// DLFEAT bits 2:0: what a deallocated block reads as (1 zeros, 2 ones, 0 not reported).
+    pub dlfeat: u8,
+    pub anagrpid: u32,
+    pub nguid: [u8; 16],
+    pub eui64: [u8; 8],
 }
 
 pub fn parse_namespace(d: &[u8]) -> NamespaceInfo {
-    let blocks = u64::from_le_bytes(d[0..8].try_into().unwrap_or([0; 8]));
-    let flbas = (d[26] & 0x0f) as usize;
+    let u64_at = |at: usize| u64::from_le_bytes(d[at..at + 8].try_into().unwrap_or([0; 8]));
+    let blocks = u64_at(0);
+    // NVM 1.1 Identify Namespace FLBAS: the format index is bits 3:0, with bits 6:5 above them when
+    // there are more than 16 formats (NLBAF is 0-based).
+    let flbas = if d[25] >= 16 {
+        (d[26] & 0x0f) as usize | ((d[26] as usize >> 5) & 0x3) << 4
+    } else {
+        (d[26] & 0x0f) as usize
+    };
     let lbaf = u32::from_le_bytes(
         d[128 + 4 * flbas..132 + 4 * flbas]
             .try_into()
@@ -256,6 +382,16 @@ pub fn parse_namespace(d: &[u8]) -> NamespaceInfo {
     NamespaceInfo {
         blocks,
         block_len: 1u32 << lbads.min(31),
+        capacity: u64_at(8),
+        used: u64_at(16),
+        formats: d[25],
+        format: flbas as u8,
+        nmic: d[30],
+        rescap: d[31],
+        dlfeat: d[33],
+        anagrpid: u32::from_le_bytes([d[92], d[93], d[94], d[95]]),
+        nguid: d[104..120].try_into().unwrap_or([0; 16]),
+        eui64: d[120..128].try_into().unwrap_or([0; 8]),
     }
 }
 
@@ -272,4 +408,40 @@ fn ascii(b: &[u8]) -> String {
         .trim_end_matches(|c: char| c == ' ' || c == '\0')
         .trim()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identify_controller_fields_come_from_their_offsets() {
+        let mut d = vec![0u8; 4096];
+        d[76] = 0x0b;
+        d[78..80].copy_from_slice(&7u16.to_le_bytes());
+        d[80..84].copy_from_slice(&0x0002_0000u32.to_le_bytes());
+        d[320..322].copy_from_slice(&5u16.to_le_bytes());
+        d[512] = 0x66;
+        d[520..522].copy_from_slice(&0x2cu16.to_le_bytes());
+        d[525] = 1;
+        d[536..540].copy_from_slice(&1u32.to_le_bytes());
+        d[1792..1796].copy_from_slice(&260u32.to_le_bytes());
+        let c = parse_controller(&d);
+        assert_eq!((c.cmic, c.cntlid, c.ver, c.kas), (0x0b, 7, 0x0002_0000, 5));
+        assert_eq!((c.sqes, c.oncs, c.vwc, c.sgls), (0x66, 0x2c, 1, 1));
+        assert_eq!(c.inline_bytes, 260 * 16 - 64);
+    }
+
+    #[test]
+    fn the_format_index_uses_its_upper_bits_past_16_formats() {
+        let mut d = vec![0u8; 4096];
+        d[25] = 17; // 18 formats
+        d[26] = 0x21; // index 0b01_0001 = 17
+        d[128 + 4 * 17 + 2] = 12; // LBADS 12: 4096-byte blocks
+        let ns = parse_namespace(&d);
+        assert_eq!((ns.format, ns.block_len), (17, 4096));
+        d[25] = 3; // 4 formats: bits 6:5 are ignored
+        d[128 + 4 + 2] = 9;
+        assert_eq!(parse_namespace(&d).block_len, 512);
+    }
 }

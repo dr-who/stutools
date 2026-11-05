@@ -1,10 +1,18 @@
 //! A user-space NVMe-over-Fabrics initiator for spit, over TCP (NVMe/TCP). It speaks the protocol
 //! directly, so spit can connect to a subsystem without the kernel's nvme driver.
 
+mod admin_cases;
+mod ana;
 pub mod compliance;
 pub mod controller;
+mod host;
+mod identify_cases;
+mod io_cases;
 pub mod link;
+mod nvm;
 pub mod pdu;
+mod reservations;
+mod revisions;
 pub mod session;
 pub mod sqe;
 

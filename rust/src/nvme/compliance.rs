@@ -1,46 +1,78 @@
 //! The NVMe/TCP cases of `--compliance`. Every `--nvme` HOST is discovered (the discovery log page) and
-//! each NVM subsystem it reports is tested; HOST/NQN tests that one. Nothing is written: the I/O cases
-//! read. The expectations come from the NVMe base and NVMe-oF specifications:
+//! each NVM subsystem it reports is tested, through the first address the log gives for it and, for
+//! identity, ANA and multipath reservations, through every other one; HOST/NQN tests that one. Each
+//! case names the NVMe revision that defines what it tests (`revisions`) and is judged against the
+//! revision the controller's VS property reports. The sections:
 //! - nvme-disc: the discovery controller connects, enables and returns a log page whose records name
 //!   a transport, an address and a subsystem;
 //! - nvme-conn: Fabrics Connect returns a controller ID, and a second association gets another one;
 //! - nvme-prop: CAP reports queue entries and the NVM command set, VS is 1.0 or later, enabling sets
 //!   CSTS.RDY;
-//! - nvme-ident: Identify Controller names the subsystem connected to and has a serial and model;
-//!   each active namespace has blocks of 512 bytes or more, a power of two;
-//! - nvme-admin: Keep Alive succeeds and a reserved admin opcode is Invalid Command Opcode;
-//! - nvme-io: an I/O queue connects, the first and last blocks read, Flush succeeds, a read past the
-//!   end is LBA Out of Range and a read of an inactive namespace is Invalid Namespace or Format;
-//! - nvme-sess: three associations in turn connect and enable.
+//! - nvme-ident (`identify_cases`): Identify Controller and Namespace, identification descriptors,
+//!   and the same identity on every path;
+//! - nvme-admin (`admin_cases`): log pages, features, Abort, Keep Alive, Asynchronous Event Request;
+//! - nvme-io (`io_cases`): reads and writes, FUA, errors, MDTS, Flush, Compare, Write Zeroes and
+//!   Dataset Management, changing only blocks it writes back;
+//! - nvme-ana (`ana`): the ANA log page through every address;
+//! - nvme-resv (`reservations`): every reservation command and type with four hosts;
+//! - nvme-sess: three associations in turn connect and enable;
+//! - windows: what Windows needs of the subsystem, from the results above.
+
+use std::net::SocketAddr;
 
 use super::controller::{self, Association, Controller};
-use super::link::Data;
-use super::sqe::{self, Command, Completion};
-use super::{discover_subsystems, Discovered, DEFAULT_HOSTNQN};
+use super::revisions::Rev;
+use super::sqe::Completion;
+use super::{
+    admin_cases, ana, discover_subsystems, identify_cases, io_cases, reservations, Discovered,
+    DEFAULT_HOSTNQN,
+};
 use crate::compliance::{case, Case};
 use crate::Result;
 
 /// SUBTYPE in a discovery log record: an NVM subsystem (2), not a discovery controller (1 or 3).
 const SUBTYPE_NVM: u8 = 2;
 
-/// Status codes of the generic command status type (SCT 0).
-const SC_INVALID_OPCODE: u8 = 0x01;
-const SC_INVALID_NAMESPACE: u8 = 0x0b;
-const SC_LBA_OUT_OF_RANGE: u8 = 0x80;
-
-/// An admin opcode the base specification reserves.
-const RESERVED_ADMIN_OPCODE: u8 = 0x03;
+/// Status codes as (status code type, status code). SCT 0 is the generic command status (Base 2.1
+/// Figure 102; NVM 1.1 Figure 17 for 80h).
+pub const SUCCESS: (u8, u8) = (0, 0x00);
+pub const INVALID_OPCODE: (u8, u8) = (0, 0x01);
+pub const INVALID_FIELD: (u8, u8) = (0, 0x02);
+pub const INVALID_NAMESPACE: (u8, u8) = (0, 0x0b);
+pub const HOST_ID_INCONSISTENT: (u8, u8) = (0, 0x18);
+pub const LBA_OUT_OF_RANGE: (u8, u8) = (0, 0x80);
+pub const RESERVATION_CONFLICT: (u8, u8) = (0, 0x83);
+/// SCT 1, command specific: Invalid Log Page (Base 2.1 Figure 103, Get Log Page).
+pub const INVALID_LOG_PAGE: (u8, u8) = (1, 0x09);
+/// SCT 2, media and data integrity errors: Compare Failure (NVM 1.1 Figure 19).
+pub const COMPARE_FAILURE: (u8, u8) = (2, 0x85);
 
 /// The VS property: the specification version the controller implements.
 const VS: u32 = 0x08;
 
+/// One NVM subsystem under test: its NQN and every address the discovery log gives for it, the
+/// first of which runs every case.
+pub struct Target {
+    pub subnqn: String,
+    pub addrs: Vec<SocketAddr>,
+}
+
 /// Adds the NVMe/TCP cases for the `--nvme` targets to `cases`.
 pub fn cases(entries: &[String], cases: &mut Vec<Case>) -> Result<()> {
-    let mut subsystems = Vec::new();
+    let mut targets: Vec<Target> = Vec::new();
+    let mut add =
+        |subnqn: String, addr: SocketAddr| match targets.iter_mut().find(|t| t.subnqn == subnqn) {
+            Some(t) if !t.addrs.contains(&addr) => t.addrs.push(addr),
+            Some(_) => {}
+            None => targets.push(Target {
+                subnqn,
+                addrs: vec![addr],
+            }),
+        };
     for entry in entries {
         if entry.contains('/') {
             let path = super::parse_path(entry)?;
-            subsystems.push((path.addr, path.subnqn));
+            add(path.subnqn, path.addr);
             continue;
         }
         let records = discovery(entry, cases);
@@ -50,11 +82,11 @@ pub fn cases(entries: &[String], cases: &mut Vec<Case>) -> Result<()> {
             } else {
                 format!("{}:{}", r.traddr, r.trsvcid)
             };
-            subsystems.push((super::host_address(&host)?, r.subnqn));
+            add(r.subnqn, super::host_address(&host)?);
         }
     }
-    for (addr, subnqn) in &subsystems {
-        subsystem(*addr, subnqn, cases);
+    for t in &targets {
+        subsystem(t, cases);
     }
     Ok(())
 }
@@ -100,7 +132,9 @@ fn discovery(host: &str, cases: &mut Vec<Case>) -> Vec<Discovered> {
 }
 
 /// Every case for one subsystem.
-fn subsystem(addr: std::net::SocketAddr, subnqn: &str, cases: &mut Vec<Case>) {
+fn subsystem(t: &Target, cases: &mut Vec<Case>) {
+    let addr = t.addrs[0];
+    let subnqn = t.subnqn.as_str();
     let name = format!("{} at {addr}", subnqn.rsplit(':').next().unwrap_or(subnqn));
     let hostid = match controller::random_hostid() {
         Ok(id) => id,
@@ -195,167 +229,121 @@ fn subsystem(addr: std::net::SocketAddr, subnqn: &str, cases: &mut Vec<Case>) {
         return;
     }
 
-    // Identify the controller and every active namespace.
-    let info = c
-        .identify(controller::CNS_CONTROLLER, 0)
-        .map(|d| controller::parse_controller(&d));
-    cases.push(case(
-        "nvme-ident",
-        format!("{name} controller"),
-        format!("SUBNQN {subnqn}, a serial and model"),
-        match &info {
-            Ok(i) => format!(
-                "SUBNQN {}, serial {:?}, model {:?}",
-                i.nqn, i.serial, i.model
-            ),
-            Err(e) => e.clone(),
-        },
-        info.as_ref()
-            .is_ok_and(|i| i.nqn == subnqn && !i.serial.is_empty() && !i.model.is_empty()),
-    ));
-    let active = c
-        .identify(controller::CNS_ACTIVE_NAMESPACES, 0)
-        .map(|d| controller::parse_active_namespaces(&d));
-    cases.push(case(
-        "nvme-ident",
-        format!("{name} active namespaces"),
-        "listed".into(),
-        match &active {
-            Ok(list) => format!("{list:?}"),
-            Err(e) => e.clone(),
-        },
-        active.is_ok(),
-    ));
-    let active = active.unwrap_or_default();
-    let mut namespaces = Vec::new();
-    for &nsid in &active {
-        let ns = c
-            .identify(controller::CNS_NAMESPACE, nsid)
-            .map(|d| controller::parse_namespace(&d));
-        let ok = ns
-            .as_ref()
-            .is_ok_and(|n| n.blocks > 0 && n.block_len >= 512 && n.block_len.is_power_of_two());
-        cases.push(case(
-            "nvme-ident",
-            format!("{name} namespace {nsid}"),
-            "blocks > 0 of 512 B or more, a power of two".into(),
-            match &ns {
-                Ok(n) => format!("{} blocks of {} B", n.blocks, n.block_len),
-                Err(e) => e.clone(),
-            },
-            ok,
-        ));
-        if let Ok(n) = ns {
-            if ok {
-                namespaces.push((nsid, n));
-            }
-        }
-    }
-
-    // Admin commands.
-    let kept = c.keep_alive();
-    cases.push(case(
-        "nvme-admin",
-        format!("{name} Keep Alive"),
-        "success".into(),
-        match &kept {
-            Ok(()) => "success".into(),
-            Err(e) => e.clone(),
-        },
-        kept.is_ok(),
-    ));
-    let reserved = c.submit(Command::new(RESERVED_ADMIN_OPCODE, 0), Data::None);
-    status_case(
+    let Some(facts) = identify_cases::run(
+        &mut c,
+        &name,
+        t,
+        *cap.as_ref().unwrap_or(&0),
+        vs.ok(),
         cases,
-        "nvme-admin",
-        format!("{name} reserved admin opcode {RESERVED_ADMIN_OPCODE:#04x}"),
-        &[SC_INVALID_OPCODE],
-        "Invalid Command Opcode",
-        &reserved,
-    );
-
-    // I/O, on one queue of this association: reads only.
-    let cntlid = c.cntlid();
-    let mut io = match controller::connect_io_queue(&assoc, cntlid, 1, 31) {
-        Ok(link) => {
-            cases.push(case(
-                "nvme-io",
-                format!("{name} I/O queue"),
-                "connected".into(),
-                "connected".into(),
-                true,
-            ));
-            link
-        }
-        Err(e) => {
-            cases.push(case(
-                "nvme-io",
-                format!("{name} I/O queue"),
-                "connected".into(),
-                e,
-                false,
-            ));
-            sessions(&assoc, &name, cases);
-            return;
-        }
+    ) else {
+        sessions(&assoc, &name, cases);
+        return;
     };
-    let mut cid = 1u16;
-    let mut next = || {
-        cid = cid.wrapping_add(1).max(1);
-        cid
-    };
-    for (nsid, ns) in &namespaces {
-        let mut buf = vec![0u8; ns.block_len as usize];
-        for (label, lba) in [("first", 0), ("last", ns.blocks - 1)] {
-            let done = io.submit(next(), read(*nsid, lba), Data::In(&mut buf));
-            status_case(
-                cases,
-                "nvme-io",
-                format!("{name} ns {nsid} read the {label} block"),
-                &[0],
-                "success",
-                &done,
-            );
-        }
-        let done = io.submit(next(), read(*nsid, ns.blocks), Data::In(&mut buf));
-        status_case(
-            cases,
-            "nvme-io",
-            format!("{name} ns {nsid} read past the end"),
-            &[SC_LBA_OUT_OF_RANGE],
-            "LBA Out of Range",
-            &done,
-        );
-        let mut flush = Command::new(sqe::OP_FLUSH, 0);
-        flush.set_nsid(*nsid);
-        let done = io.submit(next(), flush, Data::None);
-        status_case(
-            cases,
-            "nvme-io",
-            format!("{name} ns {nsid} Flush"),
-            &[0],
-            "success",
-            &done,
-        );
-    }
-    if let Some((_, ns)) = namespaces.first() {
-        let inactive = (1..=u32::MAX - 1)
-            .find(|n| !active.contains(n))
-            .unwrap_or(u32::MAX - 1);
-        let mut buf = vec![0u8; ns.block_len as usize];
-        let done = io.submit(next(), read(inactive, 0), Data::In(&mut buf));
-        status_case(
-            cases,
-            "nvme-io",
-            format!("{name} read of inactive namespace {inactive}"),
-            &[SC_INVALID_NAMESPACE],
-            "Invalid Namespace or Format",
-            &done,
-        );
-    }
-    drop(io);
+    admin_cases::run(&mut c, &name, hostid, &facts, cases);
     drop(c);
+    let io = io_cases::run(t, &name, &facts, cases);
+    let ana = ana::run(t, &name, &facts, cases);
+    let resv = reservations::run(t, &name, &facts, cases);
     sessions(&assoc, &name, cases);
+    admin_cases::async_event(addr, subnqn, &name, cases);
+    windows(&name, t, &facts, &io, ana.as_deref(), &resv, cases);
+}
+
+/// What Windows needs of this subsystem to use it as a disk on more than one path and in a cluster.
+/// Windows sends SCSI commands, which stornvme translates as SCSI-NVMe 1.5 describes: the Device
+/// Identification page MPIO matches paths by comes from the namespace IDs (6.1.4), SYNCHRONIZE CACHE
+/// from Flush (5.5), PERSISTENT RESERVE from the reservation commands (4.13), UNMAP from Dataset
+/// Management with the deallocate attribute (5.6), and the caching mode page's WCE from the Volatile
+/// Write Cache feature (6.3.3.2).
+fn windows(
+    name: &str,
+    t: &Target,
+    facts: &identify_cases::Facts,
+    io: &io_cases::IoFacts,
+    ana: Option<&[String]>,
+    resv: &reservations::Verdict,
+    cases: &mut Vec<Case>,
+) {
+    let paths = t.addrs.len() + 1;
+    cases.push(case(
+        "windows",
+        format!(
+            "{name} MPIO: Device Identification VPD from the namespace IDs (SCSI-NVMe 1.5 6.1.4)"
+        ),
+        format!("a non-zero EUI-64, NGUID or UUID, the same on all {paths} paths"),
+        if facts.unique_ids {
+            "the same".into()
+        } else {
+            "missing or different".into()
+        },
+        facts.unique_ids,
+    ));
+    cases.push(case(
+        "windows",
+        format!("{name} NTFS: SYNCHRONIZE CACHE as Flush (SCSI-NVMe 1.5 5.5)"),
+        "success on every namespace".into(),
+        if io.flush {
+            "success".into()
+        } else {
+            "failed".into()
+        },
+        io.flush,
+    ));
+    cases.push(case(
+        "windows",
+        format!(
+            "{name} Failover Clustering: PERSISTENT RESERVE as reservations (SCSI-NVMe 1.5 4.13)"
+        ),
+        "reservations with RTYPE 3h (SCSI type 5h), every case passed".into(),
+        if !resv.supported {
+            format!(
+                "reservations off (ONCS bit 5 {}, RESCAP {:#04x})",
+                facts.ctrl.oncs >> 5 & 1,
+                facts.namespaces.first().map_or(0, |n| n.1.rescap)
+            )
+        } else if resv.clustering {
+            "supported, every case passed".into()
+        } else {
+            "supported, but a case failed or the type is missing".into()
+        },
+        resv.clustering,
+    ));
+    cases.push(case(
+        "windows",
+        format!("{name} MPIO path states (ANA)"),
+        "reported on every path, or not reported (every path is then used alike)".into(),
+        match ana {
+            Some(states) if !states.is_empty() => states.join(", "),
+            Some(_) => "reported, no namespace listed".into(),
+            None => "not reported".into(),
+        },
+        ana.map_or(true, |s| !s.is_empty()),
+    ));
+    cases.push(case(
+        "windows",
+        format!("{name} TRIM: UNMAP as Dataset Management deallocate (SCSI-NVMe 1.5 5.6)"),
+        "works, or is not offered".into(),
+        match io.trim {
+            Some(true) => "works".into(),
+            Some(false) => "offered but failed".into(),
+            None => "not offered (ONCS bit 2 clear)".into(),
+        },
+        io.trim != Some(false),
+    ));
+    let cache = facts.ctrl.vwc & 1 != 0;
+    cases.push(case(
+        "windows",
+        format!("{name} write cache: caching mode page WCE (SCSI-NVMe 1.5 6.3.3.2)"),
+        "reported; flushed when present".into(),
+        if cache {
+            "volatile write cache, Flush works"
+        } else {
+            "no volatile write cache"
+        }
+        .into(),
+        !cache || io.flush,
+    ));
 }
 
 /// Three associations in turn, each connected and enabled, then closed.
@@ -375,37 +363,68 @@ fn sessions(assoc: &Association, name: &str, cases: &mut Vec<Case>) {
     }
 }
 
-/// A Read of one block at `lba` of namespace `nsid`.
-fn read(nsid: u32, lba: u64) -> Command {
-    let mut cmd = Command::new(sqe::OP_READ, 0);
-    cmd.set_nsid(nsid);
-    cmd.set_u64(40, lba);
-    cmd.set_u16(48, 0); // NLB, 0-based: one block
-    cmd
-}
-
-/// A case that passes when a command completed with one of `codes` in the generic status type (0 is
-/// success).
-fn status_case(
+/// A case that passes when a command completed with one of `want`, each a (status code type, status
+/// code) pair; (0, 0) is success. Returns whether it passed.
+pub fn status_case(
     cases: &mut Vec<Case>,
     section: &'static str,
     name: String,
-    codes: &[u8],
+    want: &[(u8, u8)],
     expected: &str,
     done: &Result<Completion>,
-) {
+) -> bool {
     let (actual, passed) = match done {
-        Ok(c) if c.ok() => ("success".to_string(), codes.contains(&0)),
+        Ok(c) if c.ok() => ("success".to_string(), want.contains(&SUCCESS)),
         Ok(c) => {
-            let (sct, sc) = c.code();
+            let got = c.code();
             (
-                format!("status type {sct:#x} code {sc:#04x}"),
-                sct == 0 && codes.contains(&sc),
+                format!("status type {:#x} code {:#04x}", got.0, got.1),
+                want.contains(&got),
             )
         }
         Err(e) => (e.clone(), false),
     };
     cases.push(case(section, name, expected.into(), actual, passed));
+    passed
+}
+
+/// A case for `rev`, judged against the revision the controller implements (`vs`). When that revision
+/// defines it, the command must end with one of `want`. When it does not, a refusal (Invalid Command
+/// Opcode, Invalid Field, Invalid Log Page) passes too: the controller predates the capability.
+#[allow(clippy::too_many_arguments)]
+pub fn rev_case(
+    cases: &mut Vec<Case>,
+    section: &'static str,
+    prefix: &str,
+    rev: &Rev,
+    vs: u32,
+    want: &[(u8, u8)],
+    expected: &str,
+    done: &Result<Completion>,
+) -> bool {
+    let name = format!("{prefix} {}", rev.name());
+    if rev.defined_in(vs) {
+        return status_case(cases, section, name, want, expected, done);
+    }
+    let refused = matches!(done, Ok(c) if !c.ok() && [INVALID_OPCODE, INVALID_FIELD, INVALID_LOG_PAGE].contains(&c.code()));
+    if refused {
+        cases.push(case(
+            section,
+            name,
+            format!("{expected}, or refused"),
+            rev.absent(vs),
+            true,
+        ));
+        return true;
+    }
+    status_case(
+        cases,
+        section,
+        name,
+        want,
+        &format!("{expected}, or refused"),
+        done,
+    )
 }
 
 #[cfg(test)]
@@ -413,30 +432,74 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_read_names_its_block_and_namespace() {
-        let c = read(7, 0x0102_0304_0506);
-        assert_eq!(c.0[0], sqe::OP_READ);
-        assert_eq!(&c.0[4..8], &7u32.to_le_bytes());
-        assert_eq!(&c.0[40..48], &0x0102_0304_0506u64.to_le_bytes());
-        assert_eq!(&c.0[48..50], &[0, 0]);
-    }
-
-    #[test]
-    fn status_cases_match_the_generic_codes() {
+    fn status_cases_match_type_and_code() {
         let mut cases = Vec::new();
         let mut b = [0u8; 16];
-        b[14..16].copy_from_slice(&((SC_LBA_OUT_OF_RANGE as u16) << 1).to_le_bytes());
+        b[14..16].copy_from_slice(&((LBA_OUT_OF_RANGE.1 as u16) << 1).to_le_bytes());
         let done = Ok(Completion::parse(&b));
-        status_case(
+        assert!(status_case(
             &mut cases,
             "nvme-io",
             "past".into(),
-            &[SC_LBA_OUT_OF_RANGE],
+            &[LBA_OUT_OF_RANGE],
             "LBA Out of Range",
-            &done,
-        );
-        status_case(&mut cases, "nvme-io", "ok".into(), &[0], "success", &done);
-        assert!(cases[0].passed);
+            &done
+        ));
+        assert!(!status_case(
+            &mut cases,
+            "nvme-io",
+            "ok".into(),
+            &[SUCCESS],
+            "success",
+            &done
+        ));
+        // The same code in another status code type is another status.
+        b[14..16].copy_from_slice(&((1u16 << 9 | 0x80) << 1).to_le_bytes());
+        let done = Ok(Completion::parse(&b));
+        assert!(!status_case(
+            &mut cases,
+            "nvme-io",
+            "type".into(),
+            &[LBA_OUT_OF_RANGE],
+            "LBA Out of Range",
+            &done
+        ));
         assert!(!cases[1].passed);
+    }
+
+    #[test]
+    fn a_capability_newer_than_the_controller_may_be_refused() {
+        let mut cases = Vec::new();
+        let mut b = [0u8; 16];
+        b[14..16].copy_from_slice(
+            &((INVALID_LOG_PAGE.0 as u16) << 9 | (INVALID_LOG_PAGE.1 as u16) << 1).to_le_bytes(),
+        );
+        let refused = Ok(Completion::parse(&b));
+        let ana = super::super::revisions::LOG_ANA;
+        assert!(rev_case(
+            &mut cases,
+            "nvme-ana",
+            "x",
+            &ana,
+            0x0001_0300,
+            &[SUCCESS],
+            "success",
+            &refused
+        ));
+        assert_eq!(
+            cases[0].actual,
+            "not in NVMe 1.3, which the controller implements"
+        );
+        assert!(!rev_case(
+            &mut cases,
+            "nvme-ana",
+            "x",
+            &ana,
+            0x0001_0400,
+            &[SUCCESS],
+            "success",
+            &refused
+        ));
+        assert_eq!(cases[1].name, "x NVMe 1.4 ANA log page");
     }
 }
