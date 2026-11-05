@@ -32,9 +32,10 @@ pub fn case(
     }
 }
 
-/// The sections in the order they run, with the specification each one tests against.
-const FEATURES: [(&str, &str); 17] = [
-    ("login", "iSCSI, RFC 7143: login phase"),
+/// The sections in the order they run, with the specification each one tests against and, where
+/// Windows depends on it, the Windows component that sends those commands.
+const FEATURES: [(&str, &str); 24] = [
+    ("login", "iSCSI, RFC 7143: login phase and key negotiation"),
     (
         "identity",
         "iSCSI, SPC-4: INQUIRY standard data and VPD 0x80, 0x83",
@@ -44,17 +45,39 @@ const FEATURES: [(&str, &str); 17] = [
         "iSCSI, SPC-4: identity, capacity and target port groups",
     ),
     ("chap", "iSCSI, RFC 7143: CHAP authentication"),
-    ("session", "iSCSI, RFC 7143: session and command numbering"),
+    (
+        "session",
+        "iSCSI, RFC 7143: sessions, NOP-Out and reinstatement",
+    ),
     (
         "spc",
-        "iSCSI, SPC-4: remaining mandatory commands and invalid opcodes",
+        "iSCSI, SPC-4: mandatory commands and invalid opcodes",
     ),
-    ("unmap", "iSCSI, SBC-3: UNMAP"),
+    (
+        "disk",
+        "iSCSI, SPC-4/SBC-3: what Windows disk.sys asks at discovery",
+    ),
+    (
+        "io",
+        "iSCSI, SBC-3: reads, writes, FUA, VERIFY, cache flush (NTFS)",
+    ),
+    (
+        "unmap",
+        "iSCSI, SBC-3: thin provisioning, UNMAP (Windows TRIM)",
+    ),
     ("ats", "iSCSI, SBC-3: COMPARE AND WRITE"),
-    ("pr", "iSCSI, SPC-4: PERSISTENT RESERVE IN and OUT"),
+    ("odx", "iSCSI, SBC-3: ROD token copy (Windows ODX)"),
+    (
+        "pr",
+        "iSCSI, SPC-4: PERSISTENT RESERVE (Failover Clustering)",
+    ),
+    (
+        "tmf",
+        "iSCSI, RFC 7143/SAM-5: task management (MPIO recovery)",
+    ),
     (
         "mpio",
-        "iSCSI, SPC-4: REPORT and SET TARGET PORT GROUPS (ALUA)",
+        "iSCSI, SPC-4: ALUA target port groups (Windows MSDSM)",
     ),
     ("nvme-disc", "NVMe/TCP, NVMe-oF: discovery log page"),
     (
@@ -62,16 +85,28 @@ const FEATURES: [(&str, &str); 17] = [
         "NVMe/TCP, NVMe-oF: Fabrics Connect and controller IDs",
     ),
     ("nvme-prop", "NVMe-oF: CAP, VS, CC and CSTS properties"),
-    ("nvme-ident", "NVMe base: Identify Controller and Namespace"),
+    (
+        "nvme-ident",
+        "NVMe base: Identify and namespace IDs on every path",
+    ),
     (
         "nvme-admin",
-        "NVMe base: Keep Alive and invalid admin opcodes",
+        "NVMe base: log pages, features, Abort, Keep Alive",
     ),
     (
         "nvme-io",
-        "NVMe NVM command set: Read, Flush and their errors",
+        "NVMe NVM command set: Read, Write, FUA, Flush, DSM",
     ),
+    (
+        "nvme-ana",
+        "NVMe base: asymmetric namespace access (multipath)",
+    ),
+    ("nvme-resv", "NVMe base: reservations (Failover Clustering)"),
     ("nvme-sess", "NVMe-oF: repeated associations"),
+    (
+        "windows",
+        "What Windows MPIO, NTFS and clustering need of a disk",
+    ),
 ];
 
 /// Runs the iSCSI and NVMe/TCP cases, prints each case and the score, and fails when any case fails.
