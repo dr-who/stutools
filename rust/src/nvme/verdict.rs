@@ -5,7 +5,7 @@
 
 use super::revisions::Rev;
 use super::sqe::Completion;
-use crate::compliance::{case, Case};
+use crate::compliance::{case, should, Case};
 use crate::Result;
 
 /// Status codes as (status code type, status code). SCT 0 is the generic command status (Base 2.1
@@ -22,17 +22,10 @@ pub const INVALID_LOG_PAGE: (u8, u8) = (1, 0x09);
 /// SCT 2, media and data integrity errors: Compare Failure (NVM 1.1 Figure 19).
 pub const COMPARE_FAILURE: (u8, u8) = (2, 0x85);
 
-/// A case that passes when a command completed with one of `want`, each a (status code type, status
-/// code) pair; (0, 0) is success. Returns whether it passed.
-pub fn status_case(
-    cases: &mut Vec<Case>,
-    section: &'static str,
-    name: String,
-    want: &[(u8, u8)],
-    expected: &str,
-    done: &Result<Completion>,
-) -> bool {
-    let (actual, passed) = match done {
+/// What a completion was, in words, and whether it is one of `want`, each a (status code type,
+/// status code) pair; (0, 0) is success.
+fn judge(want: &[(u8, u8)], done: &Result<Completion>) -> (String, bool) {
+    match done {
         Ok(c) if c.ok() => ("success".to_string(), want.contains(&SUCCESS)),
         Ok(c) => {
             let got = c.code();
@@ -42,8 +35,35 @@ pub fn status_case(
             )
         }
         Err(e) => (e.clone(), false),
-    };
+    }
+}
+
+/// A "shall" case that passes when a command completed with one of `want`. Returns whether it
+/// passed.
+pub fn status_case(
+    cases: &mut Vec<Case>,
+    section: &'static str,
+    name: String,
+    want: &[(u8, u8)],
+    expected: &str,
+    done: &Result<Completion>,
+) -> bool {
+    let (actual, passed) = judge(want, done);
     cases.push(case(section, name, expected.into(), actual, passed));
+    passed
+}
+
+/// `status_case` for a clause that says "should": a miss is a warning.
+pub fn status_should(
+    cases: &mut Vec<Case>,
+    section: &'static str,
+    name: String,
+    want: &[(u8, u8)],
+    expected: &str,
+    done: &Result<Completion>,
+) -> bool {
+    let (actual, passed) = judge(want, done);
+    cases.push(should(section, name, expected.into(), actual, passed));
     passed
 }
 

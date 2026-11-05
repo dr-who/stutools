@@ -9,7 +9,7 @@ use super::link::Data;
 use super::nvm;
 use super::reservation::{acquire, parse_report, register, release, report, two_keys, Report};
 use super::sqe::Completion;
-use super::verdict::{status_case, RESERVATION_CONFLICT, SUCCESS};
+use super::verdict::{status_case, status_should, RESERVATION_CONFLICT, SUCCESS};
 use crate::compliance::{case, Case};
 use crate::Result;
 
@@ -60,6 +60,25 @@ impl Hosts<'_> {
         );
         self.all &= passed;
         passed
+    }
+
+    /// `check` for a clause that says "should": a miss is a warning, and does not count against
+    /// the clustering verdict.
+    pub fn check_should(
+        &mut self,
+        name: &str,
+        want: &[(u8, u8)],
+        expected: &str,
+        done: &Result<Completion>,
+    ) -> bool {
+        status_should(
+            self.cases,
+            "nvme-resv",
+            format!("{} {name}", self.label),
+            want,
+            expected,
+            done,
+        )
     }
 
     pub fn fact(&mut self, name: &str, expected: String, actual: String, passed: bool) {

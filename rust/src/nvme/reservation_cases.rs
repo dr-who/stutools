@@ -197,7 +197,12 @@ pub fn run(t: &Target, name: &str, facts: &Facts, cases: &mut Vec<Case>) -> Verd
         cmd.set_nsid(nsid);
         cmd.set_u32(40, fid as u32);
         let done = r.hosts[A].admin.submit(cmd, Data::None);
-        r.check(&feature.name(), &[SUCCESS], "success", &done);
+        r.check(
+            &format!("Get Features {}", feature.item),
+            &[SUCCESS],
+            "success",
+            &done,
+        );
     }
 
     r.expect_report(
@@ -307,7 +312,7 @@ pub fn run(t: &Target, name: &str, facts: &Facts, cases: &mut Vec<Case>) -> Verd
         // words it as a should).
         let wrong = rtype % 6 + 1;
         let done = r.release(A, RELEASE, wrong, KEY_A);
-        r.check(
+        r.check_should(
             &format!("{type_name}: A Release naming type {wrong}"),
             &[INVALID_FIELD],
             "Invalid Field in Command",
