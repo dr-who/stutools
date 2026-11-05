@@ -7,6 +7,18 @@ pub const OP_READ: u8 = 0x02;
 pub const OP_IDENTIFY: u8 = 0x06;
 pub const OP_GET_LOG_PAGE: u8 = 0x02;
 pub const OP_KEEP_ALIVE: u8 = 0x18;
+pub const OP_ABORT: u8 = 0x08;
+pub const OP_SET_FEATURES: u8 = 0x09;
+pub const OP_GET_FEATURES: u8 = 0x0a;
+pub const OP_ASYNC_EVENT: u8 = 0x0c;
+/// NVM command set I/O opcodes beyond Read, Write and Flush.
+pub const OP_COMPARE: u8 = 0x05;
+pub const OP_WRITE_ZEROES: u8 = 0x08;
+pub const OP_DATASET_MANAGEMENT: u8 = 0x09;
+pub const OP_RESV_REGISTER: u8 = 0x0d;
+pub const OP_RESV_REPORT: u8 = 0x0e;
+pub const OP_RESV_ACQUIRE: u8 = 0x11;
+pub const OP_RESV_RELEASE: u8 = 0x15;
 /// Fabrics commands share one opcode; the fabric command type sits in byte 4.
 pub const OP_FABRICS: u8 = 0x7f;
 
