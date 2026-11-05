@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           stutools
-Version:        2.1.0
+Version:        2.2.0
 Release:        1%{?dist}
 Summary:        Stu's I/O tester, Rust implementation
 License:        Apache-2.0 AND MIT
@@ -60,6 +60,9 @@ install -m644 packaging/spit.1 %{buildroot}%{_mandir}/man1/spit.1
 %{_mandir}/man1/spit.1*
 
 %changelog
+* Fri Nov 06 2026 Stuart Inglis <stuart.inglis@gmail.com> - 2.2.0-1
+- --compliance covers the commands Windows MPIO, NTFS and Failover
+  Clustering send, on iSCSI and NVMe/TCP, reservations included.
 * Thu Nov 05 2026 Stuart Inglis <stuart.inglis@gmail.com> - 2.1.0-1
 - iSCSI SendTargets and NVMe/TCP discovery, with each LUN's details.
 - --compliance tests every iSCSI and NVMe/TCP target against the standards.

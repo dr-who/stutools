@@ -1,4 +1,4 @@
-.TH SPIT 1 "November 2026" "stutools 2.1.0" "User Commands"
+.TH SPIT 1 "November 2026" "stutools 2.2.0" "User Commands"
 .SH NAME
 spit \- Stu's powerful I/O tester, with fixed memory pools
 .SH SYNOPSIS
@@ -96,9 +96,20 @@ Test every target the \-\-iscsi and \-\-nvme hosts report, or each HOST/IQN
 and HOST/NQN given, against RFC 7143, SPC\-4 and SBC\-3 and the NVMe base and
 NVMe\-oF specifications, then print each case and a score per section. It
 needs no other options; a CHAP target is tested past login only with
-\-\-chap\-user and \-\-chap\-secret\-file. The SCSI operations cases write
-the last block of a LUN and write the original back; the NVMe cases only
-read. \-\-compliance\-report OUT also writes the table as Markdown.
+\-\-chap\-user and \-\-chap\-secret\-file. The cases cover every command
+Windows sends to a disk through MPIO, NTFS and Failover Clustering:
+discovery (INQUIRY and its VPD pages, READ CAPACITY, MODE SENSE), reads and
+writes with FUA, cache flushes, VERIFY, UNMAP (TRIM), ODX token copies,
+persistent reservations of every type, task management, and ALUA, and on
+NVMe the same through Identify, log pages, features, Dataset Management,
+ANA and reservations. A
+.B windows
+section says what a Windows host would find missing.
+.IP
+Use test LUNs. Cases that change data write a few blocks near the end of a
+LUN or namespace and write the original data back; others reset the LUN,
+take and clear reservations, and move an ALUA group to another state and
+back. \-\-compliance\-report OUT also writes the table as Markdown.
 .TP
 .BI \-\-chap\-user " NAME" " \-\-chap\-secret\-file" " FILE"
 Log in with CHAP. The secret is read from FILE, never from the command line.

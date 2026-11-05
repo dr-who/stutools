@@ -1,3 +1,10 @@
+stutools (2.2.0-1) unstable; urgency=medium
+
+  * --compliance covers the commands Windows MPIO, NTFS and Failover
+    Clustering send, on iSCSI and NVMe/TCP, reservations included.
+
+ -- Stuart Inglis <stuart.inglis@gmail.com>  Fri, 06 Nov 2026 12:00:00 +1300
+
 stutools (2.1.0-1) unstable; urgency=medium
 
   * iSCSI SendTargets and NVMe/TCP discovery, with each LUN's details.

@@ -98,7 +98,11 @@ NETWORK BLOCK DEVICES (iSCSI and NVMe/TCP, spoken by spit itself)
                   how a workload over several paths picks one (default rr)
   --compliance    test every target the --iscsi and --nvme hosts report (or
                   each HOST/IQN, HOST/NQN given) against RFC 7143, SPC-4,
-                  SBC-3 and the NVMe and NVMe-oF specifications, and score it
+                  SBC-3 and the NVMe and NVMe-oF specifications, and score it;
+                  covers the commands Windows MPIO, NTFS and Failover
+                  Clustering send, reservations included. Use test LUNs: it
+                  writes near the end of each LUN (and puts the data back),
+                  resets the LUN, takes reservations and moves ALUA states
   --compliance-report OUT
                   also write the score table and failed cases as Markdown
   -d N            print the first N commands sent to the paths
