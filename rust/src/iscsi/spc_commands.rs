@@ -2,8 +2,9 @@
 //! section does not already check: TEST UNIT READY (6.46), REPORT LUNS (6.30), and the refusal of a
 //! command no standard assigns (SPC-6 4.2.5: ILLEGAL REQUEST).
 
-use super::cases::{expect, Seen, Want};
+use super::cases::{expect, Want};
 use super::scsi;
+use super::seen::Seen;
 use super::session::Session;
 use crate::compliance::Case;
 

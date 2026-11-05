@@ -6,8 +6,9 @@
 //! with what is missing, and an unclaimed set is reported (informational) with what it would miss. SBC-3
 //! defines no feature sets, so under `--sbc 3` the SBC sets are informational.
 
-use super::cases::{record, record_info, Seen};
+use super::cases::{record, record_info};
 use super::disk::Disk;
+use super::seen::Seen;
 use crate::compliance::Case;
 
 const SECTION: &str = "features";
@@ -74,7 +75,7 @@ fn discovery(disk: &Disk, seen: &Seen) -> Vec<Requirement> {
         let serial = disk.page(0x80).and_then(|p| p.get(4..)).unwrap_or(&[]);
         let mut want = product.to_vec();
         want.extend_from_slice(serial);
-        super::disk::parse_designations(d)
+        super::vpd_pages::parse_designations(d)
             .0
             .iter()
             .filter(|x| x.kind == 1)
@@ -183,7 +184,7 @@ fn base_pages(disk: &Disk, seen: &Seen) -> Vec<Requirement> {
         (
             "Block Device Characteristics rotation rate non-zero",
             disk.page(0xb1)
-                .is_some_and(|d| super::cases::be16(d, 4) != 0),
+                .is_some_and(|d| super::scsi_fields::be16(d, 4) != 0),
         ),
         (
             "VPD 00h, 83h, 86h, 87h, 8Ah, 92h",

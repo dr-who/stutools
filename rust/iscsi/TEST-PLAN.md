@@ -1,6 +1,8 @@
 # iSCSI initiator in spit: test plan
 
-Status: planning. Only the login PDU codec exists (`src/iscsi/pdu.rs`). Nothing is on the network yet.
+Status: the plan this work started from, kept for its lab notes. What spit tests now, and the
+standards each case cites, is in `STANDARDS.md`; the cases are in `src/iscsi/`. The SBC command list
+below predates the standards being on hand and is superseded by the tables in `STANDARDS.md`.
 
 ## Sources used
 

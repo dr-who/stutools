@@ -6,12 +6,12 @@
 //! the second-to-last one, and its original data is written back.
 
 use super::block_io::cdb16;
-use super::cases::{
-    be32, be64, expect, expect_should, read_block, record, write_block, Seen, Want, REFUSED,
-    REFUSED_SA,
-};
+use super::cases::{expect, expect_should, record, Want, REFUSED, REFUSED_SA};
 use super::disk::Disk;
+use super::lun_access::{read_block, write_block};
 use super::ops;
+use super::scsi_fields::{be32, be64};
+use super::seen::Seen;
 use super::session::Session;
 use crate::compliance::Case;
 

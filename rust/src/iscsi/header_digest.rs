@@ -6,10 +6,11 @@
 //! connection instead fails it, because it checked the digest over the BHS alone or cannot take the
 //! AHS. When the target does not negotiate CRC32C header digests, the case only reports that.
 
-use super::block_commands::cdb32;
-use super::cases::{describe, open, record, record_info, unit_attentions, Creds};
-use super::report::Path;
-use super::session;
+use super::cases::{describe, record, record_info};
+use super::command_probes::cdb32;
+use super::login;
+use super::lun_access::{open, unit_attentions, Creds};
+use super::path::Path;
 use crate::compliance::Case;
 
 const SECTION: &str = "session";
@@ -26,7 +27,7 @@ pub(super) fn run(
     cases: &mut Vec<Case>,
 ) {
     let label = format!("{name} header digest over the Extended CDB AHS (RFC 7143 11.2.3)");
-    let mut s = match open(path, initiator, creds, session::random_isid()) {
+    let mut s = match open(path, initiator, creds, login::random_isid()) {
         Ok(s) => s,
         Err(err) => {
             record(cases, SECTION, label, "login ok", err, false);

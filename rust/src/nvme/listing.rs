@@ -71,7 +71,7 @@ pub fn discover(hosts: &[String]) -> Result<()> {
                         first.get_or_insert_with(|| format!("{address}/{}/{nsid}", d.subnqn));
                         rows.push(row(
                             &nsid.to_string(),
-                            crate::iscsi::report::human_bytes(ns.blocks * ns.block_len as u64),
+                            crate::columns::human_bytes(ns.blocks * ns.block_len as u64),
                             ns.block_len.to_string(),
                             Some(&info),
                             "",
@@ -82,7 +82,7 @@ pub fn discover(hosts: &[String]) -> Result<()> {
             }
         }
     }
-    crate::iscsi::report::print_columns(&rows);
+    crate::columns::print_columns(&rows);
     if let Some(path) = first {
         println!("# run a workload: spit --nvme {path} -c rs0k4q32j4 -t 5");
     }

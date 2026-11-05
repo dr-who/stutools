@@ -6,11 +6,14 @@
 //! only when the target negotiated iSCSIProtocolLevel 1 or more. TARGET RESET is obsolete (SAM-6) and is
 //! never sent.
 
-use super::cases::{expect, open, record, show_attentions, unit_attentions, Creds, Seen, Want};
+use super::cases::{expect, record, Want};
+use super::login;
+use super::lun_access::{open, show_attentions, unit_attentions, Creds};
 use super::ops;
+use super::path::Path;
 use super::pdu;
-use super::report::Path;
-use super::session::{self, Session, TaskAnswer};
+use super::seen::Seen;
+use super::session::{Session, TaskAnswer};
 use crate::compliance::Case;
 use crate::Result;
 
@@ -48,7 +51,7 @@ pub(super) fn run(
     seen: &mut Seen,
 ) {
     let label = |what: &str| format!("{name} {what}");
-    let mut s = match open(path, initiator, creds, session::random_isid()) {
+    let mut s = match open(path, initiator, creds, login::random_isid()) {
         Ok(s) => s,
         Err(err) => {
             record(cases, SECTION, label("login"), "login ok", err, false);
@@ -98,7 +101,7 @@ pub(super) fn run(
     let _ = s.logout();
     // RFC 7143 11.5.1: function codes past those defined are not task management functions the target
     // supports; it answers 5, 255, or rejects the PDU. A throwaway session, in case it drops it.
-    if let Ok(mut t) = open(path, initiator, creds, session::random_isid()) {
+    if let Ok(mut t) = open(path, initiator, creds, login::random_isid()) {
         let odd = t.task_management(14, 0, 0);
         let ok = answer_is(&odd, &[5, 255]) || matches!(odd, Ok(TaskAnswer::Rejected(_)));
         record(
@@ -250,7 +253,7 @@ fn rfc7144(
     ];
     // Each on a session of its own: a target that does not know a function may drop the connection.
     for (what, function, allowed) in checks {
-        let r = open(path, initiator, creds, session::random_isid()).and_then(|mut t| {
+        let r = open(path, initiator, creds, login::random_isid()).and_then(|mut t| {
             let cmd_sn = t.cmd_sn();
             let r = t.task_management(function, 0x7fff_fff1, cmd_sn);
             if r.is_ok() {
@@ -272,7 +275,7 @@ fn rfc7144(
             answer_is(&r, &allowed),
         );
     }
-    if let Ok(mut t) = open(path, initiator, creds, session::random_isid()) {
+    if let Ok(mut t) = open(path, initiator, creds, login::random_isid()) {
         let r = t.task_management(pdu::TMF_I_T_NEXUS_RESET, 0, 0);
         // RFC 7144 6.4.2: the response may be lost as the target drops the connections.
         let ok = answer_is(&r, &with(&[0])) || r.is_err();

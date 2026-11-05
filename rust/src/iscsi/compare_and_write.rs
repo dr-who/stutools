@@ -4,9 +4,11 @@
 //! COMPARE AND WRITE LENGTH 0 the command is not supported and must be refused (SBC-5 6.6.4). The
 //! second-to-last block is used and its original data written back.
 
-use super::cases::{expect, read_block, record, write_block, Seen, Want, REFUSED};
+use super::cases::{expect, record, Want, REFUSED};
 use super::disk::Disk;
+use super::lun_access::{read_block, write_block};
 use super::ops;
+use super::seen::Seen;
 use super::session::Session;
 use crate::compliance::Case;
 

@@ -1,4 +1,4 @@
-use crate::iscsi::{connection::IscsiFabric, report as iscsi_report};
+use crate::iscsi::{connection::IscsiFabric, credentials, path as iscsi_path};
 use crate::nvme::{controller::random_hostid, session::NvmeFabric};
 use crate::paths::{open_paths, PathSpec, Policy};
 use crate::{
@@ -344,7 +344,7 @@ pub fn run(c: Config) -> Result<Summary> {
     let mut paths = c
         .iscsi
         .iter()
-        .map(|p| iscsi_report::parse_path(p).map(PathSpec::Iscsi))
+        .map(|p| iscsi_path::parse_path(p).map(PathSpec::Iscsi))
         .collect::<Result<Vec<_>>>()?;
     for p in &c.nvmeof {
         paths.push(PathSpec::Nvmeof(crate::nvme::parse_path(p)?));
@@ -444,7 +444,7 @@ fn check_paths(c: &Config, target: Target, records: &[Request]) -> Result<Checke
         return Err("preconditioning is not supported over iSCSI or NVMe-oF yet".into());
     }
     let initiator = c.iscsi_initiator.as_deref().unwrap_or("");
-    let chap = iscsi_report::chap_from_config(c)?;
+    let chap = credentials::chap_from_config(c)?;
     let chap_ref = chap.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
     let hostid = random_hostid()?;
     let probe = open_paths(
@@ -658,7 +658,7 @@ fn build_plans(
     let max_loaded = records.iter().map(|r| r.len).max().unwrap_or(0);
     let mut plans = Vec::new();
     let mut labels = Vec::new();
-    let iscsi_chap = iscsi_report::chap_from_config(c)?;
+    let iscsi_chap = credentials::chap_from_config(c)?;
     for Checked {
         target,
         lo,

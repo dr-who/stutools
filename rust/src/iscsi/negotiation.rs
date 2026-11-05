@@ -6,9 +6,10 @@
 //! unanswered. An unknown key is answered NotUnderstood (RFC 7143 6.2.1). Both sessions log out at once
 //! and run no commands.
 
-use super::cases::{record, Creds};
-use super::report::Path;
-use super::session::{self, Negotiated};
+use super::cases::record;
+use super::login::{self, Negotiated};
+use super::lun_access::Creds;
+use super::path::Path;
 use crate::compliance::Case;
 
 const SECTION: &str = "login";
@@ -121,21 +122,21 @@ fn login(
     offer: &[(&str, &str)],
     cases: &mut Vec<Case>,
 ) -> Option<Vec<(String, String)>> {
-    let n: Negotiated =
-        match session::negotiate(&path.portal, &path.target, initiator, creds, offer) {
-            Ok(n) => n,
-            Err(err) => {
-                record(
-                    cases,
-                    SECTION,
-                    format!("{name} login offering {what}"),
-                    "login ok",
-                    err,
-                    false,
-                );
-                return None;
-            }
-        };
+    let n: Negotiated = match login::negotiate(&path.portal, &path.target, initiator, creds, offer)
+    {
+        Ok(n) => n,
+        Err(err) => {
+            record(
+                cases,
+                SECTION,
+                format!("{name} login offering {what}"),
+                "login ok",
+                err,
+                false,
+            );
+            return None;
+        }
+    };
     record(
         cases,
         SECTION,

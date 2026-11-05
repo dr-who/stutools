@@ -4,7 +4,7 @@
 
 use super::{Done, Fabric, Geometry, Io, Pool, Transport};
 use crate::iscsi::{
-    connection::IscsiFabric, report::Path as IscsiPath, session::Session as IscsiSession,
+    connection::IscsiFabric, path::Path as IscsiPath, session::Session as IscsiSession,
 };
 use crate::nvme::session::{NvmeFabric, NvmePath, NvmeSession};
 use crate::paths::Policy;

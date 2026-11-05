@@ -4,10 +4,11 @@
 //! last one by token and read back; both blocks get their original data back. When it does not, POPULATE
 //! TOKEN must be refused.
 
-use super::cases::{
-    be16, be32, expect, pattern, read_block, record, write_block, Seen, Want, REFUSED_SA,
-};
+use super::cases::{expect, record, Want, REFUSED_SA};
 use super::disk::Disk;
+use super::lun_access::{pattern, read_block, write_block};
+use super::scsi_fields::{be16, be32};
+use super::seen::Seen;
 use super::session::{Outcome, Session};
 use crate::compliance::Case;
 use crate::Result;

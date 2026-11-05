@@ -1,7 +1,8 @@
 //! iSCSI as a path transport for the shared multi-path pool: `IscsiFabric` logs in to a portal and reads
 //! the LUN's geometry, and a session sends each request as one READ(10) or WRITE(10).
 
-use super::report::{login_with_fallback, Path};
+use super::credentials::login_with_fallback;
+use super::path::Path;
 use super::scsi;
 use super::session::Session;
 use crate::paths::lanes;

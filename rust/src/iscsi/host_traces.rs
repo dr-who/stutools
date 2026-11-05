@@ -5,8 +5,10 @@
 //! answers the `disk` section read. A VPD page the LUN does not list, and the Informational Exceptions
 //! Control page, may be refused with INVALID FIELD IN CDB.
 
-use super::cases::{be16, be32, describe, record, Want};
-use super::disk::{mode_page_of, Disk};
+use super::cases::{describe, record, Want};
+use super::disk::Disk;
+use super::mode_page_cases::mode_page_of;
+use super::scsi_fields::{be16, be32};
 use super::session::{Outcome, Session};
 use crate::compliance::Case;
 

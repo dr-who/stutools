@@ -5,12 +5,15 @@
 //! to fails one case in each section. A LUN reached through a standby port runs only the standby cases
 //! of `mpio`. Every data-changing case writes the original data back.
 
-use super::cases::{no_failures, open, record, short_name, unit_attentions, Creds, Seen};
-use super::report::Path;
-use super::session;
+use super::cases::{no_failures, record};
+use super::login;
+use super::lun_access::{open, short_name, unit_attentions, Creds};
+use super::path::Path;
+use super::seen::Seen;
 use super::{
     alua, block_commands, block_io, compare_and_write, disk, feature_sets, header_digest,
-    host_traces, odx, provisioning, reservations, spc_commands, task_management, windows,
+    host_traces, odx, pr_ports, provisioning, reservations, spc_commands, standby_cases,
+    task_management, windows,
 };
 use crate::compliance::Case;
 
@@ -39,9 +42,9 @@ pub(super) fn run(
         // Before this target's session opens, so the unit attentions a CLEAR raises are not its first
         // answers.
         if !t.standby {
-            reservations::clean_slate(t.path, initiator, t.creds, &name, cases);
+            pr_ports::clean_slate(t.path, initiator, t.creds, &name, cases);
         }
-        let mut s = match open(t.path, initiator, t.creds, session::random_isid()) {
+        let mut s = match open(t.path, initiator, t.creds, login::random_isid()) {
             Ok(s) => s,
             Err(err) => {
                 for section in SECTIONS {
@@ -59,7 +62,7 @@ pub(super) fn run(
         };
         let _ = unit_attentions(&mut s);
         if t.standby {
-            alua::standby(&mut s, &name, cases);
+            standby_cases::run(&mut s, &name, cases);
             let _ = s.logout();
             continue;
         }
@@ -101,7 +104,7 @@ pub(super) fn run(
             &mut seen,
         );
         header_digest::run(t.path, initiator, t.creds, &name, disk.block_len, cases);
-        match open(t.path, initiator, t.creds, session::random_isid()) {
+        match open(t.path, initiator, t.creds, login::random_isid()) {
             Ok(mut s) => {
                 let _ = unit_attentions(&mut s);
                 block_commands::run(

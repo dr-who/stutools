@@ -1,92 +1,11 @@
 //! `--iscsi`: logs in to each target path, reads what identifies the LUN and its ALUA groups, and
 //! prints one column per target with every difference between them and a same-LUN verdict.
 
-use super::scsi::{self, Designator, Inquiry, PortGroup};
-use super::session::{login, Negotiated, Session};
+use super::credentials::read_secret;
+use super::identity::{collect, Collected};
+use super::path::{parse_path, Path};
+use super::scsi;
 use crate::{cli::Config, Result};
-use std::path::Path as FsPath;
-
-/// One target path: the portal to connect to and the target name.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Path {
-    pub portal: String,
-    pub target: String,
-}
-
-/// Parses `HOST[:PORT]/IQN`. The IQN never contains a slash, so the first slash separates the two.
-pub fn parse_path(text: &str) -> Result<Path> {
-    let (portal, target) = text
-        .split_once('/')
-        .ok_or_else(|| format!("--iscsi takes HOST[:PORT]/IQN, not {text}"))?;
-    if portal.is_empty() || !target.starts_with("iqn.") {
-        return Err(format!("--iscsi takes HOST[:PORT]/IQN, not {text}"));
-    }
-    Ok(Path {
-        portal: portal.to_string(),
-        target: target.to_string(),
-    })
-}
-
-/// Everything read from one path after a successful login.
-#[derive(Debug, Clone)]
-pub struct Collected {
-    pub login: Negotiated,
-    pub inquiry: Inquiry,
-    pub serial: String,
-    pub designators: Vec<Designator>,
-    pub last_lba: u64,
-    pub block_len: u32,
-    pub groups: Vec<PortGroup>,
-    /// The relative target port that answered this path, from its identifier in VPD 0x83.
-    pub own_port: Option<u16>,
-}
-
-/// The CHAP credentials from the command line: both the user and the secret file, or neither.
-pub fn chap_from_config(config: &Config) -> Result<Option<(String, Vec<u8>)>> {
-    match (&config.chap_user, &config.chap_secret_file) {
-        (Some(user), Some(file)) => Ok(Some((user.clone(), read_secret(file)?))),
-        (None, None) => Ok(None),
-        _ => Err("CHAP needs both --chap-user and --chap-secret-file".into()),
-    }
-}
-
-/// The CHAP secret, read from a file that only its owner may read.
-pub fn read_secret(path: &FsPath) -> Result<Vec<u8>> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(path)
-            .map_err(|e| format!("{}: {e}", path.display()))?
-            .permissions()
-            .mode();
-        if mode & 0o077 != 0 {
-            return Err(format!("{} must be mode 0600 or stricter", path.display()));
-        }
-    }
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let secret = text.trim_end_matches(['\n', '\r']).as_bytes().to_vec();
-    if secret.is_empty() {
-        return Err(format!("{} is empty", path.display()));
-    }
-    Ok(secret)
-}
-
-/// Logs in without security first. Only a target that answers with an authentication failure gets the
-/// CHAP credentials, so a no-auth target never sees CHAP.
-pub fn login_with_fallback(
-    path: &Path,
-    initiator: &str,
-    chap: Option<(&str, &[u8])>,
-    digest: &str,
-) -> Result<Session> {
-    match login(&path.portal, &path.target, initiator, None, digest) {
-        Ok(session) => Ok(session),
-        Err(e) if chap.is_some() && e.contains("authentication failure") => {
-            login(&path.portal, &path.target, initiator, chap, digest)
-        }
-        Err(e) => Err(e),
-    }
-}
 
 /// Names of the identity rows (LUN identifiers, serial, vendor, product, revision, capacity) that
 /// differ between the successful paths. Empty means the paths are one LUN.
@@ -106,31 +25,6 @@ pub fn identity_differences(results: &[Result<Collected>]) -> Vec<String> {
         })
         .map(|r| r.label.to_string())
         .collect()
-}
-
-pub fn collect(path: &Path, initiator: &str, chap: Option<(&str, &[u8])>) -> Result<Collected> {
-    let mut session = login_with_fallback(path, initiator, chap, "CRC32C,None")?;
-    let negotiated = session.negotiated.clone();
-    let inquiry = scsi::inquiry(&mut session)?;
-    let serial = scsi::serial(&mut session)?;
-    let designators = scsi::designators(&mut session)?;
-    let (last_lba, block_len) = scsi::capacity(&mut session)?;
-    let groups = scsi::port_groups(&mut session)?;
-    session.logout()?;
-    let own_port = designators
-        .iter()
-        .find(|d| d.kind == 4 && d.association == 1)
-        .and_then(|d| u16::from_str_radix(&d.value, 16).ok());
-    Ok(Collected {
-        login: negotiated,
-        inquiry,
-        serial,
-        designators,
-        last_lba,
-        block_len,
-        groups,
-        own_port,
-    })
 }
 
 fn designator_kind(kind: u8) -> String {
@@ -291,143 +185,6 @@ fn fit(text: &str) -> String {
     }
 }
 
-/// Prints the table and the verdict. Returns an error when the paths are not one LUN.
-/// `--iscsi HOST` with no IQN: lists the targets the portal reports with SendTargets, then logs in to each
-/// at every address it gives and prints a row of what its LUN reports: size, block size, vendor,
-/// product, revision, serial, ALUA state, authentication and digest. A target that refuses the login
-/// says why. CHAP targets are logged in to with `--chap-user` and `--chap-secret-file` when given.
-pub fn discover(config: &Config) -> Result<()> {
-    let initiator = config.iscsi_initiator.as_deref().unwrap_or_default();
-    let secret = chap_from_config(config)?;
-    let chap = secret.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
-    let mut rows = vec![DISCOVERY_COLUMNS.map(String::from).to_vec()];
-    let mut first = None;
-    for host in &config.iscsi {
-        for target in super::session::discover_targets(host, initiator)? {
-            for address in &target.addresses {
-                let path = Path {
-                    portal: address.clone(),
-                    target: target.target.clone(),
-                };
-                let row = match collect(&path, initiator, chap) {
-                    Ok(c) => {
-                        first.get_or_insert_with(|| format!("{address}/{}", target.target));
-                        discovery_row(&path, &c)
-                    }
-                    Err(e) => {
-                        let mut row = vec![target.target.clone(), address.clone()];
-                        row.extend(
-                            std::iter::repeat("-".to_string()).take(DISCOVERY_COLUMNS.len() - 3),
-                        );
-                        row.push(refusal(&e));
-                        row
-                    }
-                };
-                rows.push(row);
-            }
-        }
-    }
-    print_columns(&rows);
-    if let Some(path) = first {
-        println!("# run a workload: spit --iscsi {path} -c rs0k4q32j4 -t 5");
-    }
-    Ok(())
-}
-
-const DISCOVERY_COLUMNS: [&str; 12] = [
-    "TARGET", "ADDRESS", "SIZE", "BLOCK", "VENDOR", "PRODUCT", "REV", "SERIAL", "ALUA", "AUTH",
-    "DIGEST", "NOTE",
-];
-
-/// One row of the discovery table for a target spit logged in to.
-fn discovery_row(path: &Path, c: &Collected) -> Vec<String> {
-    let alua = c
-        .own_port
-        .and_then(|port| c.groups.iter().find(|g| g.ports.contains(&port)))
-        .map(|g| format!("{} (group {})", scsi::state_name(g.state), g.id))
-        .unwrap_or_else(|| "-".into());
-    vec![
-        path.target.clone(),
-        path.portal.clone(),
-        human_bytes((c.last_lba + 1) * c.block_len as u64),
-        c.block_len.to_string(),
-        c.inquiry.vendor.clone(),
-        c.inquiry.product.clone(),
-        c.inquiry.revision.clone(),
-        c.serial.clone(),
-        alua,
-        if c.login.chap_algorithm.is_some() {
-            "CHAP"
-        } else {
-            "none"
-        }
-        .into(),
-        if c.login.header_digest {
-            "CRC32C"
-        } else {
-            "none"
-        }
-        .into(),
-        String::new(),
-    ]
-}
-
-/// Why a login was refused, in a few words, with what to do about it.
-fn refusal(error: &str) -> String {
-    if error.contains("authentication failure") {
-        "needs CHAP: --chap-user, --chap-secret-file".into()
-    } else if error.contains("authorization failure") {
-        "refused: initiator not in the target's ACL".into()
-    } else {
-        error
-            .trim_start_matches("*error* ")
-            .chars()
-            .take(60)
-            .collect()
-    }
-}
-
-/// `bytes` in the largest binary unit that keeps it at 1 or more, to one decimal place.
-pub fn human_bytes(bytes: u64) -> String {
-    const UNITS: [&str; 6] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
-    let mut value = bytes as f64;
-    let mut unit = 0;
-    while value >= 1024.0 && unit + 1 < UNITS.len() {
-        value /= 1024.0;
-        unit += 1;
-    }
-    if unit == 0 {
-        format!("{bytes} B")
-    } else {
-        format!("{value:.1} {}", UNITS[unit])
-    }
-}
-
-/// Prints rows as left-aligned columns two spaces apart; the last column is not padded.
-pub fn print_columns(rows: &[Vec<String>]) {
-    let columns = rows.iter().map(|r| r.len()).max().unwrap_or(0);
-    let widths: Vec<usize> = (0..columns)
-        .map(|i| {
-            rows.iter()
-                .filter_map(|r| r.get(i))
-                .map(|c| c.chars().count())
-                .max()
-                .unwrap_or(0)
-        })
-        .collect();
-    for row in rows {
-        let mut line = String::new();
-        for (i, cell) in row.iter().enumerate() {
-            if i + 1 == row.len() {
-                line.push_str(cell);
-            } else {
-                line.push_str(&format!("{cell:<width$}  ", width = widths[i]));
-            }
-        }
-        println!("{}", line.trim_end());
-    }
-}
-
 pub fn run(config: &Config) -> Result<()> {
     let initiator = config
         .iscsi_initiator
@@ -528,28 +285,4 @@ pub fn run(config: &Config) -> Result<()> {
     }
     println!("verdict: {} paths are the same LUN", paths.len());
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sizes_use_the_largest_unit() {
-        assert_eq!(human_bytes(512), "512 B");
-        assert_eq!(human_bytes(20 * 1024 * 1024 * 1024), "20.0 GiB");
-        assert_eq!(human_bytes(1536), "1.5 KiB");
-    }
-
-    #[test]
-    fn refusals_say_what_to_do() {
-        assert!(
-            refusal("login refused: status class 2 detail 1 (authentication failure)")
-                .contains("--chap-user")
-        );
-        assert!(
-            refusal("login refused: status class 2 detail 2 (authorization failure)")
-                .contains("ACL")
-        );
-    }
 }

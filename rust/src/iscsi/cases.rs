@@ -3,50 +3,9 @@
 //! reads and writes the data cases use, and draining unit attentions.
 
 use super::ops::{CHECK_CONDITION, RESERVATION_CONFLICT};
-use super::report::Path;
-use super::scsi;
-use super::session::{self, Outcome, Session};
+use super::session::Outcome;
 use crate::compliance::{case, Case};
 use crate::Result;
-
-/// Credentials for one target: the CHAP user and secret, when the target requires CHAP.
-pub(super) type Creds<'a> = Option<(&'a str, &'a [u8])>;
-
-const DIGEST: &str = "CRC32C,None";
-const CHAP_OFFER: &str = "5,6,7,8";
-
-/// Logs in to the target as the initiator port `isid` (one I_T nexus per ISID), offering CRC32C digests.
-pub(super) fn open(path: &Path, initiator: &str, creds: Creds, isid: [u8; 6]) -> Result<Session> {
-    open_with(path, initiator, creds, isid, DIGEST)
-}
-
-/// `open`, offering `digest` for HeaderDigest and DataDigest.
-pub(super) fn open_with(
-    path: &Path,
-    initiator: &str,
-    creds: Creds,
-    isid: [u8; 6],
-    digest: &str,
-) -> Result<Session> {
-    session::login_as(
-        &path.portal,
-        &path.target,
-        initiator,
-        isid,
-        creds,
-        digest,
-        CHAP_OFFER,
-    )
-}
-
-/// The short name of a target: the part after the last colon of its IQN.
-pub(super) fn short_name(path: &Path) -> String {
-    path.target
-        .rsplit(':')
-        .next()
-        .unwrap_or(&path.target)
-        .to_string()
-}
 
 /// The sense key, additional sense code and qualifier, from fixed (0x70, 0x71) or descriptor (0x72,
 /// 0x73) sense data.
@@ -208,178 +167,6 @@ pub(super) fn expect_should(
     (passed, outcome)
 }
 
-/// Text safe to print: non-printable bytes as \xNN (a NUL in a serial number would otherwise end up in
-/// the report).
-pub(super) fn printable(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .map(|&b| {
-            if (0x20..0x7f).contains(&b) {
-                (b as char).to_string()
-            } else {
-                format!("\\x{b:02x}")
-            }
-        })
-        .collect()
-}
-
-/// INQUIRY of one VPD page with `len` bytes of allocation.
-pub(super) fn vpd(s: &mut Session, page: u8, len: u16) -> Result<Outcome> {
-    let l = len.to_be_bytes();
-    s.command(&[0x12, 0x01, page, l[0], l[1], 0], len as u32, None)
-}
-
-/// The last LBA of the LUN and its block length. The data cases work on the last two blocks.
-pub(super) fn last_block(s: &mut Session) -> Result<(u32, usize)> {
-    let (last, block_len) = scsi::capacity(s)?;
-    let lba = u32::try_from(last).map_err(|_| "LUN is larger than 32-bit LBAs")?;
-    Ok((lba, block_len as usize))
-}
-
-/// READ(10) of one block, as an outcome.
-pub(super) fn read_cmd(s: &mut Session, lba: u32, len: usize) -> Result<Outcome> {
-    s.command(&scsi::block_cdb(0x28, lba, 1), len as u32, None)
-}
-
-/// WRITE(10) of one block, as an outcome.
-pub(super) fn write_cmd(s: &mut Session, lba: u32, data: &[u8]) -> Result<Outcome> {
-    s.command(&scsi::block_cdb(0x2a, lba, 1), 0, Some(data))
-}
-
-/// READ(10) of one block, which must succeed.
-pub(super) fn read_block(s: &mut Session, lba: u32, len: usize) -> Result<Vec<u8>> {
-    let o = read_cmd(s, lba, len)?;
-    scsi::check_status("READ(10)", o.status, &o.sense)?;
-    Ok(o.data)
-}
-
-/// WRITE(10) of one block, which must succeed.
-pub(super) fn write_block(s: &mut Session, lba: u32, data: &[u8]) -> Result<()> {
-    let o = write_cmd(s, lba, data)?;
-    scsi::check_status("WRITE(10)", o.status, &o.sense)
-}
-
-/// TEST UNIT READY, as an outcome.
-pub(super) fn test_unit_ready(s: &mut Session) -> Result<Outcome> {
-    s.command(&[0x00, 0, 0, 0, 0, 0], 0, None)
-}
-
-/// Drains the unit attentions pending for this nexus with TEST UNIT READY (SPC-4 allows it under every
-/// reservation type) and returns each one's additional sense code and qualifier, in order.
-pub(super) fn unit_attentions(s: &mut Session) -> Vec<(u8, u8)> {
-    let mut seen = Vec::new();
-    for _ in 0..8 {
-        match test_unit_ready(s) {
-            Ok(o) if o.status == CHECK_CONDITION && sense(&o.sense).0 == 0x6 => {
-                let (_, asc, ascq) = sense(&o.sense);
-                seen.push((asc, ascq));
-            }
-            _ => break,
-        }
-    }
-    seen
-}
-
-/// The unit attentions as text for the actual column.
-pub(super) fn show_attentions(seen: &[(u8, u8)]) -> String {
-    if seen.is_empty() {
-        return "none".into();
-    }
-    let all: Vec<String> = seen
-        .iter()
-        .map(|(a, q)| format!("{a:02x}/{q:02x}"))
-        .collect();
-    all.join(", ")
-}
-
-/// What the checks of one command found, so the `sbc` and `features` sections can use it without
-/// sending the command again.
-#[derive(Debug, Clone, PartialEq)]
-pub(super) struct Probe {
-    /// The section whose cases sent it.
-    pub section: &'static str,
-    /// The device server took it (it was not refused as an unsupported operation code or service
-    /// action).
-    pub supported: bool,
-    /// Every case that sent it passed.
-    pub passed: bool,
-    pub actual: String,
-}
-
-/// The commands sent so far, by their SBC-5 table 34 or SPC-5 name, and named facts (a bit or field
-/// a feature set requires) that the cases established.
-#[derive(Debug, Default)]
-pub(super) struct Seen {
-    probes: Vec<(&'static str, Probe)>,
-    facts: Vec<(&'static str, bool)>,
-}
-
-impl Seen {
-    /// Records one case's verdict for `command`. A later case for the same command can only make the
-    /// verdict worse; `supported` keeps the first answer that was not a refusal.
-    pub(super) fn note(
-        &mut self,
-        command: &'static str,
-        section: &'static str,
-        supported: bool,
-        passed: bool,
-        actual: impl Into<String>,
-    ) {
-        match self.probes.iter_mut().find(|(c, _)| *c == command) {
-            Some((_, p)) => {
-                p.supported |= supported;
-                p.passed &= passed;
-            }
-            None => self.probes.push((
-                command,
-                Probe {
-                    section,
-                    supported,
-                    passed,
-                    actual: actual.into(),
-                },
-            )),
-        }
-    }
-
-    /// Records the answer to `command` as `expect` judged it.
-    pub(super) fn answer(
-        &mut self,
-        command: &'static str,
-        section: &'static str,
-        (passed, outcome): &(bool, Option<Outcome>),
-    ) {
-        let (supported, actual) = match outcome {
-            Some(o) => {
-                let sa =
-                    super::command_set::row(command).is_some_and(|r| r.service_action.is_some());
-                (!refused(o, sa), describe(o))
-            }
-            None => (false, "no answer".to_string()),
-        };
-        self.note(command, section, supported, *passed, actual);
-    }
-
-    pub(super) fn probe(&self, command: &str) -> Option<&Probe> {
-        self.probes
-            .iter()
-            .find(|(c, _)| *c == command)
-            .map(|(_, p)| p)
-    }
-
-    /// Records a named fact. A fact recorded twice keeps the worse value.
-    pub(super) fn fact(&mut self, name: &'static str, value: bool) {
-        match self.facts.iter_mut().find(|(n, _)| *n == name) {
-            Some((_, v)) => *v &= value,
-            None => self.facts.push((name, value)),
-        }
-    }
-
-    pub(super) fn has(&self, name: &str) -> Option<bool> {
-        self.facts.iter().find(|(n, _)| *n == name).map(|(_, v)| *v)
-    }
-}
-
 /// Whether a command was refused as not implemented: ILLEGAL REQUEST with INVALID COMMAND OPERATION
 /// CODE (20h/00h, SPC-6 4.2.5.1), or, for a command with a service action, INVALID FIELD IN CDB
 /// (24h/00h), which a device server returns for a service action it does not implement (SPC-6 4.2.5.2).
@@ -397,32 +184,6 @@ pub(super) const REFUSED: [Want; 1] = [Want::Ascq(0x5, 0x20, 0x00)];
 
 /// The clean refusals of an unimplemented command with a service action (see `refused`).
 pub(super) const REFUSED_SA: [Want; 2] = [Want::Ascq(0x5, 0x20, 0x00), Want::Ascq(0x5, 0x24, 0x00)];
-
-pub(super) fn be16(d: &[u8], at: usize) -> u16 {
-    u16::from_be_bytes([
-        d.get(at).copied().unwrap_or(0),
-        d.get(at + 1).copied().unwrap_or(0),
-    ])
-}
-
-pub(super) fn be32(d: &[u8], at: usize) -> u32 {
-    scsi::be32(d, at).unwrap_or(0)
-}
-
-pub(super) fn be64(d: &[u8], at: usize) -> u64 {
-    d.get(at..at + 8)
-        .and_then(|b| b.try_into().ok())
-        .map(u64::from_be_bytes)
-        .unwrap_or(0)
-}
-
-/// A block of `len` bytes filled with `seed` mixed with each byte's offset, so two patterns never
-/// match by accident.
-pub(super) fn pattern(len: usize, seed: u8) -> Vec<u8> {
-    (0..len)
-        .map(|i| seed ^ (i as u8).wrapping_mul(31))
-        .collect()
-}
 
 #[cfg(test)]
 mod tests {
@@ -476,20 +237,6 @@ mod tests {
     }
 
     #[test]
-    fn seen_keeps_the_worst_verdict_and_the_first_support() {
-        let mut seen = Seen::default();
-        seen.note("READ (16)", "io", true, true, "GOOD");
-        seen.note("READ (16)", "io", false, false, "CHECK CONDITION");
-        let p = seen.probe("READ (16)").unwrap();
-        assert!(p.supported && !p.passed);
-        assert_eq!(p.actual, "GOOD");
-        seen.fact("FUA", true);
-        seen.fact("FUA", false);
-        assert_eq!(seen.has("FUA"), Some(false));
-        assert_eq!(seen.has("other"), None);
-    }
-
-    #[test]
     fn refusals_are_invalid_opcode_or_service_action() {
         assert!(refused(
             &outcome(
@@ -511,11 +258,5 @@ mod tests {
             true
         ));
         assert!(!refused(&outcome(0, &[]), false));
-    }
-
-    #[test]
-    fn patterns_differ_by_seed() {
-        assert_ne!(pattern(512, 1), pattern(512, 2));
-        assert_eq!(pattern(512, 7).len(), 512);
     }
 }

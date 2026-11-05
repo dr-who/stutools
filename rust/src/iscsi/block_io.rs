@@ -5,8 +5,10 @@
 //! sends them) and WRITE SAME (10) and (16). Data-changing cases use the LUN's second-to-last block and
 //! write its original data back.
 
-use super::cases::{expect, pattern, read_block, record, write_block, Seen, Want, REFUSED};
+use super::cases::{expect, record, Want, REFUSED};
 use super::disk::Disk;
+use super::lun_access::{pattern, read_block, write_block};
+use super::seen::Seen;
 use super::session::{Outcome, Session};
 use crate::compliance::Case;
 use crate::Result;

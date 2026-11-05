@@ -1,36 +1,15 @@
 //! A user-space iSCSI session: TCP connect, login, SCSI commands (reads with Data-In, writes with
 //! R2T and Data-Out), header and data digests when negotiated, NOP replies, and logout.
 
-use super::chap;
 use super::crc32c::crc32c;
-use super::pdu::{self, LoginRequest, LoginResponse, Stage, BHS_LEN, NO_TTT};
+use super::login::{Negotiated, LOGIN_ITT};
+use super::pdu::{self, BHS_LEN, NO_TTT};
 use crate::paths::{Done, SENSE_CAPACITY};
 use crate::Result;
 use std::{
     io::{Read, Write},
-    net::{TcpStream, ToSocketAddrs},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    net::TcpStream,
 };
-
-const TIMEOUT: Duration = Duration::from_secs(10);
-const LOGIN_ITT: u32 = 1;
-/// The reference login uses CmdSN 0; the first command after login carries the same value (RFC 11.12.8).
-const LOGIN_CMD_SN: u32 = 0;
-
-/// Values the target chose during login. Digests apply to every PDU after login.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Negotiated {
-    pub header_digest: bool,
-    pub data_digest: bool,
-    /// The most data the target accepts in one PDU (its MaxRecvDataSegmentLength).
-    pub max_recv: usize,
-    pub initial_r2t: bool,
-    pub tsih: u16,
-    /// The CHAP algorithm the target chose (CHAP_A), when the login used CHAP.
-    pub chap_algorithm: Option<u32>,
-    /// Every key the target answered in the operational stage, as it sent them.
-    pub keys: Vec<(String, String)>,
-}
 
 /// How a target answered a task management request: a response code (RFC 7143 11.6.1: 0 function
 /// complete, 1 task does not exist, 5 not supported, 255 rejected), or a Reject PDU with its reason.
@@ -96,338 +75,32 @@ pub struct Outcome {
     pub received: usize,
 }
 
-/// Adds the default iSCSI port when the portal has none: `HOST`, `IPv4` and `[IPv6]` get `:3260`, and
-/// a bare IPv6 address is bracketed first.
-fn with_port(portal: &str) -> String {
-    if portal.starts_with('[') {
-        return if portal.contains("]:") {
-            portal.to_string()
-        } else {
-            format!("{portal}:3260")
-        };
-    }
-    match portal.matches(':').count() {
-        0 => format!("{portal}:3260"),
-        1 => portal.to_string(),
-        _ => format!("[{portal}]:3260"),
-    }
-}
-
-/// A random ISID in the RFC 7143 "random" format (T = 10b).
-pub fn random_isid() -> [u8; 6] {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0);
-    let mut x = nanos ^ ((std::process::id() as u64) << 32) ^ 0x9E37_79B9_7F4A_7C15;
-    let mut out = [0u8; 6];
-    for byte in &mut out {
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        *byte = x as u8;
-    }
-    out[0] = 0x80 | (out[0] & 0x3f);
-    out
-}
-
-/// Turns a non-zero status class and detail into a readable login error.
-fn refused(status: (u8, u8)) -> String {
-    let meaning = match status {
-        (2, 1) => "authentication failure",
-        (2, 2) => "authorization failure",
-        (2, 3) => "target not found",
-        (2, 7) => "missing parameter",
-        (2, _) => "initiator error",
-        (1, _) => "redirect",
-        (3, _) => "target error",
-        _ => "unknown",
-    };
-    format!(
-        "login refused: status class {} detail {} ({meaning})",
-        status.0, status.1
-    )
-}
-
-fn value<'a>(text: &'a [(String, String)], key: &str) -> Option<&'a str> {
-    text.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
-}
-
-/// Reads one login-phase response: the header and its data segment. Digests are not in use yet.
-fn read_login_pdu(stream: &mut TcpStream) -> Result<Vec<u8>> {
-    let mut bhs = [0u8; BHS_LEN];
-    stream
-        .read_exact(&mut bhs)
-        .map_err(|e| format!("reading login response header: {e}"))?;
-    let mut pdu = bhs.to_vec();
-    pdu.resize(BHS_LEN + pdu::padded(pdu::data_len(&bhs)), 0);
-    stream
-        .read_exact(&mut pdu[BHS_LEN..])
-        .map_err(|e| format!("reading login response data: {e}"))?;
-    Ok(pdu)
-}
-
-/// Sends a login request and returns the response with its raw bytes.
-fn exchange(stream: &mut TcpStream, request: &LoginRequest) -> Result<(LoginResponse, Vec<u8>)> {
-    stream
-        .write_all(&request.encode()?)
-        .map_err(|e| format!("sending login request: {e}"))?;
-    let raw = read_login_pdu(stream)?;
-    let response = LoginResponse::decode(&raw)?;
-    if response.itt != request.itt {
-        return Err(format!(
-            "login response has task tag {} for request {}",
-            response.itt, request.itt
-        ));
-    }
-    if response.status != (0, 0) {
-        return Err(refused(response.status));
-    }
-    Ok((response, raw))
-}
-
-/// The initiator's login keys, offered in the operational stage.
-fn operational_keys(initiator: &str, target: &str, digest: &str) -> Vec<(String, String)> {
-    [
-        ("InitiatorName", initiator),
-        ("TargetName", target),
-        ("SessionType", "Normal"),
-        ("HeaderDigest", digest),
-        ("DataDigest", digest),
-        ("DefaultTime2Wait", "2"),
-        ("DefaultTime2Retain", "0"),
-        ("IFMarker", "No"),
-        ("OFMarker", "No"),
-        ("ErrorRecoveryLevel", "0"),
-        ("InitialR2T", "Yes"),
-        ("ImmediateData", "No"),
-        ("MaxBurstLength", "16776192"),
-        ("FirstBurstLength", "262144"),
-        ("MaxOutstandingR2T", "1"),
-        ("MaxConnections", "1"),
-        ("DataPDUInOrder", "Yes"),
-        ("DataSequenceInOrder", "Yes"),
-        ("MaxRecvDataSegmentLength", "262144"),
-    ]
-    .iter()
-    .map(|(k, v)| (k.to_string(), v.to_string()))
-    .collect()
-}
-
-/// Logs in to `target` through `portal`. Without `chap`, the login skips security and starts at
-/// operational negotiation (RFC 7143 6.3.1). With `chap = Some((user, secret))`, it runs the CHAP
-/// exchange in the security stage first, with MD5 (CHAP_A=5).
-/// `digest` is what the initiator offers for HeaderDigest and DataDigest, such as "CRC32C,None".
-pub fn login(
-    portal: &str,
-    target: &str,
-    initiator: &str,
-    chap: Option<(&str, &[u8])>,
-    digest: &str,
-) -> Result<Session> {
-    login_with_offer(portal, target, initiator, chap, digest, "5,6")
-}
-
-/// `login`, with the CHAP algorithms offered given explicitly, in order of preference (CHAP_A).
-pub fn login_with_offer(
-    portal: &str,
-    target: &str,
-    initiator: &str,
-    chap: Option<(&str, &[u8])>,
-    digest: &str,
-    chap_offer: &str,
-) -> Result<Session> {
-    login_as(
-        portal,
-        target,
-        initiator,
-        random_isid(),
-        chap,
-        digest,
-        chap_offer,
-    )
-}
-
-/// `login_with_offer` with an explicit ISID. Each ISID is a separate initiator port to the target,
-/// which persistent reservations need in order to tell two sessions apart.
-pub fn login_as(
-    portal: &str,
-    target: &str,
-    initiator: &str,
-    isid: [u8; 6],
-    chap: Option<(&str, &[u8])>,
-    digest: &str,
-    chap_offer: &str,
-) -> Result<Session> {
-    let keys = operational_keys(initiator, target, digest);
-    login_with_keys(portal, target, initiator, isid, chap, chap_offer, keys)
-}
-
-/// Logs in offering exactly `offer` in the operational stage (after the initiator and target names and
-/// the session type), and logs out at once. Returns what the target answered. The data path assumes
-/// spit's own keys, so a session negotiated this way runs no commands.
-pub fn negotiate(
-    portal: &str,
-    target: &str,
-    initiator: &str,
-    chap: Option<(&str, &[u8])>,
-    offer: &[(&str, &str)],
-) -> Result<Negotiated> {
-    let mut keys: Vec<(String, String)> = [
-        ("InitiatorName", initiator),
-        ("TargetName", target),
-        ("SessionType", "Normal"),
-    ]
-    .iter()
-    .map(|(k, v)| (k.to_string(), v.to_string()))
-    .collect();
-    keys.extend(offer.iter().map(|(k, v)| (k.to_string(), v.to_string())));
-    let session = login_with_keys(portal, target, initiator, random_isid(), chap, "5,6", keys)?;
-    let negotiated = session.negotiated.clone();
-    session.logout()?;
-    Ok(negotiated)
-}
-
-fn login_with_keys(
-    portal: &str,
-    target: &str,
-    initiator: &str,
-    isid: [u8; 6],
-    chap: Option<(&str, &[u8])>,
-    chap_offer: &str,
-    keys: Vec<(String, String)>,
-) -> Result<Session> {
-    let mut stream = connect_stream(portal)?;
-    let pairs = |list: &[(&str, &str)]| -> Vec<(String, String)> {
-        list.iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect()
-    };
-    let mut exp_stat_sn = 0u32;
-    let mut chap_algorithm = None;
-    if let Some((user, secret)) = chap {
-        let (r1, _) = exchange(
-            &mut stream,
-            &LoginRequest {
-                isid,
-                tsih: 0,
-                cid: 0,
-                itt: LOGIN_ITT,
-                cmd_sn: LOGIN_CMD_SN,
-                exp_stat_sn,
-                current: Stage::Security,
-                next: Stage::Security,
-                transit: false,
-                text: pairs(&[
-                    ("InitiatorName", initiator),
-                    ("TargetName", target),
-                    ("SessionType", "Normal"),
-                    ("AuthMethod", "CHAP"),
-                ]),
-            },
-        )?;
-        exp_stat_sn = r1.stat_sn.wrapping_add(1);
-        let (r2, _) = exchange(
-            &mut stream,
-            &LoginRequest {
-                isid,
-                tsih: 0,
-                cid: 0,
-                itt: LOGIN_ITT,
-                cmd_sn: LOGIN_CMD_SN,
-                exp_stat_sn,
-                current: Stage::Security,
-                next: Stage::Security,
-                transit: false,
-                text: pairs(&[("CHAP_A", chap_offer)]),
-            },
-        )?;
-        exp_stat_sn = r2.stat_sn.wrapping_add(1);
-        let identifier = value(&r2.text, "CHAP_I")
-            .and_then(|v| v.parse::<u8>().ok())
-            .ok_or("target did not send CHAP_I")?;
-        let challenge =
-            chap::decode_hex(value(&r2.text, "CHAP_C").ok_or("target did not send CHAP_C")?)?;
-        let algorithm = value(&r2.text, "CHAP_A")
-            .and_then(|v| v.parse::<u32>().ok())
-            .ok_or("target did not choose a CHAP algorithm")?;
-        chap_algorithm = Some(algorithm);
-        let answer =
-            chap::response(algorithm, identifier, secret, &challenge).ok_or_else(|| {
-                format!("target chose CHAP_A {algorithm}, which this initiator does not implement")
-            })?;
-        let (r3, _) = exchange(
-            &mut stream,
-            &LoginRequest {
-                isid,
-                tsih: 0,
-                cid: 0,
-                itt: LOGIN_ITT,
-                cmd_sn: LOGIN_CMD_SN,
-                exp_stat_sn,
-                current: Stage::Security,
-                next: Stage::Operational,
-                transit: true,
-                text: pairs(&[("CHAP_N", user), ("CHAP_R", &answer)]),
-            },
-        )?;
-        exp_stat_sn = r3.stat_sn.wrapping_add(1);
-        if !r3.transit {
-            return Err("target did not accept CHAP and stay in the security stage".into());
+impl Session {
+    /// A session that login has just brought to full feature phase on `stream`, with the command
+    /// numbers the final login response gave.
+    pub(super) fn established(
+        stream: TcpStream,
+        negotiated: Negotiated,
+        cmd_sn: u32,
+        exp_stat_sn: u32,
+        max_cmd_sn: u32,
+    ) -> Session {
+        Session {
+            access_tier: None,
+            stream,
+            tx: Vec::with_capacity(BHS_LEN + RX_CAPACITY + 16),
+            rx: Vec::with_capacity(RX_CAPACITY),
+            sense: Vec::with_capacity(256),
+            inflight: Vec::with_capacity(MAX_INFLIGHT),
+            last_received: 0,
+            negotiated,
+            itt: LOGIN_ITT + 1,
+            cmd_sn,
+            exp_stat_sn,
+            max_cmd_sn,
         }
     }
-    let (response, raw) = exchange(
-        &mut stream,
-        &LoginRequest {
-            isid,
-            tsih: 0,
-            cid: 0,
-            itt: LOGIN_ITT,
-            cmd_sn: LOGIN_CMD_SN,
-            exp_stat_sn,
-            current: Stage::Operational,
-            next: Stage::FullFeature,
-            transit: true,
-            text: keys,
-        },
-    )?;
-    if !response.transit || response.next != Stage::FullFeature as u8 {
-        return Err("target did not reach full feature phase".into());
-    }
-    if response.tsih == 0 {
-        return Err("target did not assign a session handle".into());
-    }
-    let digest = |key: &str| value(&response.text, key) == Some("CRC32C");
-    let max_recv = value(&response.text, "MaxRecvDataSegmentLength")
-        .and_then(|v| v.parse::<usize>().ok())
-        .ok_or("target did not report MaxRecvDataSegmentLength")?;
-    let exp_cmd_sn = u32::from_be_bytes([raw[28], raw[29], raw[30], raw[31]]);
-    let max_cmd_sn = u32::from_be_bytes([raw[32], raw[33], raw[34], raw[35]]);
-    Ok(Session {
-        access_tier: None,
-        stream,
-        tx: Vec::with_capacity(BHS_LEN + RX_CAPACITY + 16),
-        rx: Vec::with_capacity(RX_CAPACITY),
-        sense: Vec::with_capacity(256),
-        inflight: Vec::with_capacity(MAX_INFLIGHT),
-        last_received: 0,
-        negotiated: Negotiated {
-            header_digest: digest("HeaderDigest"),
-            data_digest: digest("DataDigest"),
-            max_recv,
-            initial_r2t: value(&response.text, "InitialR2T") != Some("No"),
-            tsih: response.tsih,
-            chap_algorithm,
-            keys: response.text.clone(),
-        },
-        itt: LOGIN_ITT + 1,
-        cmd_sn: exp_cmd_sn,
-        exp_stat_sn: response.stat_sn.wrapping_add(1),
-        max_cmd_sn,
-    })
-}
 
-impl Session {
     fn next_itt(&mut self) -> u32 {
         self.itt = self.itt.wrapping_add(1);
         if self.itt == NO_TTT {
@@ -850,23 +523,8 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
+    use super::super::login::login;
     use super::*;
-
-    #[test]
-    fn default_port_is_added_only_when_missing() {
-        assert_eq!(with_port("10.0.0.1"), "10.0.0.1:3260");
-        assert_eq!(with_port("10.0.0.1:3261"), "10.0.0.1:3261");
-        assert_eq!(with_port("host.example"), "host.example:3260");
-        assert_eq!(with_port("::1"), "[::1]:3260");
-        assert_eq!(with_port("fe80::1:2"), "[fe80::1:2]:3260");
-        assert_eq!(with_port("[::1]"), "[::1]:3260");
-        assert_eq!(with_port("[::1]:3261"), "[::1]:3261");
-    }
-
-    #[test]
-    fn random_isid_uses_the_random_format() {
-        assert_eq!(random_isid()[0] >> 6, 0b10);
-    }
 
     /// Live test: needs a target that accepts AuthMethod=None for this initiator.
     /// Run: SPIT_ISCSI_PORTAL=103.187.7.170 SPIT_ISCSI_TARGET=iqn... SPIT_ISCSI_INITIATOR=iqn...
@@ -895,190 +553,5 @@ mod tests {
         assert_eq!(status, 0, "READ(10) status");
         assert_eq!(back, data, "data read back differs from data written");
         session.logout().expect("logout");
-    }
-
-    #[test]
-    #[ignore]
-    fn live_no_auth_login_and_logout() {
-        let portal = std::env::var("SPIT_ISCSI_PORTAL").expect("set SPIT_ISCSI_PORTAL");
-        let target = std::env::var("SPIT_ISCSI_TARGET").expect("set SPIT_ISCSI_TARGET");
-        let initiator = std::env::var("SPIT_ISCSI_INITIATOR").expect("set SPIT_ISCSI_INITIATOR");
-        let session =
-            login(&portal, &target, &initiator, None, "CRC32C,None").expect("no-auth login");
-        println!("logged in: {:?}", session.negotiated);
-        session.logout().expect("logout");
-    }
-}
-
-/// Opens the TCP connection to a portal, with the session timeouts set.
-fn connect_stream(portal: &str) -> Result<TcpStream> {
-    let address = with_port(portal);
-    let addr = address
-        .to_socket_addrs()
-        .map_err(|e| format!("resolving {address}: {e}"))?
-        .next()
-        .ok_or_else(|| format!("no address for {address}"))?;
-    let stream = TcpStream::connect_timeout(&addr, TIMEOUT)
-        .map_err(|e| format!("connecting to {address}: {e}"))?;
-    stream
-        .set_read_timeout(Some(TIMEOUT))
-        .map_err(|e| e.to_string())?;
-    stream
-        .set_write_timeout(Some(TIMEOUT))
-        .map_err(|e| e.to_string())?;
-    Ok(stream)
-}
-
-/// A target a discovery session reports: its name and the portal addresses it is reachable on.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Discovered {
-    pub target: String,
-    pub addresses: Vec<String>,
-}
-
-/// Logs in to `portal` as a discovery session and asks it for its targets with `SendTargets=All`. A
-/// discovery session names no target and offers no digests. Targets that need CHAP to see are not listed.
-pub fn discover_targets(portal: &str, initiator: &str) -> Result<Vec<Discovered>> {
-    let mut stream = connect_stream(portal)?;
-    let (response, raw) = exchange(
-        &mut stream,
-        &LoginRequest {
-            isid: random_isid(),
-            tsih: 0,
-            cid: 0,
-            itt: LOGIN_ITT,
-            cmd_sn: LOGIN_CMD_SN,
-            exp_stat_sn: 0,
-            current: Stage::Operational,
-            next: Stage::FullFeature,
-            transit: true,
-            text: discovery_keys(initiator),
-        },
-    )?;
-    if !response.transit || response.next != Stage::FullFeature as u8 {
-        return Err("discovery did not reach full feature phase".into());
-    }
-    let seq = pdu::sequence(&raw);
-    let mut cmd_sn = seq.exp_cmd_sn;
-    let mut exp_stat_sn = seq.stat_sn.wrapping_add(1);
-    let mut ttt = pdu::NO_TTT;
-    let mut text = Vec::new();
-    loop {
-        let body: &[u8] = if ttt == pdu::NO_TTT {
-            b"SendTargets=All\0"
-        } else {
-            &[]
-        };
-        let header = pdu::text_request(LOGIN_ITT, ttt, cmd_sn, exp_stat_sn, body.len());
-        stream
-            .write_all(&header)
-            .and_then(|_| stream.write_all(body))
-            .and_then(|_| stream.write_all(&[0u8; 3][..(4 - body.len() % 4) % 4]))
-            .map_err(|e| format!("sending SendTargets: {e}"))?;
-        cmd_sn = cmd_sn.wrapping_add(1);
-        let mut head = [0u8; pdu::BHS_LEN];
-        stream
-            .read_exact(&mut head)
-            .map_err(|e| format!("reading SendTargets response: {e}"))?;
-        if head[0] & 0x3f != pdu::TEXT_RESPONSE {
-            return Err(format!(
-                "expected a text response to SendTargets, got opcode {:#x}",
-                head[0] & 0x3f
-            ));
-        }
-        let len = u32::from_be_bytes([0, head[5], head[6], head[7]]) as usize;
-        let mut data = vec![0u8; (len + 3) & !3];
-        stream
-            .read_exact(&mut data)
-            .map_err(|e| format!("reading SendTargets data: {e}"))?;
-        text.extend_from_slice(&data[..len]);
-        exp_stat_sn = pdu::sequence(&head).stat_sn.wrapping_add(1);
-        ttt = pdu::be32(&head, 20);
-        if head[1] & 0x80 != 0 {
-            break;
-        }
-        if ttt == pdu::NO_TTT {
-            return Err("SendTargets response is not final and names no continuation".into());
-        }
-    }
-    Ok(parse_targets(&text))
-}
-
-/// The discovery session's login keys: no target, and no digests.
-fn discovery_keys(initiator: &str) -> Vec<(String, String)> {
-    [
-        ("InitiatorName", initiator),
-        ("SessionType", "Discovery"),
-        ("HeaderDigest", "None"),
-        ("DataDigest", "None"),
-        ("MaxRecvDataSegmentLength", "8192"),
-        ("MaxConnections", "1"),
-        ("ErrorRecoveryLevel", "0"),
-    ]
-    .iter()
-    .map(|(k, v)| (k.to_string(), v.to_string()))
-    .collect()
-}
-
-/// Reads the `TargetName` and `TargetAddress` pairs out of a SendTargets answer. An address is
-/// `host:port,tpgt`; the portal group tag is dropped.
-fn parse_targets(text: &[u8]) -> Vec<Discovered> {
-    let mut found: Vec<Discovered> = Vec::new();
-    for item in text.split(|&b| b == 0).filter(|s| !s.is_empty()) {
-        let item = String::from_utf8_lossy(item);
-        if let Some(name) = item.strip_prefix("TargetName=") {
-            found.push(Discovered {
-                target: name.to_string(),
-                addresses: Vec::new(),
-            });
-        } else if let (Some(address), Some(last)) =
-            (item.strip_prefix("TargetAddress="), found.last_mut())
-        {
-            last.addresses
-                .push(address.split(',').next().unwrap_or(address).to_string());
-        }
-    }
-    found
-}
-
-#[cfg(test)]
-mod discovery_tests {
-    use super::*;
-
-    /// A SendTargets answer: NUL-separated key=value pairs, one target with two addresses.
-    #[test]
-    fn send_targets_answer_lists_each_target_with_its_portals() {
-        let text = b"TargetName=iqn.a:one\0TargetAddress=10.0.0.1:3260,1\0TargetAddress=10.0.0.2:3260,2\0TargetName=iqn.a:two\0TargetAddress=10.0.0.3:3260,1\0";
-        let found = parse_targets(text);
-        assert_eq!(
-            found,
-            vec![
-                Discovered {
-                    target: "iqn.a:one".into(),
-                    addresses: vec!["10.0.0.1:3260".into(), "10.0.0.2:3260".into()],
-                },
-                Discovered {
-                    target: "iqn.a:two".into(),
-                    addresses: vec!["10.0.0.3:3260".into()],
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn empty_answer_lists_nothing() {
-        assert!(parse_targets(b"").is_empty());
-    }
-
-    #[test]
-    fn text_request_is_one_final_pdu_carrying_its_length() {
-        let bhs = pdu::text_request(7, pdu::NO_TTT, 3, 4, 16);
-        assert_eq!(bhs[0], pdu::TEXT_REQUEST);
-        assert_eq!(bhs[1], 0x80);
-        assert_eq!(&bhs[5..8], &[0, 0, 16]);
-        assert_eq!(pdu::be32(&bhs, 16), 7);
-        assert_eq!(pdu::be32(&bhs, 20), pdu::NO_TTT);
-        assert_eq!(pdu::be32(&bhs, 24), 3);
-        assert_eq!(pdu::be32(&bhs, 28), 4);
     }
 }
