@@ -10,9 +10,8 @@
 
 use super::alua_transition::{current_state, transition};
 use super::cases::{expect, record, Want, REFUSED_SA};
-use super::lun_access::{unit_attentions, vpd, Creds};
+use super::lun_access::{unit_attentions, vpd, Lun};
 use super::ops;
-use super::path::Path;
 use super::port_groups::{parse_groups, rtpg, state_bit};
 use super::scsi;
 use super::scsi_fields::be16;
@@ -34,9 +33,7 @@ pub(super) struct Findings {
 /// The ALUA cases through an active port.
 pub(super) fn run(
     s: &mut Session,
-    path: &Path,
-    initiator: &str,
-    creds: Creds,
+    lun: Lun,
     name: &str,
     tpgs: u8,
     cases: &mut Vec<Case>,
@@ -210,6 +207,6 @@ pub(super) fn run(
     );
     seen.answer("SET TARGET PORT GROUPS", SECTION, &a);
     let _ = unit_attentions(s);
-    transition(s, path, initiator, creds, name, &own, &groups, cases);
+    transition(s, lun, name, &own, &groups, cases);
     findings
 }

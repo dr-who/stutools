@@ -11,6 +11,53 @@
 //! names SPC-5 uses. PREVENT ALLOW MEDIUM REMOVAL moved from SPC-3 to SBC and is judged as an SBC row.
 //! RESERVE (6) and RELEASE (6) are in no edition held (SPC-2). SPC rows are judged against SPC-6.
 
+/// The clause of each block command in SBC-3, whose numbering differs from SBC-4 and SBC-5 (those two
+/// agree), read from the SBC-3 text's command headings. A command SBC-3 does not list has none.
+const SBC3_CLAUSES: [(&str, &str); 42] = [
+    ("COMPARE AND WRITE", "5.2"),
+    ("FORMAT UNIT", "5.3"),
+    ("GET LBA STATUS (16)", "5.4"),
+    ("ORWRITE (16)", "5.5"),
+    ("ORWRITE (32)", "5.6"),
+    ("POPULATE TOKEN", "5.7"),
+    ("PRE-FETCH (10)", "5.8"),
+    ("PRE-FETCH (16)", "5.9"),
+    ("PREVENT ALLOW MEDIUM REMOVAL", "5.10"),
+    ("READ (10)", "5.11"),
+    ("READ (12)", "5.12"),
+    ("READ (16)", "5.13"),
+    ("READ (32)", "5.14"),
+    ("READ CAPACITY (10)", "5.15"),
+    ("READ CAPACITY (16)", "5.16"),
+    ("READ DEFECT DATA (10)", "5.17"),
+    ("READ DEFECT DATA (12)", "5.18"),
+    ("REASSIGN BLOCKS", "5.21"),
+    ("REPORT REFERRALS", "5.23"),
+    ("SANITIZE", "5.24"),
+    ("START STOP UNIT", "5.25"),
+    ("SYNCHRONIZE CACHE (10)", "5.26"),
+    ("SYNCHRONIZE CACHE (16)", "5.27"),
+    ("UNMAP", "5.28"),
+    ("VERIFY (10)", "5.29"),
+    ("VERIFY (12)", "5.30"),
+    ("VERIFY (16)", "5.31"),
+    ("VERIFY (32)", "5.32"),
+    ("WRITE (10)", "5.33"),
+    ("WRITE (12)", "5.34"),
+    ("WRITE (16)", "5.35"),
+    ("WRITE (32)", "5.36"),
+    ("WRITE AND VERIFY (10)", "5.37"),
+    ("WRITE AND VERIFY (12)", "5.38"),
+    ("WRITE AND VERIFY (16)", "5.39"),
+    ("WRITE AND VERIFY (32)", "5.40"),
+    ("WRITE LONG (10)", "5.41"),
+    ("WRITE LONG (16)", "5.42"),
+    ("WRITE SAME (10)", "5.43"),
+    ("WRITE SAME (16)", "5.44"),
+    ("WRITE SAME (32)", "5.45"),
+    ("WRITE USING TOKEN", "5.46"),
+];
+
 /// The latest SBC and SPC editions held.
 pub(super) const SBC_LATEST: u8 = 5;
 pub(super) const SPC_LATEST: u8 = 6;
@@ -24,6 +71,14 @@ pub(super) struct Span {
     pub max: Option<u8>,
     /// The first edition in which it is mandatory, for the M rows.
     pub mandatory_from: Option<u8>,
+}
+
+/// The SBC-3 clause of the command `name`, when SBC-3 lists it.
+pub(super) fn sbc3_clause(name: &str) -> Option<&'static str> {
+    SBC3_CLAUSES
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, c)| *c)
 }
 
 impl Span {
@@ -67,7 +122,8 @@ pub(super) struct Row {
     pub sbc: Option<Span>,
     /// The SPC editions that define it, for SPC commands.
     pub spc: Option<Span>,
-    /// "SBC 5.18" (the same in SBC-4 and SBC-5) or "SPC-6 6.30".
+    /// "SBC 5.18" (the same in SBC-4 and SBC-5, as their command headings show; SBC-3 numbers them
+    /// differently, see `sbc3_clause`) or "SPC-6 6.30".
     pub clause: &'static str,
     /// The hosts that send it, e.g. "Windows, macOS, Linux", or "" when no mainstream initiator does.
     pub hosts: &'static str,
@@ -331,6 +387,14 @@ fn edition(edition: u8) -> impl Iterator<Item = &'static Row> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sbc3_clauses_come_from_its_own_numbering() {
+        assert_eq!(sbc3_clause("READ (16)"), Some("5.13"));
+        assert_eq!(sbc3_clause("UNMAP"), Some("5.28"));
+        assert_eq!(sbc3_clause("FORMAT UNIT"), Some("5.3"));
+        assert_eq!(sbc3_clause("WRITE ATOMIC (16)"), None);
+    }
 
     fn named(name: &str) -> &'static Row {
         row(name).unwrap_or_else(|| panic!("no row {name}"))

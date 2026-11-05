@@ -95,12 +95,11 @@ fn discovery(disk: &Disk, seen: &Seen) -> Vec<Requirement> {
             "Control Extension mode page",
             disk.mode_page(0x0a, 0x01).is_some(),
         ),
-        (
-            "VPD 00h, 83h, 86h, 87h, 92h",
-            [0x00, 0x83, 0x86, 0x87, 0x92]
-                .iter()
-                .all(|p| disk.pages.contains(p)),
-        ),
+        ("VPD 00h", disk.pages.contains(&0x00)),
+        ("VPD 83h", disk.pages.contains(&0x83)),
+        ("VPD 86h", disk.pages.contains(&0x86)),
+        ("VPD 87h", disk.pages.contains(&0x87)),
+        ("VPD 92h", disk.pages.contains(&0x92)),
         (
             "RESPONSE DATA FORMAT 2h",
             disk.inquiry.get(3).is_some_and(|b| b & 0x0f == 2),
@@ -186,12 +185,12 @@ fn base_pages(disk: &Disk, seen: &Seen) -> Vec<Requirement> {
             disk.page(0xb1)
                 .is_some_and(|d| super::scsi_fields::be16(d, 4) != 0),
         ),
-        (
-            "VPD 00h, 83h, 86h, 87h, 8Ah, 92h",
-            [0x00, 0x83, 0x86, 0x87, 0x8a, 0x92]
-                .iter()
-                .all(|p| disk.pages.contains(p)),
-        ),
+        ("VPD 00h", disk.pages.contains(&0x00)),
+        ("VPD 83h", disk.pages.contains(&0x83)),
+        ("VPD 86h", disk.pages.contains(&0x86)),
+        ("VPD 87h", disk.pages.contains(&0x87)),
+        ("VPD 8Ah", disk.pages.contains(&0x8a)),
+        ("VPD 92h", disk.pages.contains(&0x92)),
         // A.3.3.7: NDOB when the UNMAP bit is supported.
         (
             "WRITE SAME NDOB when UNMAP is supported",
@@ -282,10 +281,8 @@ fn base_2016(disk: &Disk, seen: &Seen) -> Vec<Requirement> {
             "Block Limits MAXIMUM WRITE SAME LENGTH >= 1 MiB",
             limits.max_write_same >= mib,
         ),
-        (
-            "VPD B0h, B1h",
-            disk.pages.contains(&0xb0) && disk.pages.contains(&0xb1),
-        ),
+        ("VPD B0h", disk.pages.contains(&0xb0)),
+        ("VPD B1h", disk.pages.contains(&0xb1)),
     ]);
     r
 }
@@ -335,16 +332,41 @@ fn maintenance(disk: &Disk, seen: &Seen) -> Vec<Requirement> {
         .and_then(|d| d.get(8))
         .is_some_and(|b| b & 0x08 != 0);
     vec![
-        ("FORMAT UNIT, LOG SELECT, REASSIGN BLOCKS, SANITIZE, SEND DIAGNOSTIC, WRITE BUFFER, WRITE LONG (16) listed",
-            [(0x04, None), (0x4c, None), (0x07, None), (0x48, None), (0x1d, None), (0x3b, None), (0x9f, Some(0x11))].iter().all(|&(op, sa)| listed(disk, op, sa))),
+        ("FORMAT UNIT listed", listed(disk, 0x04, None)),
+        ("LOG SELECT listed", listed(disk, 0x4c, None)),
+        ("REASSIGN BLOCKS listed", listed(disk, 0x07, None)),
+        ("SANITIZE listed", listed(disk, 0x48, None)),
+        ("SEND DIAGNOSTIC listed", listed(disk, 0x1d, None)),
+        ("WRITE BUFFER listed", listed(disk, 0x3b, None)),
+        ("WRITE LONG (16) listed", listed(disk, 0x9f, Some(0x11))),
         ("LOG SENSE", sent_ok(seen, "LOG SENSE")),
         ("READ BUFFER (10)", sent_ok(seen, "READ BUFFER (10)")),
-        ("READ DEFECT DATA (12)", sent_ok(seen, "READ DEFECT DATA (12)")),
-        ("RECEIVE DIAGNOSTIC RESULTS", sent_ok(seen, "RECEIVE DIAGNOSTIC RESULTS")),
-        ("VPD 86h, B1h, 8Dh", [0x86, 0xb1, 0x8d].iter().all(|p| disk.pages.contains(p))),
+        (
+            "READ DEFECT DATA (12)",
+            sent_ok(seen, "READ DEFECT DATA (12)"),
+        ),
+        (
+            "RECEIVE DIAGNOSTIC RESULTS",
+            sent_ok(seen, "RECEIVE DIAGNOSTIC RESULTS"),
+        ),
+        ("VPD 86h", disk.pages.contains(&0x86)),
+        ("VPD B1h", disk.pages.contains(&0xb1)),
+        ("VPD 8Dh", disk.pages.contains(&0x8d)),
         ("Block Device Characteristics RBWZ", rbwz),
-        ("log pages 00h, 03h, 06h, 0Dh, 0Eh, 10h, 11h, 15h, 17h, 2Fh", [0x00, 0x03, 0x06, 0x0d, 0x0e, 0x10, 0x11, 0x15, 0x17, 0x2f].iter().all(|&p| log(p))),
-        ("log page 00h/FFh (pages and subpages)", disk.log_subpages.is_some()),
+        ("log page 00h", log(0x00)),
+        ("log page 03h", log(0x03)),
+        ("log page 06h", log(0x06)),
+        ("log page 0Dh", log(0x0d)),
+        ("log page 0Eh", log(0x0e)),
+        ("log page 10h", log(0x10)),
+        ("log page 11h", log(0x11)),
+        ("log page 15h", log(0x15)),
+        ("log page 17h", log(0x17)),
+        ("log page 2Fh", log(0x2f)),
+        (
+            "log page 00h/FFh (pages and subpages)",
+            disk.log_subpages.is_some(),
+        ),
     ]
 }
 

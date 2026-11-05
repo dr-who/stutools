@@ -7,7 +7,7 @@
 
 use super::cases::{no_failures, record};
 use super::login;
-use super::lun_access::{open, short_name, unit_attentions, Creds};
+use super::lun_access::{open, short_name, unit_attentions, Creds, Lun};
 use super::path::Path;
 use super::seen::Seen;
 use super::{
@@ -39,6 +39,11 @@ pub(super) fn run(
 ) {
     for t in targets {
         let name = short_name(t.path);
+        let lun = Lun {
+            path: t.path,
+            initiator,
+            creds: t.creds,
+        };
         // Before this target's session opens, so the unit attentions a CLEAR raises are not its first
         // answers.
         if !t.standby {
@@ -76,16 +81,7 @@ pub(super) fn run(
         let first = cases.len();
         let odx = odx::run(&mut s, &name, &disk, cases, &mut seen);
         let odx_clean = no_failures(&cases[first..]);
-        let alua = alua::run(
-            &mut s,
-            t.path,
-            initiator,
-            t.creds,
-            &name,
-            disk.tpgs(),
-            cases,
-            &mut seen,
-        );
+        let alua = alua::run(&mut s, lun, &name, disk.tpgs(), cases, &mut seen);
         let windows_online = host_traces::windows(&mut s, &name, &disk, cases);
         // The reservation and reset cases use sessions of their own; this one would sit idle meanwhile.
         let _ = s.logout();
@@ -107,9 +103,7 @@ pub(super) fn run(
         match open(t.path, initiator, t.creds, login::random_isid()) {
             Ok(mut s) => {
                 let _ = unit_attentions(&mut s);
-                block_commands::run(
-                    &mut s, t.path, initiator, t.creds, &name, &disk, edition, &mut seen, cases,
-                );
+                block_commands::run(&mut s, lun, &name, &disk, edition, &mut seen, cases);
                 let _ = s.logout();
             }
             Err(err) => {

@@ -12,8 +12,7 @@ use super::command_probes::{probe, spc2, type_2_protection, Block, DROPPED, TYPE
 use super::command_set::{Row, Rule, ROWS};
 use super::disk::Disk;
 use super::login;
-use super::lun_access::{open, open_with, read_block, Creds};
-use super::path::Path;
+use super::lun_access::{open, open_with, read_block, Lun};
 use super::seen::Seen;
 use super::session::Session;
 use crate::compliance::Case;
@@ -38,7 +37,10 @@ fn expected(rule: &Rule) -> String {
 fn title(row: &Row, edition: u8) -> String {
     let clause = match row.clause.strip_prefix("SBC ") {
         Some(c) if edition >= 4 => format!("SBC-{edition} {c}"),
-        Some(c) => format!("SBC-3 (SBC-5 {c})"),
+        Some(c) => match super::command_set::sbc3_clause(row.name) {
+            Some(c3) => format!("SBC-3 {c3}"),
+            None => format!("SBC-5 {c} (not in SBC-3)"),
+        },
         None => row.clause.to_string(),
     };
     let hosts = if row.hosts.is_empty() {
@@ -56,15 +58,18 @@ fn title(row: &Row, edition: u8) -> String {
 /// Runs the table 34 checklist for one LUN.
 pub(super) fn run(
     s: &mut Session,
-    path: &Path,
-    initiator: &str,
-    creds: Creds,
+    lun: Lun,
     name: &str,
     disk: &Disk,
     edition: u8,
     seen: &mut Seen,
     cases: &mut Vec<Case>,
 ) {
+    let Lun {
+        path,
+        initiator,
+        creds,
+    } = lun;
     let Ok(lba) = u32::try_from(disk.last_lba.saturating_sub(1)) else {
         return;
     };
@@ -261,7 +266,7 @@ mod tests {
         );
         assert_eq!(
             title(read16, 3),
-            "SBC-3 (SBC-5 5.18) READ (16) [Windows, macOS, Linux]"
+            "SBC-3 5.13 READ (16) [Windows, macOS, Linux]"
         );
         let inquiry = super::super::command_set::row("INQUIRY").unwrap();
         assert!(title(inquiry, 4).starts_with("SPC-6 6.7 INQUIRY"));

@@ -6,9 +6,8 @@
 use super::alua::SECTION;
 use super::cases::{expect, record, Want};
 use super::login;
-use super::lun_access::{open, show_attentions, unit_attentions, Creds};
+use super::lun_access::{open, show_attentions, unit_attentions, Lun};
 use super::ops;
-use super::path::Path;
 use super::port_groups::{parse_groups, rtpg, state_bit, Group};
 use super::scsi;
 use super::session::Session;
@@ -28,14 +27,17 @@ pub(super) fn current_state(s: &mut Session, id: u16) -> Option<u8> {
 /// CHANGED (2Ah/06h); the nexus that sent SET TARGET PORT GROUPS is not.
 pub(super) fn transition(
     s: &mut Session,
-    path: &Path,
-    initiator: &str,
-    creds: Creds,
+    lun: Lun,
     name: &str,
     own: &Group,
     groups: &[Group],
     cases: &mut Vec<Case>,
 ) {
+    let Lun {
+        path,
+        initiator,
+        creds,
+    } = lun;
     let label = |what: &str| format!("{name} {what}");
     let Some((g, to)) = groups.iter().filter(|g| g.id != own.id).find_map(|g| {
         let target = match g.state {

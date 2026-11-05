@@ -18,6 +18,15 @@ pub(super) const DIGEST: &str = "CRC32C,None";
 
 pub(super) const CHAP_OFFER: &str = "5,6,7,8";
 
+/// The LUN a section tests and whom it logs in as: the path, the initiator name and the CHAP
+/// credentials. Sections that open sessions of their own take this rather than the three apart.
+#[derive(Clone, Copy)]
+pub(super) struct Lun<'a> {
+    pub(super) path: &'a Path,
+    pub(super) initiator: &'a str,
+    pub(super) creds: Creds<'a>,
+}
+
 /// Logs in to the target as the initiator port `isid` (one I_T nexus per ISID), offering CRC32C digests.
 pub(super) fn open(path: &Path, initiator: &str, creds: Creds, isid: [u8; 6]) -> Result<Session> {
     open_with(path, initiator, creds, isid, DIGEST)
