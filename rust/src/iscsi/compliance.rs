@@ -34,6 +34,8 @@ pub(super) fn short(path: &Path) -> &str {
 struct Reachable<'a> {
     path: &'a Path,
     chap: bool,
+    /// The iSCSIProtocolLevel the target answered (RFC 7144 7.1.1), when it did.
+    level: Option<u32>,
 }
 
 /// Adds the iSCSI cases for the `--iscsi` targets to `cases`, and the targets tested no further to
@@ -84,6 +86,7 @@ pub fn cases(
         };
         let creds = if chap { chap_good } else { None };
         login_digests(p, &name, initiator, creds, cases);
+        let level = super::negotiation::run(p, &name, initiator, creds, cases);
         if chap {
             let (actual, passed) = match report_login(p, initiator, chap_bad, "CRC32C,None") {
                 Ok(_) => ("ok (wrong secret accepted)".to_string(), false),
@@ -100,7 +103,11 @@ pub fn cases(
                 passed,
             ));
         }
-        reachable.push(Reachable { path: p, chap });
+        reachable.push(Reachable {
+            path: p,
+            chap,
+            level,
+        });
     }
     let creds_of = |r: &Reachable| if r.chap { chap_good } else { None };
 
@@ -277,14 +284,19 @@ pub fn cases(
         sessions(r.path, initiator, creds_of(r), cases);
     }
 
-    // Section 6: SBC and SPC operations (UNMAP, COMPARE AND WRITE, PERSISTENT RESERVE). A LUN in the
-    // standby state is checked for refusing data commands instead.
-    let ops: Vec<(&Path, super::conformance::Creds, bool)> = reachable
+    // Section 6: the SCSI sections, judged against the SBC edition --sbc names. A LUN in the standby
+    // state is checked for the commands a standby port must and must not take instead.
+    let targets: Vec<super::conformance::Target> = reachable
         .iter()
         .zip(&standby)
-        .map(|(r, &sb)| (r.path, creds_of(r), sb))
+        .map(|(r, &standby)| super::conformance::Target {
+            path: r.path,
+            creds: creds_of(r),
+            standby,
+            protocol_level: r.level,
+        })
         .collect();
-    super::conformance::run(&ops, initiator, cases);
+    super::conformance::run(&targets, initiator, config.sbc, cases);
     Ok(())
 }
 
@@ -306,7 +318,14 @@ fn targets(entries: &[String], initiator: &str) -> Result<Vec<Path>> {
             }
         }
     }
-    Ok(out)
+    // Several hosts often report the same targets; each path is tested once.
+    let mut unique: Vec<Path> = Vec::new();
+    for p in out {
+        if !unique.contains(&p) {
+            unique.push(p);
+        }
+    }
+    Ok(unique)
 }
 
 /// The LUN's own designators (association 0), which name it the same way on every path.
@@ -436,6 +455,73 @@ fn sessions(p: &Path, initiator: &str, creds: Option<(&str, &[u8])>, cases: &mut
         distinct && logouts_ok && failure.is_none(),
     ));
     cycle(format!("{name} login after all logouts"), cases);
+
+    // RFC 7143 11.18, 11.19: a NOP-Out ping with an initiator task tag is answered by a NOP-In with the
+    // same tag and the same data. Windows pings idle sessions this way.
+    if let Ok(mut s) = login_one() {
+        let data = b"spit compliance ping, 32 bytes.\0";
+        let echo = s.ping(data);
+        cases.push(case(
+            "session",
+            format!("{name} NOP-Out ping echoed"),
+            "NOP-In with the same data".into(),
+            match &echo {
+                Ok(d) if d == data => "same data".into(),
+                Ok(d) => format!("{} other bytes", d.len()),
+                Err(e) => e.clone(),
+            },
+            matches!(&echo, Ok(d) if d == data),
+        ));
+        let _ = s.logout();
+    }
+
+    // RFC 7143 6.3.5: a login with the ISID of a session that is still open (TSIH 0) reinstates it: the
+    // old session is closed. Windows logs in again this way when a path comes back.
+    let isid = session::random_isid();
+    let first = session::login_as(
+        &p.portal,
+        &p.target,
+        initiator,
+        isid,
+        creds,
+        "CRC32C,None",
+        "5,6,7,8",
+    );
+    if let Ok(mut old) = first {
+        let again = session::login_as(
+            &p.portal,
+            &p.target,
+            initiator,
+            isid,
+            creds,
+            "CRC32C,None",
+            "5,6,7,8",
+        );
+        cases.push(case(
+            "session",
+            format!("{name} login with the ISID of an open session"),
+            "login ok".into(),
+            match &again {
+                Ok(_) => "login ok".into(),
+                Err(e) => format!("refused ({})", short_reason(e)),
+            },
+            again.is_ok(),
+        ));
+        let old_answer = old.command(&[0, 0, 0, 0, 0, 0], 0, None);
+        cases.push(case(
+            "session",
+            format!("{name} the reinstated session is closed"),
+            "the old session no longer answers".into(),
+            match &old_answer {
+                Ok(_) => "the old session still answers".into(),
+                Err(_) => "closed".into(),
+            },
+            old_answer.is_err(),
+        ));
+        if let Ok(new) = again {
+            let _ = new.logout();
+        }
+    }
 }
 
 /// All orderings of every non-empty subset of `0..n`. Their verdicts must not depend on the order.

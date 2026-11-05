@@ -174,7 +174,7 @@ pub fn block_cdb(opcode: u8, lba: u32, blocks: u16) -> [u8; 10] {
 }
 
 /// READ(10): `blocks` blocks from `lba`. `block_len` is the LUN's block size from READ CAPACITY.
-/// The asymmetric access state names from SPC-4.
+/// The asymmetric access state names (SPC-6 table 298: Eh offline, Fh transitioning).
 pub fn state_name(state: u8) -> &'static str {
     match state {
         0x0 => "active/optimized",
@@ -182,8 +182,8 @@ pub fn state_name(state: u8) -> &'static str {
         0x2 => "standby",
         0x3 => "unavailable",
         0x4 => "LBA-dependent",
-        0xe => "transitioning",
-        0xf => "offline",
+        0xe => "offline",
+        0xf => "transitioning",
         _ => "other",
     }
 }
