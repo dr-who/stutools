@@ -230,8 +230,8 @@ pub(super) fn run(
     // SBC-5 5.53 and table 149: WRITE SAME (16) with UNMAP works when LBPWS is set. Without LBPWS the
     // device does not support that use (SBC-5 6.6.9), and SBC-5 names no sense code for it: an
     // unsupported value in a CDB field is INVALID FIELD IN CDB by SPC-6's general rule, so a different
-    // answer only warns. On a fully provisioned LUN (LBPME 0) ignoring the UNMAP bit (writing) is also
-    // allowed. NDOB sends no data; with UNMAP it unmaps (A.3.3.7 needs it then). Any block written is
+    // answer only warns. On a fully provisioned LUN (LBPME 0) the device server shall ignore the UNMAP
+    // bit (and write) or answer INVALID FIELD IN CDB (SBC-5 5.53, SBC-3 5.44), so there it is strict. NDOB sends no data; with UNMAP it unmaps (A.3.3.7 needs it then). Any block written is
     // restored below.
     let zeros = vec![0u8; len];
     let ws_wants: Vec<Want> = match (lbpws, lbpme) {
@@ -240,7 +240,7 @@ pub(super) fn run(
         (false, true) => vec![Want::Ascq(0x5, 0x24, 0x00)],
     };
     let unmap = s.command(&cdb16(0x93, WS_UNMAP, target as u64, 1), 0, Some(&zeros));
-    let answer = if lbpws {
+    let answer = if lbpws || !lbpme {
         expect(
             cases,
             SECTION,

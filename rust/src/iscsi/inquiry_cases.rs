@@ -19,12 +19,12 @@ pub(super) const PAGES: [u8; 11] = [
     0x80, 0x83, 0x86, 0x87, 0x8a, 0x8d, 0x8f, 0x92, 0xb0, 0xb1, 0xb2,
 ];
 
-/// The product serial number rule at `level`, and whether `serial` meets it. From SPC-4 on the field
-/// is right-aligned ASCII, 20h to 7Eh with no NUL (SPC-6 7.7.19, 4.3.1); SPC-3 calls it ASCII data
-/// that may end in one or more NULs (SPC-3 7.6.10, 4.4.1).
+/// The product serial number rule at `level`, and whether `serial` meets it. SPC-6 makes the field
+/// right-aligned ASCII, 20h to 7Eh with no NUL (SPC-6 7.7.19, 4.3.1); SPC-3 to SPC-5 let ASCII data
+/// end in one or more NULs (SPC-3 4.4.1, SPC-4 and SPC-5 4.3.1).
 fn serial_rule(serial: &[u8], level: ScsiLevel) -> (&'static str, bool) {
     let printable = |b: &[u8]| !b.is_empty() && b.iter().all(|c| (0x20..=0x7e).contains(c));
-    if level.spc() == 3 {
+    if level.spc() <= 5 {
         let text = serial
             .iter()
             .rposition(|&c| c != 0)
@@ -280,11 +280,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn spc_3_lets_a_serial_number_end_in_nuls_and_later_editions_do_not() {
+    fn spc_3_to_5_let_a_serial_number_end_in_nuls_and_spc_6_does_not() {
         let level = |n| ScsiLevel::new(n).unwrap();
         let padded = b"b516f489\0";
         assert!(serial_rule(padded, level(3)).1);
-        assert!(!serial_rule(padded, level(4)).1);
+        assert!(serial_rule(padded, level(5)).1);
+        assert!(!serial_rule(padded, level(6)).1);
         assert!(serial_rule(b"b516f489", level(6)).1);
         assert!(!serial_rule(b"\0\0", level(3)).1);
         assert!(!serial_rule(b"a\0b", level(3)).1);

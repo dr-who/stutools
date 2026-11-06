@@ -113,10 +113,19 @@ fn login_digests(
         "login",
         format!("{name} digest=CRC32C"),
         "ok digest=CRC32C, or refused".into(),
-        shown(&crc),
+        match &crc {
+            Ok(n) if !n.header_digest => {
+                "ok digest=none: a value not offered (RFC 7143 6.2.1)".into()
+            }
+            _ => shown(&crc),
+        },
         crc.as_ref().map_or(true, |n| n.header_digest),
     ));
-    let expected = if crc.is_ok() {
+    // RFC 7143 6.2.1: the answer is the first offered value the target supports. CRC32C is supported
+    // only when it was negotiated: an answer of None to an offer of CRC32C alone is a value not
+    // offered (a protocol error, failed above), not support.
+    let crc_supported = crc.as_ref().is_ok_and(|n| n.header_digest);
+    let expected = if crc_supported {
         "ok digest=CRC32C"
     } else if none.is_ok() {
         "ok digest=none"
@@ -124,7 +133,7 @@ fn login_digests(
         "ok"
     };
     let passed = match &both {
-        Ok(n) => crc.is_ok() == n.header_digest || (crc.is_err() && none.is_err()),
+        Ok(n) => crc_supported == n.header_digest || (crc.is_err() && none.is_err()),
         Err(_) => false,
     };
     cases.push(case(
