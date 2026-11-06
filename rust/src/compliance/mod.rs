@@ -26,6 +26,9 @@ mod report;
 mod score;
 mod scsi_level;
 mod sections;
+mod suite;
+mod suite_report;
+mod suites;
 
 pub use case::{case, info, should, Case, Level, Verdict};
 #[cfg(test)]
@@ -91,6 +94,10 @@ pub fn run(config: &Config) -> Result<()> {
         std::fs::write(path, asciidoc::document(&heading, levels, &rows))
             .map_err(|e| format!("writing {}: {e}", path.display()))?;
         println!("compliance report written to {}", path.display());
+        let suites = suites_path(path);
+        std::fs::write(&suites, asciidoc::suites_document(&heading, levels, &rows))
+            .map_err(|e| format!("writing {}: {e}", suites.display()))?;
+        println!("conformance suites written to {}", suites.display());
     }
     let failing: Vec<String> = views
         .iter()
@@ -125,4 +132,15 @@ fn command_line() -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// The conformance suites document beside the report: REPORT.adoc gives REPORT-suites.adoc.
+fn suites_path(report: &std::path::Path) -> std::path::PathBuf {
+    let stem = report
+        .file_stem()
+        .map_or_else(|| "report".into(), |s| s.to_string_lossy().into_owned());
+    let ext = report
+        .extension()
+        .map_or_else(|| "adoc".into(), |e| e.to_string_lossy().into_owned());
+    report.with_file_name(format!("{stem}-suites.{ext}"))
 }

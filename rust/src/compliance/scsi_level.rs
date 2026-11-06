@@ -50,18 +50,16 @@ impl ScsiLevel {
     }
 }
 
-/// The edition of SPC or SBC a requirement first appears in.
+/// The SPC edition a requirement first appears in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Edition {
     Spc(u8),
-    Sbc(u8),
 }
 
 impl fmt::Display for Edition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Edition::Spc(n) => write!(f, "SPC-{n}"),
-            Edition::Sbc(n) => write!(f, "SBC-{n}"),
         }
     }
 }
@@ -71,7 +69,6 @@ impl ScsiLevel {
     pub fn holds(self, since: Edition) -> bool {
         match since {
             Edition::Spc(n) => self.spc() >= n,
-            Edition::Sbc(n) => self.sbc() >= n,
         }
     }
 }

@@ -9,7 +9,10 @@
 //! - what was tested (devices, initiators, the command) and how cases are judged;
 //! - a chapter per part (SPC, SBC, iSCSI, host needs, NVMe): what the standard is, then each section
 //!   once, what it does, its score at each level, and its failures and warnings with a verdict
-//!   column per level. A finding the same on several devices is one row naming them all.
+//!   column per level. A finding the same on several devices is one row naming them all;
+//! - a table after the compatibility matrix summing up the external conformance suites (Microsoft
+//!   HLK, Failover Cluster validation, UNH-IOL, VMware), whose every test is in the companion
+//!   document (`suites_document`, `suite_report`).
 //!
 //! Each case appears once, cited at the lowest level judged. Text from cases is escaped, so nothing
 //! in it is read as markup.
@@ -23,6 +26,7 @@ use super::parts::Part;
 use super::score::Tally;
 use super::scsi_level::ScsiLevel;
 use super::sections::{Section, SECTIONS};
+use super::suite_report;
 
 /// The NVMe editions the NVMe/TCP cases are judged against.
 const NVME_STANDARDS: &str = "NVM Express Base 2.1, NVM Command Set 1.1, TCP Transport 1.1";
@@ -193,6 +197,7 @@ fn summary(out: &mut String, levels: &[ScsiLevel], rows: &[Row], devices: &[Devi
     }
     out.push_str("|===\n\n");
     out.push_str(&matrix(rows, devices, levels));
+    out.push_str(&suite_report::summary(devices, &lowest(rows), esc));
     let n = levels.len();
     out.push_str(&format!(
         ".Score by section, failures in brackets\n[cols=\"2,1{}\",options=\"header\"]\n|===\n|Section |Part",
@@ -531,6 +536,43 @@ pub fn document(h: &Heading, levels: &[ScsiLevel], rows: &[Row]) -> String {
         chapter(&mut out, p, levels, rows, h.devices);
     }
     out
+}
+
+/// The companion document: every test of the external conformance suites that apply, in each
+/// suite's own structure, from the same run.
+pub fn suites_document(h: &Heading, levels: &[ScsiLevel], rows: &[Row]) -> String {
+    let mut out = format!(
+        "= spit conformance suites: {}\nspit {} on {}\n:revdate: {}\n:revremark: {}\n",
+        esc(&devices_named(h.devices)),
+        esc(h.version),
+        esc(&h.machine),
+        esc(&h.utc),
+        esc(&format!(
+            "The tests of Microsoft's HLK and cluster validation, UNH-IOL's test plans and VMware's public requirements, by their own numbers, as the spit run judged at {} decides them.",
+            levels[0]
+        ))
+    );
+    for attr in [
+        ":doctype: article",
+        ":title-page:",
+        ":toc:",
+        ":toclevels: 1",
+        ":sectnums:",
+        ":sectnumlevels: 1",
+        ":pdf-page-size: A4",
+    ] {
+        out.push_str(attr);
+        out.push('\n');
+    }
+    out.push('\n');
+    out.push_str(&suite_report::summary(h.devices, &lowest(rows), esc));
+    out.push_str(&suite_report::chapters(h.devices, &lowest(rows), esc));
+    out
+}
+
+/// Every case as judged at the lowest level, as hosts and the external suites read it.
+fn lowest(rows: &[Row]) -> Vec<Case> {
+    rows.iter().map(|r| r.first().clone()).collect()
 }
 
 #[cfg(test)]

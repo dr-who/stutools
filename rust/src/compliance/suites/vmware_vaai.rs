@@ -1,0 +1,50 @@
+//! VMware VAAI-Block and ESXi multipathing (public requirements), as spit runs it: each of the suite's tests by its own ID, the spit cases that
+//! decide it, and what spit does not yet run. Built from the suites inventory; a test spit
+//! starts running gets its cases and coverage here.
+
+use super::super::suite::{Coverage::*, Ref, Style, Suite, Test};
+
+pub const VMWARE_VAAI: Suite = Suite {
+    title: "VMware VAAI-Block and ESXi multipathing (public requirements)",
+    publisher: "VMware",
+    source: "https://knowledge.broadcom.com/",
+    style: Style::Vmware,
+    transports: &["iSCSI", "SAS", "SCSI"],
+    tests: &[
+        Test::new("VMW-ATS-1", "HW Assisted Locking: compare matches", Covered, &[Ref::new("ats", "COMPARE AND WRITE, compare matches"), Ref::new("ats", "block holds the written data")], ""),
+        Test::new("VMW-ATS-2", "ATS miscompare", Covered, &[Ref::new("ats", "COMPARE AND WRITE, compare fails"), Ref::new("ats", "failed compare writes nothing"), Ref::new("ats", "miscompare at byte 100 reports offset 100 (INFORMATION)")], ""),
+        Test::new("VMW-ATS-3", "ATS length limits", Covered, &[Ref::new("ats", "COMPARE AND WRITE of 0 blocks"), Ref::new("ats", "of 2 blocks, over the limit of 1"), Ref::new("ats", "past the last LBA")], ""),
+        Test::new("VMW-ATS-4", "ATS between hosts", Covered, &[Ref::new("ats", "two hosts: A swaps V for its ID"), Ref::new("ats", "A reads B's ID")], ""),
+        Test::new("VMW-ATS-5", "ATS contention", Covered, &[Ref::new("ats", "two hosts race 100 rounds: exactly one wins each")], ""),
+        Test::new("VMW-ATS-6", "ATS under load, no false miscompare", Partial, &[], "race runs on an idle LUN; no background writes, no heartbeat cadence (3 s, 8 s timeout)"),
+        Test::new("VMW-ATS-7", "ATS vs reservations", Partial, &[Ref::new("pr", "B COMPARE AND WRITE"), Ref::new("pr", "C * COMPARE AND WRITE")], "under PR types 1-8; nothing under an SPC-2 RESERVE (6)"),
+        Test::new("VMW-ATS-8", "ATS advertised", Covered, &[Ref::new("disk", "VPD b0h"), Ref::new("disk", "REPORT SUPPORTED OPERATION CODES, all, RCTD"), Ref::new("sbc", "SBC-3 5.2 COMPARE AND WRITE")], ""),
+        Test::new("VMW-XC-1", "Full Copy: block to block", Missing, &[Ref::new("sbc", "EXTENDED COPY (LID1)"), Ref::new("sbc", "copies data between devices")], "sbc lists \"EXTENDED COPY (LID1)\" but never sends it (\"copies data between devices\")"),
+        Test::new("VMW-XC-2", "Full Copy sizes", Missing, &[], "—"),
+        Test::new("VMW-XC-3", "Full Copy, unknown CSCD", Missing, &[], "—"),
+        Test::new("VMW-XC-4", "Copy operating parameters", Missing, &[Ref::new("sbc", "RECEIVE COPY RESULTS"), Ref::new("sbc", "needs a copy operation")], "sbc row \"RECEIVE COPY RESULTS\" is never sent (\"needs a copy operation\"); SA 03h needs none"),
+        Test::new("VMW-XC-5", "3PC bit agrees", Missing, &[], "—"),
+        Test::new("VMW-WS-1", "Block Zero", Partial, &[Ref::new("io", "WRITE SAME (16) of one block"), Ref::new("io", "READ after WRITE SAME (16)")], "one block, not 1 MiB"),
+        Test::new("VMW-WS-2", "32 zeroing commands outstanding", Missing, &[], "spit never queues more than one command per session"),
+        Test::new("VMW-WS-3", "Block Zero limit", Partial, &[], "features \"Block Limits MAXIMUM WRITE SAME LENGTH >= 1 MiB\" is INFO (SBC-5 feature sets), not a verdict"),
+        Test::new("VMW-WS-4", "WRITE SAME (10)", Covered, &[Ref::new("io", "WRITE SAME (10) of one block"), Ref::new("io", "READ after WRITE SAME (10)")], ""),
+        Test::new("VMW-UN-1", "Delete Status: UNMAP advertised", Covered, &[Ref::new("unmap", "UNMAP one block"), Ref::new("unmap", "LBPME agrees with VPD B2h")], ""),
+        Test::new("VMW-UN-2", "UNMAP granularity", Missing, &[], "parsed (disk.rs) but not judged"),
+        Test::new("VMW-UN-3", "UNMAP of 1 MiB extents", Partial, &[Ref::new("unmap", "UNMAP one block")], "only"),
+        Test::new("VMW-UN-4", "WRITE SAME with UNMAP (TPRZ)", Covered, &[Ref::new("unmap", "WRITE SAME (16) with UNMAP"), Ref::new("unmap", "* with UNMAP and NDOB")], ""),
+        Test::new("VMW-TP-1", "Thin Provisioning reporting", Covered, &[Ref::new("unmap", "LBPME agrees with VPD B2h"), Ref::new("unmap", "LBPRZ agrees between READ CAPACITY (16) and VPD B2h")], ""),
+        Test::new("VMW-TP-2", "Thin Provisioning Stun (out of space)", Missing, &[], "needs an exhaustible pool"),
+        Test::new("VMW-TP-3", "Space threshold warning", Missing, &[], "B2h THRESHOLD EXPONENT and LOG SENSE 0Ch not read"),
+        Test::new("VMW-MP-1", "ALUA claim (tpgs_on)", Covered, &[Ref::new("mpio", "REPORT TARGET PORT GROUPS (TPGS 11b)"), Ref::new("scsi", "INQUIRY, VPD 0x80/0x83, READ CAPACITY(16), REPORT TPG")], ""),
+        Test::new("VMW-MP-2", "RTPG never 5/24/00", Covered, &[Ref::new("mpio", "REPORT TARGET PORT GROUPS, extended header"), Ref::new("mpio", "standby: REPORT TARGET PORT GROUPS")], ""),
+        Test::new("VMW-MP-3", "ALUA state change", Covered, &[Ref::new("mpio", "the other nexus is told ASYMMETRIC ACCESS STATE CHANGED"), Ref::new("mpio", "the nexus that sent it is not told")], ""),
+        Test::new("VMW-MP-4", "Standby and transitioning", Partial, &[Ref::new("mpio", "standby: TEST UNIT READY reports the standby state"), Ref::new("mpio", "standby: READ (10) *")], "transitioning never observed or judged"),
+        Test::new("VMW-MP-5", "Path check", Covered, &[Ref::new("spc", "TEST UNIT READY"), Ref::new("windows", "Windows Server 2022 online: TEST UNIT READY")], ""),
+        Test::new("VMW-MP-6", "Unsupported probes are 5/20/00", Partial, &[], "sbc probes judge every sent opcode this way; \"SAT ATA PASS-THROUGH (12)/(16)\" rows are not sent (\"out of scope\"), and 85h is the one ESXi sends"),
+        Test::new("VMW-MP-7", "PDL only for a missing LUN", Missing, &[], "spit never addresses an unlisted LUN"),
+        Test::new("VMW-ID-1", "Device ID", Covered, &[Ref::new("identity", "+ spitlunsbc-*"), Ref::new("disk", "VPD 83h names the LUN uniquely (NAA, EUI-64 or SCSI name)"), Ref::new("windows", "MPIO and Failover Clustering: unique LUN ID in VPD 83h")], ""),
+        Test::new("VMW-R2-1", "SCSI-2 reservation fallback", Covered, &[Ref::new("sbc", "SPC-2 RESERVE (6)"), Ref::new("sbc", "SPC-2 RELEASE (6)")], ""),
+        Test::new("VMW-R2-2", "LUN reset breaks SCSI-2 reservation", Partial, &[Ref::new("tmf", "LOGICAL UNIT RESET"), Ref::new("tmf", "the other nexus is told of the reset"), Ref::new("tmf", "persistent reservation survives LOGICAL UNIT RESET")], "the SPC-2 reservation is not held across the reset"),
+        Test::new("VMW-PERF-1", "Performance of primitives", Missing, &[], "spit already measures I/O; no primitive timing"),
+    ],
+};
