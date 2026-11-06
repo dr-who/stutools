@@ -22,7 +22,7 @@ use super::login_cases::{self, Reachable};
 use super::path;
 use super::path::Path;
 use super::send_targets;
-use super::{chap_cases, identity_cases, scsi_cases, session_cases};
+use super::{chap_cases, chap_mutual_cases, identity_cases, scsi_cases, session_cases};
 use crate::compliance::{Case, Device, ScsiLevel};
 use crate::{cli::Config, Result};
 
@@ -43,6 +43,8 @@ pub fn cases(
     let wrong = b"not-the-secret".to_vec();
     let chap_bad = config.chap_user.as_deref().map(|u| (u, wrong.as_slice()));
     let reachable = login_cases::run(&paths, initiator, chap_good, chap_bad, cases, untested);
+    super::login_phase_cases::run(&reachable, initiator, chap_good, cases);
+    super::data_transfer_cases::run(&reachable, initiator, chap_good, cases);
     let creds_of = |r: &Reachable| if r.chap { chap_good } else { None };
     let collected: Vec<Result<Collected>> = reachable
         .iter()
@@ -71,6 +73,34 @@ pub fn cases(
     let standby = scsi_cases::run(&reachable, &collected, cases);
     if chap_good.is_some() {
         chap_cases::run(&reachable, initiator, chap_good, chap_bad, cases);
+        let t_secret = match &config.chap_target_secret_file {
+            Some(f) => credentials::read_secret(f)?,
+            None => Vec::new(),
+        };
+        let target_creds = config
+            .chap_target_user
+            .as_deref()
+            .filter(|_| !t_secret.is_empty())
+            .map(|u| (u, t_secret.as_slice()));
+        let secret_b = match &config.chap_secret_b_file {
+            Some(f) => credentials::read_secret(f)?,
+            None => Vec::new(),
+        };
+        let second = match (&config.chap_initiator_b, chap_good) {
+            (Some(name_b), Some((user, secret))) if !secret_b.is_empty() => {
+                Some((name_b.as_str(), secret_b.as_slice(), user, secret))
+            }
+            _ => None,
+        };
+        chap_mutual_cases::run(
+            &reachable,
+            initiator,
+            chap_good,
+            chap_bad,
+            target_creds,
+            second,
+            cases,
+        );
     }
     for r in &reachable {
         session_cases::run(r.path, initiator, creds_of(r), cases);

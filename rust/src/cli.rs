@@ -42,6 +42,14 @@ pub struct Config {
     pub iscsi_second_initiator: Option<String>,
     pub chap_user: Option<String>,
     pub chap_secret_file: Option<PathBuf>,
+    /// `--chap-target-user NAME` and `--chap-target-secret-file FILE`: the name and secret spit
+    /// expects the target to authenticate itself with, for the mutual CHAP cases of `--compliance`.
+    pub chap_target_user: Option<String>,
+    pub chap_target_secret_file: Option<PathBuf>,
+    /// `--chap-initiator-b NAME` with `--chap-secret-b-file FILE`: a second initiator name and secret,
+    /// for the "different secrets for different initiator names" case.
+    pub chap_initiator_b: Option<String>,
+    pub chap_secret_b_file: Option<PathBuf>,
     /// `--compliance`: test every `--iscsi` and `--nvme` target, and every `-f /dev/...` disk, against
     /// the standards and score it.
     pub compliance: bool,
@@ -143,6 +151,10 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         iscsi_second_initiator: None,
         chap_user: None,
         chap_secret_file: None,
+        chap_target_user: None,
+        chap_target_secret_file: None,
+        chap_initiator_b: None,
+        chap_secret_b_file: None,
         compliance: false,
         compliance_report: None,
         scsi_levels: Vec::new(),
@@ -231,6 +243,10 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             "--iscsi-policy" | "--policy" => c.path_policy = crate::paths::Policy::parse(v)?,
             "--chap-user" => c.chap_user = Some(v.to_string()),
             "--chap-secret-file" => c.chap_secret_file = Some(v.into()),
+            "--chap-target-user" => c.chap_target_user = Some(v.to_string()),
+            "--chap-target-secret-file" => c.chap_target_secret_file = Some(v.into()),
+            "--chap-initiator-b" => c.chap_initiator_b = Some(v.to_string()),
+            "--chap-secret-b-file" => c.chap_secret_b_file = Some(v.into()),
             "-F" => c.prefixes.push(v.into()),
             "--writes" => {
                 fsfiller_writes = Some(match v.as_str() {
