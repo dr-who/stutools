@@ -212,7 +212,10 @@ pub(super) fn run(
             clean_slate(path, initiator, creds, name, cases);
             continue;
         }
-        for (who, s, registered) in [("B", &mut b, true), ("C (not registered, B's initiator name)", &mut c, false)] {
+        for (who, s, registered) in [
+            ("B", &mut b, true),
+            ("C (not registered, B's initiator name)", &mut c, false),
+        ] {
             for (cmd, &works) in COMMANDS.iter().zip(&supported) {
                 let conflict = match cmd.access {
                     Access::Always => false,

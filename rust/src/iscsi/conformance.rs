@@ -11,7 +11,7 @@ use super::lun_access::{open, short_name, unit_attentions, Creds, Lun};
 use super::path::Path;
 use super::seen::Seen;
 use super::{
-    alua, block_commands, block_io, coherence, compare_and_write, disk, feature_sets,
+    alua, block_commands, block_io, coherence, compare_and_write, data_path, disk, feature_sets,
     header_digest, host_traces, odx, pr_command_set, pr_ports, provisioning, reservations,
     spc_commands, standby_cases, task_management, windows,
 };
@@ -89,6 +89,7 @@ pub(super) fn run(
         host_traces::linux(&mut s, &name, &disk, cases);
         let io = block_io::run(&mut s, &name, &disk, cases, &mut seen);
         coherence::run(t.path, initiator, second, t.creds, &name, cases);
+        data_path::run(t.path, initiator, second, t.creds, &name, &disk, cases);
         let thin = provisioning::run(&mut s, &name, &disk, cases, &mut seen);
         compare_and_write::run(&mut s, &name, &disk, cases, &mut seen);
         let first = cases.len();

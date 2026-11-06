@@ -31,6 +31,7 @@ mod conformance;
 pub mod connection;
 pub mod crc32c;
 pub mod credentials;
+mod data_path;
 pub mod discovery_listing;
 mod disk;
 mod feature_sets;
