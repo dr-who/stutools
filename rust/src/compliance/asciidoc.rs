@@ -385,7 +385,7 @@ fn tested(out: &mut String, h: &Heading, levels: &[ScsiLevel]) {
     out.push_str("\n....\n");
     out.push_str(&h.command.replace("....", ". . ."));
     out.push_str("\n....\n\n");
-    out.push_str("A *shall* not met fails, a *should* not met warns, and an informational case only records what the device offers; the score is the share of the other cases that passed. SCSI level _n_ judges against SPC-_n_ and SBC-_n_ (level 6: SPC-6 and SBC-5): each case cites that edition's clause, and a requirement an edition does not define only informs there. iSCSI (RFC 7143, RFC 7144), SAM-6 and NVMe (");
+    out.push_str("A *shall* not met fails, a *should* not met warns, and an informational case only records what the device offers; the score is the share of the other cases that passed. SCSI level _n_ judges against SPC-_n_ and SBC-_n_ (level 6: SPC-6 and SBC-5): each case cites that edition's clause, and a requirement an edition does not define (a command, or a field a later edition added) only informs there. SBC-3 itself is written to be used with SPC-4, so level 3 judges SBC-3's commands even where they rest on SPC-4. iSCSI (RFC 7143, RFC 7144), SAM-6 and NVMe (");
     out.push_str(NVME_STANDARDS);
     out.push_str(") hold at every level. Cases are cited below at the lowest level judged.\n\n");
 }

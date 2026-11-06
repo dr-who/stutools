@@ -73,14 +73,15 @@ pub(super) fn inquiry(
         ),
         format_ok,
     );
-    // SPC-6 table 152: 05h SPC-3, 06h SPC-4, 07h SPC-5. Windows MPIO and clustering need SPC-3 or later.
+    // SPC-6 table 152: 05h SPC-3, 06h SPC-4, 07h SPC-5, 0Dh SPC-6. Windows MPIO and clustering need
+    // SPC-3 or later.
     record(
         cases,
         SECTION,
         label(name, "standard INQUIRY VERSION"),
-        "05h, 06h or 07h (SPC-3 or later)",
+        "05h, 06h, 07h or 0Dh (SPC-3 or later)",
         format!("{:02x}h", at(2)),
-        matches!(at(2), 5..=7),
+        matches!(at(2), 5..=7 | 0x0d),
     );
     // SPC-6 6.7.2: the CMDQUE bit shall be set to one.
     record(

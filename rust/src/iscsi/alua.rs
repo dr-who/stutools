@@ -9,7 +9,7 @@
 //! READY and READ must report the standby state.
 
 use super::alua_transition::{current_state, transition};
-use super::cases::{expect, record, Want, REFUSED_SA};
+use super::cases::{expect, introduced_in, record, Want, REFUSED_SA};
 use super::lun_access::{unit_attentions, vpd, Lun};
 use super::ops;
 use super::port::Port;
@@ -18,7 +18,7 @@ use super::scsi;
 use super::scsi_fields::be16;
 use super::seen::Seen;
 use super::vpd_pages::parse_designations;
-use crate::compliance::Case;
+use crate::compliance::{Case, Edition};
 
 pub(super) const SECTION: &str = "mpio";
 
@@ -130,6 +130,8 @@ pub(super) fn run(
         &[Want::Good],
         ext,
     );
+    // SPC-4 added PARAMETER DATA FORMAT; in SPC-3 those bits are reserved.
+    introduced_in(cases, Edition::Spc(4));
     if let Some(o) = a.1.filter(|o| o.status == 0) {
         let (extended, again) = parse_groups(&o.data);
         let same = again.iter().map(|g| (g.id, g.state)).collect::<Vec<_>>()
@@ -150,6 +152,7 @@ pub(super) fn run(
             ),
             extended && same,
         );
+        introduced_in(cases, Edition::Spc(4));
     }
     let explicit = tpgs & 0x2 != 0;
     let own = listed.cloned().unwrap_or_else(|| groups[0].clone());

@@ -27,11 +27,11 @@ mod score;
 mod scsi_level;
 mod sections;
 
-pub use case::{case, info, should, Case, Verdict};
+pub use case::{case, info, should, Case, Level, Verdict};
 #[cfg(test)]
 pub use citation::cite;
 pub use device::Device;
-pub use scsi_level::{parse as parse_scsi_levels, ScsiLevel};
+pub use scsi_level::{parse as parse_scsi_levels, Edition, ScsiLevel};
 
 /// Runs the iSCSI and NVMe/TCP cases, prints each case and the score at every level, writes the
 /// AsciiDoc report when asked, and fails when any "shall" case fails.

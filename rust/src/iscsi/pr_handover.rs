@@ -4,7 +4,7 @@
 //! paths do, READ FULL STATUS, SPC-2 RELEASE beside a persistent reservation (5.14.3), unregistering,
 //! and CLEAR (5.14.11.2.7).
 
-use super::cases::{expect, Want};
+use super::cases::{expect, expect_should, refused, Want};
 use super::lun_access::{open, unit_attentions, Creds};
 use super::ops::{self, persistent_reserve_in};
 use super::path::Path;
@@ -76,25 +76,28 @@ impl Run<'_> {
             out(a, ops::PR_REGISTER_AND_IGNORE, 0, 0, KEY_A),
             true,
         );
-        // 5.14.11.2.6: PREEMPT AND ABORT preempts as PREEMPT does, and aborts B's commands.
-        self.status(
-            &format!("{tag}: A PREEMPT AND ABORT B"),
-            &[Want::Good],
-            out(a, ops::PR_PREEMPT_AND_ABORT, kind, KEY_A, KEY_B),
-            false,
-        );
-        self.attention(
-            b,
-            &format!("{tag}: B told it was preempted"),
-            Some((0x2a, 0x05)),
-            false,
-        );
-        self.holder_is(
-            c,
-            &format!("{tag}: A holds after PREEMPT AND ABORT"),
-            Some((KEY_A, kind)),
-            false,
-        );
+        // 5.14.11.2.6: PREEMPT AND ABORT preempts as PREEMPT does, and aborts B's commands. No
+        // edition requires every PERSISTENT RESERVE OUT service action, so a clean refusal only warns
+        // (Linux fence_scsi sends it), and changes nothing to check.
+        let abort = out(a, ops::PR_PREEMPT_AND_ABORT, kind, KEY_A, KEY_B);
+        let name = format!("{} {tag}: A PREEMPT AND ABORT B", self.name);
+        if abort.as_ref().is_ok_and(|o| refused(o, true)) {
+            expect_should(self.cases, SECTION, name, &[Want::Good], abort);
+        } else {
+            expect(self.cases, SECTION, name, &[Want::Good], abort);
+            self.attention(
+                b,
+                &format!("{tag}: B told it was preempted"),
+                Some((0x2a, 0x05)),
+                false,
+            );
+            self.holder_is(
+                c,
+                &format!("{tag}: A holds after PREEMPT AND ABORT"),
+                Some((KEY_A, kind)),
+                false,
+            );
+        }
         self.status(
             &format!("{tag}: B registers again"),
             &[Want::Good],
@@ -275,13 +278,13 @@ impl Run<'_> {
     /// is A's port, named by its IQN and ISID (7.6.4.5).
     pub(super) fn full_status(&mut self, s: &mut Port) {
         let o = persistent_reserve_in(s, ops::PR_IN_READ_FULL_STATUS, 4096);
-        let (passed, o) = expect(
-            self.cases,
-            SECTION,
-            format!("{} READ FULL STATUS", self.name),
-            &[Want::Good],
-            o,
-        );
+        // No edition requires every PERSISTENT RESERVE IN service action: a clean refusal warns.
+        let name = format!("{} READ FULL STATUS", self.name);
+        let (passed, o) = if o.as_ref().is_ok_and(|o| refused(o, true)) {
+            expect_should(self.cases, SECTION, name, &[Want::Good], o)
+        } else {
+            expect(self.cases, SECTION, name, &[Want::Good], o)
+        };
         let Some(o) = o.filter(|_| passed) else {
             return;
         };

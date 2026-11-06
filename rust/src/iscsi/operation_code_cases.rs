@@ -167,6 +167,8 @@ pub(super) fn operation_codes(
             format!("{:02x}h", o.data[3]),
             o.data.get(3) == Some(&0x0c),
         );
+        // SPC-4 added REPD; in SPC-3 the bit is reserved.
+        super::cases::introduced_in(cases, crate::compliance::Edition::Spc(4));
     } else {
         seen.fact("RSTMF REPD", false);
     }

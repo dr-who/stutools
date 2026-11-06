@@ -2,9 +2,11 @@
 //! device must do and "should" for what it is recommended to do, and some cases only report what a
 //! device offers. So a case has a level: a `Shall` case that does not pass is a failure, a `Should`
 //! case a warning, and an `Info` case never fails. A case whose verdict depends on the SCSI level is
-//! recorded once per level, tagged with it (`at`); every other case holds at every level.
+//! recorded once per level, tagged with it (`at`); every other case holds at every level. A case for
+//! a field or command a later edition introduced names that edition (`since`): at a level before it,
+//! the case only informs.
 
-use super::scsi_level::ScsiLevel;
+use super::scsi_level::{Edition, ScsiLevel};
 
 /// How much a case matters, from the wording of the clause it tests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,6 +51,8 @@ pub struct Case {
     pub level: Level,
     /// The one SCSI level this verdict is for; None when it holds at every level.
     pub scsi_level: Option<ScsiLevel>,
+    /// The edition that introduced what the case tests; None when every level has it.
+    pub since: Option<Edition>,
 }
 
 impl Case {
@@ -56,6 +60,14 @@ impl Case {
     pub fn at(self, level: ScsiLevel) -> Case {
         Case {
             scsi_level: Some(level),
+            ..self
+        }
+    }
+
+    /// This case as a test of what `edition` introduced.
+    pub fn since(self, edition: Edition) -> Case {
+        Case {
+            since: Some(edition),
             ..self
         }
     }
@@ -86,6 +98,7 @@ pub fn case(
         passed,
         level: Level::Shall,
         scsi_level: None,
+        since: None,
     }
 }
 

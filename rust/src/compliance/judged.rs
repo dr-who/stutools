@@ -3,8 +3,9 @@
 //! level, is "shall" or "should", and whose name and expectation cite clauses none of which the
 //! level's editions have, asks for something those editions do not define, so at that level it only
 //! informs, and says why. A case recorded for one level was already judged for it by its section
-//! (a command a host still sends stays strict there) and keeps its weight. `rows` lines the levels
-//! up: each case once, with its verdict at every level.
+//! (a command a host still sends stays strict there) and keeps its weight. A case for what a later
+//! edition introduced (`Case::since`) only informs at a level before that edition. `rows` lines the
+//! levels up: each case once, with its verdict at every level.
 
 use super::case::{Case, Level};
 use super::citation::cite;
@@ -64,7 +65,11 @@ fn judge(c: &Case, level: ScsiLevel) -> Case {
     let cited = name.cited + expected.cited;
     let undefined = c.scsi_level.is_none() && cited > 0 && name.absent + expected.absent == cited;
     let mut weight = c.level;
-    if undefined && weight != Level::Info {
+    let newer = c.since.filter(|&e| !level.holds(e));
+    if let Some(edition) = newer.filter(|_| weight != Level::Info) {
+        weight = Level::Info;
+        actual = format!("{actual} (no requirement at {level}: introduced in {edition})");
+    } else if undefined && weight != Level::Info {
         weight = Level::Info;
         actual =
             format!("{actual} (no requirement at {level}: its clause is not in those editions)");
@@ -149,6 +154,23 @@ mod tests {
         assert_eq!(three[0].verdict(), Verdict::Info);
         assert!(three[0].actual.contains("no requirement at SCSI level 3"));
         assert_eq!(at(&missed(), level(5))[0].verdict(), Verdict::Fail);
+    }
+
+    #[test]
+    fn what_a_later_edition_introduced_only_informs_before_it() {
+        use super::super::scsi_level::Edition;
+        let cases = vec![case(
+            "mpio",
+            "REPORT TARGET PORT GROUPS, extended header".into(),
+            "GOOD".into(),
+            "CHECK CONDITION 5/24/00".into(),
+            false,
+        )
+        .since(Edition::Spc(4))];
+        let three = at(&cases, level(3));
+        assert_eq!(three[0].verdict(), Verdict::Info);
+        assert!(three[0].actual.contains("introduced in SPC-4"));
+        assert_eq!(at(&cases, level(4))[0].verdict(), Verdict::Fail);
     }
 
     #[test]

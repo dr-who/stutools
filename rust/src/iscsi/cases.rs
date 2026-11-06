@@ -165,6 +165,14 @@ pub(super) fn record_info(
     cases.push(crate::compliance::info(section, name, actual.into()));
 }
 
+/// Marks the case just recorded as a test of what `edition` introduced: before it, the case only
+/// informs.
+pub(super) fn introduced_in(cases: &mut Vec<Case>, edition: crate::compliance::Edition) {
+    if let Some(c) = cases.pop() {
+        cases.push(c.since(edition));
+    }
+}
+
 /// Whether none of `cases` failed: passes, warnings (a "should" missed) and information all count as
 /// clean.
 pub(super) fn no_failures(cases: &[Case]) -> bool {

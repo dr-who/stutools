@@ -16,7 +16,7 @@ use super::lun_access::{open, open_with, read_block, Lun};
 use super::port::Port;
 use super::pr_ports::ISID_SIBLING;
 use super::seen::{Probe, Seen};
-use crate::compliance::{Case, ScsiLevel};
+use crate::compliance::{Case, Level, ScsiLevel};
 
 pub(super) const SECTION: &str = "sbc";
 
@@ -186,6 +186,15 @@ fn judge(
         return;
     };
     let strict = matches!(rule, Rule::Mandatory | Rule::Host);
+    // A command the level's editions do not have is no requirement there, whatever it answers.
+    let informational = matches!(rule, Rule::Informational(_));
+    let weigh = |cases: &mut Vec<Case>| {
+        if informational {
+            if let Some(c) = cases.last_mut() {
+                c.level = Level::Info;
+            }
+        }
+    };
     let expected = if TYPE_2_ONLY.contains(&row.name) && !type_2_protection(disk) {
         "a clean refusal: no type 2 protection (SBC-5 4.21.2.2)".to_string()
     } else {
@@ -197,18 +206,19 @@ fn judge(
         .filter(|&listed| listed != p.supported && p.actual != "no answer")
         .map(|listed| {
             if listed {
-                "RSOC lists it"
+                "but RSOC lists it as supported"
             } else {
-                "RSOC does not list it"
+                "but RSOC does not list it"
             }
         });
     // A command another section judged is that section's verdict: here it is only noted, unless
     // REPORT SUPPORTED OPERATION CODES contradicts what it found.
     if p.section != SECTION {
         let seen = format!(
-            "see {}: {}",
+            "{} in section {} ({})",
+            if p.passed { "passed" } else { "failed" },
             p.section,
-            if p.passed { "passed" } else { "failed" }
+            if p.supported { "works" } else { "refused" }
         );
         match rsoc {
             Some(why) => {
@@ -220,6 +230,7 @@ fn judge(
                     format!("{seen}; {why}"),
                     false,
                 );
+                weigh(cases);
             }
             None => super::cases::record_info(cases, SECTION, label, seen),
         }
@@ -236,6 +247,7 @@ fn judge(
     }
     let passed = p.passed && (p.supported || !strict) && rsoc.is_none();
     record(cases, SECTION, label, expected, actual, passed);
+    weigh(cases);
 }
 /// A row that is never sent, at `level`: a mandatory one must not be denied by REPORT SUPPORTED
 /// OPERATION CODES; for the others its answer is recorded.

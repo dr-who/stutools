@@ -2,13 +2,13 @@
 //! with nothing to report (SPC-6 6.36), START STOP UNIT with START (SBC-5 5.31; Windows and macOS send
 //! it), and LOG SENSE of the supported log pages and subpages (SPC-6 6.9).
 
-use super::cases::{expect, record, Want, REFUSED};
+use super::cases::{expect, introduced_in, record, Want, REFUSED};
 use super::disk::{hex_list, label, Disk, SECTION};
 use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Seen;
 use super::session::Outcome;
-use crate::compliance::Case;
+use crate::compliance::{Case, Edition};
 
 /// SPC-6 6.36 REQUEST SENSE, SBC-5 5.31 START STOP UNIT, SPC-6 6.9 LOG SENSE.
 pub(super) fn run(
@@ -59,6 +59,8 @@ pub(super) fn run(
             show_byte(&o, 0),
             desc_ok,
         );
+        // SPC-4 table 315 made this a requirement; an SPC-3 device server may ignore DESC.
+        introduced_in(cases, Edition::Spc(4));
     }
     seen.fact("REQUEST SENSE DESC 1", desc_ok);
     seen.note(

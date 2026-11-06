@@ -112,13 +112,15 @@ pub(super) const SPC: [(&str, [Option<&str>; 3]); 98] = [
 
 /// SBC-5 clause → [SBC-3, SBC-4].
 #[rustfmt::skip]
-pub(super) const SBC: [(&str, [Option<&str>; 2]); 92] = [
+pub(super) const SBC: [(&str, [Option<&str>; 2]); 94] = [
     ("4.5", [Some("4.5"), Some("4.5")]), // Logical blocks
     ("4.7", [Some("4.7"), Some("4.7")]), // Logical block provisioning
     ("4.7.3.1", [Some("4.7.3.1"), Some("4.7.3.1")]), // Logical block provisioning management overview
     ("4.7.3.4", [Some("4.7.3.4"), Some("4.7.3.4")]), // Unmapping LBAs
     ("4.7.4.5", [Some("4.7.4.6"), Some("4.7.4.5")]), // LBP1:Mapped state
     ("4.21.2", [Some("4.22.2"), Some("4.21.2")]), // Protection types
+    ("4.21.2.2", [Some("4.22.2.2"), Some("4.21.2.2")]), // Type 0 protection
+    ("4.21.2.3", [Some("4.22.2.3"), Some("4.21.2.3")]), // Type 1 protection
     ("4.21.2.4", [Some("4.22.2.4"), Some("4.21.2.4")]), // Type 2 protection
     ("4.28", [Some("4.30"), Some("4.28")]), // Block device ROD token operations
     ("5.2", [None, Some("5.2")]), // BACKGROUND CONTROL command
