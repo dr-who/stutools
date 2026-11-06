@@ -95,6 +95,12 @@ NETWORK BLOCK DEVICES (iSCSI and NVMe/TCP, spoken by spit itself)
                   --compliance tests reservations between two hosts with IQN2
   --chap-user NAME, --chap-secret-file FILE
                   CHAP login; the secret is read from the file
+  --chap-target-user NAME, --chap-target-secret-file FILE
+                  the name and secret spit expects back for mutual CHAP
+                  (--compliance); the secret is read from the file
+  --chap-initiator-b NAME, --chap-secret-b-file FILE
+                  a second initiator name and secret, to check a target
+                  that keeps a different secret per initiator name
   --policy rr|rrr|random|fastest
                   how a workload over several paths picks one (default rr)
   --compliance    test every target the --iscsi and --nvme hosts report (or

@@ -24,7 +24,7 @@ pub const UNH_ISCSI_ERROR_RECOVERY: Suite = Suite {
         Test::new("3.5", "Status SNACK", NotApplicable, &[], "ERL ≥ 1"),
         Test::new("3.6", "Status SNACK run", NotApplicable, &[], "ERL ≥ 1"),
         Test::new("3.7", "R-Data SNACK", NotApplicable, &[], "ERL ≥ 1"),
-        Test::new("4.1.1", "Reject for Data-Out", Missing, &[], "ERL 0 form: Reject 02h then CC 0B/47/05 after F=1, recovery R2T, or close"),
+        Test::new("4.1.1", "Reject for Data-Out", Covered, &[Ref::new("session", "Data-Out with a bad data digest is rejected and not written")], "ERL 0 form; reported not supported when the target answers DataDigest=None"),
         Test::new("4.1.2", "Reject for SNACK", NotApplicable, &[], "ERL ≥ 1"),
         Test::new("4.2.1", "Reject for WRITE PDU", Missing, &[], "needs ImmediateData=Yes"),
         Test::new("4.2.2", "Reject for READ PDU", Missing, &[], "—"),
