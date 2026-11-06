@@ -27,6 +27,17 @@ pub(super) const PDU_WAIT: Duration = Duration::from_secs(10);
 /// sends more is reported by the cases, so up to 16 MiB is read.
 const MAX_SEGMENT: usize = 1 << 24;
 
+/// One Data-Out PDU's fields: task tag, target transfer tag (FFFFFFFFh for unsolicited data),
+/// DataSN, buffer offset, the F bit, and whether its data digest is to be corrupted.
+pub(super) struct DataOut {
+    pub(super) itt: u32,
+    pub(super) ttt: u32,
+    pub(super) data_sn: u32,
+    pub(super) offset: u32,
+    pub(super) last: bool,
+    pub(super) bad_digest: bool,
+}
+
 /// One PDU from the target: its header and its data segment without padding.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct Pdu {
@@ -67,9 +78,6 @@ impl Pdu {
     /// Residual Count of a SCSI Response or a Data-In with S=1; DDTL of an R2T.
     pub(super) fn word44(&self) -> u32 {
         pdu::be32(&self.bhs, 44)
-    }
-    pub(super) fn lun(&self) -> u64 {
-        u64::from_be_bytes(self.bhs[8..16].try_into().unwrap())
     }
     /// The SCSI status of a SCSI Response, or of a Data-In with S=1.
     pub(super) fn status(&self) -> u8 {
@@ -365,30 +373,20 @@ impl PduConnection {
         Err("TEST UNIT READY never GOOD".into())
     }
 
-    /// A Data-Out PDU: `len` bytes of `payload` at `offset` under task tag `itt` and target transfer
-    /// tag `ttt` (FFFFFFFFh for unsolicited data), with the F bit when `last`. When `bad_digest`, the
-    /// data digest field is flipped in its lowest bit, as a one-bit NIC corruption would (RFC 7143
-    /// 7.8): the only place this module sends a digest the data does not match.
-    pub(super) fn data_out(
-        &mut self,
-        itt: u32,
-        ttt: u32,
-        data_sn: u32,
-        offset: u32,
-        payload: &[u8],
-        last: bool,
-        bad_digest: bool,
-    ) -> Result<()> {
+    /// A Data-Out PDU carrying `payload` as `d` describes. When `d.bad_digest`, the data digest field
+    /// is flipped in its lowest bit, as a one-bit NIC corruption would (RFC 7143 7.8): the only place
+    /// this module sends a digest the data does not match.
+    pub(super) fn data_out(&mut self, d: DataOut, payload: &[u8]) -> Result<()> {
         let header = pdu::data_out_header(
-            itt,
-            ttt,
+            d.itt,
+            d.ttt,
             self.exp_stat_sn,
-            data_sn,
-            offset,
-            last,
+            d.data_sn,
+            d.offset,
+            d.last,
             payload.len(),
         );
-        if !bad_digest {
+        if !d.bad_digest {
             return self.send(&header, payload);
         }
         let mut out = Vec::with_capacity(payload.len() + 64);
@@ -436,15 +434,15 @@ impl PduConnection {
             while off < end {
                 let n = (end - off).min(seg);
                 let last = off + n >= end;
-                self.data_out(
+                let d = DataOut {
                     itt,
-                    NO_TTT,
-                    sn,
-                    off as u32,
-                    &data[off..off + n],
+                    ttt: NO_TTT,
+                    data_sn: sn,
+                    offset: off as u32,
                     last,
-                    bad(data_out_count, form),
-                )?;
+                    bad_digest: bad(data_out_count, form),
+                };
+                self.data_out(d, &data[off..off + n])?;
                 data_out_count += 1;
                 sn += 1;
                 off += n;
@@ -469,15 +467,15 @@ impl PduConnection {
                         let last = off + n >= end;
                         let extra = if last { form.solicited_extra } else { 0 };
                         let slice_end = (off + n + extra).min(data.len());
-                        self.data_out(
+                        let d = DataOut {
                             itt,
-                            p.ttt(),
-                            sn,
-                            off as u32,
-                            &data[off..slice_end],
+                            ttt: p.ttt(),
+                            data_sn: sn,
+                            offset: off as u32,
                             last,
-                            bad(data_out_count, form),
-                        )?;
+                            bad_digest: bad(data_out_count, form),
+                        };
+                        self.data_out(d, &data[off..slice_end])?;
                         data_out_count += 1;
                         sn += 1;
                         off += n;

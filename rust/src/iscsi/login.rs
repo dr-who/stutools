@@ -323,25 +323,6 @@ pub fn login_as(
     login_with_keys(portal, target, initiator, isid, chap, chap_offer, keys)
 }
 
-/// Logs in offering `keys` for the data session, as a new initiator port.
-pub(super) fn login_with_session_keys(
-    portal: &str,
-    target: &str,
-    initiator: &str,
-    chap: Option<(&str, &[u8])>,
-    keys: &SessionKeys,
-) -> Result<Session> {
-    let keys = keys.offer(initiator, target)?;
-    let plan = Plan {
-        isid: random_isid(),
-        chap,
-        chap_offer: "5,6",
-        mutual: None,
-        keys,
-    };
-    establish(portal, target, initiator, plan).map(Session::from)
-}
-
 /// Logs in offering exactly `offer` in the operational stage (after the initiator and target names and
 /// the session type), and logs out at once. Returns what the target answered. The data path assumes
 /// spit's own keys, so a session negotiated this way runs no commands.

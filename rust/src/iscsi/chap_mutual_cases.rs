@@ -117,9 +117,7 @@ pub(super) fn run(
         fresh_challenge(r.path, initiator, &name, cases);
         base64_one_way(r.path, initiator, user, secret, &name, cases);
         if let Some((name_b, secret_b, _, _)) = second {
-            cross_secret(
-                r.path, initiator, name_b, secret_b, user, secret, &name, cases,
-            );
+            cross_secret(r.path, name_b, secret_b, secret, &name, cases);
         }
         mutual_cases(r.path, initiator, user, secret, target_creds, &name, cases);
     }
@@ -351,10 +349,8 @@ fn base64_one_way(
 /// (WHCP.ISCSI.7, RFC 7143 12.1.3): the right secret is let in, the wrong one refused.
 fn cross_secret(
     path: &Path,
-    _initiator: &str,
     name_b: &str,
     secret_b: &[u8],
-    _user: &str,
     secret_a: &[u8],
     name: &str,
     cases: &mut Vec<Case>,

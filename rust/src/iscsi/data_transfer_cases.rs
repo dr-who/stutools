@@ -542,7 +542,7 @@ fn data_out_bad_digest(
         .iter()
         .any(|p| p.opcode() == pdu::REJECT && p.bhs[2] == 0x02);
     let recovery_r2t = pre.iter().any(|p| p.opcode() == pdu::R2T);
-    let check = matches!(&end, Received::Pdu(p) if p.status() == 0x02 && p.sense().get(..3).map_or(false, |s| s[2] & 0x0f == 0x0b));
+    let check = matches!(&end, Received::Pdu(p) if p.status() == 0x02 && p.sense().get(..3).is_some_and(|s| s[2] & 0x0f == 0x0b));
     let good = matches!(&end, Received::Pdu(p) if p.status() == 0);
     let closed = matches!(&end, Received::Closed);
     // The block must be unchanged unless the write actually completed after a recovery.

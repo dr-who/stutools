@@ -341,12 +341,6 @@ impl LoginConnection {
             }
         }
     }
-
-    /// The connection, for a caller that goes on into full feature phase.
-    pub(super) fn into_stream(self) -> TcpStream {
-        let _ = self.stream.set_read_timeout(Some(super::login::TIMEOUT));
-        self.stream
-    }
 }
 
 #[cfg(test)]

@@ -131,7 +131,7 @@ fn standard_login(path: &Path, initiator: &str, creds: Creds, name: &str, cases:
         format!("{name} standard login: StatSN advances by one"),
         "StatSN +1 per response",
         format!("{stat_sns:?}"),
-        stepped && stat_sns.len() >= 1,
+        stepped && !stat_sns.is_empty(),
     );
     let tpgt = c
         .answers
