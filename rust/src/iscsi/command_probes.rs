@@ -1,17 +1,18 @@
 //! How the `sbc` checklist sends each block command it probes itself: the CDB forms it needs (12-byte,
-//! 32-byte variable length (SBC-5 table 85), service action in), each command in a form that changes
-//! nothing (reads of the test block, writes of its own data, an all-zero ORWRITE), and the judging of
+//! 32-byte variable length (SBC-5 table 85), service action in), each command in a form that leaves
+//! the device as it was (reads of the test block; writes of a pattern of their own, read back, then
+//! the block's own data written back; an all-zero ORWRITE), and the judging of
 //! an answer into a `Probe`: a clean refusal (INVALID COMMAND OPERATION CODE, or INVALID FIELD IN CDB
 //! for a service action) means not supported; any other answer must be the right one. A probe that
-//! loses the connection says so (`DROPPED`). The seven 32-byte commands SBC-5 restricts to type 2
-//! protection must be refused on a LUN without it. RESERVE (6) and RELEASE (6) are probed as a pair
+//! loses the connection says so (`DROPPED`). The 32-byte commands SBC-5 restricts to type 2 protection
+//! (4.21.2.2, 4.21.2.3: eight, WRITE SCATTERED (32) among them) must be refused on a LUN without it. RESERVE (6) and RELEASE (6) are probed as a pair
 //! on two sessions.
 
 use super::block_commands::SECTION;
 use super::cases::{describe, refused, Want};
 use super::command_set::Row;
 use super::disk::Disk;
-use super::lun_access::read_block;
+use super::lun_access::{pattern, read_block, write_block};
 use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Probe;
@@ -110,6 +111,14 @@ pub(super) fn probe(s: &mut Port, row: &Row, b: &Block, disk: &Disk) -> Option<P
     let len = b.len as u32;
     let zeros = vec![0u8; b.len];
     let reads_back = |s: &mut Port| read_block(s, lba32, b.len).is_ok_and(|d| d == b.original);
+    // A write probe writes a pattern of its own, so a target that accepts the command and stores
+    // nothing is caught; `stored` reads it back and puts the block's own data back.
+    let mine = pattern(b.len, 0x5a);
+    let stored = |s: &mut Port| {
+        let ok = read_block(s, lba32, b.len).is_ok_and(|d| d == mine);
+        let _ = write_block(s, lba32, &b.original);
+        ok
+    };
     // SBC-5 4.21.2: without type 2 protection the type-2-only commands are INVALID COMMAND OPERATION
     // CODE.
     let type2 = type_2_protection(disk);
@@ -125,34 +134,28 @@ pub(super) fn probe(s: &mut Port, row: &Row, b: &Block, disk: &Disk) -> Option<P
             good(o) && o.data == b.original
         }),
         "WRITE (12)" => {
-            let mut p = judge(
-                s.command(&cdb12(0xaa, lba32, 1), 0, Some(&b.original)),
-                good,
-            );
-            p.passed &= !p.supported || reads_back(s);
+            let mut p = judge(s.command(&cdb12(0xaa, lba32, 1), 0, Some(&mine)), good);
+            p.passed &= stored(s) || !p.supported;
             p
         }
         "VERIFY (12)" => judge(s.command(&cdb12(0xaf, lba32, 1), 0, None), good),
-        "WRITE AND VERIFY (10)" => judge(
-            s.command(
-                &super::block_io::cdb10(0x2e, 0, lba32, 1),
-                0,
-                Some(&b.original),
-            ),
-            good,
-        ),
-        "WRITE AND VERIFY (12)" => judge(
-            s.command(&cdb12(0xae, lba32, 1), 0, Some(&b.original)),
-            good,
-        ),
-        "WRITE AND VERIFY (16)" => judge(
-            s.command(
-                &super::block_io::cdb16(0x8e, 0, b.lba, 1),
-                0,
-                Some(&b.original),
-            ),
-            good,
-        ),
+        "WRITE AND VERIFY (10)" => {
+            let c = super::block_io::cdb10(0x2e, 0, lba32, 1);
+            let mut p = judge(s.command(&c, 0, Some(&mine)), good);
+            p.passed &= stored(s) || !p.supported;
+            p
+        }
+        "WRITE AND VERIFY (12)" => {
+            let mut p = judge(s.command(&cdb12(0xae, lba32, 1), 0, Some(&mine)), good);
+            p.passed &= stored(s) || !p.supported;
+            p
+        }
+        "WRITE AND VERIFY (16)" => {
+            let c = super::block_io::cdb16(0x8e, 0, b.lba, 1);
+            let mut p = judge(s.command(&c, 0, Some(&mine)), good);
+            p.passed &= stored(s) || !p.supported;
+            p
+        }
         // SBC-5 5.13: CONDITION MET (04h) when the blocks are in the cache, else GOOD.
         "PRE-FETCH (10)" => judge(
             s.command(&super::block_io::cdb10(0x34, 0, lba32, 1), 0, None),
@@ -185,7 +188,7 @@ pub(super) fn probe(s: &mut Port, row: &Row, b: &Block, disk: &Disk) -> Option<P
             s.command(&cdb32(0x000d, b.lba, 1), 0, Some(&b.original)),
             thirty_two,
         ),
-        // ORWRITE (32), WRITE SCATTERED (32) and GET LBA STATUS (32) need no type 2 protection.
+        // ORWRITE (32) and GET LBA STATUS (32) need no type 2 protection.
         "ORWRITE (32)" => judge(s.command(&cdb32(0x000e, b.lba, 1), 0, Some(&zeros)), good),
         "WRITE ATOMIC (32)" | "WRITE SCATTERED (32)" if type2 => Probe {
             section: SECTION,
@@ -197,20 +200,21 @@ pub(super) fn probe(s: &mut Port, row: &Row, b: &Block, disk: &Disk) -> Option<P
             s.command(&cdb32(0x000f, b.lba, 1), 0, Some(&b.original)),
             thirty_two,
         ),
-        "WRITE SCATTERED (32)" => judge(s.command(&cdb32(0x0011, 0, 0), 0, None), good),
+        // No ranges: nothing is written whether or not the command is taken.
+        "WRITE SCATTERED (32)" => judge(s.command(&cdb32(0x0011, 0, 0), 0, None), thirty_two),
         "GET LBA STATUS (32)" => {
             let mut c = cdb32(0x0012, b.lba, 1);
             c[28..32].copy_from_slice(&64u32.to_be_bytes());
             c[20..24].copy_from_slice(&1u32.to_be_bytes());
             judge(s.command(&c, 64, None), good)
         }
-        // SBC-5 5.48: one block of the block's own data, when Block Limits reports atomic writes.
+        // SBC-5 5.48: one block, when Block Limits reports atomic writes.
         "WRITE ATOMIC (16)" => {
             let mut c = super::block_io::cdb16(0x9c, 0, b.lba, 0);
             c[12..14].copy_from_slice(&1u16.to_be_bytes());
             let limited = disk.limits().is_some_and(|l| l.max_atomic_transfer > 0);
-            let mut p = judge(s.command(&c, 0, Some(&b.original)), good);
-            p.passed &= p.supported || !limited;
+            let mut p = judge(s.command(&c, 0, Some(&mine)), good);
+            p.passed &= if p.supported { stored(s) } else { !limited };
             p
         }
         // SBC-5 5.55: LOGICAL BLOCK DATA OFFSET 1 (the data starts at the second block), one range.
@@ -221,8 +225,8 @@ pub(super) fn probe(s: &mut Port, row: &Row, b: &Block, disk: &Disk) -> Option<P
             c[4..6].copy_from_slice(&1u16.to_be_bytes());
             c[8..10].copy_from_slice(&1u16.to_be_bytes());
             c[10..14].copy_from_slice(&2u32.to_be_bytes());
-            let mut p = judge(s.command(&c, 0, Some(&scattered(b.lba, &b.original))), good);
-            p.passed &= !p.supported || reads_back(s);
+            let mut p = judge(s.command(&c, 0, Some(&scattered(b.lba, &mine))), good);
+            p.passed &= stored(s) || !p.supported;
             p
         }
         // SBC-5 5.15: PREVENT 00b allows removal; harmless on any disk.
@@ -344,15 +348,16 @@ pub(super) fn type_2_protection(disk: &Disk) -> bool {
         .is_some_and(|p| p & 0x01 != 0 && (p >> 1) & 0x7 == 1)
 }
 
-/// The 32-byte commands a device server processes only with type 2 protection enabled (SBC-5 5.19,
-/// 5.39, 5.43, 5.47, 5.49, 5.54, 5.58).
-pub(super) const TYPE_2_ONLY: [&str; 7] = [
+/// The 32-byte commands a device server refuses as INVALID COMMAND OPERATION CODE without type 2
+/// protection (SBC-5 4.21.2.2 and 4.21.2.3; SBC-3 4.22.2.2 lists the five it has).
+pub(super) const TYPE_2_ONLY: [&str; 8] = [
     "READ (32)",
     "VERIFY (32)",
     "WRITE (32)",
     "WRITE AND VERIFY (32)",
     "WRITE ATOMIC (32)",
     "WRITE SAME (32)",
+    "WRITE SCATTERED (32)",
     "WRITE STREAM (32)",
 ];
 

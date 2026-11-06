@@ -187,7 +187,7 @@ fn judge(
     };
     let strict = matches!(rule, Rule::Mandatory | Rule::Host);
     let expected = if TYPE_2_ONLY.contains(&row.name) && !type_2_protection(disk) {
-        "a clean refusal: no type 2 protection (SBC-5 4.21.2.4)".to_string()
+        "a clean refusal: no type 2 protection (SBC-5 4.21.2.2)".to_string()
     } else {
         expected(&rule)
     };
