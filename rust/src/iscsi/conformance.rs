@@ -96,16 +96,7 @@ pub(super) fn run(
             .probe("COMPARE AND WRITE")
             .is_some_and(|p| p.supported && p.passed)
         {
-            ats_race::run(
-                t.path,
-                initiator,
-                second,
-                t.creds,
-                &name,
-                disk.last_lba,
-                disk.block_len,
-                cases,
-            );
+            ats_race::run(t.path, initiator, second, t.creds, &name, &disk, cases);
         }
         let first = cases.len();
         let odx = odx::run(&mut s, &name, &disk, cases, &mut seen);

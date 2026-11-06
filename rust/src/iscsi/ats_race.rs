@@ -7,6 +7,7 @@
 //! winner's ID. Runs only where COMPARE AND WRITE works; the block gets its own data back.
 
 use super::cases::{describe, record, Want};
+use super::disk::Disk;
 use super::lun_access::{open, read_block, unit_attentions, write_block, Creds};
 use super::ops;
 use super::path::Path;
@@ -43,10 +44,10 @@ pub(super) fn run(
     second: Option<&str>,
     creds: Creds,
     name: &str,
-    last_lba: u64,
-    block_len: u32,
+    disk: &Disk,
     cases: &mut Vec<Case>,
 ) {
+    let (last_lba, block_len) = (disk.last_lba, disk.block_len);
     let label = |what: &str| format!("{name} {what}");
     let (Ok(mut a), Ok(mut b)) = (
         open(path, initiator, creds, ISID_A),

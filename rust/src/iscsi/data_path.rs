@@ -139,9 +139,9 @@ pub(super) fn run(
             );
             continue;
         }
-        for r in 0..ports.len() {
-            let reader = ports[r].0;
-            let (actual, passed) = compare(&read16(&mut ports[r].1, 0, lba, n, len), &data, len);
+        for (reader, port) in ports.iter_mut() {
+            let reader = *reader;
+            let (actual, passed) = compare(&read16(port, 0, lba, n, len), &data, len);
             record(
                 cases,
                 "coherence",
