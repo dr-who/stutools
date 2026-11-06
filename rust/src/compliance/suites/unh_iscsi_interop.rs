@@ -18,7 +18,7 @@ pub const UNH_ISCSI_INTEROP: Suite = Suite {
         Test::new("1.3.2", "Disable Enable Resume Traffic Flow", Partial, &[], "As 1.3.1"),
         Test::new("2.1", "Multiple Targets Found", NotApplicable, &[], "Not Applicable when the DUT is a target (plan)"),
         Test::new("2.2", "Target Removed (single initiator)", NotApplicable, &[], "Not Applicable when the DUT is a target (plan)"),
-        Test::new("3.1", "Configure Multi Initiator System", Missing, &[], "spit's IQNs A and B are both authorized. Missing: a login as an IQN outside the ACL (expect 02/02h) and SendTargets as that IQN (target not listed)"),
+        Test::new("3.1", "Configure Multi Initiator System", Covered, &[Ref::new("login", "initiator not on the access list")], "stgt hides the target from an unauthorized initiator with status 0203; the case accepts 0201h, 0202h or 0203h, or admission by an open target"),
         Test::new("3.2", "Target Removed (multi initiator)", Partial, &[Ref::new("session", "")], "Two IQNs, and reinstatement for A ( …, reinstated A …). Missing: the unauthorized-IQN check after a reconnect, and I/O during the drop"),
     ],
 };
