@@ -119,9 +119,13 @@ pub const MSDSM: Suite = Suite {
         Test::new(
             "MSDSM.12",
             "START STOP UNIT causes no failover",
-            Partial,
-            &[],
-            "as WHCP.SPC.13",
+            Covered,
+            &[
+                Ref::new("disk", "START STOP UNIT, STOP"),
+                Ref::new("disk", "START STOP UNIT, START"),
+                Ref::new("windows", "START STOP UNIT changes no target port group"),
+            ],
+            "",
         ),
         Test::new(
             "MSDSM.13",

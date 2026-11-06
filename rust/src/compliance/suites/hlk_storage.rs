@@ -77,7 +77,7 @@ pub const HLK_STORAGE: Suite = Suite {
         Test::new("SASSSD.5", "B2h length vs DP", Missing, &[], "as TP-SCSI.6"),
         Test::new("SASSSD.6", "RC16 vs B2h", Covered, &[Ref::new("unmap", "LBPME agrees *"), Ref::new("unmap", "LBPRZ agrees *")], ""),
         Test::new("SASSSD.7", "UNMAP (10) supported", Covered, &[Ref::new("unmap", "UNMAP one block")], ""),
-        Test::new("ROT.1", "Rotation rate not 0000h", Partial, &[Ref::new("disk", "VPD B1h medium rotation rate")], "accepts 0000h; Microsoft rejects it (spit looser)"),
+        Test::new("ROT.1", "Rotation rate not 0000h", Covered, &[Ref::new("windows", "VPD B1h MEDIUM ROTATION RATE reported"), Ref::new("disk", "VPD B1h medium rotation rate")], ""),
         Test::new("ROT.2", "iSCSI LUNs skipped", NotApplicable, &[], "host decides"),
         Test::new("TZR.1", "Zeros after unmap (LBPRZ = 1)", Covered, &[Ref::new("unmap", "UNMAP one block")], ""),
         Test::new("TZR.2", "Zeros until rewritten", Partial, &[Ref::new("unmap", "WRITE SAME (16) with UNMAP")], "reads once; no repeated read"),

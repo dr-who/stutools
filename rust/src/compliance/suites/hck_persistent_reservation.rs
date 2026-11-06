@@ -23,7 +23,7 @@ pub const HCK_PERSISTENT_RESERVATION: Suite = Suite {
         Test::new("WHCP-PR-10", "Re-register an already registered nexus", Covered, &[Ref::new("pr", "A registers again"), Ref::new("pr", "B registers again")], ""),
         Test::new("WHCP-PR-11", "Re-reserve by the holder (5.6.9)", Missing, &[], "the holder never repeats its own RESERVE"),
         Test::new("WHCP-PR-12", "PREEMPT / PREEMPT AND ABORT with an invalid SERVICE ACTION RESERVATION KEY", Missing, &[], "only \"C PREEMPT from an unregistered port\"; a registered nexus naming an unknown key is never sent"),
-        Test::new("WHCP-PR-13", "ADDITIONAL LENGTH zero with no reservation (6.11.3.2)", Partial, &[Ref::new("pr", "no reservation after RELEASE")], "treats any length < 16 as none; 0 not required"),
+        Test::new("WHCP-PR-13", "ADDITIONAL LENGTH zero with no reservation (6.11.3.2)", Covered, &[Ref::new("pr", "READ RESERVATION with none held: ADDITIONAL LENGTH 0")], ""),
         Test::new("WHCP-PR-14", "Register and unregister on all paths (MSDSM)", Covered, &[Ref::new("pr", "READ KEYS lists A's key once per path"), Ref::new("pr", "A's second path unregisters")], ""),
         Test::new("WHCP-PR-15", "Failover within 5 s for up to 100 LUNs; normal I/O within 25 s", Missing, &[], "no timing of PREEMPT handover or of 100 LUNs"),
     ],
