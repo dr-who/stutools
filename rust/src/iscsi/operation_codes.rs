@@ -2,8 +2,9 @@
 //! form with or without command timeouts descriptors, the one-command forms (REPORTING OPTIONS 001b and
 //! 010b), and the all_commands list parsed into one entry per operation code and service action.
 
+use super::port::Port;
 use super::scsi_fields::{be16, be32};
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::Result;
 
 /// One command REPORT SUPPORTED OPERATION CODES lists (SPC-6 6.32.2, table 260).
@@ -32,7 +33,7 @@ pub(super) fn parse_rsoc(d: &[u8]) -> Vec<Supported> {
     out
 }
 
-pub(super) fn rsoc_all(s: &mut Session, rctd: bool) -> Result<Outcome> {
+pub(super) fn rsoc_all(s: &mut Port, rctd: bool) -> Result<Outcome> {
     let a = 65536u32.to_be_bytes();
     let cdb = [
         0xa3,
@@ -53,11 +54,7 @@ pub(super) fn rsoc_all(s: &mut Session, rctd: bool) -> Result<Outcome> {
 
 /// REPORT SUPPORTED OPERATION CODES for one command (REPORTING OPTIONS 001b, or 010b with a service
 /// action; SPC-6 table 257).
-pub(super) fn rsoc_one(
-    s: &mut Session,
-    opcode: u8,
-    service_action: Option<u16>,
-) -> Result<Outcome> {
+pub(super) fn rsoc_one(s: &mut Port, opcode: u8, service_action: Option<u16>) -> Result<Outcome> {
     let sa = service_action.unwrap_or(0).to_be_bytes();
     let options = if service_action.is_some() { 0x02 } else { 0x01 };
     let cdb = [

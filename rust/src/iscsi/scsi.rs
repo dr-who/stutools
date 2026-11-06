@@ -1,7 +1,8 @@
 //! SCSI block commands sent over an iSCSI session: the INQUIRY pages that identify a LUN, its capacity,
 //! and its target port groups (ALUA). Each function returns the decoded fields, not raw bytes.
 
-use super::session::{Outcome, Session};
+use super::commands::Commands;
+use super::session::Outcome;
 use crate::Result;
 
 const INQUIRY: u8 = 0x12;
@@ -31,7 +32,7 @@ const READ_CAPACITY_16_CDB: [u8; 16] = [
 
 /// Runs a command, retrying while the target reports UNIT ATTENTION (sense key 6), which it raises
 /// once after a configuration or ALUA change.
-fn command(s: &mut Session, cdb: &[u8], read: u32) -> Result<Outcome> {
+fn command(s: &mut impl Commands, cdb: &[u8], read: u32) -> Result<Outcome> {
     for _ in 0..5 {
         let o = s.command(cdb, read, None)?;
         let unit_attention = o.status == 0x02 && o.sense.get(2).is_some_and(|k| k & 0x0f == 0x06);
@@ -107,7 +108,7 @@ pub struct Inquiry {
     pub revision: String,
 }
 
-pub fn inquiry(s: &mut Session) -> Result<Inquiry> {
+pub fn inquiry(s: &mut impl Commands) -> Result<Inquiry> {
     let o = command(s, &[INQUIRY, 0, 0, 0, 96, 0], 96)?;
     check("INQUIRY", &o)?;
     let d = &o.data;
@@ -121,7 +122,7 @@ pub fn inquiry(s: &mut Session) -> Result<Inquiry> {
 }
 
 /// VPD page 0x80: the unit serial number.
-pub fn serial(s: &mut Session) -> Result<String> {
+pub fn serial(s: &mut impl Commands) -> Result<String> {
     let o = command(s, &[INQUIRY, 0x01, 0x80, 0, 255, 0], 255)?;
     check("INQUIRY VPD 0x80", &o)?;
     let len = o.data.get(3).copied().unwrap_or(0) as usize;
@@ -139,7 +140,7 @@ pub struct Designator {
 }
 
 /// VPD page 0x83: every identification descriptor the LUN reports.
-pub fn designators(s: &mut Session) -> Result<Vec<Designator>> {
+pub fn designators(s: &mut impl Commands) -> Result<Vec<Designator>> {
     let o = command(s, &[INQUIRY, 0x01, 0x83, 0, 255, 0], 255)?;
     check("INQUIRY VPD 0x83", &o)?;
     let d = &o.data;
@@ -162,7 +163,7 @@ pub fn designators(s: &mut Session) -> Result<Vec<Designator>> {
 }
 
 /// READ CAPACITY(16): the last LBA and the logical block length in bytes.
-pub fn capacity(s: &mut Session) -> Result<(u64, u32)> {
+pub fn capacity(s: &mut impl Commands) -> Result<(u64, u32)> {
     let o = command(s, &READ_CAPACITY_16_CDB, 32)?;
     check("READ CAPACITY(16)", &o)?;
     let last = be64(&o.data, 0).ok_or("READ CAPACITY(16) data is short")?;
@@ -202,7 +203,7 @@ pub struct PortGroup {
 }
 
 /// REPORT TARGET PORT GROUPS: the ALUA groups this LUN is in, with their access states.
-pub fn port_groups(s: &mut Session) -> Result<Vec<PortGroup>> {
+pub fn port_groups(s: &mut impl Commands) -> Result<Vec<PortGroup>> {
     let cdb = [
         MAINTENANCE_IN,
         REPORT_TARGET_PORT_GROUPS,

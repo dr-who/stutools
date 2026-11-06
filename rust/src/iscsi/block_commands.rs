@@ -13,8 +13,9 @@ use super::command_set::{Row, Rule, Sending, ROWS};
 use super::disk::Disk;
 use super::login;
 use super::lun_access::{open, open_with, read_block, Lun};
+use super::port::Port;
+use super::pr_ports::ISID_SIBLING;
 use super::seen::{Probe, Seen};
-use super::session::Session;
 use crate::compliance::{Case, ScsiLevel};
 
 pub(super) const SECTION: &str = "sbc";
@@ -54,7 +55,7 @@ fn title(row: &Row, level: ScsiLevel) -> String {
 
 /// Runs the table 34 checklist for one LUN.
 pub(super) fn run(
-    s: &mut Session,
+    s: &mut Port,
     lun: Lun,
     name: &str,
     disk: &Disk,
@@ -105,8 +106,9 @@ pub(super) fn run(
             (Some(p), _) => Some(p),
             (None, "RESERVE (6)" | "RELEASE (6)") => {
                 if spc2_probes.is_none() {
+                    // Another I_T nexus: on a local disk the sibling ISID is the disk's other port.
                     spc2_probes =
-                        open(path, initiator, creds, login::random_isid())
+                        open(path, initiator, creds, ISID_SIBLING)
                             .ok()
                             .map(|mut other| {
                                 let _ = super::lun_access::unit_attentions(&mut other);

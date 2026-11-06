@@ -8,20 +8,14 @@ use super::cases::{expect, Want};
 use super::lun_access::{open, unit_attentions, Creds};
 use super::ops::{self, persistent_reserve_in};
 use super::path::Path;
+use super::port::Port;
 use super::pr_commands::{hex, out, parse_full_status, read_holder, read_keys, FullStatus};
 use super::pr_ports::{Run, ISID_A, ISID_A2, KEY_A, KEY_B, KEY_C, SECTION};
-use super::session::Session;
 
 impl Run<'_> {
     /// SPC-6 5.14.11.2.4: PREEMPT and PREEMPT AND ABORT, the way a clustering node takes a disk from a
     /// node that stopped answering.
-    pub(super) fn preemption(
-        &mut self,
-        a: &mut Session,
-        b: &mut Session,
-        c: &mut Session,
-        kind: u8,
-    ) {
+    pub(super) fn preemption(&mut self, a: &mut Port, b: &mut Port, c: &mut Port, kind: u8) {
         let tag = format!("type {kind}");
         self.status(
             &format!("{tag}: A RESERVE"),
@@ -122,9 +116,9 @@ impl Run<'_> {
     /// did every step is already there and is sent nothing.
     pub(super) fn settle(
         &mut self,
-        a: &mut Session,
-        b: &mut Session,
-        c: &mut Session,
+        a: &mut Port,
+        b: &mut Port,
+        c: &mut Port,
         hold: Option<u8>,
         both: bool,
     ) {
@@ -158,9 +152,9 @@ impl Run<'_> {
         path: &Path,
         initiator: &str,
         creds: Creds,
-        mut a: Session,
-        b: &mut Session,
-    ) -> Option<Session> {
+        mut a: Port,
+        b: &mut Port,
+    ) -> Option<Port> {
         self.status(
             "A RESERVE write exclusive",
             &[Want::Good],
@@ -208,9 +202,9 @@ impl Run<'_> {
         path: &Path,
         initiator: &str,
         creds: Creds,
-        a: &mut Session,
-        b: &mut Session,
-        c: &mut Session,
+        a: &mut Port,
+        b: &mut Port,
+        c: &mut Port,
     ) {
         let mut p = match open(path, initiator, creds, ISID_A2) {
             Ok(s) => s,
@@ -279,7 +273,7 @@ impl Run<'_> {
 
     /// SPC-6 6.14.5: READ FULL STATUS describes every registered nexus with its TransportID; the holder
     /// is A's port, named by its IQN and ISID (7.6.4.5).
-    pub(super) fn full_status(&mut self, s: &mut Session) {
+    pub(super) fn full_status(&mut self, s: &mut Port) {
         let o = persistent_reserve_in(s, ops::PR_IN_READ_FULL_STATUS, 4096);
         let (passed, o) = expect(
             self.cases,
@@ -292,16 +286,22 @@ impl Run<'_> {
             return;
         };
         let list = parse_full_status(&o.data);
-        let a_port = format!(",i,0x{}", hex(&ISID_A));
+        // An iSCSI holder is named by its ISID; a SAS one by its initiator port's address, which
+        // only the TransportID itself gives, so there it is shown.
+        let (a_port, protocol, kind) = if self.local {
+            ("sas 0x".to_string(), 6, "SAS")
+        } else {
+            (format!(",i,0x{}", hex(&ISID_A)), 5, "iSCSI")
+        };
         let holders: Vec<&FullStatus> = list.iter().filter(|d| d.holder).collect();
         let holder_ok = holders.len() == 1
             && holders[0].key == KEY_A
             && holders[0].transport.to_lowercase().contains(&a_port);
-        let iscsi = list.iter().all(|d| d.protocol == 5);
+        let same = list.iter().all(|d| d.protocol == protocol);
         let covered: usize = list.iter().filter(|d| !d.all_ports).count();
         self.verdict(
             "READ FULL STATUS names the holder's port",
-            format!("one holder, key {KEY_A:#x}, TransportID ending {a_port}"),
+            format!("one holder, key {KEY_A:#x}, TransportID with {a_port}"),
             holders
                 .iter()
                 .map(|d| format!("key {:#x} {}", d.key, d.transport))
@@ -311,16 +311,23 @@ impl Run<'_> {
             false,
         );
         self.verdict(
-            "READ FULL STATUS lists each registered nexus as iSCSI",
-            "3 descriptors, protocol 5".into(),
-            format!("{} descriptors ({covered} single-port)", list.len()),
-            iscsi && (list.len() == 3 || list.iter().any(|d| d.all_ports)),
+            &format!("READ FULL STATUS lists each registered nexus as {kind}"),
+            format!("3 descriptors, protocol {protocol}"),
+            format!(
+                "{} descriptors ({covered} single-port), protocols {}",
+                list.len(),
+                list.iter()
+                    .map(|d| d.protocol.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            same && (list.len() == 3 || list.iter().any(|d| d.all_ports)),
             false,
         );
     }
 
     /// SPC-6 5.14.3: with CRH set, RELEASE(6) from the holder returns GOOD and releases nothing.
-    pub(super) fn spc2_release(&mut self, a: &mut Session, c: &mut Session) {
+    pub(super) fn spc2_release(&mut self, a: &mut Port, c: &mut Port) {
         self.status(
             "RELEASE(6) from the holder (CRH)",
             &[Want::Good],
@@ -337,7 +344,7 @@ impl Run<'_> {
 
     /// SPC-6 5.14.11.2.3 and 5.14.10: when the holder unregisters, a write exclusive reservation goes
     /// with it.
-    pub(super) fn unregistering(&mut self, a: &mut Session, c: &mut Session) {
+    pub(super) fn unregistering(&mut self, a: &mut Port, c: &mut Port) {
         self.status(
             "holder A unregisters",
             &[Want::Good],
@@ -349,7 +356,7 @@ impl Run<'_> {
 
     /// SPC-6 5.14.11.2.7: CLEAR releases the reservation, removes every registration, and tells every
     /// other registered nexus RESERVATIONS PREEMPTED.
-    pub(super) fn clearing(&mut self, a: &mut Session, b: &mut Session, c: &mut Session) {
+    pub(super) fn clearing(&mut self, a: &mut Port, b: &mut Port, c: &mut Port) {
         self.status(
             "A registers again",
             &[Want::Good],

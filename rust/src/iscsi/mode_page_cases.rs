@@ -6,9 +6,10 @@
 
 use super::cases::{expect, record, refused, Want};
 use super::disk::{label, Disk, SECTION};
+use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Seen;
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::compliance::Case;
 use crate::Result;
 
@@ -31,7 +32,7 @@ pub(super) fn mode_page_of(d: &[u8], ten: bool) -> Option<&[u8]> {
 }
 
 pub(super) fn mode_sense_10(
-    s: &mut Session,
+    s: &mut Port,
     control: u8,
     page: u8,
     subpage: u8,
@@ -52,13 +53,13 @@ pub(super) fn mode_sense_10(
     s.command(&cdb, 4096, None)
 }
 
-pub(super) fn mode_sense_6(s: &mut Session, page: u8) -> Result<Outcome> {
+pub(super) fn mode_sense_6(s: &mut Port, page: u8) -> Result<Outcome> {
     s.command(&[0x1a, 0x08, page, 0, 255, 0], 255, None)
 }
 
 /// SPC-5 6.14, 6.15, 7.5; SBC-5 6.5: the mode pages, and MODE SELECT of the Caching page unchanged.
 pub(super) fn mode_pages(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     cases: &mut Vec<Case>,
     seen: &mut Seen,

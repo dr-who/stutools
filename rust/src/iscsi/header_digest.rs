@@ -34,7 +34,7 @@ pub(super) fn run(
             return;
         }
     };
-    if !s.negotiated.header_digest {
+    if !s.negotiated().is_some_and(|n| n.header_digest) {
         record_info(
             cases,
             SECTION,

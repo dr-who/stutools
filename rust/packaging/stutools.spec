@@ -65,6 +65,10 @@ install -m644 packaging/spit.1 %{buildroot}%{_mandir}/man1/spit.1
   case citing that edition's clause; --compliance-report writes an
   AsciiDoc report with a compatibility matrix.
 - --iscsi HOST/IQN/LUN tests a logical unit other than LUN 0.
+- --compliance -f /dev/... tests a local SAS or SCSI disk through SG_IO,
+  every path of a multipath device as its own I_T nexus.
+- A coherence section: a write through each nexus is read back through
+  every other.
 * Fri Nov 06 2026 Stuart Inglis <stuart.inglis@gmail.com> - 2.2.0-1
 - --compliance covers the commands Windows MPIO, NTFS and Failover
   Clustering send, on iSCSI and NVMe/TCP, reservations included.

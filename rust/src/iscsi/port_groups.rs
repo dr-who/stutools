@@ -3,8 +3,9 @@
 //! supported-state bits, member relative target ports), and the supported-state bit for each
 //! asymmetric access state (table 273).
 
+use super::port::Port;
 use super::scsi_fields::{be16, be32};
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::Result;
 
 /// One target port group descriptor (SPC-6 table 272).
@@ -18,7 +19,7 @@ pub(super) struct Group {
 
 /// REPORT TARGET PORT GROUPS, in the length only format or, with `extended`, asking for the extended
 /// header (PARAMETER DATA FORMAT 001b, SPC-6 table 268).
-pub(super) fn rtpg(s: &mut Session, extended: bool) -> Result<Outcome> {
+pub(super) fn rtpg(s: &mut Port, extended: bool) -> Result<Outcome> {
     let a = 4096u32.to_be_bytes();
     let cdb = [
         0xa3,

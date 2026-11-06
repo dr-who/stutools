@@ -2,7 +2,8 @@
 //! PERSISTENT RESERVE IN and OUT (SPC-4), and SET TARGET PORT GROUPS (SPC-4). Each function sends
 //! one command and returns its status and sense. The caller decides whether the answer is right.
 
-use super::session::{Outcome, Session};
+use super::commands::Commands;
+use super::session::Outcome;
 use crate::Result;
 
 const UNMAP: u8 = 0x42;
@@ -40,7 +41,7 @@ pub const RELEASE_6: [u8; 6] = [0x17, 0, 0, 0, 0, 0];
 
 /// UNMAP of one block descriptor (SBC-5 5.31). The parameter list is an 8-byte header (the data
 /// length excludes its own two bytes, then the block descriptor length) and one 16-byte descriptor.
-pub fn unmap(s: &mut Session, lba: u64, blocks: u32) -> Result<Outcome> {
+pub fn unmap(s: &mut impl Commands, lba: u64, blocks: u32) -> Result<Outcome> {
     let mut list = [0u8; 24];
     list[1] = 22;
     list[3] = 16;
@@ -52,7 +53,12 @@ pub fn unmap(s: &mut Session, lba: u64, blocks: u32) -> Result<Outcome> {
 
 /// COMPARE AND WRITE (SBC-5 5.4): `data` is `blocks` blocks to compare, then `blocks` to write.
 /// The LBA is 8 bytes at 2 to 9 and the block count is one byte at 13.
-pub fn compare_and_write(s: &mut Session, lba: u64, blocks: u8, data: &[u8]) -> Result<Outcome> {
+pub fn compare_and_write(
+    s: &mut impl Commands,
+    lba: u64,
+    blocks: u8,
+    data: &[u8],
+) -> Result<Outcome> {
     let mut cdb = [0u8; 16];
     cdb[0] = COMPARE_AND_WRITE;
     cdb[2..10].copy_from_slice(&lba.to_be_bytes());
@@ -61,7 +67,7 @@ pub fn compare_and_write(s: &mut Session, lba: u64, blocks: u8, data: &[u8]) -> 
 }
 
 /// PERSISTENT RESERVE IN. Reads `alloc` bytes of the service action's answer.
-pub fn persistent_reserve_in(s: &mut Session, action: u8, alloc: u16) -> Result<Outcome> {
+pub fn persistent_reserve_in(s: &mut impl Commands, action: u8, alloc: u16) -> Result<Outcome> {
     let a = alloc.to_be_bytes();
     let cdb = [PERSISTENT_RESERVE_IN, action, 0, 0, 0, 0, 0, a[0], a[1], 0];
     s.command(&cdb, alloc as u32, None)
@@ -79,7 +85,7 @@ pub fn pr_parameters(key: u64, service_key: u64) -> [u8; 24] {
 /// PERSISTENT RESERVE OUT. `kind` is the scope (LU, 0) in the high nibble and the reservation type
 /// in the low nibble. The parameter list is 24 bytes, see `pr_parameters`.
 pub fn persistent_reserve_out(
-    s: &mut Session,
+    s: &mut impl Commands,
     action: u8,
     kind: u8,
     list: &[u8],
@@ -109,7 +115,7 @@ pub fn port_group_list(group: u16, state: u8) -> [u8; 8] {
 }
 
 /// SET TARGET PORT GROUPS (SPC-6 6.43) for one group.
-pub fn set_port_group_state(s: &mut Session, group: u16, state: u8) -> Result<Outcome> {
+pub fn set_port_group_state(s: &mut impl Commands, group: u16, state: u8) -> Result<Outcome> {
     let list = port_group_list(group, state);
     let n = (list.len() as u32).to_be_bytes();
     let cdb = [

@@ -8,19 +8,13 @@ use super::cases::{expect, record, Want, REFUSED};
 use super::disk::Disk;
 use super::lun_access::{read_block, write_block};
 use super::ops;
+use super::port::Port;
 use super::seen::Seen;
-use super::session::Session;
 use crate::compliance::Case;
 
 const SECTION: &str = "ats";
 
-pub(super) fn run(
-    s: &mut Session,
-    name: &str,
-    disk: &Disk,
-    cases: &mut Vec<Case>,
-    seen: &mut Seen,
-) {
+pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, seen: &mut Seen) {
     let label = |what: &str| format!("{name} {what}");
     let Ok(target) = u32::try_from(disk.last_lba.saturating_sub(1)) else {
         return;

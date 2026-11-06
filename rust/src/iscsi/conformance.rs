@@ -11,14 +11,26 @@ use super::lun_access::{open, short_name, unit_attentions, Creds, Lun};
 use super::path::Path;
 use super::seen::Seen;
 use super::{
-    alua, block_commands, block_io, compare_and_write, disk, feature_sets, header_digest,
-    host_traces, odx, pr_ports, provisioning, reservations, spc_commands, standby_cases,
-    task_management, windows,
+    alua, block_commands, block_io, coherence, compare_and_write, disk, feature_sets,
+    header_digest, host_traces, odx, pr_ports, provisioning, reservations, spc_commands,
+    standby_cases, task_management, windows,
 };
 use crate::compliance::{Case, ScsiLevel};
 
-const SECTIONS: [&str; 12] = [
-    "spc", "disk", "io", "unmap", "ats", "odx", "mpio", "pr", "tmf", "sbc", "features", "windows",
+const SECTIONS: [&str; 13] = [
+    "spc",
+    "disk",
+    "io",
+    "coherence",
+    "unmap",
+    "ats",
+    "odx",
+    "mpio",
+    "pr",
+    "tmf",
+    "sbc",
+    "features",
+    "windows",
 ];
 
 /// One target to test: its path, credentials, whether the path is standby, and the iSCSIProtocolLevel
@@ -76,6 +88,7 @@ pub(super) fn run(
         let disk = disk::run(&mut s, &name, levels, cases, &mut seen);
         host_traces::linux(&mut s, &name, &disk, cases);
         let io = block_io::run(&mut s, &name, &disk, cases, &mut seen);
+        coherence::run(t.path, initiator, second, t.creds, &name, cases);
         let thin = provisioning::run(&mut s, &name, &disk, cases, &mut seen);
         compare_and_write::run(&mut s, &name, &disk, cases, &mut seen);
         let first = cases.len();
@@ -90,16 +103,19 @@ pub(super) fn run(
         let pr_ok = no_failures(&cases[first..]);
         seen.note("PERSISTENT RESERVE IN", "pr", true, pr_ok, "see pr");
         seen.note("PERSISTENT RESERVE OUT", "pr", true, pr_ok, "see pr");
-        task_management::run(
-            t.path,
-            initiator,
-            t.creds,
-            &name,
-            t.protocol_level,
-            cases,
-            &mut seen,
-        );
-        header_digest::run(t.path, initiator, t.creds, &name, disk.block_len, cases);
+        // Task management and header digests are iSCSI's; a local disk has neither here.
+        if !t.path.is_local() {
+            task_management::run(
+                t.path,
+                initiator,
+                t.creds,
+                &name,
+                t.protocol_level,
+                cases,
+                &mut seen,
+            );
+            header_digest::run(t.path, initiator, t.creds, &name, disk.block_len, cases);
+        }
         match open(t.path, initiator, t.creds, login::random_isid()) {
             Ok(mut s) => {
                 let _ = unit_attentions(&mut s);

@@ -10,9 +10,9 @@ use super::cases::{expect, expect_should, record, Want, REFUSED, REFUSED_SA};
 use super::disk::Disk;
 use super::lun_access::{read_block, write_block};
 use super::ops;
+use super::port::Port;
 use super::scsi_fields::{be32, be64};
 use super::seen::Seen;
-use super::session::Session;
 use crate::compliance::Case;
 
 const SECTION: &str = "unmap";
@@ -30,7 +30,7 @@ pub(super) struct Findings {
 }
 
 pub(super) fn run(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     disk: &Disk,
     cases: &mut Vec<Case>,

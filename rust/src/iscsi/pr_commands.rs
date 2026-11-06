@@ -4,8 +4,9 @@
 //! (6.14.3) and READ FULL STATUS (6.14.5) data, each parsed into what the cases compare.
 
 use super::ops::{self, persistent_reserve_in, persistent_reserve_out, pr_parameters};
+use super::port::Port;
 use super::scsi;
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::Result;
 
 /// The six reservation types (SPC-6 6.14.3.3) and their names.
@@ -79,7 +80,7 @@ impl Capabilities {
 }
 
 pub(super) fn out(
-    s: &mut Session,
+    s: &mut Port,
     action: u8,
     kind: u8,
     key: u64,
@@ -91,7 +92,7 @@ pub(super) fn out(
 /// READ KEYS (SPC-6 6.14.2): the generation and every registered key, once per I_T nexus.
 /// PERSISTENT RESERVE IN past any unit attentions pending for the nexus, which are checked by their own
 /// cases: a state query reports the state.
-pub(super) fn reserve_in(s: &mut Session, action: u8, alloc: u16) -> Result<Outcome> {
+pub(super) fn reserve_in(s: &mut Port, action: u8, alloc: u16) -> Result<Outcome> {
     let mut o = persistent_reserve_in(s, action, alloc)?;
     for _ in 0..4 {
         if !(o.status == 2 && super::cases::sense(&o.sense).0 == 0x6) {
@@ -102,7 +103,7 @@ pub(super) fn reserve_in(s: &mut Session, action: u8, alloc: u16) -> Result<Outc
     Ok(o)
 }
 
-pub(super) fn read_keys(s: &mut Session) -> Result<(u32, Vec<u64>)> {
+pub(super) fn read_keys(s: &mut Port) -> Result<(u32, Vec<u64>)> {
     let o = reserve_in(s, ops::PR_IN_READ_KEYS, 1024)?;
     scsi::check_status("PERSISTENT RESERVE IN (read keys)", o.status, &o.sense)?;
     Ok(parse_keys(&o.data))
@@ -121,7 +122,7 @@ pub(super) fn parse_keys(d: &[u8]) -> (u32, Vec<u64>) {
 }
 
 /// READ RESERVATION (SPC-6 6.14.3): the holder's key and the type, or None when there is none.
-pub(super) fn read_holder(s: &mut Session) -> Result<Option<(u64, u8)>> {
+pub(super) fn read_holder(s: &mut Port) -> Result<Option<(u64, u8)>> {
     let o = reserve_in(s, ops::PR_IN_READ_RESERVATIONS, 512)?;
     scsi::check_status(
         "PERSISTENT RESERVE IN (read reservation)",
@@ -147,7 +148,8 @@ pub(super) struct FullStatus {
     pub(super) holder: bool,
     pub(super) all_ports: bool,
     pub(super) protocol: u8,
-    /// The TransportID's name and ISID as text, e.g. `iqn...,i,0x80a153500001`.
+    /// The TransportID as text: an iSCSI name and ISID (`iqn...,i,0x80a153500001`), or a SAS address
+    /// (`sas 0x5000cca2...`).
     pub(super) transport: String,
 }
 
@@ -159,14 +161,25 @@ pub(super) fn parse_full_status(d: &[u8]) -> Vec<FullStatus> {
     while i + 24 <= end {
         let len = scsi::be32(d, i + 20).unwrap_or(0) as usize;
         let id = d.get(i + 24..(i + 24 + len).min(end)).unwrap_or(&[]);
-        let transport = id
-            .get(4..)
-            .map(|t| {
-                String::from_utf8_lossy(t)
-                    .trim_end_matches('\0')
-                    .to_string()
-            })
-            .unwrap_or_default();
+        // SPC-6 7.6.4: protocol 6 is SAS, an 8-byte address at byte 4; 5 is iSCSI, text from byte 4.
+        let transport = match id.first().map(|p| p & 0x0f) {
+            Some(6) => format!(
+                "sas 0x{}",
+                id.get(4..12)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<String>()
+            ),
+            _ => id
+                .get(4..)
+                .map(|t| {
+                    String::from_utf8_lossy(t)
+                        .trim_end_matches('\0')
+                        .to_string()
+                })
+                .unwrap_or_default(),
+        };
         out.push(FullStatus {
             key: u64::from_be_bytes(d[i..i + 8].try_into().unwrap()),
             holder: d[i + 12] & 0x01 != 0,

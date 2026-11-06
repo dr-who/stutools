@@ -50,6 +50,14 @@ pub fn run(config: &Config) -> Result<()> {
     if !config.nvmeof.is_empty() {
         crate::nvme::compliance::cases(&config.nvmeof, &mut cases, &mut devices)?;
     }
+    let local: Vec<String> = config
+        .files
+        .iter()
+        .map(|f| f.display().to_string())
+        .filter(|f| f.starts_with("/dev/"))
+        .collect();
+    #[cfg(target_os = "linux")]
+    crate::iscsi::local_disk::cases(&local, levels, &mut cases, &mut untested, &mut devices);
     let rows = judged::rows(&cases, levels);
     let views: Vec<(ScsiLevel, Vec<Case>)> = levels
         .iter()
@@ -70,6 +78,7 @@ pub fn run(config: &Config) -> Result<()> {
             command: command_line(),
             iscsi: &config.iscsi,
             nvme: &config.nvmeof,
+            local: &local,
             initiators: config
                 .iscsi_initiator
                 .iter()

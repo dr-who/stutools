@@ -1,7 +1,8 @@
 //! One iSCSI path: the portal to connect to, the target name and the logical unit, from
 //! `HOST[:PORT]/IQN[/LUN]`. An IQN never contains a slash, so slashes separate the three; the port
 //! defaults to 3260 at login and the LUN to 0. A LUN other than 0 is for targets that keep LUN 0 for
-//! themselves (tgt's controller LUN).
+//! themselves (tgt's controller LUN). A local disk (`-f /dev/...` with `--compliance`) is a path with
+//! no portal.
 
 use crate::Result;
 
@@ -14,6 +15,20 @@ pub struct Path {
 }
 
 impl Path {
+    /// A local disk: no portal, and the device in place of the target name.
+    pub fn local(device: &str) -> Path {
+        Path {
+            portal: String::new(),
+            target: device.to_string(),
+            lun: 0,
+        }
+    }
+
+    /// Whether this is a local disk rather than an iSCSI target.
+    pub fn is_local(&self) -> bool {
+        self.portal.is_empty()
+    }
+
     /// The 8-byte LUN field of a PDU (SAM-6 4.7.7): peripheral device addressing below 256, flat space
     /// addressing above.
     pub fn lun_field(&self) -> u64 {

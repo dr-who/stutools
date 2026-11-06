@@ -8,8 +8,9 @@
 use super::cases::{describe, record, Want};
 use super::disk::Disk;
 use super::mode_page_cases::mode_page_of;
+use super::port::Port;
 use super::scsi_fields::{be16, be32};
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::compliance::Case;
 
 /// What an answer is compared with.
@@ -282,7 +283,7 @@ fn judge(step: &Step, o: &Outcome, disk: &Disk) -> (String, bool) {
 
 /// Replays one host's trace.
 fn replay(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     host: &str,
     section: &'static str,
@@ -333,7 +334,7 @@ fn replay(
 }
 
 /// Replays the Windows Server 2022 trace; returns whether every command answered as it must.
-pub(super) fn windows(s: &mut Session, name: &str, disk: &Disk, cases: &mut Vec<Case>) -> bool {
+pub(super) fn windows(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) -> bool {
     replay(
         s,
         name,
@@ -345,7 +346,7 @@ pub(super) fn windows(s: &mut Session, name: &str, disk: &Disk, cases: &mut Vec<
     )
 }
 
-pub(super) fn linux(s: &mut Session, name: &str, disk: &Disk, cases: &mut Vec<Case>) {
+pub(super) fn linux(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) {
     let _ = replay(
         s,
         name,

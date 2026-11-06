@@ -8,12 +8,12 @@ use super::cases::{expect, record, Want};
 use super::login;
 use super::lun_access::{open, show_attentions, unit_attentions, Lun};
 use super::ops;
+use super::port::Port;
 use super::port_groups::{parse_groups, rtpg, state_bit, Group};
 use super::scsi;
-use super::session::Session;
 use crate::compliance::Case;
 
-pub(super) fn current_state(s: &mut Session, id: u16) -> Option<u8> {
+pub(super) fn current_state(s: &mut Port, id: u16) -> Option<u8> {
     let o = rtpg(s, false).ok().filter(|o| o.status == 0)?;
     parse_groups(&o.data)
         .1
@@ -26,7 +26,7 @@ pub(super) fn current_state(s: &mut Session, id: u16) -> Option<u8> {
 /// primary state and back. SPC-6 5.18.2.6: every other I_T nexus is told ASYMMETRIC ACCESS STATE
 /// CHANGED (2Ah/06h); the nexus that sent SET TARGET PORT GROUPS is not.
 pub(super) fn transition(
-    s: &mut Session,
+    s: &mut Port,
     lun: Lun,
     name: &str,
     own: &Group,

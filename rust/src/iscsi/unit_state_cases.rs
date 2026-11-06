@@ -4,14 +4,15 @@
 
 use super::cases::{expect, record, Want, REFUSED};
 use super::disk::{hex_list, label, Disk, SECTION};
+use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Seen;
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::compliance::Case;
 
 /// SPC-6 6.36 REQUEST SENSE, SBC-5 5.31 START STOP UNIT, SPC-6 6.9 LOG SENSE.
 pub(super) fn run(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     cases: &mut Vec<Case>,
     seen: &mut Seen,

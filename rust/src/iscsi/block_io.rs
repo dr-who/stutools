@@ -8,8 +8,9 @@
 use super::cases::{expect, record, Want, REFUSED};
 use super::disk::Disk;
 use super::lun_access::{pattern, read_block, write_block};
+use super::port::Port;
 use super::seen::Seen;
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::compliance::Case;
 use crate::Result;
 
@@ -46,7 +47,7 @@ pub(super) struct Findings {
 }
 
 pub(super) fn run(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     disk: &Disk,
     cases: &mut Vec<Case>,
@@ -204,14 +205,21 @@ pub(super) fn run(
         None,
     );
 
-    // A 1 MiB read, as hosts send for sequential I/O, limited by MAXIMUM TRANSFER LENGTH when it is less.
+    // A 1 MiB read, as hosts send for sequential I/O, limited by MAXIMUM TRANSFER LENGTH when it is less,
+    // and by what this host's SG_IO carries on a local disk.
     let limits = disk.limits().unwrap_or_default();
+    let carried =
+        t.s.max_transfer()
+            .map(|b| (b / disk.block_len.max(1)).max(1));
     let mib = ((1u32 << 20) / disk.block_len.max(1)).max(1);
-    let blocks = if limits.max_transfer > 0 {
+    let mut blocks = if limits.max_transfer > 0 {
         mib.min(limits.max_transfer)
     } else {
         mib
     };
+    if let Some(c) = carried {
+        blocks = blocks.min(c);
+    }
     t.cmd(
         "READ (16)",
         &format!("READ (16) of {blocks} blocks"),
@@ -222,7 +230,8 @@ pub(super) fn run(
     );
     // SBC-5 table 33: more than MAXIMUM TRANSFER LENGTH is an invalid field in the CDB.
     let over = limits.max_transfer as u64 + 1;
-    if limits.max_transfer > 0 && over * len as u64 <= 32 << 20 && over <= last {
+    let fits = carried.is_none_or(|c| over <= u64::from(c));
+    if limits.max_transfer > 0 && over * len as u64 <= 32 << 20 && over <= last && fits {
         t.cmd(
             "READ (16)",
             "READ (16) over MAXIMUM TRANSFER LENGTH",
@@ -233,8 +242,9 @@ pub(super) fn run(
         );
     }
 
-    // SBC-5 5.33, 5.34: SYNCHRONIZE CACHE of the whole LUN (NUMBER OF LOGICAL BLOCKS 0), with IMMED,
-    // and past the capacity.
+    // SBC-5 5.33, 5.34: SYNCHRONIZE CACHE of the whole LUN (NUMBER OF LOGICAL BLOCKS 0), with IMMED
+    // (a device server without IMMED answers INVALID FIELD IN CDB), and past the capacity.
+    let immed_refused = Want::Ascq(0x5, 0x24, 0x00);
     let sync = t.cmd(
         "SYNCHRONIZE CACHE (10)",
         "SYNCHRONIZE CACHE (10) of the whole LUN",
@@ -246,7 +256,7 @@ pub(super) fn run(
     t.cmd(
         "SYNCHRONIZE CACHE (10)",
         "SYNCHRONIZE CACHE (10) with IMMED",
-        &[Want::Good],
+        &[Want::Good, immed_refused],
         &cdb10(0x35, IMMED, 0, 0),
         0,
         None,
@@ -261,17 +271,20 @@ pub(super) fn run(
         0,
         None,
     );
-    let immed = t.cmd(
+    let mut sync16_immed = sync16.clone();
+    sync16_immed.push(immed_refused);
+    let (_, immed) = t.answer(
         "SYNCHRONIZE CACHE (16)",
         "SYNCHRONIZE CACHE (16) with IMMED",
-        &sync16,
+        &sync16_immed,
         &cdb16(0x91, IMMED, 0, 0),
         0,
         None,
     );
+    // Discovery's SBC Base 2016 needs IMMED itself, not only a clean refusal of it.
     t.seen.fact(
         "SYNCHRONIZE CACHE (16) IMMED",
-        immed && t.supported("SYNCHRONIZE CACHE (16)"),
+        immed.is_some_and(|o| o.status == 0),
     );
     if let Ok(past) = u32::try_from(last + 1) {
         t.cmd(
@@ -372,7 +385,7 @@ pub(super) fn run(
 }
 
 struct Io<'a> {
-    s: &'a mut Session,
+    s: &'a mut Port,
     name: &'a str,
     cases: &'a mut Vec<Case>,
     seen: &'a mut Seen,
@@ -389,6 +402,19 @@ impl Io<'_> {
         read: u32,
         data: Option<&[u8]>,
     ) -> bool {
+        self.answer(command, label, wants, cdb, read, data).0
+    }
+
+    /// `cmd`, with the answer as well as the verdict.
+    fn answer(
+        &mut self,
+        command: &'static str,
+        label: &str,
+        wants: &[Want],
+        cdb: &[u8],
+        read: u32,
+        data: Option<&[u8]>,
+    ) -> (bool, Option<Outcome>) {
         let result: Result<Outcome> = self.s.command(cdb, read, data);
         let answer = expect(
             self.cases,
@@ -398,7 +424,7 @@ impl Io<'_> {
             result,
         );
         self.seen.answer(command, SECTION, &answer);
-        answer.0
+        answer
     }
 
     fn read_back(

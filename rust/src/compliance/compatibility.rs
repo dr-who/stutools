@@ -20,6 +20,9 @@ pub struct Need {
     names: &'static [&'static str],
     /// Words that set a case aside: situations this use never meets.
     except: &'static [&'static str],
+    /// Only some transports have it (iSCSI sessions, NVMe associations); one without it is not
+    /// "partly tested" for lacking it.
+    transport: bool,
 }
 
 /// One use of a block device.
@@ -40,12 +43,15 @@ const fn need(
         sections,
         names,
         except: &[],
+        transport: false,
     }
 }
 
-/// The reservation cases a cluster of hosts meets: every node has an initiator name of its own and
-/// releases with the type it reserved, so the cases about ports sharing a name, and about releasing
-/// with the wrong type, are set aside.
+/// The reservation cases a cluster of hosts meets. Every node has an initiator name of its own,
+/// registers every path before it reserves, uses a registrants-only type (Windows Failover
+/// Clustering and fence_scsi type 5, GPFS 5 or 7) and releases with the type it took. So the cases
+/// about ports sharing a name, a node's unregistered or second path under an exclusive type, and
+/// releasing with the wrong type are set aside.
 const CLUSTER_RESERVATIONS: Need = Need {
     what: "persistent reservations between hosts",
     sections: &["pr", "nvme-resv"],
@@ -55,7 +61,10 @@ const CLUSTER_RESERVATIONS: Need = Need {
         "two ports of one initiator",
         "RELEASE of type",
         "Release naming type",
+        "second path",
+        "from an unregistered port",
     ],
+    transport: false,
 };
 
 const SAME_LUN: Need = need(
@@ -85,7 +94,7 @@ pub const USES: [Use; 9] = [
     },
     Use {
         name: "Windows MPIO, active/active/active",
-        commands: "VPD 83h with one unique ID on every path; REPORT TARGET PORT GROUPS (or ANA); LOGICAL UNIT RESET and ABORT TASK (or Abort) for path recovery; a session or association re-established",
+        commands: "VPD 83h with one unique ID on every path; REPORT TARGET PORT GROUPS (or ANA); LOGICAL UNIT RESET and ABORT TASK (or Abort) for path recovery; a session or association re-established; a write on one path read on every other",
         needs: &[
             SAME_LUN,
             need("unique LUN ID and path states", &["windows"], &["MPIO", "MSDSM"]),
@@ -95,11 +104,15 @@ pub const USES: [Use; 9] = [
                 &["REPORT TARGET PORT GROUPS", "supported state", "ANA"],
             ),
             PATH_RECOVERY,
-            need(
-                "a session re-established",
-                &["session", "nvme-sess"],
-                &["reinstat", "association"],
-            ),
+            need("writes read back through every path", &["coherence"], &[]),
+            Need {
+                transport: true,
+                ..need(
+                    "a session re-established",
+                    &["session", "nvme-sess"],
+                    &["reinstat", "association"],
+                )
+            },
         ],
     },
     Use {
@@ -209,11 +222,15 @@ impl Use {
     /// The cases of `cases` that test this use, and the verdict they give.
     pub fn judge<'a>(&self, cases: &[&'a Case]) -> (Fit, Vec<&'a Case>) {
         let mut tested = 0;
+        let mut owed = 0;
         let mut mine: Vec<&Case> = Vec::new();
         for n in self.needs {
             let of: Vec<&Case> = cases.iter().copied().filter(|c| n.tests(c)).collect();
             if !of.is_empty() {
                 tested += 1;
+            }
+            if !of.is_empty() || !n.transport {
+                owed += 1;
             }
             for c in of {
                 if !mine.iter().any(|m| std::ptr::eq(*m, c)) {
@@ -226,7 +243,7 @@ impl Use {
             (0, _, _) => Fit::NotApplicable,
             (_, f, _) if f > 0 => Fit::AtRisk(f),
             (_, _, w) if w > 0 => Fit::Warnings(w),
-            (t, _, _) if t < self.needs.len() => Fit::Partly,
+            (t, _, _) if t < owed => Fit::Partly,
             _ => Fit::Ready,
         };
         (fit, mine)
@@ -236,7 +253,7 @@ impl Use {
     pub fn untested(&self, cases: &[&Case]) -> Vec<&'static str> {
         self.needs
             .iter()
-            .filter(|n| !cases.iter().any(|c| n.tests(c)))
+            .filter(|n| !n.transport && !cases.iter().any(|c| n.tests(c)))
             .map(|n| n.what)
             .collect()
     }
@@ -275,6 +292,29 @@ mod tests {
         let bad = c("ats", "lun COMPARE AND WRITE", false);
         assert_eq!(esx.judge(&[&bad, &same, &paths, &unmap]).0, Fit::AtRisk(1));
         assert_eq!(by_name("Windows ODX").judge(&all).0, Fit::NotApplicable);
+    }
+
+    #[test]
+    fn a_disk_without_sessions_is_not_partly_tested_for_lacking_them() {
+        let mpio = by_name("Windows MPIO, active/active/active");
+        let all = [
+            c(
+                "identity",
+                "disk path /dev/sde names the same logical unit",
+                true,
+            ),
+            c(
+                "windows",
+                "disk MPIO and Failover Clustering: unique LUN ID in VPD 83h",
+                true,
+            ),
+            c("mpio", "disk REPORT TARGET PORT GROUPS (TPGS 00b)", true),
+            c("tmf", "disk LOGICAL UNIT RESET (SG_SCSI_RESET)", true),
+            c("coherence", "disk A writes, B reads it", true),
+        ];
+        let refs: Vec<&Case> = all.iter().collect();
+        assert_eq!(mpio.judge(&refs).0, Fit::Ready);
+        assert!(mpio.untested(&refs).is_empty());
     }
 
     #[test]

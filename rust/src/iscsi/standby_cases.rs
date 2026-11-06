@@ -8,9 +8,9 @@ use super::alua::SECTION;
 use super::cases::{expect, expect_should, Want, REFUSED};
 use super::lun_access::unit_attentions;
 use super::ops;
+use super::port::Port;
 use super::port_groups::rtpg;
 use super::scsi;
-use super::session::Session;
 use crate::compliance::Case;
 
 pub(super) const KEY_STANDBY: u64 = 0x5350_4954_0000_005b;
@@ -19,7 +19,7 @@ pub(super) const KEY_STANDBY: u64 = 0x5350_4954_0000_005b;
 /// (here INQUIRY, REPORT LUNS, REPORT TARGET PORT GROUPS, MODE SENSE, REQUEST SENSE, LOG SENSE,
 /// PERSISTENT RESERVE IN and OUT), and TEST UNIT READY and READ report LOGICAL UNIT NOT ACCESSIBLE,
 /// TARGET PORT IN STANDBY STATE (04h/0Bh).
-pub(super) fn run(s: &mut Session, name: &str, cases: &mut Vec<Case>) {
+pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
     let label = |what: &str| format!("{name} standby: {what}");
     let _ = unit_attentions(s);
     let not_ready = [Want::Ascq(0x2, 0x04, 0x0b)];

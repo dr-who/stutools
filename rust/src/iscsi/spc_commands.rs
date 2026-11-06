@@ -3,14 +3,14 @@
 //! command no standard assigns (SPC-6 4.2.5: ILLEGAL REQUEST).
 
 use super::cases::{expect, Want};
+use super::port::Port;
 use super::scsi;
 use super::seen::Seen;
-use super::session::Session;
 use crate::compliance::Case;
 
 const SECTION: &str = "spc";
 
-pub(super) fn run(s: &mut Session, name: &str, cases: &mut Vec<Case>, seen: &mut Seen) {
+pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>, seen: &mut Seen) {
     let tur = expect(
         cases,
         SECTION,

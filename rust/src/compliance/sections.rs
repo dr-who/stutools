@@ -23,7 +23,7 @@ const fn s(name: &'static str, part: Part, standard: &'static str, tests: &'stat
     }
 }
 
-pub const SECTIONS: [Section; 26] = [
+pub const SECTIONS: [Section; 27] = [
     s(
         "login",
         Part::Iscsi,
@@ -83,6 +83,12 @@ pub const SECTIONS: [Section; 26] = [
         Part::Sbc,
         "SBC-5: reads, writes, FUA, VERIFY and cache flush (NTFS)",
         "Writes patterns and reads them back with READ and WRITE (10) and (16), FUA, VERIFY and SYNCHRONIZE CACHE, at the last block and past it, as NTFS, ext4 and XFS do; only blocks it writes back are changed.",
+    ),
+    s(
+        "coherence",
+        Part::Sbc,
+        "SBC-5 4.5: one medium, whichever I_T nexus reads it",
+        "Each I_T nexus in turn (two ports of one initiator, and with a second initiator name two more) writes a pattern of its own to one block, and every other nexus reads it back at once, round robin: what active/active multipath and shared-disk cluster file systems depend on.",
     ),
     s(
         "unmap",

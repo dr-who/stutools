@@ -97,8 +97,12 @@ only by ISID, as one host's MPIO paths do.
 .TP
 .B \-\-compliance
 Test every target the \-\-iscsi and \-\-nvme hosts report, or each HOST/IQN
-and HOST/NQN given, against RFC 7143, SAM\-6, SPC, SBC and the NVMe base and
-NVMe\-oF specifications, then print each case and a score per section. It
+and HOST/NQN given, and each \-f /dev/... disk, against RFC 7143, SAM\-6, SPC,
+SBC and the NVMe base and NVMe\-oF specifications, then print each case and a
+score per section. A local disk is reached through SG_IO and opened with
+O_EXCL, so a disk in use is refused; a dm\-multipath device is tested through
+its paths, each host adapter an initiator port and each disk port a target
+port, which gives the reservation cases two hosts. It
 needs no other options; a CHAP target is tested past login only with
 \-\-chap\-user and \-\-chap\-secret\-file. The cases cover every command
 Windows sends to a disk through MPIO, NTFS and Failover Clustering:

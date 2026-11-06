@@ -42,7 +42,8 @@ pub struct Config {
     pub iscsi_second_initiator: Option<String>,
     pub chap_user: Option<String>,
     pub chap_secret_file: Option<PathBuf>,
-    /// `--compliance`: test every `--iscsi` and `--nvme` target against the standards and score it.
+    /// `--compliance`: test every `--iscsi` and `--nvme` target, and every `-f /dev/...` disk, against
+    /// the standards and score it.
     pub compliance: bool,
     /// `--compliance-report FILE`: also write the report as an AsciiDoc document.
     pub compliance_report: Option<PathBuf>,
@@ -462,8 +463,18 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         println!("#   from {from}; give --iscsi-initiator IQN to override");
         c.iscsi_initiator = Some(name);
     }
-    if c.compliance && c.iscsi.is_empty() && c.nvmeof.is_empty() {
-        return Err("--compliance needs --iscsi or --nvme hosts or targets".into());
+    let disks = c.files.iter().any(|f| f.starts_with("/dev/"));
+    if c.compliance && c.iscsi.is_empty() && c.nvmeof.is_empty() && !disks {
+        return Err(
+            "--compliance needs --iscsi or --nvme hosts or targets, or -f /dev/... disks".into(),
+        );
+    }
+    // --compliance runs no workload; its -f names are disks to test.
+    if c.compliance {
+        if c.files.iter().any(|f| !f.starts_with("/dev/")) {
+            return Err("--compliance tests -f /dev/... disks, not files".into());
+        }
+        return Ok(Some(c));
     }
     if !c.nvmeof.is_empty() {
         if !c.files.is_empty() || !c.prefixes.is_empty() || fsfiller || c.cameras.is_some() {
@@ -502,6 +513,19 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn compliance_takes_local_disks_and_no_workload() {
+        let args = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let c = parse(args(&["-f", "/dev/sdx", "--compliance"]))
+            .unwrap()
+            .unwrap();
+        assert!(c.compliance && c.jobs.is_empty());
+        assert_eq!(
+            parse(args(&["-f", "/dev/sdx", "-f", "data.bin", "--compliance"])).unwrap_err(),
+            "--compliance tests -f /dev/... disks, not files"
+        );
+    }
+
     #[test]
     fn duration_suffixes_are_exact_and_bounded() {
         for (text, expected) in [

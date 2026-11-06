@@ -7,9 +7,10 @@
 use super::cases::{expect, record, Want, REFUSED_SA};
 use super::disk::Disk;
 use super::lun_access::{pattern, read_block, write_block};
+use super::port::Port;
 use super::scsi_fields::{be16, be32};
 use super::seen::Seen;
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::compliance::Case;
 use crate::Result;
 
@@ -80,7 +81,7 @@ fn token_cdb(sa: u8, list: u32, len: u32) -> [u8; 16] {
     c
 }
 
-fn receive_rod_token_information(s: &mut Session, list: u32) -> Result<Outcome> {
+fn receive_rod_token_information(s: &mut Port, list: u32) -> Result<Outcome> {
     let mut c = [0u8; 16];
     c[0] = 0x84;
     c[1] = 0x07;
@@ -103,7 +104,7 @@ pub(super) fn parse_token(d: &[u8]) -> (u8, Option<Vec<u8>>) {
 
 /// Returns whether ODX is advertised and works.
 pub(super) fn run(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     disk: &Disk,
     cases: &mut Vec<Case>,

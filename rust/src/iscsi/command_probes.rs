@@ -12,9 +12,10 @@ use super::cases::{describe, refused, Want};
 use super::command_set::Row;
 use super::disk::Disk;
 use super::lun_access::read_block;
+use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Probe;
-use super::session::{self, Outcome, Session};
+use super::session::{self, Outcome};
 use crate::Result;
 
 /// The start of a probe's answer when the connection failed under it.
@@ -104,11 +105,11 @@ pub(super) fn good(o: &Outcome) -> bool {
 }
 
 /// Sends the row's command, in a form that changes nothing, and judges it.
-pub(super) fn probe(s: &mut Session, row: &Row, b: &Block, disk: &Disk) -> Option<Probe> {
+pub(super) fn probe(s: &mut Port, row: &Row, b: &Block, disk: &Disk) -> Option<Probe> {
     let lba32 = b.lba as u32;
     let len = b.len as u32;
     let zeros = vec![0u8; b.len];
-    let reads_back = |s: &mut Session| read_block(s, lba32, b.len).is_ok_and(|d| d == b.original);
+    let reads_back = |s: &mut Port| read_block(s, lba32, b.len).is_ok_and(|d| d == b.original);
     // SBC-5 4.21.2: without type 2 protection the type-2-only commands are INVALID COMMAND OPERATION
     // CODE.
     let type2 = type_2_protection(disk);
@@ -302,7 +303,7 @@ pub(super) fn probe(s: &mut Session, row: &Row, b: &Block, disk: &Disk) -> Optio
 
 /// RESERVE (6) and RELEASE (6) (SPC-2, obsolete since SPC-4): with an SPC-2 reservation held by this
 /// nexus, another nexus's READ conflicts; after RELEASE it reads again.
-pub(super) fn spc2(s: &mut Session, other: &mut Session, b: &Block) -> (Probe, Probe) {
+pub(super) fn spc2(s: &mut Port, other: &mut Port, b: &Block) -> (Probe, Probe) {
     let lba = b.lba as u32;
     let reserve = s.command(&super::ops::RESERVE_6, 0, None);
     match reserve {

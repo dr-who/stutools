@@ -9,11 +9,12 @@ use super::cases::{expect, expect_should, record, Want};
 use super::lun_access::{open, read_cmd, show_attentions, unit_attentions, write_cmd, Creds};
 use super::ops::{self};
 use super::path::Path;
+use super::port::Port;
 use super::pr_commands::{
     out, parse_full_status, read_holder, read_keys, reserve_in, show_holder, show_keys,
 };
 use super::scsi;
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::compliance::Case;
 use crate::Result;
 
@@ -130,6 +131,8 @@ pub(super) struct Run<'a> {
     /// The target told two ports of one initiator apart (`ports_of_one_initiator`); only then do C's
     /// cases, on a port that shares a registrant's name, count for clustering.
     pub(super) separate: bool,
+    /// A local SAS disk: TransportIDs are SAS addresses (SPC-6 7.6.4), not iSCSI names.
+    pub(super) local: bool,
 }
 
 impl Run<'_> {
@@ -196,17 +199,17 @@ impl Run<'_> {
         }
     }
 
-    pub(super) fn write(&self, s: &mut Session) -> Result<Outcome> {
+    pub(super) fn write(&self, s: &mut Port) -> Result<Outcome> {
         write_cmd(s, self.target, &self.original)
     }
 
-    pub(super) fn read(&self, s: &mut Session) -> Result<Outcome> {
+    pub(super) fn read(&self, s: &mut Port) -> Result<Outcome> {
         read_cmd(s, self.target, self.original.len())
     }
 
     pub(super) fn holder_is(
         &mut self,
-        s: &mut Session,
+        s: &mut Port,
         label: &str,
         want: Option<(u64, u8)>,
         cluster: bool,
@@ -222,7 +225,7 @@ impl Run<'_> {
 
     pub(super) fn keys_are(
         &mut self,
-        s: &mut Session,
+        s: &mut Port,
         label: &str,
         mut want: Vec<u64>,
         cluster: bool,
@@ -244,7 +247,7 @@ impl Run<'_> {
     /// or None when there must be none. Drains them either way.
     pub(super) fn attention(
         &mut self,
-        s: &mut Session,
+        s: &mut Port,
         label: &str,
         want: Option<(u8, u8)>,
         cluster: bool,

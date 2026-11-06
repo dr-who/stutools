@@ -12,8 +12,9 @@ use super::lun_access::{open, show_attentions, unit_attentions, Creds};
 use super::ops;
 use super::path::Path;
 use super::pdu;
+use super::port::Port;
 use super::seen::Seen;
-use super::session::{Session, TaskAnswer};
+use super::session::TaskAnswer;
 use crate::compliance::Case;
 use crate::Result;
 
@@ -123,7 +124,7 @@ fn logical_unit_reset(
     initiator: &str,
     creds: Creds,
     name: &str,
-    s: &mut Session,
+    s: &mut Port,
     cases: &mut Vec<Case>,
     seen: &mut Seen,
 ) {

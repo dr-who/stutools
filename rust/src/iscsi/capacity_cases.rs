@@ -5,14 +5,14 @@
 
 use super::cases::{expect, record, Want};
 use super::disk::{label, Disk, SECTION};
+use super::port::Port;
 use super::scsi_fields::{be16, be32, be64};
 use super::seen::Seen;
-use super::session::Session;
 use crate::compliance::Case;
 
 /// SBC-5 5.20, 5.21: READ CAPACITY (10) and (16).
 pub(super) fn capacity(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     cases: &mut Vec<Case>,
     seen: &mut Seen,

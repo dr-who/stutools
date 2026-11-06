@@ -98,8 +98,10 @@ NETWORK BLOCK DEVICES (iSCSI and NVMe/TCP, spoken by spit itself)
   --policy rr|rrr|random|fastest
                   how a workload over several paths picks one (default rr)
   --compliance    test every target the --iscsi and --nvme hosts report (or
-                  each HOST/IQN, HOST/NQN given) against RFC 7143, SAM-6, SPC,
-                  SBC and the NVMe and NVMe-oF specifications, and score it;
+                  each HOST/IQN, HOST/NQN given), and each -f /dev/... disk
+                  (SAS or SCSI through SG_IO, opened O_EXCL; a multipath
+                  device is tested through every path), against RFC 7143,
+                  SAM-6, SPC, SBC and the NVMe and NVMe-oF specifications;
                   covers the commands Windows MPIO, NTFS and Failover
                   Clustering send, reservations included. Use test LUNs: it
                   writes near the end of each LUN (and puts the data back),

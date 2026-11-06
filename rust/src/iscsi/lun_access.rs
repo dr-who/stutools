@@ -1,14 +1,19 @@
 //! How the SCSI sections reach the LUN under test: log in as a given initiator port (an ISID is one
-//! I_T nexus) offering CRC32C digests or none, name the target, read VPD pages, read and write the
+//! I_T nexus) offering CRC32C digests or none, or open the local path device that is that nexus
+//! (`local_nexus`), name the target, read VPD pages, read and write the
 //! test block (the data cases work on the last two blocks and write back what was there), fill a
 //! block with a pattern, and drain and show the unit attentions pending for a nexus.
 
 use super::cases::sense;
+use super::local_lun::LocalLun;
+use super::local_nexus;
 use super::login;
 use super::ops::CHECK_CONDITION;
 use super::path::Path;
+use super::port::Port;
+use super::pr_ports::{ISID_A2, ISID_C, ISID_SIBLING};
 use super::scsi;
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::Result;
 
 /// Credentials for one target: the CHAP user and secret, when the target requires CHAP.
@@ -28,7 +33,7 @@ pub(super) struct Lun<'a> {
 }
 
 /// Logs in to the target as the initiator port `isid` (one I_T nexus per ISID), offering CRC32C digests.
-pub(super) fn open(path: &Path, initiator: &str, creds: Creds, isid: [u8; 6]) -> Result<Session> {
+pub(super) fn open(path: &Path, initiator: &str, creds: Creds, isid: [u8; 6]) -> Result<Port> {
     open_with(path, initiator, creds, isid, DIGEST)
 }
 
@@ -39,7 +44,12 @@ pub(super) fn open_with(
     creds: Creds,
     isid: [u8; 6],
     digest: &str,
-) -> Result<Session> {
+) -> Result<Port> {
+    if path.is_local() {
+        let second_port = [ISID_A2, ISID_C, ISID_SIBLING].contains(&isid);
+        let device = local_nexus::device_for(&path.target, initiator, second_port)?;
+        return LocalLun::open(&device).map(Port::Local);
+    }
     login::login_as(
         &path.portal,
         &path.target,
@@ -49,7 +59,7 @@ pub(super) fn open_with(
         digest,
         CHAP_OFFER,
     )
-    .map(|s| s.for_lun(path))
+    .map(|s| Port::Iscsi(s.for_lun(path)))
 }
 
 /// The short name of a target: the part after the last colon of its IQN.
@@ -63,49 +73,49 @@ pub(super) fn short_name(path: &Path) -> String {
 }
 
 /// INQUIRY of one VPD page with `len` bytes of allocation.
-pub(super) fn vpd(s: &mut Session, page: u8, len: u16) -> Result<Outcome> {
+pub(super) fn vpd(s: &mut Port, page: u8, len: u16) -> Result<Outcome> {
     let l = len.to_be_bytes();
     s.command(&[0x12, 0x01, page, l[0], l[1], 0], len as u32, None)
 }
 
 /// The last LBA of the LUN and its block length. The data cases work on the last two blocks.
-pub(super) fn last_block(s: &mut Session) -> Result<(u32, usize)> {
+pub(super) fn last_block(s: &mut Port) -> Result<(u32, usize)> {
     let (last, block_len) = scsi::capacity(s)?;
     let lba = u32::try_from(last).map_err(|_| "LUN is larger than 32-bit LBAs")?;
     Ok((lba, block_len as usize))
 }
 
 /// READ(10) of one block, as an outcome.
-pub(super) fn read_cmd(s: &mut Session, lba: u32, len: usize) -> Result<Outcome> {
+pub(super) fn read_cmd(s: &mut Port, lba: u32, len: usize) -> Result<Outcome> {
     s.command(&scsi::block_cdb(0x28, lba, 1), len as u32, None)
 }
 
 /// WRITE(10) of one block, as an outcome.
-pub(super) fn write_cmd(s: &mut Session, lba: u32, data: &[u8]) -> Result<Outcome> {
+pub(super) fn write_cmd(s: &mut Port, lba: u32, data: &[u8]) -> Result<Outcome> {
     s.command(&scsi::block_cdb(0x2a, lba, 1), 0, Some(data))
 }
 
 /// READ(10) of one block, which must succeed.
-pub(super) fn read_block(s: &mut Session, lba: u32, len: usize) -> Result<Vec<u8>> {
+pub(super) fn read_block(s: &mut Port, lba: u32, len: usize) -> Result<Vec<u8>> {
     let o = read_cmd(s, lba, len)?;
     scsi::check_status("READ(10)", o.status, &o.sense)?;
     Ok(o.data)
 }
 
 /// WRITE(10) of one block, which must succeed.
-pub(super) fn write_block(s: &mut Session, lba: u32, data: &[u8]) -> Result<()> {
+pub(super) fn write_block(s: &mut Port, lba: u32, data: &[u8]) -> Result<()> {
     let o = write_cmd(s, lba, data)?;
     scsi::check_status("WRITE(10)", o.status, &o.sense)
 }
 
 /// TEST UNIT READY, as an outcome.
-pub(super) fn test_unit_ready(s: &mut Session) -> Result<Outcome> {
+pub(super) fn test_unit_ready(s: &mut Port) -> Result<Outcome> {
     s.command(&[0x00, 0, 0, 0, 0, 0], 0, None)
 }
 
 /// Drains the unit attentions pending for this nexus with TEST UNIT READY (SPC-4 allows it under every
 /// reservation type) and returns each one's additional sense code and qualifier, in order.
-pub(super) fn unit_attentions(s: &mut Session) -> Vec<(u8, u8)> {
+pub(super) fn unit_attentions(s: &mut Port) -> Vec<(u8, u8)> {
     let mut seen = Vec::new();
     for _ in 0..8 {
         match test_unit_ready(s) {

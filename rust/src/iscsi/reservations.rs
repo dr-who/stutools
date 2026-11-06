@@ -12,13 +12,13 @@ use super::cases::{allowed, record, Want};
 use super::lun_access::{last_block, open, read_block, unit_attentions, Creds};
 use super::ops::{self, persistent_reserve_in};
 use super::path::Path;
+use super::port::Port;
 use super::pr_commands::{out, read_keys, Capabilities, TYPES};
 use super::pr_ports::{
     clean_slate, Run, ISID_A, ISID_B, ISID_C, ISID_SIBLING, KEY_A, KEY_B, KEY_B2, KEY_C, KEY_WRONG,
     SECTION,
 };
 use super::scsi;
-use super::session::Session;
 use crate::compliance::Case;
 
 /// What the reservation run found, for the Windows cases.
@@ -95,6 +95,7 @@ pub(super) fn run(
             "C (not registered)"
         },
         separate: false,
+        local: path.is_local(),
     };
     findings.capabilities = t.capabilities(&mut a);
     let caps = findings.capabilities.unwrap_or_default();
@@ -159,7 +160,7 @@ pub(super) fn run(
 
 impl Run<'_> {
     /// SPC-6 6.14.4: REPORT CAPABILITIES returns 8 bytes with LENGTH 8.
-    pub(super) fn capabilities(&mut self, a: &mut Session) -> Option<Capabilities> {
+    pub(super) fn capabilities(&mut self, a: &mut Port) -> Option<Capabilities> {
         let o = persistent_reserve_in(a, ops::PR_IN_REPORT_CAPABILITIES, 8);
         let (passed, o) = match o {
             Ok(o) => {
@@ -200,11 +201,7 @@ impl Run<'_> {
     /// holding, may RELEASE while A holds, and gets GOOD (SPC-6 5.14.11.2.2). A target that takes B for
     /// A's nexus, or for an unregistered one because it shares A's name, answers otherwise; every
     /// case between the two would then show that instead. Leaves no registration behind.
-    pub(super) fn ports_of_one_initiator(
-        &mut self,
-        a: &mut Session,
-        sibling: &mut Session,
-    ) -> bool {
+    pub(super) fn ports_of_one_initiator(&mut self, a: &mut Port, sibling: &mut Port) -> bool {
         let b = sibling;
         let setup = [
             out(a, ops::PR_REGISTER, 0, 0, KEY_A),
@@ -228,7 +225,7 @@ impl Run<'_> {
     }
 
     /// SPC-6 5.14.7: registering, tables 68 and 69, and the PRgeneration count (6.16.2).
-    pub(super) fn registration(&mut self, a: &mut Session, b: &mut Session, c: &mut Session) {
+    pub(super) fn registration(&mut self, a: &mut Port, b: &mut Port, c: &mut Port) {
         self.keys_are(c, "READ KEYS after CLEAR", vec![], true);
         let before = read_keys(c).map(|(g, _)| g).unwrap_or(0);
         // Table 68: an unregistered I_T nexus that names a non-zero RESERVATION KEY conflicts.
@@ -298,9 +295,9 @@ impl Run<'_> {
     /// 5.14.11.2.2).
     pub(super) fn reservation_type(
         &mut self,
-        a: &mut Session,
-        b: &mut Session,
-        c: &mut Session,
+        a: &mut Port,
+        b: &mut Port,
+        c: &mut Port,
         caps: &Capabilities,
         kind: u8,
         label: &str,
@@ -349,7 +346,7 @@ impl Run<'_> {
             (self.c_name, !exclusive_access, false),
         ];
         for (i, (who, may_read, may_write)) in rules.into_iter().enumerate() {
-            let s: &mut Session = match i {
+            let s: &mut Port = match i {
                 0 => &mut *a,
                 1 => &mut *b,
                 _ => &mut *c,

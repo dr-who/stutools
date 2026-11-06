@@ -35,6 +35,8 @@ pub struct Heading<'a> {
     pub command: String,
     pub iscsi: &'a [String],
     pub nvme: &'a [String],
+    /// Local disks (`-f /dev/...`).
+    pub local: &'a [String],
     pub initiators: Vec<String>,
     pub devices: &'a [Device],
     pub untested: &'a [(String, String)],
@@ -137,6 +139,9 @@ fn title_page(out: &mut String, h: &Heading, levels: &[ScsiLevel], rows: &[Row])
     }
     if !h.nvme.is_empty() {
         tested.push(format!("NVMe/TCP {}", h.nvme.join(", ")));
+    }
+    if !h.local.is_empty() {
+        tested.push(format!("local disk {}", h.local.join(", ")));
     }
     let mut remark = format!("Tested {}", tested.join("; "));
     if !h.initiators.is_empty() {
@@ -584,6 +589,7 @@ mod tests {
             command: "spit --iscsi 10.0.0.5 --compliance".into(),
             iscsi: &["10.0.0.5".into()],
             nvme: &[],
+            local: &[],
             initiators: vec!["iqn.a".into()],
             devices: &devices,
             untested: &[],

@@ -12,11 +12,11 @@ use super::alua_transition::{current_state, transition};
 use super::cases::{expect, record, Want, REFUSED_SA};
 use super::lun_access::{unit_attentions, vpd, Lun};
 use super::ops;
+use super::port::Port;
 use super::port_groups::{parse_groups, rtpg, state_bit};
 use super::scsi;
 use super::scsi_fields::be16;
 use super::seen::Seen;
-use super::session::Session;
 use super::vpd_pages::parse_designations;
 use crate::compliance::Case;
 
@@ -32,7 +32,7 @@ pub(super) struct Findings {
 
 /// The ALUA cases through an active port.
 pub(super) fn run(
-    s: &mut Session,
+    s: &mut Port,
     lun: Lun,
     name: &str,
     tpgs: u8,

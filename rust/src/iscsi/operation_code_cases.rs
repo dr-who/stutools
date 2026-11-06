@@ -5,15 +5,16 @@
 use super::cases::{expect, record, Want, REFUSED_SA};
 use super::disk::{label, Disk, SECTION};
 use super::operation_codes::{parse_rsoc, rsoc_all, rsoc_one};
+use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Seen;
-use super::session::{Outcome, Session};
+use super::session::Outcome;
 use crate::compliance::Case;
 use crate::Result;
 
 /// SPC-6 6.32 REPORT SUPPORTED OPERATION CODES and 6.35 REPORT SUPPORTED TASK MANAGEMENT FUNCTIONS.
 pub(super) fn operation_codes(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     cases: &mut Vec<Case>,
     seen: &mut Seen,
@@ -111,6 +112,30 @@ pub(super) fn operation_codes(
             .map(|o| o.data[1] & 0x07);
     }
     let a = 16u32.to_be_bytes();
+    // SPC-6 6.35: the basic form first, so a device that has the command but not REPD (INVALID FIELD
+    // IN CDB for that bit) is known to support it.
+    let basic = s.command(
+        &[0xa3, 0x0d, 0, 0, 0, 0, a[0], a[1], a[2], a[3], 0, 0],
+        16,
+        None,
+    );
+    let mut wants = vec![Want::Good];
+    wants.extend(REFUSED_SA);
+    let answer = expect(
+        cases,
+        SECTION,
+        label(name, "REPORT SUPPORTED TASK MANAGEMENT FUNCTIONS"),
+        &wants,
+        basic,
+    );
+    seen.answer(
+        "REPORT SUPPORTED TASK MANAGEMENT FUNCTIONS",
+        SECTION,
+        &answer,
+    );
+    if let Some(o) = answer.1.filter(|o| o.status == 0) {
+        disk.tmf_bits = Some([o.data[0], o.data[1]]);
+    }
     let repd = s.command(
         &[0xa3, 0x0d, 0x80, 0, 0, 0, a[0], a[1], a[2], a[3], 0, 0],
         16,

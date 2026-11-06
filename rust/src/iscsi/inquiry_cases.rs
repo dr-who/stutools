@@ -7,9 +7,9 @@
 use super::cases::{expect, record, Want};
 use super::disk::{hex_list, label, Disk, SECTION};
 use super::lun_access::vpd;
+use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Seen;
-use super::session::Session;
 use super::vpd_pages::{names_lun, parse_designations};
 use crate::compliance::{Case, ScsiLevel};
 
@@ -37,7 +37,7 @@ fn serial_rule(serial: &[u8], level: ScsiLevel) -> (&'static str, bool) {
 
 /// SPC-6 6.7 INQUIRY, 7.7 VPD pages.
 pub(super) fn inquiry(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     levels: &[ScsiLevel],
     cases: &mut Vec<Case>,

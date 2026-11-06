@@ -12,9 +12,9 @@ use super::inquiry_cases::inquiry;
 use super::mode_page_cases::mode_pages;
 use super::operation_code_cases::operation_codes;
 use super::operation_codes::Supported;
+use super::port::Port;
 use super::scsi_fields::{be16, be32, be64};
 use super::seen::Seen;
-use super::session::Session;
 use super::unit_state_cases;
 use super::vpd_pages::parse_feature_sets;
 use crate::compliance::{Case, ScsiLevel};
@@ -201,7 +201,7 @@ pub(super) struct Extended {
 
 /// Runs every disk case and returns what it read.
 pub(super) fn run(
-    s: &mut Session,
+    s: &mut Port,
     name: &str,
     levels: &[ScsiLevel],
     cases: &mut Vec<Case>,
