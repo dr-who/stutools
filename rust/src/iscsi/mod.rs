@@ -56,6 +56,7 @@ pub mod path;
 pub mod pdu;
 mod port;
 mod port_groups;
+mod pr_command_set;
 mod pr_commands;
 mod pr_handover;
 mod pr_ports;

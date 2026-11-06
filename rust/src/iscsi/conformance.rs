@@ -12,8 +12,8 @@ use super::path::Path;
 use super::seen::Seen;
 use super::{
     alua, block_commands, block_io, coherence, compare_and_write, disk, feature_sets,
-    header_digest, host_traces, odx, pr_ports, provisioning, reservations, spc_commands,
-    standby_cases, task_management, windows,
+    header_digest, host_traces, odx, pr_command_set, pr_ports, provisioning, reservations,
+    spc_commands, standby_cases, task_management, windows,
 };
 use crate::compliance::{Case, ScsiLevel};
 
@@ -100,6 +100,7 @@ pub(super) fn run(
         let _ = s.logout();
         let first = cases.len();
         let pr = reservations::run(t.path, initiator, second, t.creds, &name, cases);
+        pr_command_set::run(t.path, initiator, second, t.creds, &name, cases);
         let pr_ok = no_failures(&cases[first..]);
         seen.note("PERSISTENT RESERVE IN", "pr", true, pr_ok, "see pr");
         seen.note("PERSISTENT RESERVE OUT", "pr", true, pr_ok, "see pr");
