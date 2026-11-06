@@ -10,6 +10,7 @@
 use super::capacity_cases::capacity;
 use super::inquiry_cases::inquiry;
 use super::mode_page_cases::mode_pages;
+use super::mode_sense_forms;
 use super::operation_code_cases::operation_codes;
 use super::operation_codes::Supported;
 use super::port::Port;
@@ -40,6 +41,10 @@ pub(super) struct Disk {
     pub device_specific: u8,
     /// The block descriptor length MODE SENSE (10) returned with DBD clear.
     pub block_descriptor_len: Option<u16>,
+    /// The (page, subpage) pairs MODE SENSE (10) of page code 3Fh returned, in order.
+    pub mode_list: Vec<(u8, u8)>,
+    /// Whether MODE SENSE (10) answers for saved values (page control 11b) with GOOD.
+    pub saved_values: Option<bool>,
     /// REPORT SUPPORTED OPERATION CODES, all commands, when the device server supports it.
     pub rsoc: Option<Vec<Supported>>,
     /// The SUPPORT field for FORMAT UNIT (one_command, 001b), which is never sent.
@@ -212,6 +217,7 @@ pub(super) fn run(
     inquiry(s, name, levels, cases, seen, &mut disk);
     capacity(s, name, cases, seen, &mut disk);
     mode_pages(s, name, cases, seen, &mut disk);
+    mode_sense_forms::run(s, name, cases, &mut disk);
     operation_codes(s, name, cases, seen, &mut disk);
     unit_state_cases::run(s, name, cases, seen, &mut disk);
     disk

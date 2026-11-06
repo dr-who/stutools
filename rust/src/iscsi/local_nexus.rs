@@ -109,6 +109,15 @@ pub fn initiator_ports(device: &str) -> Result<usize> {
     Ok(hosts.len().max(1))
 }
 
+/// How many target ports of the disk its paths reach: the distinct SAS addresses, or one.
+pub fn target_ports(device: &str) -> Result<usize> {
+    let all = paths(device)?;
+    let mut ports: Vec<&str> = all.iter().map(|p| p.target_port.as_str()).collect();
+    ports.sort_unstable();
+    ports.dedup();
+    Ok(ports.len().max(1))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

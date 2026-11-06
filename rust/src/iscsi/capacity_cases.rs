@@ -1,7 +1,8 @@
 //! The READ CAPACITY cases of the `disk` section (SBC-5 5.20, 5.21): READ CAPACITY (10) and (16)
 //! agree, (10) reports FFFF_FFFFh when the LUN is larger, the block length is a power of two of 512
 //! bytes or more, and the (16) fields (protection, LBPME, LBPRZ, the physical block exponent and the
-//! lowest aligned LBA) are recorded in `Disk`.
+//! lowest aligned LBA) are recorded in `Disk`; and READ CAPACITY (16) with an ALLOCATION LENGTH of
+//! zero is not an error and returns nothing (SPC-6 4.2.5.6).
 
 use super::cases::{expect, record, Want};
 use super::disk::{label, Disk, SECTION};
@@ -45,6 +46,31 @@ pub(super) fn capacity(
             && disk.block_len.is_power_of_two()
             && (lowest as u32) < (1u32 << exponent),
     );
+    // SPC-6 4.2.5.6: an allocation length of zero transfers nothing and is not an error.
+    let zero = [0x9e, 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let (passed, o) = expect(
+        cases,
+        SECTION,
+        label(
+            name,
+            "SPC-6 4.2.5.6 READ CAPACITY (16) with ALLOCATION LENGTH 0",
+        ),
+        &[Want::Good],
+        s.command(&zero, 0, None),
+    );
+    if passed && o.is_some_and(|o| o.received != 0) {
+        record(
+            cases,
+            SECTION,
+            label(
+                name,
+                "SPC-6 4.2.5.6 READ CAPACITY (16) with ALLOCATION LENGTH 0 returns no data",
+            ),
+            "no data",
+            "data",
+            false,
+        );
+    }
     let answer = expect(
         cases,
         SECTION,

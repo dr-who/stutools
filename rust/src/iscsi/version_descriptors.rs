@@ -1,0 +1,63 @@
+//! The VERSION DESCRIPTOR codes standard INQUIRY data may carry (SPC-6 6.7.2, table 155): each
+//! standard owns a block of 32 codes, the first for "no version claimed" and the rest for its
+//! versions. A code is known when its block holds a code that SPC-3, SPC-4, SPC-5 or SPC-6 assigns;
+//! the blocks were read from those editions' tables once (numbers only). 0000h means the field is
+//! unused. The iSCSI block (0960h) is the one Windows looks for on an iSCSI target.
+
+/// The first code of each block of 32 that table 155 of SPC-3 to SPC-6 assigns codes in.
+#[rustfmt::skip]
+const BLOCKS: [u16; 146] = [
+    0x0020, 0x0040, 0x0060, 0x0080, 0x00a0, 0x00c0, 0x0120, 0x0140, 0x0160, 0x0180, 0x01a0, 0x01c0,
+    0x01e0, 0x0200, 0x0220, 0x0240, 0x0260, 0x0280, 0x02a0, 0x02e0, 0x0300, 0x0320, 0x0340, 0x0360,
+    0x0380, 0x03a0, 0x03c0, 0x03e0, 0x0400, 0x0420, 0x0440, 0x0460, 0x0480, 0x04a0, 0x04c0, 0x04e0,
+    0x0500, 0x0520, 0x0560, 0x0580, 0x05a0, 0x05c0, 0x05e0, 0x0600, 0x0620, 0x0640, 0x0660, 0x0680,
+    0x06a0, 0x06c0, 0x06e0, 0x0700, 0x0720, 0x0820, 0x0840, 0x0860, 0x0880, 0x08a0, 0x08c0, 0x08e0,
+    0x0900, 0x0920, 0x0940, 0x0960, 0x0980, 0x09a0, 0x09c0, 0x09e0, 0x0a00, 0x0a20, 0x0a40, 0x0a60,
+    0x0a80, 0x0aa0, 0x0ac0, 0x0ae0, 0x0b00, 0x0b20, 0x0b40, 0x0b60, 0x0be0, 0x0c00, 0x0c20, 0x0c40,
+    0x0c60, 0x0c80, 0x0ca0, 0x0d20, 0x0d40, 0x0d60, 0x0d80, 0x0da0, 0x0dc0, 0x0de0, 0x0e00, 0x0e20,
+    0x0e40, 0x0e60, 0x0e80, 0x0ea0, 0x0ec0, 0x0ee0, 0x0f00, 0x0f20, 0x0f40, 0x0f60, 0x0f80, 0x12a0,
+    0x12c0, 0x12e0, 0x1300, 0x1320, 0x1340, 0x1360, 0x1380, 0x14a0, 0x14c0, 0x14e0, 0x15e0, 0x1600,
+    0x1620, 0x1720, 0x1740, 0x1760, 0x1780, 0x17a0, 0x17c0, 0x1800, 0x1ea0, 0x1ec0, 0x1ee0, 0x1f00,
+    0x1f20, 0x1f40, 0x1f60, 0x20a0, 0x20c0, 0x20e0, 0x2100, 0x2120, 0x21e0, 0x2200, 0x2220, 0x2240,
+    0x2460, 0xffc0,
+];
+
+/// The iSCSI block: 0960h (no version claimed) and the codes for its RFCs.
+pub(super) const ISCSI: u16 = 0x0960;
+
+/// Whether `code` is one SPC-6 table 155 (or an older edition's) assigns: a code in a known block.
+pub(super) fn known(code: u16) -> bool {
+    BLOCKS.binary_search(&(code & 0xffe0)).is_ok()
+}
+
+/// The eight VERSION DESCRIPTOR fields of standard INQUIRY data (bytes 58 to 73), those present.
+pub(super) fn descriptors(inquiry: &[u8]) -> Vec<u16> {
+    inquiry
+        .get(58..74.min(inquiry.len()))
+        .unwrap_or(&[])
+        .chunks_exact(2)
+        .map(|c| u16::from_be_bytes([c[0], c[1]]))
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_codes_are_in_an_assigned_block() {
+        assert!(
+            BLOCKS.windows(2).all(|w| w[0] < w[1]),
+            "sorted for the search"
+        );
+        for code in [0x0960, 0x0961, 0x0460, 0x04c0, 0x0c00, 0x00a0, 0xffc0] {
+            assert!(known(code), "{code:04x}");
+        }
+        assert!(!known(0x0001));
+        assert!(!known(0x7000));
+        let mut inquiry = vec![0u8; 74];
+        inquiry[58..60].copy_from_slice(&0x0960u16.to_be_bytes());
+        assert_eq!(descriptors(&inquiry)[..2], [0x0960, 0]);
+        assert!(descriptors(&inquiry[..36]).is_empty());
+    }
+}

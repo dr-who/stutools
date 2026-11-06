@@ -1,9 +1,12 @@
-//! The driver of the SCSI sections of `--compliance`: for each target it runs, in order, the `spc`,
-//! `disk` (with the Linux scan replay), `io`, `unmap`, `ats`, `odx`, `mpio` (with the Windows online
-//! replay), `pr`, `tmf`, `sbc`, `features` and `windows` sections, each in its own module, sharing what
-//! they find through `Seen` and the `Disk` the `disk` section reads. A target that cannot be logged in
-//! to fails one case in each section. A LUN reached through a standby port runs only the standby cases
-//! of `mpio`. Every data-changing case writes the original data back.
+//! The driver of the SCSI sections of `--compliance`: for each target it runs, in order, the `spc`
+//! (with REPORT LUNS and the LUNs it does not list), `disk` (with the Linux scan replay, the INQUIRY and
+//! VPD framing and the MODE SELECT that changes the write cache), `io` (with VERIFY, READ and WRITE (6),
+//! the 1000-command runs and the 12 MiB cache runs), `unmap`, `ats`, `odx`, `mpio` (with the Windows
+//! online replay), `pr`, `tmf`, `sbc` (with SPC-2 reservations across two nexuses), `features` and
+//! `windows` sections, each in its own module, sharing what they find through `Seen` and the `Disk` the
+//! `disk` section reads, and ends with the START STOP UNIT cases, which stop a spinning disk. A target
+//! that cannot be logged in to fails one case in each section. A LUN reached through a standby port
+//! runs only the standby cases of `mpio`. Every data-changing case writes the original data back.
 
 use super::cases::{no_failures, record};
 use super::login;
@@ -11,9 +14,12 @@ use super::lun_access::{open, short_name, unit_attentions, Creds, Lun};
 use super::path::Path;
 use super::seen::Seen;
 use super::{
-    alua, ats_race, block_commands, block_io, coherence, compare_and_write, data_path, disk,
-    feature_sets, header_digest, host_traces, odx, pr_command_set, pr_ports, provisioning,
-    reservations, spc_commands, standby_cases, task_management, windows,
+    alua, ats_race, block_commands, block_io, bulk_integrity, cache_integrity, coherence,
+    compare_and_write, data_path, disk, feature_sets, header_digest, host_traces, inquiry_framing,
+    mode_select_change, odx, pr_command_set, pr_empty_state, pr_ports, provisioning,
+    report_luns_cases, reservations, six_byte_io, spc2_reservations, spc_commands, standby_cases,
+    start_stop_cases, task_management, unlisted_lun, verify_cases, vpd_framing, windows,
+    windows_device_rules,
 };
 use crate::compliance::{Case, ScsiLevel};
 
@@ -85,9 +91,24 @@ pub(super) fn run(
         }
         let mut seen = Seen::default();
         spc_commands::run(&mut s, &name, cases, &mut seen);
+        let luns = report_luns_cases::run(&mut s, &name, t.path.lun == 0, cases);
         let disk = disk::run(&mut s, &name, levels, cases, &mut seen);
+        unlisted_lun::run(lun, &name, &luns, disk.block_len, cases);
+        let same_lun: Vec<&Path> = targets
+            .iter()
+            .filter(|o| !o.standby && o.path.target == t.path.target && o.path.lun == t.path.lun)
+            .map(|o| o.path)
+            .collect();
+        let ports = inquiry_framing::target_ports(&same_lun, initiator, t.creds);
+        inquiry_framing::run(&mut s, &name, &disk, ports, cases);
+        vpd_framing::run(&mut s, &name, &disk, cases);
+        mode_select_change::run(&mut s, lun, second, &name, &disk, cases);
         host_traces::linux(&mut s, &name, &disk, cases);
         let io = block_io::run(&mut s, &name, &disk, cases, &mut seen);
+        verify_cases::run(&mut s, &name, &disk, cases);
+        let (reads6, writes6) = six_byte_io::run(&mut s, &name, &disk, cases);
+        bulk_integrity::run(&mut s, &name, &disk, reads6 && writes6, cases);
+        cache_integrity::run(&mut s, &name, &disk, cases);
         coherence::run(t.path, initiator, second, t.creds, &name, cases);
         data_path::run(t.path, initiator, second, t.creds, &name, &disk, cases);
         let thin = provisioning::run(&mut s, &name, &disk, cases, &mut seen);
@@ -103,6 +124,7 @@ pub(super) fn run(
         let odx_clean = no_failures(&cases[first..]);
         let alua = alua::run(&mut s, lun, &name, disk.tpgs(), cases, &mut seen);
         let windows_online = host_traces::windows(&mut s, &name, &disk, cases);
+        pr_empty_state::run(&mut s, &name, cases);
         // The reservation and reset cases use sessions of their own; this one would sit idle meanwhile.
         let _ = s.logout();
         let first = cases.len();
@@ -141,6 +163,18 @@ pub(super) fn run(
                 );
             }
         }
+        let compare_and_write = seen.probe("COMPARE AND WRITE").is_some_and(|p| p.supported);
+        if let Ok(lba) = u32::try_from(disk.last_lba.saturating_sub(1)) {
+            spc2_reservations::run(
+                lun,
+                second,
+                &name,
+                lba,
+                disk.block_len as usize,
+                compare_and_write,
+                cases,
+            );
+        }
         feature_sets::run(&name, &disk, &seen, cases);
         let mode_sense_6 = seen
             .probe("MODE SENSE (6)")
@@ -163,5 +197,23 @@ pub(super) fn run(
             },
             cases,
         );
+        windows_device_rules::run(&name, &disk, &luns, !t.path.is_local(), cases);
+        // Last: a STOP spins a disk down.
+        match open(t.path, initiator, t.creds, login::random_isid()) {
+            Ok(mut s) => {
+                start_stop_cases::run(&mut s, &name, disk.tpgs(), disk.block_len, cases);
+                let _ = s.logout();
+            }
+            Err(err) => {
+                record(
+                    cases,
+                    "disk",
+                    format!("{name} login for START STOP UNIT"),
+                    "login ok",
+                    err,
+                    false,
+                );
+            }
+        }
     }
 }

@@ -9,12 +9,14 @@
 
 /// SPC-6 clause → [SPC-3, SPC-4, SPC-5].
 #[rustfmt::skip]
-pub(super) const SPC: [(&str, [Option<&str>; 3]); 98] = [
+pub(super) const SPC: [(&str, [Option<&str>; 3]); 104] = [
     ("4.2.5", [Some("4.3.4"), Some("4.2.5"), Some("4.2.5")]), // Common CDB fields
     ("4.2.5.1", [Some("4.3.4.1"), Some("4.2.5.1"), Some("4.2.5.1")]), // Operation code
     ("4.2.5.2", [Some("4.3.4.2"), Some("4.2.5.2"), Some("4.2.5.2")]), // Service action
     ("4.2.5.6", [Some("4.3.4.6"), Some("4.2.5.6"), Some("4.2.5.6")]), // Allocation length
     ("4.3.1", [Some("4.4.1"), Some("4.3.1"), Some("4.3.1")]), // ASCII data field requirements
+    ("4.4.2", [Some("4.5.2"), Some("4.5.2"), Some("4.4.2")]), // Descriptor format sense data
+    ("4.4.3", [Some("4.5.3"), Some("4.5.3"), Some("4.4.3")]), // Fixed format sense data
     ("5.14", [Some("5.6"), Some("5.12"), Some("5.14")]), // Reservations
     ("5.14.1", [Some("5.6.1"), Some("5.12.1"), Some("5.14.1")]), // Persistent Reservations overview
     ("5.14.3", [Some("5.6.3"), Some("5.12.3"), Some("5.14.3")]), // Exceptions to SPC-2 RESERVE and RELEASE behavior
@@ -85,11 +87,15 @@ pub(super) const SPC: [(&str, [Option<&str>; 3]); 98] = [
     ("7.5.3", [Some("7.6.6"), Some("7.5.2"), Some("7.5.3")]), // Mode page policies
     ("7.5.6", [Some("7.4.3"), Some("7.5.5"), Some("7.5.6")]), // Mode parameter header format
     ("7.5.8", [Some("7.4.5"), Some("7.5.7"), Some("7.5.8")]), // Mode page and subpage formats and page codes
+    ("7.5.13", [Some("7.4.6"), Some("7.5.8"), Some("7.5.11")]), // Control mode page
+    ("7.5.18", [Some("7.4.12"), Some("7.5.13"), Some("7.5.16")]), // Power Condition mode page
     ("7.6.4.5", [Some("7.5.4.6"), Some("7.6.4.6"), Some("7.6.4.5")]), // TransportID for initiator ports using SCSI over iSCSI
     ("7.7", [Some("7.6"), Some("7.8"), Some("7.7")]), // Vital product data parameters
+    ("7.7.2", [Some("7.6.1"), Some("7.8.2"), Some("7.7.2")]), // VPD page format for all device types
     ("7.7.6", [Some("7.6.3"), Some("7.8.6"), Some("7.7.6")]), // Device Identification VPD page
     ("7.7.6.6", [Some("7.6.3.6"), Some("7.8.6.6"), Some("7.7.6.6")]), // NAA designator format
     ("7.7.7", [Some("7.6.4"), Some("7.8.7"), Some("7.7.7")]), // Extended INQUIRY Data VPD page
+    ("7.7.9", [Some("7.6.6"), Some("7.8.9"), Some("7.7.9")]), // Mode Page Policy VPD page
     ("7.7.14", [None, None, Some("7.7.14")]), // SCSI Feature Sets VPD page
     ("7.7.17", [Some("7.6.9"), Some("7.8.16"), Some("7.7.17")]), // Supported VPD Pages VPD page
     ("7.7.18.4", [None, Some("7.8.17.4"), Some("7.7.18.4")]), // Supported Commands third-party copy descriptor
@@ -112,12 +118,13 @@ pub(super) const SPC: [(&str, [Option<&str>; 3]); 98] = [
 
 /// SBC-5 clause → [SBC-3, SBC-4].
 #[rustfmt::skip]
-pub(super) const SBC: [(&str, [Option<&str>; 2]); 94] = [
+pub(super) const SBC: [(&str, [Option<&str>; 2]); 97] = [
     ("4.5", [Some("4.5"), Some("4.5")]), // Logical blocks
     ("4.7", [Some("4.7"), Some("4.7")]), // Logical block provisioning
     ("4.7.3.1", [Some("4.7.3.1"), Some("4.7.3.1")]), // Logical block provisioning management overview
     ("4.7.3.4", [Some("4.7.3.4"), Some("4.7.3.4")]), // Unmapping LBAs
     ("4.7.4.5", [Some("4.7.4.6"), Some("4.7.4.5")]), // LBP1:Mapped state
+    ("4.20.4", [Some("4.21.4"), Some("4.20.4")]), // Stopped power condition
     ("4.21.2", [Some("4.22.2"), Some("4.21.2")]), // Protection types
     ("4.21.2.2", [Some("4.22.2.2"), Some("4.21.2.2")]), // Type 0 protection
     ("4.21.2.3", [Some("4.22.2.3"), Some("4.21.2.3")]), // Type 1 protection
@@ -184,6 +191,8 @@ pub(super) const SBC: [(&str, [Option<&str>; 2]); 94] = [
     ("5.58", [None, Some("5.58")]), // WRITE STREAM (32) command
     ("5.59", [Some("5.46"), Some("5.59")]), // WRITE USING TOKEN command
     ("6.5", [Some("6.5"), Some("6.5")]), // Mode parameters
+    ("6.5.1", [Some("6.5.1"), Some("6.5.1")]), // Mode pages overview
+    ("6.5.6", [Some("6.5.5"), Some("6.5.6")]), // Caching mode page
     ("6.6", [Some("6.6"), Some("6.6")]), // Vital product data (VPD) parameters
     ("6.6.2", [Some("6.6.2"), Some("6.6.2")]), // Block Device Characteristics VPD page
     ("6.6.4", [Some("6.6.3"), Some("6.6.4")]), // Block Limits VPD page

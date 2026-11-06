@@ -43,6 +43,18 @@ impl Port {
         }
     }
 
+    /// LOGICAL UNIT RESET of this nexus's logical unit (SAM-6 7.6): the iSCSI task management function,
+    /// or SG_SCSI_RESET through the host adapter on a local disk. Fails unless the function completed.
+    pub fn logical_unit_reset(&mut self) -> Result<()> {
+        match self {
+            Port::Iscsi(s) => match s.task_management(super::pdu::TMF_LOGICAL_UNIT_RESET, 0, 0)? {
+                TaskAnswer::Response(0) => Ok(()),
+                other => Err(format!("LOGICAL UNIT RESET answered {other:?}")),
+            },
+            Port::Local(l) => l.reset(),
+        }
+    }
+
     /// The CmdSN the next iSCSI command carries; 0 on a local disk.
     pub fn cmd_sn(&self) -> u32 {
         match self {
