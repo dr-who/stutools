@@ -11,9 +11,9 @@ use super::lun_access::{open, short_name, unit_attentions, Creds, Lun};
 use super::path::Path;
 use super::seen::Seen;
 use super::{
-    alua, block_commands, block_io, coherence, compare_and_write, data_path, disk, feature_sets,
-    header_digest, host_traces, odx, pr_command_set, pr_ports, provisioning, reservations,
-    spc_commands, standby_cases, task_management, windows,
+    alua, ats_race, block_commands, block_io, coherence, compare_and_write, data_path, disk,
+    feature_sets, header_digest, host_traces, odx, pr_command_set, pr_ports, provisioning,
+    reservations, spc_commands, standby_cases, task_management, windows,
 };
 use crate::compliance::{Case, ScsiLevel};
 
@@ -92,6 +92,21 @@ pub(super) fn run(
         data_path::run(t.path, initiator, second, t.creds, &name, &disk, cases);
         let thin = provisioning::run(&mut s, &name, &disk, cases, &mut seen);
         compare_and_write::run(&mut s, &name, &disk, cases, &mut seen);
+        if seen
+            .probe("COMPARE AND WRITE")
+            .is_some_and(|p| p.supported && p.passed)
+        {
+            ats_race::run(
+                t.path,
+                initiator,
+                second,
+                t.creds,
+                &name,
+                disk.last_lba,
+                disk.block_len,
+                cases,
+            );
+        }
         let first = cases.len();
         let odx = odx::run(&mut s, &name, &disk, cases, &mut seen);
         let odx_clean = no_failures(&cases[first..]);

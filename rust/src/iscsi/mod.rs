@@ -15,6 +15,7 @@
 
 mod alua;
 mod alua_transition;
+mod ats_race;
 mod block_commands;
 mod block_io;
 mod capacity_cases;

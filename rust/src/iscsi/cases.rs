@@ -17,6 +17,29 @@ pub(super) fn sense(data: &[u8]) -> (u8, u8, u8) {
     }
 }
 
+/// The INFORMATION field of fixed or descriptor sense data (SPC-6 4.4.2.2, 4.4.3), when it is valid.
+pub(super) fn information(data: &[u8]) -> Option<u64> {
+    match data.first().map(|b| b & 0x7f) {
+        Some(0x72 | 0x73) => {
+            let mut i = 8;
+            while i + 1 < data.len() {
+                let len = data[i + 1] as usize;
+                if data[i] == 0x00 && len >= 0x0a {
+                    return data
+                        .get(i + 4..i + 12)
+                        .map(|b| u64::from_be_bytes(b.try_into().unwrap()));
+                }
+                i += 2 + len;
+            }
+            None
+        }
+        Some(0x70 | 0x71) if data[0] & 0x80 != 0 => data
+            .get(3..7)
+            .map(|b| u64::from(u32::from_be_bytes(b.try_into().unwrap()))),
+        _ => None,
+    }
+}
+
 /// One line that says what a SCSI answer was, for the expected and actual columns.
 pub(super) fn describe(outcome: &Outcome) -> String {
     match outcome.status {
@@ -219,6 +242,15 @@ mod tests {
         assert!(!Want::Ascq(5, 0x26, 0x00).matches(&check));
         assert!(!Want::Good.matches(&check));
         assert!(Want::Conflict.matches(&outcome(RESERVATION_CONFLICT, &[])));
+        let mut fixed = [0u8; 18];
+        fixed[0] = 0xf0;
+        fixed[3..7].copy_from_slice(&100u32.to_be_bytes());
+        assert_eq!(information(&fixed), Some(100));
+        fixed[0] = 0x70;
+        assert_eq!(information(&fixed), None);
+        let mut desc = vec![0x72, 0x0e, 0x1d, 0x00, 0, 0, 0, 12, 0x00, 0x0a, 0x80, 0];
+        desc.extend_from_slice(&4196u64.to_be_bytes());
+        assert_eq!(information(&desc), Some(4196));
         assert_eq!(describe(&check), "CHECK CONDITION 5/26/04");
     }
 
