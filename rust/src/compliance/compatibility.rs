@@ -168,7 +168,7 @@ pub const USES: [Use; 9] = [
             need(
                 "atomic test and set, or a clean refusal",
                 &["ats", "nvme-io"],
-                &["COMPARE AND WRITE", "compare", "Compare"],
+                &["COMPARE AND WRITE", "compare", "Compare", "two hosts"],
             ),
             need(
                 "UNMAP",
