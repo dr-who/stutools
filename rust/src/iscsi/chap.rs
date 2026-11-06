@@ -1,5 +1,8 @@
-//! CHAP (RFC 1994, as iSCSI uses it in RFC 7143 12.1.3). The only algorithm offered is MD5 (CHAP_A=5).
-//! The response is MD5 over the identifier byte, the secret, then the challenge.
+//! CHAP (RFC 1994, as iSCSI uses it in RFC 7143 12.1.3): the response is the digest of the chosen
+//! algorithm (CHAP_A 5 MD5, 6 SHA-1, 7 SHA-256, 8 SHA3-256) over the identifier byte, the secret, then
+//! the challenge. Binary values (CHAP_C, CHAP_R) travel as "0x" hex or "0b" Base64 (RFC 7143 6.1);
+//! both decode, and anything else is an error naming the value. Challenges spit sends for mutual
+//! CHAP are random bytes from the operating system.
 
 use std::fmt::Write as _;
 
@@ -272,41 +275,121 @@ pub fn md5(input: &[u8]) -> [u8; 16] {
     out
 }
 
-/// The CHAP_R response: H(identifier || secret || challenge) for the chosen algorithm, as "0x" and
-/// lowercase hex. Returns None for an algorithm this initiator does not implement.
-pub fn response(algorithm: u32, identifier: u8, secret: &[u8], challenge: &[u8]) -> Option<String> {
+/// H(identifier || secret || challenge) for the chosen algorithm. Returns None for an algorithm this
+/// initiator does not implement.
+pub fn digest(algorithm: u32, identifier: u8, secret: &[u8], challenge: &[u8]) -> Option<Vec<u8>> {
     let mut input = vec![identifier];
     input.extend_from_slice(secret);
     input.extend_from_slice(challenge);
-    let digest: Vec<u8> = match algorithm {
+    Some(match algorithm {
         MD5 => md5(&input).to_vec(),
         SHA1 => sha1(&input).to_vec(),
         SHA256 => sha256(&input).to_vec(),
         SHA3_256 => sha3_256(&input).to_vec(),
         _ => return None,
-    };
-    let mut hex = String::from("0x");
-    for byte in digest {
-        let _ = write!(hex, "{byte:02x}");
-    }
-    Some(hex)
+    })
 }
 
-/// Decodes a CHAP_C challenge, which is sent as "0x" and hex digits.
-pub fn decode_hex(text: &str) -> Result<Vec<u8>, String> {
-    let digits = text
-        .strip_prefix("0x")
-        .or_else(|| text.strip_prefix("0X"))
-        .ok_or_else(|| format!("CHAP value is not hex: {text}"))?;
-    if digits.len() % 2 != 0 {
-        return Err(format!("CHAP hex value has an odd length: {text}"));
+/// The CHAP_R response (`digest`) as "0x" and lowercase hex.
+pub fn response(algorithm: u32, identifier: u8, secret: &[u8], challenge: &[u8]) -> Option<String> {
+    digest(algorithm, identifier, secret, challenge).map(|d| encode_hex(&d))
+}
+
+/// A binary value as "0x" and lowercase hex (RFC 7143 6.1).
+pub fn encode_hex(bytes: &[u8]) -> String {
+    let mut hex = String::with_capacity(2 + 2 * bytes.len());
+    hex.push_str("0x");
+    for byte in bytes {
+        let _ = write!(hex, "{byte:02x}");
     }
-    (0..digits.len())
-        .step_by(2)
-        .map(|i| {
-            u8::from_str_radix(&digits[i..i + 2], 16).map_err(|_| format!("bad hex in {text}"))
-        })
-        .collect()
+    hex
+}
+
+const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/// A binary value as "0b" and Base64 with padding (RFC 7143 6.1, RFC 4648 4).
+pub fn encode_base64(bytes: &[u8]) -> String {
+    let mut out = String::from("0b");
+    for chunk in bytes.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = u32::from_be_bytes([0, b[0], b[1], b[2]]);
+        for i in 0..4 {
+            if i <= chunk.len() {
+                out.push(BASE64[(n >> (18 - 6 * i) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+/// Decodes a binary value: "0x" or "0X" and hex digits, or "0b" or "0B" and Base64 (RFC 7143 6.1). An
+/// odd hex digit count is read with a leading zero, as RFC 7143 6.1 allows.
+pub fn decode_binary(text: &str) -> Result<Vec<u8>, String> {
+    if let Some(digits) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        let digits = if digits.len() % 2 == 1 {
+            format!("0{digits}")
+        } else {
+            digits.to_string()
+        };
+        return (0..digits.len())
+            .step_by(2)
+            .map(|i| {
+                u8::from_str_radix(&digits[i..i + 2], 16).map_err(|_| format!("bad hex in {text}"))
+            })
+            .collect();
+    }
+    let digits = text
+        .strip_prefix("0b")
+        .or_else(|| text.strip_prefix("0B"))
+        .ok_or_else(|| format!("CHAP value is neither hex nor Base64: {text}"))?;
+    let digits = digits.trim_end_matches('=');
+    let mut bits = 0u32;
+    let mut count = 0;
+    let mut out = Vec::with_capacity(digits.len() * 3 / 4);
+    for c in digits.bytes() {
+        let v = BASE64
+            .iter()
+            .position(|&b| b == c)
+            .ok_or_else(|| format!("bad Base64 in {text}"))? as u32;
+        bits = bits << 6 | v;
+        count += 6;
+        if count >= 8 {
+            count -= 8;
+            out.push((bits >> count) as u8);
+        }
+    }
+    Ok(out)
+}
+
+/// `n` random bytes for a challenge or an identifier, from the operating system's generator; when that
+/// cannot be read, from the clock mixed by xorshift, which still never repeats within a run.
+pub fn random_bytes(n: usize) -> Vec<u8> {
+    use std::io::Read;
+    let mut out = vec![0u8; n];
+    if std::fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut out))
+        .is_ok()
+    {
+        return out;
+    }
+    let mut x = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0)
+        | 1;
+    for byte in &mut out {
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        *byte = x as u8;
+    }
+    out
 }
 
 #[cfg(test)]
@@ -401,9 +484,30 @@ mod tests {
     }
 
     #[test]
-    fn decodes_hex_challenges() {
-        assert_eq!(decode_hex("0x0a1B").unwrap(), vec![0x0a, 0x1b]);
-        assert!(decode_hex("0a1b").is_err());
-        assert!(decode_hex("0x0a1").is_err());
+    fn decodes_hex_and_base64_values() {
+        assert_eq!(decode_binary("0x0a1B").unwrap(), vec![0x0a, 0x1b]);
+        assert_eq!(decode_binary("0Xa1b").unwrap(), vec![0x0a, 0x1b]);
+        assert!(decode_binary("0a1b").is_err());
+        assert!(decode_binary("0xzz").is_err());
+        assert_eq!(decode_binary("0bWg==").unwrap(), vec![0x5a]);
+        assert_eq!(decode_binary("0BAQID").unwrap(), vec![1, 2, 3]);
+        assert!(decode_binary("0b!!").is_err());
+    }
+
+    #[test]
+    fn base64_round_trips_every_length() {
+        assert_eq!(encode_base64(&[0x5a]), "0bWg==");
+        assert_eq!(encode_base64(b"foobar"), "0bZm9vYmFy");
+        assert_eq!(encode_base64(b"fooba"), "0bZm9vYmE=");
+        for len in [0usize, 1, 2, 3, 16, 1024] {
+            let bytes = random_bytes(len);
+            assert_eq!(decode_binary(&encode_base64(&bytes)).unwrap(), bytes);
+            assert_eq!(decode_binary(&encode_hex(&bytes)).unwrap(), bytes);
+        }
+    }
+
+    #[test]
+    fn random_challenges_differ() {
+        assert_ne!(random_bytes(16), random_bytes(16));
     }
 }
