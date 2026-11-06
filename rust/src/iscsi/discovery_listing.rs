@@ -27,6 +27,7 @@ pub fn discover(config: &Config) -> Result<()> {
                 let path = Path {
                     portal: address.clone(),
                     target: target.target.clone(),
+                    lun: 0,
                 };
                 let row = match collect(&path, initiator, chap) {
                     Ok(c) => {

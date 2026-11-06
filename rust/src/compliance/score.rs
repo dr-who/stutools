@@ -3,7 +3,7 @@
 //! those that count. Informational cases are not scored.
 
 use super::case::{Case, Verdict};
-use super::sections::SECTIONS;
+use super::sections::{Section, SECTIONS};
 
 /// The counts for one section or for the whole run.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -40,26 +40,15 @@ impl Tally {
             n => 100.0 * self.passed as f64 / n as f64,
         }
     }
-
-    /// "pass", "warn" or "FAIL" for a section or the run.
-    pub fn result(&self) -> &'static str {
-        if self.failed > 0 {
-            "FAIL"
-        } else if self.warned > 0 {
-            "warn"
-        } else {
-            "pass"
-        }
-    }
 }
 
-/// Each section that has cases, in run order, with its standard and tally.
-pub fn by_section(cases: &[Case]) -> Vec<(&'static str, &'static str, Tally)> {
+/// Each section that has cases, in run order, with its tally.
+pub fn by_section(cases: &[Case]) -> Vec<(&'static Section, Tally)> {
     SECTIONS
         .iter()
-        .filter_map(|&(section, spec)| {
-            let t = Tally::of(cases.iter().filter(|c| c.section == section));
-            (t.scored() + t.info > 0).then_some((section, spec, t))
+        .filter_map(|section| {
+            let t = Tally::of(cases.iter().filter(|c| c.section == section.name));
+            (t.scored() + t.info > 0).then_some((section, t))
         })
         .collect()
 }
@@ -80,8 +69,7 @@ mod tests {
         assert_eq!((t.passed, t.warned, t.failed, t.info), (1, 1, 0, 1));
         assert_eq!(t.scored(), 2);
         assert_eq!(t.percent(), 50.0);
-        assert_eq!(t.result(), "warn");
-        assert_eq!(by_section(&cases)[0].0, "pr");
+        assert_eq!(by_section(&cases)[0].0.name, "pr");
     }
 
     #[test]

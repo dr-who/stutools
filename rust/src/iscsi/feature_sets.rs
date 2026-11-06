@@ -3,8 +3,9 @@
 //! Provisioning 2016, Drive Maintenance 2016). Each requirement is judged from what the other sections
 //! already found; nothing is sent here. A LUN claims a set by listing its code in the SCSI Feature Sets
 //! VPD page (92h, SPC-6 7.7.14). One case per set: claimed and met passes, claimed and missed fails
-//! with what is missing, and an unclaimed set is reported (informational) with what it would miss. SBC-3
-//! defines no feature sets, so under `--sbc 3` the SBC sets are informational.
+//! with what is missing, and an unclaimed set is reported (informational) with what it would miss.
+//! SPC-3, SPC-4 and SBC-3 define no feature sets; their clauses are missing at those levels, so there
+//! a claimed set only informs (`compliance::judged`).
 
 use super::cases::{record, record_info};
 use super::disk::Disk;
@@ -13,13 +14,11 @@ use crate::compliance::Case;
 
 const SECTION: &str = "features";
 
-/// A feature set: its code (SPC-6 table A.1, SBC-5 table A.1), name, clause, and the first SBC edition
-/// that defines it (None for the SPC set, which applies under every edition).
+/// A feature set: its code (SPC-6 table A.1, SBC-5 table A.1), name and clause.
 struct Set {
     code: u16,
     name: &'static str,
     clause: &'static str,
-    sbc_min: Option<u8>,
 }
 
 const SETS: [Set; 5] = [
@@ -27,31 +26,26 @@ const SETS: [Set; 5] = [
         code: 0x0001,
         name: "Discovery 2016",
         clause: "SPC-6 A.2",
-        sbc_min: None,
     },
     Set {
         code: 0x0102,
         name: "SBC Base 2010",
         clause: "SBC-5 A.2",
-        sbc_min: Some(4),
     },
     Set {
         code: 0x0101,
         name: "SBC Base 2016",
         clause: "SBC-5 A.3",
-        sbc_min: Some(4),
     },
     Set {
         code: 0x0103,
         name: "Basic Provisioning 2016",
         clause: "SBC-5 A.4",
-        sbc_min: Some(4),
     },
     Set {
         code: 0x0104,
         name: "Drive Maintenance 2016",
         clause: "SBC-5 A.5",
-        sbc_min: Some(4),
     },
 ];
 
@@ -370,7 +364,7 @@ fn maintenance(disk: &Disk, seen: &Seen) -> Vec<Requirement> {
     ]
 }
 
-pub(super) fn run(name: &str, disk: &Disk, seen: &Seen, edition: u8, cases: &mut Vec<Case>) {
+pub(super) fn run(name: &str, disk: &Disk, seen: &Seen, cases: &mut Vec<Case>) {
     let claimed = disk.feature_sets();
     record_info(
         cases,
@@ -388,15 +382,6 @@ pub(super) fn run(name: &str, disk: &Disk, seen: &Seen, edition: u8, cases: &mut
     let claimed = claimed.unwrap_or_default();
     for set in SETS {
         let label = format!("{name} {} {} ({:04x}h)", set.clause, set.name, set.code);
-        if set.sbc_min.is_some_and(|m| edition < m) {
-            record_info(
-                cases,
-                SECTION,
-                label,
-                format!("SBC-{edition} defines no feature sets"),
-            );
-            continue;
-        }
         let reqs = match set.code {
             0x0001 => discovery(disk, seen),
             0x0102 => base_2010(disk, seen),
@@ -433,7 +418,10 @@ mod tests {
     fn set_codes_are_the_annex_codes() {
         let codes: Vec<u16> = SETS.iter().map(|s| s.code).collect();
         assert_eq!(codes, vec![0x0001, 0x0102, 0x0101, 0x0103, 0x0104]);
-        assert!(SETS.iter().skip(1).all(|s| s.sbc_min == Some(4)));
+        assert!(SETS
+            .iter()
+            .skip(1)
+            .all(|s| s.clause.starts_with("SBC-5 A.")));
     }
 
     #[test]

@@ -1,62 +1,19 @@
 //! The block device command set as a table: every command of SBC-5 table 34 (the same rows as SBC-4
 //! table 34, plus the ones either edition dropped), with the SBC editions that list it, the SPC editions
-//! that define it when SPC does, the clause, the hosts that send it, and whether spit sends it. `--sbc N`
-//! picks the edition the `sbc` section judges against, and only through `Row::rule`; nothing else in
-//! spit looks at the edition.
+//! that define it when SPC does, the clause, the hosts that send it, and whether spit sends it. Each
+//! `--scsilevel` judges the rows through `Row::rule` with that level's SBC and SPC editions. Clauses
+//! are SBC-5's (SPC-6's, or SPC-5's for the commands SPC-6 made obsolete); a report at an older level
+//! cites the same clause in its editions (`compliance::citation`).
 //!
 //! Where the editions come from: the command tables of SBC-3 (table 32), SBC-4 and SBC-5 (table 34)
 //! and SPC-3 (table 44) to SPC-6, read from the texts once and pasted here (`min` is the first held
 //! edition that lists a command, `max` the last when a later one dropped it). SBC-3 and SPC-3 are the
 //! oldest editions held. SPC-4 calls the copy commands "(LID1)" and "(LID4)"; those are mapped to the
-//! names SPC-5 uses. PREVENT ALLOW MEDIUM REMOVAL moved from SPC-3 to SBC and is judged as an SBC row.
-//! RESERVE (6) and RELEASE (6) are in no edition held (SPC-2). SPC rows are judged against SPC-6.
+//! names SPC-5 uses, and SPC-3 calls REPORT and SET IDENTIFYING INFORMATION "REPORT DEVICE IDENTIFIER"
+//! and "SET DEVICE IDENTIFIER". PREVENT ALLOW MEDIUM REMOVAL moved from SPC-3 to SBC and is judged as an SBC row.
+//! RESERVE (6) and RELEASE (6) are in no edition held (SPC-2).
 
-/// The clause of each block command in SBC-3, whose numbering differs from SBC-4 and SBC-5 (those two
-/// agree), read from the SBC-3 text's command headings. A command SBC-3 does not list has none.
-const SBC3_CLAUSES: [(&str, &str); 42] = [
-    ("COMPARE AND WRITE", "5.2"),
-    ("FORMAT UNIT", "5.3"),
-    ("GET LBA STATUS (16)", "5.4"),
-    ("ORWRITE (16)", "5.5"),
-    ("ORWRITE (32)", "5.6"),
-    ("POPULATE TOKEN", "5.7"),
-    ("PRE-FETCH (10)", "5.8"),
-    ("PRE-FETCH (16)", "5.9"),
-    ("PREVENT ALLOW MEDIUM REMOVAL", "5.10"),
-    ("READ (10)", "5.11"),
-    ("READ (12)", "5.12"),
-    ("READ (16)", "5.13"),
-    ("READ (32)", "5.14"),
-    ("READ CAPACITY (10)", "5.15"),
-    ("READ CAPACITY (16)", "5.16"),
-    ("READ DEFECT DATA (10)", "5.17"),
-    ("READ DEFECT DATA (12)", "5.18"),
-    ("REASSIGN BLOCKS", "5.21"),
-    ("REPORT REFERRALS", "5.23"),
-    ("SANITIZE", "5.24"),
-    ("START STOP UNIT", "5.25"),
-    ("SYNCHRONIZE CACHE (10)", "5.26"),
-    ("SYNCHRONIZE CACHE (16)", "5.27"),
-    ("UNMAP", "5.28"),
-    ("VERIFY (10)", "5.29"),
-    ("VERIFY (12)", "5.30"),
-    ("VERIFY (16)", "5.31"),
-    ("VERIFY (32)", "5.32"),
-    ("WRITE (10)", "5.33"),
-    ("WRITE (12)", "5.34"),
-    ("WRITE (16)", "5.35"),
-    ("WRITE (32)", "5.36"),
-    ("WRITE AND VERIFY (10)", "5.37"),
-    ("WRITE AND VERIFY (12)", "5.38"),
-    ("WRITE AND VERIFY (16)", "5.39"),
-    ("WRITE AND VERIFY (32)", "5.40"),
-    ("WRITE LONG (10)", "5.41"),
-    ("WRITE LONG (16)", "5.42"),
-    ("WRITE SAME (10)", "5.43"),
-    ("WRITE SAME (16)", "5.44"),
-    ("WRITE SAME (32)", "5.45"),
-    ("WRITE USING TOKEN", "5.46"),
-];
+use crate::compliance::ScsiLevel;
 
 /// The latest SBC and SPC editions held.
 pub(super) const SBC_LATEST: u8 = 5;
@@ -71,14 +28,6 @@ pub(super) struct Span {
     pub max: Option<u8>,
     /// The first edition in which it is mandatory, for the M rows.
     pub mandatory_from: Option<u8>,
-}
-
-/// The SBC-3 clause of the command `name`, when SBC-3 lists it.
-pub(super) fn sbc3_clause(name: &str) -> Option<&'static str> {
-    SBC3_CLAUSES
-        .iter()
-        .find(|(n, _)| *n == name)
-        .map(|(_, c)| *c)
 }
 
 impl Span {
@@ -122,8 +71,7 @@ pub(super) struct Row {
     pub sbc: Option<Span>,
     /// The SPC editions that define it, for SPC commands.
     pub spc: Option<Span>,
-    /// "SBC 5.18" (the same in SBC-4 and SBC-5, as their command headings show; SBC-3 numbers them
-    /// differently, see `sbc3_clause`) or "SPC-6 6.30".
+    /// "SBC 5.18" (SBC-5's numbering) or "SPC-6 6.30".
     pub clause: &'static str,
     /// The hosts that send it, e.g. "Windows, macOS, Linux", or "" when no mainstream initiator does.
     pub hosts: &'static str,
@@ -132,7 +80,7 @@ pub(super) struct Row {
     pub send: Sending,
 }
 
-/// How a row is judged under one SBC edition.
+/// How a row is judged at one SCSI level.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) enum Rule {
     /// Mandatory in the edition: it must work.
@@ -143,7 +91,8 @@ pub(super) enum Rule {
     HostFallback(&'static str),
     /// Optional: works correctly, or a clean refusal.
     Optional,
-    /// Not in this edition (introduced later or obsolete): informational, works or a clean refusal.
+    /// Not in this level's editions (introduced later or obsolete): informational, works or a clean
+    /// refusal.
     Informational(String),
     /// Never sent; REPORT SUPPORTED OPERATION CODES is recorded.
     NotSent(&'static str),
@@ -155,12 +104,23 @@ impl Row {
         self.sbc.is_some_and(|s| s.includes(edition, SBC_LATEST))
     }
 
-    fn spc_current(&self) -> bool {
-        self.spc.is_none_or(|s| s.includes(SPC_LATEST, SPC_LATEST))
+    /// Whether SPC edition `spc` defines it, for SPC commands.
+    fn in_spc(&self, spc: u8) -> bool {
+        self.spc.is_none_or(|s| s.includes(spc, SPC_LATEST))
     }
 
-    /// The rule for this row under SBC edition `edition`.
-    pub(super) fn rule(&self, edition: u8) -> Rule {
+    /// Why SPC edition `spc` does not define it.
+    fn spc_absence(&self, spc: u8) -> String {
+        match self.spc {
+            Some(s) if s.min > spc => format!("introduced in SPC-{}", s.min),
+            Some(s) => format!("obsolete after SPC-{}", s.max.unwrap_or(SPC_LATEST)),
+            None => String::new(),
+        }
+    }
+
+    /// The rule for this row at `level`.
+    pub(super) fn rule(&self, level: ScsiLevel) -> Rule {
+        let edition = level.sbc();
         if let Sending::Never(why) = self.send {
             return Rule::NotSent(why);
         }
@@ -185,26 +145,25 @@ impl Row {
                 None => "not in SBC table 34".into(),
             });
         }
-        if !self.spc_current() {
-            return Rule::Informational(format!(
-                "obsolete after SPC-{}",
-                self.spc.and_then(|s| s.max).unwrap_or(SPC_LATEST)
-            ));
+        if !self.in_spc(level.spc()) {
+            return Rule::Informational(self.spc_absence(level.spc()));
         }
         Rule::Optional
     }
 
-    /// A note for the case name when the edition does not list a command a host still sends.
-    pub(super) fn edition_note(&self, edition: u8) -> Option<String> {
-        if !self.hosts.is_empty() && (!self.in_sbc(edition) || !self.spc_current()) {
-            Some(match (self.in_sbc(edition), self.spc) {
-                (false, _) => format!("not in SBC-{edition}, still sent by hosts"),
-                (true, Some(s)) => format!(
-                    "obsolete after SPC-{}, still sent by hosts",
-                    s.max.unwrap_or(SPC_LATEST)
-                ),
-                _ => "still sent by hosts".into(),
-            })
+    /// A note for the case name when the level's editions do not define a command a host still
+    /// sends.
+    pub(super) fn edition_note(&self, level: ScsiLevel) -> Option<String> {
+        if self.hosts.is_empty() {
+            return None;
+        }
+        if !self.in_sbc(level.sbc()) {
+            Some(format!("not in SBC-{}, still sent by hosts", level.sbc()))
+        } else if !self.in_spc(level.spc()) {
+            Some(format!(
+                "{}, still sent by hosts",
+                self.spc_absence(level.spc())
+            ))
         } else {
             None
         }
@@ -291,7 +250,7 @@ pub(super) const ROWS: &[Row] = &[
     row!("REMOVE I_T NEXUS", 0xa4, Some(0x0c), span(3, None), span(4, None), "SPC-6 6.26", "", None, Never("drops other sessions") ),
     row!("REPORT ALIASES", 0xa3, Some(0x0b), span(3, None), span(3, None), "SPC-6 6.27", "", None, Yes ),
     row!("REPORT ALL ROD TOKENS", 0x84, Some(0x08), span(4, None), span(4, None), "SPC-6 6.28", "", None, Yes ),
-    row!("REPORT IDENTIFYING INFORMATION", 0xa3, Some(0x05), span(3, None), span(4, None), "SPC-6 6.29", "", None, Yes ),
+    row!("REPORT IDENTIFYING INFORMATION", 0xa3, Some(0x05), span(3, None), span(3, None), "SPC-6 6.29", "", None, Yes ),
     row!("REPORT LUNS", 0xa0, None, mandatory(3), span(3, None), "SPC-6 6.30", ALL, None, Yes ),
     row!("REPORT PRIORITY", 0xa3, Some(0x0e), span(3, None), span(3, None), "SPC-6 6.31", "", None, Yes ),
     row!("REPORT PROVISIONING INITIALIZATION PATTERN", 0xa3, Some(0x1d), span(4, None), None, "SBC 5.27", "", None, Yes ),
@@ -310,7 +269,7 @@ pub(super) const ROWS: &[Row] = &[
     row!("SECURITY PROTOCOL IN", 0xa2, None, span(3, None), span(4, None), "SPC-6 6.37", "Windows, Linux", Some("sent to find self-encrypting drives; refused means none"), Yes ),
     row!("SECURITY PROTOCOL OUT", 0xb5, None, span(3, None), span(4, None), "SPC-6 6.38", "", None, Never(STATE) ),
     row!("SEND DIAGNOSTIC", 0x1d, None, span(3, None), span(3, None), "SPC-6 6.39", "", None, Never("starts a self-test") ),
-    row!("SET IDENTIFYING INFORMATION", 0xa4, Some(0x06), span(3, None), span(4, None), "SPC-6 6.41", "", None, Never(STATE) ),
+    row!("SET IDENTIFYING INFORMATION", 0xa4, Some(0x06), span(3, None), span(3, None), "SPC-6 6.41", "", None, Never(STATE) ),
     row!("SET PRIORITY", 0xa4, Some(0x0e), span(3, None), span(3, None), "SPC-6 6.42", "", None, Never(STATE) ),
     row!("SET TARGET PORT GROUPS", 0xa4, Some(0x0a), span(3, None), span(3, None), "SPC-6 6.43", "Windows, Linux", Some("sent only for explicit ALUA"), Yes ),
     row!("SET TIMESTAMP", 0xa4, Some(0x0f), span(4, None), span(3, None), "SPC-6 6.44", "", None, Never(STATE) ),
@@ -388,14 +347,6 @@ fn edition(edition: u8) -> impl Iterator<Item = &'static Row> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn sbc3_clauses_come_from_its_own_numbering() {
-        assert_eq!(sbc3_clause("READ (16)"), Some("5.13"));
-        assert_eq!(sbc3_clause("UNMAP"), Some("5.28"));
-        assert_eq!(sbc3_clause("FORMAT UNIT"), Some("5.3"));
-        assert_eq!(sbc3_clause("WRITE ATOMIC (16)"), None);
-    }
-
     fn named(name: &str) -> &'static Row {
         row(name).unwrap_or_else(|| panic!("no row {name}"))
     }
@@ -461,26 +412,53 @@ mod tests {
     }
 
     #[test]
-    fn rules_follow_edition_and_hosts() {
-        assert_eq!(named("READ (16)").rule(5), Rule::Mandatory);
-        assert_eq!(named("FORMAT UNIT").rule(5), Rule::NotSent(SANITIZING));
-        // A host sends MODE SENSE (6), so it stays strict where SBC-5 dropped it.
-        assert_eq!(named("MODE SENSE (6)").rule(5), Rule::Host);
-        assert!(named("MODE SENSE (6)").edition_note(5).is_some());
-        assert!(
-            named("MODE SENSE (6)").edition_note(4).is_some(),
-            "SPC-6 obsoletes it"
+    fn rules_follow_level_and_hosts() {
+        let level = |n| ScsiLevel::new(n).unwrap();
+        assert_eq!(named("READ (16)").rule(level(5)), Rule::Mandatory);
+        assert_eq!(
+            named("FORMAT UNIT").rule(level(5)),
+            Rule::NotSent(SANITIZING)
         );
-        assert_eq!(named("READ (12)").rule(5), Rule::Optional);
+        // A host sends MODE SENSE (6), so it stays strict where SBC-5 dropped it.
+        assert_eq!(named("MODE SENSE (6)").rule(level(5)), Rule::Host);
+        assert!(named("MODE SENSE (6)").edition_note(level(5)).is_some());
+        assert!(named("MODE SENSE (6)").edition_note(level(6)).is_some());
+        // SPC-4 and SBC-4 both still define it.
+        assert_eq!(named("MODE SENSE (6)").edition_note(level(4)), None);
+        assert_eq!(named("READ (12)").rule(level(5)), Rule::Optional);
+        assert_eq!(
+            named("BACKGROUND CONTROL").rule(level(3)),
+            Rule::Informational("introduced in SBC-4".into())
+        );
+        assert_eq!(named("BACKGROUND CONTROL").rule(level(4)), Rule::Optional);
+        assert_eq!(
+            named("REPORT IDENTIFYING INFORMATION").rule(level(3)),
+            Rule::Optional
+        );
         assert!(matches!(
-            named("BACKGROUND CONTROL").rule(3),
-            Rule::Informational(_)
-        ));
-        assert_eq!(named("BACKGROUND CONTROL").rule(4), Rule::Optional);
-        assert!(matches!(named("UNMAP").rule(5), Rule::HostFallback(_)));
-        assert!(matches!(
-            named("RESERVE (6)").rule(5),
+            named("UNMAP").rule(level(5)),
             Rule::HostFallback(_)
         ));
+        assert!(matches!(
+            named("RESERVE (6)").rule(level(5)),
+            Rule::HostFallback(_)
+        ));
+    }
+
+    #[test]
+    fn every_clause_has_its_place_at_every_level() {
+        for r in ROWS {
+            let latest = match r.clause.strip_prefix("SBC ") {
+                Some(c) => format!("SBC-5 {c}"),
+                None if r.clause.starts_with("SPC-5 ") || r.clause.starts_with("SPC-6 ") => {
+                    r.clause.to_string()
+                }
+                None => continue,
+            };
+            for n in 3..=6 {
+                let cited = crate::compliance::cite(&latest, ScsiLevel::new(n).unwrap());
+                assert_eq!(cited.cited, 1, "{} at level {n}: {}", r.name, cited.text);
+            }
+        }
     }
 }

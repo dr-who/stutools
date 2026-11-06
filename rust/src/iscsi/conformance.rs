@@ -15,7 +15,7 @@ use super::{
     host_traces, odx, pr_ports, provisioning, reservations, spc_commands, standby_cases,
     task_management, windows,
 };
-use crate::compliance::Case;
+use crate::compliance::{Case, ScsiLevel};
 
 const SECTIONS: [&str; 12] = [
     "spc", "disk", "io", "unmap", "ats", "odx", "mpio", "pr", "tmf", "sbc", "features", "windows",
@@ -34,7 +34,7 @@ pub(super) fn run(
     targets: &[Target],
     initiator: &str,
     second: Option<&str>,
-    edition: u8,
+    levels: &[ScsiLevel],
     cases: &mut Vec<Case>,
 ) {
     for t in targets {
@@ -73,7 +73,7 @@ pub(super) fn run(
         }
         let mut seen = Seen::default();
         spc_commands::run(&mut s, &name, cases, &mut seen);
-        let disk = disk::run(&mut s, &name, cases, &mut seen);
+        let disk = disk::run(&mut s, &name, levels, cases, &mut seen);
         host_traces::linux(&mut s, &name, &disk, cases);
         let io = block_io::run(&mut s, &name, &disk, cases, &mut seen);
         let thin = provisioning::run(&mut s, &name, &disk, cases, &mut seen);
@@ -103,7 +103,7 @@ pub(super) fn run(
         match open(t.path, initiator, t.creds, login::random_isid()) {
             Ok(mut s) => {
                 let _ = unit_attentions(&mut s);
-                block_commands::run(&mut s, lun, &name, &disk, edition, &mut seen, cases);
+                block_commands::run(&mut s, lun, &name, &disk, levels, &mut seen, cases);
                 let _ = s.logout();
             }
             Err(err) => {
@@ -117,7 +117,7 @@ pub(super) fn run(
                 );
             }
         }
-        feature_sets::run(&name, &disk, &seen, edition, cases);
+        feature_sets::run(&name, &disk, &seen, cases);
         let mode_sense_6 = seen
             .probe("MODE SENSE (6)")
             .is_some_and(|p| p.supported && p.passed);

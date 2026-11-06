@@ -11,7 +11,7 @@ use super::scsi_fields::be16;
 use super::seen::Seen;
 use super::session::Session;
 use super::vpd_pages::{names_lun, parse_designations};
-use crate::compliance::Case;
+use crate::compliance::{Case, ScsiLevel};
 
 /// VPD pages read when page 00h lists them (SPC-6 7.7, SBC-5 6.6), Power Condition (8Ah) and Power
 /// Consumption (8Dh) among them for the feature sets.
@@ -19,10 +19,27 @@ pub(super) const PAGES: [u8; 11] = [
     0x80, 0x83, 0x86, 0x87, 0x8a, 0x8d, 0x8f, 0x92, 0xb0, 0xb1, 0xb2,
 ];
 
+/// The product serial number rule at `level`, and whether `serial` meets it. From SPC-4 on the field
+/// is right-aligned ASCII, 20h to 7Eh with no NUL (SPC-6 7.7.19, 4.3.1); SPC-3 calls it ASCII data
+/// that may end in one or more NULs (SPC-3 7.6.10, 4.4.1).
+fn serial_rule(serial: &[u8], level: ScsiLevel) -> (&'static str, bool) {
+    let printable = |b: &[u8]| !b.is_empty() && b.iter().all(|c| (0x20..=0x7e).contains(c));
+    if level.spc() == 3 {
+        let text = serial
+            .iter()
+            .rposition(|&c| c != 0)
+            .map_or(&[][..], |end| &serial[..=end]);
+        ("20h to 7Eh, NUL padding allowed", printable(text))
+    } else {
+        ("20h to 7Eh", printable(serial))
+    }
+}
+
 /// SPC-6 6.7 INQUIRY, 7.7 VPD pages.
 pub(super) fn inquiry(
     s: &mut Session,
     name: &str,
+    levels: &[ScsiLevel],
     cases: &mut Vec<Case>,
     seen: &mut Seen,
     disk: &mut Disk,
@@ -185,17 +202,24 @@ pub(super) fn inquiry(
             vpd(s, unlisted, 255),
         );
     }
-    // SPC-6 7.7.19 and 4.3.1: the serial number is right-aligned ASCII, 20h to 7Eh (no NUL).
     if let Some(d) = disk.page(0x80) {
         let serial = d.get(4..).unwrap_or(&[]);
-        record(
-            cases,
-            SECTION,
-            label(name, "VPD 80h serial number is printable ASCII"),
-            "20h to 7Eh",
-            super::scsi_fields::printable(serial),
-            !serial.is_empty() && serial.iter().all(|b| (0x20..=0x7e).contains(b)),
-        );
+        for &level in levels {
+            let (expected, passed) = serial_rule(serial, level);
+            cases.push(
+                crate::compliance::case(
+                    SECTION,
+                    label(
+                        name,
+                        "SPC-6 7.7.19 VPD 80h serial number is printable ASCII",
+                    ),
+                    expected.into(),
+                    super::scsi_fields::printable(serial),
+                    passed,
+                )
+                .at(level),
+            );
+        }
     }
     // SPC-6 7.7.6: the descriptors fill the page; one names the LUN uniquely.
     if let Some(d) = disk.page(0x83) {
@@ -247,5 +271,21 @@ pub(super) fn inquiry(
             format!("{rate:04x}h"),
             matches!(rate, 0 | 1 | 0x401..=0xfffe),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spc_3_lets_a_serial_number_end_in_nuls_and_later_editions_do_not() {
+        let level = |n| ScsiLevel::new(n).unwrap();
+        let padded = b"b516f489\0";
+        assert!(serial_rule(padded, level(3)).1);
+        assert!(!serial_rule(padded, level(4)).1);
+        assert!(serial_rule(b"b516f489", level(6)).1);
+        assert!(!serial_rule(b"\0\0", level(3)).1);
+        assert!(!serial_rule(b"a\0b", level(3)).1);
     }
 }

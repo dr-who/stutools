@@ -29,7 +29,11 @@ pub fn collect(path: &Path, initiator: &str, chap: Option<(&str, &[u8])>) -> Res
     let serial = scsi::serial(&mut session)?;
     let designators = scsi::designators(&mut session)?;
     let (last_lba, block_len) = scsi::capacity(&mut session)?;
-    let groups = scsi::port_groups(&mut session)?;
+    let groups = if inquiry.tpgs == 0 {
+        Vec::new()
+    } else {
+        scsi::port_groups(&mut session)?
+    };
     session.logout()?;
     let own_port = designators
         .iter()

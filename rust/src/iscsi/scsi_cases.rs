@@ -53,13 +53,22 @@ pub(super) fn run(
             .and_then(|port| c.groups.iter().find(|g| g.ports.contains(&port)))
             .map(|g| super::scsi::state_name(g.state).to_string());
         standby[i] = own.as_deref() == Some("standby");
-        cases.push(case(
-            "scsi",
-            format!("{name} ALUA state"),
-            "its port in a listed group".into(),
-            own.clone().unwrap_or_else(|| "port not listed".into()),
-            own.is_some(),
-        ));
+        // SPC-6 6.7.2: TPGS 0 means no target port groups, so there is no state to find.
+        if c.inquiry.tpgs == 0 {
+            cases.push(crate::compliance::info(
+                "scsi",
+                format!("{name} ALUA state"),
+                "no target port groups (TPGS 0)".into(),
+            ));
+        } else {
+            cases.push(case(
+                "scsi",
+                format!("{name} ALUA state"),
+                "its port in a listed group".into(),
+                own.clone().unwrap_or_else(|| "port not listed".into()),
+                own.is_some(),
+            ));
+        }
     }
 
     standby

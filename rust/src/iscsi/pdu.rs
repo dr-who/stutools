@@ -289,6 +289,7 @@ pub fn set_data_len(bhs: &mut [u8; BHS_LEN], len: usize) {
 /// ABORT TASK names; other functions carry 0xffffffff there. `ref_cmd_sn` is the CmdSN of that task.
 pub fn task_management_request(
     function: u8,
+    lun: u64,
     itt: u32,
     referenced: u32,
     cmd_sn: u32,
@@ -298,6 +299,7 @@ pub fn task_management_request(
     let mut bhs = [0u8; BHS_LEN];
     bhs[0] = TASK_MANAGEMENT_REQUEST | IMMEDIATE;
     bhs[1] = TRANSIT | (function & 0x7f);
+    bhs[8..16].copy_from_slice(&lun.to_be_bytes());
     bhs[16..20].copy_from_slice(&itt.to_be_bytes());
     bhs[20..24].copy_from_slice(&referenced.to_be_bytes());
     bhs[24..28].copy_from_slice(&cmd_sn.to_be_bytes());
@@ -476,7 +478,7 @@ mod tests {
 
     #[test]
     fn task_management_request_is_immediate_with_its_function_and_tags() {
-        let bhs = task_management_request(TMF_ABORT_TASK, 9, 0x1234, 5, 6, 4);
+        let bhs = task_management_request(TMF_ABORT_TASK, 0, 9, 0x1234, 5, 6, 4);
         assert_eq!(bhs[0], 0x42, "task management with the immediate bit");
         assert_eq!(bhs[1], 0x80 | 1);
         assert_eq!(&bhs[16..20], &9u32.to_be_bytes());

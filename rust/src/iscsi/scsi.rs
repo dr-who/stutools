@@ -95,10 +95,13 @@ fn hex(d: &[u8]) -> String {
     d.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// Standard INQUIRY data: peripheral type, vendor, product and revision.
+/// Standard INQUIRY data: peripheral type, ALUA support, vendor, product and revision.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Inquiry {
     pub peripheral: u8,
+    /// TPGS (SPC-6 6.7.2): 0 when the device has no target port groups, so no REPORT TARGET PORT
+    /// GROUPS either.
+    pub tpgs: u8,
     pub vendor: String,
     pub product: String,
     pub revision: String,
@@ -110,6 +113,7 @@ pub fn inquiry(s: &mut Session) -> Result<Inquiry> {
     let d = &o.data;
     Ok(Inquiry {
         peripheral: d.first().copied().unwrap_or(0xff) & 0x1f,
+        tpgs: d.get(5).map_or(0, |b| (b >> 4) & 0x3),
         vendor: text(d.get(8..16).unwrap_or(&[])),
         product: text(d.get(16..32).unwrap_or(&[])),
         revision: text(d.get(32..36).unwrap_or(&[])),

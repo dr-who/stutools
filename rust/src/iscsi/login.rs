@@ -15,6 +15,9 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+/// MaxRecvDataSegmentLength when a side does not declare it (RFC 7143 13.12).
+const DEFAULT_MAX_RECV: usize = 8192;
+
 pub(super) const TIMEOUT: Duration = Duration::from_secs(10);
 
 pub(super) const LOGIN_ITT: u32 = 1;
@@ -355,9 +358,13 @@ pub(super) fn login_with_keys(
         return Err("target did not assign a session handle".into());
     }
     let digest = |key: &str| value(&response.text, key) == Some("CRC32C");
-    let max_recv = value(&response.text, "MaxRecvDataSegmentLength")
-        .and_then(|v| v.parse::<usize>().ok())
-        .ok_or("target did not report MaxRecvDataSegmentLength")?;
+    // RFC 7143 13.12: a declarative key; a target that does not declare it takes the default.
+    let max_recv = match value(&response.text, "MaxRecvDataSegmentLength") {
+        Some(v) => v
+            .parse::<usize>()
+            .map_err(|_| format!("target declared MaxRecvDataSegmentLength={v}"))?,
+        None => DEFAULT_MAX_RECV,
+    };
     let exp_cmd_sn = u32::from_be_bytes([raw[28], raw[29], raw[30], raw[31]]);
     let max_cmd_sn = u32::from_be_bytes([raw[32], raw[33], raw[34], raw[35]]);
     let negotiated = Negotiated {

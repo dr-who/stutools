@@ -25,7 +25,7 @@ use super::{
     admin_cases, ana_cases, discovery_cases, fabric_cases, feature_cases, identify_cases, io_cases,
     log_page_cases, reservation_cases, windows_cases, DEFAULT_HOSTNQN,
 };
-use crate::compliance::{case, Case};
+use crate::compliance::{case, Case, Device};
 use crate::Result;
 
 /// One NVM subsystem under test: its NQN and every address the discovery log gives for it, the
@@ -35,8 +35,9 @@ pub struct Target {
     pub addrs: Vec<SocketAddr>,
 }
 
-/// Adds the NVMe/TCP cases for the `--nvme` targets to `cases`.
-pub fn cases(entries: &[String], cases: &mut Vec<Case>) -> Result<()> {
+/// Adds the NVMe/TCP cases for the `--nvme` targets to `cases`, and each namespace tested to
+/// `devices`.
+pub fn cases(entries: &[String], cases: &mut Vec<Case>, devices: &mut Vec<Device>) -> Result<()> {
     let mut targets: Vec<Target> = Vec::new();
     let mut add =
         |subnqn: String, addr: SocketAddr| match targets.iter_mut().find(|t| t.subnqn == subnqn) {
@@ -64,14 +65,14 @@ pub fn cases(entries: &[String], cases: &mut Vec<Case>) -> Result<()> {
         }
     }
     for t in &targets {
-        subsystem(t, cases);
+        subsystem(t, cases, devices);
     }
     Ok(())
 }
 
 /// Every section for one subsystem, in order. Each later section needs what Identify learned, so a
 /// failed Connect, enable or Identify ends the subsystem after the association cases.
-fn subsystem(t: &Target, cases: &mut Vec<Case>) {
+fn subsystem(t: &Target, cases: &mut Vec<Case>, devices: &mut Vec<Device>) {
     let addr = t.addrs[0];
     let subnqn = t.subnqn.as_str();
     let name = format!("{} at {addr}", subnqn.rsplit(':').next().unwrap_or(subnqn));
@@ -104,6 +105,20 @@ fn subsystem(t: &Target, cases: &mut Vec<Case>) {
         fabric_cases::sessions(&assoc, &name, cases);
         return;
     };
+    for (nsid, ns) in &facts.namespaces {
+        devices.push(Device {
+            name: name.clone(),
+            transport: "NVMe/TCP",
+            target: format!("{subnqn} namespace {nsid}"),
+            paths: t.addrs.iter().map(|a| a.to_string()).collect(),
+            vendor: String::new(),
+            product: facts.ctrl.model.clone(),
+            revision: facts.ctrl.firmware.clone(),
+            serial: facts.ctrl.serial.clone(),
+            blocks: ns.blocks,
+            block_len: ns.block_len,
+        });
+    }
     log_page_cases::run(&mut c, &name, &facts, cases);
     feature_cases::run(&mut c, &name, hostid, &facts, cases);
     admin_cases::run(&mut c, &name, &facts, cases);

@@ -23,16 +23,18 @@ use super::path;
 use super::path::Path;
 use super::send_targets;
 use super::{chap_cases, identity_cases, scsi_cases, session_cases};
-use crate::compliance::Case;
+use crate::compliance::{Case, Device, ScsiLevel};
 use crate::{cli::Config, Result};
 
-/// Adds the iSCSI cases for the `--iscsi` targets to `cases`, and the targets tested no further to
-/// `untested`: the login, identity, scsi, chap and session sections, then the SCSI sections, which
-/// are judged against the SBC edition --sbc names.
+/// Adds the iSCSI cases for the `--iscsi` targets to `cases`, the targets tested no further to
+/// `untested`, and each logical unit reached to `devices`: the login, identity, scsi, chap and session
+/// sections, then the SCSI sections, whose level-dependent cases are judged at each of `levels`.
 pub fn cases(
     config: &Config,
+    levels: &[ScsiLevel],
     cases: &mut Vec<Case>,
     untested: &mut Vec<(String, String)>,
+    devices: &mut Vec<Device>,
 ) -> Result<()> {
     let initiator = config.iscsi_initiator.as_deref().unwrap_or_default();
     let paths = targets(&config.iscsi, initiator)?;
@@ -46,6 +48,25 @@ pub fn cases(
         .iter()
         .map(|r| identity::collect(r.path, initiator, creds_of(r)))
         .collect();
+    for (r, c) in reachable.iter().zip(&collected) {
+        let Ok(c) = c else { continue };
+        let portal = r.path.portal.to_string();
+        match devices.iter_mut().find(|d| d.target == r.path.target) {
+            Some(d) => d.paths.push(portal),
+            None => devices.push(Device {
+                name: super::lun_access::short_name(r.path),
+                transport: "iSCSI",
+                target: r.path.target.clone(),
+                paths: vec![portal],
+                vendor: c.inquiry.vendor.clone(),
+                product: c.inquiry.product.clone(),
+                revision: c.inquiry.revision.clone(),
+                serial: c.serial.clone(),
+                blocks: c.last_lba.saturating_add(1),
+                block_len: c.block_len,
+            }),
+        }
+    }
     identity_cases::run(&reachable, &collected, cases);
     let standby = scsi_cases::run(&reachable, &collected, cases);
     if chap_good.is_some() {
@@ -54,7 +75,7 @@ pub fn cases(
     for r in &reachable {
         session_cases::run(r.path, initiator, creds_of(r), cases);
     }
-    // Section 6: the SCSI sections, judged against the SBC edition --sbc names. A LUN in the standby
+    // Section 6: the SCSI sections, judged at each SCSI level. A LUN in the standby
     // state is checked for the commands a standby port must and must not take instead.
     let targets: Vec<conformance::Target> = reachable
         .iter()
@@ -70,7 +91,7 @@ pub fn cases(
         &targets,
         initiator,
         config.iscsi_second_initiator.as_deref(),
-        config.sbc,
+        levels,
         cases,
     );
     Ok(())
@@ -90,6 +111,7 @@ fn targets(entries: &[String], initiator: &str) -> Result<Vec<Path>> {
                 out.push(Path {
                     portal: address,
                     target: t.target.clone(),
+                    lun: 0,
                 });
             }
         }

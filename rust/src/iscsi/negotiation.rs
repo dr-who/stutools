@@ -174,14 +174,15 @@ fn login(
             passed,
         );
     }
+    // RFC 7143 13.12: declarative, default 8192; a target need not declare it.
     let declared = answer("MaxRecvDataSegmentLength");
     record(
         cases,
         SECTION,
-        format!("{name} {what}: MaxRecvDataSegmentLength declared"),
-        "512 to 16777215",
+        format!("{name} {what}: MaxRecvDataSegmentLength"),
+        "512 to 16777215, or not declared (8192)",
         declared.unwrap_or("not declared").to_string(),
-        declared.is_some_and(|v| obeys(rule("MaxRecvDataSegmentLength"), "", v, false)),
+        declared.is_none_or(|v| obeys(rule("MaxRecvDataSegmentLength"), "", v, false)),
     );
     Some(n.keys)
 }

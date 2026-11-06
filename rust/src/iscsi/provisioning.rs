@@ -186,8 +186,9 @@ pub(super) fn run(
         seen.answer("UNMAP", SECTION, &a);
     }
 
-    // SBC-5 5.6: GET LBA STATUS (16) for the test block, when LBPME is set: the first descriptor starts at
-    // the LBA asked for. Without logical block provisioning it is refused.
+    // SBC-5 5.6: GET LBA STATUS (16) for the test block: the first descriptor starts at the LBA asked
+    // for. A fully provisioned logical unit (LBPME 0) may support it too (SBC-5 4.7.1), and then every
+    // LBA it reports is mapped (4.7.2), or it refuses it cleanly.
     let alloc = 64u32.to_be_bytes();
     let mut cdb = [0u8; 16];
     cdb[0] = 0x9e;
@@ -196,7 +197,7 @@ pub(super) fn run(
     cdb[10..14].copy_from_slice(&alloc);
     let mut wants = vec![Want::Good];
     if !lbpme {
-        wants = REFUSED_SA.to_vec();
+        wants.extend_from_slice(&REFUSED_SA);
     }
     let answer = expect(
         cases,
@@ -212,16 +213,17 @@ pub(super) fn run(
         let n = be32(&o.data, 0);
         let lba = be64(&o.data, 8);
         let status = o.data.get(20).copied().unwrap_or(0xff) & 0x0f;
+        let most = if lbpme { 3 } else { 0 };
         record(
             cases,
             SECTION,
             label("GET LBA STATUS (16) descriptor"),
-            format!("starts at {target}, status 0h to 3h"),
+            format!("starts at {target}, status 0h to {most}h"),
             format!(
                 "length {n}, starts at {lba}, status {status:x}h, {} blocks",
                 be32(&o.data, 16)
             ),
-            n >= 20 && (n - 4) % 16 == 0 && lba == target as u64 && status <= 3,
+            n >= 20 && (n - 4) % 16 == 0 && lba == target as u64 && status <= most,
         );
     }
 

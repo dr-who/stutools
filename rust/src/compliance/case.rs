@@ -1,7 +1,10 @@
 //! One scored case of `--compliance` and how much it matters. The standards say "shall" for what a
 //! device must do and "should" for what it is recommended to do, and some cases only report what a
 //! device offers. So a case has a level: a `Shall` case that does not pass is a failure, a `Should`
-//! case a warning, and an `Info` case never fails.
+//! case a warning, and an `Info` case never fails. A case whose verdict depends on the SCSI level is
+//! recorded once per level, tagged with it (`at`); every other case holds at every level.
+
+use super::scsi_level::ScsiLevel;
 
 /// How much a case matters, from the wording of the clause it tests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,6 +39,7 @@ impl Verdict {
 }
 
 /// One scored case.
+#[derive(Debug, Clone)]
 pub struct Case {
     pub section: &'static str,
     pub name: String,
@@ -43,9 +47,19 @@ pub struct Case {
     pub actual: String,
     pub passed: bool,
     pub level: Level,
+    /// The one SCSI level this verdict is for; None when it holds at every level.
+    pub scsi_level: Option<ScsiLevel>,
 }
 
 impl Case {
+    /// This case as the verdict for one SCSI level only.
+    pub fn at(self, level: ScsiLevel) -> Case {
+        Case {
+            scsi_level: Some(level),
+            ..self
+        }
+    }
+
     pub fn verdict(&self) -> Verdict {
         match (self.level, self.passed) {
             (Level::Info, _) => Verdict::Info,
@@ -71,6 +85,7 @@ pub fn case(
         actual,
         passed,
         level: Level::Shall,
+        scsi_level: None,
     }
 }
 

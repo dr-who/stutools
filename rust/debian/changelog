@@ -1,3 +1,12 @@
+stutools (2.3.0-1) unstable; urgency=medium
+
+  * --scsilevel judges at SCSI levels 3 to 6 (SPC-n with SBC-n), each
+    case citing that edition's clause; --compliance-report writes an
+    AsciiDoc report with a compatibility matrix.
+  * --iscsi HOST/IQN/LUN tests a logical unit other than LUN 0.
+
+ -- Stuart Inglis <stuart.inglis@gmail.com>  Fri, 06 Nov 2026 14:00:00 +1300
+
 stutools (2.2.0-1) unstable; urgency=medium
 
   * --compliance covers the commands Windows MPIO, NTFS and Failover

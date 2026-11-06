@@ -1,5 +1,5 @@
-//! The `sbc` cases of `--compliance`: SBC table 34, row by row, judged against the SBC edition `--sbc`
-//! picks (see `command_set`). A command another section already checks in depth is not sent again: its
+//! The `sbc` cases of `--compliance`: SBC table 34, row by row, each command probed once and judged at
+//! every `--scsilevel` (see `command_set`); those cases are recorded per level. A command another section already checks in depth is not sent again: its
 //! row reports that section's verdict. The rest are sent here in a form that changes nothing (writes
 //! carry the block's own data, ORWRITE carries zeros, BACKGROUND CONTROL asks for no change), and pass
 //! when they behave as their clause requires or are refused cleanly (ILLEGAL REQUEST with INVALID COMMAND
@@ -9,13 +9,13 @@
 
 use super::cases::record;
 use super::command_probes::{probe, spc2, type_2_protection, Block, DROPPED, TYPE_2_ONLY};
-use super::command_set::{Row, Rule, ROWS};
+use super::command_set::{Row, Rule, Sending, ROWS};
 use super::disk::Disk;
 use super::login;
 use super::lun_access::{open, open_with, read_block, Lun};
-use super::seen::Seen;
+use super::seen::{Probe, Seen};
 use super::session::Session;
-use crate::compliance::Case;
+use crate::compliance::{Case, ScsiLevel};
 
 pub(super) const SECTION: &str = "sbc";
 
@@ -33,14 +33,11 @@ fn expected(rule: &Rule) -> String {
     }
 }
 
-/// The case name: the edition and clause, the command, and the hosts that send it.
-fn title(row: &Row, edition: u8) -> String {
+/// The case name: the clause (SBC-5's, which a report at an older level cites in its edition), the
+/// command, the hosts that send it, and a note when the level's editions do not define it.
+fn title(row: &Row, level: ScsiLevel) -> String {
     let clause = match row.clause.strip_prefix("SBC ") {
-        Some(c) if edition >= 4 => format!("SBC-{edition} {c}"),
-        Some(c) => match super::command_set::sbc3_clause(row.name) {
-            Some(c3) => format!("SBC-3 {c3}"),
-            None => format!("SBC-5 {c} (not in SBC-3)"),
-        },
+        Some(c) => format!("SBC-5 {c}"),
         None => row.clause.to_string(),
     };
     let hosts = if row.hosts.is_empty() {
@@ -49,7 +46,7 @@ fn title(row: &Row, edition: u8) -> String {
         format!(" [{}]", row.hosts)
     };
     let note = row
-        .edition_note(edition)
+        .edition_note(level)
         .map(|n| format!(" ({n})"))
         .unwrap_or_default();
     format!("{clause} {}{hosts}{note}", row.name)
@@ -61,7 +58,7 @@ pub(super) fn run(
     lun: Lun,
     name: &str,
     disk: &Disk,
-    edition: u8,
+    levels: &[ScsiLevel],
     seen: &mut Seen,
     cases: &mut Vec<Case>,
 ) {
@@ -96,17 +93,11 @@ pub(super) fn run(
     let mut spc2_probes = None;
     let mut plain = None;
     for row in ROWS {
-        let rule = row.rule(edition);
-        let label = format!("{name} {}", title(row, edition));
-        if let Rule::NotSent(why) = rule {
-            let (actual, passed) = not_sent(row, disk, why);
-            if row.in_sbc(edition) && row.sbc.and_then(|s| s.mandatory_from).is_some() {
-                let expected = format!(
-                    "mandatory, so REPORT SUPPORTED OPERATION CODES says supported (not sent: {why})"
-                );
-                record(cases, SECTION, label, expected, actual, passed);
-            } else {
-                super::cases::record_info(cases, SECTION, label, actual);
+        if let Sending::Never(why) = row.send {
+            for &level in levels {
+                let mut one = Vec::new();
+                not_sent_case(row, level, name, disk, why, &mut one);
+                cases.extend(one.into_iter().map(|c| c.at(level)));
             }
             continue;
         }
@@ -160,71 +151,109 @@ pub(super) fn run(
                 *s = again;
             }
         }
-        let Some(p) = found else {
-            record(
-                cases,
-                SECTION,
-                label,
-                expected(&rule),
-                "not checked by spit",
-                matches!(rule, Rule::Informational(_) | Rule::Optional),
-            );
-            continue;
-        };
-        let strict = matches!(rule, Rule::Mandatory | Rule::Host);
-        let expected = if TYPE_2_ONLY.contains(&row.name) && !type_2_protection(disk) {
-            "a clean refusal: no type 2 protection (SBC-5 4.21.2.4)".to_string()
-        } else {
-            expected(&rule)
-        };
-        // SPC-6 6.32: the all_commands list names exactly the commands the device server supports.
-        let rsoc = disk
-            .lists(row.opcode, row.service_action)
-            .filter(|&listed| listed != p.supported && p.actual != "no answer")
-            .map(|listed| {
-                if listed {
-                    "RSOC lists it"
-                } else {
-                    "RSOC does not list it"
-                }
-            });
-        // A command another section judged is that section's verdict: here it is only noted, unless
-        // REPORT SUPPORTED OPERATION CODES contradicts what it found.
-        if p.section != SECTION {
-            let seen = format!(
-                "see {}: {}",
-                p.section,
-                if p.passed { "passed" } else { "failed" }
-            );
-            match rsoc {
-                Some(why) => {
-                    record(
-                        cases,
-                        SECTION,
-                        label,
-                        expected,
-                        format!("{seen}; {why}"),
-                        false,
-                    );
-                }
-                None => super::cases::record_info(cases, SECTION, label, seen),
-            }
-            continue;
+        for &level in levels {
+            let mut one = Vec::new();
+            judge(row, level, name, disk, found.as_ref(), &mut one);
+            cases.extend(one.into_iter().map(|c| c.at(level)));
         }
-        let mut actual = if p.supported || strict {
-            p.actual.clone()
-        } else {
-            format!("refused ({})", p.actual)
-        };
-        if let Some(why) = rsoc {
-            actual.push_str("; ");
-            actual.push_str(why);
-        }
-        let passed = p.passed && (p.supported || !strict) && rsoc.is_none();
-        record(cases, SECTION, label, expected, actual, passed);
     }
     if let Some(p) = plain {
         let _ = p.logout();
+    }
+}
+
+/// One row's verdict at `level`, from what its probe found.
+fn judge(
+    row: &Row,
+    level: ScsiLevel,
+    name: &str,
+    disk: &Disk,
+    found: Option<&Probe>,
+    cases: &mut Vec<Case>,
+) {
+    let rule = row.rule(level);
+    let label = format!("{name} {}", title(row, level));
+    // A command no section sent (SET TARGET PORT GROUPS on a device without ALUA) is no verdict.
+    let Some(p) = found else {
+        super::cases::record_info(
+            cases,
+            SECTION,
+            label,
+            "not sent: nothing on this device calls for it",
+        );
+        return;
+    };
+    let strict = matches!(rule, Rule::Mandatory | Rule::Host);
+    let expected = if TYPE_2_ONLY.contains(&row.name) && !type_2_protection(disk) {
+        "a clean refusal: no type 2 protection (SBC-5 4.21.2.4)".to_string()
+    } else {
+        expected(&rule)
+    };
+    // SPC-6 6.32: the all_commands list names exactly the commands the device server supports.
+    let rsoc = disk
+        .lists(row.opcode, row.service_action)
+        .filter(|&listed| listed != p.supported && p.actual != "no answer")
+        .map(|listed| {
+            if listed {
+                "RSOC lists it"
+            } else {
+                "RSOC does not list it"
+            }
+        });
+    // A command another section judged is that section's verdict: here it is only noted, unless
+    // REPORT SUPPORTED OPERATION CODES contradicts what it found.
+    if p.section != SECTION {
+        let seen = format!(
+            "see {}: {}",
+            p.section,
+            if p.passed { "passed" } else { "failed" }
+        );
+        match rsoc {
+            Some(why) => {
+                record(
+                    cases,
+                    SECTION,
+                    label,
+                    expected,
+                    format!("{seen}; {why}"),
+                    false,
+                );
+            }
+            None => super::cases::record_info(cases, SECTION, label, seen),
+        }
+        return;
+    }
+    let mut actual = if p.supported || strict {
+        p.actual.clone()
+    } else {
+        format!("refused ({})", p.actual)
+    };
+    if let Some(why) = rsoc {
+        actual.push_str("; ");
+        actual.push_str(why);
+    }
+    let passed = p.passed && (p.supported || !strict) && rsoc.is_none();
+    record(cases, SECTION, label, expected, actual, passed);
+}
+/// A row that is never sent, at `level`: a mandatory one must not be denied by REPORT SUPPORTED
+/// OPERATION CODES; for the others its answer is recorded.
+fn not_sent_case(
+    row: &Row,
+    level: ScsiLevel,
+    name: &str,
+    disk: &Disk,
+    why: &str,
+    cases: &mut Vec<Case>,
+) {
+    let label = format!("{name} {}", title(row, level));
+    let (actual, passed) = not_sent(row, disk, why);
+    if row.in_sbc(level.sbc()) && row.sbc.and_then(|s| s.mandatory_from).is_some() {
+        let expected = format!(
+            "mandatory, so REPORT SUPPORTED OPERATION CODES says supported (not sent: {why})"
+        );
+        record(cases, SECTION, label, expected, actual, passed);
+    } else {
+        super::cases::record_info(cases, SECTION, label, actual);
     }
 }
 
@@ -260,15 +289,16 @@ mod tests {
     #[test]
     fn titles_cite_the_edition_and_hosts() {
         let read16 = super::super::command_set::row("READ (16)").unwrap();
+        let level = |n| ScsiLevel::new(n).unwrap();
         assert_eq!(
-            title(read16, 5),
+            title(read16, level(5)),
             "SBC-5 5.18 READ (16) [Windows, macOS, Linux]"
         );
         assert_eq!(
-            title(read16, 3),
+            crate::compliance::cite(&title(read16, level(3)), level(3)).text,
             "SBC-3 5.13 READ (16) [Windows, macOS, Linux]"
         );
         let inquiry = super::super::command_set::row("INQUIRY").unwrap();
-        assert!(title(inquiry, 4).starts_with("SPC-6 6.7 INQUIRY"));
+        assert!(title(inquiry, level(4)).starts_with("SPC-6 6.7 INQUIRY"));
     }
 }

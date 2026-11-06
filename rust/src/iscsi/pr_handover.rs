@@ -8,7 +8,7 @@ use super::cases::{expect, Want};
 use super::lun_access::{open, unit_attentions, Creds};
 use super::ops::{self, persistent_reserve_in};
 use super::path::Path;
-use super::pr_commands::{hex, out, parse_full_status, FullStatus};
+use super::pr_commands::{hex, out, parse_full_status, read_holder, read_keys, FullStatus};
 use super::pr_ports::{Run, ISID_A, ISID_A2, KEY_A, KEY_B, KEY_C, SECTION};
 use super::session::Session;
 
@@ -113,6 +113,38 @@ impl Run<'_> {
             out(a, ops::PR_RELEASE, kind, KEY_A, 0),
             true,
         );
+        self.settle(a, b, c, None, true);
+    }
+
+    /// Puts the logical unit in the state the next phase starts from, unrecorded, when a target that
+    /// missed a step left it elsewhere: A holding `hold` (or nothing reserved) and, when `both`, A and
+    /// B registered. One fault is then judged once, not again by every case after it. A target that
+    /// did every step is already there and is sent nothing.
+    pub(super) fn settle(
+        &mut self,
+        a: &mut Session,
+        b: &mut Session,
+        c: &mut Session,
+        hold: Option<u8>,
+        both: bool,
+    ) {
+        let want = hold.map(|kind| (KEY_A, kind));
+        let keys = read_keys(c).map(|(_, k)| k).unwrap_or_default();
+        let registered = !both || (keys.contains(&KEY_A) && keys.contains(&KEY_B));
+        if read_holder(c).ok() != Some(want) || !registered {
+            let _ = out(a, ops::PR_REGISTER_AND_IGNORE, 0, 0, KEY_A);
+            let _ = out(a, ops::PR_CLEAR, 0, KEY_A, 0);
+            // The CLEAR leaves RESERVATIONS PREEMPTED pending on the other nexuses; their next
+            // command would only report it.
+            for s in [&mut *a, &mut *b, &mut *c] {
+                let _ = unit_attentions(s);
+            }
+            let _ = out(a, ops::PR_REGISTER_AND_IGNORE, 0, 0, KEY_A);
+            let _ = out(b, ops::PR_REGISTER_AND_IGNORE, 0, 0, KEY_B);
+            if let Some(kind) = hold {
+                let _ = out(a, ops::PR_RESERVE, kind, KEY_A, 0);
+            }
+        }
         for s in [a, b, c] {
             let _ = unit_attentions(s);
         }

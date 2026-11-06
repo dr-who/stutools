@@ -1,4 +1,4 @@
-.TH SPIT 1 "November 2026" "stutools 2.2.0" "User Commands"
+.TH SPIT 1 "November 2026" "stutools 2.3.0" "User Commands"
 .SH NAME
 spit \- Stu's powerful I/O tester, with fixed memory pools
 .SH SYNOPSIS
@@ -74,11 +74,12 @@ PREFIX is a filename prefix, not a directory. Read workloads require files
 initialized earlier, for example using -c ws1x1 with the same prefix, size
 and worker count. Reading never creates missing files.
 .TP
-.BI \-\-iscsi " HOST[:PORT][/IQN][,N]"
+.BI \-\-iscsi " HOST[:PORT][/IQN[/LUN]][,N]"
 An iSCSI target, reached by spit's own initiator. HOST alone lists the
 targets the portal reports (SendTargets discovery). HOST/IQN reports on the
-target, or runs the -c workloads over it with N connections. Repeat for
-several paths. PORT defaults to 3260. \-\-scsi is the same option.
+target, or runs the -c workloads over it with N connections; HOST/IQN/LUN
+names a logical unit other than LUN 0 (tgt keeps LUN 0 for its controller).
+Repeat for several paths. PORT defaults to 3260. \-\-scsi is the same option.
 .TP
 .BI \-\-nvme " HOST[:PORT][/NQN[/NSID]][,N]"
 An NVMe/TCP subsystem. HOST alone lists the subsystems the discovery
@@ -96,7 +97,7 @@ only by ISID, as one host's MPIO paths do.
 .TP
 .B \-\-compliance
 Test every target the \-\-iscsi and \-\-nvme hosts report, or each HOST/IQN
-and HOST/NQN given, against RFC 7143, SPC\-4 and SBC\-3 and the NVMe base and
+and HOST/NQN given, against RFC 7143, SAM\-6, SPC, SBC and the NVMe base and
 NVMe\-oF specifications, then print each case and a score per section. It
 needs no other options; a CHAP target is tested past login only with
 \-\-chap\-user and \-\-chap\-secret\-file. The cases cover every command
@@ -112,17 +113,28 @@ section says what a Windows host would find missing.
 Use test LUNs. Cases that change data write a few blocks near the end of a
 LUN or namespace and write the original data back; others reset the LUN,
 take and clear reservations, and move an ALUA group to another state and
-back. \-\-compliance\-report OUT also writes the table as Markdown.
+back.
 .TP
-.BI \-\-sbc " 3|4|5"
-The SBC edition \-\-compliance judges a block device against (default 4).
-Each block command and feature set carries the first and last edition that
-defines it: a command the edition makes mandatory must work, one it does not
-define (newer, or made obsolete, such as MODE SENSE (6) in SBC\-5) passes when
-it works or is refused cleanly, and a command Windows, macOS or Linux sends is
-held to its rule in every edition. The SBC feature sets (SBC Base 2010, SBC
-Base 2016, Basic Provisioning 2016, Drive Maintenance 2016) start in SBC\-4;
-Discovery 2016 comes from SPC\-5 and always applies.
+.BI \-\-compliance\-report " OUT"
+Also write the report as an AsciiDoc document: a title page with what was
+tested, when and by which spit; a table of contents; the scores by level and
+by section; the devices, initiators and command; a chapter per SCSI level
+with its SPC and SBC parts, each section with what it tests, its score,
+failures and warnings; chapters for iSCSI, host needs and NVMe; and every
+case in an appendix.
+.B asciidoctor\-pdf OUT
+makes it a PDF.
+.TP
+.BI \-\-scsilevel " N|N..M|N,M"
+The SCSI levels \-\-compliance judges at; repeatable, default 3. Level N is
+SPC\-N with SBC\-N (3 to 5), and level 6 is SPC\-6 with SBC\-5. The device is
+probed once and every SCSI case judged at each level: each citation names
+that level's clause, a command the level's SBC edition makes mandatory must
+work, one it does not define (newer, or made obsolete) passes when it works
+or is refused cleanly, a command Windows, macOS or Linux sends is held to its
+rule at every level, and a requirement whose clause the level's editions do
+not have (the feature sets before SPC\-5 and SBC\-4, for example) only
+informs. iSCSI, SAM\-6 and NVMe cases hold at every level.
 .TP
 .BI \-\-chap\-user " NAME" " \-\-chap\-secret\-file" " FILE"
 Log in with CHAP. The secret is read from FILE, never from the command line.

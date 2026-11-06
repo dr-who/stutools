@@ -1,6 +1,6 @@
 # The standards spit's --compliance is built from
 
-This is the analysis behind `spit --compliance` and `--sbc N`: which documents spit
+This is the analysis behind `spit --compliance` and `--scsilevel N`: which documents spit
 tests against, what each one requires of a disk, how the editions differ, and which
 commands Windows, macOS and Linux actually send. Clause and table numbers are given
 so each case in the code can be traced; the standards themselves are licensed
@@ -15,7 +15,7 @@ documents and none of their text is copied here.
 | SPC-4, SCSI Primary Commands | INCITS 513-2015 (R2020) | yes | commands for every device type, earlier edition |
 | SPC-5, SCSI Primary Commands | INCITS 502-2019 | yes | commands for every device type; Discovery 2016 feature set |
 | SPC-6, SCSI Primary Commands | INCITS 566-2025 | yes | the current edition, which SBC-4 and SBC-5 cite |
-| SBC-3, SCSI Block Commands | INCITS 514-2014 | yes | the floor hosts are written to; the oldest edition `--sbc` takes |
+| SBC-3, SCSI Block Commands | INCITS 514-2014 | yes | the floor hosts are written to; the SBC edition of SCSI level 3 |
 | SBC-4, SCSI Block Commands | INCITS 506-2021 | yes | block commands; SBC feature sets (Annex H) |
 | SBC-5, SCSI Block Commands | INCITS 571-2025 | yes | block commands; SBC feature sets (Annex A) |
 | RFC 7143, iSCSI | 2014 | yes (public) | login, negotiation, sessions, NOP, task management PDUs |
@@ -53,8 +53,13 @@ A block device on iSCSI is judged against all four; "primary" (SPC) alone is not
 
 Each block command in spit carries `min` and `max`: the first and last of SBC-3, SBC-4
 and SBC-5 whose command table (SBC-3 Table 32, SBC-4 and SBC-5 Table 34) lists it.
-`--sbc N` keeps the rows with min <= N <= max. The full table is at the end of this
-document; the changes between editions are:
+SCSI level N judges against SPC-N with SBC-N (level 6: SPC-6 with SBC-5) and keeps the
+rows with min <= N <= max of each. Cases cite SPC-6 and SBC-5 clauses; at an older level
+each citation moves to that edition's clause (`compliance/clause_map.rs`, matched by
+clause title and checked by hand), and a requirement whose clause the edition lacks
+only informs there. The device is probed once and judged at every level asked; the
+report has a column per level. The full table is at the end of this document; the
+changes between editions are:
 
 | Change | Rows | Source |
 |---|---|---|
@@ -86,8 +91,10 @@ is not met.
 SBC-4 Annex H and SBC-5 Annex A define the same requirements. The differences are
 references (SAT-4 to SAT-6, clause numbers) and one footnote: SBC-4 also says VPD
 pages that are readable before the medium is ready must not hold placeholder spaces
-or zeros. Under `--sbc 3` the SBC feature sets do not apply (they start in SBC-4);
-Discovery 2016 is SPC-5/SPC-6 and always applies.
+or zeros. At SCSI level 3 no feature set applies (they start in SBC-4 and SPC-5); at
+level 4 only the SBC sets do; Discovery 2016 applies from level 5. One rule differs
+between SPC editions beyond numbering: SPC-3 lets the Unit Serial Number end in NUL
+bytes (SPC-3 4.4.1, 7.6.10), while SPC-4 on make it right-aligned ASCII.
 
 ## What hosts send
 
@@ -95,7 +102,7 @@ Two packet captures are the evidence: a Windows Server 2022 Microsoft initiator
 bringing a LUN online, and Linux open-iscsi scanning one. "trace" below means the
 command is in that capture; anything else is known host behaviour that the captures
 do not show (they have no MPIO, cluster, TRIM or ODX activity). A command a host sends
-is held to its rule under every `--sbc` edition, and spit replays each trace in order.
+is held to its rule at every SCSI level, and spit replays each trace in order.
 
 Windows Server 2022 offered at login: HeaderDigest and DataDigest None,CRC32C,
 ErrorRecoveryLevel 2, InitialR2T No, ImmediateData Yes, MaxRecvDataSegmentLength

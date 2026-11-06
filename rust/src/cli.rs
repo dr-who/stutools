@@ -44,10 +44,11 @@ pub struct Config {
     pub chap_secret_file: Option<PathBuf>,
     /// `--compliance`: test every `--iscsi` and `--nvme` target against the standards and score it.
     pub compliance: bool,
-    /// `--compliance-report FILE`: also write the compliance table and the failed cases as Markdown.
+    /// `--compliance-report FILE`: also write the report as an AsciiDoc document.
     pub compliance_report: Option<PathBuf>,
-    /// `--sbc 3|4|5`: the SCSI Block Commands edition the `sbc` and `features` sections judge against.
-    pub sbc: u8,
+    /// `--scsilevel N`, `N..M` or `N,M`, repeatable: the SCSI levels (SPC-N with SBC-N) the SCSI cases
+    /// are judged at; empty means level 3.
+    pub scsi_levels: Vec<crate::compliance::ScsiLevel>,
     /// How a workload over several `--iscsi` paths picks a path for each request.
     pub path_policy: crate::paths::Policy,
     /// `-d N`: print the first N commands sent to the iSCSI paths, with their verify bit.
@@ -93,14 +94,6 @@ fn expand_options(args: Vec<String>) -> Result<Vec<String>> {
     }
     Ok(out)
 }
-/// The SBC edition `--sbc` names: SBC-3, SBC-4 or SBC-5, the editions spit's command table holds.
-fn sbc_edition(v: &str) -> Result<u8> {
-    match v {
-        "3" | "4" | "5" => Ok(v.parse().unwrap_or(4)),
-        _ => Err("--sbc takes 3, 4 or 5".into()),
-    }
-}
-
 /// `--iscsi-initiator A[,B]`: the name spit logs in with, and optionally a second one.
 fn initiators(v: &str) -> Result<(String, Option<String>)> {
     let names: Vec<&str> = v.split(',').map(str::trim).collect();
@@ -151,7 +144,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         chap_secret_file: None,
         compliance: false,
         compliance_report: None,
-        sbc: 4,
+        scsi_levels: Vec::new(),
         path_policy: crate::paths::Policy::RoundRobin,
         dump: 0,
     };
@@ -222,7 +215,12 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             "--iscsi" | "--scsi" => c.iscsi.extend(crate::paths::expand_connections(v)?),
             "--nvmeof" | "--nvme" => c.nvmeof.extend(crate::paths::expand_connections(v)?),
             "--compliance-report" => c.compliance_report = Some(v.into()),
-            "--sbc" => c.sbc = sbc_edition(v)?,
+            "--scsilevel" => {
+                c.scsi_levels
+                    .extend(crate::compliance::parse_scsi_levels(v)?);
+                c.scsi_levels.sort_unstable();
+                c.scsi_levels.dedup();
+            }
             "--iscsi-initiator" => {
                 let (first, second) = initiators(v)?;
                 c.iscsi_initiator = Some(first);
@@ -557,13 +555,5 @@ mod tests {
         assert!(initiators("iqn.a,iqn.a").is_err());
         assert!(initiators("iqn.a,").is_err());
         assert!(initiators("a,b,c").is_err());
-    }
-
-    #[test]
-    fn sbc_takes_three_four_or_five() {
-        assert_eq!(sbc_edition("3").unwrap(), 3);
-        assert_eq!(sbc_edition("5").unwrap(), 5);
-        assert_eq!(sbc_edition("6").unwrap_err(), "--sbc takes 3, 4 or 5");
-        assert!(sbc_edition("x").is_err());
     }
 }

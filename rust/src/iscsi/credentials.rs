@@ -48,9 +48,9 @@ pub fn login_with_fallback(
     digest: &str,
 ) -> Result<Session> {
     match login(&path.portal, &path.target, initiator, None, digest) {
-        Ok(session) => Ok(session),
+        Ok(session) => Ok(session.for_lun(path)),
         Err(e) if chap.is_some() && e.contains("authentication failure") => {
-            login(&path.portal, &path.target, initiator, chap, digest)
+            login(&path.portal, &path.target, initiator, chap, digest).map(|s| s.for_lun(path))
         }
         Err(e) => Err(e),
     }

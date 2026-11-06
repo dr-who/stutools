@@ -138,11 +138,15 @@ pub(super) fn run(
     t.preemption(&mut a, &mut b, &mut c, preempt_type);
     if let Some(new_a) = t.reinstatement(path, initiator, creds, a, &mut b) {
         a = new_a;
+        t.settle(&mut a, &mut b, &mut c, Some(ops::PR_WRITE_EXCLUSIVE), true);
         t.second_path(path, initiator, creds, &mut a, &mut b, &mut c);
+        t.settle(&mut a, &mut b, &mut c, Some(ops::PR_WRITE_EXCLUSIVE), true);
         if caps.crh {
             t.spc2_release(&mut a, &mut c);
         }
         t.unregistering(&mut a, &mut c);
+        // The holder has just unregistered: nothing reserved, A need not be registered.
+        t.settle(&mut a, &mut b, &mut c, None, false);
         t.clearing(&mut a, &mut b, &mut c);
         let _ = a.logout();
     }

@@ -215,7 +215,9 @@ fn logical_unit_reset(
 /// RFC 7144 6.3, 6.4.2: QUERY TASK of a task not in the task set and QUERY TASK SET with nothing in it
 /// are "Function complete"; QUERY ASYNCHRONOUS EVENT is "Function complete" or, with a unit attention
 /// pending, "Function succeeded"; I_T NEXUS RESET is "Function complete" and drops the connections, so
-/// it runs on a session of its own. Without iSCSIProtocolLevel 1 they may be "not supported".
+/// it runs on a session of its own. Without iSCSIProtocolLevel 1 they may be "not supported" (5), or,
+/// to a target that never agreed to the RFC 7144 functions, unknown ones: "Function rejected" (255),
+/// as any undefined function is (RFC 7143 11.6.1).
 fn rfc7144(
     path: &Path,
     initiator: &str,
@@ -234,7 +236,7 @@ fn rfc7144(
     let with = |codes: &[u8]| -> Vec<u8> {
         let mut v = codes.to_vec();
         if !required {
-            v.push(5);
+            v.extend([5, 255]);
         }
         v
     };

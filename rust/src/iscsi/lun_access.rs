@@ -49,15 +49,17 @@ pub(super) fn open_with(
         digest,
         CHAP_OFFER,
     )
+    .map(|s| s.for_lun(path))
 }
 
 /// The short name of a target: the part after the last colon of its IQN.
 pub(super) fn short_name(path: &Path) -> String {
-    path.target
-        .rsplit(':')
-        .next()
-        .unwrap_or(&path.target)
-        .to_string()
+    let tail = path.target.rsplit(':').next().unwrap_or(&path.target);
+    if path.lun == 0 {
+        tail.to_string()
+    } else {
+        format!("{tail}-lun{}", path.lun)
+    }
 }
 
 /// INQUIRY of one VPD page with `len` bytes of allocation.

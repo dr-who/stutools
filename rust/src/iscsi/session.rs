@@ -3,6 +3,7 @@
 
 use super::crc32c::crc32c;
 use super::login::{Negotiated, LOGIN_ITT};
+use super::path::Path;
 use super::pdu::{self, BHS_LEN, NO_TTT};
 use crate::paths::{Done, SENSE_CAPACITY};
 use crate::Result;
@@ -30,6 +31,8 @@ pub struct Session {
     cmd_sn: u32,
     exp_stat_sn: u32,
     max_cmd_sn: u32,
+    /// The 8-byte LUN field every command carries (`Path::lun_field`); 0 unless `for_lun` set it.
+    lun: u64,
     /// The lane tier of this portal from its ALUA state, read when the session opened.
     pub access_tier: Option<u8>,
     /// Reused for every outgoing PDU, so a command allocates nothing once warm.
@@ -98,6 +101,7 @@ impl Session {
             cmd_sn,
             exp_stat_sn,
             max_cmd_sn,
+            lun: 0,
         }
     }
 
@@ -210,7 +214,7 @@ impl Session {
         }
         let itt = self.next_itt();
         let command = pdu::ScsiCommand {
-            lun: 0,
+            lun: self.lun,
             itt,
             cmd_sn: self.cmd_sn,
             exp_stat_sn: self.exp_stat_sn,
@@ -441,7 +445,7 @@ impl Session {
         Ok(())
     }
 
-    /// Sends a task management function for LUN 0 and waits for the answer. `referenced` is the task
+    /// Sends a task management function for the session's logical unit and waits for the answer. `referenced` is the task
     /// tag ABORT TASK names, with `ref_cmd_sn` its CmdSN; other functions ignore both. Only for a session
     /// with nothing in flight.
     pub fn task_management(
@@ -462,6 +466,7 @@ impl Session {
         };
         let header = pdu::task_management_request(
             function,
+            self.lun,
             itt,
             rtt,
             self.cmd_sn,
@@ -481,6 +486,12 @@ impl Session {
                 other => return Err(format!("unexpected PDU opcode {other:#x}")),
             }
         }
+    }
+
+    /// This session addressing the logical unit `path` names.
+    pub(super) fn for_lun(mut self, path: &Path) -> Session {
+        self.lun = path.lun_field();
+        self
     }
 
     /// The CmdSN the next command will carry, which ABORT TASK uses to name a task.

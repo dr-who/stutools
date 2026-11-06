@@ -17,7 +17,7 @@ use super::seen::Seen;
 use super::session::Session;
 use super::unit_state_cases;
 use super::vpd_pages::parse_feature_sets;
-use crate::compliance::Case;
+use crate::compliance::{Case, ScsiLevel};
 
 pub(super) const SECTION: &str = "disk";
 
@@ -200,10 +200,16 @@ pub(super) struct Extended {
 }
 
 /// Runs every disk case and returns what it read.
-pub(super) fn run(s: &mut Session, name: &str, cases: &mut Vec<Case>, seen: &mut Seen) -> Disk {
+pub(super) fn run(
+    s: &mut Session,
+    name: &str,
+    levels: &[ScsiLevel],
+    cases: &mut Vec<Case>,
+    seen: &mut Seen,
+) -> Disk {
     let _first = cases.len();
     let mut disk = Disk::default();
-    inquiry(s, name, cases, seen, &mut disk);
+    inquiry(s, name, levels, cases, seen, &mut disk);
     capacity(s, name, cases, seen, &mut disk);
     mode_pages(s, name, cases, seen, &mut disk);
     operation_codes(s, name, cases, seen, &mut disk);

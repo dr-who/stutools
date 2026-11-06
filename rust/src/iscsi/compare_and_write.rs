@@ -40,7 +40,9 @@ pub(super) fn run(
             return;
         }
     };
-    let advertised = disk.limits().is_none_or(|l| l.max_compare_and_write > 0);
+    // SBC-5 6.6.4: MAXIMUM COMPARE AND WRITE LENGTH 0 says the command is not supported. Without a
+    // Block Limits page nothing is advertised either way, so the optional command may work or be refused.
+    let advertised = disk.limits().map(|l| l.max_compare_and_write > 0);
     let a = vec![0xa5u8; len];
     let b = vec![0x5au8; len];
     let c = vec![0x3cu8; len];
@@ -57,10 +59,10 @@ pub(super) fn run(
     }
     let mut matching = a.clone();
     matching.extend_from_slice(&b);
-    let wants: Vec<Want> = if advertised {
-        vec![Want::Good]
-    } else {
-        REFUSED.to_vec()
+    let wants: Vec<Want> = match advertised {
+        Some(true) => vec![Want::Good],
+        Some(false) => REFUSED.to_vec(),
+        None => [Want::Good].iter().chain(REFUSED.iter()).cloned().collect(),
     };
     let answer = expect(
         cases,
