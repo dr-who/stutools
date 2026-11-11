@@ -69,6 +69,15 @@ impl LocalLun {
 impl Commands for LocalLun {
     fn command(&mut self, cdb: &[u8], read: u32, write: Option<&[u8]>) -> Result<Outcome> {
         crate::watchdog::beat(cdb);
+        // This HBA hangs the controller on a variable length CDB (32 bytes) and on SET PRIORITY (A4h, service
+        // action 0Eh): the disk answers invalid field, the adapter resets, and the block layer stays wedged. Those
+        // are never sent to a local disk; their support is still read from REPORT SUPPORTED OPERATION CODES.
+        if hazardous_on_local_hba(cdb) {
+            return Err(format!(
+                "not run: this suite does not send CDB opcode {:#x} to a local HBA (it hangs the adapter)",
+                cdb[0]
+            ));
+        }
         let (len, to_device) = match write {
             Some(w) => (w.len(), true),
             None => (read as usize, false),
@@ -115,4 +124,9 @@ impl Commands for LocalLun {
             received,
         })
     }
+}
+
+/// The commands a local HBA must not be sent: any variable length CDB, and MAINTENANCE OUT SET PRIORITY.
+fn hazardous_on_local_hba(cdb: &[u8]) -> bool {
+    cdb.len() > 16 || (cdb[0] == 0xa4 && cdb.get(1).is_some_and(|sa| sa & 0x1f == 0x0e))
 }
