@@ -329,7 +329,7 @@ pub(super) fn run(
         }
     }
 
-    // SBC-5 5.52, 5.53: WRITE SAME of one block writes it; the read returns the pattern. Then the block
+    // SBC-3 5.43, 5.44: WRITE SAME of one block writes it; the read returns the pattern. Then the block
     // is written back.
     let ws10 = {
         let l = target32.to_be_bytes();
@@ -339,7 +339,7 @@ pub(super) fn run(
     same.extend(REFUSED);
     if t.cmd(
         "WRITE SAME (10)",
-        "WRITE SAME (10) of one block",
+        "SBC-3 5.43 WRITE SAME (10) of one block",
         &same,
         &ws10,
         0,
@@ -348,7 +348,7 @@ pub(super) fn run(
     {
         t.read_back(
             "WRITE SAME (10)",
-            "READ after WRITE SAME (10)",
+            "SBC-3 5.43 READ after WRITE SAME (10)",
             &cdb10(0x28, 0, target32, 1),
             len,
             &q,
@@ -356,7 +356,7 @@ pub(super) fn run(
     }
     if t.cmd(
         "WRITE SAME (16)",
-        "WRITE SAME (16) of one block",
+        "SBC-3 5.44 WRITE SAME (16) of one block",
         &same,
         &cdb16(0x93, 0, target, 1),
         0,
@@ -365,7 +365,7 @@ pub(super) fn run(
     {
         t.read_back(
             "WRITE SAME (16)",
-            "READ after WRITE SAME (16)",
+            "SBC-3 5.44 READ after WRITE SAME (16)",
             &cdb10(0x28, 0, target32, 1),
             len,
             &p,
