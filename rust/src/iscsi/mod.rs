@@ -55,6 +55,7 @@ mod login_cases;
 mod login_phase_cases;
 mod login_step;
 mod lun_access;
+mod mode_block_descriptors;
 mod mode_page_cases;
 mod mode_select_change;
 mod mode_select_pages;
