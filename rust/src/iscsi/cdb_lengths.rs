@@ -263,6 +263,53 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
         cases,
         &[Form::Ten, Form::Twelve, Form::Sixteen],
     );
+    let len = disk.block_len as usize;
+    if let Some(lba) = disk.last_lba.checked_sub(BLOCKS as u64) {
+        read_after_write_rounds(s, name, lba, len, cases);
+    }
+}
+
+/// Repeats WRITE (10), then READ (16), then READ (10) of the same blocks, with a new pattern each round, and counts
+/// the rounds in which each reader returned other data. The blocks are the test blocks; their original data is
+/// written back at the end.
+fn read_after_write_rounds(s: &mut Port, name: &str, lba: u64, len: usize, cases: &mut Vec<Case>) {
+    const ROUNDS: u8 = 8;
+    let total = len * BLOCKS as usize;
+    let Ok(original) = read(s, Form::Ten, lba, total).map(|o| o.data) else {
+        return;
+    };
+    let (mut stale16, mut stale10, mut written) = (0u32, 0u32, 0u32);
+    for round in 0..ROUNDS {
+        let data = pattern(len, 0x40 + round);
+        if !served(&write(s, Form::Ten, lba, &data)) {
+            break;
+        }
+        written += 1;
+        if read(s, Form::Sixteen, lba, total)
+            .map(|o| o.data)
+            .is_ok_and(|d| d != data)
+        {
+            stale16 += 1;
+        }
+        if read(s, Form::Ten, lba, total)
+            .map(|o| o.data)
+            .is_ok_and(|d| d != data)
+        {
+            stale10 += 1;
+        }
+    }
+    let _ = write(s, Form::Ten, lba, &original);
+    record(
+        cases,
+        SECTION,
+        label(
+            name,
+            &format!("SBC-3 5.13 READ (16) right after WRITE (10), {written} rounds"),
+        ),
+        "0 rounds in which READ (16) or READ (10) returns other data",
+        format!("{stale16} READ (16) and {stale10} READ (10) rounds returned other data"),
+        stale16 == 0 && stale10 == 0,
+    );
 }
 
 /// The variable length form, READ (32) and WRITE (32). A target that closes the connection on it loses the
