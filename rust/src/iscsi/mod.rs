@@ -57,6 +57,7 @@ mod login_step;
 mod lun_access;
 mod mode_page_cases;
 mod mode_select_change;
+mod mode_select_pages;
 mod mode_sense_forms;
 mod negotiation;
 mod odx;

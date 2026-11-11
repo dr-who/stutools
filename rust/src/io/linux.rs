@@ -267,7 +267,13 @@ impl Aio {
                 } else if ret < 0 && ret != -libc::EAGAIN && ret != -libc::EINTR {
                     *errors += 1;
                     if (error_limit != 0 && *errors >= error_limit) || *errors >= 1024 {
-                        return Err(io::Error::from_raw_os_error(-ret).into());
+                        let request = requests[submitted];
+                        return Err(Failure::Operation {
+                            error: io::Error::from_raw_os_error(-ret),
+                            write: request.write,
+                            offset: request.offset,
+                            len: request.len,
+                        });
                     }
                 }
             }
@@ -417,7 +423,14 @@ impl Aio {
                 } else {
                     *errors += 1;
                     if (error_limit != 0 && *errors >= error_limit) || *errors >= 1024 {
-                        return Err(io::Error::from_raw_os_error(-ret).into());
+                        let index = unsafe { (*self.pointers[head]).data as usize };
+                        let request = requests[index];
+                        return Err(Failure::Operation {
+                            error: io::Error::from_raw_os_error(-ret),
+                            write: request.write,
+                            offset: request.offset,
+                            len: request.len,
+                        });
                     }
                 }
             }

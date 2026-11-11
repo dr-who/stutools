@@ -905,7 +905,7 @@ fn report(c: &Config, total: Stats, mut error: Option<String>) -> Result<Summary
     if total.writes == 0 {
         println!("write throughput: no samples");
     }
-    if total.submit_errors > 0 {
+    if total.submit_errors > 0 && error.is_none() {
         error = Some("submission errors: Input/output error".into());
     }
     if let Some(expected) = c.expected {

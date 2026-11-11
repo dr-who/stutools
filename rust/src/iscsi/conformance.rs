@@ -16,10 +16,10 @@ use super::seen::Seen;
 use super::{
     alua, ats_race, block_commands, block_io, bulk_integrity, cache_integrity, coherence,
     compare_and_write, data_path, disk, feature_sets, header_digest, host_traces, inquiry_framing,
-    mode_select_change, odx, pr_command_set, pr_empty_state, pr_ports, provisioning,
-    report_luns_cases, reservations, six_byte_io, spc2_reservations, spc_commands, standby_cases,
-    start_stop_cases, task_management, unlisted_lun, verify_cases, vpd_framing, windows,
-    windows_device_rules,
+    mode_select_change, mode_select_pages, odx, pr_command_set, pr_empty_state, pr_ports,
+    provisioning, report_luns_cases, reservations, six_byte_io, spc2_reservations, spc_commands,
+    standby_cases, start_stop_cases, task_management, unlisted_lun, verify_cases, vpd_framing,
+    windows, windows_device_rules,
 };
 use crate::compliance::{Case, ScsiLevel};
 
@@ -103,6 +103,7 @@ pub(super) fn run(
         inquiry_framing::run(&mut s, &name, &disk, ports, cases);
         vpd_framing::run(&mut s, &name, &disk, cases);
         mode_select_change::run(&mut s, lun, second, &name, &disk, cases);
+        mode_select_pages::run(&mut s, &name, cases);
         host_traces::linux(&mut s, &name, &disk, cases);
         let io = block_io::run(&mut s, &name, &disk, cases, &mut seen);
         verify_cases::run(&mut s, &name, &disk, cases);

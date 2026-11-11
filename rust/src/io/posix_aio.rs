@@ -84,7 +84,12 @@ impl PosixAio {
             if error.raw_os_error() == Some(libc::EAGAIN) {
                 return Ok(Submit::Full);
             }
-            return Err(Failure::System(error));
+            return Err(Failure::Operation {
+                error,
+                write: request.write,
+                offset: request.offset,
+                len: request.len,
+            });
         }
         let now = Instant::now();
         self.submitted_at[slot] = Some(now);
