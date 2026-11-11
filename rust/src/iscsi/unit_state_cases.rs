@@ -151,7 +151,7 @@ fn sense_length(
 ) {
     let d = &o.data[..o.received.min(o.data.len())];
     let (asl, ok) = sense_fits(d, 252);
-    if residual_not_reported(o.received, o.data.len(), asl + 8) {
+    if residual_not_reported(o.received, asl + 8) {
         record(
             cases,
             SECTION,

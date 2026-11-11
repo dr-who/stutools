@@ -96,7 +96,7 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, ports: usize, cases: &m
     };
     let additional = full.get(4).copied().unwrap_or(0) as usize;
     let want = (additional + 5).min(255);
-    if residual_not_reported(full_received, full.len(), additional + 5) {
+    if residual_not_reported(full_received, additional + 5) {
         record(
             cases,
             SECTION,

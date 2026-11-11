@@ -94,10 +94,8 @@ impl Want {
 /// Whether the transport reports the whole allocation as received, though the device's own length field says it
 /// returned less. Such a length cannot be checked on that transport (a local HBA that reports no residual), so
 /// the case is not run rather than failed.
-pub(super) fn residual_not_reported(received: usize, buffer: usize, device_length: usize) -> bool {
-    NO_RESIDUAL.load(std::sync::atomic::Ordering::Relaxed)
-        && received >= buffer
-        && device_length < buffer
+pub(super) fn residual_not_reported(received: usize, device_length: usize) -> bool {
+    NO_RESIDUAL.load(std::sync::atomic::Ordering::Relaxed) && received != device_length
 }
 
 /// Set while a local disk is tested: its transport (SG_IO on a local HBA) may report no residual. iSCSI

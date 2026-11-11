@@ -6,7 +6,7 @@
 //! that page held to the rules of its designator type: the code set, the length, the association
 //! and the PIV bit (`designator_faults`).
 
-use super::cases::{describe, record};
+use super::cases::{describe, record, residual_not_reported};
 use super::disk::{label, Disk, SECTION};
 use super::lun_access::vpd;
 use super::port::Port;
@@ -120,15 +120,25 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
                 let want = (length + 4).min(255);
                 let ok =
                     d.len() == want && d.get(1) == Some(&page) && d.first() == Some(&qualifier);
-                (
-                    format!(
-                        "byte 0 {:02x}h, page {:02x}h, PAGE LENGTH {length}, {} bytes",
-                        d.first().copied().unwrap_or(0),
-                        d.get(1).copied().unwrap_or(0),
-                        d.len()
-                    ),
-                    ok,
-                )
+                if residual_not_reported(o.received, want) {
+                    (
+                        format!(
+                            "not run: the transport reports the whole allocation as returned ({} bytes, PAGE LENGTH {length})",
+                            d.len()
+                        ),
+                        false,
+                    )
+                } else {
+                    (
+                        format!(
+                            "byte 0 {:02x}h, page {:02x}h, PAGE LENGTH {length}, {} bytes",
+                            d.first().copied().unwrap_or(0),
+                            d.get(1).copied().unwrap_or(0),
+                            d.len()
+                        ),
+                        ok,
+                    )
+                }
             }
             Ok(o) => (describe(o), false),
             Err(e) => (e.clone(), false),

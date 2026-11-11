@@ -3,7 +3,7 @@
 //! with ADDITIONAL LENGTH exactly zero. READ KEYS (SPC-6 6.14.2) finds whether any key is registered; a
 //! LUN that still has registrations only informs.
 
-use super::cases::{describe, record, record_info};
+use super::cases::{describe, record, record_info, residual_not_reported};
 use super::ops;
 use super::port::Port;
 use super::pr_commands::reserve_in;
@@ -57,10 +57,17 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
     let (actual, passed) = match &o {
         Ok(o) if o.status == 0 => {
             let (_, length, got) = header(&o.data, o.received);
-            (
-                format!("ADDITIONAL LENGTH {length}, {got} bytes"),
-                length == 0 && got == 8,
-            )
+            if residual_not_reported(got, 8 + length as usize) {
+                (
+                    format!("not run: the transport reports the whole allocation as returned ({got} bytes, ADDITIONAL LENGTH {length})"),
+                    false,
+                )
+            } else {
+                (
+                    format!("ADDITIONAL LENGTH {length}, {got} bytes"),
+                    length == 0 && got == 8,
+                )
+            }
         }
         Ok(o) => (describe(o), false),
         Err(e) => (e.clone(), false),

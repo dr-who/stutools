@@ -8,7 +8,7 @@
 //! LENGTH a multiple of 8 never cut by the allocation length. Returns the 00h list for the cases that
 //! address each logical unit.
 
-use super::cases::{describe, expect, introduced_in, record, Want};
+use super::cases::{describe, expect, introduced_in, record, residual_not_reported, Want};
 use super::port::Port;
 use super::scsi_fields::be32;
 use super::session::Outcome;
@@ -94,7 +94,14 @@ pub(super) fn run(s: &mut Port, name: &str, at_lun_0: bool, cases: &mut Vec<Case
         SECTION,
         at("SELECT REPORT 00h: LUN LIST LENGTH 8 per LUN, every LUN returned"),
         "a multiple of 8; 8 + LUN LIST LENGTH bytes",
-        format!("LUN LIST LENGTH {len}, {} bytes", d.len()),
+        if residual_not_reported(d.len(), (8 + len).min(4096)) {
+            format!(
+                "not run: the transport reports the whole allocation as returned ({} bytes)",
+                d.len()
+            )
+        } else {
+            format!("LUN LIST LENGTH {len}, {} bytes", d.len())
+        },
         len % 8 == 0 && d.len() == (8 + len).min(4096),
     );
     // SPC-6 table 250: 01h lists only well known logical units.

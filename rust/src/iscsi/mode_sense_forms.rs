@@ -233,7 +233,7 @@ fn one_form(s: &mut Port, name: &str, form: Form, cases: &mut Vec<Case>, disk: &
     };
     // SPC-6 7.5.6, 4.2.5.6: the device returns MODE DATA LENGTH + n bytes, or the allocation length.
     let want = p.total.min(form.alloc() as usize);
-    if residual_not_reported(all.received, all.data.len(), p.total) {
+    if residual_not_reported(all.received, p.total) {
         record(
             cases,
             SECTION,
