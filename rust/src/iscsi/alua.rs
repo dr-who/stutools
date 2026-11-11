@@ -5,7 +5,7 @@
 //! one its supported-state bits allow; the extended header format must list the same groups. SET TARGET
 //! PORT GROUPS works only with explicit ALUA: a no-op on the answering port's group, a reserved state
 //! refused, and a real transition of another group and back, which tells other nexuses ASYMMETRIC ACCESS
-//! STATE CHANGED. Through a standby port, the commands SPC-6 5.18.2.5.4 lists must work and TEST UNIT
+//! STATE CHANGED. Through a standby port, the commands SPC-3 5.8.2.4.4 lists must work and TEST UNIT
 //! READY and READ must report the standby state.
 
 use super::alua_transition::{current_state, transition};

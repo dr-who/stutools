@@ -1,4 +1,4 @@
-//! The standby cases of the `mpio` section (SPC-6 5.18.2.5.4), through a port in the standby state:
+//! The standby cases of the `mpio` section (SPC-3 5.8.2.4.4), through a port in the standby state:
 //! the commands the standard lists must still work (INQUIRY, MODE SENSE, REPORT LUNS, REPORT TARGET
 //! PORT GROUPS, REQUEST SENSE, PERSISTENT RESERVE IN and OUT, and the others the target supports), and
 //! TEST UNIT READY should and READ must report LOGICAL UNIT NOT ACCESSIBLE, TARGET PORT IN STANDBY
@@ -15,7 +15,7 @@ use crate::compliance::Case;
 
 pub(super) const KEY_STANDBY: u64 = 0x5350_4954_0000_005b;
 
-/// Through a port in the standby state: SPC-6 5.18.2.5.4 lists the commands that must still work
+/// Through a port in the standby state: SPC-3 5.8.2.4.4 lists the commands that must still work
 /// (here INQUIRY, REPORT LUNS, REPORT TARGET PORT GROUPS, MODE SENSE, REQUEST SENSE, LOG SENSE,
 /// PERSISTENT RESERVE IN and OUT), and TEST UNIT READY and READ report LOGICAL UNIT NOT ACCESSIBLE,
 /// TARGET PORT IN STANDBY STATE (04h/0Bh).
@@ -23,7 +23,7 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
     let label = |what: &str| format!("{name} standby: {what}");
     let _ = unit_attentions(s);
     let not_ready = [Want::Ascq(0x2, 0x04, 0x0b)];
-    // SPC-6 5.18.2.5.4: other commands shall be terminated; TEST UNIT READY "should" be.
+    // SPC-3 5.8.2.4.4: other commands shall be terminated; TEST UNIT READY "should" be.
     expect_should(
         cases,
         SECTION,
