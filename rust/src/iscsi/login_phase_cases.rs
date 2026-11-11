@@ -254,7 +254,7 @@ fn scsi_during_login(path: &Path, initiator: &str, name: &str, cases: &mut Vec<C
             record(
                 cases,
                 SECTION,
-                format!("{name} SCSI command during login refused 020Bh"),
+                format!("RFC 7143 4.2.4 {name} SCSI command during login refused 020Bh"),
                 "refused 020Bh",
                 e,
                 false,
@@ -276,7 +276,7 @@ fn scsi_during_login(path: &Path, initiator: &str, name: &str, cases: &mut Vec<C
         record_info(
             cases,
             SECTION,
-            format!("{name} SCSI command during login refused 020Bh"),
+            format!("RFC 7143 4.2.4 {name} SCSI command during login refused 020Bh"),
             format!(
                 "the target did not accept a partial operational login ({})",
                 first.show()
@@ -291,7 +291,7 @@ fn scsi_during_login(path: &Path, initiator: &str, name: &str, cases: &mut Vec<C
     record(
         cases,
         SECTION,
-        format!("{name} SCSI command during login refused 020Bh"),
+        format!("RFC 7143 4.2.4 {name} SCSI command during login refused 020Bh"),
         "Status 020Bh (invalid during login) or the connection closed",
         format!("{}{}", answer.show(), if closed { ", closed" } else { "" }),
         passed,
@@ -421,7 +421,7 @@ fn unknown_target(path: &Path, initiator: &str, name: &str, cases: &mut Vec<Case
             record(
                 cases,
                 SECTION,
-                format!("{name} unknown target refused 0203h"),
+                format!("RFC 7143 11.13.5 {name} unknown target refused 0203h"),
                 "refused 0203h",
                 e,
                 false,
@@ -445,7 +445,7 @@ fn unknown_target(path: &Path, initiator: &str, name: &str, cases: &mut Vec<Case
     record(
         cases,
         SECTION,
-        format!("{name} unknown target refused 0203h"),
+        format!("RFC 7143 11.13.5 {name} unknown target refused 0203h"),
         "Status 0203h (target not found)",
         format!("{}{}", answer.show(), if closed { ", closed" } else { "" }),
         passed,
