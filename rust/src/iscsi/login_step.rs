@@ -260,6 +260,7 @@ impl LoginConnection {
 
     /// Sends `request` and waits for its answer. A status-0 response moves ExpStatSN on.
     pub(super) fn send(&mut self, request: &RawLogin) -> LoginAnswer {
+        crate::watchdog::beat(&[]);
         let answer = match self.stream.write_all(&request.encode()) {
             Ok(()) => self.read_answer(),
             Err(_) => LoginAnswer::Closed,
@@ -287,6 +288,7 @@ impl LoginConnection {
 
     /// Sends bytes that are not a Login Request (a SCSI Command during login) and waits for an answer.
     pub(super) fn send_bytes(&mut self, bytes: &[u8]) -> LoginAnswer {
+        crate::watchdog::beat(&[]);
         let answer = match self.stream.write_all(bytes) {
             Ok(()) => self.read_answer(),
             Err(_) => LoginAnswer::Closed,
@@ -297,6 +299,7 @@ impl LoginConnection {
 
     /// Reads the next PDU.
     pub(super) fn read_answer(&mut self) -> LoginAnswer {
+        crate::watchdog::beat(&[]);
         let _ = self.stream.set_read_timeout(Some(ANSWER_WAIT));
         let mut bhs = [0u8; BHS_LEN];
         if let Err(e) = self.stream.read_exact(&mut bhs) {

@@ -10,7 +10,12 @@ use crate::Result;
 use std::{
     io::{Read, Write},
     net::TcpStream,
+    time::{Duration, Instant},
 };
+
+/// How long a synchronous command may take before the answer is given up on, however many PDUs the target
+/// sends meanwhile (a target that keeps answering with NOP-In would otherwise hold the command forever).
+const COMMAND_LIMIT: Duration = Duration::from_secs(10);
 
 /// How a target answered a task management request: a response code (RFC 7143 11.6.1: 0 function
 /// complete, 1 task does not exist, 5 not supported, 255 rejected), or a Reject PDU with its reason.
@@ -249,7 +254,18 @@ impl Session {
     /// Waits for the next PDU that finishes an in-flight command. Data-In for a read and R2T for a
     /// write are handled on the way. Commands may finish in any order.
     pub fn poll(&mut self) -> Result<Done> {
+        self.poll_until(None)
+    }
+
+    /// `poll`, giving up once `deadline` has passed.
+    fn poll_until(&mut self, deadline: Option<Instant>) -> Result<Done> {
         loop {
+            if deadline.is_some_and(|d| Instant::now() > d) {
+                return Err(format!(
+                    "no answer to the command within {} s",
+                    COMMAND_LIMIT.as_secs()
+                ));
+            }
             let bhs = self.recv()?;
             let itt = pdu::be32(&bhs, 16);
             let find = |s: &Self| {
@@ -396,6 +412,7 @@ impl Session {
         read: &mut [u8],
         write: Option<&[u8]>,
     ) -> Result<u8> {
+        crate::watchdog::beat(cdb);
         if !self.inflight.is_empty() {
             return Err("a command is already in flight on this session".into());
         }
@@ -404,9 +421,10 @@ impl Session {
             None => (read.as_mut_ptr(), read.len()),
         };
         // SAFETY: `buf` and `len` describe `read` or `write`, which live until the wait below returns.
+        let deadline = Instant::now() + COMMAND_LIMIT;
         let result =
             unsafe { self.submit(cdb, 0, buf, len, write.is_some()) }.and_then(|()| loop {
-                let done = self.poll()?;
+                let done = self.poll_until(Some(deadline))?;
                 if done.tag == 0 {
                     self.sense.clear();
                     self.sense.extend_from_slice(&done.sense[..done.sense_len]);

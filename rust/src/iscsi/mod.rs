@@ -22,6 +22,7 @@ mod bulk_integrity;
 mod cache_integrity;
 mod capacity_cases;
 mod cases;
+mod cdb_lengths;
 pub mod chap;
 mod chap_cases;
 mod chap_mutual_cases;

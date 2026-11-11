@@ -240,6 +240,7 @@ pub(super) fn reason(error: &str) -> String {
 
 /// Reads one login-phase response: the header and its data segment. Digests are not in use yet.
 pub(super) fn read_login_pdu(stream: &mut TcpStream) -> Result<Vec<u8>> {
+    crate::watchdog::beat(&[]);
     let mut bhs = [0u8; BHS_LEN];
     stream
         .read_exact(&mut bhs)

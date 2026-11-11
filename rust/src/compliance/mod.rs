@@ -39,6 +39,7 @@ pub use scsi_level::{parse as parse_scsi_levels, Edition, ScsiLevel};
 /// Runs the iSCSI and NVMe/TCP cases, prints each case and the score at every level, writes the
 /// AsciiDoc report when asked, and fails when any "shall" case fails.
 pub fn run(config: &Config) -> Result<()> {
+    crate::watchdog::start();
     let levels: &[ScsiLevel] = if config.scsi_levels.is_empty() {
         &[ScsiLevel::DEFAULT]
     } else {

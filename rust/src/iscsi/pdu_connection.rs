@@ -174,6 +174,7 @@ impl PduConnection {
     /// Sends one PDU: `header` (the BHS and any AHS), its digest, `data` padded to 4 bytes and its
     /// digest, each digest as negotiated.
     pub(super) fn send(&mut self, header: &[u8], data: &[u8]) -> Result<()> {
+        crate::watchdog::beat(header);
         let mut out = Vec::with_capacity(header.len() + data.len() + 16);
         out.extend_from_slice(header);
         if self.negotiated.header_digest {
@@ -195,6 +196,7 @@ impl PduConnection {
 
     /// Reads the next PDU within `wait`, records its sequence numbers, and keeps it in `log`.
     pub(super) fn recv(&mut self, wait: Duration) -> Received {
+        crate::watchdog::beat(&[]);
         let _ = self.stream.set_read_timeout(Some(wait));
         let mut bhs = [0u8; BHS_LEN];
         if let Err(e) = self.stream.read_exact(&mut bhs) {

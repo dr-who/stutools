@@ -21,9 +21,9 @@ mod pattern;
 mod positions;
 mod progress;
 mod rate;
-#[cfg(target_os = "linux")]
 mod sg_io;
 mod signals;
+mod watchdog;
 fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if let Some(pos) = args.iter().position(|a| a == "--cctv-test") {

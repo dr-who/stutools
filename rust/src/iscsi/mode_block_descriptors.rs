@@ -1,8 +1,8 @@
 //! The block descriptor of MODE SENSE (SBC-3 6.5.2.2 and 6.5.2.3): the NUMBER OF LOGICAL BLOCKS and the
-//! BLOCK LENGTH of the short form (MODE SENSE (10) with LONGLBA clear) and of the long form (LLBAA set, so
-//! LONGLBA is set in the header). The short form reports the current block count, or zero when the device
+//! LOGICAL BLOCK LENGTH of the short form (MODE SENSE (10) with LONGLBA clear) and of the long form (LLBAA set, so
+//! LONGLBA is set in the header). The short form reports the current number of logical blocks, or zero when the device
 //! does not report it, or FFFF_FFFFh when the count does not fit in 32 bits (SBC-3 6.5.2.2). The long form
-//! reports the current block count exactly (SBC-3 6.5.2.3). Both report the current block length. READ
+//! reports the current number of logical blocks exactly (SBC-3 6.5.2.3). Both report the current logical block length. READ
 //! CAPACITY (SBC-3 5.16) gives the same numbers, which the cases compare against.
 
 use super::cases::record;
@@ -14,12 +14,12 @@ use crate::compliance::Case;
 /// byte 4, and BLOCK DESCRIPTOR LENGTH at bytes 6 and 7 (SPC-3 7.4.3).
 const HEADER_LEN: usize = 8;
 const LONGLBA: u8 = 0x01;
-/// The short descriptor: 4 bytes of block count, density code, 3 bytes of block length (SBC-3 table 181).
+/// The short descriptor: 4 bytes of number of logical blocks, density code, 3 bytes of block length (SBC-3 table 181).
 const SHORT_LEN: usize = 8;
-/// The long descriptor: 8 bytes of block count, 4 reserved, 4 bytes of block length (SBC-3 table 182).
+/// The long descriptor: 8 bytes of number of logical blocks, 4 reserved, 4 bytes of block length (SBC-3 table 182).
 const LONG_LEN: usize = 16;
 
-/// The value a short descriptor reports when the block count does not fit (SBC-3 6.5.2.2).
+/// The value a short descriptor reports when the number of logical blocks does not fit (SBC-3 6.5.2.2).
 const DOES_NOT_FIT: u64 = 0xffff_ffff;
 
 /// MODE SENSE (10) for all pages with the block descriptor (DBD 0). `llbaa` sets LLBAA in byte 1, which
@@ -40,7 +40,7 @@ fn mode_sense_blocks(s: &mut Port, llbaa: bool) -> Option<Vec<u8>> {
     s.command(&cdb, 4096, None).ok().map(|o| o.data)
 }
 
-/// The block count and block length in the descriptor, and whether the header says long, or None when
+/// The number of logical blocks and block length in the descriptor, and whether the header says long, or None when
 /// the answer does not hold the descriptor it claims.
 struct Descriptor {
     long: bool,
@@ -93,7 +93,7 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
         record(
             cases,
             SECTION,
-            at("SBC-3 6.5.2.2 MODE SENSE (10) short block descriptor: BLOCK LENGTH"),
+            at("SBC-3 6.5.2.2 MODE SENSE (10) short block descriptor: LOGICAL BLOCK LENGTH"),
             block_len.to_string(),
             d.block_len.to_string(),
             d.block_len == block_len,
@@ -121,7 +121,7 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
         record(
             cases,
             SECTION,
-            at("SBC-3 6.5.2.3 MODE SENSE (10) long block descriptor: BLOCK LENGTH"),
+            at("SBC-3 6.5.2.3 MODE SENSE (10) long block descriptor: LOGICAL BLOCK LENGTH"),
             block_len.to_string(),
             d.block_len.to_string(),
             d.block_len == block_len,
