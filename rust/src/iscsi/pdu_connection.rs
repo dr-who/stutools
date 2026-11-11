@@ -23,6 +23,9 @@ use std::time::Duration;
 /// How long a PDU is waited for unless a case says otherwise.
 pub(super) const PDU_WAIT: Duration = Duration::from_secs(10);
 
+/// The error `drain_attentions` returns for a port in the standby state.
+pub(super) const STANDBY: &str = "target port is in the standby state";
+
 /// The largest data segment read: spit never declares more than `login::MAX_OWN_RECV`; a target that
 /// sends more is reported by the cases, so up to 16 MiB is read.
 const MAX_SEGMENT: usize = 1 << 24;
@@ -362,12 +365,20 @@ impl PduConnection {
         Ok(self.finish(itt, PDU_WAIT))
     }
 
+    /// The error `drain_attentions` returns for a port in the standby state.
+    pub(super) const STANDBY: &str = "target port is in the standby state";
+
     /// TEST UNIT READY until it is GOOD, at most eight times: a new nexus may have unit attentions.
     pub(super) fn drain_attentions(&mut self) -> Result<()> {
         for _ in 0..8 {
             let (_, end) = self.read_command(&[0; 6], 0)?;
             match end {
                 Received::Pdu(p) if p.status() == 0 => return Ok(()),
+                // NOT READY, LOGICAL UNIT NOT ACCESSIBLE, TARGET PORT IN STANDBY STATE (04h, 0Bh): a standby
+                // port refuses TEST UNIT READY by design (SPC-3 5.8.2.4.4), so there is nothing to wait for.
+                Received::Pdu(p) if p.sense().get(12..14) == Some(&[0x04, 0x0b]) => {
+                    return Err(STANDBY.into())
+                }
                 Received::Pdu(_) => continue,
                 other => return Err(format!("TEST UNIT READY: {other:?}")),
             }

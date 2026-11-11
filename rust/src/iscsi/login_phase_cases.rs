@@ -82,7 +82,8 @@ fn standard_login(path: &Path, initiator: &str, creds: Creds, name: &str, cases:
         );
         return;
     }
-    let keys = super::login::SessionKeys::spit("None")
+    // Offer what spit's own logins offer. A target that requires CRC32C refuses a None-only offer.
+    let keys = super::login::SessionKeys::spit("CRC32C,None")
         .offer(initiator, &path.target)
         .unwrap();
     // The names are declared in the security stage for a CHAP target; without one the operational PDU

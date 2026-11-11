@@ -34,22 +34,32 @@ pub(super) fn run(
     for r in reachable.iter().filter(|r| !r.path.is_local()) {
         let creds = if r.chap { chap_good } else { None };
         let name = short_name(r.path);
-        if let Err(e) = target(r.path, initiator, creds, &name, cases) {
-            record(
+        match target(r.path, initiator, creds, &name, cases) {
+            // A standby port refuses data commands by design (SPC-3 5.8.2.4.4): not a failure of the data path.
+            Err(e) if e.to_string() == super::pdu_connection::STANDBY => record_info(
                 cases,
                 SESSION,
                 format!("{name} data transfer"),
-                "a session to the LUN",
-                e,
-                false,
-            );
+                "not run: the port is in the standby state, which refuses TEST UNIT READY and data commands (SPC-3 5.8.2.4.4)",
+            ),
+            Err(e) => {
+                record(
+                    cases,
+                    SESSION,
+                    format!("{name} data transfer"),
+                    "a session to the LUN",
+                    e,
+                    false,
+                );
+            }
+            Ok(()) => {}
         }
     }
 }
 
 /// The LUN's block length and the scratch LBA (its second-to-last block).
 fn geometry(path: &Path, initiator: &str, creds: Creds) -> Result<(u32, u64)> {
-    let mut c = PduConnection::open(path, initiator, creds, &SessionKeys::spit("None"))?;
+    let mut c = PduConnection::open(path, initiator, creds, &SessionKeys::spit("CRC32C,None"))?;
     c.drain_attentions()?;
     let (last, block) = scsi::capacity(&mut c)?;
     let _ = c.logout();
@@ -84,7 +94,7 @@ fn data_in_fields(
     block: u32,
     cases: &mut Vec<Case>,
 ) -> Result<()> {
-    let mut keys = SessionKeys::spit("None");
+    let mut keys = SessionKeys::spit("CRC32C,None");
     keys.max_recv = 512;
     keys.max_burst = 4096;
     let mut c = PduConnection::open(path, initiator, creds, &keys)?;
@@ -182,7 +192,7 @@ fn residuals(
     name: &str,
     cases: &mut Vec<Case>,
 ) -> Result<()> {
-    let mut c = PduConnection::open(path, initiator, creds, &SessionKeys::spit("None"))?;
+    let mut c = PduConnection::open(path, initiator, creds, &SessionKeys::spit("CRC32C,None"))?;
     c.drain_attentions()?;
     // The INQUIRY length (SPDTL) from a read whose EDTL does not cap it: allocation 255, EDTL 255.
     let inq_len = c.command(&[0x12, 0, 0, 0, 255, 0], 255, None)?.received as u32;
@@ -259,7 +269,7 @@ fn r2t_and_write(
     scratch: u64,
     cases: &mut Vec<Case>,
 ) -> Result<()> {
-    let mut c = PduConnection::open(path, initiator, creds, &SessionKeys::spit("None"))?;
+    let mut c = PduConnection::open(path, initiator, creds, &SessionKeys::spit("CRC32C,None"))?;
     c.drain_attentions()?;
     let lba = scratch as u32;
     let original = c
@@ -423,7 +433,7 @@ fn digest_io(
         ("None", "CRC32C", "data digest only"),
         ("CRC32C", "CRC32C", "both digests"),
     ] {
-        let mut keys = SessionKeys::spit("None");
+        let mut keys = SessionKeys::spit("CRC32C,None");
         keys.header_digest = hd.to_string();
         keys.data_digest = dd.to_string();
         let label = format!("{name} {what}, with I/O");
@@ -513,7 +523,7 @@ fn data_out_bad_digest(
     scratch: u64,
     cases: &mut Vec<Case>,
 ) -> Result<()> {
-    let mut keys = SessionKeys::spit("None");
+    let mut keys = SessionKeys::spit("CRC32C,None");
     keys.data_digest = "CRC32C".to_string();
     let label = format!("{name} Data-Out with a bad data digest is rejected and not written");
     let mut c = PduConnection::open(path, initiator, creds, &keys)?;
@@ -557,7 +567,9 @@ fn data_out_bad_digest(
     record(cases, SESSION, label, "Reject reason 02h then recovery, or CHECK CONDITION 0B/47/05, or a close; never silent GOOD", actual, handled && !(good && !rejected && !recovery_r2t));
     // Restore: a fresh session (this one may be dropped) and the original bytes.
     let _ = c.logout();
-    if let Ok(mut c2) = PduConnection::open(path, initiator, creds, &SessionKeys::spit("None")) {
+    if let Ok(mut c2) =
+        PduConnection::open(path, initiator, creds, &SessionKeys::spit("CRC32C,None"))
+    {
         let _ = c2.drain_attentions();
         let _ = c2.write(
             &scsi::block_cdb(0x2a, lba, 1),
@@ -578,7 +590,7 @@ fn nop_and_logout(
     name: &str,
     cases: &mut Vec<Case>,
 ) -> Result<()> {
-    let mut c = PduConnection::open(path, initiator, creds, &SessionKeys::spit("None"))?;
+    let mut c = PduConnection::open(path, initiator, creds, &SessionKeys::spit("CRC32C,None"))?;
     c.drain_attentions()?;
     for (immediate, len, what) in [
         (true, 0usize, "immediate, no data"),
