@@ -36,7 +36,7 @@ pub(super) fn run(
         let name = short_name(r.path);
         match target(r.path, initiator, creds, &name, cases) {
             // A standby port refuses data commands by design (SPC-3 5.8.2.4.4): not a failure of the data path.
-            Err(e) if e.to_string() == super::pdu_connection::STANDBY => record_info(
+            Err(e) if e == super::pdu_connection::STANDBY => record_info(
                 cases,
                 SESSION,
                 format!("{name} data transfer"),

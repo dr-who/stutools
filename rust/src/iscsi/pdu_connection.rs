@@ -365,9 +365,6 @@ impl PduConnection {
         Ok(self.finish(itt, PDU_WAIT))
     }
 
-    /// The error `drain_attentions` returns for a port in the standby state.
-    pub(super) const STANDBY: &str = "target port is in the standby state";
-
     /// TEST UNIT READY until it is GOOD, at most eight times: a new nexus may have unit attentions.
     pub(super) fn drain_attentions(&mut self) -> Result<()> {
         for _ in 0..8 {
