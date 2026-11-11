@@ -116,6 +116,42 @@ impl Form {
     }
 }
 
+/// What a READ that returned other data gave, next to what READ (10) of the same blocks gives now: whether the
+/// reply itself was wrong, or the blocks changed.
+fn mismatch_detail(
+    s: &mut Port,
+    outcome: &Result<Outcome>,
+    data: &[u8],
+    lba: u64,
+    total: usize,
+) -> String {
+    let hex = |b: &[u8]| {
+        b.iter()
+            .take(8)
+            .map(|x| format!("{x:02x}"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let got = match outcome {
+        Ok(o) => format!("first bytes {}", hex(&o.data)),
+        Err(e) => format!("no data ({e})"),
+    };
+    let again = match read(s, Form::Ten, lba, total) {
+        Ok(o) if o.data == data => {
+            "READ (10) of the same blocks now returns the written data".to_string()
+        }
+        Ok(o) => format!(
+            "READ (10) of the same blocks now returns other data, first bytes {}",
+            hex(&o.data)
+        ),
+        Err(e) => format!("READ (10) gave no data ({e})"),
+    };
+    format!(
+        "other data: {got}, expected first bytes {}; {again}",
+        hex(data)
+    )
+}
+
 /// A pattern for the test blocks: each byte says where it is, so a misplaced block cannot read back as
 /// right.
 fn pattern(len: usize, seed: u8) -> Vec<u8> {
@@ -285,6 +321,11 @@ fn run_forms(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, forms
             let did_serve = record_answer(cases, &at, form.read_clause(), form, false, &outcome);
             if did_serve {
                 let same = outcome.as_ref().is_ok_and(|o| o.data == data);
+                let actual = if same {
+                    "the written blocks".to_string()
+                } else {
+                    mismatch_detail(s, &outcome, &data, lba, total)
+                };
                 record(
                     cases,
                     SECTION,
@@ -294,11 +335,7 @@ fn run_forms(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, forms
                         form.name()
                     )),
                     "the written blocks",
-                    if same {
-                        "the written blocks"
-                    } else {
-                        "other data"
-                    },
+                    actual,
                     same,
                 );
             }
