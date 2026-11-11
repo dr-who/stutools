@@ -91,6 +91,20 @@ impl Want {
 }
 
 /// The answer to expect when a nexus is allowed (GOOD) or not (RESERVATION CONFLICT).
+/// Whether the transport reports the whole allocation as received, though the device's own length field says it
+/// returned less. Such a length cannot be checked on that transport (a local HBA that reports no residual), so
+/// the case is not run rather than failed.
+pub(super) fn residual_not_reported(received: usize, buffer: usize, device_length: usize) -> bool {
+    NO_RESIDUAL.load(std::sync::atomic::Ordering::Relaxed)
+        && received >= buffer
+        && device_length < buffer
+}
+
+/// Set while a local disk is tested: its transport (SG_IO on a local HBA) may report no residual. iSCSI
+/// reports the bytes each Data-In carried, so its counts are checked as they are.
+pub(super) static NO_RESIDUAL: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 pub(super) fn allowed(yes: bool) -> Want {
     if yes {
         Want::Good

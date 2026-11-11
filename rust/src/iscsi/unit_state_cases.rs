@@ -2,7 +2,7 @@
 //! with nothing to report (SPC-6 6.36), START STOP UNIT with START (SBC-5 5.31; Windows and macOS send
 //! it), and LOG SENSE of the supported log pages and subpages (SPC-6 6.9).
 
-use super::cases::{expect, introduced_in, record, Want, REFUSED};
+use super::cases::{expect, introduced_in, record, residual_not_reported, Want, REFUSED};
 use super::disk::{hex_list, label, Disk, SECTION};
 use super::port::Port;
 use super::scsi_fields::be16;
@@ -151,6 +151,17 @@ fn sense_length(
 ) {
     let d = &o.data[..o.received.min(o.data.len())];
     let (asl, ok) = sense_fits(d, 252);
+    if residual_not_reported(o.received, o.data.len(), asl + 8) {
+        record(
+            cases,
+            SECTION,
+            label(name, &format!("{clause} REQUEST SENSE, {format} format: ADDITIONAL SENSE LENGTH counts the bytes returned")),
+            "ADDITIONAL SENSE LENGTH + 8 bytes",
+            "not run: the transport reports the whole allocation as returned (no residual)",
+            false,
+        );
+        return;
+    }
     record(
         cases,
         SECTION,

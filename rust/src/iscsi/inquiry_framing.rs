@@ -7,7 +7,7 @@
 //! identifiers of VPD 83h through every iSCSI path to the LUN, or the SAS ports of a local disk's
 //! paths. Fewer ports seen than the device has only informs.
 
-use super::cases::{describe, expect, record, record_info, Want};
+use super::cases::{describe, expect, record, record_info, residual_not_reported, Want};
 use super::disk::{label, Disk, SECTION};
 use super::lun_access::{open, vpd, Creds};
 use super::path::Path;
@@ -69,8 +69,8 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, ports: usize, cases: &m
         );
     }
     // SPC-6 6.7.2, 4.2.5.6: ADDITIONAL LENGTH is the bytes after byte 4, whatever the allocation length.
-    let full = match s.command(&[0x12, 0, 0, 0, 255, 0], 255, None) {
-        Ok(o) if o.status == 0 => o.data[..o.received.min(o.data.len())].to_vec(),
+    let (full, full_received) = match s.command(&[0x12, 0, 0, 0, 255, 0], 255, None) {
+        Ok(o) if o.status == 0 => (o.data[..o.received.min(o.data.len())].to_vec(), o.received),
         Ok(o) => {
             record(
                 cases,
@@ -96,17 +96,31 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, ports: usize, cases: &m
     };
     let additional = full.get(4).copied().unwrap_or(0) as usize;
     let want = (additional + 5).min(255);
-    record(
-        cases,
-        SECTION,
-        at(
-            "SPC-6 6.7.2",
-            "standard INQUIRY ADDITIONAL LENGTH counts the bytes returned",
-        ),
-        format!("ADDITIONAL LENGTH + 5 = {want} bytes at allocation 255"),
-        format!("ADDITIONAL LENGTH {additional}, {} bytes", full.len()),
-        full.len() == want,
-    );
+    if residual_not_reported(full_received, full.len(), additional + 5) {
+        record(
+            cases,
+            SECTION,
+            at(
+                "SPC-6 6.7.2",
+                "standard INQUIRY ADDITIONAL LENGTH counts the bytes returned",
+            ),
+            format!("ADDITIONAL LENGTH + 5 = {want} bytes at allocation 255"),
+            "not run: the transport reports the whole allocation as returned (no residual)",
+            false,
+        );
+    } else {
+        record(
+            cases,
+            SECTION,
+            at(
+                "SPC-6 6.7.2",
+                "standard INQUIRY ADDITIONAL LENGTH counts the bytes returned",
+            ),
+            format!("ADDITIONAL LENGTH + 5 = {want} bytes at allocation 255"),
+            format!("ADDITIONAL LENGTH {additional}, {} bytes", full.len()),
+            full.len() == want,
+        );
+    }
     let mut answers = Vec::new();
     for n in (16..=240).step_by(16) {
         if let Ok(o) = s.command(&[0x12, 0, 0, 0, n as u8, 0], n as u32, None) {

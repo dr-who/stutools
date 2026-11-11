@@ -9,7 +9,7 @@
 //! command skips its form. What it finds goes into `Disk` (the page list and whether saved values
 //! answer) for the Windows cases.
 
-use super::cases::{describe, expect, record, record_should, Want};
+use super::cases::{describe, expect, record, record_should, residual_not_reported, Want};
 use super::disk::{hex_list, label, Disk, SECTION};
 use super::port::Port;
 use super::scsi_fields::be16;
@@ -233,6 +233,23 @@ fn one_form(s: &mut Port, name: &str, form: Form, cases: &mut Vec<Case>, disk: &
     };
     // SPC-6 7.5.6, 4.2.5.6: the device returns MODE DATA LENGTH + n bytes, or the allocation length.
     let want = p.total.min(form.alloc() as usize);
+    if residual_not_reported(all.received, all.data.len(), p.total) {
+        record(
+            cases,
+            SECTION,
+            label(
+                name,
+                &format!("{hcl} {f} all pages: MODE DATA LENGTH counts the bytes returned"),
+            ),
+            format!(
+                "bytes returned = MODE DATA LENGTH + {}",
+                if form.ten { 2 } else { 1 }
+            ),
+            "not run: the transport reports the whole allocation as returned (no residual)",
+            false,
+        );
+        return;
+    }
     record(
         cases,
         SECTION,

@@ -49,6 +49,7 @@ pub fn cases(
                 continue;
             }
         }
+        super::cases::NO_RESIDUAL.store(true, std::sync::atomic::Ordering::Relaxed);
         identity(device, cases);
         let second = match local_nexus::initiator_ports(device) {
             Ok(n) if n >= 2 => Some(SECOND),
@@ -62,6 +63,7 @@ pub fn cases(
         };
         conformance::run(&[target], FIRST, second, levels, cases);
         reset(device, cases);
+        super::cases::NO_RESIDUAL.store(false, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
