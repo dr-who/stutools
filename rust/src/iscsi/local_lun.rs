@@ -126,11 +126,14 @@ impl Commands for LocalLun {
     }
 }
 
-/// The commands a local HBA must not be sent: any variable length CDB (opcode 7Fh, or longer than 16 bytes), and
-/// MAINTENANCE OUT SET PRIORITY.
+/// The commands a local HBA must not be sent: any variable length CDB (opcode 7Fh, or longer than 16 bytes),
+/// START STOP UNIT, and MAINTENANCE OUT SET PRIORITY.
 fn hazardous_on_local_hba(cdb: &[u8]) -> bool {
     // 7Fh is the variable length opcode: any CDB that starts with it, whatever its length.
     cdb.len() > 16
         || cdb[0] == 0x7f
+        // START STOP UNIT spins the drive down: on this HBA the drive then reports "initializing", and the
+        // adapter resets (SCSI hang), then stalls the next write.
+        || cdb[0] == 0x1b
         || (cdb[0] == 0xa4 && cdb.get(1).is_some_and(|sa| sa & 0x1f == 0x0e))
 }
