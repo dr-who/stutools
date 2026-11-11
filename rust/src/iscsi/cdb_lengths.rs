@@ -132,6 +132,11 @@ fn read(s: &mut Port, form: Form, lba: u64, len: usize) -> Result<Outcome> {
     s.command(&form.cdb(false, lba, BLOCKS), len as u32, None)
 }
 
+/// Whether the transport could not send the command at all (recorded as not run, not as an answer).
+fn not_run(outcome: &Result<Outcome>) -> bool {
+    matches!(outcome, Err(e) if e.to_string().starts_with("not run:"))
+}
+
 /// Whether the answer is GOOD.
 fn served(outcome: &Result<Outcome>) -> bool {
     matches!(outcome, Ok(o) if o.status == GOOD)
@@ -266,6 +271,9 @@ fn run_forms(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, forms
                 same,
             );
         }
+        if not_run(&outcome) {
+            continue;
+        }
         agrees(cases, s, &at, form.write_clause(), form, true, did_serve);
     }
 
@@ -293,6 +301,9 @@ fn run_forms(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, forms
                     },
                     same,
                 );
+            }
+            if not_run(&outcome) {
+                continue;
             }
             agrees(cases, s, &at, form.read_clause(), form, false, did_serve);
         }

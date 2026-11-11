@@ -85,6 +85,15 @@ impl Commands for LocalLun {
         // also reports an error (on this HBA a CHECK CONDITION arrives as DID_ERROR with DRIVER_SENSE). With
         // no sense data, a host status other than DID_OK means the command never reached the device.
         if reply.host_status != 0 && reply.sense.is_empty() {
+            // A variable length CDB the host's SCSI layer will not send (DID_ABORT with no sense) never
+            // reached the device: that is this host's limit, not the device's answer.
+            if cdb.len() > 16 {
+                return Err(format!(
+                    "not run: this host's SCSI layer did not send the {}-byte CDB (host status {:#x})",
+                    cdb.len(),
+                    reply.host_status
+                ));
+            }
             return Err(format!(
                 "{}: host status {:#x}, driver status {:#x}",
                 self.device, reply.host_status, reply.driver_status
