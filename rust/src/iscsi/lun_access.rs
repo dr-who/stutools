@@ -81,7 +81,8 @@ pub(super) fn vpd(s: &mut Port, page: u8, len: u16) -> Result<Outcome> {
 /// The last LBA of the LUN and its block length. The data cases work on the last two blocks.
 pub(super) fn last_block(s: &mut Port) -> Result<(u32, usize)> {
     let (last, block_len) = scsi::capacity(s)?;
-    let lba = u32::try_from(last).map_err(|_| "LUN is larger than 32-bit LBAs")?;
+    let lba = u32::try_from(last)
+        .map_err(|_| "not run: LUN is larger than 32-bit LBAs, which READ (10) cannot address")?;
     Ok((lba, block_len as usize))
 }
 

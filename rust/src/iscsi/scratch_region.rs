@@ -96,7 +96,8 @@ pub(super) fn read_with(
         let n = chunk.min(count - done);
         let at = lba + u64::from(done);
         let cdb = if ten {
-            let l = u32::try_from(at).map_err(|_| "LBA past 32 bits for READ (10)")?;
+            let l = u32::try_from(at)
+                .map_err(|_| "not run: READ (10) cannot address an LBA past 32 bits")?;
             super::block_io::cdb10(0x28, 0, l, n as u16).to_vec()
         } else {
             cdb16(0x88, 0, at, n).to_vec()
@@ -129,7 +130,8 @@ pub(super) fn write(
         let at = lba + u64::from(done);
         let bytes = &data[done as usize * len..(done + n) as usize * len];
         let o = if op == 0x2a {
-            let l = u32::try_from(at).map_err(|_| "LBA past 32 bits for WRITE (10)")?;
+            let l = u32::try_from(at)
+                .map_err(|_| "not run: WRITE (10) cannot address an LBA past 32 bits")?;
             s.command(
                 &super::block_io::cdb10(0x2a, flags, l, n as u16),
                 0,

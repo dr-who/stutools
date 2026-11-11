@@ -34,7 +34,9 @@ fn round_trip(
     let data = stamps(w.len, w.start, w.blocks, pass);
     write(s, op, flags, w.start, &data, w.len, w.chunk)?;
     if flush {
-        let l = u32::try_from(w.start).map_err(|_| "window past 32-bit LBAs")?;
+        let l = u32::try_from(w.start).map_err(|_| {
+            "not run: window past 32-bit LBAs, which READ (10) and WRITE (10) cannot address"
+        })?;
         let o = s.command(
             &cdb10(0x35, 0, l, w.blocks.min(u32::from(u16::MAX)) as u16),
             0,

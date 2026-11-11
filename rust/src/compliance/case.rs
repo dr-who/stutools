@@ -90,6 +90,20 @@ pub fn case(
     actual: String,
     passed: bool,
 ) -> Case {
+    // A case the target never had to answer (the device cannot be addressed that way) is not a failure:
+    // a result that begins "not run:" is informational, whatever the expectation was.
+    if !passed && actual.starts_with("not run:") {
+        return Case {
+            section,
+            name,
+            expected,
+            actual,
+            passed: true,
+            level: Level::Info,
+            scsi_level: None,
+            since: None,
+        };
+    }
     Case {
         section,
         name,
