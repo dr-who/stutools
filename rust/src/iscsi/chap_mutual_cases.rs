@@ -109,8 +109,8 @@ pub(super) fn run(
     let Some((user, secret)) = good else { return };
     for r in reachable.iter().filter(|r| r.chap) {
         let name = short_name(r.path);
-        wrong_response_length(r.path, initiator, user, secret, &name, cases, 20);
-        wrong_response_length(r.path, initiator, user, secret, &name, cases, 14);
+        wrong_response_length(r.path, initiator, user, secret, &name, cases, None);
+        wrong_response_length(r.path, initiator, user, secret, &name, cases, Some(14));
         no_response(r.path, initiator, user, &name, cases);
         wrong_name(r.path, initiator, secret, bad, &name, cases);
         algorithm_list(r.path, initiator, user, secret, &name, cases);
@@ -123,8 +123,10 @@ pub(super) fn run(
     }
 }
 
-/// CHAP_R of the wrong length (RFC 7143 12.1.3, RFC 1994 4.1): the correct digest truncated or padded;
-/// the login must be refused 0201h (0200h or 0207h also pass), never reaching full feature phase.
+/// CHAP_R of the wrong length (RFC 7143 12.1.3, RFC 1994 4.1): the correct digest padded or cut to `len`
+/// bytes, or to one byte more than the digest's own length when `len` is None. The length must not be the
+/// digest's own (that would be a correct answer), so the default is always wrong for the algorithm chosen.
+/// The login must be refused 0201h (0200h or 0207h also pass), never reaching full feature phase.
 fn wrong_response_length(
     path: &Path,
     initiator: &str,
@@ -132,9 +134,10 @@ fn wrong_response_length(
     secret: &[u8],
     name: &str,
     cases: &mut Vec<Case>,
-    len: usize,
+    len: Option<usize>,
 ) {
-    let label = format!("{name} CHAP_R of {len} bytes refused");
+    let shown = len.map_or("digest + 1".to_string(), |n| n.to_string());
+    let label = format!("{name} CHAP_R of {shown} bytes refused");
     let mut c = match LoginConnection::open(&path.portal, login::random_isid()) {
         Ok(c) => c,
         Err(e) => return nope(cases, label, e),
@@ -145,6 +148,7 @@ fn wrong_response_length(
     };
     let mut bytes =
         chap::digest(ch.algorithm, ch.identifier, secret, &ch.challenge).unwrap_or_default();
+    let len = len.unwrap_or(bytes.len() + 1);
     bytes.resize(len, 0);
     let answer = third(
         &mut c,
