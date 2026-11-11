@@ -66,6 +66,7 @@ mod odx;
 mod operation_code_cases;
 mod operation_codes;
 pub mod ops;
+mod optional_commands;
 pub mod path;
 pub mod pdu;
 mod pdu_connection;

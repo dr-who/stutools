@@ -25,8 +25,11 @@ Regenerate:
 
 | Standard | Clauses with shall | Cited | Clause coverage | shall in cited clauses | Judged cases | Score |
 |---|---|---|---|---|---|---|
-| SPC-3 | 301 | 17 | 5.6% | 174 of 1715 (10.1%) | 96 | 91.7% |
-| SBC-3 | 229 | 32 | 14.0% | 450 of 1229 (36.6%) | 89 | 87.6% |
+| SPC-3 | 301 | 19 | 6.3% | 220 of 1715 (12.8%) | 98 | 91.8% |
+| SBC-3 | 229 | 34 | 14.8% | 482 of 1229 (39.2%) | 91 | 87.9% |
+
+The first run (before the optional-command cases) was SPC-3 17 cited, 5.6%, 10.1% of shall, 91.7%; SBC-3
+32 cited, 14.0%, 36.6% of shall, 87.6%.
 
 The earlier figures in this project (about 16% and 10%) used a looser match and are superseded.
 
@@ -69,13 +72,18 @@ SBC-3:
 | 5.17.1 | 11 | (READ CAPACITY) | testable |
 | 5.28.2 | 11 | (SYNCHRONIZE CACHE) | testable |
 
+## Done since the first run
+
+- SBC-3 5.19 READ LONG (10), SBC-3 5.41 WRITE LONG (10), SPC-3 6.28 SEND DIAGNOSTIC and SPC-3 6.30 SET
+  PRIORITY (`optional_commands.rs`): refused as not implemented, agreeing with REPORT SUPPORTED OPERATION
+  CODES. WRITE LONG and SET PRIORITY are never sent when implemented, since they change the LUN or task
+  priority.
+
 ## Next batch (testable on this LUN)
 
 1. SBC-3 6.5.4 Background Control mode page: the page's fields and changeable bits, as the other pages.
-2. SBC-3 5.43 WRITE SAME (10) forms, and SBC-3 5.19 and 5.41: refusal of READ LONG and WRITE LONG
-   when the LUN does not implement them (confirmed by REPORT SUPPORTED OPERATION CODES).
-3. SPC-3 6.28 SEND DIAGNOSTIC and 6.30 SET PRIORITY: refusal when not implemented, agreeing with the
-   supported-operation answer.
-4. SPC-3 6.27 REQUEST SENSE and 7.2.1 log structure, through the forms the LUN answers.
+2. SBC-3 5.43 WRITE SAME (10) forms.
+3. SPC-3 6.27 REQUEST SENSE and 7.2.1 log structure, through the forms the LUN answers.
+4. SPC-3 6.12.3 PERSISTENT RESERVE OUT parameter list forms.
 
 FORMAT UNIT (SBC-3 5.3) and its parameter list stay not run on a device with data.

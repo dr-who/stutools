@@ -63,6 +63,14 @@ pub(super) fn rsoc_one(s: &mut Port, opcode: u8, service_action: Option<u16>) ->
     s.command(&cdb, 256, None)
 }
 
+/// The SUPPORT field of REPORT SUPPORTED OPERATION CODES for one command, one-command format (SPC-3 6.23.1,
+/// table 159): 0 no data yet, 1 not supported, 3 supported in conformance with a standard, 5 vendor specific.
+/// None when the device gives no answer.
+pub(super) fn support(s: &mut Port, opcode: u8, service_action: Option<u16>) -> Option<u8> {
+    let o = rsoc_one(s, opcode, service_action).ok()?;
+    o.data.get(1).map(|b| b & 0x07)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

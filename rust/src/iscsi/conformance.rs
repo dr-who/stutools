@@ -17,9 +17,9 @@ use super::{
     alua, ats_race, block_commands, block_io, bulk_integrity, cache_integrity, cdb_lengths,
     coherence, compare_and_write, data_path, disk, feature_sets, header_digest, host_traces,
     inquiry_framing, mode_block_descriptors, mode_select_change, mode_select_pages, odx,
-    pr_command_set, pr_empty_state, pr_ports, provisioning, report_luns_cases, reservations,
-    six_byte_io, spc2_reservations, spc_commands, standby_cases, start_stop_cases, task_management,
-    unlisted_lun, verify_cases, vpd_framing, windows, windows_device_rules,
+    optional_commands, pr_command_set, pr_empty_state, pr_ports, provisioning, report_luns_cases,
+    reservations, six_byte_io, spc2_reservations, spc_commands, standby_cases, start_stop_cases,
+    task_management, unlisted_lun, verify_cases, vpd_framing, windows, windows_device_rules,
 };
 use crate::compliance::{Case, ScsiLevel};
 
@@ -106,6 +106,7 @@ pub(super) fn run(
         mode_select_pages::run(&mut s, &name, cases);
         mode_block_descriptors::run(&mut s, &name, &disk, cases);
         cdb_lengths::run(&mut s, &name, &disk, cases);
+        optional_commands::run(&mut s, &name, cases);
         host_traces::linux(&mut s, &name, &disk, cases);
         let io = block_io::run(&mut s, &name, &disk, cases, &mut seen);
         verify_cases::run(&mut s, &name, &disk, cases);
