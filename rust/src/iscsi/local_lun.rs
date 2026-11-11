@@ -81,8 +81,10 @@ impl Commands for LocalLun {
         let reply = crate::sg_io::send(&self.file, cdb, buffer, to_device)
             .map_err(|e| format!("{}: {e}", self.device))?;
         let mut data = buffer.to_vec();
-        // A host status other than DID_OK means the command never reached the device.
-        if reply.host_status != 0 {
+        // Sense data means the device answered: its CHECK CONDITION is the result, even when the host layer
+        // also reports an error (on this HBA a CHECK CONDITION arrives as DID_ERROR with DRIVER_SENSE). With
+        // no sense data, a host status other than DID_OK means the command never reached the device.
+        if reply.host_status != 0 && reply.sense.is_empty() {
             return Err(format!(
                 "{}: host status {:#x}, driver status {:#x}",
                 self.device, reply.host_status, reply.driver_status

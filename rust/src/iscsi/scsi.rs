@@ -163,6 +163,36 @@ pub fn designators(s: &mut impl Commands) -> Result<Vec<Designator>> {
 }
 
 /// READ CAPACITY(16): the last LBA and the logical block length in bytes.
+/// The block sizes READ CAPACITY(16) reports (SBC-3 5.16): the logical block length, the logical blocks per
+/// physical block as a power of two, and the lowest LBA aligned to a physical block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BlockSizes {
+    pub logical: u32,
+    pub per_physical_exponent: u8,
+    pub lowest_aligned: u64,
+}
+
+impl BlockSizes {
+    /// The physical block length in bytes.
+    pub fn physical(&self) -> u64 {
+        u64::from(self.logical) << self.per_physical_exponent
+    }
+}
+
+/// READ CAPACITY(16)'s block size fields.
+pub fn block_sizes(s: &mut impl Commands) -> Result<BlockSizes> {
+    let o = command(s, &READ_CAPACITY_16_CDB, 32)?;
+    check("READ CAPACITY(16)", &o)?;
+    let logical = be32(&o.data, 8).ok_or("READ CAPACITY(16) data is short")?;
+    let exponent = o.data.get(13).ok_or("READ CAPACITY(16) data is short")? & 0x0f;
+    let aligned = be16(&o.data, 14).ok_or("READ CAPACITY(16) data is short")? & 0x3fff;
+    Ok(BlockSizes {
+        logical,
+        per_physical_exponent: exponent,
+        lowest_aligned: u64::from(aligned),
+    })
+}
+
 pub fn capacity(s: &mut impl Commands) -> Result<(u64, u32)> {
     let o = command(s, &READ_CAPACITY_16_CDB, 32)?;
     check("READ CAPACITY(16)", &o)?;

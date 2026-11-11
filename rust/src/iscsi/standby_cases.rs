@@ -5,8 +5,9 @@
 //! STATE. Windows clustering registers its key down standby paths, so PERSISTENT RESERVE OUT matters.
 
 use super::alua::SECTION;
-use super::cases::{expect, expect_should, Want, REFUSED};
+use super::cases::{expect, expect_should, record, Want, REFUSED};
 use super::lun_access::unit_attentions;
+use super::mode_page_cases::{mode_page_of, mode_sense_10};
 use super::ops;
 use super::port::Port;
 use super::port_groups::rtpg;
@@ -117,6 +118,97 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
             label("PERSISTENT RESERVE OUT, unregister"),
             &[Want::Good],
             unregister,
+        );
+    }
+    standby_listed(s, name, cases);
+}
+
+/// The rest of the SPC-3 5.8.2.4.4 list: MODE SELECT (10), LOG SELECT, SEND and RECEIVE DIAGNOSTIC, and the
+/// echo buffer modes of READ and WRITE BUFFER. Each must be served, or refused as an invalid operation code
+/// when the target does not implement it (the same answer as in the active state). A standby port must not
+/// answer with the standby state for these.
+fn standby_listed(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
+    let label = |what: &str| format!("{name} standby: {what}");
+    let mut served_or_refused = vec![Want::Good];
+    served_or_refused.extend(REFUSED);
+
+    // SPC-3 6.8: MODE SELECT (10) of the current Caching page, PS cleared, changes nothing.
+    let caching = mode_sense_10(s, 0, 0x08, 0, true)
+        .ok()
+        .and_then(|o| mode_page_of(&o.data, true).map(|p| p.to_vec()));
+    if let Some(mut page) = caching {
+        page[0] &= 0x7f;
+        let mut list = vec![0u8; 8];
+        list.extend_from_slice(&page);
+        let n = (list.len() as u16).to_be_bytes();
+        expect(
+            cases,
+            SECTION,
+            label("SPC-3 6.8 MODE SELECT (10) of the current Caching page"),
+            &[Want::Good],
+            s.command(&[0x55, 0x10, 0, 0, 0, 0, 0, n[0], n[1], 0], 0, Some(&list)),
+        );
+    }
+
+    // SPC-3 6.5: LOG SELECT with an empty parameter list.
+    expect(
+        cases,
+        SECTION,
+        label("SPC-3 6.5 LOG SELECT, empty parameter list"),
+        &served_or_refused,
+        s.command(&[0x4c, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0, None),
+    );
+
+    // SPC-3 6.28: SEND DIAGNOSTIC with PF set and no parameter list (the default self-test set).
+    expect(
+        cases,
+        SECTION,
+        label("SPC-3 6.28 SEND DIAGNOSTIC, PF set, no parameters"),
+        &served_or_refused,
+        s.command(&[0x1d, 0x10, 0, 0, 0, 0], 0, None),
+    );
+
+    // SPC-3 6.18: RECEIVE DIAGNOSTIC RESULTS, PCV clear, four bytes of allocation.
+    expect(
+        cases,
+        SECTION,
+        label("SPC-3 6.18 RECEIVE DIAGNOSTIC RESULTS, 4 bytes"),
+        &served_or_refused,
+        s.command(&[0x1c, 0, 0, 0, 4, 0], 4, None),
+    );
+
+    // SPC-3 6.35 and 6.15: the echo buffer mode. What WRITE BUFFER sends, READ BUFFER returns, when both are
+    // served; a target that refuses either (not implemented) has nothing to compare.
+    let echo = [0x5a, 0xa5, 0x01, 0xfe];
+    let (_, wrote) = expect(
+        cases,
+        SECTION,
+        label("SPC-3 6.35 WRITE BUFFER echo mode, 4 bytes"),
+        &served_or_refused,
+        s.command(&[0x3b, 0x0a, 0, 0, 0, 0, 0, 0, 4, 0], 0, Some(&echo)),
+    );
+    let (_, read) = expect(
+        cases,
+        SECTION,
+        label("SPC-3 6.15 READ BUFFER echo mode, 4 bytes"),
+        &served_or_refused,
+        s.command(&[0x3c, 0x0a, 0, 0, 0, 0, 0, 0, 4, 0], 4, None),
+    );
+    let both_served =
+        wrote.is_some_and(|o| o.status == 0) && read.as_ref().is_some_and(|o| o.status == 0);
+    if both_served {
+        let same = read.is_some_and(|o| o.data == echo);
+        record(
+            cases,
+            SECTION,
+            label("SPC-3 6.15 READ BUFFER echo returns what WRITE BUFFER sent"),
+            "the bytes WRITE BUFFER sent",
+            if same {
+                "the same bytes"
+            } else {
+                "other bytes"
+            },
+            same,
         );
     }
 }

@@ -40,7 +40,10 @@ pub fn cases(
         };
         let path = Path::local(device);
         match describe(device) {
-            Ok(d) => found.push(d),
+            Ok((d, health, sizes)) => {
+                print_header(&d, &health, sizes);
+                found.push(d);
+            }
             Err(e) => {
                 untested.push((device.clone(), e));
                 continue;
@@ -165,12 +168,15 @@ fn reset(device: &str, cases: &mut Vec<Case>) {
 }
 
 /// The disk as the report names it: INQUIRY, the serial number and READ CAPACITY, and every path.
-fn describe(device: &str) -> crate::Result<Device> {
+/// The device's identity, its health (TEST UNIT READY) and its block sizes.
+fn describe(device: &str) -> crate::Result<(Device, String, scsi::BlockSizes)> {
     let first = local_nexus::device_for(device, FIRST, false)?;
     let mut lun = LocalLun::open(&first)?;
     let inquiry = scsi::inquiry(&mut lun)?;
     let serial = scsi::serial(&mut lun).unwrap_or_default();
     let (last, block_len) = scsi::capacity(&mut lun)?;
+    let sizes = scsi::block_sizes(&mut lun)?;
+    let health = health(&mut lun);
     let paths = local_nexus::all_paths(device)?;
     let sas = format!(
         "/sys/block/{}/device/sas_address",
@@ -181,7 +187,7 @@ fn describe(device: &str) -> crate::Result<Device> {
     } else {
         "SCSI"
     };
-    Ok(Device {
+    let device = Device {
         name: device.to_string(),
         transport,
         target: device.to_string(),
@@ -192,5 +198,48 @@ fn describe(device: &str) -> crate::Result<Device> {
         serial,
         blocks: last.saturating_add(1),
         block_len,
-    })
+    };
+    Ok((device, health, sizes))
+}
+
+/// What TEST UNIT READY says about the device now: ready, or the sense it reports.
+fn health(lun: &mut LocalLun) -> String {
+    match lun.command(&[0; 6], 0, None) {
+        Ok(o) if o.status == 0 => "ready (TEST UNIT READY GOOD)".to_string(),
+        Ok(o) if o.sense.len() >= 14 => format!(
+            "not ready: sense key {:#x}, ASC/ASCQ {:02x}/{:02x}",
+            o.sense[2] & 0x0f,
+            o.sense[12],
+            o.sense[13]
+        ),
+        Ok(o) => format!("not ready: status {:#x}", o.status),
+        Err(e) => format!("no answer: {e}"),
+    }
+}
+
+/// The device header, in the order the report reads it: model, name, details, health, size, block sizes.
+fn print_header(d: &Device, health: &str, sizes: scsi::BlockSizes) {
+    let per = 1u64 << sizes.per_physical_exponent;
+    println!("model:       {} {} {}", d.vendor, d.product, d.revision);
+    println!("name:        {}", d.name);
+    println!(
+        "details:     {}, serial {}, paths {}",
+        d.transport,
+        d.serial,
+        d.paths.join(", ")
+    );
+    println!("health:      {health}");
+    println!(
+        "size:        {} GB ({} logical blocks of {} B)",
+        d.bytes() / 1_000_000_000,
+        d.blocks,
+        d.block_len
+    );
+    println!(
+        "block sizes: {} B logical, {} B physical ({} logical per physical), lowest aligned LBA {}",
+        sizes.logical,
+        sizes.physical(),
+        per,
+        sizes.lowest_aligned
+    );
 }
