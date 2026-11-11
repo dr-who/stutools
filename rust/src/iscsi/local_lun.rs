@@ -68,6 +68,7 @@ impl LocalLun {
 
 impl Commands for LocalLun {
     fn command(&mut self, cdb: &[u8], read: u32, write: Option<&[u8]>) -> Result<Outcome> {
+        crate::watchdog::beat(cdb);
         let (len, to_device) = match write {
             Some(w) => (w.len(), true),
             None => (read as usize, false),
