@@ -15,7 +15,7 @@ transports.
 
 Regenerate:
 
-    spit -f ... (no: iSCSI) spit --iscsi 103.187.7.170/iqn.2026-10.com.stutools:spitlunsbc-1 \
+    spit --iscsi 103.187.7.170/iqn.2026-10.com.stutools:spitlunsbc-1 \
         --iscsi-initiator iqn.2026-11.com.stutools:spit-initiator \
         --chap-user spit-initiator --chap-secret-file /var/tmp/spit-chap/secret --compliance > run.log
     python3 iscsi/clause_map.py --log run.log --standards /root \
