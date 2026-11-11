@@ -38,6 +38,8 @@ pub struct Session {
     max_cmd_sn: u32,
     /// The 8-byte LUN field every command carries (`Path::lun_field`); 0 unless `for_lun` set it.
     lun: u64,
+    /// When the command in progress must have an answer by. Reads wait no longer than this.
+    deadline: Option<Instant>,
     /// The lane tier of this portal from its ALUA state, read when the session opened.
     pub access_tier: Option<u8>,
     /// Reused for every outgoing PDU, so a command allocates nothing once warm.
@@ -94,6 +96,7 @@ impl Session {
         max_cmd_sn: u32,
     ) -> Session {
         Session {
+            deadline: None,
             access_tier: None,
             stream,
             tx: Vec::with_capacity(BHS_LEN + RX_CAPACITY + 16),
@@ -148,6 +151,20 @@ impl Session {
 
     /// Reads one PDU. Returns its header and leaves its data segment (without padding) in `self.rx`.
     fn recv(&mut self) -> Result<[u8; BHS_LEN]> {
+        crate::watchdog::beat(&[]);
+        // Each read waits no longer than the command in progress has left, so a silent target fails the
+        // command within COMMAND_LIMIT rather than holding it.
+        let wait = match self.deadline {
+            Some(d) => d.saturating_duration_since(Instant::now()),
+            None => COMMAND_LIMIT,
+        };
+        if wait.is_zero() {
+            return Err(format!(
+                "no answer to the command within {} s",
+                COMMAND_LIMIT.as_secs()
+            ));
+        }
+        let _ = self.stream.set_read_timeout(Some(wait));
         let mut bhs = [0u8; BHS_LEN];
         self.stream
             .read_exact(&mut bhs)
@@ -422,6 +439,7 @@ impl Session {
         };
         // SAFETY: `buf` and `len` describe `read` or `write`, which live until the wait below returns.
         let deadline = Instant::now() + COMMAND_LIMIT;
+        self.deadline = Some(deadline);
         let result =
             unsafe { self.submit(cdb, 0, buf, len, write.is_some()) }.and_then(|()| loop {
                 let done = self.poll_until(Some(deadline))?;
@@ -433,6 +451,7 @@ impl Session {
             });
         // A failed command leaves nothing in flight. Otherwise every later command would report that
         // this one is still pending, which hides the error that actually happened.
+        self.deadline = None;
         if result.is_err() {
             self.inflight.clear();
         }

@@ -218,5 +218,23 @@ pub(super) fn run(
                 );
             }
         }
+        // After everything else: a target that closes the connection on a variable length CDB loses only
+        // this session.
+        match open(t.path, initiator, t.creds, login::random_isid()) {
+            Ok(mut s) => {
+                cdb_lengths::run_variable_length(&mut s, &name, &disk, cases);
+                let _ = s.logout();
+            }
+            Err(err) => {
+                record(
+                    cases,
+                    "disk",
+                    format!("{name} login for READ (32) and WRITE (32)"),
+                    "login ok",
+                    err,
+                    false,
+                );
+            }
+        }
     }
 }

@@ -44,8 +44,6 @@ enum Form {
 }
 
 impl Form {
-    const ALL: [Form; 4] = [Form::Ten, Form::Twelve, Form::Sixteen, Form::ThirtyTwo];
-
     fn name(self) -> &'static str {
         match self {
             Form::Ten => "10",
@@ -112,7 +110,6 @@ impl Form {
                 c.extend_from_slice(&lba.to_be_bytes());
                 c.extend_from_slice(&[0; 8]);
                 c.extend_from_slice(&count.to_be_bytes());
-                c.extend_from_slice(&[0, 0]);
                 c
             }
         }
@@ -216,7 +213,24 @@ fn agrees(
     );
 }
 
+/// The fixed length forms: 6, 10, 12 and 16 bytes. Run with every other case of the target.
 pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) {
+    run_forms(
+        s,
+        name,
+        disk,
+        cases,
+        &[Form::Ten, Form::Twelve, Form::Sixteen],
+    );
+}
+
+/// The variable length form, READ (32) and WRITE (32). A target that closes the connection on it loses the
+/// session for everything after, so it runs last, on its own.
+pub(super) fn run_variable_length(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) {
+    run_forms(s, name, disk, cases, &[Form::ThirtyTwo]);
+}
+
+fn run_forms(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, forms: &[Form]) {
     let len = disk.block_len as usize;
     let Some(lba) = disk.last_lba.checked_sub(BLOCKS as u64) else {
         return;
@@ -228,7 +242,7 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
     let at = |what: &str| label(name, what);
 
     // Each WRITE form in turn. A served form reads back in READ (10); a refused one must be reported so.
-    for form in Form::ALL {
+    for &form in forms {
         let data = pattern(len, form.name().len() as u8);
         let outcome = write(s, form, lba, &data);
         let did_serve = record_answer(cases, &at, form.write_clause(), form, true, &outcome);
@@ -258,7 +272,7 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
     // Each READ form of blocks WRITE (10) wrote.
     let data = pattern(len, 0x5a);
     if served(&write(s, Form::Ten, lba, &data)) {
-        for form in Form::ALL {
+        for &form in forms {
             let outcome = read(s, form, lba, total);
             let did_serve = record_answer(cases, &at, form.read_clause(), form, false, &outcome);
             if did_serve {
