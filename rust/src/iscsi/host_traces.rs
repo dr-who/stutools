@@ -5,7 +5,7 @@
 //! answers the `disk` section read. A VPD page the LUN does not list, and the Informational Exceptions
 //! Control page, may be refused with INVALID FIELD IN CDB.
 
-use super::cases::{describe, record, Want};
+use super::cases::{describe, record, residual_not_reported, Want};
 use super::disk::Disk;
 use super::mode_page_cases::mode_page_of;
 use super::port::Port;
@@ -251,6 +251,15 @@ fn judge(step: &Step, o: &Outcome, disk: &Disk) -> (String, bool) {
     }
     let alloc = allocation(step.cdb) as usize;
     let want_len = available(step.cdb, &o.data).min(alloc);
+    if alloc != 0 && residual_not_reported(o.received, want_len) {
+        return (
+            format!(
+                "not run: the transport reports the whole allocation as returned ({} of {alloc} bytes)",
+                o.received
+            ),
+            false,
+        );
+    }
     let length_ok = alloc == 0 || o.received == want_len;
     let data = &o.data[..o.received.min(o.data.len())];
     let agrees = match step.check {

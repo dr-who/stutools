@@ -279,6 +279,7 @@ fn read_after_write_rounds(s: &mut Port, name: &str, lba: u64, len: usize, cases
         return;
     };
     let (mut stale16, mut stale10, mut written) = (0u32, 0u32, 0u32);
+    let (mut stale16_after16, mut written16) = (0u32, 0u32);
     for round in 0..ROUNDS {
         let data = pattern(len, 0x40 + round);
         if !served(&write(s, Form::Ten, lba, &data)) {
@@ -297,6 +298,17 @@ fn read_after_write_rounds(s: &mut Port, name: &str, lba: u64, len: usize, cases
         {
             stale10 += 1;
         }
+        // The same round with WRITE (16): does READ (16) follow a 16-byte write?
+        let data16 = pattern(len, 0x80 + round);
+        if served(&write(s, Form::Sixteen, lba, &data16)) {
+            written16 += 1;
+            if read(s, Form::Sixteen, lba, total)
+                .map(|o| o.data)
+                .is_ok_and(|d| d != data16)
+            {
+                stale16_after16 += 1;
+            }
+        }
     }
     let _ = write(s, Form::Ten, lba, &original);
     record(
@@ -309,6 +321,17 @@ fn read_after_write_rounds(s: &mut Port, name: &str, lba: u64, len: usize, cases
         "0 rounds in which READ (16) or READ (10) returns other data",
         format!("{stale16} READ (16) and {stale10} READ (10) rounds returned other data"),
         stale16 == 0 && stale10 == 0,
+    );
+    record(
+        cases,
+        SECTION,
+        label(
+            name,
+            &format!("SBC-3 5.13 READ (16) right after WRITE (16), {written16} rounds"),
+        ),
+        "0 rounds in which READ (16) returns other data",
+        format!("{stale16_after16} READ (16) rounds returned other data"),
+        stale16_after16 == 0,
     );
 }
 
