@@ -21,11 +21,11 @@ RFC does not require, so they are not shalls, and the audit does not count them 
   cases with it. So MD5 CHAP works on the FIPS host; the earlier open question is closed.
 - **Algorithms 7 and 8:** spit implements them, but no target tested so far offers them, so they have no coverage
   yet. Needs a target that offers SHA-256 or SHA3-256 (none in the current lab).
-- **tgt and stutest:** tgt was run without credentials (no CHAP section). stutest's login is not CHAP (AUTH none on
-  every portal), so CHAP has no coverage there.
+- **tgt:** run with CHAP configured (a tgtadm account bound to the LUN, the secret from /var/tmp/spit-chap/secret):
+  19 of 19 CHAP cases pass, including MD5 accepted, the wrong secret refused, and the algorithm offers.
+- **stutest:** every portal reports AUTH none, so CHAP has no coverage there.
 
 ## Gaps
 
 1. A CHAP run on a target that offers 7 or 8 (the SHA-256 and SHA3 cases), when one exists.
-2. A CHAP run against tgt with credentials: a tgt LUN with CHAP configured.
-3. The mutual wrong-target-secret case on tgt, once 2 is in place.
+2. The mutual wrong-target-secret case on tgt (tgt's mutual CHAP account is not configured yet).
