@@ -5,7 +5,7 @@
 //! answers the `disk` section read. A VPD page the LUN does not list, and the Informational Exceptions
 //! Control page, may be refused with INVALID FIELD IN CDB.
 
-use super::cases::{describe, record, residual_not_reported, Want};
+use super::cases::{describe, record, record_info, residual_not_reported, Want};
 use super::disk::Disk;
 use super::mode_page_cases::mode_page_of;
 use super::port::Port;
@@ -311,8 +311,21 @@ fn replay(
                     0
                 };
                 let len = 16 * disk.block_len;
-                s.command(&super::block_io::cdb16(0x88, 0, lba, 16), len, None)
-                    .map(|o| {
+                match s.command(&super::block_io::cdb16(0x88, 0, lba, 16), len, None) {
+                    // Past the residual rule a short count is not a failure the transport can show us.
+                    Ok(o) if o.status == 0 && residual_not_reported(o.received, len as usize) => {
+                        record_info(
+                            cases,
+                            section,
+                            label,
+                            format!(
+                                "not run: the transport reports the whole allocation as returned ({} of {len} bytes)",
+                                o.received
+                            ),
+                        );
+                        continue;
+                    }
+                    other => other.map(|o| {
                         let ok = o.status == 0 && o.received == len as usize;
                         (
                             if o.status == 0 {
@@ -322,7 +335,8 @@ fn replay(
                             },
                             ok,
                         )
-                    })
+                    }),
+                }
             }
             _ => s
                 .command(step.cdb, allocation(step.cdb), None)

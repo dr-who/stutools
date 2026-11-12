@@ -18,10 +18,12 @@ pub(super) struct Facts {
     pub enumeration: bool,
     /// None: the reservation cases could not be run (see pr).
     pub cluster: Option<bool>,
-    pub flush: bool,
+    pub flush: Option<bool>,
     pub alua: super::alua::Findings,
     pub trim: bool,
     pub provisioning_clean: bool,
+    /// False when the provisioning cases could not run (see unmap).
+    pub provisioning_ran: bool,
     pub odx: bool,
     pub odx_clean: bool,
     pub write_cache: Option<bool>,
@@ -86,18 +88,28 @@ pub(super) fn run(name: &str, f: &Facts, cases: &mut Vec<Case>) {
             "not tested (see pr): needs a second initiator name",
         ),
     }
-    record(
-        cases,
-        SECTION,
-        label("NTFS: SYNCHRONIZE CACHE and FUA writes"),
-        "both work",
-        if f.flush {
-            "both work"
-        } else {
-            "one failed (see io)"
-        },
-        f.flush,
-    );
+    match f.flush {
+        Some(flush) => {
+            record(
+                cases,
+                SECTION,
+                label("NTFS: SYNCHRONIZE CACHE and FUA writes"),
+                "both work",
+                if flush {
+                    "both work"
+                } else {
+                    "one failed (see io)"
+                },
+                flush,
+            );
+        }
+        None => super::cases::record_info(
+            cases,
+            SECTION,
+            label("NTFS: SYNCHRONIZE CACHE and FUA writes"),
+            "not run (see io): the test block is past 32-bit LBAs",
+        ),
+    }
     let alua = match (f.alua.tpgs, f.alua.usable) {
         (0, _) => "not offered (MSDSM uses Failover Only)".to_string(),
         (t, true) => format!(
@@ -114,18 +126,27 @@ pub(super) fn run(name: &str, f: &Facts, cases: &mut Vec<Case>) {
         alua,
         f.alua.tpgs == 0 || f.alua.usable,
     );
-    record(
-        cases,
-        SECTION,
-        label("TRIM (UNMAP)"),
-        "supported, or cleanly not offered",
-        match (f.trim, f.provisioning_clean) {
-            (true, _) => "supported",
-            (false, true) => "not offered",
-            (false, false) => "not offered, and a provisioning case failed (see unmap)",
-        },
-        f.trim || f.provisioning_clean,
-    );
+    if f.provisioning_ran {
+        record(
+            cases,
+            SECTION,
+            label("TRIM (UNMAP)"),
+            "supported, or cleanly not offered",
+            match (f.trim, f.provisioning_clean) {
+                (true, _) => "supported",
+                (false, true) => "not offered",
+                (false, false) => "not offered, and a provisioning case failed (see unmap)",
+            },
+            f.trim || f.provisioning_clean,
+        );
+    } else {
+        super::cases::record_info(
+            cases,
+            SECTION,
+            label("TRIM (UNMAP)"),
+            "not run (see unmap): the test block is past 32-bit LBAs",
+        );
+    }
     record(
         cases,
         SECTION,

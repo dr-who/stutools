@@ -6,7 +6,7 @@
 //! the second-to-last one, and its original data is written back.
 
 use super::block_io::cdb16;
-use super::cases::{expect, expect_should, record, Want, REFUSED, REFUSED_SA};
+use super::cases::{expect, expect_should, record, record_info, Want, REFUSED, REFUSED_SA};
 use super::disk::Disk;
 use super::lun_access::{read_block, write_block};
 use super::ops;
@@ -27,6 +27,8 @@ pub(super) struct Findings {
     pub trim: bool,
     /// No provisioning case failed (a LUN that does not provision passes by refusing cleanly).
     pub clean: bool,
+    /// The provisioning cases ran; false when the LUN is past 32-bit LBAs and they could not address a block.
+    pub ran: bool,
 }
 
 pub(super) fn run(
@@ -101,9 +103,17 @@ pub(super) fn run(
     }
 
     let Ok(target) = u32::try_from(disk.last_lba.saturating_sub(1)) else {
+        // Nothing failed; the cases that would test UNMAP could not address the block.
+        record_info(
+            cases,
+            SECTION,
+            label("UNMAP and provisioning"),
+            "not run: the test block is past 32-bit LBAs, which READ (10) and WRITE (10) cannot address",
+        );
         return Findings {
             trim: false,
-            clean: false,
+            clean: true,
+            ran: false,
         };
     };
     let len = disk.block_len as usize;
@@ -121,6 +131,7 @@ pub(super) fn run(
             return Findings {
                 trim: false,
                 clean: false,
+                ran: true,
             };
         }
     };
@@ -289,5 +300,6 @@ pub(super) fn run(
     Findings {
         trim: lbpme && lbpu && unmapped,
         clean: super::cases::no_failures(&cases[first..]),
+        ran: true,
     }
 }

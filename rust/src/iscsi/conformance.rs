@@ -195,6 +195,7 @@ pub(super) fn run(
                 alua,
                 trim: thin.trim,
                 provisioning_clean: thin.clean,
+                provisioning_ran: thin.ran,
                 odx,
                 odx_clean,
                 write_cache: disk.write_cache(),

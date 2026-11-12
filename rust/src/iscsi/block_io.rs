@@ -42,8 +42,9 @@ const IMMED: u8 = 0x02;
 
 /// What the data cases found, for the Windows cases.
 pub(super) struct Findings {
-    /// SYNCHRONIZE CACHE and a FUA write both work: what NTFS needs to order its log.
-    pub flush: bool,
+    /// SYNCHRONIZE CACHE and a FUA write both work: what NTFS needs to order its log. None when the
+    /// LUN is past 32-bit LBAs and the 10-byte forms that test it cannot address the block.
+    pub flush: Option<bool>,
 }
 
 pub(super) fn run(
@@ -70,7 +71,7 @@ pub(super) fn run(
             format!("not run: LUN is larger than 32-bit LBAs, which READ (10) and WRITE (10) cannot address ({last} blocks)"),
             false,
         );
-        return Findings { flush: false };
+        return Findings { flush: None };
     };
     let original = match read_block(t.s, target32, len) {
         Ok(d) => d,
@@ -83,7 +84,7 @@ pub(super) fn run(
                 err,
                 false,
             );
-            return Findings { flush: false };
+            return Findings { flush: Some(false) };
         }
     };
     let target = target32 as u64;
@@ -381,7 +382,9 @@ pub(super) fn run(
             false,
         );
     }
-    Findings { flush: sync && fua }
+    Findings {
+        flush: Some(sync && fua),
+    }
 }
 
 struct Io<'a> {
