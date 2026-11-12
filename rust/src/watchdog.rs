@@ -12,6 +12,8 @@ use std::time::{Duration, Instant};
 pub const LIMIT: Duration = Duration::from_secs(15);
 
 static ENABLED: AtomicBool = AtomicBool::new(false);
+/// Whether each command prints a dot (`--verbose`).
+static VERBOSE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 static LAST: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_STEP: Mutex<String> = Mutex::new(String::new());
 
@@ -33,13 +35,16 @@ pub fn beat(step: &[u8]) {
     if let Ok(mut current) = LAST_STEP.lock() {
         *current = format!("{:02x?}", &step[..step.len().min(16)]);
     }
-    eprint!(".");
-    let _ = std::io::stderr().flush();
+    if VERBOSE.load(Relaxed) {
+        eprint!(".");
+        let _ = std::io::stderr().flush();
+    }
 }
 
 /// Starts watching: from now on each beat prints a dot, and the process exits if the run goes `LIMIT`
 /// without one.
-pub fn start() {
+pub fn start(verbose: bool) {
+    VERBOSE.store(verbose, Relaxed);
     ENABLED.store(true, Relaxed);
     beat(&[]);
     std::thread::spawn(|| loop {

@@ -33,12 +33,18 @@ impl Tally {
         self.passed + self.warned + self.failed
     }
 
-    /// The share of scored cases that passed, in percent; 100 when nothing was scored.
+    /// Passed cases over all cases in the section, in percent: pass / total * 100. A section with no
+    /// passes scores 0, and so does an empty one.
     pub fn percent(&self) -> f64 {
-        match self.scored() {
-            0 => 100.0,
-            n => 100.0 * self.passed as f64 / n as f64,
+        match self.total() {
+            0 => 0.0,
+            n => self.passed as f64 / n as f64 * 100.0,
         }
+    }
+
+    /// Every case counted: passed, warned, failed and informational.
+    pub fn total(&self) -> usize {
+        self.passed + self.warned + self.failed + self.info
     }
 }
 
@@ -68,12 +74,23 @@ mod tests {
         let t = Tally::of(cases.iter());
         assert_eq!((t.passed, t.warned, t.failed, t.info), (1, 1, 0, 1));
         assert_eq!(t.scored(), 2);
-        assert_eq!(t.percent(), 50.0);
+        assert!((t.percent() - 100.0 / 3.0).abs() < 1e-9);
         assert_eq!(by_section(&cases)[0].0.name, "pr");
     }
 
     #[test]
-    fn nothing_scored_is_full_marks() {
-        assert_eq!(Tally::default().percent(), 100.0);
+    fn nothing_passed_is_zero_percent() {
+        assert_eq!(Tally::default().percent(), 0.0);
+        let only_info = Tally {
+            info: 6,
+            ..Tally::default()
+        };
+        assert_eq!(only_info.percent(), 0.0);
+        let half = Tally {
+            passed: 1,
+            failed: 1,
+            ..Tally::default()
+        };
+        assert_eq!(half.percent(), 50.0);
     }
 }

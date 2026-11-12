@@ -39,7 +39,7 @@ pub use scsi_level::{parse as parse_scsi_levels, Edition, ScsiLevel};
 /// Runs the iSCSI and NVMe/TCP cases, prints each case and the score at every level, writes the
 /// AsciiDoc report when asked, and fails when any "shall" case fails.
 pub fn run(config: &Config) -> Result<()> {
-    crate::watchdog::start();
+    crate::watchdog::start(config.verbose);
     let levels: &[ScsiLevel] = if config.scsi_levels.is_empty() {
         &[ScsiLevel::DEFAULT]
     } else {
@@ -68,7 +68,7 @@ pub fn run(config: &Config) -> Result<()> {
         .enumerate()
         .map(|(i, &l)| (l, rows.iter().map(|r| r.at[i].clone()).collect()))
         .collect();
-    report::print(&views, &untested);
+    report::print(&views, &untested, config.verbose);
     if let Some(path) = &config.compliance_report {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

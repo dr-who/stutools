@@ -116,6 +116,9 @@ NETWORK BLOCK DEVICES (iSCSI and NVMe/TCP, spoken by spit itself)
                   the SCSI levels --compliance judges at (default 3): level N
                   is SPC-N with SBC-N, level 6 SPC-6 with SBC-5; repeatable.
                   The device is probed once and judged at each level
+  --verbose       with --compliance, list every case as it runs, the
+                  passes too, and print a dot per command sent (by default
+                  only the warnings and failures are listed)
   --compliance-report OUT
                   also write the report as AsciiDoc: title page, contents,
                   scores, a chapter per level (make a PDF with

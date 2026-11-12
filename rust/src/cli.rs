@@ -53,6 +53,8 @@ pub struct Config {
     /// `--compliance`: test every `--iscsi` and `--nvme` target, and every `-f /dev/...` disk, against
     /// the standards and score it.
     pub compliance: bool,
+    /// `--verbose`: with `--compliance`, print a dot for each command sent (quiet otherwise).
+    pub verbose: bool,
     /// `--compliance-report FILE`: also write the report as an AsciiDoc document.
     pub compliance_report: Option<PathBuf>,
     /// `--scsilevel N`, `N..M` or `N,M`, repeatable: the SCSI levels (SPC-N with SBC-N) the SCSI cases
@@ -156,6 +158,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         chap_initiator_b: None,
         chap_secret_b_file: None,
         compliance: false,
+        verbose: false,
         compliance_report: None,
         scsi_levels: Vec::new(),
         path_policy: crate::paths::Policy::RoundRobin,
@@ -199,6 +202,10 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             }
             "--compliance" => {
                 c.compliance = true;
+                continue;
+            }
+            "--verbose" => {
+                c.verbose = true;
                 continue;
             }
             "-V" => continue,

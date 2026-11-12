@@ -7,11 +7,15 @@ use super::score::{by_section, Tally};
 use super::scsi_level::ScsiLevel;
 
 /// Prints the run; `views` holds the cases as judged at each level, lowest first.
-pub fn print(views: &[(ScsiLevel, Vec<Case>)], untested: &[(String, String)]) {
+pub fn print(views: &[(ScsiLevel, Vec<Case>)], untested: &[(String, String)], verbose: bool) {
     let Some((_, lowest)) = views.first() else {
         return;
     };
-    for c in lowest {
+    // Without --verbose only the warnings and failures are listed case by case; the summary below has all.
+    for c in lowest
+        .iter()
+        .filter(|c| verbose || matches!(c.verdict(), Verdict::Warn | Verdict::Fail))
+    {
         println!(
             "{}  {:<10} {:<58} expect {:<22} got {}",
             c.verdict().word(),
