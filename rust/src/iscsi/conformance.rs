@@ -17,9 +17,10 @@ use super::{
     alua, ats_race, block_commands, block_io, bulk_integrity, cache_integrity, cdb_lengths,
     coherence, compare_and_write, data_path, disk, feature_sets, header_digest, host_traces,
     inquiry_framing, mode_block_descriptors, mode_select_change, mode_select_pages, odx,
-    optional_commands, pr_command_set, pr_empty_state, pr_ports, provisioning, report_luns_cases,
-    reservations, six_byte_io, spc2_reservations, spc_commands, standby_cases, start_stop_cases,
-    task_management, unlisted_lun, verify_cases, vpd_framing, windows, windows_device_rules,
+    optional_commands, pr_command_set, pr_empty_state, pr_ports, pr_single_nexus, provisioning,
+    report_luns_cases, reservations, six_byte_io, spc2_reservations, spc_commands, standby_cases,
+    start_stop_cases, task_management, unlisted_lun, verify_cases, vpd_framing, windows,
+    windows_device_rules,
 };
 use crate::compliance::{Case, ScsiLevel};
 
@@ -129,6 +130,7 @@ pub(super) fn run(
         let alua = alua::run(&mut s, lun, &name, disk.tpgs(), cases, &mut seen);
         let windows_online = host_traces::windows(&mut s, &name, &disk, cases);
         pr_empty_state::run(&mut s, &name, cases);
+        pr_single_nexus::run(&mut s, &name, cases);
         // The reservation and reset cases use sessions of their own; this one would sit idle meanwhile.
         let _ = s.logout();
         let first = cases.len();

@@ -77,6 +77,7 @@ mod pr_commands;
 mod pr_empty_state;
 mod pr_handover;
 mod pr_ports;
+mod pr_single_nexus;
 mod provisioning;
 pub mod report;
 mod report_luns_cases;
