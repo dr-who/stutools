@@ -109,8 +109,28 @@ pub fn initiator_ports(device: &str) -> Result<usize> {
     Ok(hosts.len().max(1))
 }
 
-/// How many target ports of the disk its paths reach: the distinct SAS addresses, or one.
+/// The transport of a local disk, from sysfs: "SAS" when the disk has a SAS address (the SAS-only checks run
+/// only then), "SATA" when it hangs off an ATA port (libata, through SAT), else "SCSI".
+pub fn transport(device: &str) -> &'static str {
+    let sd = device.trim_start_matches("/dev/");
+    if std::path::Path::new(&format!("/sys/block/{sd}/device/sas_address")).exists() {
+        return "SAS";
+    }
+    let path = fs::canonicalize(format!("/sys/block/{sd}/device"))
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    if path.contains("/ata") {
+        "SATA"
+    } else {
+        "SCSI"
+    }
+}
+
+/// How many target ports of the disk its paths reach: the distinct SAS addresses of a SAS disk, or one.
 pub fn target_ports(device: &str) -> Result<usize> {
+    if transport(device) != "SAS" {
+        return Ok(1);
+    }
     let all = paths(device)?;
     let mut ports: Vec<&str> = all.iter().map(|p| p.target_port.as_str()).collect();
     ports.sort_unstable();

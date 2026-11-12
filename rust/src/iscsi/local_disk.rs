@@ -186,15 +186,7 @@ fn describe(device: &str) -> crate::Result<(Device, String, scsi::BlockSizes)> {
     let sizes = scsi::block_sizes(&mut lun)?;
     let health = health(&mut lun);
     let paths = local_nexus::all_paths(device)?;
-    let sas = format!(
-        "/sys/block/{}/device/sas_address",
-        first.trim_start_matches("/dev/")
-    );
-    let transport = if std::path::Path::new(&sas).exists() {
-        "SAS"
-    } else {
-        "SCSI"
-    };
+    let transport = local_nexus::transport(&first);
     let device = Device {
         name: device.to_string(),
         transport,
