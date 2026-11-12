@@ -6,7 +6,8 @@
 
 use std::fmt::Write as _;
 
-/// The CHAP algorithm numbers (CHAP_A values) this initiator implements: MD5 and SHA-1.
+/// The CHAP algorithm numbers (CHAP_A values) this initiator implements: MD5 (required by RFC 7143 12.1.3), SHA-1,
+/// SHA-256 and SHA3-256 (extensions, not required by RFC 7143).
 pub const MD5: u32 = 5;
 pub const SHA1: u32 = 6;
 pub const SHA256: u32 = 7;
