@@ -9,7 +9,7 @@
 //! past the capacity LOGICAL BLOCK ADDRESS OUT OF RANGE. Two hosts at once are `ats_race`.
 
 use super::cases::{describe, expect, information, record, Want, REFUSED};
-use super::disk::Disk;
+use super::disk::{label, Disk};
 use super::lun_access::{read_block, write_block};
 use super::ops;
 use super::port::Port;
@@ -41,6 +41,9 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, 
     // SBC-5 6.6.4: MAXIMUM COMPARE AND WRITE LENGTH 0 says the command is not supported. Without a
     // Block Limits page nothing is advertised either way, so the optional command may work or be refused.
     let advertised = disk.limits().map(|l| l.max_compare_and_write > 0);
+    if advertised == Some(true) {
+        zero_length(s, name, target as u64, cases);
+    }
     let a = vec![0xa5u8; len];
     let b = vec![0x5au8; len];
     let c = vec![0x3cu8; len];
@@ -243,5 +246,20 @@ fn depth(s: &mut Port, name: &str, disk: &Disk, target: u32, cases: &mut Vec<Cas
         answer
             .as_ref()
             .is_ok_and(|o| Want::Ascq(0x5, 0x21, 0x00).matches(o)),
+    );
+}
+
+/// SBC-3 5.2: a NUMBER OF LOGICAL BLOCKS of zero performs no reads, transfers and writes, and is not an error.
+/// Nothing is written, so this cannot disturb the blocks the other cases use.
+fn zero_length(s: &mut Port, name: &str, lba: u64, cases: &mut Vec<Case>) {
+    expect(
+        cases,
+        SECTION,
+        label(
+            name,
+            "COMPARE AND WRITE of 0 blocks: GOOD, nothing transferred or written (SBC-3 5.2)",
+        ),
+        &[Want::Good],
+        ops::compare_and_write(s, lba, 0, &[]),
     );
 }

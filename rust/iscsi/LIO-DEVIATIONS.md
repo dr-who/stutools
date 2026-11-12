@@ -87,3 +87,11 @@ Candidates, the clause not yet checked against the text:
   qualifier shall be 001b. The same run passes REPORT LUNS, REPORT TARGET PORT GROUPS, REQUEST SENSE, and the
   refusals of TEST UNIT READY and READ (10) with NOT READY, TARGET PORT IN UNAVAILABLE STATE (04h, 0Ch), so the
   state itself is recognised. Control: the same INQUIRY on an active/optimized port returns 000b correctly.
+
+## Found by the ATS race (spit-pr-ram, two hosts, 100 rounds)
+
+- **16. COMPARE AND WRITE is not atomic across initiators: in 13 of 100 rounds both hosts get GOOD.** SBC-3 5.2:
+  COMPARE AND WRITE performs its read, compare and write "as an uninterrupted sequence of actions (see 4.27)". With
+  both hosts comparing the same expected block, only one may win each round; LIO lets both succeed, so the second
+  host's compare ran before the first host's write. Control: the single-host cases on the same target all pass
+  (compare matches, compare fails, miscompare offset, zero length, over the limit, past the last LBA).
