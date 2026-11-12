@@ -3,10 +3,10 @@
 # Run as root.
 set -eu
 for T in iqn.2026-12.com.stutools:spit-pr-ram iqn.2026-12.com.stutools:spit-thin-ram \
-         iqn.2026-12.com.stutools:spit-chap-ram iqn.2026-12.com.stutools:spit-alua-ram; do
+         iqn.2026-12.com.stutools:spit-chap-ram iqn.2026-12.com.stutools:spit-alua-ram iqn.2026-12.com.stutools:spit-exa-ram; do
     targetcli "/iscsi" delete "$T" >/dev/null 2>&1 || true
 done
-for B in spitram spitthin spitchap spitalua; do
+for B in spitram spitthin spitchap spitalua spitexa; do
     targetcli "/backstores/fileio" delete "$B" >/dev/null 2>&1 || true
     rm -f "/dev/shm/$B.img"
 done

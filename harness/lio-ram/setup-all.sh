@@ -8,6 +8,7 @@
 #   thin-ram   a 4 TB sparse LUN with UNMAP enabled, on 127.0.0.5: LBAs past 32 bits.
 #   chap-ram   one LUN on 127.0.0.6 with one-way CHAP (secret in /var/tmp/spit-chap/secret) and mutual CHAP
 #              (secret in /var/tmp/spit-chap/mutual). Both files are created 0600 if missing, and never printed.
+#   exa-ram    a 1 EiB sparse LUN on 127.0.0.9: LBAs past 2^51, READ CAPACITY (16) and the 64-bit paths.
 #   alua-ram   one LUN in two TPGs: 127.0.0.7 in the default group (active/optimized) and 127.0.0.8 in a
 #              second group set to standby. A path to the standby portal must answer as standby (SPC-3 5.8.2).
 set -eu
@@ -72,6 +73,12 @@ if ! targetcli "/iscsi/$T" ls >/dev/null 2>&1; then
     done
     unset P M
 fi
+
+# exa-ram: a 1 EiB sparse LUN (2^51 blocks of 512 B) on tmpfs, thin with UNMAP on, on 127.0.0.9. LIO takes the
+# size in bytes only. It holds no data beyond what is written, so it is safe to create and destroy at will.
+fileio spitexa 1152921504606846976
+targetcli /backstores/fileio/spitexa set attribute emulate_tpu=1 emulate_tpws=1 >/dev/null
+target iqn.2026-12.com.stutools:spit-exa-ram spitexa 127.0.0.9 || true
 
 # alua-ram: group 1 is the standby group. It needs a nonzero ID and standby support before its state can be
 # set (LIO refuses the state otherwise), and the second TPG's LUN is attached to it through configfs.
