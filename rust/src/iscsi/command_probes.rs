@@ -113,7 +113,25 @@ pub(super) fn good(o: &Outcome) -> bool {
 }
 
 /// Sends the row's command, in a form that changes nothing, and judges it.
+/// The answer for a probe that cannot address its block: a 10- or 12-byte form past 32-bit LBAs would act
+/// on a truncated block, and writes would corrupt data there. Such a probe is not sent.
+fn not_addressable(section: &'static str, b: &Block) -> Probe {
+    Probe {
+        section,
+        supported: false,
+        passed: false,
+        actual: format!(
+            "not run: the test block {} is past 32-bit LBAs, which this form cannot address",
+            b.lba
+        ),
+    }
+}
+
 pub(super) fn probe(s: &mut Port, row: &Row, b: &Block, disk: &Disk) -> Option<Probe> {
+    let short_form = row.name.contains("(10)") || row.name.contains("(12)");
+    if short_form && b.lba > u64::from(u32::MAX) {
+        return Some(not_addressable(SECTION, b));
+    }
     let lba32 = b.lba as u32;
     let len = b.len as u32;
     let zeros = vec![0u8; b.len];
@@ -315,6 +333,9 @@ pub(super) fn probe(s: &mut Port, row: &Row, b: &Block, disk: &Disk) -> Option<P
 /// RESERVE (6) and RELEASE (6) (SPC-2, obsolete since SPC-4): with an SPC-2 reservation held by this
 /// nexus, another nexus's READ conflicts; after RELEASE it reads again.
 pub(super) fn spc2(s: &mut Port, other: &mut Port, b: &Block) -> (Probe, Probe) {
+    if b.lba > u64::from(u32::MAX) {
+        return (not_addressable(SECTION, b), not_addressable(SECTION, b));
+    }
     let lba = b.lba as u32;
     let reserve = s.command(&super::ops::RESERVE_6, 0, None);
     match reserve {

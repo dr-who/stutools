@@ -121,7 +121,13 @@ const TYPES: [(u8, bool, &str); 4] = [
 /// ORWRITE zeros, UNMAP one block (written back afterwards), START STOP UNIT starts.
 fn send(s: &mut Port, c: &Command, lba: u64, block: &[u8]) -> Result<Outcome> {
     match c.name {
-        "SYNCHRONIZE CACHE (10)" => s.command(&cdb10(0x35, 0, lba as u32, 1), 0, None),
+        "SYNCHRONIZE CACHE (10)" => match u32::try_from(lba) {
+            Ok(l) => s.command(&cdb10(0x35, 0, l, 1), 0, None),
+            Err(_) => Err(
+                "not run: the test block is past 32-bit LBAs, which this form cannot address"
+                    .into(),
+            ),
+        },
         "SYNCHRONIZE CACHE (16)" => s.command(&cdb16(0x91, 0, lba, 1), 0, None),
         "WRITE SAME (16)" => s.command(&cdb16(0x93, 0, lba, 1), 0, Some(block)),
         "WRITE AND VERIFY (16)" => s.command(&cdb16(0x8e, 0, lba, 1), 0, Some(block)),
