@@ -9,8 +9,9 @@
 //! nothing; and when the page is saveable, a MODE SELECT with SP changes the saved values. The page's
 //! current and saved values are written back at the end, whatever happened before.
 
-use super::cases::{describe, expect, expect_should, record, record_should, Want};
+use super::cases::{describe, expect, expect_should, record, record_info, record_should, Want};
 use super::disk::{label, Disk, SECTION};
+use super::local_nexus;
 use super::lun_access::{open, show_attentions, unit_attentions, Lun};
 use super::port::Port;
 use super::pr_ports::ISID_A2;
@@ -49,9 +50,26 @@ pub(super) fn fixed_bit(page: &[u8], mask: &[u8]) -> Option<(usize, u8)> {
 
 /// The other nexuses that watch for the unit attention: B, when there is a second initiator name, and
 /// A's second port.
-fn watchers(lun: Lun, second: Option<&str>) -> Vec<(&'static str, Port)> {
+fn watchers(
+    lun: Lun,
+    second: Option<&str>,
+    name: &str,
+    cases: &mut Vec<Case>,
+) -> Vec<(&'static str, Port)> {
     let mut out = Vec::new();
     let mut wanted = vec![(lun.initiator, ISID_A2, "A's second port")];
+    // A local disk with one initiator port has no second nexus: its "second port" would be the very nexus
+    // that sends MODE SELECT, which the device rightly does not tell. Only a second nexus can be judged.
+    if lun.path.is_local() && local_nexus::initiator_ports(&lun.path.target).map_or(true, |n| n < 2)
+    {
+        wanted.remove(0);
+        record_info(
+            cases,
+            SECTION,
+            label(name, "SPC-6 6.12 A's second port is told MODE PARAMETERS CHANGED"),
+            "not run: the local disk has one initiator port, so there is no second I_T nexus to tell",
+        );
+    }
     if let Some(b) = second {
         wanted.insert(0, (b, super::pr_ports::ISID_B, "B"));
     }
@@ -171,7 +189,7 @@ fn change_wce(
         );
         return;
     }
-    let mut others = watchers(lun, second);
+    let mut others = watchers(lun, second, name, cases);
     let _ = unit_attentions(s);
     let (good, _) = expect(
         cases,
