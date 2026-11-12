@@ -44,3 +44,13 @@ deviation confirmed against the spec text, or a candidate still to check.
 - PREEMPT AND ABORT, READ FULL STATUS and COMPARE AND WRITE are expected to work, but tgt does not implement
   them. The expectation should follow REPORT CAPABILITIES and REPORT SUPPORTED OPERATION CODES, so an
   unimplemented optional command is not judged as a failure.
+
+## Found by the ATS and ALUA checks (run with the current build)
+
+- **COMPARE AND WRITE advertised but refused.** Block Limits (VPD B0h) gives a nonzero MAXIMUM COMPARE AND WRITE
+  LENGTH, which SBC-5 6.6.4 reads as "supported", but COMPARE AND WRITE answers CHECK CONDITION 5/20/00 (invalid
+  opcode). Both the compare-matches case and the zero-length case fail for this reason. Device deviation: the
+  advertisement and the command disagree.
+- **No ALUA on tgt:** INQUIRY reports TPGS 00b, so the ALUA cases (unavailable, standby, transitions) have no
+  states to test. Not a failure: tgt does not implement asymmetric access.
+- **No CHAP section:** the run had no CHAP credentials, so the CHAP cases were not run on tgt.
