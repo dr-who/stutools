@@ -44,10 +44,23 @@ pub(super) fn run(
         capabilities: None,
     };
     let other = second.unwrap_or(initiator);
+    // Each initiator port goes through its own portal of the target where the target has several: A, B and C
+    // are then three I_T nexuses on three target ports (SPC-3 5.6.1, LU scope). A target with one portal
+    // gives all three the same path, as before.
+    let portals = target_portals(path, initiator);
+    let on = |i: usize| Path {
+        portal: portals
+            .get(i)
+            .cloned()
+            .unwrap_or_else(|| path.portal.clone()),
+        target: path.target.clone(),
+        lun: path.lun,
+    };
+    let (pa, pb, pc) = (on(0), on(1), on(2));
     let (mut a, mut b, mut c) = match (
-        open(path, initiator, creds, ISID_A),
-        open(path, other, creds, ISID_B),
-        open(path, other, creds, ISID_C),
+        open(&pa, initiator, creds, ISID_A),
+        open(&pb, other, creds, ISID_B),
+        open(&pc, other, creds, ISID_C),
     ) {
         (Ok(a), Ok(b), Ok(c)) => (a, b, c),
         (Err(err), _, _) | (_, Err(err), _) | (_, _, Err(err)) => {
@@ -437,4 +450,20 @@ impl Run<'_> {
         );
         let _ = unit_attentions(a);
     }
+}
+
+/// The portals the target reports through SendTargets, the one given first. A target that reports no
+/// other portal has only the one.
+fn target_portals(path: &Path, initiator: &str) -> Vec<String> {
+    let mut out = vec![path.portal.clone()];
+    if let Ok(found) = super::send_targets::discover_targets(&path.portal, initiator) {
+        for t in found.iter().filter(|t| t.target == path.target) {
+            for address in &t.addresses {
+                if !out.contains(address) {
+                    out.push(address.clone());
+                }
+            }
+        }
+    }
+    out
 }

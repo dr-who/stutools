@@ -291,6 +291,8 @@ fn rules(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
         ignored,
     );
     registered_only(s, name, cases, KEY_A, "after REGISTER AND IGNORE (6.12.3)");
+    // REGISTER AND IGNORE is a registration: the counter moves, so the next check starts from its new value.
+    let (g2, _) = read_keys(s).unwrap_or((0, Vec::new()));
 
     // A PREEMPT whose service action key matches no registration is a RESERVATION CONFLICT (5.6.10.4).
     let unmatched = out(s, ops::PR_PREEMPT, 1, KEY_A, KEY_WRONG);
