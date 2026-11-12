@@ -99,13 +99,12 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
             d.block_len == block_len,
         );
     } else {
-        record(
+        // SBC-3 6.5.1: a direct-access device supports zero or one block descriptor; none is a valid answer.
+        super::cases::record_info(
             cases,
             SECTION,
-            at("SBC-3 6.5.2.2 MODE SENSE (10) short block descriptor present"),
-            "an 8-byte short descriptor",
-            "none",
-            false,
+            at("SBC-3 6.5.2.2 MODE SENSE (10) short block descriptor"),
+            "none: zero block descriptors, which SBC-3 6.5.1 allows",
         );
     }
 
@@ -137,13 +136,12 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
             d.block_len == block_len,
         );
     } else {
-        record(
+        // SBC-3 6.5.2.1: the long descriptor is optional with LLBAA; none is a valid answer.
+        super::cases::record_info(
             cases,
             SECTION,
-            at("SBC-3 6.5.2.3 MODE SENSE (10) long block descriptor present with LLBAA"),
-            "a 16-byte long descriptor",
-            "none",
-            false,
+            at("SBC-3 6.5.2.3 MODE SENSE (10) long block descriptor with LLBAA"),
+            "none: the long descriptor is optional (SBC-3 6.5.2.1)",
         );
     }
 }

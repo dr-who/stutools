@@ -43,17 +43,30 @@ pub(super) fn run(
         sense_length(s, name, "SPC-6 4.4.3", "fixed", 0, o, cases);
     }
     let desc = s.command(&[0x03, 0x01, 0, 0, 252, 0], 252, None);
-    let (passed, o) = expect(
-        cases,
-        SECTION,
-        label(
-            name,
-            "SPC-3 4.5.2 REQUEST SENSE, descriptor format (DESC 1)",
-        ),
-        // SPC-3 6.27: DESC 1 gets descriptor format when supported, and fixed format otherwise; no refusal.
-        &[Want::Good],
-        desc,
-    );
+    // SPC-3 6.27: DESC 1 gets descriptor format when the device supports it. Descriptor format is optional, so a
+    // refusal of DESC 1 as an invalid field (5/24/00) is the device saying it does not support it: that passes.
+    let desc_refused = matches!(&desc, Ok(o) if o.status == 2 && super::cases::sense(&o.sense).0 == 0x5
+        && super::cases::sense(&o.sense).1 == 0x24);
+    let (passed, o) = if desc_refused {
+        super::cases::record_info(
+            cases,
+            SECTION,
+            label(name, "SPC-3 4.5.2 REQUEST SENSE, descriptor format (DESC 1)"),
+            "descriptor format not supported: DESC 1 refused as an invalid field (optional, SPC-3 4.5.2)",
+        );
+        (true, None)
+    } else {
+        expect(
+            cases,
+            SECTION,
+            label(
+                name,
+                "SPC-3 4.5.2 REQUEST SENSE, descriptor format (DESC 1)",
+            ),
+            &[Want::Good],
+            desc,
+        )
+    };
     let desc_ok = o.as_ref().is_some_and(|o| {
         o.status == 0 && matches!(o.data.first().map(|b| b & 0x7f), Some(0x72 | 0x73))
     });

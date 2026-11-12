@@ -3,7 +3,7 @@
 //! SET, CLEAR TASK SET, LOGICAL UNIT RESET (other nexuses are told BUS DEVICE RESET FUNCTION OCCURRED,
 //! and a persistent reservation survives it, SPC-6 5.14.1), an undefined function, and the RFC 7144
 //! functions (QUERY TASK, QUERY TASK SET, QUERY ASYNCHRONOUS EVENT, I_T NEXUS RESET), which are required
-//! only when the target negotiated iSCSIProtocolLevel 1 or more. TARGET RESET is obsolete (SAM-6) and is
+//! only when the target negotiated iSCSIProtocolLevel "2" (RFC 7144 6.3). TARGET RESET is obsolete (SAM-6) and is
 //! never sent.
 
 use super::cases::{expect, record, Want};
@@ -228,11 +228,13 @@ fn rfc7144(
     cases: &mut Vec<Case>,
 ) {
     let label = |what: &str| format!("{name} {what}");
-    let required = level.is_some_and(|l| l >= 1);
+    // RFC 7144 6.3: these functions may be sent only once iSCSIProtocolLevel "2" is negotiated. At "1" the target
+    // may refuse them as not supported (5), so that answer passes.
+    let required = level.is_some_and(|l| l >= 2);
     let note = if required {
-        "(iSCSIProtocolLevel >= 1)"
+        "(iSCSIProtocolLevel 2 negotiated)"
     } else {
-        "(no iSCSIProtocolLevel: may be not supported)"
+        "(iSCSIProtocolLevel below 2: may be not supported)"
     };
     let with = |codes: &[u8]| -> Vec<u8> {
         let mut v = codes.to_vec();
