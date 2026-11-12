@@ -171,26 +171,27 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, six: bool, cases: &mut 
             );
             continue;
         }
-        let sequential: Vec<u64> = (0..u64::from(COMMANDS)).map(|i| start + i).collect();
+        // One command per block at most: a window smaller than COMMANDS blocks (a small LUN) runs fewer
+        // commands, so no run walks past the end of the window (or of the LUN).
+        let n = u64::from(COMMANDS).min(blocks).max(1);
+        let sequential: Vec<u64> = (0..n).map(|i| start + i).collect();
         let t = write_then_read(s, size, &sequential, len, 1);
         record(
             cases,
             SECTION,
-            format!(
-                "{name} {cl} 1000 sequential WRITE {f}, then 1000 sequential READ {f}, compared"
-            ),
+            format!("{name} {cl} {n} sequential WRITE {f}, then {n} sequential READ {f}, compared"),
             "every block as written",
-            t.show(COMMANDS as usize),
+            t.show(n as usize),
             t.bad == 0,
         );
-        let random: Vec<u64> = (0..COMMANDS).map(|_| start + draws.below(blocks)).collect();
+        let random: Vec<u64> = (0..n).map(|_| start + draws.below(blocks)).collect();
         let t = write_then_read(s, size, &random, len, 5000);
         record(
             cases,
             SECTION,
-            format!("{name} {cl} 1000 random WRITE {f}, then READ {f} of each, compared"),
+            format!("{name} {cl} {n} random WRITE {f}, then READ {f} of each, compared"),
             "every block as last written",
-            format!("{} (seed {seed})", t.show(COMMANDS as usize)),
+            format!("{} (seed {seed})", t.show(n as usize)),
             t.bad == 0,
         );
         // Two reads that share a block return it the same.
