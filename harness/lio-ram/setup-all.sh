@@ -106,6 +106,7 @@ if ! targetcli "/iscsi/$T" ls >/dev/null 2>&1; then
     echo 2 > "$G/alua/standby/alua_access_state"
     C=/sys/kernel/config/target/iscsi/$T
     mkdir "$C/tpgt_2" "$C/tpgt_2/np/127.0.0.8:3260"
+    echo 0 > "$C/tpgt_2/attrib/authentication"
     echo 0 > "$C/tpgt_2/attrib/generate_node_acls"
     mkdir -p "$C/tpgt_2/lun/lun_0"
     ln -s "$G" "$C/tpgt_2/lun/lun_0/$ALUA_BACKSTORE"
