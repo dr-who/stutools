@@ -49,8 +49,11 @@ pub fn print(views: &[(ScsiLevel, Vec<Case>)], untested: &[(String, String)]) {
                 println!();
                 println!("{title} at {level}:");
                 for c in of {
+                    // The spec clause the case tests goes at the end, so a failure says where to look.
+                    let clause = spec_clause(&c.name)
+                        .unwrap_or_else(|| "(no spec clause in its name)".into());
                     println!(
-                        "  [{}] {}: expected {}, got {}",
+                        "  [{}] {}: expected {}, got {} ({clause})",
                         c.section, c.name, c.expected, c.actual
                     );
                 }
@@ -63,5 +66,42 @@ pub fn print(views: &[(ScsiLevel, Vec<Case>)], untested: &[(String, String)]) {
         for (name, why) in untested {
             println!("  {name}: {why}");
         }
+    }
+}
+
+/// The first spec citation in a case name: an edition, then a clause ("SPC-3 6.4.1", "SBC-5 5.21.2").
+fn spec_clause(name: &str) -> Option<String> {
+    let words: Vec<&str> = name.split_whitespace().collect();
+    for (i, w) in words.iter().enumerate() {
+        let edition = w.trim_end_matches([',', ':', ';']);
+        let known = ["SPC-", "SBC-", "SAM-", "ZBC-", "SCC-"]
+            .iter()
+            .any(|p| edition.starts_with(p));
+        let Some(clause) = words.get(i + 1) else {
+            continue;
+        };
+        let clause = clause.trim_end_matches([',', ':', ';']);
+        if known && clause.starts_with(|c: char| c.is_ascii_digit()) {
+            return Some(format!("{edition} {clause}"));
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod clause_tests {
+    use super::spec_clause;
+
+    #[test]
+    fn spec_clause_is_the_first_citation() {
+        assert_eq!(
+            spec_clause("SPC-3 6.4.1 INQUIRY with EVPD 0").as_deref(),
+            Some("SPC-3 6.4.1")
+        );
+        assert_eq!(
+            spec_clause("SBC-3 5.13, 5.42 1000 random").as_deref(),
+            Some("SBC-3 5.13")
+        );
+        assert_eq!(spec_clause("disk.sys enumeration"), None);
     }
 }

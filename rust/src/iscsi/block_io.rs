@@ -290,7 +290,7 @@ pub(super) fn run(
     if let Ok(past) = u32::try_from(last + 1) {
         t.cmd(
             "SYNCHRONIZE CACHE (10)",
-            "SYNCHRONIZE CACHE (10) past the last LBA",
+            "SBC-3 5.26 SYNCHRONIZE CACHE (10) past the last LBA",
             &out,
             &cdb10(0x35, 0, past, 1),
             0,

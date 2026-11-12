@@ -23,7 +23,7 @@ pub(super) fn run(
     let (passed, o) = expect(
         cases,
         SECTION,
-        label(name, "REQUEST SENSE, fixed format (DESC 0)"),
+        label(name, "SPC-3 4.5.3 REQUEST SENSE, fixed format (DESC 0)"),
         &[Want::Good],
         fixed,
     );
@@ -33,7 +33,7 @@ pub(super) fn run(
     record(
         cases,
         SECTION,
-        label(name, "REQUEST SENSE DESC 0 response code"),
+        label(name, "SPC-3 4.5.3 REQUEST SENSE DESC 0 response code"),
         "70h or 71h",
         show_byte(&o, 0),
         fixed_ok,
@@ -46,7 +46,10 @@ pub(super) fn run(
     let (passed, o) = expect(
         cases,
         SECTION,
-        label(name, "REQUEST SENSE, descriptor format (DESC 1)"),
+        label(
+            name,
+            "SPC-3 4.5.2 REQUEST SENSE, descriptor format (DESC 1)",
+        ),
         // SPC-3 6.27: DESC 1 gets descriptor format when supported, and fixed format otherwise; no refusal.
         &[Want::Good],
         desc,

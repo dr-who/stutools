@@ -76,7 +76,7 @@ pub(super) fn run(
         record(
             cases,
             SECTION,
-            label("LBPRZ agrees between READ CAPACITY (16) and VPD B2h"),
+            label("SBC-5 5.21.2 LBPRZ agrees between READ CAPACITY (16) and VPD B2h"),
             format!("READ CAPACITY (16) LBPRZ {}", p.lbprz & 1),
             format!("{} (B2h field {:03b}b)", disk.lbprz() as u8, p.lbprz),
             disk.lbprz() == (p.lbprz & 1 != 0),
@@ -254,7 +254,7 @@ pub(super) fn run(
         expect(
             cases,
             SECTION,
-            label("WRITE SAME (16) with UNMAP"),
+            label("SBC-5 5.53 WRITE SAME (16) with UNMAP"),
             &ws_wants,
             unmap,
         )
@@ -262,7 +262,7 @@ pub(super) fn run(
         expect_should(
             cases,
             SECTION,
-            label("WRITE SAME (16) with UNMAP"),
+            label("SBC-5 5.53 WRITE SAME (16) with UNMAP"),
             &ws_wants,
             unmap,
         )
@@ -277,7 +277,7 @@ pub(super) fn run(
     let answer = expect(
         cases,
         SECTION,
-        label("WRITE SAME (16) with UNMAP and NDOB"),
+        label("SBC-5 5.53 WRITE SAME (16) with UNMAP and NDOB"),
         &ndob_wants,
         ndob,
     );
