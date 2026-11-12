@@ -41,7 +41,9 @@ impl Fabric for IscsiFabric {
             session,
             Geometry {
                 block_len,
-                capacity_bytes: (last + 1) * block_len as u64,
+                // The engine addresses bytes in 64 bits; a LUN past 16 EiB is reported at the largest offset it can name.
+                capacity_bytes: u64::try_from((u128::from(last) + 1) * u128::from(block_len))
+                    .unwrap_or(u64::MAX),
             },
         ))
     }

@@ -36,7 +36,10 @@ fn stamped(lba: u64, blocks: u32, len: usize, seed: u8) -> Vec<u8> {
 }
 
 fn read16(s: &mut Port, flags: u8, lba: u64, blocks: u32, len: usize) -> crate::Result<Vec<u8>> {
-    let o = s.command(&cdb16(0x88, flags, lba, blocks), blocks * len as u32, None)?;
+    // The transfer length is 32 bits (iSCSI EDTL): a larger product is an error, not an overflow.
+    let bytes = u32::try_from(u64::from(blocks) * len as u64)
+        .map_err(|_| "READ (16) transfer beyond 32 bits of bytes".to_string())?;
+    let o = s.command(&cdb16(0x88, flags, lba, blocks), bytes, None)?;
     if o.status != 0 {
         return Err(describe(&o));
     }

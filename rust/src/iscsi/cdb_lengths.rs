@@ -232,8 +232,10 @@ fn agrees(
     served_here: bool,
 ) {
     let (op, service) = form.operation(write);
+    // Only a GOOD answer carries a support value: a refused report can still have sense bytes in its data.
     let reported = rsoc_one(s, op, service)
         .ok()
+        .filter(|o| o.status == 0)
         .and_then(|o| o.data.get(1).map(|b| b & 0x07));
     let supported = reported.map(|support| SUPPORT_SUPPORTED.contains(&support));
     let verb = if write { "WRITE" } else { "READ" };

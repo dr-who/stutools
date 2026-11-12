@@ -7,7 +7,7 @@ use super::credentials::chap_from_config;
 use super::identity::{collect, Collected};
 use super::path::Path;
 use super::scsi::{self};
-use crate::columns::{human_bytes, print_columns};
+use crate::columns::print_columns;
 use crate::{cli::Config, Result};
 
 /// Prints the table and the verdict. Returns an error when the paths are not one LUN.
@@ -70,7 +70,7 @@ pub(super) fn discovery_row(path: &Path, c: &Collected) -> Vec<String> {
     vec![
         path.target.clone(),
         path.portal.clone(),
-        human_bytes((c.last_lba + 1) * c.block_len as u64),
+        crate::columns::human_bytes_u128((u128::from(c.last_lba) + 1) * u128::from(c.block_len)),
         c.block_len.to_string(),
         c.inquiry.vendor.clone(),
         c.inquiry.product.clone(),

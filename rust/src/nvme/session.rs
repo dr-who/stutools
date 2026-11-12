@@ -87,7 +87,8 @@ impl Fabric for NvmeFabric {
         let io = connect_io_queue(&assoc, admin.cntlid(), 1, sqsize)?;
         let geometry = Geometry {
             block_len: ns.block_len,
-            capacity_bytes: ns.blocks * ns.block_len as u64,
+            capacity_bytes: u64::try_from(u128::from(ns.blocks) * u128::from(ns.block_len))
+                .unwrap_or(u64::MAX),
         };
         Ok((
             NvmeSession {

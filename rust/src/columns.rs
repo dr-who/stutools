@@ -3,6 +3,14 @@
 //! and NVMe/TCP listings print their tables this way.
 
 /// `bytes` in the largest binary unit that keeps it at 1 or more, to one decimal place.
+/// `human_bytes` for a capacity that may not fit 64 bits (a LUN of 2^64 blocks of 64 KiB is 2^80 bytes).
+pub fn human_bytes_u128(bytes: u128) -> String {
+    match u64::try_from(bytes) {
+        Ok(b) => human_bytes(b),
+        Err(_) => format!("{:.1} EiB", bytes as f64 / 2f64.powi(60)),
+    }
+}
+
 pub fn human_bytes(bytes: u64) -> String {
     const UNITS: [&str; 6] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
     let mut value = bytes as f64;

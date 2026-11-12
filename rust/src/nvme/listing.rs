@@ -71,7 +71,9 @@ pub fn discover(hosts: &[String]) -> Result<()> {
                         first.get_or_insert_with(|| format!("{address}/{}/{nsid}", d.subnqn));
                         rows.push(row(
                             &nsid.to_string(),
-                            crate::columns::human_bytes(ns.blocks * ns.block_len as u64),
+                            crate::columns::human_bytes_u128(
+                                u128::from(ns.blocks) * u128::from(ns.block_len),
+                            ),
                             ns.block_len.to_string(),
                             Some(&info),
                             "",
