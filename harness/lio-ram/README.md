@@ -9,7 +9,7 @@
 
 ## Known issue: the standby TPG of spit-alua-ram (open)
 
-- INQUIRY on 127.0.0.8 reports TPGS 0 (no ALUA), while REPORT TARGET PORT GROUPS on the same portal
+- Fixed: TPG2 of spit-alua-ram had no mapped LUN, so 127.0.0.8 served LIO's default ramdisk (no ALUA, TPGS 0).
   answers GOOD and lists no group. The two answers contradict each other (SPC-3 6.4.2 and 6.25).
 - `targetcli` shows the group `standby` as Standby, and tpg2's LUN as `(standby)`, so the configuration
   is not yet presented the way the lab's standby LUN (spitlunsbc-2, `standby (group 1)`) is.

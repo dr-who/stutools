@@ -111,9 +111,10 @@ if ! targetcli "/iscsi/$T" ls >/dev/null 2>&1; then
     mkdir -p "$C/tpgt_2/lun/lun_0"
     ln -s "$G" "$C/tpgt_2/lun/lun_0/$ALUA_BACKSTORE"
     echo standby > "$C/tpgt_2/lun/lun_0/alua_tg_pt_gp"
+    # Each initiator maps LUN 0 of the standby TPG through targetcli: an ACL without the mapping is handed
+    # LIO's default ramdisk, which has no ALUA state (the earlier TPGS 0 result).
     for iqn in $INITIATORS; do
-        mkdir -p "$C/tpgt_2/acls/$iqn"
-        ln -sf "$G" "$C/tpgt_2/acls/$iqn/" 2>/dev/null || true
+        targetcli "/iscsi/$T/tpg2/acls/$iqn" create 0 lun0 >/dev/null 2>&1 || true
     done
     echo 1 > "$C/tpgt_2/enable"
     echo "created: $T with a standby TPG on 127.0.0.8"
