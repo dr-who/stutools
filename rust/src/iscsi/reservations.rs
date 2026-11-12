@@ -8,7 +8,7 @@
 //! write sends the block's own data back, so the LUN is unchanged. Returns whether the commands Windows
 //! clustering relies on all behaved.
 
-use super::cases::{allowed, record, Want};
+use super::cases::{allowed, record, record_info, Want};
 use super::lun_access::{last_block64, open, read_block64, unit_attentions, Creds};
 use super::ops::{self, persistent_reserve_in};
 use super::path::Path;
@@ -57,6 +57,16 @@ pub(super) fn run(
         lun: path.lun,
     };
     let (pa, pb, pc) = (on(0), on(1), on(2));
+    // The map of I_T nexuses to target ports, reported so the run shows which portal each initiator used.
+    record_info(
+        cases,
+        SECTION,
+        format!(
+            "{name} I_T nexuses: A via {}, B via {}, C via {}",
+            pa.portal, pb.portal, pc.portal
+        ),
+        "one target port per initiator port where the target reports several",
+    );
     let (mut a, mut b, mut c) = match (
         open(&pa, initiator, creds, ISID_A),
         open(&pb, other, creds, ISID_B),
@@ -455,11 +465,13 @@ impl Run<'_> {
 /// The portals the target reports through SendTargets, the one given first. A target that reports no
 /// other portal has only the one.
 fn target_portals(path: &Path, initiator: &str) -> Vec<String> {
+    // The same portal can be written with and without its port (127.0.0.2 and 127.0.0.2:3260): compare hosts.
+    let host = |a: &str| a.rsplit_once(':').map_or(a, |(h, _)| h).to_string();
     let mut out = vec![path.portal.clone()];
     if let Ok(found) = super::send_targets::discover_targets(&path.portal, initiator) {
         for t in found.iter().filter(|t| t.target == path.target) {
             for address in &t.addresses {
-                if !out.contains(address) {
+                if !out.iter().any(|o| host(o) == host(address)) {
                     out.push(address.clone());
                 }
             }
