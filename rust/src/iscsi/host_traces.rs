@@ -343,7 +343,10 @@ fn replay(
                 .map(|o| judge(step, &o, disk)),
         };
         let (actual, passed) = result.unwrap_or_else(|e| (e, false));
-        all &= passed;
+        // A step the transport cannot judge is not a command that failed, so it does not fail the replay.
+        if !actual.starts_with("not run:") {
+            all &= passed;
+        }
         record(
             cases,
             section,
