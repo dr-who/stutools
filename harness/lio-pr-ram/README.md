@@ -18,3 +18,10 @@ A RAM-backed LIO target for the persistent reservation cases (SPC-3 5.6, 6.11, 6
     harness/lio-pr-ram/teardown.sh
 
 The lab targets (`spitlunsbc-*`, `spit-test`) are not touched by any of these.
+
+## Destructive tests
+
+FORMAT UNIT, REASSIGN BLOCKS, SANITIZE, WRITE LONG, the state-changing commands and the others that
+destroy data run only on a LUN that is designated for them, and only with `--destructive`. The RAM LUN
+here is the designated one: its contents are lost on teardown anyway. A destructive test never runs on a
+disk or a lab LUN, however the command is given.
