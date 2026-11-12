@@ -4,8 +4,8 @@
 //! there; these do. Every command is sent through the session the conformance run already holds, and the
 //! LUN is left with no registration and no reservation.
 
-use super::cases::{expect, record, record_info, sense, Want};
-use super::ops;
+use super::cases::{expect, record, record_info, sense, Want, REFUSED_SA};
+use super::ops::{self, persistent_reserve_in, persistent_reserve_out, pr_parameters};
 use super::port::Port;
 use super::pr_commands::{out, read_holder, read_keys, show_holder, show_keys, TYPES};
 use super::pr_ports::{KEY_A, KEY_B2, KEY_WRONG, SECTION};
@@ -204,6 +204,168 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
         "no reservation",
         show_holder(&held),
         matches!(held, Ok(None)),
+    );
+    rules(s, name, cases);
+}
+
+/// The rules a single nexus can show, each checked on a clean LUN and left clean: the length and service
+/// action refusals (6.12.2, 6.12.3), the generation counter (6.11.2), and what unregistering or preempting
+/// the holder does to the reservation (5.6.9, 5.6.10.1 to 5.6.10.4).
+fn rules(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
+    let at = |what: &str| format!("{name} {what}");
+    let list = pr_parameters(0, KEY_A);
+
+    // A parameter list that is not 24 bytes is refused and changes nothing (6.12.3).
+    let short = persistent_reserve_out(s, ops::PR_REGISTER, 0, &list[..16]);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 6.12 REGISTER with a 16-byte parameter list refused, PARAMETER LIST LENGTH ERROR"),
+        &[Want::Ascq(0x5, 0x1a, 0x00)],
+        short,
+    );
+    registered(s, name, cases, false, "after the refused short list");
+
+    // An unimplemented service action is refused, for both commands.
+    let bad_out = persistent_reserve_out(s, 0x0f, 0, &list);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 6.12.2 PERSISTENT RESERVE OUT, service action 0Fh refused"),
+        &REFUSED_SA,
+        bad_out,
+    );
+    let bad_in = persistent_reserve_in(s, 0x0f, 8);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 6.11 PERSISTENT RESERVE IN, service action 0Fh refused"),
+        &REFUSED_SA,
+        bad_in,
+    );
+
+    // The generation counter moves on REGISTER (6.11.2) and does not move on RESERVE.
+    let (g0, _) = read_keys(s).unwrap_or((0, Vec::new()));
+    let reg = out(s, ops::PR_REGISTER, 0, 0, KEY_A);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 6.11.2 REGISTER for the generation check"),
+        &[Want::Good],
+        reg,
+    );
+    let (g1, _) = read_keys(s).unwrap_or((0, Vec::new()));
+    record(
+        cases,
+        SECTION,
+        at("SPC-3 6.11.2 PR generation after REGISTER"),
+        format!("above {g0}"),
+        format!("{g1}"),
+        g1 != g0,
+    );
+    let res = out(s, ops::PR_RESERVE, 5, KEY_A, 0);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 5.6.8 RESERVE, registrants only, for the generation check"),
+        &[Want::Good],
+        res,
+    );
+    let (g2, _) = read_keys(s).unwrap_or((0, Vec::new()));
+    record(
+        cases,
+        SECTION,
+        at("SPC-3 6.11.2 PR generation after RESERVE (not incremented)"),
+        format!("{g1}"),
+        format!("{g2}"),
+        g2 == g1,
+    );
+
+    // REGISTER AND IGNORE EXISTING KEY ignores the RESERVATION KEY (6.12.3 a).
+    let ignored = out(s, ops::PR_REGISTER_AND_IGNORE, 0, KEY_WRONG, KEY_A);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 6.12.3 REGISTER AND IGNORE EXISTING KEY ignores the RESERVATION KEY"),
+        &[Want::Good],
+        ignored,
+    );
+    registered_only(s, name, cases, KEY_A, "after REGISTER AND IGNORE (6.12.3)");
+
+    // A PREEMPT whose service action key matches no registration is a RESERVATION CONFLICT (5.6.10.4).
+    let unmatched = out(s, ops::PR_PREEMPT, 1, KEY_A, KEY_WRONG);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 5.6.10.4 PREEMPT with an unregistered service action key"),
+        &[Want::Conflict],
+        unmatched,
+    );
+    let (g3, _) = read_keys(s).unwrap_or((0, Vec::new()));
+    record(
+        cases,
+        SECTION,
+        at("SPC-3 6.11.2 PR generation after the conflict (not incremented)"),
+        format!("{g2}"),
+        format!("{g3}"),
+        g3 == g2,
+    );
+
+    // The holder preempts itself with a new type: the reservation becomes that type (5.6.10.4).
+    let self_preempt = out(s, ops::PR_PREEMPT, 1, KEY_A, KEY_A);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 5.6.10.4 PREEMPT by the holder with its own key, type 1"),
+        &[Want::Good],
+        self_preempt,
+    );
+    let held = read_holder(s);
+    record(
+        cases,
+        SECTION,
+        at("SPC-3 5.6.10.4 after the holder preempts itself, type 1 held by key A"),
+        format!("key {KEY_A:#x}, type 1"),
+        show_holder(&held),
+        matches!(held, Ok(Some((k, 1))) if k == KEY_A),
+    );
+    let _ = out(s, ops::PR_CLEAR, 0, KEY_A, 0);
+
+    // Unregistering the holder releases the reservation, for each type that releases on the last registrant
+    // (5.6.10.1.2 to 5.6.10.1.4). The nexus is unregistered at the end, so the LUN is left clean.
+    for (kind, label) in [
+        (1u8, "write exclusive"),
+        (5, "write exclusive, registrants only"),
+        (7, "write exclusive, all registrants"),
+    ] {
+        let _ = out(s, ops::PR_REGISTER, 0, 0, KEY_A);
+        let _ = out(s, ops::PR_RESERVE, kind, KEY_A, 0);
+        let gone = out(s, ops::PR_REGISTER, 0, KEY_A, 0);
+        expect(
+            cases,
+            SECTION,
+            at(&format!("SPC-3 5.6.10.3 unregister the holder, {label}")),
+            &[Want::Good],
+            gone,
+        );
+        let after = read_holder(s);
+        record(
+            cases,
+            SECTION,
+            at(&format!(
+                "SPC-3 5.6.10.1 holder unregistered, {label}: reservation released"
+            )),
+            "no reservation",
+            show_holder(&after),
+            matches!(after, Ok(None)),
+        );
+    }
+    registered(
+        s,
+        name,
+        cases,
+        false,
+        "after the holder unregisters (5.6.10.3)",
     );
 }
 
