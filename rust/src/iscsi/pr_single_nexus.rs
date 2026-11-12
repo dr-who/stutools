@@ -8,7 +8,7 @@ use super::cases::{expect, record, record_info, sense, Want};
 use super::ops;
 use super::port::Port;
 use super::pr_commands::{out, read_holder, read_keys, show_holder, show_keys, TYPES};
-use super::pr_ports::{KEY_A, KEY_B2, SECTION};
+use super::pr_ports::{KEY_A, KEY_B2, KEY_WRONG, SECTION};
 use crate::compliance::Case;
 
 /// Runs the single-nexus cases on `s`. Records one "not run" when PERSISTENT RESERVE OUT is not served.
@@ -35,6 +35,26 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
         probe,
     );
     registered(s, name, cases, true, "after REGISTER (5.6.6)");
+
+    // SPC-3 6.12.3: once registered, a RESERVATION KEY other than this nexus's own gets RESERVATION CONFLICT,
+    // whatever the service action. Neither command changes the registration or the reservation.
+    let wrong_register = out(s, ops::PR_REGISTER, 0, KEY_WRONG, KEY_B2);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 6.12.3 REGISTER with a RESERVATION KEY that is not registered for this nexus"),
+        &[Want::Conflict],
+        wrong_register,
+    );
+    let wrong_reserve = out(s, ops::PR_RESERVE, 1, KEY_WRONG, 0);
+    expect(
+        cases,
+        SECTION,
+        at("SPC-3 6.12.3 RESERVE with a RESERVATION KEY that is not registered for this nexus"),
+        &[Want::Conflict],
+        wrong_reserve,
+    );
+    registered_only(s, name, cases, KEY_A, "after the refused commands (6.12.3)");
 
     // 5.6.8: a holder reserves with its key, and the holder's key is returned by READ RESERVATION
     // (5.6.9), except for the all-registrants types, where it is zero.
