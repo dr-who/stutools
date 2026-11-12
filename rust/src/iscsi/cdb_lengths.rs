@@ -136,15 +136,19 @@ fn mismatch_detail(
         Ok(o) => format!("first bytes {}", hex(&o.data)),
         Err(e) => format!("no data ({e})"),
     };
-    let again = match read(s, Form::Ten, lba, total) {
-        Ok(o) if o.data == data => {
-            "READ (10) of the same blocks now returns the written data".to_string()
+    let again = if lba > u32::MAX as u64 {
+        "READ (10) cannot address this block".to_string()
+    } else {
+        match read(s, Form::Ten, lba, total) {
+            Ok(o) if o.data == data => {
+                "READ (10) of the same blocks now returns the written data".to_string()
+            }
+            Ok(o) => format!(
+                "READ (10) of the same blocks now returns other data, first bytes {}",
+                hex(&o.data)
+            ),
+            Err(e) => format!("READ (10) gave no data ({e})"),
         }
-        Ok(o) => format!(
-            "READ (10) of the same blocks now returns other data, first bytes {}",
-            hex(&o.data)
-        ),
-        Err(e) => format!("READ (10) gave no data ({e})"),
     };
     format!(
         "other data: {got}, expected first bytes {}; {again}",
@@ -275,28 +279,34 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
 fn read_after_write_rounds(s: &mut Port, name: &str, lba: u64, len: usize, cases: &mut Vec<Case>) {
     const ROUNDS: u8 = 8;
     let total = len * BLOCKS as usize;
-    let Ok(original) = read(s, Form::Ten, lba, total).map(|o| o.data) else {
+    // WRITE (10) and READ (10) take a 32-bit LBA: past it they would act on a truncated block, and the
+    // READ (16) of the true block would then look stale. Only the 16-byte rounds run there.
+    let ten_ok = lba <= u32::MAX as u64;
+    let original_form = if ten_ok { Form::Ten } else { Form::Sixteen };
+    let Ok(original) = read(s, original_form, lba, total).map(|o| o.data) else {
         return;
     };
     let (mut stale16, mut stale10, mut written) = (0u32, 0u32, 0u32);
     let (mut stale16_after16, mut written16) = (0u32, 0u32);
     for round in 0..ROUNDS {
-        let data = pattern(len, 0x40 + round);
-        if !served(&write(s, Form::Ten, lba, &data)) {
-            break;
-        }
-        written += 1;
-        if read(s, Form::Sixteen, lba, total)
-            .map(|o| o.data)
-            .is_ok_and(|d| d != data)
-        {
-            stale16 += 1;
-        }
-        if read(s, Form::Ten, lba, total)
-            .map(|o| o.data)
-            .is_ok_and(|d| d != data)
-        {
-            stale10 += 1;
+        if ten_ok {
+            let data = pattern(len, 0x40 + round);
+            if !served(&write(s, Form::Ten, lba, &data)) {
+                break;
+            }
+            written += 1;
+            if read(s, Form::Sixteen, lba, total)
+                .map(|o| o.data)
+                .is_ok_and(|d| d != data)
+            {
+                stale16 += 1;
+            }
+            if read(s, Form::Ten, lba, total)
+                .map(|o| o.data)
+                .is_ok_and(|d| d != data)
+            {
+                stale10 += 1;
+            }
         }
         // The same round with WRITE (16): does READ (16) follow a 16-byte write?
         let data16 = pattern(len, 0x80 + round);
@@ -310,18 +320,30 @@ fn read_after_write_rounds(s: &mut Port, name: &str, lba: u64, len: usize, cases
             }
         }
     }
-    let _ = write(s, Form::Ten, lba, &original);
-    record(
-        cases,
-        SECTION,
-        label(
-            name,
-            &format!("SBC-3 5.13 READ (16) right after WRITE (10), {written} rounds"),
-        ),
-        "0 rounds in which READ (16) or READ (10) returns other data",
-        format!("{stale16} READ (16) and {stale10} READ (10) rounds returned other data"),
-        stale16 == 0 && stale10 == 0,
+    let _ = write(s, original_form, lba, &original);
+    let ten_name = label(
+        name,
+        &format!("SBC-3 5.13 READ (16) right after WRITE (10), {written} rounds"),
     );
+    if ten_ok {
+        record(
+            cases,
+            SECTION,
+            ten_name,
+            "0 rounds in which READ (16) or READ (10) returns other data",
+            format!("{stale16} READ (16) and {stale10} READ (10) rounds returned other data"),
+            stale16 == 0 && stale10 == 0,
+        );
+    } else {
+        record(
+            cases,
+            SECTION,
+            ten_name,
+            "LBAs that READ (10) and WRITE (10) can address",
+            format!("not run: the test block {lba} is past 32-bit LBAs"),
+            false,
+        );
+    }
     record(
         cases,
         SECTION,
@@ -347,9 +369,35 @@ fn run_forms(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, forms
         return;
     };
     let total = len * BLOCKS as usize;
-    let Ok(original) = read(s, Form::Ten, lba, total).map(|o| o.data) else {
+    // Past 32-bit LBAs only the 16-byte forms can address the block: the 10-byte and 12-byte forms, and the
+    // READ (10) that checks them, would act on a truncated block, which may hold other data.
+    let ten_ok = lba <= u32::MAX as u64;
+    let back_form = if ten_ok { Form::Ten } else { Form::Sixteen };
+    let Ok(original) = read(s, back_form, lba, total).map(|o| o.data) else {
         return;
     };
+    let forms: Vec<Form> = forms
+        .iter()
+        .copied()
+        .filter(|&f| {
+            let fits = ten_ok || matches!(f, Form::Sixteen | Form::ThirtyTwo);
+            if !fits {
+                record(
+                    cases,
+                    SECTION,
+                    label(
+                        name,
+                        &format!("SBC-3 {} {} past 32-bit LBAs", f.write_clause(), f.name()),
+                    ),
+                    "LBAs that this form can address",
+                    format!("not run: the test block {lba} is past 32-bit LBAs"),
+                    false,
+                );
+            }
+            fits
+        })
+        .collect();
+    let forms = &forms[..];
     let at = |what: &str| label(name, what);
 
     // Each WRITE form in turn. A served form reads back in READ (10); a refused one must be reported so.
@@ -358,7 +406,7 @@ fn run_forms(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, forms
         let outcome = write(s, form, lba, &data);
         let did_serve = record_answer(cases, &at, form.write_clause(), form, true, &outcome);
         if did_serve {
-            let back = read(s, Form::Ten, lba, total).map(|o| o.data);
+            let back = read(s, back_form, lba, total).map(|o| o.data);
             let same = back.is_ok_and(|b| b == data);
             record(
                 cases,
@@ -415,5 +463,5 @@ fn run_forms(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, forms
             agrees(cases, s, &at, form.read_clause(), form, false, did_serve);
         }
     }
-    let _ = write(s, Form::Ten, lba, &original);
+    let _ = write(s, back_form, lba, &original);
 }

@@ -66,8 +66,8 @@ pub(super) fn run(
             t.cases,
             SECTION,
             format!("{name} LUN size"),
-            "32-bit LBAs",
-            "larger",
+            "LBAs that READ (10) and WRITE (10) can address, or the 16-byte cases run instead",
+            format!("not run: LUN is larger than 32-bit LBAs, which READ (10) and WRITE (10) cannot address ({last} blocks)"),
             false,
         );
         return Findings { flush: false };
