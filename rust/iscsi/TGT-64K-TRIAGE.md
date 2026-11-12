@@ -18,6 +18,9 @@ deviation confirmed against the spec text, or a candidate still to check.
 - SELECT REPORT 01h lists LUN 0 (SPC-3 6.21: well-known LUNs only).
 - RESERVE with a RESERVATION KEY not registered for the nexus returns GOOD (SPC-3 6.12.3: RESERVATION CONFLICT).
 - REGISTER with a 16-byte parameter list returns 5/24/00 (SPC-3 6.12: PARAMETER LIST LENGTH ERROR, 5/1A/00).
+- PREEMPT that removes a registration gives unit attention 2Ah/03h (RESERVATIONS PREEMPTED) to the removed
+  nexus, where SPC-3 5.6.10.1.2 and 5.6.10.1.3 require 2Ah/05h (REGISTRATIONS PREEMPTED); the code is in the
+  SPC-3 ASC table (2Ah 05h, 2Ah 03h).
 - A registrant is not told of a release (SPC-3 5.6.10.2 c: a unit attention RESERVATIONS RELEASED to every
   other registered nexus when the reservation is released).
 - STOP UNIT with IMMED 0 and 1: READ and TEST UNIT READY then return GOOD (SBC-3 4.21.4: NOT READY,
@@ -29,7 +32,6 @@ deviation confirmed against the spec text, or a candidate still to check.
 
 ## Candidates, not yet checked against the clause
 
-- PREEMPT by the holder gives unit attention 2A/03 where the case expects 2A/05 (SPC-3 unit attention table).
 - A RESERVE from a non-holder after a reinstatement conflicts (follows from the registration gap above).
 - Unlisted LUN 2 and 255: REQUEST SENSE returns GOOD, sense 1/00/00 where the case expects 5/25/00.
 - REPORT LUNS overflow residual and INQUIRY overflow residual: the O bit where the case expects U.
