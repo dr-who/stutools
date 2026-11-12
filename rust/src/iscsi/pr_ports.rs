@@ -50,6 +50,9 @@ pub(super) fn clear_as(path: &Path, initiator: &str, creds: Creds, isid: [u8; 6]
     let mut s = open(path, initiator, creds, isid)?;
     let _ = unit_attentions(&mut s);
     let register = out(&mut s, ops::PR_REGISTER_AND_IGNORE, 0, 0, KEY_A)?;
+    if super::cases::invalid_opcode(&register) {
+        return Err(super::cases::NOT_IMPLEMENTED.into());
+    }
     scsi::check_status(
         "REGISTER AND IGNORE EXISTING KEY",
         register.status,

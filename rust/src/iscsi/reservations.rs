@@ -179,6 +179,16 @@ impl Run<'_> {
             }
         };
         let o = o?;
+        if super::cases::invalid_opcode(&o) {
+            self.verdict(
+                "REPORT CAPABILITIES",
+                "GOOD, LENGTH 8".into(),
+                super::cases::NOT_IMPLEMENTED.into(),
+                false,
+                true,
+            );
+            return None;
+        }
         let caps = Capabilities::parse(&o.data);
         let actual = if o.status == 0 {
             caps.describe()

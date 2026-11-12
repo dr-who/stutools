@@ -22,12 +22,17 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
     let (_, key_length, _) = match &keys {
         Ok(o) if o.status == 0 => header(&o.data, o.received),
         Ok(o) => {
+            let actual = if super::cases::invalid_opcode(o) {
+                super::cases::NOT_IMPLEMENTED.to_string()
+            } else {
+                describe(o)
+            };
             record(
                 cases,
                 SECTION,
                 at("SPC-6 6.14.2", "READ KEYS with no registrations"),
                 "GOOD",
-                describe(o),
+                actual,
                 false,
             );
             return;

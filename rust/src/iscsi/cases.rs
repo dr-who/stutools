@@ -9,6 +9,17 @@ use crate::Result;
 
 /// The sense key, additional sense code and qualifier, from fixed (0x70, 0x71) or descriptor (0x72,
 /// 0x73) sense data.
+/// Whether the target refused the command as an invalid operation code: the device does not implement it
+/// (CHECK CONDITION, ILLEGAL REQUEST, ASC 20h), so nothing about its behaviour is judged.
+pub(super) fn invalid_opcode(o: &Outcome) -> bool {
+    let (key, asc, _) = sense(&o.sense);
+    o.status == CHECK_CONDITION && key == 0x5 && asc == 0x20
+}
+
+/// The actual text for a command the device does not implement, which `case` reports as not run.
+pub(super) const NOT_IMPLEMENTED: &str =
+    "not run: the device refuses the command as an invalid operation code";
+
 pub(super) fn sense(data: &[u8]) -> (u8, u8, u8) {
     let at = |i: usize| data.get(i).copied().unwrap_or(0);
     match at(0) & 0x7f {

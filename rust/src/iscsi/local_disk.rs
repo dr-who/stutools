@@ -117,16 +117,22 @@ fn reset(device: &str, cases: &mut Vec<Case>) {
     }
     let label = format!("{device} LOGICAL UNIT RESET (SG_SCSI_RESET)");
     let done = LocalLun::open(&paths[0]).and_then(|l| l.reset());
-    cases.push(crate::compliance::case(
-        "tmf",
-        label,
-        "done".into(),
-        done.as_ref()
-            .err()
-            .cloned()
-            .unwrap_or_else(|| "done".into()),
-        done.is_ok(),
-    ));
+    match &done {
+        Ok(()) => cases.push(crate::compliance::case(
+            "tmf",
+            label,
+            "done".into(),
+            "done".into(),
+            true,
+        )),
+        // SG_SCSI_RESET resets the device through the host adapter; a refusal is the host's, not a LUN reset
+        // the device failed to perform, so it is reported and not judged.
+        Err(err) => cases.push(crate::compliance::info(
+            "tmf",
+            label,
+            format!("not run: SG_SCSI_RESET was refused by the host on this path ({err}), so no LUN reset was sent"),
+        )),
+    }
     for p in &paths {
         let mut attentions = Vec::new();
         let mut answer = Err("no answer".to_string());
