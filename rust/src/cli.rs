@@ -55,6 +55,11 @@ pub struct Config {
     /// `--compliance`: test every `--iscsi` and `--nvme` target, and every `-f /dev/...` disk, against
     /// the standards and score it.
     pub compliance: bool,
+    /// `--hold TYPE`: register a reservation key on the iSCSI path and take a reservation of TYPE (1, 3, 5, 6, 7
+    /// or 8), then serve stdin commands (status, release, quit) until the process is ended.
+    pub hold: Option<u8>,
+    /// `--hold-probe`: only report the reservation state of the path (READ KEYS, READ RESERVATION).
+    pub hold_probe: bool,
     /// `--verbose`: with `--compliance`, print a dot for each command sent (quiet otherwise).
     pub verbose: bool,
     /// `--compliance-report FILE`: also write the report as an AsciiDoc document.
@@ -166,6 +171,8 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         chap_initiator_b: None,
         chap_secret_b_file: None,
         compliance: false,
+        hold: None,
+        hold_probe: false,
         verbose: false,
         compliance_report: None,
         scsi_levels: Vec::new(),
@@ -210,6 +217,23 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             }
             "--compliance" => {
                 c.compliance = true;
+                continue;
+            }
+            "--hold" => {
+                let v = it.next().ok_or("--hold needs a reservation type")?;
+                let kind: u8 = v
+                    .parse()
+                    .map_err(|_| format!("--hold {v}: not a reservation type"))?;
+                if ![1, 3, 5, 6, 7, 8].contains(&kind) {
+                    return Err(format!(
+                        "--hold {kind}: the reservation types are 1, 3, 5, 6, 7 and 8"
+                    ));
+                }
+                c.hold = Some(kind);
+                continue;
+            }
+            "--hold-probe" => {
+                c.hold_probe = true;
                 continue;
             }
             "--verbose" => {

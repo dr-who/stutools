@@ -466,13 +466,11 @@ impl Run<'_> {
 /// The portals the target reports through SendTargets, the one given first. A target that reports no
 /// other portal has only the one.
 fn target_portals(path: &Path, initiator: &str) -> Vec<String> {
-    // The same portal can be written with and without its port (127.0.0.2 and 127.0.0.2:3260): compare hosts.
-    let host = |a: &str| a.rsplit_once(':').map_or(a, |(h, _)| h).to_string();
     let mut out = vec![path.portal.clone()];
     if let Ok(found) = super::send_targets::discover_targets(&path.portal, initiator) {
         for t in found.iter().filter(|t| t.target == path.target) {
             for address in &t.addresses {
-                if !out.iter().any(|o| host(o) == host(address)) {
+                if !out.iter().any(|o| super::portal::same(o, address)) {
                     out.push(address.clone());
                 }
             }

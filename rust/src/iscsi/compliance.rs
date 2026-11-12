@@ -150,7 +150,10 @@ fn targets(entries: &[String], initiator: &str) -> Result<Vec<Path>> {
     // Several hosts often report the same targets; each path is tested once.
     let mut unique: Vec<Path> = Vec::new();
     for p in out {
-        if !unique.contains(&p) {
+        if !unique
+            .iter()
+            .any(|u| u.target == p.target && super::portal::same(&u.portal, &p.portal))
+        {
             unique.push(p);
         }
     }

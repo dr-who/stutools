@@ -63,6 +63,8 @@ fn main() {
                 cctv::run(config)
             } else if config.compliance {
                 compliance::run(&config)
+            } else if config.hold.is_some() || config.hold_probe {
+                iscsi::hold::run(&config)
             } else if !config.nvmeof.is_empty() && config.jobs.is_empty() {
                 if !config.iscsi.is_empty() {
                     Err("paths of both kinds need a -c workload to run over them".into())

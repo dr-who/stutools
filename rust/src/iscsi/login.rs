@@ -175,18 +175,7 @@ pub(super) struct Established {
 /// Adds the default iSCSI port when the portal has none: `HOST`, `IPv4` and `[IPv6]` get `:3260`, and
 /// a bare IPv6 address is bracketed first.
 pub(super) fn with_port(portal: &str) -> String {
-    if portal.starts_with('[') {
-        return if portal.contains("]:") {
-            portal.to_string()
-        } else {
-            format!("{portal}:3260")
-        };
-    }
-    match portal.matches(':').count() {
-        0 => format!("{portal}:3260"),
-        1 => portal.to_string(),
-        _ => format!("[{portal}]:3260"),
-    }
+    super::portal::Portal::parse(portal).map_or_else(|_| portal.to_string(), |p| p.to_string())
 }
 
 /// A random ISID in the RFC 7143 "random" format (T = 10b).
