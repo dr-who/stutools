@@ -206,10 +206,9 @@ pub(super) fn run(
     cdb[1] = 0x12;
     cdb[2..10].copy_from_slice(&(target as u64).to_be_bytes());
     cdb[10..14].copy_from_slice(&alloc);
+    // SBC-5 table 48: GET LBA STATUS (16) is optional (O), at any LBPME, so a clean refusal is correct too.
     let mut wants = vec![Want::Good];
-    if !lbpme {
-        wants.extend_from_slice(&REFUSED_SA);
-    }
+    wants.extend_from_slice(&REFUSED_SA);
     let answer = expect(
         cases,
         SECTION,

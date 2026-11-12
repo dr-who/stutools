@@ -109,7 +109,17 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>) 
         );
     }
 
-    if let Some(d) = mode_sense_blocks(s, true).and_then(|d| parse(&d)) {
+    let long_answer = mode_sense_blocks(s, true).and_then(|d| parse(&d));
+    if long_answer.as_ref().is_some_and(|d| !d.long) {
+        // SPC-3 6.10: with LLBAA set the device server is allowed to return LONGLBA 1; a short descriptor is a
+        // valid answer, and the short form was judged above.
+        super::cases::record_info(
+            cases,
+            SECTION,
+            at("SBC-3 6.5.2.3 MODE SENSE (10) long block descriptor"),
+            "not run: LONGLBA 0; LLBAA allows, and does not require, a long block descriptor (SPC-3 6.10)",
+        );
+    } else if let Some(d) = long_answer {
         record(
             cases,
             SECTION,

@@ -513,14 +513,22 @@ fn one_form(s: &mut Port, name: &str, form: Form, cases: &mut Vec<Case>, disk: &
                     matches!(q.bdl, 0 | 8)
                 },
             );
-            if q.bdl > 0 {
+            // SPC-3 6.10: LLBAA allows, and does not require, a long descriptor; LONGLBA 0 is not judged here.
+            if q.bdl > 0 && q.longlba {
                 record_should(
                     cases,
                     SECTION,
                     at("LLBAA 1: long LBA block descriptor"),
                     "LONGLBA 1, 16 bytes",
                     format!("LONGLBA {}, {} bytes", u8::from(q.longlba), q.bdl),
-                    q.longlba && q.bdl == 16,
+                    q.bdl == 16,
+                );
+            } else if q.bdl > 0 {
+                super::cases::record_info(
+                    cases,
+                    SECTION,
+                    at("LLBAA 1: long LBA block descriptor"),
+                    "not run: LONGLBA 0; LLBAA allows, and does not require, a long block descriptor (SPC-3 6.10)",
                 );
             }
         }

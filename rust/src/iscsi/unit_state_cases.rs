@@ -47,7 +47,8 @@ pub(super) fn run(
         cases,
         SECTION,
         label(name, "REQUEST SENSE, descriptor format (DESC 1)"),
-        &[Want::Good, Want::Ascq(0x5, 0x24, 0x00)],
+        // SPC-3 6.27: DESC 1 gets descriptor format when supported, and fixed format otherwise; no refusal.
+        &[Want::Good],
         desc,
     );
     let desc_ok = o.as_ref().is_some_and(|o| {
