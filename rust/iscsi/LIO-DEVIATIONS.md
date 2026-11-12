@@ -43,3 +43,28 @@ These are findings to confirm with LIO's maintainers, not yet filed.
   way. A wire trace of the same run with the registrations is the next check.
 - The wire trace shows the sessions carry distinct ISIDs (80a1, 80b2, 80c3, 80d4), and that the
   unregistered port's key is never registered, so spit sends what the test describes.
+
+## Found by the CHAP credentialed run (spit-chap-ram, one-way and mutual CHAP)
+
+Confirmed against the spec text:
+
+- **5. VERIFY (10) and VERIFY (16) with BYTCHK 01b or 11b and one byte changed return GOOD.** SBC-3 5.29
+  and 5.31: the compare must MISCOMPARE (CHECK CONDITION, MISCOMPARE, ASC 1Dh). The data-out buffer is sent
+  (see the local path), so LIO does not compare the buffer. The same result came from the SATA drive, so
+  it is not the SAT layer.
+- **6. REQUEST SENSE with DESC=1 returns CHECK CONDITION 5/24/00.** SPC-3 6.27: DESC 1 returns descriptor
+  format when supported and fixed format otherwise. No refusal is allowed.
+- **7. SELECT REPORT 01h lists LUN 0.** SPC-3 6.21: SELECT REPORT 01h lists only well-known logical units.
+- **8. Short block descriptor NUMBER OF LOGICAL BLOCKS is one less than the capacity** (2097151 for a
+  2097152-block LUN). SBC-3 6.5.2.2 gives the number of logical blocks.
+
+Candidates, the clause not yet checked against the text:
+
+- **9. MODE SELECT with a header only (no pages) returns CHECK CONDITION 5/1A/00.** spit's cited clause (SPC-6
+  6.12) says a header-only list sets nothing and is not an error.
+- **10. Unlisted LUN INQUIRY returns CHECK CONDITION 5/25/00.** SPC-3 6.4.2 may require GOOD with qualifier 011b.
+- **11. Unknown target at login returns status 0301 and closes.** RFC 7143 11.13.5 gives 0203h (target not found).
+- **12. WRITE SAME (16) with UNMAP on a LUN that does not advertise LBPWS returns invalid opcode.** The
+  expectation in spit (GOOD or CHECK CONDITION 5/24/00) may be the wrong one for this LUN.
+- **13. Caching and Control page and VPD B0h framing: "length 16" disagrees with the standard page length.**
+  To check against SBC-3 6.6.3.
