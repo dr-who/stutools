@@ -89,10 +89,12 @@ NETWORK BLOCK DEVICES (iSCSI and NVMe/TCP, spoken by spit itself)
   --nvme HOST[:PORT]/NQN[/NSID][,N]
                   identify a subsystem, or run -c workloads over it
   --scsi, --nvmeof  the same as --iscsi and --nvme
-  --iscsi-initiator IQN[,IQN2]
+  --iscsi-initiator IQN[,IQN2[,IQN3]]
                   the name spit logs in with; default: InitiatorName in
                   /etc/iscsi/initiatorname.iscsi, else iqn.2026-11.spit:HOST;
-                  --compliance tests reservations between two hosts with IQN2
+                  --compliance tests reservations between two hosts with IQN2;
+                  IQN3 is the unregistered port C, a different initiator from IQN2
+                  (without it C shares IQN2's name and differs only by ISID)
   --chap-user NAME, --chap-secret-file FILE
                   CHAP login; the secret is read from the file
   --chap-target-user NAME, --chap-target-secret-file FILE

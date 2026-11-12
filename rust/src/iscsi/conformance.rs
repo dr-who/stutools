@@ -53,6 +53,7 @@ pub(super) fn run(
     targets: &[Target],
     initiator: &str,
     second: Option<&str>,
+    third: Option<&str>,
     levels: &[ScsiLevel],
     cases: &mut Vec<Case>,
 ) {
@@ -134,7 +135,7 @@ pub(super) fn run(
         // The reservation and reset cases use sessions of their own; this one would sit idle meanwhile.
         let _ = s.logout();
         let first = cases.len();
-        let pr = reservations::run(t.path, initiator, second, t.creds, &name, cases);
+        let pr = reservations::run(t.path, initiator, second, third, t.creds, &name, cases);
         pr_command_set::run(t.path, initiator, second, t.creds, &name, cases);
         let pr_ok = no_failures(&cases[first..]);
         seen.note("PERSISTENT RESERVE IN", "pr", true, pr_ok, "see pr");

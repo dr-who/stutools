@@ -71,7 +71,7 @@ pub fn cases(
             standby: false,
             protocol_level: None,
         };
-        conformance::run(&[target], FIRST, second, levels, cases);
+        conformance::run(&[target], FIRST, second, None, levels, cases);
         reset(device, cases);
         super::cases::NO_RESIDUAL.store(false, std::sync::atomic::Ordering::Relaxed);
     }

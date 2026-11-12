@@ -121,6 +121,7 @@ pub fn cases(
         &targets,
         initiator,
         config.iscsi_second_initiator.as_deref(),
+        config.iscsi_third_initiator.as_deref(),
         levels,
         cases,
     );

@@ -35,6 +35,7 @@ pub(super) fn run(
     path: &Path,
     initiator: &str,
     second: Option<&str>,
+    third: Option<&str>,
     creds: Creds,
     name: &str,
     cases: &mut Vec<Case>,
@@ -70,7 +71,7 @@ pub(super) fn run(
     let (mut a, mut b, mut c) = match (
         open(&pa, initiator, creds, ISID_A),
         open(&pb, other, creds, ISID_B),
-        open(&pc, other, creds, ISID_C),
+        open(&pc, third.unwrap_or(other), creds, ISID_C),
     ) {
         (Ok(a), Ok(b), Ok(c)) => (a, b, c),
         (Err(err), _, _) | (_, Err(err), _) | (_, _, Err(err)) => {

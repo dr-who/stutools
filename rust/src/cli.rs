@@ -40,6 +40,8 @@ pub struct Config {
     /// The second name of `--iscsi-initiator A,B`: the other host `--compliance` uses for the
     /// persistent reservation cases, so two of its ports are two initiators, as two cluster nodes are.
     pub iscsi_second_initiator: Option<String>,
+    /// `--iscsi-initiator A,B,C`: the name of the unregistered port C, when it is a different initiator.
+    pub iscsi_third_initiator: Option<String>,
     pub chap_user: Option<String>,
     pub chap_secret_file: Option<PathBuf>,
     /// `--chap-target-user NAME` and `--chap-target-secret-file FILE`: the name and secret spit
@@ -105,15 +107,20 @@ fn expand_options(args: Vec<String>) -> Result<Vec<String>> {
     }
     Ok(out)
 }
-/// `--iscsi-initiator A[,B]`: the name spit logs in with, and optionally a second one.
-fn initiators(v: &str) -> Result<(String, Option<String>)> {
+/// `--iscsi-initiator A[,B[,C]]`: the name spit logs in with, a second one for the cluster-node cases, and
+/// optionally a third for port C, so C is a different initiator from B (an unregistered nexus of its own).
+fn initiators(v: &str) -> Result<(String, Option<String>, Option<String>)> {
     let names: Vec<&str> = v.split(',').map(str::trim).collect();
+    let distinct = |xs: &[&str]| {
+        xs.iter().all(|x| !x.is_empty()) && xs.iter().enumerate().all(|(i, x)| !xs[..i].contains(x))
+    };
     match names.as_slice() {
-        [a] if !a.is_empty() => Ok((a.to_string(), None)),
-        [a, b] if !a.is_empty() && !b.is_empty() && a != b => {
-            Ok((a.to_string(), Some(b.to_string())))
+        [a] if !a.is_empty() => Ok((a.to_string(), None, None)),
+        [a, b] if distinct(&[a, b]) => Ok((a.to_string(), Some(b.to_string()), None)),
+        [a, b, c] if distinct(&[a, b, c]) => {
+            Ok((a.to_string(), Some(b.to_string()), Some(c.to_string())))
         }
-        _ => Err("--iscsi-initiator takes IQN or IQN,IQN (two different names)".into()),
+        _ => Err("--iscsi-initiator takes IQN, IQN,IQN or IQN,IQN,IQN (different names)".into()),
     }
 }
 
@@ -151,6 +158,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         nvmeof: Vec::new(),
         iscsi_initiator: None,
         iscsi_second_initiator: None,
+        iscsi_third_initiator: None,
         chap_user: None,
         chap_secret_file: None,
         chap_target_user: None,
@@ -242,9 +250,10 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
                 c.scsi_levels.dedup();
             }
             "--iscsi-initiator" => {
-                let (first, second) = initiators(v)?;
+                let (first, second, third) = initiators(v)?;
                 c.iscsi_initiator = Some(first);
                 c.iscsi_second_initiator = second;
+                c.iscsi_third_initiator = third;
             }
             "-d" => c.dump = integer(v)?,
             "--iscsi-policy" | "--policy" => c.path_policy = crate::paths::Policy::parse(v)?,
@@ -593,14 +602,19 @@ mod tests {
     }
 
     #[test]
-    fn the_initiator_option_takes_one_or_two_names() {
-        assert_eq!(initiators("iqn.a").unwrap(), ("iqn.a".into(), None));
+    fn the_initiator_option_takes_one_to_three_different_names() {
+        assert_eq!(initiators("iqn.a").unwrap(), ("iqn.a".into(), None, None));
         assert_eq!(
             initiators("iqn.a,iqn.b").unwrap(),
-            ("iqn.a".into(), Some("iqn.b".into()))
+            ("iqn.a".into(), Some("iqn.b".into()), None)
+        );
+        assert_eq!(
+            initiators("iqn.a,iqn.b,iqn.c").unwrap(),
+            ("iqn.a".into(), Some("iqn.b".into()), Some("iqn.c".into()))
         );
         assert!(initiators("iqn.a,iqn.a").is_err());
+        assert!(initiators("iqn.a,iqn.b,iqn.b").is_err());
         assert!(initiators("iqn.a,").is_err());
-        assert!(initiators("a,b,c").is_err());
+        assert!(initiators("a,b,c,d").is_err());
     }
 }
