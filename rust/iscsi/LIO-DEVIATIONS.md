@@ -95,3 +95,13 @@ Candidates, the clause not yet checked against the text:
   both hosts comparing the same expected block, only one may win each round; LIO lets both succeed, so the second
   host's compare ran before the first host's write. Control: the single-host cases on the same target all pass
   (compare matches, compare fails, miscompare offset, zero length, over the limit, past the last LBA).
+
+## Found by the explicit ALUA transition (spit-alua-ram, SET TARGET PORT GROUPS of group 1, two runs)
+
+- **17. An explicit ALUA change does not report ASYMMETRIC ACCESS STATE CHANGED (2Ah/06h) to the other I_T nexus.**
+  SPC-3 5.8.2.5: after an explicit change, a unit attention with that code is established "for the initiator port
+  associated with every I_T nexus other than the I_T nexus on which the SET TARGET GROUPS command was received".
+  The watcher session (a different ISID) gets nothing, in both runs. The SET TARGET PORT GROUPS itself is GOOD and
+  REPORT TARGET PORT GROUPS shows the new state, so the change happened; only the attention is missing. Control: the
+  same LUN reports the other nexus's unit attention for a task management reset (29h/03h), so delivery to other
+  nexuses works in general.
