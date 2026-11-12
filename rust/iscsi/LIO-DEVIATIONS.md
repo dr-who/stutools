@@ -68,3 +68,15 @@ Candidates, the clause not yet checked against the text:
   expectation in spit (GOOD or CHECK CONDITION 5/24/00) may be the wrong one for this LUN.
 - **13. Caching and Control page and VPD B0h framing: "length 16" disagrees with the standard page length.**
   To check against SBC-3 6.6.3.
+
+## Found by the standby run (spit-alua-ram, TPG2 on 127.0.0.8, LUN in the standby group)
+
+- **14. MODE SENSE (10) and MODE SELECT (10) of the Caching page return CHECK CONDITION 2/04/0Bh
+  (TARGET PORT IN STANDBY STATE) on a standby port.** SPC-3 5.8.2.4.4 (d) and (e): a standby port shall
+  support MODE SELECT and MODE SENSE, as it does in active/optimized. LIO supports both on the active port
+  (the same run passes them there), so the refusal is a deviation. Control: TEST UNIT READY and READ (10) on the
+  same port do return 2/04/0Bh, and the same run passes INQUIRY, REPORT LUNS, REPORT TARGET PORT GROUPS,
+  REQUEST SENSE and the PR commands, which SPC-3 also lists.
+- Spit gap, not LIO: LOG SENSE, SEND DIAGNOSTIC and the echo-buffer modes are accepted as a refusal on
+  standby. The clause requires them to work when the active port supports them. The case should compare
+  with the active port's REPORT SUPPORTED OPERATION CODES answer.
