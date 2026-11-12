@@ -80,6 +80,19 @@ fileio spitexa 1152921504606846976
 targetcli /backstores/fileio/spitexa set attribute emulate_tpu=1 emulate_tpws=1 >/dev/null
 target iqn.2026-12.com.stutools:spit-exa-ram spitexa 127.0.0.9 || true
 
+# Block sizes and protection information. LIO takes block_size 512 or 4096 only: a 64 KiB logical block cannot be
+# presented by LIO (the Linux block layer caps logical blocks at the page size), so there is no 64 KiB LUN here.
+# LIO implements PI types 1 and 3; type 2 is refused ("Function not implemented"), so it is not configured.
+fileio spitblk4k 1G
+targetcli /backstores/fileio/spitblk4k set attribute block_size=4096 >/dev/null
+target iqn.2026-12.com.stutools:spit-blk4k-ram spitblk4k 127.0.0.10 || true
+fileio spitpi1 1G
+targetcli /backstores/fileio/spitpi1 set attribute pi_prot_type=1 >/dev/null
+target iqn.2026-12.com.stutools:spit-pi1-ram spitpi1 127.0.0.11 || true
+fileio spitpi3 1G
+targetcli /backstores/fileio/spitpi3 set attribute pi_prot_type=3 >/dev/null
+target iqn.2026-12.com.stutools:spit-pi3-ram spitpi3 127.0.0.12 || true
+
 # alua-ram: group 1 is the standby group. It needs a nonzero ID and standby support before its state can be
 # set (LIO refuses the state otherwise), and the second TPG's LUN is attached to it through configfs.
 fileio "$ALUA_BACKSTORE" 1G
