@@ -92,6 +92,13 @@ pub(super) fn judge(o: Result<Outcome>, ok: impl Fn(&Outcome) -> bool) -> Probe 
             passed: true,
             actual: e,
         },
+        // Not sent at all (a command this transport must not carry): not run, so not judged.
+        Err(e) if e.starts_with("not run:") => Probe {
+            section: SECTION,
+            supported: false,
+            passed: false,
+            actual: e,
+        },
         Err(e) => Probe {
             section: SECTION,
             supported: false,

@@ -236,7 +236,7 @@ fn judge(
         }
         return;
     }
-    let mut actual = if p.supported || strict {
+    let mut actual = if p.supported || strict || p.actual.starts_with("not run:") {
         p.actual.clone()
     } else {
         format!("refused ({})", p.actual)
