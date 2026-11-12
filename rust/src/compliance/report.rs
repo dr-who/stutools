@@ -11,11 +11,8 @@ pub fn print(views: &[(ScsiLevel, Vec<Case>)], untested: &[(String, String)], ve
     let Some((_, lowest)) = views.first() else {
         return;
     };
-    // Without --verbose only the warnings and failures are listed case by case; the summary below has all.
-    for c in lowest
-        .iter()
-        .filter(|c| verbose || matches!(c.verdict(), Verdict::Warn | Verdict::Fail))
-    {
+    // Case lines only with --verbose. Without it, the warnings and failures are listed once, in the summary.
+    for c in lowest.iter().filter(|_| verbose) {
         println!(
             "{}  {:<10} {:<58} expect {:<22} got {}",
             c.verdict().word(),
@@ -54,8 +51,8 @@ pub fn print(views: &[(ScsiLevel, Vec<Case>)], untested: &[(String, String)], ve
                 println!("{title} at {level}:");
                 for c in of {
                     // The spec clause the case tests goes at the end, so a failure says where to look.
-                    let clause = spec_clause(&c.name)
-                        .unwrap_or_else(|| "(no spec clause in its name)".into());
+                    let clause =
+                        spec_clause(&c.name).unwrap_or_else(|| "no spec clause in its name".into());
                     println!(
                         "  [{}] {}: expected {}, got {} ({clause})",
                         c.section, c.name, c.expected, c.actual
