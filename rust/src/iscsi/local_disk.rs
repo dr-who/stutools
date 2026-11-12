@@ -69,6 +69,7 @@ pub fn cases(
             path: &path,
             creds: None,
             standby: false,
+            alua: None,
             protocol_level: None,
         };
         conformance::run(&[target], FIRST, second, None, levels, cases);

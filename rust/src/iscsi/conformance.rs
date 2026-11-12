@@ -19,8 +19,8 @@ use super::{
     host_traces, inquiry_framing, mode_block_descriptors, mode_select_change, mode_select_pages,
     odx, optional_commands, pr_command_set, pr_empty_state, pr_ports, pr_single_nexus,
     provisioning, report_luns_cases, reservations, six_byte_io, spc2_reservations, spc_commands,
-    standby_cases, start_stop_cases, task_management, unlisted_lun, verify_cases, vpd_framing,
-    windows, windows_device_rules,
+    standby_cases, start_stop_cases, task_management, unavailable_cases, unlisted_lun,
+    verify_cases, vpd_framing, windows, windows_device_rules,
 };
 use crate::compliance::{Case, ScsiLevel};
 
@@ -46,6 +46,8 @@ pub(super) struct Target<'a> {
     pub path: &'a Path,
     pub creds: Creds<'a>,
     pub standby: bool,
+    /// The path's ALUA state (0 active/optimized, 1 active/non-optimized, 2 standby, 3 unavailable).
+    pub alua: Option<u8>,
     pub protocol_level: Option<u32>,
 }
 
@@ -90,6 +92,21 @@ pub(super) fn run(
             standby_cases::run(&mut s, &name, cases);
             let _ = s.logout();
             continue;
+        }
+        // SPC-3 5.8.2.4.5: an unavailable port takes only a limited command set, so it runs its own cases and
+        // the rest of the suite is not run through it. A non-optimized port must function as specified (5.8.2.4.3),
+        // so it runs the whole suite, and that is recorded as the state under test.
+        if t.alua == Some(3) {
+            unavailable_cases::run(&mut s, &name, cases);
+            let _ = s.logout();
+            continue;
+        }
+        if t.alua == Some(1) {
+            cases.push(crate::compliance::info(
+                "mpio",
+                format!("{name} ALUA state: active/non-optimized, the suite runs through it (SPC-3 5.8.2.4.3)"),
+                "every command functions as specified".into(),
+            ));
         }
         health_cases::run(&mut s, &name, cases);
         let mut seen = Seen::default();

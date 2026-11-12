@@ -100,6 +100,7 @@ mod standby_cases;
 mod start_stop_cases;
 mod task_management;
 mod transfer_checks;
+mod unavailable_cases;
 mod unit_state_cases;
 mod unlisted_lun;
 mod verify_cases;

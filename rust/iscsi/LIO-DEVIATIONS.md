@@ -80,3 +80,10 @@ Candidates, the clause not yet checked against the text:
 - Spit gap, not LIO: LOG SENSE, SEND DIAGNOSTIC and the echo-buffer modes are accepted as a refusal on
   standby. The clause requires them to work when the active port supports them. The case should compare
   with the active port's REPORT SUPPORTED OPERATION CODES answer.
+
+## Found by the unavailable-state cases (spit-alua-ram, default group set to unavailable)
+
+- **15. INQUIRY on a port in the unavailable state returns peripheral qualifier 000b.** SPC-3 5.8.2.4.5 a): the
+  qualifier shall be 001b. The same run passes REPORT LUNS, REPORT TARGET PORT GROUPS, REQUEST SENSE, and the
+  refusals of TEST UNIT READY and READ (10) with NOT READY, TARGET PORT IN UNAVAILABLE STATE (04h, 0Ch), so the
+  state itself is recognised. Control: the same INQUIRY on an active/optimized port returns 000b correctly.

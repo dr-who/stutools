@@ -70,7 +70,7 @@ pub fn cases(
         }
     }
     identity_cases::run(&reachable, &collected, cases);
-    let standby = scsi_cases::run(&reachable, &collected, cases);
+    let states = scsi_cases::run(&reachable, &collected, cases);
     if chap_good.is_some() {
         chap_cases::run(&reachable, initiator, chap_good, chap_bad, cases);
         let t_secret = match &config.chap_target_secret_file {
@@ -109,11 +109,12 @@ pub fn cases(
     // state is checked for the commands a standby port must and must not take instead.
     let targets: Vec<conformance::Target> = reachable
         .iter()
-        .zip(&standby)
-        .map(|(r, &standby)| conformance::Target {
+        .zip(&states)
+        .map(|(r, &state)| conformance::Target {
             path: r.path,
             creds: creds_of(r),
-            standby,
+            standby: state == Some(2),
+            alua: state,
             protocol_level: r.level,
         })
         .collect();
