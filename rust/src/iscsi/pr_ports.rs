@@ -6,7 +6,7 @@
 //! the cases Windows clustering relies on still pass.
 
 use super::cases::{expect, expect_should, record, Want};
-use super::lun_access::{open, read_cmd, show_attentions, unit_attentions, write_cmd, Creds};
+use super::lun_access::{open, read_cmd64, show_attentions, unit_attentions, write_cmd64, Creds};
 use super::ops::{self};
 use super::path::Path;
 use super::port::Port;
@@ -123,7 +123,7 @@ pub(super) fn clean_slate(
 pub(super) struct Run<'a> {
     pub(super) cases: &'a mut Vec<Case>,
     pub(super) name: &'a str,
-    pub(super) target: u32,
+    pub(super) target: u64,
     pub(super) original: Vec<u8>,
     pub(super) cluster: bool,
     /// What C is called: it shares B's initiator name when a second name was given.
@@ -200,11 +200,11 @@ impl Run<'_> {
     }
 
     pub(super) fn write(&self, s: &mut Port) -> Result<Outcome> {
-        write_cmd(s, self.target, &self.original)
+        write_cmd64(s, self.target, &self.original)
     }
 
     pub(super) fn read(&self, s: &mut Port) -> Result<Outcome> {
-        read_cmd(s, self.target, self.original.len())
+        read_cmd64(s, self.target, self.original.len())
     }
 
     pub(super) fn holder_is(

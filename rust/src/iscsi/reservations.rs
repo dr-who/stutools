@@ -9,7 +9,7 @@
 //! clustering relies on all behaved.
 
 use super::cases::{allowed, record, Want};
-use super::lun_access::{last_block, open, read_block, unit_attentions, Creds};
+use super::lun_access::{last_block64, open, read_block64, unit_attentions, Creds};
 use super::ops::{self, persistent_reserve_in};
 use super::path::Path;
 use super::port::Port;
@@ -65,9 +65,9 @@ pub(super) fn run(
     for s in [&mut a, &mut b, &mut c] {
         let _ = unit_attentions(s);
     }
-    let block = last_block(&mut a).and_then(|(lba, len)| {
+    let block = last_block64(&mut a).and_then(|(lba, len)| {
         let target = lba.saturating_sub(1);
-        read_block(&mut a, target, len).map(|data| (target, data))
+        read_block64(&mut a, target, len).map(|data| (target, data))
     });
     let (target, original) = match block {
         Ok(v) => v,

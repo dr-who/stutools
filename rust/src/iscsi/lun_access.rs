@@ -86,6 +86,42 @@ pub(super) fn last_block(s: &mut Port) -> Result<(u32, usize)> {
     Ok((lba, block_len as usize))
 }
 
+/// The last LBA of the LUN, 64 bits, and its block length. The reservation cases use these: past 32-bit
+/// LBAs they address the block with READ (16) and WRITE (16), and below that with the 10-byte forms.
+pub(super) fn last_block64(s: &mut Port) -> Result<(u64, usize)> {
+    let (last, block_len) = scsi::capacity(s)?;
+    Ok((last, block_len as usize))
+}
+
+/// READ of one block at a 64-bit LBA: READ (10) when the LBA fits, READ (16) past it.
+pub(super) fn read_cmd64(s: &mut Port, lba: u64, len: usize) -> Result<Outcome> {
+    match u32::try_from(lba) {
+        Ok(lba) => read_cmd(s, lba, len),
+        Err(_) => s.command(&scsi::block_cdb16(0x88, lba, 1), len as u32, None),
+    }
+}
+
+/// WRITE of one block at a 64-bit LBA: WRITE (10) when the LBA fits, WRITE (16) past it.
+pub(super) fn write_cmd64(s: &mut Port, lba: u64, data: &[u8]) -> Result<Outcome> {
+    match u32::try_from(lba) {
+        Ok(lba) => write_cmd(s, lba, data),
+        Err(_) => s.command(&scsi::block_cdb16(0x8a, lba, 1), 0, Some(data)),
+    }
+}
+
+/// READ of one block at a 64-bit LBA, which must succeed.
+pub(super) fn read_block64(s: &mut Port, lba: u64, len: usize) -> Result<Vec<u8>> {
+    let o = read_cmd64(s, lba, len)?;
+    scsi::check_status("READ", o.status, &o.sense)?;
+    Ok(o.data)
+}
+
+/// WRITE of one block at a 64-bit LBA, which must succeed.
+pub(super) fn write_block64(s: &mut Port, lba: u64, data: &[u8]) -> Result<()> {
+    let o = write_cmd64(s, lba, data)?;
+    scsi::check_status("WRITE", o.status, &o.sense)
+}
+
 /// READ(10) of one block, as an outcome.
 pub(super) fn read_cmd(s: &mut Port, lba: u32, len: usize) -> Result<Outcome> {
     s.command(&scsi::block_cdb(0x28, lba, 1), len as u32, None)

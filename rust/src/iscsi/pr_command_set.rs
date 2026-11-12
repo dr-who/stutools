@@ -10,7 +10,7 @@
 
 use super::block_io::{cdb10, cdb16};
 use super::cases::{record, record_should, refused, Want};
-use super::lun_access::{last_block, open, read_block, unit_attentions, write_block, Creds};
+use super::lun_access::{last_block64, open, read_block64, unit_attentions, write_block64, Creds};
 use super::ops;
 use super::path::Path;
 use super::port::Port;
@@ -181,11 +181,11 @@ pub(super) fn run(
     for s in [&mut a, &mut b, &mut c] {
         let _ = unit_attentions(s);
     }
-    let Ok((last, len)) = last_block(&mut a) else {
+    let Ok((last, len)) = last_block64(&mut a) else {
         return;
     };
-    let lba = u64::from(last.saturating_sub(1));
-    let Ok(original) = read_block(&mut a, lba as u32, len) else {
+    let lba = last.saturating_sub(1);
+    let Ok(original) = read_block64(&mut a, lba, len) else {
         return;
     };
     // The device's own answer to each command, with no reservation.
@@ -195,7 +195,7 @@ pub(super) fn run(
             send(&mut a, cmd, lba, &original).is_ok_and(|o| !refused(&o, cmd.service_action))
         })
         .collect();
-    let _ = write_block(&mut a, lba as u32, &original);
+    let _ = write_block64(&mut a, lba, &original);
     for (kind, registrants, label) in TYPES {
         let ready = out(&mut a, ops::PR_REGISTER_AND_IGNORE, 0, 0, KEY_A)
             .and_then(|_| out(&mut b, ops::PR_REGISTER_AND_IGNORE, 0, 0, KEY_B))
@@ -249,13 +249,13 @@ pub(super) fn run(
             }
         }
         let _ = out(&mut a, ops::PR_RELEASE, kind, KEY_A, 0);
-        let _ = write_block(&mut a, lba as u32, &original);
+        let _ = write_block64(&mut a, lba, &original);
         for s in [&mut a, &mut b, &mut c] {
             let _ = unit_attentions(s);
         }
     }
     let _ = out(&mut a, ops::PR_CLEAR, 0, KEY_A, 0);
-    let _ = write_block(&mut a, lba as u32, &original);
+    let _ = write_block64(&mut a, lba, &original);
     let _ = (a.logout(), b.logout(), c.logout());
     clean_slate(path, initiator, creds, name, cases);
 }

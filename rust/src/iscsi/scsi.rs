@@ -201,6 +201,15 @@ pub fn capacity(s: &mut impl Commands) -> Result<(u64, u32)> {
     Ok((last, block))
 }
 
+/// Builds a READ(16) or WRITE(16) CDB: a 64-bit LBA and a 32-bit count of blocks (SBC-3 5.13, 5.35).
+pub fn block_cdb16(opcode: u8, lba: u64, blocks: u32) -> [u8; 16] {
+    let l = lba.to_be_bytes();
+    let b = blocks.to_be_bytes();
+    [
+        opcode, 0, l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7], b[0], b[1], b[2], b[3], 0, 0,
+    ]
+}
+
 /// Builds a READ(10) or WRITE(10) CDB: a 32-bit LBA and a 16-bit count of blocks.
 pub fn block_cdb(opcode: u8, lba: u32, blocks: u16) -> [u8; 10] {
     let l = lba.to_be_bytes();

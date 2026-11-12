@@ -432,8 +432,9 @@ fn run_forms(s: &mut Port, name: &str, disk: &Disk, cases: &mut Vec<Case>, forms
     }
 
     // Each READ form of blocks WRITE (10) wrote.
+    // Past 32-bit LBAs the WRITE (10) would land on a truncated block, so this part is left out there.
     let data = pattern(len, 0x5a);
-    if served(&write(s, Form::Ten, lba, &data)) {
+    if ten_ok && served(&write(s, Form::Ten, lba, &data)) {
         for &form in forms {
             let outcome = read(s, form, lba, total);
             let did_serve = record_answer(cases, &at, form.read_clause(), form, false, &outcome);
