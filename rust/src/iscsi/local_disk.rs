@@ -25,7 +25,17 @@ pub fn cases(
     untested: &mut Vec<(String, String)>,
     found: &mut Vec<Device>,
 ) {
-    for device in devices {
+    for requested in devices {
+        // An sg node is the same disk as its block device: the tests go through the block name, which holds
+        // the disk exclusively. Only disks are tested; an sg node that is not one (an enclosure) is not.
+        let device = match resolve(requested) {
+            Ok(d) => d,
+            Err(e) => {
+                untested.push((requested.clone(), e));
+                continue;
+            }
+        };
+        let device = &device;
         // Held until the disk's cases are done.
         let _exclusive = match File::options()
             .read(true)
@@ -242,4 +252,32 @@ fn print_header(d: &Device, health: &str, sizes: scsi::BlockSizes) {
         per,
         sizes.lowest_aligned
     );
+}
+
+/// The block device a `-f` argument names: `/dev/sdX` as given, or an `/dev/sgN` resolved through sysfs to
+/// its disk. An sg node of any other SCSI type (an enclosure, a tape) is refused, not tested.
+pub fn resolve(requested: &str) -> Result<String, String> {
+    let name = requested.trim_start_matches("/dev/");
+    let Some(sg) = name
+        .strip_prefix("sg")
+        .filter(|n| n.chars().all(|c| c.is_ascii_digit()) && !n.is_empty())
+    else {
+        return Ok(requested.to_string());
+    };
+    let base = format!("/sys/class/scsi_generic/sg{sg}/device");
+    let kind =
+        std::fs::read_to_string(format!("{base}/type")).map_err(|e| format!("{requested}: {e}"))?;
+    if kind.trim() != "0" {
+        return Err(format!(
+            "not a disk (SCSI peripheral type {}), not tested",
+            kind.trim()
+        ));
+    }
+    let block = std::fs::read_dir(format!("{base}/block"))
+        .map_err(|e| format!("{requested}: no block device: {e}"))?
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .next()
+        .ok_or_else(|| format!("{requested}: no block device"))?;
+    Ok(format!("/dev/{block}"))
 }
