@@ -237,6 +237,20 @@ fn agrees(
         .and_then(|o| o.data.get(1).map(|b| b & 0x07));
     let supported = reported.map(|support| SUPPORT_SUPPORTED.contains(&support));
     let verb = if write { "WRITE" } else { "READ" };
+    // No answer (the report itself is refused, as 5/24/00 on a target without it) is not a "not supported" answer:
+    // there is nothing to agree with, so the check is not run.
+    if reported.is_none() {
+        super::cases::record_info(
+            cases,
+            SECTION,
+            at(&format!(
+                "SPC-3 6.23.1 REPORT SUPPORTED OPERATION CODES agrees with {clause} {verb} ({})",
+                form.name()
+            )),
+            "not run: REPORT SUPPORTED OPERATION CODES gives no answer for this operation",
+        );
+        return;
+    }
     record(
         cases,
         SECTION,

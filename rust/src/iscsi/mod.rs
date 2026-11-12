@@ -42,6 +42,7 @@ pub mod discovery_listing;
 mod disk;
 mod feature_sets;
 mod header_digest;
+mod health_cases;
 pub mod hold;
 mod host_traces;
 mod identity;

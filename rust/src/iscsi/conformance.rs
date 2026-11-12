@@ -15,12 +15,12 @@ use super::path::Path;
 use super::seen::Seen;
 use super::{
     alua, ats_race, block_commands, block_io, bulk_integrity, cache_integrity, cdb_lengths,
-    coherence, compare_and_write, data_path, disk, feature_sets, header_digest, host_traces,
-    inquiry_framing, mode_block_descriptors, mode_select_change, mode_select_pages, odx,
-    optional_commands, pr_command_set, pr_empty_state, pr_ports, pr_single_nexus, provisioning,
-    report_luns_cases, reservations, six_byte_io, spc2_reservations, spc_commands, standby_cases,
-    start_stop_cases, task_management, unlisted_lun, verify_cases, vpd_framing, windows,
-    windows_device_rules,
+    coherence, compare_and_write, data_path, disk, feature_sets, header_digest, health_cases,
+    host_traces, inquiry_framing, mode_block_descriptors, mode_select_change, mode_select_pages,
+    odx, optional_commands, pr_command_set, pr_empty_state, pr_ports, pr_single_nexus,
+    provisioning, report_luns_cases, reservations, six_byte_io, spc2_reservations, spc_commands,
+    standby_cases, start_stop_cases, task_management, unlisted_lun, verify_cases, vpd_framing,
+    windows, windows_device_rules,
 };
 use crate::compliance::{Case, ScsiLevel};
 
@@ -91,6 +91,7 @@ pub(super) fn run(
             let _ = s.logout();
             continue;
         }
+        health_cases::run(&mut s, &name, cases);
         let mut seen = Seen::default();
         spc_commands::run(&mut s, &name, cases, &mut seen);
         let luns = report_luns_cases::run(&mut s, &name, t.path.lun == 0, cases);
