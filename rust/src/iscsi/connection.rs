@@ -6,11 +6,8 @@ use super::path::Path;
 use super::scsi;
 use super::session::Session;
 use crate::paths::lanes;
-use crate::paths::{Done, Fabric, Geometry, Io, Policy, Pool, Transport};
+use crate::paths::{Done, Fabric, Geometry, Io, Transport};
 use crate::Result;
-
-/// The iSCSI pool a queue runs over: one session per portal.
-pub type Connection = Pool<IscsiFabric>;
 
 /// How the pool opens an iSCSI path: the initiator name, and CHAP where a target asks for it.
 pub struct IscsiFabric {
@@ -48,22 +45,6 @@ impl Fabric for IscsiFabric {
             },
         ))
     }
-}
-
-/// Logs in to every path and reads the LUN's size, which must agree across paths. `chap` is used only
-/// where a target asks for it.
-pub fn open(
-    paths: &[Path],
-    initiator: &str,
-    chap: Option<(&str, &[u8])>,
-    policy: Policy,
-    seed: u64,
-) -> Result<Connection> {
-    let fabric = IscsiFabric {
-        initiator: initiator.to_string(),
-        chap: chap.map(|(u, s)| (u.to_string(), s.to_vec())),
-    };
-    Pool::open(fabric, paths, policy, seed)
 }
 
 /// The lane tier of a portal, from the ALUA state of the port group it is in: optimized when the group is

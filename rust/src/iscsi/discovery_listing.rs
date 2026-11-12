@@ -36,9 +36,10 @@ pub fn discover(config: &Config) -> Result<()> {
                     }
                     Err(e) => {
                         let mut row = vec![target.target.clone(), address.clone()];
-                        row.extend(
-                            std::iter::repeat("-".to_string()).take(DISCOVERY_COLUMNS.len() - 3),
-                        );
+                        row.extend(std::iter::repeat_n(
+                            "-".to_string(),
+                            DISCOVERY_COLUMNS.len() - 3,
+                        ));
                         row.push(refusal(&e));
                         row
                     }

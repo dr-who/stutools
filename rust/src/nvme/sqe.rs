@@ -51,6 +51,7 @@ impl Command {
         Self(b)
     }
 
+    #[cfg(test)]
     pub fn cid(&self) -> u16 {
         u16::from_le_bytes([self.0[2], self.0[3]])
     }

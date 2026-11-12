@@ -8,7 +8,7 @@ use std::{
 };
 
 use super::{
-    controller::{connect_io_queue, random_hostid, Association, Controller, CAP, KATO_MS},
+    controller::{connect_io_queue, Association, Controller, CAP, KATO_MS},
     identify::{
         parse_active_namespaces, parse_controller, parse_namespace, CNS_ACTIVE_NAMESPACES,
         CNS_CONTROLLER, CNS_NAMESPACE,
@@ -18,7 +18,7 @@ use super::{
     sqe::{self, Command, Completion},
     Result,
 };
-use crate::paths::{Done, Fabric, Geometry, Io, Policy, Pool, Transport};
+use crate::paths::{Done, Fabric, Geometry, Io, Transport};
 
 /// The I/O queue's size, 0-based, when the controller allows more: 128 entries.
 const IO_SQSIZE: u16 = 127;
@@ -37,9 +37,6 @@ pub struct NvmePath {
     pub subnqn: String,
     pub nsid: Option<u32>,
 }
-
-/// The NVMe-oF pool a queue runs over: one controller per path.
-pub type Connection = Pool<NvmeFabric>;
 
 /// How the pool opens an NVMe-oF path: the host NQN, and the host identifier sent with each Connect.
 pub struct NvmeFabric {
@@ -107,15 +104,6 @@ impl Fabric for NvmeFabric {
             geometry,
         ))
     }
-}
-
-/// Opens the NVMe-oF pool for `paths`. `hostnqn` names this host; the host identifier is random per run.
-pub fn open(paths: &[NvmePath], hostnqn: &str, policy: Policy, seed: u64) -> Result<Connection> {
-    let fabric = NvmeFabric {
-        hostnqn: hostnqn.to_string(),
-        hostid: random_hostid()?,
-    };
-    Pool::open(fabric, paths, policy, seed)
 }
 
 /// Where one command's data is: the slot buffer, how long it is, and whether it is a write.

@@ -10,7 +10,7 @@ use super::session::{Outcome, Session, TaskAnswer};
 use crate::Result;
 
 pub enum Port {
-    Iscsi(Session),
+    Iscsi(Box<Session>),
     Local(LocalLun),
 }
 

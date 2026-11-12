@@ -59,7 +59,7 @@ pub(super) fn open_with(
         digest,
         CHAP_OFFER,
     )
-    .map(|s| Port::Iscsi(s.for_lun(path)))
+    .map(|s| Port::Iscsi(Box::new(s.for_lun(path))))
 }
 
 /// The short name of a target: the part after the last colon of its IQN.

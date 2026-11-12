@@ -177,13 +177,6 @@ pub fn parse_icresp(p: &Pdu) -> Result<IcResp> {
     })
 }
 
-/// A CapsuleCmd carrying one 64-byte command, followed by `data` (in-capsule data, if any).
-pub fn capsule_cmd(sqe: &[u8; 64], data: &[u8]) -> Vec<u8> {
-    let mut h = vec![0u8; CAPSULE_CMD_LEN];
-    h[8..].copy_from_slice(sqe);
-    encode(CAPSULE_CMD, 0, h, data)
-}
-
 /// The 16-byte completion in a CapsuleResp.
 pub fn parse_capsule_resp(p: &Pdu) -> Result<[u8; 16]> {
     if p.kind != CAPSULE_RESP || p.header.len() != CAPSULE_RESP_LEN {
@@ -245,16 +238,6 @@ pub fn parse_r2t(p: &Pdu) -> Result<R2t> {
     })
 }
 
-/// An H2CData PDU answering an R2T: `chunk` is the host data at `datao` for command `cccid`.
-pub fn h2c_data(cccid: u16, ttag: u16, datao: u32, chunk: &[u8], last: bool) -> Vec<u8> {
-    let mut h = vec![0u8; DATA_HEADER_LEN];
-    h[8..10].copy_from_slice(&cccid.to_le_bytes());
-    h[10..12].copy_from_slice(&ttag.to_le_bytes());
-    h[12..16].copy_from_slice(&datao.to_le_bytes());
-    h[16..20].copy_from_slice(&(chunk.len() as u32).to_le_bytes());
-    encode(H2C_DATA, if last { FLAG_LAST } else { 0 }, h, chunk)
-}
-
 /// A termination request from the controller: the error the connection is closed for.
 pub fn describe_term(p: &Pdu) -> String {
     let fes = le16(&p.header, 8);
@@ -271,6 +254,17 @@ fn le16(d: &[u8], at: usize) -> u16 {
 
 fn le32(d: &[u8], at: usize) -> u32 {
     u32::from_le_bytes([d[at], d[at + 1], d[at + 2], d[at + 3]])
+}
+
+/// An H2CData PDU answering an R2T: `chunk` is the host data at `datao` for command `cccid`.
+#[cfg(test)]
+pub fn h2c_data(cccid: u16, ttag: u16, datao: u32, chunk: &[u8], last: bool) -> Vec<u8> {
+    let mut h = vec![0u8; DATA_HEADER_LEN];
+    h[8..10].copy_from_slice(&cccid.to_le_bytes());
+    h[10..12].copy_from_slice(&ttag.to_le_bytes());
+    h[12..16].copy_from_slice(&datao.to_le_bytes());
+    h[16..20].copy_from_slice(&(chunk.len() as u32).to_le_bytes());
+    encode(H2C_DATA, if last { FLAG_LAST } else { 0 }, h, chunk)
 }
 
 #[cfg(test)]

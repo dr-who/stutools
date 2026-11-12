@@ -85,9 +85,14 @@ pub fn set_dump(count: u64) {
 
 /// Takes one dump slot if any remain.
 pub fn take_dump() -> bool {
-    DUMP_LEFT
-        .fetch_update(Relaxed, Relaxed, |n| n.checked_sub(1))
-        .is_ok()
+    let mut left = DUMP_LEFT.load(Relaxed);
+    while left > 0 {
+        match DUMP_LEFT.compare_exchange(left, left - 1, Relaxed, Relaxed) {
+            Ok(_) => return true,
+            Err(now) => left = now,
+        }
+    }
+    false
 }
 
 /// Prints the per-path totals for the run: operations, bytes, latency and failovers. Prints nothing when

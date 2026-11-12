@@ -211,9 +211,4 @@ impl Link {
         }
         Ok(())
     }
-
-    /// The largest H2CData PDU the controller accepts.
-    pub fn max_h2c(&self) -> u32 {
-        self.max_h2c
-    }
 }

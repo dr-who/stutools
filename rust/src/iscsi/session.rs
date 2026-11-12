@@ -572,7 +572,6 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::super::login::login;
-    use super::*;
 
     /// Live test: needs a target that accepts AuthMethod=None for this initiator.
     /// Run: SPIT_ISCSI_PORTAL=103.187.7.170 SPIT_ISCSI_TARGET=iqn... SPIT_ISCSI_INITIATOR=iqn...

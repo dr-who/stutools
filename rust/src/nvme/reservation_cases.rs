@@ -388,7 +388,7 @@ pub fn run(t: &Target, name: &str, facts: &Facts, cases: &mut Vec<Case>) -> Verd
         r.check("B Register again", &[SUCCESS], "success", &done);
         let reopened = (|| -> Result<()> {
             let (first, second) = (t.addrs[0], other);
-            r.hosts.truncate(0);
+            r.hosts.clear();
             r.hosts.push(Host::open(first, &t.subnqn, HOST_A, ids[A])?);
             r.hosts.push(Host::open(second, &t.subnqn, HOST_A, ids[A])?);
             r.hosts.push(Host::open(first, &t.subnqn, HOST_B, ids[B])?);
