@@ -5,14 +5,16 @@
 //! STATE. Windows clustering registers its key down standby paths, so PERSISTENT RESERVE OUT matters.
 
 use super::alua::SECTION;
-use super::cases::{expect, expect_should, record, Want, REFUSED};
+use super::cases::{describe, expect, expect_should, record, record_info, Want, REFUSED};
 use super::lun_access::unit_attentions;
 use super::mode_page_cases::{mode_page_of, mode_sense_10};
 use super::ops;
 use super::port::Port;
 use super::port_groups::rtpg;
 use super::scsi;
+use super::session::Outcome;
 use crate::compliance::Case;
+use crate::Result;
 
 pub(super) const KEY_STANDBY: u64 = 0x5350_4954_0000_005b;
 
@@ -123,6 +125,57 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
     standby_listed(s, name, cases);
 }
 
+/// A listed command on a standby port. Served (GOOD) passes. A refusal as an unimplemented command is not
+/// judged here: whether the standby port must serve it depends on the active port, which this path cannot ask
+/// (REPORT SUPPORTED OPERATION CODES is itself refused on standby), so it is reported as not judged. Any other
+/// answer is a failure.
+fn served_or_unjudged(
+    cases: &mut Vec<Case>,
+    what: String,
+    result: Result<Outcome>,
+) -> Option<Outcome> {
+    match result {
+        Ok(o) if o.status == 0 => {
+            record(cases, SECTION, what, "GOOD", describe(&o), true);
+            Some(o)
+        }
+        Ok(o) if REFUSED.iter().any(|w| w.matches(&o)) => {
+            record_info(
+                cases,
+                SECTION,
+                what,
+                format!(
+                    "not judged on standby: refused as {}; the active port's support is not visible from this path",
+                    describe(&o)
+                ),
+            );
+            Some(o)
+        }
+        Ok(o) => {
+            record(
+                cases,
+                SECTION,
+                what,
+                "GOOD, or refused as an unimplemented command",
+                describe(&o),
+                false,
+            );
+            Some(o)
+        }
+        Err(e) => {
+            record(
+                cases,
+                SECTION,
+                what,
+                "GOOD, or refused as an unimplemented command",
+                e,
+                false,
+            );
+            None
+        }
+    }
+}
+
 /// The rest of the SPC-3 5.8.2.4.4 list: MODE SELECT (10), LOG SELECT, SEND and RECEIVE DIAGNOSTIC, and the
 /// echo buffer modes of READ and WRITE BUFFER. Each must be served, or refused as an invalid operation code
 /// when the target does not implement it (the same answer as in the active state). A standby port must not
@@ -151,47 +204,37 @@ fn standby_listed(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
     }
 
     // SPC-3 6.5: LOG SELECT with an empty parameter list.
-    expect(
+    served_or_unjudged(
         cases,
-        SECTION,
         label("SPC-3 6.5 LOG SELECT, empty parameter list"),
-        &served_or_refused,
         s.command(&[0x4c, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0, None),
     );
 
     // SPC-3 6.28: SEND DIAGNOSTIC with PF set and no parameter list (the default self-test set).
-    expect(
+    served_or_unjudged(
         cases,
-        SECTION,
         label("SPC-3 6.28 SEND DIAGNOSTIC, PF set, no parameters"),
-        &served_or_refused,
         s.command(&[0x1d, 0x10, 0, 0, 0, 0], 0, None),
     );
 
     // SPC-3 6.18: RECEIVE DIAGNOSTIC RESULTS, PCV clear, four bytes of allocation.
-    expect(
+    served_or_unjudged(
         cases,
-        SECTION,
         label("SPC-3 6.18 RECEIVE DIAGNOSTIC RESULTS, 4 bytes"),
-        &served_or_refused,
         s.command(&[0x1c, 0, 0, 0, 4, 0], 4, None),
     );
 
     // SPC-3 6.35 and 6.15: the echo buffer mode. What WRITE BUFFER sends, READ BUFFER returns, when both are
     // served; a target that refuses either (not implemented) has nothing to compare.
     let echo = [0x5a, 0xa5, 0x01, 0xfe];
-    let (_, wrote) = expect(
+    let wrote = served_or_unjudged(
         cases,
-        SECTION,
         label("SPC-3 6.35 WRITE BUFFER echo mode, 4 bytes"),
-        &served_or_refused,
         s.command(&[0x3b, 0x0a, 0, 0, 0, 0, 0, 0, 4, 0], 0, Some(&echo)),
     );
-    let (_, read) = expect(
+    let read = served_or_unjudged(
         cases,
-        SECTION,
         label("SPC-3 6.15 READ BUFFER echo mode, 4 bytes"),
-        &served_or_refused,
         s.command(&[0x3c, 0x0a, 0, 0, 0, 0, 0, 0, 4, 0], 4, None),
     );
     let both_served =
