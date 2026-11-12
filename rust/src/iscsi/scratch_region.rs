@@ -162,12 +162,15 @@ impl Scratch {
     /// the read fails.
     pub(super) fn save(s: &mut Port, disk: &Disk) -> Result<Scratch> {
         let len = disk.block_len as usize;
-        let blocks = ((RUN_BYTES / disk.block_len.max(1) as u64) as u32).max(COMMANDS);
         let end = disk.last_lba.saturating_sub(2);
-        if end < 2 * u64::from(blocks) {
-            return Err(format!(
-                "the LUN is smaller than twice the {blocks}-block window"
-            ));
+        // The window is the run's bytes, and at least the command count when the LUN can spare it twice;
+        // a small LUN (large blocks, few of them) gets the largest window that fits in half of it.
+        let fits = (end / 2).min(u64::from(u32::MAX)) as u32;
+        let blocks = ((RUN_BYTES / disk.block_len.max(1) as u64) as u32)
+            .max(COMMANDS.min(fits))
+            .min(fits);
+        if blocks == 0 {
+            return Err("the LUN is too small to spare a scratch window twice over".into());
         }
         let start = end - u64::from(blocks);
         let chunk = chunk(s, disk);

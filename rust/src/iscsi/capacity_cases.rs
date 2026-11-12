@@ -1,5 +1,5 @@
 //! The READ CAPACITY cases of the `disk` section (SBC-5 5.20, 5.21): READ CAPACITY (10) and (16)
-//! agree, (10) reports FFFF_FFFFh when the LUN is larger, the block length is a power of two of 512
+//! agree, (10) reports FFFF_FFFFh when the LUN is larger, the block length is at least one byte and even
 //! bytes or more, and the (16) fields (protection, LBPME, LBPRZ, the physical block exponent and the
 //! lowest aligned LBA) are recorded in `Disk`; and READ CAPACITY (16) with an ALLOCATION LENGTH of
 //! zero is not an error and returns nothing (SPC-6 4.2.5.6).
@@ -37,14 +37,14 @@ pub(super) fn capacity(
         cases,
         SECTION,
         label(name, "READ CAPACITY (16) block size and alignment"),
-        "a power of two of 512 B or more; lowest aligned LBA below 2^exponent",
+        "at least 1 B and an even number of bytes (SBC-3 4.5); lowest aligned LBA below 2^exponent",
         format!(
             "{} B, exponent {exponent}, lowest aligned {lowest}",
             disk.block_len
         ),
-        disk.block_len >= 512
-            && disk.block_len.is_power_of_two()
-            && (lowest as u32) < (1u32 << exponent),
+        // SBC-3 4.5: the logical block length is at least one byte and should be even; it need not be a
+        // power of two (a 64 KiB block is legal).
+        disk.block_len >= 1 && disk.block_len % 2 == 0 && (lowest as u32) < (1u32 << exponent),
     );
     // SPC-6 4.2.5.6: an allocation length of zero transfers nothing and is not an error.
     let zero = [0x9e, 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
