@@ -1,8 +1,8 @@
 //! Renders the fsfiller charts with gnuplot: the write-speed chart over time and the file size
 //! histogram. Each chart also writes its data and gnuplot script, so it can be redrawn by hand.
 use super::{
-    stats::{bin_edge, Row},
     Settings, Shared, TYPES,
+    stats::{Row, bin_edge},
 };
 use std::{fs, io, process::Command};
 

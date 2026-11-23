@@ -3,8 +3,8 @@
 //! transport, an address, a port, a subsystem NQN and a defined SUBTYPE. Returns the records so the
 //! driver can test each NVM subsystem they name.
 
-use super::{discover_subsystems, Discovered};
-use crate::compliance::{case, Case};
+use super::{Discovered, discover_subsystems};
+use crate::compliance::{Case, case};
 
 /// SUBTYPE in a discovery log record: an NVM subsystem (2), not a discovery controller (1 or 3).
 pub const SUBTYPE_NVM: u8 = 2;

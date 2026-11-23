@@ -5,14 +5,14 @@
 //! sends them) and WRITE SAME (10) and (16). Data-changing cases use the LUN's second-to-last block and
 //! write its original data back.
 
-use super::cases::{expect, record, Want, REFUSED};
+use super::cases::{REFUSED, Want, expect, record};
 use super::disk::Disk;
 use super::lun_access::{pattern, read_block, write_block};
 use super::port::Port;
 use super::seen::Seen;
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 const SECTION: &str = "io";
 
@@ -68,7 +68,9 @@ pub(super) fn run(
             SECTION,
             format!("{name} LUN size"),
             "LBAs that READ (10) and WRITE (10) can address, or the 16-byte cases run instead",
-            format!("not run: LUN is larger than 32-bit LBAs, which READ (10) and WRITE (10) cannot address ({last} blocks)"),
+            format!(
+                "not run: LUN is larger than 32-bit LBAs, which READ (10) and WRITE (10) cannot address ({last} blocks)"
+            ),
             false,
         );
         return Findings { flush: None };
@@ -317,17 +319,17 @@ pub(super) fn run(
         0,
         None,
     );
-    if t.supported("VERIFY (10)") {
-        if let Ok(past) = u32::try_from(last + 1) {
-            t.cmd(
-                "VERIFY (10)",
-                "VERIFY (10) past the last LBA",
-                &out,
-                &cdb10(0x2f, 0, past, 1),
-                0,
-                None,
-            );
-        }
+    if t.supported("VERIFY (10)")
+        && let Ok(past) = u32::try_from(last + 1)
+    {
+        t.cmd(
+            "VERIFY (10)",
+            "VERIFY (10) past the last LBA",
+            &out,
+            &cdb10(0x2f, 0, past, 1),
+            0,
+            None,
+        );
     }
 
     // SBC-3 5.43, 5.44: WRITE SAME of one block writes it; the read returns the pattern. Then the block

@@ -1,9 +1,9 @@
 //! Opening and describing the target: the file or device, its size and sector size, and the
 //! per-slot handles some backends need.
 
+use super::Native;
 #[cfg(windows)]
 use super::windows;
-use super::Native;
 use crate::cli::Backend;
 #[cfg(target_os = "linux")]
 use std::os::unix::io::AsRawFd;
@@ -47,7 +47,8 @@ pub fn validate_target(path: &Path, write: bool) -> crate::Result<()> {
     if path.is_dir() {
         return Err(format!(
             "{} is a directory, not an I/O file; -F takes a file prefix, e.g. -F \"{}\" -G 1MiB -c ws1x1, then repeat with -c rs0 to read it",
-            path.display(), path.join("spit-test").display()
+            path.display(),
+            path.join("spit-test").display()
         ));
     }
     Ok(())

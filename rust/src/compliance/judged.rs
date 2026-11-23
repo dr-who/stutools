@@ -41,7 +41,7 @@ pub fn rows(cases: &[Case], levels: &[ScsiLevel]) -> Vec<Row> {
         let run = cases[i..]
             .iter()
             .zip(levels)
-            .take_while(|(c, &l)| c.scsi_level == Some(l))
+            .take_while(|(c, l)| c.scsi_level == Some(**l))
             .count();
         if run == levels.len() {
             out.push(Row {
@@ -86,7 +86,7 @@ fn judge(c: &Case, level: ScsiLevel) -> Case {
 
 #[cfg(test)]
 mod tests {
-    use super::super::case::{case, Verdict};
+    use super::super::case::{Verdict, case};
     use super::*;
 
     /// The cases as judged at one level.
@@ -159,14 +159,16 @@ mod tests {
     #[test]
     fn what_a_later_edition_introduced_only_informs_before_it() {
         use super::super::scsi_level::Edition;
-        let cases = vec![case(
-            "mpio",
-            "REPORT TARGET PORT GROUPS, extended header".into(),
-            "GOOD".into(),
-            "CHECK CONDITION 5/24/00".into(),
-            false,
-        )
-        .since(Edition::Spc(4))];
+        let cases = vec![
+            case(
+                "mpio",
+                "REPORT TARGET PORT GROUPS, extended header".into(),
+                "GOOD".into(),
+                "CHECK CONDITION 5/24/00".into(),
+                false,
+            )
+            .since(Edition::Spc(4)),
+        ];
         let three = at(&cases, level(3));
         assert_eq!(three[0].verdict(), Verdict::Info);
         assert!(three[0].actual.contains("introduced in SPC-4"));
@@ -175,14 +177,16 @@ mod tests {
 
     #[test]
     fn a_case_judged_for_its_level_keeps_its_weight() {
-        let cases = vec![case(
-            "sbc",
-            "SPC-6 6.37 SECURITY PROTOCOL IN [Windows, Linux]".into(),
-            "works".into(),
-            "refused".into(),
-            false,
-        )
-        .at(level(3))];
+        let cases = vec![
+            case(
+                "sbc",
+                "SPC-6 6.37 SECURITY PROTOCOL IN [Windows, Linux]".into(),
+                "works".into(),
+                "refused".into(),
+                false,
+            )
+            .at(level(3)),
+        ];
         assert_eq!(at(&cases, level(3))[0].verdict(), Verdict::Fail);
     }
 

@@ -6,7 +6,7 @@
 //! wrote. `cdb6` builds the CDB the bulk runs use too.
 
 use super::block_io::cdb10;
-use super::cases::{describe, expect, record, refused, Want};
+use super::cases::{Want, describe, expect, record, refused};
 use super::disk::Disk;
 use super::lun_access::pattern;
 use super::port::Port;

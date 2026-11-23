@@ -7,9 +7,9 @@
 //! identifiers of VPD 83h through every iSCSI path to the LUN, or the SAS ports of a local disk's
 //! paths. Fewer ports seen than the device has only informs.
 
-use super::cases::{describe, expect, record, record_info, residual_not_reported, Want};
-use super::disk::{label, Disk, SECTION};
-use super::lun_access::{open, vpd, Creds};
+use super::cases::{Want, describe, expect, record, record_info, residual_not_reported};
+use super::disk::{Disk, SECTION, label};
+use super::lun_access::{Creds, open, vpd};
 use super::path::Path;
 use super::port::Port;
 use super::version_descriptors::{descriptors, known};
@@ -123,11 +123,11 @@ pub(super) fn run(s: &mut Port, name: &str, disk: &Disk, ports: usize, cases: &m
     }
     let mut answers = Vec::new();
     for n in (16..=240).step_by(16) {
-        if let Ok(o) = s.command(&[0x12, 0, 0, 0, n as u8, 0], n as u32, None) {
-            if o.status == 0 {
-                answers.push((n, o.data[..o.received.min(o.data.len())].to_vec()));
-                continue;
-            }
+        if let Ok(o) = s.command(&[0x12, 0, 0, 0, n as u8, 0], n as u32, None)
+            && o.status == 0
+        {
+            answers.push((n, o.data[..o.received.min(o.data.len())].to_vec()));
+            continue;
         }
         answers.push((n, Vec::new()));
     }

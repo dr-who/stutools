@@ -3,7 +3,7 @@
 //! tested no further. The document form is `asciidoc`.
 
 use super::case::{Case, Verdict};
-use super::score::{by_section, Tally};
+use super::score::{Tally, by_section};
 use super::scsi_level::ScsiLevel;
 
 /// Prints the run; `views` holds the cases as judged at each level, lowest first.

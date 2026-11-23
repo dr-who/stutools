@@ -4,15 +4,16 @@ use crate::signals;
 #[path = "cctv_stats.rs"]
 mod stats;
 use crate::cctv_plots;
-use crate::{allocation, cli::Config, progress, rate, Result};
+use crate::{Result, allocation, cli::Config, progress, rate};
 use stats::{Metrics, MetricsStore, Periods};
 use std::{
     fs::{File, OpenOptions},
     io::{self, BufWriter, Write},
     path::PathBuf,
     sync::{
+        Arc, Condvar, Mutex, OnceLock,
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-        mpsc, Arc, Condvar, Mutex, OnceLock,
+        mpsc,
     },
     thread,
     time::{Duration, Instant},
@@ -147,11 +148,12 @@ impl Settings {
             || self.block > 0x7ffff000
             || self.file_size == 0
             || self.file_size > i64::MAX as u64
-            || self.file_size % self.block as u64 != 0
+            || !self.file_size.is_multiple_of(self.block as u64)
         {
             return Err("CCTV requires a fixed block of at least 64 bytes and a positive --filesizemb size divisible by the block size".into());
         }
-        if self.direct && (self.block % 4096 != 0 || self.file_size % 4096 != 0) {
+        if self.direct && (!self.block.is_multiple_of(4096) || !self.file_size.is_multiple_of(4096))
+        {
             return Err("--cctv-io direct needs block and --filesizemb sizes that are multiples of 4096 bytes".into());
         }
         let required = self.pool_bytes().ok_or("CCTV memory overflow")?;
@@ -367,7 +369,16 @@ impl Logs {
                     .create_new(true)
                     .open(&paths[2])?,
             );
-            writeln!(log,"# spit CCTV run; prefix={:?}; cameras={}; Mbit_s_each={}; retention_hours={}; block_bytes={}; file_bytes={}; duration_seconds={duration:?}",ns.directory.join(&ns.prefix),settings.count,settings.mbps,settings.hours,settings.block,settings.file_size)?;
+            writeln!(
+                log,
+                "# spit CCTV run; prefix={:?}; cameras={}; Mbit_s_each={}; retention_hours={}; block_bytes={}; file_bytes={}; duration_seconds={duration:?}",
+                ns.directory.join(&ns.prefix),
+                settings.count,
+                settings.mbps,
+                settings.hours,
+                settings.block,
+                settings.file_size
+            )?;
             for file in [&mut minute, &mut hour] {
                 stats::write_header(file)?;
                 file.flush()?;
@@ -445,7 +456,9 @@ fn allocate(shared: Arc<Shared>) -> Result<()> {
                 })?;
             let ns = before.elapsed().as_nanos().min(u64::MAX as u128) as u64;
             if file.fallback && !shared.fallback.swap(true, Ordering::Relaxed) {
-                eprintln!("*info* native preallocation is unavailable on this filesystem; CCTV allocator is using a background zero-fill fallback");
+                eprintln!(
+                    "*info* native preallocation is unavailable on this filesystem; CCTV allocator is using a background zero-fill fallback"
+                );
             }
             shared
                 .record(Metrics {
@@ -730,7 +743,11 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
             v.total as f64 / 1073741824.,
             v.free as f64 / 1073741824.,
             100. * (1. - v.free as f64 / v.total.max(1) as f64),
-            if settings.direct { "direct" } else { "pagecache" },
+            if settings.direct {
+                "direct"
+            } else {
+                "pagecache"
+            },
             ns.directory.display()
         ),
         Err(e) => println!("filesystem unavailable: {e}"),
@@ -859,7 +876,21 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
     if let Some(r) = &reporter {
         let _ = r.state.start.set(start);
     }
-    println!("backend={} cameras={} Mbit_s_each={} target_Mbit_s={} block_bytes={} file_bytes={} fixed_pool_bytes={} memory_budget={}",if settings.direct { "direct" } else { "pagecache" },settings.count,settings.mbps,settings.mbps*settings.count as f64,settings.block,settings.file_size,settings.pool_bytes().unwrap(),config.memory);
+    println!(
+        "backend={} cameras={} Mbit_s_each={} target_Mbit_s={} block_bytes={} file_bytes={} fixed_pool_bytes={} memory_budget={}",
+        if settings.direct {
+            "direct"
+        } else {
+            "pagecache"
+        },
+        settings.count,
+        settings.mbps,
+        settings.mbps * settings.count as f64,
+        settings.block,
+        settings.file_size,
+        settings.pool_bytes().unwrap(),
+        config.memory
+    );
     if let Some(link) = settings.link_mbps {
         let fits = (link * settings.floor / settings.mbps).floor() as usize;
         println!(
@@ -931,7 +962,9 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
                 if achieved < required {
                     error = Some(format!(
                         "upstream is not fast enough: {achieved:.1} Mbit/s written over the last {span:.0} s, but {} cameras at {} Mbit/s each need {required:.1} Mbit/s ({:.0}%)",
-                        settings.count, settings.mbps, settings.floor * 100.
+                        settings.count,
+                        settings.mbps,
+                        settings.floor * 100.
                     ));
                     break;
                 }
@@ -999,10 +1032,9 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
     if let (Some(dir), Some(stem)) = (
         logs.paths[0].parent(),
         logs.paths[0].file_stem().and_then(|s| s.to_str()),
-    ) {
-        if let Err(e) = cctv_plots::write_envelope(dir, stem, &rates, 30., settings.link_mbps) {
-            error = Some(format!("write rate envelope: {e}"));
-        }
+    ) && let Err(e) = cctv_plots::write_envelope(dir, stem, &rates, 30., settings.link_mbps)
+    {
+        error = Some(format!("write rate envelope: {e}"));
     }
     let mut measured = None;
     if settings.ranged {
@@ -1055,8 +1087,35 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
         total.preallocation_waits,
         total.max_preallocation_wait_ns as f64 / 1e6
     );
-    let timing = format!("writes_over_200ms={} max_write_camera={} max_write_sequence={} max_write_offset={} max_write_submit_s={:.9} max_write_complete_s={:.9} stop_reason={}",total.writes_over_200ms,total.max_write_tag.camera,total.max_write_tag.sequence,total.max_write_tag.offset,total.max_write_tag.submitted_ns as f64/1e9,total.max_write_tag.completed_ns as f64/1e9,if error.is_some(){"error"}else if signals::INTERRUPTED.load(Ordering::Relaxed){"interrupted"}else{"deadline"});
-    println!("read_ops=0 write_ops={} seconds={seconds:.6} read_MiB_s=0.000 write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={allocations} verified_ops=0 avg_write_ms={:.6} max_write_ms={:.6} late_write_ops={}",total.writes,total.bytes as f64/1048576./seconds,total.writes as f64/seconds,if total.writes==0{0.}else{total.write_ns as f64/total.writes as f64/1e6},total.max_write_ns as f64/1e6,shared.late.load(Ordering::Relaxed));
+    let timing = format!(
+        "writes_over_200ms={} max_write_camera={} max_write_sequence={} max_write_offset={} max_write_submit_s={:.9} max_write_complete_s={:.9} stop_reason={}",
+        total.writes_over_200ms,
+        total.max_write_tag.camera,
+        total.max_write_tag.sequence,
+        total.max_write_tag.offset,
+        total.max_write_tag.submitted_ns as f64 / 1e9,
+        total.max_write_tag.completed_ns as f64 / 1e9,
+        if error.is_some() {
+            "error"
+        } else if signals::INTERRUPTED.load(Ordering::Relaxed) {
+            "interrupted"
+        } else {
+            "deadline"
+        }
+    );
+    println!(
+        "read_ops=0 write_ops={} seconds={seconds:.6} read_MiB_s=0.000 write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={allocations} verified_ops=0 avg_write_ms={:.6} max_write_ms={:.6} late_write_ops={}",
+        total.writes,
+        total.bytes as f64 / 1048576. / seconds,
+        total.writes as f64 / seconds,
+        if total.writes == 0 {
+            0.
+        } else {
+            total.write_ns as f64 / total.writes as f64 / 1e6
+        },
+        total.max_write_ns as f64 / 1e6,
+        shared.late.load(Ordering::Relaxed)
+    );
     let offered = shared.generated.load(Ordering::Relaxed);
     let dropped = shared.dropped.load(Ordering::Relaxed);
     let dropped_pct = if offered == 0 {
@@ -1075,10 +1134,18 @@ fn run_inner(config: &Config, settings: Settings) -> Result<Option<Measured>> {
     println!("{timing}");
     let pipeline = format!(
         "avg_gen_ms={:.6} max_gen_ms={:.6} closes={} avg_close_ms={:.6} max_close_ms={:.6} max_close_queue={}",
-        if total.writes == 0 { 0. } else { total.gen_ns as f64 / total.writes as f64 / 1e6 },
+        if total.writes == 0 {
+            0.
+        } else {
+            total.gen_ns as f64 / total.writes as f64 / 1e6
+        },
         total.max_gen_ns as f64 / 1e6,
         total.closes,
-        if total.closes == 0 { 0. } else { total.close_ns as f64 / total.closes as f64 / 1e6 },
+        if total.closes == 0 {
+            0.
+        } else {
+            total.close_ns as f64 / total.closes as f64 / 1e6
+        },
         total.max_close_ns as f64 / 1e6,
         total.max_close_queue,
     );
@@ -1108,10 +1175,9 @@ pub fn replot(dir: &std::path::Path) -> Result<()> {
             .rsplit("cameras=")
             .next()
             .and_then(|t| t.strip_suffix(".lat"))
+            && let Ok(count) = count.parse::<usize>()
         {
-            if let Ok(count) = count.parse::<usize>() {
-                newest.insert(count, path);
-            }
+            newest.insert(count, path);
         }
     }
     if newest.is_empty() {

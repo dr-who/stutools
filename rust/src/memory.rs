@@ -23,25 +23,23 @@ fn available() -> Option<u64> {
     let mut available = available;
     // Respect a finite cgroup-v2 limit at this group or any ancestor.
     let root = std::path::Path::new("/sys/fs/cgroup");
-    if let Ok(groups) = fs::read_to_string("/proc/self/cgroup") {
-        if let Some(group) = groups.lines().find_map(|line| line.strip_prefix("0::")) {
-            let mut directory = root.join(group.trim_start_matches('/'));
-            while directory.starts_with(root) {
-                if let (Ok(limit), Ok(used)) = (
-                    fs::read_to_string(directory.join("memory.max")),
-                    fs::read_to_string(directory.join("memory.current")),
-                ) {
-                    if let (Ok(limit), Ok(used)) =
-                        (limit.trim().parse::<u64>(), used.trim().parse::<u64>())
-                    {
-                        available = available.min(limit.saturating_sub(used));
-                    }
-                }
-                if directory == root {
-                    break;
-                }
-                directory.pop();
+    if let Ok(groups) = fs::read_to_string("/proc/self/cgroup")
+        && let Some(group) = groups.lines().find_map(|line| line.strip_prefix("0::"))
+    {
+        let mut directory = root.join(group.trim_start_matches('/'));
+        while directory.starts_with(root) {
+            if let (Ok(limit), Ok(used)) = (
+                fs::read_to_string(directory.join("memory.max")),
+                fs::read_to_string(directory.join("memory.current")),
+            ) && let (Ok(limit), Ok(used)) =
+                (limit.trim().parse::<u64>(), used.trim().parse::<u64>())
+            {
+                available = available.min(limit.saturating_sub(used));
             }
+            if directory == root {
+                break;
+            }
+            directory.pop();
         }
     }
     Some(available)
@@ -117,7 +115,9 @@ pub fn error(required: u64, permitted: u64, reason: &str) -> String {
     } else {
         (required.div_ceil(MIB).max(1), "MiB")
     };
-    format!("{reason} need {required} bytes; --memory permits {permitted}. To keep these block/queue/worker settings, try --memory {amount}{unit} (or reduce q, j or block size)")
+    format!(
+        "{reason} need {required} bytes; --memory permits {permitted}. To keep these block/queue/worker settings, try --memory {amount}{unit} (or reduce q, j or block size)"
+    )
 }
 #[cfg(test)]
 mod tests {

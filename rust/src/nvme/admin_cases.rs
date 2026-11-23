@@ -7,14 +7,14 @@
 
 use std::net::SocketAddr;
 
+use super::DEFAULT_HOSTNQN;
 use super::controller::{self, Association, Controller};
 use super::identify_cases::Facts;
 use super::link::Data;
 use super::revisions as rev;
 use super::sqe::{self, Command};
-use super::verdict::{status_case, INVALID_OPCODE};
-use super::DEFAULT_HOSTNQN;
-use crate::compliance::{case, Case};
+use super::verdict::{INVALID_OPCODE, status_case};
+use crate::compliance::{Case, case};
 
 /// An admin opcode the base specification reserves.
 const RESERVED_ADMIN_OPCODE: u8 = 0x03;

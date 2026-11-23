@@ -41,3 +41,11 @@ results, and a restart read a fresh reservation area, so the PR results are istg
 - Unlisted LUN REQUEST SENSE (5/25/00 expected, CHECK CONDITION returned: consistent with the spec).
 - INQUIRY EVPD=0 with a page code (GOOD returned; SPC-3 6.4.1 requires CHECK CONDITION): the same as LIO and SAT.
 - VPD 83h designator type 8h framing (SPC-3 7.6.3).
+
+## Zero-length commands (checked 2026-11-13 against the kernel initiator)
+
+- **Zero-length WRITE(10), WRITE(16) and COMPARE AND WRITE: no answer.** The Linux initiator (sg_raw) sends them
+  and gets no response within 15 s, so this is istgt's behaviour, not spit's. spit reports it as a stall.
+- **Zero-length READ(10) and READ CAPACITY(16) with allocation length 0: GOOD** from the kernel initiator. spit
+  used to clear the R bit for a zero-length READ, and istgt then did not answer; spit now sets R by direction
+  (rust/src/iscsi/session.rs), and these cases pass on istgt.

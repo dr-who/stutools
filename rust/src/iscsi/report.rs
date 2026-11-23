@@ -2,10 +2,10 @@
 //! prints one column per target with every difference between them and a same-LUN verdict.
 
 use super::credentials::read_secret;
-use super::identity::{collect, Collected};
-use super::path::{parse_path, Path};
+use super::identity::{Collected, collect};
+use super::path::{Path, parse_path};
 use super::scsi;
-use crate::{cli::Config, Result};
+use crate::{Result, cli::Config};
 
 /// Names of the identity rows (LUN identifiers, serial, vendor, product, revision, capacity) that
 /// differ between the successful paths. Empty means the paths are one LUN.

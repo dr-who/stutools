@@ -9,8 +9,8 @@ use super::identify_cases::Facts;
 use super::link::Data;
 use super::revisions as rev;
 use super::sqe::{self, Command};
-use super::verdict::{rev_case, status_case, INVALID_FIELD, SUCCESS};
-use crate::compliance::{case, Case};
+use super::verdict::{INVALID_FIELD, SUCCESS, rev_case, status_case};
+use crate::compliance::{Case, case};
 
 /// Feature identifiers.
 const FEAT_VOLATILE_WRITE_CACHE: u8 = 0x06;

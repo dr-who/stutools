@@ -8,8 +8,8 @@ use super::controller::Controller;
 use super::identify_cases::Facts;
 use super::revisions as rev;
 use super::sqe::{self};
-use super::verdict::{rev_case, status_case, INVALID_FIELD, INVALID_LOG_PAGE, SUCCESS};
-use crate::compliance::{case, Case};
+use super::verdict::{INVALID_FIELD, INVALID_LOG_PAGE, SUCCESS, rev_case, status_case};
+use crate::compliance::{Case, case};
 
 /// Log page identifiers (Figure 202).
 const LOG_SUPPORTED: u8 = 0x00;

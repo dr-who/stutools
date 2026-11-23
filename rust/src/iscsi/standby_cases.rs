@@ -5,7 +5,7 @@
 //! STATE. Windows clustering registers its key down standby paths, so PERSISTENT RESERVE OUT matters.
 
 use super::alua::SECTION;
-use super::cases::{describe, expect, expect_should, record, record_info, Want, REFUSED};
+use super::cases::{REFUSED, Want, describe, expect, expect_should, record, record_info};
 use super::lun_access::unit_attentions;
 use super::mode_page_cases::{mode_page_of, mode_sense_10};
 use super::ops;
@@ -13,8 +13,8 @@ use super::port::Port;
 use super::port_groups::rtpg;
 use super::scsi;
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 pub(super) const KEY_STANDBY: u64 = 0x5350_4954_0000_005b;
 

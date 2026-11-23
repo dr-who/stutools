@@ -1,5 +1,5 @@
 // POSIX AIO for macOS and FreeBSD.
-use super::{AsyncStream, Failure, Next, Request, StreamCtx, StreamStats, LATENCY_CAPACITY};
+use super::{AsyncStream, Failure, LATENCY_CAPACITY, Next, Request, StreamCtx, StreamStats};
 use crate::cli::Backend;
 use std::{
     ffi::c_void,

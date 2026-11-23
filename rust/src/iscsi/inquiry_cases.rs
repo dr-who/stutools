@@ -4,8 +4,8 @@
 //! Characteristics, Logical Block Provisioning, SCSI Feature Sets and the others), each checked for
 //! its page code, length and fields. What it reads goes into `Disk`.
 
-use super::cases::{expect, record, Want};
-use super::disk::{hex_list, label, Disk, SECTION};
+use super::cases::{Want, expect, record};
+use super::disk::{Disk, SECTION, hex_list, label};
 use super::lun_access::vpd;
 use super::port::Port;
 use super::scsi_fields::be16;
@@ -182,6 +182,23 @@ pub(super) fn inquiry(
                         len - 4
                     ),
                     false,
+                );
+            }
+            // SBC-3 6.6.3: the MAXIMUM COMPARE AND WRITE LENGTH is at most the MAXIMUM TRANSFER LENGTH when that is
+            // nonzero. Zero for the compare length means the device does not support COMPARE AND WRITE.
+            if page == 0xb0 && o.data.len() >= 12 {
+                let cawl = u32::from(o.data[5]);
+                let mtl = u32::from_be_bytes([o.data[8], o.data[9], o.data[10], o.data[11]]);
+                record(
+                    cases,
+                    SECTION,
+                    label(
+                        name,
+                        "SBC-3 6.6.3 MAXIMUM COMPARE AND WRITE LENGTH within MAXIMUM TRANSFER LENGTH",
+                    ),
+                    "compare length at most the transfer length, when that is nonzero",
+                    format!("compare length {cawl}, transfer length {mtl}"),
+                    mtl == 0 || cawl <= mtl,
                 );
             }
             let data = o.data[..len.min(o.data.len())].to_vec();

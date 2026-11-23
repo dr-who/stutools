@@ -17,10 +17,10 @@ use super::link::Data;
 use super::nvm;
 use super::revisions as rev;
 use super::sqe::{self, Completion};
-use super::verdict::{status_case, INVALID_NAMESPACE, SUCCESS};
-use super::{io_limit_cases, oncs_cases, DEFAULT_HOSTNQN};
-use crate::compliance::{case, Case};
+use super::verdict::{INVALID_NAMESPACE, SUCCESS, status_case};
+use super::{DEFAULT_HOSTNQN, io_limit_cases, oncs_cases};
 use crate::Result;
+use crate::compliance::{Case, case};
 
 /// The blocks the cases may change: `AREA` blocks starting this many blocks before the end.
 pub const AREA_FROM_END: u64 = 16;

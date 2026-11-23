@@ -4,11 +4,11 @@
 //! Each reachable path then gets the three digest offers, the key negotiation cases (`negotiation`),
 //! and, with CHAP, a wrong secret that must be refused. Returns the paths the later sections test.
 
-use super::login::{self, reason, Negotiated};
-use super::lun_access::{short_name, Creds};
+use super::login::{self, Negotiated, reason};
+use super::lun_access::{Creds, short_name};
 use super::path::Path;
-use crate::compliance::{case, Case};
 use crate::Result;
+use crate::compliance::{Case, case};
 
 /// A target path that can be logged in to, and whether it needs CHAP.
 pub(super) struct Reachable<'a> {
@@ -146,11 +146,7 @@ fn login_digests(
 }
 
 fn digest_name(on: bool) -> &'static str {
-    if on {
-        "CRC32C"
-    } else {
-        "none"
-    }
+    if on { "CRC32C" } else { "none" }
 }
 
 /// One login attempt, closed again at once. Returns what the target negotiated.

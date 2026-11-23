@@ -5,8 +5,8 @@
 
 use super::revisions::Rev;
 use super::sqe::Completion;
-use crate::compliance::{case, should, Case};
 use crate::Result;
+use crate::compliance::{Case, case, should};
 
 /// Status codes as (status code type, status code). SCT 0 is the generic command status (Base 2.1
 /// Figure 102; NVM 1.1 Figure 17 for 80h).

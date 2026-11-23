@@ -15,6 +15,7 @@
 
 mod alua;
 mod alua_transition;
+mod alua_window;
 mod ats_race;
 mod block_commands;
 mod block_io;
@@ -53,11 +54,13 @@ mod inquiry_framing;
 pub mod local_disk;
 mod local_lun;
 mod local_nexus;
+mod log_sense_cases;
 mod login;
 mod login_cases;
 mod login_phase_cases;
 mod login_step;
 mod lun_access;
+mod media_fault_cases;
 mod mode_block_descriptors;
 mod mode_page_cases;
 mod mode_select_change;

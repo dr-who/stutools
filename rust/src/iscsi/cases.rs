@@ -4,8 +4,8 @@
 
 use super::ops::{CHECK_CONDITION, RESERVATION_CONFLICT};
 use super::session::Outcome;
-use crate::compliance::{case, Case};
 use crate::Result;
+use crate::compliance::{Case, case};
 
 /// The sense key, additional sense code and qualifier, from fixed (0x70, 0x71) or descriptor (0x72,
 /// 0x73) sense data.
@@ -56,6 +56,9 @@ pub(super) fn describe(outcome: &Outcome) -> String {
     match outcome.status {
         0 => "GOOD".into(),
         RESERVATION_CONFLICT => "RESERVATION CONFLICT".into(),
+        // A CHECK CONDITION with no sense data is a target fault (SAM-6 5.1: sense follows the status); it
+        // must not read as sense key 0.
+        CHECK_CONDITION if outcome.sense.is_empty() => "CHECK CONDITION with no sense data".into(),
         CHECK_CONDITION => {
             let (key, asc, ascq) = sense(&outcome.sense);
             format!("CHECK CONDITION {key:x}/{asc:02x}/{ascq:02x}")
@@ -115,11 +118,7 @@ pub(super) static NO_RESIDUAL: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
 pub(super) fn allowed(yes: bool) -> Want {
-    if yes {
-        Want::Good
-    } else {
-        Want::Conflict
-    }
+    if yes { Want::Good } else { Want::Conflict }
 }
 
 /// Records one case that passes when the answer is one of `wants`. Returns whether it passed and the

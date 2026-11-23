@@ -14,19 +14,39 @@ fn record() {
 unsafe impl GlobalAlloc for Audited {
     unsafe fn alloc(&self, l: Layout) -> *mut u8 {
         record();
-        System.alloc(l)
+        unsafe { System.alloc(l) }
     }
     unsafe fn alloc_zeroed(&self, l: Layout) -> *mut u8 {
         record();
-        System.alloc_zeroed(l)
+        unsafe { System.alloc_zeroed(l) }
     }
     unsafe fn realloc(&self, p: *mut u8, l: Layout, n: usize) -> *mut u8 {
         record();
-        System.realloc(p, l, n)
+        unsafe { System.realloc(p, l, n) }
     }
     unsafe fn dealloc(&self, p: *mut u8, l: Layout) {
-        System.dealloc(p, l)
+        unsafe { System.dealloc(p, l) }
     }
+}
+/// Runs `f` without counting its allocations toward the hot path: setup that is not I/O, such as a reconnect.
+pub fn untracked<R>(f: impl FnOnce() -> R) -> R {
+    let was = ACTIVE.with(|a| a.replace(false));
+    let out = f();
+    ACTIVE.with(|a| a.set(was));
+    out
+}
+/// The allocations counted so far on this thread, to take back with `forgive_since`.
+pub fn count_now() -> u64 {
+    COUNT.with(Cell::get)
+}
+/// Takes back the allocations counted since `mark`: the error text of a path that failed, which is failover
+/// bookkeeping rather than I/O.
+pub fn forgive_since(mark: u64) {
+    COUNT.with(|n| {
+        if n.get() > mark {
+            n.set(mark);
+        }
+    });
 }
 pub struct Guard;
 impl Guard {

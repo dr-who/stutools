@@ -20,7 +20,7 @@ pub fn run_id() -> io::Result<u128> {
         ^ ((std::process::id() as u128) << 96))
 }
 fn leap(y: u64) -> bool {
-    y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)
+    y.is_multiple_of(4) && (!y.is_multiple_of(100) || y.is_multiple_of(400))
 }
 pub fn utc(seconds: u64, iso: bool) -> String {
     let mut days = seconds / 86400;

@@ -4,8 +4,8 @@
 //! lowest aligned LBA) are recorded in `Disk`; and READ CAPACITY (16) with an ALLOCATION LENGTH of
 //! zero is not an error and returns nothing (SPC-6 4.2.5.6).
 
-use super::cases::{expect, record, Want};
-use super::disk::{label, Disk, SECTION};
+use super::cases::{Want, expect, record};
+use super::disk::{Disk, SECTION, label};
 use super::port::Port;
 use super::scsi_fields::{be16, be32, be64};
 use super::seen::Seen;
@@ -44,7 +44,9 @@ pub(super) fn capacity(
         ),
         // SBC-3 4.5: the logical block length is at least one byte and should be even; it need not be a
         // power of two (a 64 KiB block is legal).
-        disk.block_len >= 1 && disk.block_len % 2 == 0 && (lowest as u32) < (1u32 << exponent),
+        disk.block_len >= 1
+            && disk.block_len.is_multiple_of(2)
+            && (lowest as u32) < (1u32 << exponent),
     );
     // SPC-6 4.2.5.6: an allocation length of zero transfers nothing and is not an error.
     let zero = [0x9e, 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

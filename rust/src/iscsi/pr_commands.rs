@@ -115,8 +115,10 @@ pub(super) fn parse_keys(d: &[u8]) -> (u32, Vec<u64>) {
     let keys = d
         .get(8..(8 + len).min(d.len()))
         .unwrap_or(&[])
-        .chunks_exact(8)
-        .map(|k| u64::from_be_bytes(k.try_into().unwrap()))
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .map(|k| u64::from_be_bytes(*k))
         .collect();
     (generation, keys)
 }

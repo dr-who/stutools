@@ -8,7 +8,7 @@
 
 use super::cases::record;
 use super::lun_access::{
-    last_block, open, pattern, read_block, unit_attentions, write_block, Creds,
+    Creds, last_block, open, pattern, read_block, unit_attentions, write_block,
 };
 use super::path::Path;
 use super::port::Port;

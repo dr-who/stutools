@@ -7,11 +7,11 @@
 use super::host::Host;
 use super::link::Data;
 use super::nvm;
-use super::reservation::{acquire, parse_report, register, release, report, two_keys, Report};
+use super::reservation::{Report, acquire, parse_report, register, release, report, two_keys};
 use super::sqe::Completion;
-use super::verdict::{status_case, status_should, RESERVATION_CONFLICT, SUCCESS};
-use crate::compliance::{case, Case};
+use super::verdict::{RESERVATION_CONFLICT, SUCCESS, status_case, status_should};
 use crate::Result;
+use crate::compliance::{Case, case};
 
 /// Each host's key: distinct, and marked so a stray key is easy to spot.
 pub const KEY_A: u64 = 0x5350_4954_4e56_00a1;

@@ -7,7 +7,7 @@
 //! is `Silent`. After a refusal the target must close the connection (11.13.5), which
 //! `closed_within` checks.
 
-use super::login::{connect_stream, LOGIN_CMD_SN, LOGIN_ITT};
+use super::login::{LOGIN_CMD_SN, LOGIN_ITT, connect_stream};
 use super::pdu::{self, BHS_LEN};
 use crate::Result;
 use std::io::{ErrorKind, Read, Write};
@@ -265,10 +265,10 @@ impl LoginConnection {
             Ok(()) => self.read_answer(),
             Err(_) => LoginAnswer::Closed,
         };
-        if let LoginAnswer::Response(r) = &answer {
-            if r.status == (0, 0) {
-                self.exp_stat_sn = r.stat_sn.wrapping_add(1);
-            }
+        if let LoginAnswer::Response(r) = &answer
+            && r.status == (0, 0)
+        {
+            self.exp_stat_sn = r.stat_sn.wrapping_add(1);
         }
         self.answers.push(answer.clone());
         answer
@@ -338,7 +338,7 @@ impl LoginConnection {
                 Ok(0) => return true,
                 Ok(_) => continue,
                 Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {
-                    return false
+                    return false;
                 }
                 Err(_) => return true,
             }

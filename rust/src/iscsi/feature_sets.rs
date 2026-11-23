@@ -418,10 +418,11 @@ mod tests {
     fn set_codes_are_the_annex_codes() {
         let codes: Vec<u16> = SETS.iter().map(|s| s.code).collect();
         assert_eq!(codes, vec![0x0001, 0x0102, 0x0101, 0x0103, 0x0104]);
-        assert!(SETS
-            .iter()
-            .skip(1)
-            .all(|s| s.clause.starts_with("SBC-5 A.")));
+        assert!(
+            SETS.iter()
+                .skip(1)
+                .all(|s| s.clause.starts_with("SBC-5 A."))
+        );
     }
 
     #[test]

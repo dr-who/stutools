@@ -4,13 +4,13 @@
 //! paths do, READ FULL STATUS, SPC-2 RELEASE beside a persistent reservation (5.14.3), unregistering,
 //! and CLEAR (5.14.11.2.7).
 
-use super::cases::{expect, expect_should, refused, Want};
-use super::lun_access::{open, unit_attentions, Creds};
+use super::cases::{Want, expect, expect_should, refused};
+use super::lun_access::{Creds, open, unit_attentions};
 use super::ops::{self, persistent_reserve_in};
 use super::path::Path;
 use super::port::Port;
-use super::pr_commands::{hex, out, parse_full_status, read_holder, read_keys, FullStatus};
-use super::pr_ports::{Run, ISID_A, ISID_A2, KEY_A, KEY_B, KEY_C, SECTION};
+use super::pr_commands::{FullStatus, hex, out, parse_full_status, read_holder, read_keys};
+use super::pr_ports::{ISID_A, ISID_A2, KEY_A, KEY_B, KEY_C, Run, SECTION};
 
 impl Run<'_> {
     /// SPC-6 5.14.11.2.4: PREEMPT and PREEMPT AND ABORT, the way a clustering node takes a disk from a

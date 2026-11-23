@@ -8,9 +8,9 @@ use std::{
 };
 
 use super::{
+    Result,
     pdu::{self, Pdu},
     sqe::{Command, Completion},
-    Result,
 };
 
 const TIMEOUT: Duration = Duration::from_secs(30);

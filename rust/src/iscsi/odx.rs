@@ -4,15 +4,15 @@
 //! last one by token and read back; both blocks get their original data back. When it does not, POPULATE
 //! TOKEN must be refused.
 
-use super::cases::{expect, record, Want, REFUSED_SA};
+use super::cases::{REFUSED_SA, Want, expect, record};
 use super::disk::Disk;
 use super::lun_access::{pattern, read_block, write_block};
 use super::port::Port;
 use super::scsi_fields::{be16, be32};
 use super::seen::Seen;
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 const SECTION: &str = "odx";
 const LIST_POPULATE: u32 = 0x5350_0001;

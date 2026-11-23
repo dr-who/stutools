@@ -194,7 +194,7 @@ pub fn judge(test: &Test, cases: &[Case]) -> Judged {
                 outcome: Outcome::NotApplicable,
                 got: String::new(),
                 cases: 0,
-            }
+            };
         }
         Coverage::Covered | Coverage::Partial => {}
     }

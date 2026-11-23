@@ -11,9 +11,9 @@
 //! sections use, and gets its own data back afterwards.
 
 use super::block_io::{cdb10, cdb16};
-use super::cases::{describe, record, Want};
+use super::cases::{Want, describe, record};
 use super::disk::Disk;
-use super::lun_access::{open, pattern, unit_attentions, Creds};
+use super::lun_access::{Creds, open, pattern, unit_attentions};
 use super::path::Path;
 use super::port::Port;
 use super::pr_ports::{ISID_A, ISID_A2, ISID_B, ISID_C};

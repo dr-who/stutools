@@ -52,6 +52,9 @@ pub struct Config {
     /// for the "different secrets for different initiator names" case.
     pub chap_initiator_b: Option<String>,
     pub chap_secret_b_file: Option<PathBuf>,
+    /// `--fault-lba N`: a block the operator has put a media fault on (for a LUN whose backing store is
+    /// under fault injection). `--compliance` reads it and expects a MEDIUM ERROR (SBC-3 4.18.1).
+    pub fault_lba: Option<u32>,
     /// `--compliance`: test every `--iscsi` and `--nvme` target, and every `-f /dev/...` disk, against
     /// the standards and score it.
     pub compliance: bool,
@@ -170,6 +173,7 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
         chap_target_secret_file: None,
         chap_initiator_b: None,
         chap_secret_b_file: None,
+        fault_lba: None,
         compliance: false,
         hold: None,
         hold_probe: false,
@@ -287,6 +291,12 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
             "--chap-target-secret-file" => c.chap_target_secret_file = Some(v.into()),
             "--chap-initiator-b" => c.chap_initiator_b = Some(v.to_string()),
             "--chap-secret-b-file" => c.chap_secret_b_file = Some(v.into()),
+            "--fault-lba" => {
+                c.fault_lba = Some(
+                    v.parse()
+                        .map_err(|_| "--fault-lba takes a block address (LBA)".to_string())?,
+                )
+            }
             "-F" => c.prefixes.push(v.into()),
             "--writes" => {
                 fsfiller_writes = Some(match v.as_str() {
@@ -550,10 +560,10 @@ pub fn parse(args: Vec<String>) -> Result<Option<Config>> {
     if c.jobs.is_empty() {
         return Err("specify -c WORKLOAD".into());
     }
-    if let Some((lo, hi)) = c.range {
-        if lo >= hi {
-            return Err("empty or reversed range".into());
-        }
+    if let Some((lo, hi)) = c.range
+        && lo >= hi
+    {
+        return Err("empty or reversed range".into());
     }
     if c.files
         .len()

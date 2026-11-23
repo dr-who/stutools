@@ -9,12 +9,12 @@
 
 use super::block_io::cdb10;
 use super::cases::{describe, record, refused};
-use super::disk::{label, Disk, SECTION};
+use super::disk::{Disk, SECTION, label};
 use super::operation_codes::rsoc_one;
 use super::port::Port;
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 const READ_10: u8 = 0x28;
 const WRITE_10: u8 = 0x2a;

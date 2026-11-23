@@ -3,7 +3,7 @@
 //! discovery controller itself), subsystem NQN, transport, address and port.
 
 use super::controller::{self, Association, Controller};
-use super::{host_address, Result, DEFAULT_HOSTNQN};
+use super::{DEFAULT_HOSTNQN, Result, host_address};
 
 /// One record of the discovery log page: a subsystem and the address it is reachable on.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +33,9 @@ pub fn discover_subsystems(host: &str) -> Result<Vec<Discovered>> {
     let records = u64::from_le_bytes(header[8..16].try_into().unwrap_or([0; 8])) as usize;
     let log = c.get_log_page(controller::LOG_DISCOVERY, 0, 1024 + records * 1024)?;
     Ok(log[1024..]
-        .chunks_exact(1024)
+        .as_chunks::<1024>()
+        .0
+        .iter()
         .map(|r| Discovered {
             subtype: r[2],
             transport: match r[0] {

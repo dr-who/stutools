@@ -8,8 +8,8 @@ use super::identity::Collected;
 use super::login_cases::Reachable;
 use super::lun_access::short_name;
 use super::report::identity_differences;
-use crate::compliance::{case, Case};
 use crate::Result;
+use crate::compliance::{Case, case};
 
 /// Orderings are tried over every subset of up to this many paths, and over pairs beyond it.
 const ORDERING_LIMIT: usize = 5;

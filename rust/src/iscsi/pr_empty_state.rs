@@ -64,7 +64,9 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
             let (_, length, got) = header(&o.data, o.received);
             if residual_not_reported(got, 8 + length as usize) {
                 (
-                    format!("not run: the transport reports the whole allocation as returned ({got} bytes, ADDITIONAL LENGTH {length})"),
+                    format!(
+                        "not run: the transport reports the whole allocation as returned ({got} bytes, ADDITIONAL LENGTH {length})"
+                    ),
                     false,
                 )
             } else {

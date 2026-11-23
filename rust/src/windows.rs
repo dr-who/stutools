@@ -69,13 +69,18 @@ pub fn validate_target(path: &Path, write: bool) -> crate::Result<()> {
     let text = path.as_os_str().to_string_lossy();
     if is_device(path) {
         if write {
-            return Err(format!("{}: raw Windows targets currently support read-only workloads (-c rs0); for filesystem writes use -F DRIVE:\\spit-test -G 1MiB -c ws1x1", path.display()));
+            return Err(format!(
+                "{}: raw Windows targets currently support read-only workloads (-c rs0); for filesystem writes use -F DRIVE:\\spit-test -G 1MiB -c ws1x1",
+                path.display()
+            ));
         }
     } else if let Some(d) = drive(path) {
         if text.len() == 2 || (text.len() == 3 && (text.ends_with('\\') || text.ends_with('/'))) {
             let fs = filesystem(d).unwrap_or_else(|| "unknown".into());
             return Err(format!(
-                "{} is a filesystem root ({fs}), not a test file. -F takes a file prefix: create disposable files with -F {d}:\\spit-test -G 1MiB -c ws1x1, then read with -F {d}:\\spit-test -G 1MiB -c rs0. For raw volume reads use -f \\\\.\\{d}: -c rs0 (Administrator required); the volume contains a filesystem. Virtual filesystems may not expose a raw block device", path.display()));
+                "{} is a filesystem root ({fs}), not a test file. -F takes a file prefix: create disposable files with -F {d}:\\spit-test -G 1MiB -c ws1x1, then read with -F {d}:\\spit-test -G 1MiB -c rs0. For raw volume reads use -f \\\\.\\{d}: -c rs0 (Administrator required); the volume contains a filesystem. Virtual filesystems may not expose a raw block device",
+                path.display()
+            ));
         }
     }
     Ok(())
@@ -123,10 +128,16 @@ pub fn inspect(path: &Path, file: &File) -> crate::Result<super::target::TargetI
         "query raw sector size (DeviceIoControl IOCTL_DISK_GET_DRIVE_GEOMETRY) for {}: {e}; {hint}", path.display()))?;
     let sector = u32::from_le_bytes(geometry[20..24].try_into().unwrap()) as usize;
     if n < 24 || sector == 0 || !sector.is_power_of_two() || sector > 4096 {
-        return Err(format!("{}: unsupported raw sector size {sector}; fixed buffers support power-of-two sectors up to 4096 bytes", path.display()));
+        return Err(format!(
+            "{}: unsupported raw sector size {sector}; fixed buffers support power-of-two sectors up to 4096 bytes",
+            path.display()
+        ));
     }
     if let Some(fs) = describe {
-        eprintln!("*info* {} contains a {fs} filesystem; raw benchmark is read-only (sector size {sector} bytes)", path.display());
+        eprintln!(
+            "*info* {} contains a {fs} filesystem; raw benchmark is read-only (sector size {sector} bytes)",
+            path.display()
+        );
     } else {
         eprintln!(
             "*info* {}: raw benchmark is read-only (sector size {sector} bytes)",

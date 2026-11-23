@@ -8,15 +8,15 @@ use std::{
 };
 
 use super::{
-    controller::{connect_io_queue, Association, Controller, CAP, KATO_MS},
+    Result,
+    controller::{Association, CAP, Controller, KATO_MS, connect_io_queue},
     identify::{
-        parse_active_namespaces, parse_controller, parse_namespace, CNS_ACTIVE_NAMESPACES,
-        CNS_CONTROLLER, CNS_NAMESPACE,
+        CNS_ACTIVE_NAMESPACES, CNS_CONTROLLER, CNS_NAMESPACE, parse_active_namespaces,
+        parse_controller, parse_namespace,
     },
     link::Link,
     pdu::{self, Pdu},
     sqe::{self, Command, Completion},
-    Result,
 };
 use crate::paths::{Done, Fabric, Geometry, Io, Transport};
 

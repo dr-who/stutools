@@ -10,8 +10,10 @@ pub(super) fn parse_feature_sets(d: &[u8]) -> Vec<u16> {
     let end = (4 + be16(d, 2) as usize).min(d.len());
     d.get(8..end.max(8))
         .unwrap_or(&[])
-        .chunks_exact(2)
-        .map(|c| u16::from_be_bytes([c[0], c[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|c| u16::from_be_bytes(*c))
         .collect()
 }
 

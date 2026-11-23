@@ -23,20 +23,20 @@ use super::io_cases::AREA_FROM_END;
 use super::link::Data;
 use super::nvm;
 use super::reservation::{
-    allowed, register, report, two_keys, ACQUIRE, CLEAR, FEAT_RESV_MASK, FEAT_RESV_PERSIST,
-    LOG_RESERVATION, ONCS_RESERVATIONS, PREEMPT, PREEMPT_AND_ABORT, REGISTER, RELEASE, REPLACE,
-    TYPES, UNREGISTER,
+    ACQUIRE, CLEAR, FEAT_RESV_MASK, FEAT_RESV_PERSIST, LOG_RESERVATION, ONCS_RESERVATIONS, PREEMPT,
+    PREEMPT_AND_ABORT, REGISTER, RELEASE, REPLACE, TYPES, UNREGISTER, allowed, register, report,
+    two_keys,
 };
 use super::reservation_hosts::{
-    Hosts, A, A2, B, C, HOST_A, HOST_B, HOST_C, KEY_A, KEY_B, KEY_C, NAMES,
+    A, A2, B, C, HOST_A, HOST_B, HOST_C, Hosts, KEY_A, KEY_B, KEY_C, NAMES,
 };
 use super::revisions as rev;
 use super::sqe::{self, Command};
 use super::verdict::{
-    status_case, HOST_ID_INCONSISTENT, INVALID_FIELD, INVALID_OPCODE, RESERVATION_CONFLICT, SUCCESS,
+    HOST_ID_INCONSISTENT, INVALID_FIELD, INVALID_OPCODE, RESERVATION_CONFLICT, SUCCESS, status_case,
 };
-use crate::compliance::{case, Case};
 use crate::Result;
+use crate::compliance::{Case, case};
 
 /// The type Windows clustering takes: Write Exclusive, Registrants Only.
 const WERO: u8 = 3;

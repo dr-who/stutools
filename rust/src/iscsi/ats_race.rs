@@ -6,16 +6,16 @@
 //! round; every round exactly one wins (GOOD), the other miscompares, and the block holds the
 //! winner's ID. Runs only where COMPARE AND WRITE works; the block gets its own data back.
 
-use super::cases::{describe, record, Want};
+use super::cases::{Want, describe, record};
 use super::disk::Disk;
-use super::lun_access::{open, read_block, unit_attentions, write_block, Creds};
+use super::lun_access::{Creds, open, read_block, unit_attentions, write_block};
 use super::ops;
 use super::path::Path;
 use super::port::Port;
 use super::pr_ports::{ISID_A, ISID_B};
 use crate::compliance::Case;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Barrier;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 const SECTION: &str = "ats";
 

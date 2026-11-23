@@ -12,7 +12,7 @@
 //! tests and the chapter it belongs to), `score`, `device` (what was tested), `report` (the printout)
 //! and `asciidoc` (the document).
 
-use crate::{cli::Config, Result};
+use crate::{Result, cli::Config};
 
 mod asciidoc;
 mod case;
@@ -30,11 +30,11 @@ mod suite;
 mod suite_report;
 mod suites;
 
-pub use case::{case, info, should, Case, Level, Verdict};
+pub use case::{Case, Level, Verdict, case, info, should};
 #[cfg(test)]
 pub use citation::cite;
 pub use device::Device;
-pub use scsi_level::{parse as parse_scsi_levels, Edition, ScsiLevel};
+pub use scsi_level::{Edition, ScsiLevel, parse as parse_scsi_levels};
 
 /// Runs the iSCSI and NVMe/TCP cases, prints each case and the score at every level, writes the
 /// AsciiDoc report when asked, and fails when any "shall" case fails.

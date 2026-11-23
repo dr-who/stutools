@@ -9,7 +9,7 @@
 use super::cases::{describe, record, record_info};
 use super::command_probes::cdb32;
 use super::login;
-use super::lun_access::{open, unit_attentions, Creds};
+use super::lun_access::{Creds, open, unit_attentions};
 use super::path::Path;
 use crate::compliance::Case;
 

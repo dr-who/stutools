@@ -2,7 +2,7 @@
 //! section does not already check: TEST UNIT READY (6.46), REPORT LUNS (6.30), and the refusal of a
 //! command no standard assigns (SPC-6 4.2.5: ILLEGAL REQUEST).
 
-use super::cases::{expect, Want};
+use super::cases::{Want, expect};
 use super::port::Port;
 use super::scsi;
 use super::seen::Seen;
@@ -30,7 +30,7 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>, seen: &mut Se
     );
     let listed = o.as_ref().is_some_and(|o| {
         let len = scsi::be32(&o.data, 0).unwrap_or(u32::MAX) as usize;
-        len % 8 == 0 && len >= 8 && o.data.get(8..16) == Some(&[0u8; 8])
+        len.is_multiple_of(8) && len >= 8 && o.data.get(8..16) == Some(&[0u8; 8])
     });
     if passed {
         super::cases::record(

@@ -9,11 +9,11 @@
 //! refused as unsupported ends that form's cases.
 
 use super::block_io::{cdb10, cdb16};
-use super::cases::{expect, information, record_info, refused, Want, REFUSED};
+use super::cases::{REFUSED, Want, expect, information, record_info, refused};
 use super::disk::Disk;
 use super::lun_access::{read_block, write_block};
 use super::port::Port;
-use super::scratch_region::{seed, Draws};
+use super::scratch_region::{Draws, seed};
 use crate::compliance::Case;
 
 const SECTION: &str = "io";

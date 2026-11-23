@@ -11,7 +11,7 @@
 //! closed.
 
 use super::chap;
-use super::pdu::{self, LoginRequest, LoginResponse, Stage, BHS_LEN};
+use super::pdu::{self, BHS_LEN, LoginRequest, LoginResponse, Stage};
 use super::session::Session;
 use crate::Result;
 use std::{

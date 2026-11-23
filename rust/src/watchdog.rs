@@ -4,8 +4,8 @@
 //! other commands' output is unchanged.
 
 use std::io::Write;
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::time::{Duration, Instant};
 
 /// The longest a run may go without a beat (seconds).
@@ -47,16 +47,18 @@ pub fn start(verbose: bool) {
     VERBOSE.store(verbose, Relaxed);
     ENABLED.store(true, Relaxed);
     beat(&[]);
-    std::thread::spawn(|| loop {
-        std::thread::sleep(Duration::from_secs(1));
-        let last = LAST.lock().ok().and_then(|l| *l);
-        if stalled(last, LIMIT, Instant::now()) {
-            let step = LAST_STEP.lock().map(|s| s.clone()).unwrap_or_default();
-            eprintln!(
-                "\n*error* no progress for {} s: the run stopped; the last command started was CDB {step}",
-                LIMIT.as_secs()
-            );
-            std::process::exit(2);
+    std::thread::spawn(|| {
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+            let last = LAST.lock().ok().and_then(|l| *l);
+            if stalled(last, LIMIT, Instant::now()) {
+                let step = LAST_STEP.lock().map(|s| s.clone()).unwrap_or_default();
+                eprintln!(
+                    "\n*error* no progress for {} s: the run stopped; the last command started was CDB {step}",
+                    LIMIT.as_secs()
+                );
+                std::process::exit(2);
+            }
         }
     });
 }

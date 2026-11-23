@@ -195,7 +195,7 @@ pub(super) fn stat_sn_steps(log: &[Pdu]) -> Result<(), String> {
                     "PDU {i} (opcode {:#04x}) has StatSN {} where {n} was next",
                     p.opcode(),
                     p.stat_sn()
-                ))
+                ));
             }
             _ => {}
         }
@@ -222,13 +222,13 @@ pub(super) fn command_window(log: &[Pdu]) -> Result<(), String> {
                 p.exp_cmd_sn()
             ));
         }
-        if let Some(l) = last {
-            if (p.max_cmd_sn().wrapping_sub(l) as i32) < 0 {
-                return Err(format!(
-                    "PDU {i}: MaxCmdSN went down from {l} to {}",
-                    p.max_cmd_sn()
-                ));
-            }
+        if let Some(l) = last
+            && (p.max_cmd_sn().wrapping_sub(l) as i32) < 0
+        {
+            return Err(format!(
+                "PDU {i}: MaxCmdSN went down from {l} to {}",
+                p.max_cmd_sn()
+            ));
         }
         last = Some(p.max_cmd_sn());
     }

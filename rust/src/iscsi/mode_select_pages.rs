@@ -6,16 +6,16 @@
 //! is refused with INVALID FIELD IN PARAMETER LIST (5/26/00, SPC-3 6.8) and changes nothing. A page with
 //! no changeable bit in its body gets no case, and the page's values are written back at the end.
 
-use super::cases::{expect, record, Want};
-use super::disk::{label, SECTION};
+use super::cases::{Want, expect, record};
+use super::disk::{SECTION, label};
 use super::mode_page_cases::{mode_page_of, mode_sense_10};
 use super::port::Port;
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 /// Page code, the clause of the page, and what it is called in the report.
-const PAGES: [(u8, &str, &str); 3] = [
+const PAGES: [(u8, &str, &str); 4] = [
     (0x0a, "SPC-3 7.4.6", "Control"),
     (
         0x1c,
@@ -23,6 +23,7 @@ const PAGES: [(u8, &str, &str); 3] = [
         "Informational Exceptions Control",
     ),
     (0x01, "SBC-3 6.5.8", "Read-Write Error Recovery"),
+    (0x07, "SBC-3 6.5.9", "Verify Error Recovery"),
 ];
 
 /// The first body byte of a mode page: bytes 0 and 1 are the page code and length.
@@ -47,13 +48,13 @@ fn select(s: &mut Port, page: &[u8]) -> Result<Outcome> {
 
 /// The current page, or None when the device does not have it.
 fn current(s: &mut Port, page: u8) -> Option<Vec<u8>> {
-    let o = mode_sense_10(s, 0, page, 0, true).ok()?;
+    let o = mode_sense_10(s, 0, page, 0, true).ok().filter(|o| o.status == 0)?;
     mode_page_of(&o.data, true).map(|p| p.to_vec())
 }
 
 /// The changeable mask of a page: PC 01b, one bit per changeable bit of the page.
 fn changeable(s: &mut Port, page: u8) -> Option<Vec<u8>> {
-    let o = mode_sense_10(s, 1, page, 0, true).ok()?;
+    let o = mode_sense_10(s, 1, page, 0, true).ok().filter(|o| o.status == 0)?;
     mode_page_of(&o.data, true).map(|p| p.to_vec())
 }
 
@@ -65,6 +66,54 @@ fn first_bit(mask: &[u8], changeable: bool) -> Option<(usize, u8)> {
             (on == changeable).then_some((byte, bit))
         })
     })
+}
+
+/// Byte 2 of the Read-Write Error Recovery page: the error recovery bits EER, PER, DTE and DCR (SBC-3 6.5.8).
+const ERROR_BITS_BYTE: usize = 2;
+const EER: u8 = 0x08;
+const PER: u8 = 0x04;
+const DTE: u8 = 0x02;
+const DCR: u8 = 0x01;
+
+/// The SBC-3 6.5.8 combination rules, each a combination of the error recovery bits the standard forbids:
+/// "If the EER bit is set to one, the DCR bit shall be set to zero", and "If the DTE bit is set to one, then
+/// the PER bit shall be set to one". Each is sent alone, so the refusal is for that combination.
+const FORBIDDEN: [(&str, u8, &str); 2] = [
+    ("EER 1 with DCR 1", EER | DCR, "EER 1 requires DCR 0"),
+    ("DTE 1 with PER 0", DTE, "DTE 1 requires PER 1"),
+];
+
+/// Sends each forbidden error recovery combination of the page and expects it refused with INVALID FIELD IN
+/// PARAMETER LIST (SPC-3 6.8). A device that accepts one is restored to the page it had.
+fn combinations(s: &mut Port, name: &str, page_code: u8, original: &[u8], cases: &mut Vec<Case>) {
+    let (clause, title) = if page_code == 0x01 {
+        ("SBC-3 6.5.8", "Read-Write Error Recovery")
+    } else {
+        ("SBC-3 6.5.9", "Verify Error Recovery")
+    };
+    // A page too short to carry the error recovery byte has no combination to send; its length is judged elsewhere.
+    if original.len() <= ERROR_BITS_BYTE {
+        return;
+    }
+    for (what, bits, rule) in FORBIDDEN {
+        let mut page = original.to_vec();
+        // Keep the other error recovery bits as they are, and set the forbidden pair.
+        page[ERROR_BITS_BYTE] = (original[ERROR_BITS_BYTE] & !(EER | PER | DTE | DCR)) | bits;
+        let sent = select(s, &page);
+        expect(
+            cases,
+            SECTION,
+            label(
+                name,
+                &format!("{clause} {title} MODE SELECT (10) with {what} refused ({rule})"),
+            ),
+            &[Want::Ascq(0x5, 0x26, 0x00)],
+            sent,
+        );
+        if current(s, page_code).is_some_and(|p| p != original) {
+            let _ = select(s, original);
+        }
+    }
 }
 
 pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
@@ -126,6 +175,10 @@ pub(super) fn run(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
                 if unchanged { "unchanged" } else { "changed" },
                 unchanged,
             );
+        }
+        // SBC-3 table 199: the same error recovery combinations govern the Verify page (6.5.9).
+        if page == 0x01 || page == 0x07 {
+            combinations(s, name, page, &original, cases);
         }
     }
 }

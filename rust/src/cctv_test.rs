@@ -6,7 +6,7 @@
 //! Defaults: 1000 Mbit/s link and 5 Mbit/s per camera, so 200 cameras when no --cctv is given;
 //! 30 s per camera count in the short test and 60 s in the long one (-t overrides both).
 
-use crate::{cctv, cli, engine, Result};
+use crate::{Result, cctv, cli, engine};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -56,7 +56,7 @@ pub fn run(mode: &str, mut args: Vec<String>) -> Result<()> {
         other => {
             return Err(format!(
                 "--cctv-test takes short, range or long, not {other}"
-            ))
+            ));
         }
     };
     // Each chart file says which I/O mode made it, so direct and pagecache runs can sit side by side.
@@ -117,7 +117,9 @@ fn sweeps(dir: &Path) -> Result<()> {
             )?;
             if s.writes == 0 {
                 // No completed operations: a missing value, not a rate of zero. Left out of the data.
-                eprintln!("warning: {kib} KiB queue depth {qd} completed no writes; point left out of short-qd-{kib}k.dat");
+                eprintln!(
+                    "warning: {kib} KiB queue depth {qd} completed no writes; point left out of short-qd-{kib}k.dat"
+                );
                 continue;
             }
             rows.push_str(&format!(
@@ -145,7 +147,9 @@ fn sweeps(dir: &Path) -> Result<()> {
             &format!("short-bs-write-{kib}k"),
         )?;
         if w.writes == 0 {
-            eprintln!("warning: {kib} KiB write completed no writes; point left out of short-bs-write.dat");
+            eprintln!(
+                "warning: {kib} KiB write completed no writes; point left out of short-bs-write.dat"
+            );
         } else {
             write_rows.push_str(&format!(
                 "{bytes} {} {} {}\n",

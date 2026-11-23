@@ -1,7 +1,7 @@
 // Windows asynchronous I/O: overlapped files on one completion port.
 //! Windows overlapped I/O: a batch of requests is submitted at once, each with its own
 //! OVERLAPPED, and the completion port reports them as they finish.
-use super::{Failure, Next, Request, StreamStats, LATENCY_CAPACITY};
+use super::{Failure, LATENCY_CAPACITY, Next, Request, StreamStats};
 use crate::cli::Backend;
 use std::ffi::c_void;
 use std::fs::File;

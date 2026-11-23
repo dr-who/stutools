@@ -9,16 +9,16 @@
 //! targets do not tell apart from A.
 
 use super::block_io::{cdb10, cdb16};
-use super::cases::{record, record_should, refused, Want};
-use super::lun_access::{last_block64, open, read_block64, unit_attentions, write_block64, Creds};
+use super::cases::{Want, record, record_should, refused};
+use super::lun_access::{Creds, last_block64, open, read_block64, unit_attentions, write_block64};
 use super::ops;
 use super::path::Path;
 use super::port::Port;
 use super::pr_commands::out;
-use super::pr_ports::{clean_slate, ISID_A, ISID_B, ISID_C, KEY_A, KEY_B};
+use super::pr_ports::{ISID_A, ISID_B, ISID_C, KEY_A, KEY_B, clean_slate};
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 const SECTION: &str = "pr";
 

@@ -2,7 +2,7 @@
 //! Each request names one path. The policy decides the order: round robin, reverse round robin,
 //! random, or fastest (the path with the lowest recent average latency).
 
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, AtomicUsize, Ordering::Relaxed};
 
 /// A path's tier, from its ALUA state. Requests go to the lowest tier that has a path in rotation: optimized
 /// paths first, then non-optimized ones only when no optimized path is usable. A standby, unavailable,

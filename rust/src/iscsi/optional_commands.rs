@@ -5,8 +5,8 @@
 //! when it is sent. A command it does implement is recorded as supported; those that would change the LUN or its
 //! task priority are not sent (WRITE LONG writes, SET PRIORITY sets the priority of later tasks).
 
-use super::cases::{describe, expect, record, Want};
-use super::disk::{label, SECTION};
+use super::cases::{Want, describe, expect, record};
+use super::disk::{SECTION, label};
 use super::operation_codes::support;
 use super::port::Port;
 use crate::compliance::Case;

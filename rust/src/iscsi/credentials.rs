@@ -6,7 +6,7 @@
 use super::login::login;
 use super::path::Path;
 use super::session::Session;
-use crate::{cli::Config, Result};
+use crate::{Result, cli::Config};
 use std::path::Path as FsPath;
 
 /// The CHAP credentials from the command line: both the user and the secret file, or neither.

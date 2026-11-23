@@ -8,8 +8,8 @@ use super::identity::Collected;
 use super::login::reason;
 use super::login_cases::Reachable;
 use super::lun_access::short_name;
-use crate::compliance::{case, Case};
 use crate::Result;
+use crate::compliance::{Case, case};
 
 /// Runs the scsi cases over what `collected` read from each reachable path.
 pub(super) fn run(

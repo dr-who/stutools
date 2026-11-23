@@ -9,13 +9,13 @@
 //! nothing; and when the page is saveable, a MODE SELECT with SP changes the saved values. The page's
 //! current and saved values are written back at the end, whatever happened before.
 
-use super::cases::{describe, expect, expect_should, record, record_info, record_should, Want};
-use super::disk::{label, Disk, SECTION};
+use super::cases::{Want, describe, expect, expect_should, record, record_info, record_should};
+use super::disk::{Disk, SECTION, label};
 use super::local_nexus;
-use super::lun_access::{open, show_attentions, unit_attentions, Lun};
+use super::lun_access::{Lun, open, show_attentions, unit_attentions};
 use super::port::Port;
 use super::pr_ports::ISID_A2;
-use super::write_cache::{caching_page, select, wce, with_wce, CHANGEABLE, CURRENT, SAVED, WCE};
+use super::write_cache::{CHANGEABLE, CURRENT, SAVED, WCE, caching_page, select, wce, with_wce};
 use crate::compliance::Case;
 
 /// MODE PARAMETERS CHANGED (SPC-6 table 61).
@@ -25,7 +25,13 @@ const CHANGED: (u8, u8) = (0x2a, 0x01);
 /// its own descriptor, or the first descriptor's when that one covers every page (3Fh/FFh).
 pub(super) fn caching_policy(page_87: &[u8]) -> Option<u8> {
     let end = (4 + super::scsi_fields::be16(page_87, 2) as usize).min(page_87.len());
-    let descriptors: Vec<&[u8]> = page_87.get(4..end)?.chunks_exact(4).collect();
+    let descriptors: Vec<&[u8]> = page_87
+        .get(4..end)?
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|d| d.as_slice())
+        .collect();
     descriptors
         .iter()
         .find(|d| d[0] & 0x3f == 0x08 && d[1] == 0)
@@ -66,7 +72,10 @@ fn watchers(
         record_info(
             cases,
             SECTION,
-            label(name, "SPC-6 6.12 A's second port is told MODE PARAMETERS CHANGED"),
+            label(
+                name,
+                "SPC-6 6.12 A's second port is told MODE PARAMETERS CHANGED",
+            ),
             "not run: the local disk has one initiator port, so there is no second I_T nexus to tell",
         );
     }
@@ -135,10 +144,10 @@ pub(super) fn run(
         );
     }
     // Whatever happened above: the saved values, then the current ones, as they were.
-    if let Some(saved) = &saved {
-        if current[0] & 0x80 != 0 {
-            let _ = select(s, saved, true, true);
-        }
+    if let Some(saved) = &saved
+        && current[0] & 0x80 != 0
+    {
+        let _ = select(s, saved, true, true);
     }
     let _ = select(s, &current, true, false);
     let now = caching_page(s, CURRENT).ok().flatten();
@@ -403,17 +412,17 @@ fn save_wce(s: &mut Port, name: &str, saved: &[u8], cases: &mut Vec<Case>) {
         now.as_deref().is_some_and(|p| wce(p) != wce(saved)),
     );
     let o = select(s, saved, true, true);
-    if let Ok(o) = &o {
-        if o.status != 0 {
-            record(
-                cases,
-                SECTION,
-                at("saved Caching page written back"),
-                "GOOD",
-                describe(o),
-                false,
-            );
-        }
+    if let Ok(o) = &o
+        && o.status != 0
+    {
+        record(
+            cases,
+            SECTION,
+            at("saved Caching page written back"),
+            "GOOD",
+            describe(o),
+            false,
+        );
     }
 }
 

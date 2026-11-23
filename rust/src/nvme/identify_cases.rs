@@ -10,13 +10,13 @@
 use super::compliance::Target;
 use super::controller::Controller;
 use super::identify::{
-    self, agrees, parse_descriptors, unique_ids, ControllerInfo, Descriptor, NamespaceInfo,
-    NIDT_EUI64, NIDT_NGUID,
+    self, ControllerInfo, Descriptor, NIDT_EUI64, NIDT_NGUID, NamespaceInfo, agrees,
+    parse_descriptors, unique_ids,
 };
 use super::path_identity_cases;
 use super::revisions::{self as rev, Rev};
-use super::verdict::{rev_case, SUCCESS};
-use crate::compliance::{case, Case};
+use super::verdict::{SUCCESS, rev_case};
+use crate::compliance::{Case, case};
 
 /// CMIC bit 1 MCTRS: the NVM subsystem may have two or more controllers (Base 2.1 Figure 312).
 const CMIC_MULTI_CONTROLLER: u8 = 0x02;

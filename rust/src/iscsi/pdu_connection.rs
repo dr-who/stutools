@@ -374,7 +374,7 @@ impl PduConnection {
                 // NOT READY, LOGICAL UNIT NOT ACCESSIBLE, TARGET PORT IN STANDBY STATE (04h, 0Bh): a standby
                 // port refuses TEST UNIT READY by design (SPC-3 5.8.2.4.4), so there is nothing to wait for.
                 Received::Pdu(p) if p.sense().get(12..14) == Some(&[0x04, 0x0b]) => {
-                    return Err(STANDBY.into())
+                    return Err(STANDBY.into());
                 }
                 Received::Pdu(_) => continue,
                 other => return Err(format!("TEST UNIT READY: {other:?}")),
@@ -517,7 +517,7 @@ impl PduConnection {
                     let _ = self.answer_ping(&p);
                 }
                 Received::Pdu(p) if p.itt() == itt && p.opcode() == pdu::SCSI_RESPONSE => {
-                    return (seen, Received::Pdu(p))
+                    return (seen, Received::Pdu(p));
                 }
                 Received::Pdu(p) if p.opcode() == pdu::R2T && p.itt() == itt => {
                     seen.push(p); // a recovery R2T; the caller judges it
@@ -537,7 +537,7 @@ impl PduConnection {
         loop {
             match self.recv(PDU_WAIT) {
                 Received::Pdu(p) if p.opcode() == 0x26 => {
-                    return pdu::check_logout_response(&p.bhs)
+                    return pdu::check_logout_response(&p.bhs);
                 }
                 Received::Pdu(_) => continue,
                 other => return Err(format!("logout: {other:?}")),
@@ -638,11 +638,13 @@ mod tests {
             data: vec![0, 3, 0x70, 0, 5, 9],
         };
         assert_eq!(p.sense(), vec![0x70, 0, 5]);
-        assert!(Pdu {
-            bhs: [0; BHS_LEN],
-            data: vec![]
-        }
-        .sense()
-        .is_empty());
+        assert!(
+            Pdu {
+                bhs: [0; BHS_LEN],
+                data: vec![]
+            }
+            .sense()
+            .is_empty()
+        );
     }
 }

@@ -137,10 +137,10 @@ where
             }
             let wait = types::Timespec::from(Duration::from_millis(1));
             let args = types::SubmitArgs::new().timespec(&wait);
-            if let Err(e) = ring.submitter().submit_with_args(1, &args) {
-                if !matches!(e.raw_os_error(), Some(libc::ETIME) | Some(libc::EINTR)) {
-                    return Err(e.into());
-                }
+            if let Err(e) = ring.submitter().submit_with_args(1, &args)
+                && !matches!(e.raw_os_error(), Some(libc::ETIME) | Some(libc::EINTR))
+            {
+                return Err(e.into());
             }
         } else {
             std::thread::sleep(Duration::from_micros(50));
@@ -175,7 +175,7 @@ struct Event {
     result2: i64,
 }
 #[link(name = "aio")]
-extern "C" {
+unsafe extern "C" {
     fn io_setup(max: libc::c_int, ctx: *mut usize) -> libc::c_int;
     fn io_submit(ctx: usize, n: libc::c_long, cbs: *mut *mut Cb) -> libc::c_int;
     fn io_getevents(
@@ -785,10 +785,10 @@ where
                     linux::uring_submit(ring, observer)?;
                     continue;
                 }
-                if let Err(e) = ring.submitter().submit_with_args(1, &args) {
-                    if !matches!(e.raw_os_error(), Some(libc::ETIME) | Some(libc::EINTR)) {
-                        return Err(e.into());
-                    }
+                if let Err(e) = ring.submitter().submit_with_args(1, &args)
+                    && !matches!(e.raw_os_error(), Some(libc::ETIME) | Some(libc::EINTR))
+                {
+                    return Err(e.into());
                 }
             } else {
                 std::thread::sleep(Duration::from_micros(50));

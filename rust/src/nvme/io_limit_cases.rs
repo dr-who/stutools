@@ -9,7 +9,7 @@ use super::identify_cases::Facts;
 use super::link::Data;
 use super::nvm;
 use super::revisions as rev;
-use super::verdict::{status_case, INVALID_FIELD, LBA_OUT_OF_RANGE, SUCCESS};
+use super::verdict::{INVALID_FIELD, LBA_OUT_OF_RANGE, SUCCESS, status_case};
 use crate::compliance::Case;
 
 /// The largest transfer tried: a larger MDTS is tested only up to this.

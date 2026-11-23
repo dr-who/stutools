@@ -4,9 +4,9 @@
 //! header digest over an Extended CDB AHS is in `header_digest`.
 
 use super::login::{self, reason};
-use super::lun_access::{short_name, Creds};
+use super::lun_access::{Creds, short_name};
 use super::path::Path;
-use crate::compliance::{case, Case};
+use crate::compliance::{Case, case};
 
 /// Five login and logout cycles, three sessions at once with distinct handles, and a login after.
 pub(super) fn run(p: &Path, initiator: &str, creds: Creds, cases: &mut Vec<Case>) {

@@ -4,7 +4,7 @@
 
 use super::compliance::Target;
 use super::{identify_cases, io_cases, reservation_cases};
-use crate::compliance::{case, Case};
+use crate::compliance::{Case, case};
 
 /// What Windows needs of this subsystem to use it as a disk on more than one path and in a cluster.
 /// Windows sends SCSI commands, which stornvme translates as SCSI-NVMe 1.5 describes: the Device

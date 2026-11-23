@@ -14,7 +14,7 @@ use super::ops;
 use super::path::parse_path;
 use super::pr_commands::{out, read_holder, read_keys, show_holder, show_keys};
 use super::pr_ports::{ISID_A, KEY_A};
-use crate::{cli::Config, Result};
+use crate::{Result, cli::Config};
 
 /// Runs the hold mode the configuration asks for. The first `--iscsi` entry is the path.
 pub fn run(config: &Config) -> Result<()> {

@@ -3,7 +3,7 @@
 use super::{AsyncIo, Failure, Native, Next, Request, StreamCtx, StreamStats};
 use crate::cli::Backend;
 use std::{
-    alloc::{alloc_zeroed, dealloc, Layout},
+    alloc::{Layout, alloc_zeroed, dealloc},
     fs::File,
     io,
     ptr::NonNull,

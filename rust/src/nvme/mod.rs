@@ -33,7 +33,7 @@ mod windows_cases;
 
 use std::net::{SocketAddr, ToSocketAddrs};
 
-pub use discovery::{discover_subsystems, Discovered};
+pub use discovery::{Discovered, discover_subsystems};
 pub use listing::{discover, report};
 
 pub type Result<T> = std::result::Result<T, String>;

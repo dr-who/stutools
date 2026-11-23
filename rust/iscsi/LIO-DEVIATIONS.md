@@ -105,3 +105,17 @@ Candidates, the clause not yet checked against the text:
   REPORT TARGET PORT GROUPS shows the new state, so the change happened; only the attention is missing. Control: the
   same LUN reports the other nexus's unit attention for a task management reset (29h/03h), so delivery to other
   nexuses works in general.
+
+## Found by the transition window probe (spit-alua-ram, both portals in one run, 2026-11-13)
+
+- **18. The explicit change's unit attention reaches the nexus on the moving group's portal, not the other nexus on the sending portal.**
+  SPC-4 5.15.2.5: after an explicit change, "a unit attention condition ... for the initiator port associated with every
+  I_T nexus other than the I_T nexus on which the SET TARGET PORT GROUPS command was received". spit sent SET TARGET PORT
+  GROUPS on 127.0.0.7 (group 0). A reader on 127.0.0.8 (group 1, the group that moved) got CHECK CONDITION 6/2A/06 on its
+  first read after the change. A watcher on 127.0.0.7 with another ISID got nothing (deviation 17 again, same run).
+  Reproduced in four runs (the probe run plus three repeats, 2026-11-13): the reader got 6/2A/06 every time and the
+  watcher got nothing every time. The watcher is the only nexus on the sending portal. Test: `rust/src/iscsi/alua_window.rs`,
+  case "transition window" in the mpio section. Control: the reader's answers before the change were the standby
+  refusal (2/04/0Bh) and after it GOOD, so the change itself was seen at once.
+- **Window observation (same run):** the standby answers (2/04/0Bh), then 6/2A/06, then GOOD. No BUSY and no
+  CHECK CONDITION 2/04/0Ah were seen, so LIO changes the state atomically (SPC-4 5.15.2.5 a and b do not apply).

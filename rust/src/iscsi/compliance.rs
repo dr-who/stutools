@@ -24,7 +24,7 @@ use super::path::Path;
 use super::send_targets;
 use super::{chap_cases, chap_mutual_cases, identity_cases, scsi_cases, session_cases};
 use crate::compliance::{Case, Device, ScsiLevel};
-use crate::{cli::Config, Result};
+use crate::{Result, cli::Config};
 
 /// Adds the iSCSI cases for the `--iscsi` targets to `cases`, the targets tested no further to
 /// `untested`, and each logical unit reached to `devices`: the login, identity, scsi, chap and session
@@ -123,6 +123,7 @@ pub fn cases(
         initiator,
         config.iscsi_second_initiator.as_deref(),
         config.iscsi_third_initiator.as_deref(),
+        config.fault_lba,
         levels,
         cases,
     );

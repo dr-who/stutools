@@ -12,14 +12,14 @@ use super::cases::{record, record_info, record_should};
 use super::commands::Commands;
 use super::login::SessionKeys;
 use super::login_cases::Reachable;
-use super::lun_access::{short_name, Creds};
+use super::lun_access::{Creds, short_name};
 use super::path::Path;
 use super::pdu::{self, NO_TTT};
-use super::pdu_connection::{Pdu, PduConnection, Received, WriteForm, PDU_WAIT};
+use super::pdu_connection::{PDU_WAIT, Pdu, PduConnection, Received, WriteForm};
 use super::scsi;
 use super::transfer_checks as tc;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 const IO: &str = "io";
 const SESSION: &str = "session";
@@ -564,7 +564,14 @@ fn data_out_bad_digest(
             o => format!("{o:?}"),
         }
     );
-    record(cases, SESSION, label, "Reject reason 02h then recovery, or CHECK CONDITION 0B/47/05, or a close; never silent GOOD", actual, handled && !(good && !rejected && !recovery_r2t));
+    record(
+        cases,
+        SESSION,
+        label,
+        "Reject reason 02h then recovery, or CHECK CONDITION 0B/47/05, or a close; never silent GOOD",
+        actual,
+        handled && !(good && !rejected && !recovery_r2t),
+    );
     // Restore: a fresh session (this one may be dropped) and the original bytes.
     let _ = c.logout();
     if let Ok(mut c2) =

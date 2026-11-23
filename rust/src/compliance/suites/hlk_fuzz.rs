@@ -10,7 +10,14 @@ pub const HLK_FUZZ: Suite = Suite {
     source: "https://learn.microsoft.com/en-us/windows-hardware/test/hlk/testref/4f42dc87-2019-4423-bacb-2ed09da96685",
     style: Style::Hlk,
     transports: &["iSCSI", "SAS", "SCSI"],
-    tests: &[
-        Test::new("FUZZ-1", "SCSI Compliance Fuzz Test", Partial, &[Ref::new("sbc", ""), Ref::new("spc", "unimplemented operation code refused")], "probes every opcode once, well formed, and; no reserved-bit, length or field fuzzing and no liveness check after it"),
-    ],
+    tests: &[Test::new(
+        "FUZZ-1",
+        "SCSI Compliance Fuzz Test",
+        Partial,
+        &[
+            Ref::new("sbc", ""),
+            Ref::new("spc", "unimplemented operation code refused"),
+        ],
+        "probes every opcode once, well formed, and; no reserved-bit, length or field fuzzing and no liveness check after it",
+    )],
 };

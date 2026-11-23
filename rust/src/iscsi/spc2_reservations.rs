@@ -9,8 +9,8 @@
 //! work the same, or are refused as unsupported. It runs only on a LUN with no persistent reservation
 //! registrations, which make RESERVE (6) conflict (SPC-6 5.14.3), and releases everything it reserved.
 
-use super::cases::{describe, expect, record, Want};
-use super::lun_access::{open, read_cmd, show_attentions, unit_attentions, write_cmd, Lun};
+use super::cases::{Want, describe, expect, record};
+use super::lun_access::{Lun, open, read_cmd, show_attentions, unit_attentions, write_cmd};
 use super::ops::{self, RELEASE_6, RESERVE_6};
 use super::port::Port;
 use super::pr_commands::read_keys;

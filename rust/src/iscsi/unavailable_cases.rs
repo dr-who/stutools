@@ -3,7 +3,7 @@
 //! with NOT READY, LOGICAL UNIT NOT ACCESSIBLE, TARGET PORT IN UNAVAILABLE STATE (04h, 0Ch).
 
 use super::alua::SECTION;
-use super::cases::{expect, record, Want};
+use super::cases::{Want, expect, record};
 use super::lun_access::unit_attentions;
 use super::port::Port;
 use super::port_groups::rtpg;

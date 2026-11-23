@@ -9,8 +9,8 @@
 //! On a spinning disk the STOPs spin it down, so this runs last.
 
 use super::block_io::cdb10;
-use super::cases::{describe, expect, record, record_should, Want, REFUSED};
-use super::disk::{label, SECTION};
+use super::cases::{REFUSED, Want, describe, expect, record, record_should};
+use super::disk::{SECTION, label};
 use super::lun_access::{test_unit_ready, unit_attentions};
 use super::port::Port;
 use super::scsi;

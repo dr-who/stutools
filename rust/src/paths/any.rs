@@ -3,12 +3,12 @@
 //! serve one LUN or namespace together, and the pool checks that every path reports the same geometry.
 
 use super::{Done, Fabric, Geometry, Io, Pool, Transport};
+use crate::Result;
 use crate::iscsi::{
     connection::IscsiFabric, path::Path as IscsiPath, session::Session as IscsiSession,
 };
 use crate::nvme::session::{NvmeFabric, NvmePath, NvmeSession};
 use crate::paths::Policy;
-use crate::Result;
 
 /// One path as the user named it.
 #[derive(Clone)]
@@ -110,6 +110,13 @@ impl Transport for AnySession {
         match self {
             AnySession::Iscsi(s) => Transport::poll(s),
             AnySession::Nvmeof(s) => Transport::poll(s),
+        }
+    }
+
+    fn poll_within(&mut self, wait: std::time::Duration) -> Result<Done> {
+        match self {
+            AnySession::Iscsi(s) => Transport::poll_within(s, wait),
+            AnySession::Nvmeof(s) => Transport::poll_within(s, wait),
         }
     }
 

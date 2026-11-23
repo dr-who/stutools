@@ -4,14 +4,14 @@
 //! agreeing, and a MODE SELECT of the Caching page that changes nothing. A page is found after the
 //! mode parameter header and block descriptors (`mode_page_of`).
 
-use super::cases::{expect, record, refused, Want};
-use super::disk::{label, Disk, SECTION};
+use super::cases::{Want, expect, record, refused};
+use super::disk::{Disk, SECTION, label};
 use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Seen;
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 /// The page itself from a MODE SENSE answer: after the header (4 bytes for (6), 8 for (10)) and the
 /// block descriptors (SPC-6 7.5.6).
@@ -105,6 +105,7 @@ pub(super) fn mode_pages(
         (0x0a, 0x01, "Control Extension"),
         (0x1c, 0, "Informational Exceptions Control"),
         (0x01, 0, "Read-Write Error Recovery"),
+        (0x07, 0, "Verify Error Recovery"),
     ] {
         let o = mode_sense_10(s, 0, page, subpage, true);
         // A page the device server does not have is an invalid field in the CDB (SPC-6 6.13).
@@ -152,6 +153,7 @@ pub(super) fn mode_pages(
         (0x0a, "Control"),
         (0x1c, "Informational Exceptions Control"),
         (0x01, "Read-Write Error Recovery"),
+        (0x07, "Verify Error Recovery"),
     ] {
         if disk.mode_page(page, 0).is_none() {
             continue;

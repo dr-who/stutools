@@ -5,20 +5,26 @@
 
 use std::{
     io,
+    sync::{Arc, mpsc},
     time::{Duration, Instant},
 };
 
 use super::{
     lanes::{Lanes, Policy},
-    stats::{record_totals, take_dump, PathStats},
+    stats::{PathStats, record_totals, take_dump},
 };
-use crate::io::{AsyncIo, Failure, Next, Request, StreamCtx};
 use crate::Result;
+use crate::io::{AsyncIo, Failure, Next, Request, StreamCtx};
 
 /// How long a path stays down after its connection drops, before the pool connects it again.
 const RECONNECT_AFTER: Duration = Duration::from_secs(3);
 /// How often a waiting pool checks for a reconnect.
 const RECONNECT_POLL: Duration = Duration::from_millis(20);
+/// How long a command may wait on a path before the pool takes that path down and re-sends its commands
+/// on another path. Applies only while another usable path exists, so a single path is never dropped for
+/// being slow. A silently dropped path otherwise holds its commands for the whole session timeout while
+/// the shared queue depth fills up behind them.
+const FAILOVER_AFTER: Duration = Duration::from_secs(3);
 /// Sense bytes kept for a finished command; the same size as the iSCSI session's.
 pub const SENSE_CAPACITY: usize = 64;
 
@@ -70,6 +76,11 @@ pub trait Transport {
     unsafe fn submit(&mut self, tag: usize, io: Io, buf: *mut u8, len: usize) -> Result<()>;
     /// Waits for one command on this path to finish.
     fn poll(&mut self) -> Result<Done>;
+    /// `poll`, giving up with an error once `wait` has passed. An error takes the path down.
+    fn poll_within(&mut self, wait: Duration) -> Result<Done> {
+        let _ = wait;
+        self.poll()
+    }
     /// Called on every pass of the scheduler, so a path the policy has stopped choosing still does its
     /// housekeeping (keep-alive). An error takes the path down.
     fn tick(&mut self) -> Result<()> {
@@ -82,14 +93,20 @@ pub trait Transport {
 }
 
 /// How a transport opens a path. `Path` names one target path; `Session` is what it opens.
-pub trait Fabric {
-    type Path: Clone;
-    type Session: Transport;
+pub trait Fabric: Send + Sync + 'static {
+    type Path: Clone + Send + 'static;
+    type Session: Transport + 'static;
     /// The label the path reports under in the totals.
     fn label(&self, path: &Self::Path) -> String;
     /// Connects one path and returns its session and the namespace's geometry.
     fn open(&self, path: &Self::Path) -> Result<(Self::Session, Geometry)>;
 }
+
+/// A reconnect's result, moved from its thread. A session is built on that thread and moved back whole with
+/// nothing in flight, so no buffer pointer it holds is ever used from two threads at once.
+struct SendOpen<S>(Result<(S, Geometry)>);
+// SAFETY: see the type's comment: the session's raw buffer pointers are unused until it is owned by the pool.
+unsafe impl<S> Send for SendOpen<S> {}
 
 /// The queue's buffers: the base of the arena, the bytes per slot, and the progress counter.
 #[derive(Clone, Copy)]
@@ -101,7 +118,10 @@ struct Arena<'a> {
 
 /// One session per path, owned by the queue that runs over it.
 pub struct Pool<F: Fabric> {
-    fabric: F,
+    fabric: Arc<F>,
+    /// A reconnect running on its own thread, per path, so a path that does not answer does not hold up
+    /// the others. None while the path is up or waiting for its next attempt.
+    reconnecting: Vec<Option<mpsc::Receiver<SendOpen<F::Session>>>>,
     paths: Vec<F::Path>,
     /// One session per path. None while the path is down, until it reconnects.
     sessions: Vec<Option<F::Session>>,
@@ -165,6 +185,7 @@ impl<F: Fabric> Pool<F> {
         }
         Ok(Self {
             labels: paths.iter().map(|p| fabric.label(p)).collect(),
+            reconnecting: (0..paths.len()).map(|_| None).collect(),
             lanes,
             stream_stats: crate::io::StreamStats::new(),
             race: false,
@@ -183,7 +204,7 @@ impl<F: Fabric> Pool<F> {
             stats,
             failed: Vec::with_capacity(paths.len()),
             geometry,
-            fabric,
+            fabric: Arc::new(fabric),
         })
     }
 
@@ -225,6 +246,11 @@ impl<F: Fabric> Pool<F> {
     /// Takes a path down after its connection dropped. Its commands in flight go back on the retry list,
     /// and the path reconnects after `RECONNECT_AFTER`.
     fn disconnect(&mut self, path: usize) {
+        // Taking a path down is failover bookkeeping, not I/O: its allocations are not the hot path.
+        crate::allocation::untracked(|| self.take_down(path));
+    }
+
+    fn take_down(&mut self, path: usize) {
         self.sessions[path] = None;
         self.down_at[path] = Some(Instant::now());
         self.stats[path].disconnects += 1;
@@ -236,6 +262,25 @@ impl<F: Fabric> Pool<F> {
                 self.stream_stats.change(Instant::now(), false);
                 self.retry.push(slot);
             }
+        }
+    }
+
+    /// How long the pool may wait on path `p` before it must look at the others: the time left before the
+    /// oldest command on `p` has waited `FAILOVER_AFTER`. With no other usable path to fail over to, the
+    /// transport's own command limit applies.
+    fn failover_wait(&self, p: usize) -> Duration {
+        if self.lanes.usable_count() < 2 {
+            return Duration::MAX;
+        }
+        let oldest = (0..self.slot_inflight.len())
+            .filter(|&s| self.slot_inflight[s] && self.slot_path[s] == p)
+            .map(|s| self.slot_started[s])
+            .min();
+        match oldest {
+            Some(started) => FAILOVER_AFTER
+                .saturating_sub(started.elapsed())
+                .max(Duration::from_millis(1)),
+            None => FAILOVER_AFTER,
         }
     }
 
@@ -273,17 +318,38 @@ impl<F: Fabric> Pool<F> {
         self.sessions.iter().any(|s| s.is_none())
     }
 
-    /// Connects again every down path whose wait is over. A failed attempt waits another round.
+    /// Connects again every down path whose wait is over. Each attempt runs on its own thread: a path that
+    /// does not answer holds up only its own reconnect, not the commands on the others. A failed attempt
+    /// waits another round.
     fn try_reconnect(&mut self) {
+        // Starting a reconnect thread allocates; that is failover bookkeeping, not I/O.
+        crate::allocation::untracked(|| self.reconnect_due_paths());
+    }
+
+    fn reconnect_due_paths(&mut self) {
         for path in 0..self.sessions.len() {
-            let Some(since) = self.down_at[path] else {
-                continue;
+            let got = match &self.reconnecting[path] {
+                Some(rx) => rx.try_recv(),
+                None => {
+                    let Some(since) = self.down_at[path] else {
+                        continue;
+                    };
+                    if since.elapsed() < RECONNECT_AFTER {
+                        continue;
+                    }
+                    let (tx, rx) = mpsc::channel();
+                    let fabric = Arc::clone(&self.fabric);
+                    let spec = self.paths[path].clone();
+                    std::thread::spawn(move || {
+                        let _ = tx.send(SendOpen(fabric.open(&spec)));
+                    });
+                    self.reconnecting[path] = Some(rx);
+                    continue;
+                }
             };
-            if since.elapsed() < RECONNECT_AFTER {
-                continue;
-            }
-            match self.fabric.open(&self.paths[path]) {
-                Ok((session, _)) => {
+            match got {
+                Ok(SendOpen(Ok((session, _)))) => {
+                    self.reconnecting[path] = None;
                     self.lanes
                         .set_tier(path, session.tier().unwrap_or(super::lanes::TIER_OPTIMIZED));
                     self.sessions[path] = Some(session);
@@ -291,7 +357,11 @@ impl<F: Fabric> Pool<F> {
                     self.stats[path].reconnects += 1;
                     self.lanes.mark_available(path);
                 }
-                Err(_) => self.down_at[path] = Some(Instant::now()),
+                Ok(SendOpen(Err(_))) | Err(mpsc::TryRecvError::Disconnected) => {
+                    self.reconnecting[path] = None;
+                    self.down_at[path] = Some(Instant::now());
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
             }
         }
     }
@@ -379,7 +449,7 @@ impl<F: Fabric> Pool<F> {
                 let Some((slot, req)) = held else {
                     continue;
                 };
-                if req.offset % block != 0 || req.len as u64 % block != 0 {
+                if req.offset % block != 0 || !(req.len as u64).is_multiple_of(block) {
                     return Err(Failure::from(io::Error::other(format!(
                         "request at {} of {} bytes is not aligned to the {block}-byte block size",
                         req.offset, req.len
@@ -466,10 +536,16 @@ impl<F: Fabric> Pool<F> {
                     "requests in flight on no path",
                 )));
             };
+            let wait = self.failover_wait(p);
+            let mark = crate::allocation::count_now();
             let polled = match self.sessions[p].as_mut() {
-                Some(session) => session.poll(),
+                Some(session) => session.poll_within(wait),
                 None => Err("path has no session".into()),
             };
+            if polled.is_err() {
+                // The error text of a path that failed is failover bookkeeping, not I/O.
+                crate::allocation::forgive_since(mark);
+            }
             let done = match polled {
                 Ok(done) => done,
                 Err(_) => {
@@ -505,9 +581,11 @@ impl<F: Fabric> Pool<F> {
                     self.free.push(slot);
                 }
             } else if done.unavailable {
-                let reason = self.sessions[p]
-                    .as_ref()
-                    .map_or_else(String::new, |s| s.unavailable(&done));
+                let reason = crate::allocation::untracked(|| {
+                    self.sessions[p]
+                        .as_ref()
+                        .map_or_else(String::new, |s| s.unavailable(&done))
+                });
                 self.failed.push((p, reason));
                 self.stats[p].failovers += 1;
                 self.lanes.mark_unavailable(p);

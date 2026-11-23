@@ -474,7 +474,9 @@ mod macos {
         }
         print!("{}", String::from_utf8_lossy(&out.stdout));
         println!("scsi commands: not sent on macOS (no SCSI pass-through in this build)");
-        println!("iscsi session: macOS has no open-iscsi equivalent; negotiated values need a login capture");
+        println!(
+            "iscsi session: macOS has no open-iscsi equivalent; negotiated values need a login capture"
+        );
         println!("MaxCmdSN: not reported by macOS; needs an iSCSI login capture");
         Ok(())
     }

@@ -1,11 +1,11 @@
 use crate::iscsi::{connection::IscsiFabric, credentials, path as iscsi_path};
 use crate::nvme::{controller::random_hostid, session::NvmeFabric};
-use crate::paths::{open_paths, PathSpec, Policy};
+use crate::paths::{PathSpec, Policy, open_paths};
 use crate::{
-    allocation,
+    Result, allocation,
     cli::{Backend, Config, Workload},
     io::{self, Failure, Next, Queue, Request},
-    pattern, Result,
+    pattern,
 };
 use std::{
     cell::RefCell,
@@ -14,8 +14,8 @@ use std::{
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Barrier, OnceLock,
+        atomic::{AtomicBool, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -131,11 +131,7 @@ fn pacing_wait(work: &Workload, index: u64, elapsed: f64) -> f64 {
         .max(0.);
     let duty_wait = work.duty.map_or(0., |(on, off)| {
         let phase = elapsed % (on + off);
-        if phase >= on {
-            on + off - phase
-        } else {
-            0.
-        }
+        if phase >= on { on + off - phase } else { 0. }
     });
     rate_wait.max(duty_wait)
 }
@@ -502,7 +498,12 @@ fn check_target(c: &Config, target: Target, records: &[Request]) -> Result<Check
     let existing = match File::open(path) {
         Ok(f) => Some(f),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-        Err(e) => return Err(format!("open target for size/range validation {}: {e}; check that the path exists and your account has read access (raw Windows volumes require Administrator)", path.display())),
+        Err(e) => {
+            return Err(format!(
+                "open target for size/range validation {}: {e}; check that the path exists and your account has read access (raw Windows volumes require Administrator)",
+                path.display()
+            ));
+        }
     };
     let info = existing
         .as_ref()
@@ -512,7 +513,10 @@ fn check_target(c: &Config, target: Target, records: &[Request]) -> Result<Check
     let regular = info.as_ref().is_none_or(|i| i.regular);
     let sector = info.as_ref().and_then(|i| i.sector);
     if existing.is_none() && !write {
-        return Err(format!("read target does not exist: {}; -F is a file prefix and reads require initialized PREFIX.0001, PREFIX.0002, ... files. Create disposable test files first with the same -F PREFIX, -G SIZE and j worker count using -c ws1x1, then read with -c rs0. Writes overwrite data; choose a new test prefix", path.display()));
+        return Err(format!(
+            "read target does not exist: {}; -F is a file prefix and reads require initialized PREFIX.0001, PREFIX.0002, ... files. Create disposable test files first with the same -F PREFIX, -G SIZE and j worker count using -c ws1x1, then read with -c rs0. Writes overwrite data; choose a new test prefix",
+            path.display()
+        ));
     }
     let (lo, hi) = c
         .range
@@ -555,7 +559,9 @@ fn check_precondition(
     if pre.workers != 1
         || pre.max_block as u64 > end - start
         || (backend != Backend::Pagecache
-            && (start % 512 != 0 || pre.block % 512 != 0 || pre.max_block % 512 != 0))
+            && (start % 512 != 0
+                || !pre.block.is_multiple_of(512)
+                || !pre.max_block.is_multiple_of(512)))
     {
         return Err("invalid preconditioning block/range".into());
     }
@@ -581,16 +587,20 @@ fn check_job(
     backend: Backend,
 ) -> Result<()> {
     let (start, end) = worker_range(w, index, lo, hi, !records.is_empty())?;
-    if let Some(sector) = sector {
-        if start % sector as u64 != 0
-            || w.block % sector != 0
-            || w.max_block % sector != 0
+    if let Some(sector) = sector
+        && (start % sector as u64 != 0
+            || !w.block.is_multiple_of(sector)
+            || !w.max_block.is_multiple_of(sector)
             || records
                 .iter()
-                .any(|r| r.offset % sector as u64 != 0 || r.len % sector != 0)
-        {
-            return Err(format!("{}: raw Windows I/O requires offsets and lengths in multiples of {sector} bytes; worker start={start}, block={}, maximum block={}; adjust -G, k/M or -S positions", path.display(), w.block, w.max_block));
-        }
+                .any(|r| r.offset % sector as u64 != 0 || r.len % sector != 0))
+    {
+        return Err(format!(
+            "{}: raw Windows I/O requires offsets and lengths in multiples of {sector} bytes; worker start={start}, block={}, maximum block={}; adjust -G, k/M or -S positions",
+            path.display(),
+            w.block,
+            w.max_block
+        ));
     }
     let count = if records.is_empty() {
         w.positions.unwrap_or((end - start) / w.block as u64)
@@ -610,7 +620,7 @@ fn check_job(
         return Err("block is larger than worker range".into());
     }
     if backend != Backend::Pagecache
-        && (start % 512 != 0 || (w.block % 512 != 0 || w.max_block % 512 != 0))
+        && (start % 512 != 0 || (!w.block.is_multiple_of(512) || !w.max_block.is_multiple_of(512)))
     {
         return Err("direct I/O requires sector-aligned offsets and lengths".into());
     }
@@ -888,9 +898,21 @@ fn report(c: &Config, total: Stats, mut error: Option<String>) -> Result<Summary
     let late =
         (total.completed_reads + total.completed_writes).saturating_sub(total.reads + total.writes);
     if late > 0 && total.reads + total.writes == 0 {
-        eprintln!("*info* {late} I/O operations completed after the measured deadline and are excluded from throughput/IOPS; the OS/driver completed them during cleanup");
+        eprintln!(
+            "*info* {late} I/O operations completed after the measured deadline and are excluded from throughput/IOPS; the OS/driver completed them during cleanup"
+        );
     }
-    println!("read_ops={} write_ops={} seconds={:.6} read_MiB_s={:.3} write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={} verified_ops={}",total.reads,total.writes,seconds,total.read_bytes as f64/1048576./seconds,total.write_bytes as f64/1048576./seconds,(total.reads+total.writes) as f64/seconds,total.allocations,total.verified);
+    println!(
+        "read_ops={} write_ops={} seconds={:.6} read_MiB_s={:.3} write_MiB_s={:.3} IOPS={:.0} hot_path_allocations={} verified_ops={}",
+        total.reads,
+        total.writes,
+        seconds,
+        total.read_bytes as f64 / 1048576. / seconds,
+        total.write_bytes as f64 / 1048576. / seconds,
+        (total.reads + total.writes) as f64 / seconds,
+        total.allocations,
+        total.verified
+    );
     if total.inflight_time_ns > 0 {
         println!(
             "in_flight avg={:.2} max={} measured_seconds={:.3}",
@@ -908,13 +930,13 @@ fn report(c: &Config, total: Stats, mut error: Option<String>) -> Result<Summary
     if total.submit_errors > 0 && error.is_none() {
         error = Some("submission errors: Input/output error".into());
     }
-    if let Some(expected) = c.expected {
-        if expected != (total.completed_reads, total.completed_writes) {
-            error = Some(format!(
-                "operation count mismatch: expected {expected:?}, got {:?}",
-                (total.completed_reads, total.completed_writes)
-            ));
-        }
+    if let Some(expected) = c.expected
+        && expected != (total.completed_reads, total.completed_writes)
+    {
+        error = Some(format!(
+            "operation count mismatch: expected {expected:?}, got {:?}",
+            (total.completed_reads, total.completed_writes)
+        ));
     }
     if let Some(e) = error {
         return Err(e);
@@ -1115,11 +1137,11 @@ impl Stream<'_> {
             };
         };
         // A write goes after the owed read-back of its extent: that read is issued first, and the write waits.
-        if request.write {
-            if let Some(at) = self.due.iter().position(|d| self.gates(&request, d)) {
-                self.held.push(request);
-                request = self.due.remove(at).expect("the owed read is in the list");
-            }
+        if request.write
+            && let Some(at) = self.due.iter().position(|d| self.gates(&request, d))
+        {
+            self.held.push(request);
+            request = self.due.remove(at).expect("the owed read is in the list");
         }
         if (self.work.rate.is_some() && self.outstanding > 0) || self.overlaps(&request) {
             self.held.push(request);
@@ -1323,8 +1345,8 @@ impl Run {
             && p.work.block == p.work.max_block
             && p.loaded.is_empty()
             && p.work.read_probability == 0.
-            && p.work.block % 4096 == 0
-            && p.lo % 4096 == 0;
+            && p.work.block.is_multiple_of(4096)
+            && p.lo.is_multiple_of(4096);
         let mut queue = match &p.paths {
             Some(plan) => {
                 let chap = plan.chap.as_ref().map(|(u, s)| (u.as_str(), s.as_slice()));
@@ -1576,11 +1598,12 @@ impl Run {
                 break;
             }
             self.stats.publish(counter(&self.progress));
-            if self.work.flush && self.queue.requests[..count].iter().any(|r| r.write) {
-                if let Err(e) = self.queue.flush() {
-                    self.error = Some(e.into());
-                    break;
-                }
+            if self.work.flush
+                && self.queue.requests[..count].iter().any(|r| r.write)
+                && let Err(e) = self.queue.flush()
+            {
+                self.error = Some(e.into());
+                break;
             }
             self.verify_reads(count);
             if self.error.is_some() {

@@ -97,7 +97,11 @@ pub const USES: [Use; 9] = [
         commands: "VPD 83h with one unique ID on every path; REPORT TARGET PORT GROUPS (or ANA); LOGICAL UNIT RESET and ABORT TASK (or Abort) for path recovery; a session or association re-established; a write on one path read on every other",
         needs: &[
             SAME_LUN,
-            need("unique LUN ID and path states", &["windows"], &["MPIO", "MSDSM"]),
+            need(
+                "unique LUN ID and path states",
+                &["windows"],
+                &["MPIO", "MSDSM"],
+            ),
             need(
                 "path states readable",
                 &["mpio", "nvme-ana"],
@@ -194,7 +198,11 @@ pub const USES: [Use; 9] = [
             SAME_LUN,
             CLUSTER_RESERVATIONS,
             need("reads and writes", &["io", "nvme-io"], &[]),
-            need("one node's writes read back by another", &["coherence"], &[]),
+            need(
+                "one node's writes read back by another",
+                &["coherence"],
+                &[],
+            ),
         ],
     },
 ];

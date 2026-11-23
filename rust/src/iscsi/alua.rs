@@ -9,9 +9,10 @@
 //! READY and READ must report the standby state.
 
 use super::alua_transition::{current_state, transition};
-use super::cases::{expect, introduced_in, record, Want, REFUSED_SA};
-use super::lun_access::{unit_attentions, vpd, Lun};
+use super::cases::{REFUSED_SA, Want, expect, introduced_in, record};
+use super::lun_access::{Lun, unit_attentions, vpd};
 use super::ops;
+use super::path::Path;
 use super::port::Port;
 use super::port_groups::{parse_groups, rtpg, state_bit};
 use super::scsi;
@@ -36,6 +37,7 @@ pub(super) fn run(
     lun: Lun,
     name: &str,
     tpgs: u8,
+    others: &[&Path],
     cases: &mut Vec<Case>,
     seen: &mut Seen,
 ) -> Findings {
@@ -210,6 +212,6 @@ pub(super) fn run(
     );
     seen.answer("SET TARGET PORT GROUPS", SECTION, &a);
     let _ = unit_attentions(s);
-    transition(s, lun, name, &own, &groups, cases);
+    transition(s, lun, name, &own, &groups, others, cases);
     findings
 }

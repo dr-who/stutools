@@ -4,12 +4,14 @@
 //! state, and the group is moved back to where it was.
 
 use super::alua::SECTION;
-use super::cases::{expect, record, Want};
+use super::alua_window::{during, path_in_group};
+use super::cases::{Want, expect, record};
 use super::login;
-use super::lun_access::{open, show_attentions, unit_attentions, Lun};
+use super::lun_access::{Lun, open, show_attentions, unit_attentions};
 use super::ops;
+use super::path::Path;
 use super::port::Port;
-use super::port_groups::{parse_groups, rtpg, state_bit, Group};
+use super::port_groups::{Group, parse_groups, rtpg, state_bit};
 use super::scsi;
 use crate::compliance::Case;
 
@@ -31,6 +33,7 @@ pub(super) fn transition(
     name: &str,
     own: &Group,
     groups: &[Group],
+    others: &[&Path],
     cases: &mut Vec<Case>,
 ) {
     let Lun {
@@ -71,18 +74,67 @@ pub(super) fn transition(
         return;
     };
     let _ = unit_attentions(&mut watcher);
-    let a = expect(
-        cases,
-        SECTION,
-        label(&format!(
-            "SET TARGET PORT GROUPS group {} from {} to {}",
-            g.id,
-            scsi::state_name(g.state),
-            scsi::state_name(to)
-        )),
-        &[Want::Good],
-        ops::set_port_group_state(s, g.id, to),
-    );
+    let set_label = label(&format!(
+        "SET TARGET PORT GROUPS group {} from {} to {}",
+        g.id,
+        scsi::state_name(g.state),
+        scsi::state_name(to)
+    ));
+    // SPC-4 5.15.2.5: a second nexus on a port of the moving group reads while SET TARGET PORT GROUPS runs.
+    let a = match path_in_group(others, initiator, creds, g.id) {
+        Some(reader) => {
+            let (a, window) = during(reader, initiator, creds, || {
+                expect(
+                    cases,
+                    SECTION,
+                    set_label.clone(),
+                    &[Want::Good],
+                    ops::set_port_group_state(s, g.id, to),
+                )
+            });
+            let seen = if window.transition_answers == 0 {
+                "none seen (the target changed state at once)".to_string()
+            } else {
+                format!("{} during the transition", window.transition_answers)
+            };
+            super::cases::record(
+                cases,
+                SECTION,
+                label(&format!(
+                    "transition window: reads through group {} answer only as 5.15.2.5 allows",
+                    g.id
+                )),
+                "GOOD, BUSY, CHECK CONDITION 2/04/0ah or 2/04/0bh",
+                if window.unexpected.is_empty() {
+                    format!(
+                        "answers {}; transition answers {seen}",
+                        window.answers.join(", ")
+                    )
+                } else {
+                    format!("unexpected {}", window.unexpected.join(", "))
+                },
+                window.unexpected.is_empty(),
+            );
+            a
+        }
+        None => {
+            super::cases::record(
+                cases,
+                SECTION,
+                label("transition window: a portal in the moving group"),
+                "a second portal in group",
+                "none reachable, window not probed",
+                true,
+            );
+            expect(
+                cases,
+                SECTION,
+                set_label,
+                &[Want::Good],
+                ops::set_port_group_state(s, g.id, to),
+            )
+        }
+    };
     if a.0 {
         let now = current_state(s, g.id);
         record(

@@ -10,17 +10,17 @@
 
 use super::cases::{no_failures, record};
 use super::login;
-use super::lun_access::{open, short_name, unit_attentions, Creds, Lun};
+use super::lun_access::{Creds, Lun, open, short_name, unit_attentions};
 use super::path::Path;
 use super::seen::Seen;
 use super::{
     alua, ats_race, block_commands, block_io, bulk_integrity, cache_integrity, cdb_lengths,
     coherence, compare_and_write, data_path, disk, feature_sets, header_digest, health_cases,
-    host_traces, inquiry_framing, mode_block_descriptors, mode_select_change, mode_select_pages,
-    odx, optional_commands, pr_command_set, pr_empty_state, pr_ports, pr_single_nexus,
-    provisioning, report_luns_cases, reservations, six_byte_io, spc2_reservations, spc_commands,
-    standby_cases, start_stop_cases, task_management, unavailable_cases, unlisted_lun,
-    verify_cases, vpd_framing, windows, windows_device_rules,
+    host_traces, inquiry_framing, log_sense_cases, media_fault_cases, mode_block_descriptors,
+    mode_select_change, mode_select_pages, odx, optional_commands, pr_command_set, pr_empty_state,
+    pr_ports, pr_single_nexus, provisioning, report_luns_cases, reservations, six_byte_io,
+    spc_commands, spc2_reservations, standby_cases, start_stop_cases, task_management,
+    unavailable_cases, unlisted_lun, verify_cases, vpd_framing, windows, windows_device_rules,
 };
 use crate::compliance::{Case, ScsiLevel};
 
@@ -56,6 +56,7 @@ pub(super) fn run(
     initiator: &str,
     second: Option<&str>,
     third: Option<&str>,
+    fault_lba: Option<u32>,
     levels: &[ScsiLevel],
     cases: &mut Vec<Case>,
 ) {
@@ -108,11 +109,34 @@ pub(super) fn run(
                 "every command functions as specified".into(),
             ));
         }
+        // A storage array controller (peripheral type 0Ch) is SCSI management, not a disk. The disk cases would
+        // run against the wrong device and fail for that reason alone, so the path records that and names the fix.
+        if let Ok(inq) = super::scsi::inquiry(&mut s)
+            && inq.peripheral == 0x0c
+        {
+            record(
+                cases,
+                "disk",
+                format!("{name} LUN is a disk"),
+                "a direct-access LUN (peripheral type 00h): give the disk LUN in the path, host/target/LUN",
+                format!(
+                    "LUN {} is a storage array controller (peripheral type 0Ch): the disk cases are skipped",
+                    t.path.lun
+                ),
+                false,
+            );
+            let _ = s.logout();
+            continue;
+        }
         health_cases::run(&mut s, &name, cases);
         let mut seen = Seen::default();
         spc_commands::run(&mut s, &name, cases, &mut seen);
         let luns = report_luns_cases::run(&mut s, &name, t.path.lun == 0, cases);
         let disk = disk::run(&mut s, &name, levels, cases, &mut seen);
+        log_sense_cases::run(&mut s, &name, &disk, cases);
+        if let Some(lba) = fault_lba {
+            media_fault_cases::run(&mut s, &name, lba, cases);
+        }
         unlisted_lun::run(lun, &name, &luns, disk.block_len, cases);
         let same_lun: Vec<&Path> = targets
             .iter()
@@ -146,7 +170,21 @@ pub(super) fn run(
         let first = cases.len();
         let odx = odx::run(&mut s, &name, &disk, cases, &mut seen);
         let odx_clean = no_failures(&cases[first..]);
-        let alua = alua::run(&mut s, lun, &name, disk.tpgs(), cases, &mut seen);
+        // Every portal of this LUN, standby ones too: the transition probe needs the portal of the group that moves.
+        let lun_paths: Vec<&Path> = targets
+            .iter()
+            .filter(|o| o.path.target == t.path.target && o.path.lun == t.path.lun)
+            .map(|o| o.path)
+            .collect();
+        let alua = alua::run(
+            &mut s,
+            lun,
+            &name,
+            disk.tpgs(),
+            &lun_paths,
+            cases,
+            &mut seen,
+        );
         let windows_online = host_traces::windows(&mut s, &name, &disk, cases);
         pr_empty_state::run(&mut s, &name, cases);
         pr_single_nexus::run(&mut s, &name, cases);

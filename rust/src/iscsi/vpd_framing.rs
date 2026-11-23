@@ -7,7 +7,7 @@
 //! and the PIV bit (`designator_faults`).
 
 use super::cases::{describe, record, residual_not_reported};
-use super::disk::{label, Disk, SECTION};
+use super::disk::{Disk, SECTION, label};
 use super::lun_access::vpd;
 use super::port::Port;
 use super::scsi_fields::be16;
@@ -67,7 +67,7 @@ pub(super) fn designator_faults(d: &[u8]) -> Vec<String> {
         8 => {
             // 7.7.6.11: SCSI name string, UTF-8, null-terminated, a multiple of 4 below 256.
             need(code_set == 3, "code set 3h (UTF-8)");
-            need(len % 4 == 0 && len < 256, "length a multiple of 4");
+            need(len.is_multiple_of(4) && len < 256, "length a multiple of 4");
             need(value.contains(&0), "null-terminated");
             let starts = [b"eui.", b"naa.", b"iqn."]
                 .iter()

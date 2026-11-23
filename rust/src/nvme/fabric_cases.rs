@@ -8,7 +8,7 @@
 //! `connect` and `enable` hand the connected, enabled controller to the later sections.
 
 use super::controller::{self, Association, Controller};
-use crate::compliance::{case, Case};
+use crate::compliance::{Case, case};
 
 /// The VS property: the specification version the controller implements.
 const VS: u32 = 0x08;

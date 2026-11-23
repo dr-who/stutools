@@ -2,11 +2,11 @@
 //! R2T and Data-Out), header and data digests when negotiated, NOP replies, and logout.
 
 use super::crc32c::crc32c;
-use super::login::{Negotiated, LOGIN_ITT};
+use super::login::{LOGIN_ITT, Negotiated};
 use super::path::Path;
 use super::pdu::{self, BHS_LEN, NO_TTT};
-use crate::paths::{Done, SENSE_CAPACITY};
 use crate::Result;
+use crate::paths::{Done, SENSE_CAPACITY};
 use std::{
     io::{Read, Write},
     net::TcpStream,
@@ -241,7 +241,8 @@ impl Session {
             cmd_sn: self.cmd_sn,
             exp_stat_sn: self.exp_stat_sn,
             cdb,
-            read: !write && len > 0,
+            // A READ is a read command even with a zero transfer length: the R bit follows the direction.
+            read: !write,
             write,
             expected: len as u32,
         };
@@ -272,6 +273,19 @@ impl Session {
     /// write are handled on the way. Commands may finish in any order.
     pub fn poll(&mut self) -> Result<Done> {
         self.poll_until(None)
+    }
+
+    /// `poll`, giving up with an error once `wait` has passed. A read that times out in the middle of a PDU
+    /// leaves the stream unframed, so the caller takes the session down rather than polling it again.
+    pub fn poll_within(&mut self, wait: Duration) -> Result<Done> {
+        if wait >= COMMAND_LIMIT {
+            return self.poll();
+        }
+        let deadline = Instant::now() + wait;
+        self.deadline = Some(deadline);
+        let done = self.poll_until(Some(deadline));
+        self.deadline = None;
+        done
     }
 
     /// `poll`, giving up once `deadline` has passed.
@@ -316,20 +330,20 @@ impl Session {
                     if bhs[1] & 0x01 != 0 {
                         inf.status = Some(bhs[3]);
                     }
-                    if bhs[1] & 0x80 != 0 {
-                        if let Some(status) = inf.status {
-                            let tag = inf.tag;
-                            self.last_received = inf.received;
-                            self.inflight.swap_remove(idx);
-                            return Ok(Done {
-                                code: 0,
-                                tag,
-                                status,
-                                unavailable: false,
-                                sense: [0; SENSE_CAPACITY],
-                                sense_len: 0,
-                            });
-                        }
+                    if bhs[1] & 0x80 != 0
+                        && let Some(status) = inf.status
+                    {
+                        let tag = inf.tag;
+                        self.last_received = inf.received;
+                        self.inflight.swap_remove(idx);
+                        return Ok(Done {
+                            code: 0,
+                            tag,
+                            status,
+                            unavailable: false,
+                            sense: [0; SENSE_CAPACITY],
+                            sense_len: 0,
+                        });
                     }
                 }
                 pdu::SCSI_RESPONSE => {
@@ -440,15 +454,16 @@ impl Session {
         // SAFETY: `buf` and `len` describe `read` or `write`, which live until the wait below returns.
         let deadline = Instant::now() + COMMAND_LIMIT;
         self.deadline = Some(deadline);
-        let result =
-            unsafe { self.submit(cdb, 0, buf, len, write.is_some()) }.and_then(|()| loop {
+        let result = unsafe { self.submit(cdb, 0, buf, len, write.is_some()) }.and_then(|()| {
+            loop {
                 let done = self.poll_until(Some(deadline))?;
                 if done.tag == 0 {
                     self.sense.clear();
                     self.sense.extend_from_slice(&done.sense[..done.sense_len]);
                     return Ok(done.status);
                 }
-            });
+            }
+        });
         // A failed command leaves nothing in flight. Otherwise every later command would report that
         // this one is still pending, which hides the error that actually happened.
         self.deadline = None;

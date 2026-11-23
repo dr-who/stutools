@@ -1,7 +1,8 @@
 use crate::{
+    Result,
     cli::{PositionMode, Workload},
     io::Request,
-    pattern, Result,
+    pattern,
 };
 
 // Allocate the entire position table before the timed loop. The capacity never

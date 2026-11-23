@@ -4,25 +4,27 @@
 
 use super::controller::{self, Association, Controller};
 use super::discovery::discover_subsystems;
-use super::{host_address, identify, parse_path, Result, DEFAULT_HOSTNQN};
+use super::{DEFAULT_HOSTNQN, Result, host_address, identify, parse_path};
 
 /// `--nvmeof HOST` with no NQN: lists the subsystems the discovery controller reports, then connects to
 /// each NVM subsystem and prints a row per namespace: size, block size, model, serial and firmware. A
 /// discovery controller in the log page is listed as one; a subsystem that refuses says why.
 pub fn discover(hosts: &[String]) -> Result<()> {
-    let mut rows = vec![[
-        "SUBSYSTEM",
-        "ADDRESS",
-        "NSID",
-        "SIZE",
-        "BLOCK",
-        "MODEL",
-        "SERIAL",
-        "FIRMWARE",
-        "NOTE",
-    ]
-    .map(String::from)
-    .to_vec()];
+    let mut rows = vec![
+        [
+            "SUBSYSTEM",
+            "ADDRESS",
+            "NSID",
+            "SIZE",
+            "BLOCK",
+            "MODEL",
+            "SERIAL",
+            "FIRMWARE",
+            "NOTE",
+        ]
+        .map(String::from)
+        .to_vec(),
+    ];
     let mut first = None;
     for host in hosts {
         for d in discover_subsystems(host)? {

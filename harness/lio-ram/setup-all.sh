@@ -113,7 +113,10 @@ if ! targetcli "/iscsi/$T" ls >/dev/null 2>&1; then
     echo standby > "$C/tpgt_2/lun/lun_0/alua_tg_pt_gp"
     # Each initiator maps LUN 0 of the standby TPG through targetcli: an ACL without the mapping is handed
     # LIO's default ramdisk, which has no ALUA state (the earlier TPGS 0 result).
+    # The ACL must exist before its LUN is mapped: generate_node_acls is 0 on this TPG, so a mapping
+    # made before the ACL fails silently and every login is refused with authorization failure.
     for iqn in $INITIATORS; do
+        targetcli "/iscsi/$T/tpg2/acls" create "$iqn" >/dev/null 2>&1 || true
         targetcli "/iscsi/$T/tpg2/acls/$iqn" create 0 lun0 >/dev/null 2>&1 || true
     done
     echo 1 > "$C/tpgt_2/enable"

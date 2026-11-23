@@ -3,7 +3,7 @@
 //! those that count. Informational cases are not scored.
 
 use super::case::{Case, Verdict};
-use super::sections::{Section, SECTIONS};
+use super::sections::{SECTIONS, Section};
 
 /// The counts for one section or for the whole run.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

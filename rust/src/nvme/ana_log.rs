@@ -36,8 +36,10 @@ pub fn parse(d: &[u8]) -> std::result::Result<Vec<Group>, String> {
             id,
             state: desc[16] & 0x0f,
             nsids: list
-                .chunks_exact(4)
-                .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|c| u32::from_le_bytes(*c))
                 .collect(),
         });
         i += 32 + 4 * n;

@@ -37,11 +37,7 @@ fn host_name() -> String {
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '.'))
         .collect();
-    if name.is_empty() {
-        "host".into()
-    } else {
-        name
-    }
+    if name.is_empty() { "host".into() } else { name }
 }
 
 #[cfg(test)]
@@ -60,7 +56,9 @@ mod tests {
 
     #[test]
     fn reads_the_open_iscsi_name() {
-        let p = file("## generated\n#InitiatorName=iqn.old:x\nInitiatorName=iqn.1994-05.com.redhat:4fdc297d15fd\n");
+        let p = file(
+            "## generated\n#InitiatorName=iqn.old:x\nInitiatorName=iqn.1994-05.com.redhat:4fdc297d15fd\n",
+        );
         assert_eq!(
             from_file(&p).as_deref(),
             Some("iqn.1994-05.com.redhat:4fdc297d15fd")

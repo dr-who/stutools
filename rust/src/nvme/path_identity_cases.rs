@@ -6,12 +6,12 @@
 
 use std::net::SocketAddr;
 
+use super::DEFAULT_HOSTNQN;
 use super::compliance::Target;
 use super::controller::{self, Association, Controller};
-use super::identify::{self, parse_descriptors, unique_ids, Descriptor};
-use super::DEFAULT_HOSTNQN;
-use crate::compliance::{case, Case};
+use super::identify::{self, Descriptor, parse_descriptors, unique_ids};
 use crate::Result;
+use crate::compliance::{Case, case};
 
 /// The identity one controller reports: serial, model, subsystem NQN, and each namespace's IDs.
 #[derive(Debug, PartialEq)]

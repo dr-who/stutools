@@ -8,11 +8,11 @@
 //! about them instead. When it lists commands, its list must agree with what each command did.
 
 use super::cases::record;
-use super::command_probes::{probe, spc2, type_2_protection, Block, DROPPED, TYPE_2_ONLY};
-use super::command_set::{Row, Rule, Sending, ROWS};
+use super::command_probes::{Block, DROPPED, TYPE_2_ONLY, probe, spc2, type_2_protection};
+use super::command_set::{ROWS, Row, Rule, Sending};
 use super::disk::Disk;
 use super::login;
-use super::lun_access::{open, open_with, read_block, Lun};
+use super::lun_access::{Lun, open, open_with, read_block};
 use super::port::Port;
 use super::pr_ports::ISID_SIBLING;
 use super::seen::{Probe, Seen};
@@ -189,10 +189,8 @@ fn judge(
     // A command the level's editions do not have is no requirement there, whatever it answers.
     let informational = matches!(rule, Rule::Informational(_));
     let weigh = |cases: &mut Vec<Case>| {
-        if informational {
-            if let Some(c) = cases.last_mut() {
-                c.level = Level::Info;
-            }
+        if informational && let Some(c) = cases.last_mut() {
+            c.level = Level::Info;
         }
     };
     let expected = if TYPE_2_ONLY.contains(&row.name) && !type_2_protection(disk) {

@@ -8,13 +8,13 @@
 use super::host::Host;
 use super::identify::NamespaceInfo;
 use super::identify_cases::Facts;
-use super::io_cases::{holds, read_blocks, Block, IoFacts};
+use super::io_cases::{Block, IoFacts, holds, read_blocks};
 use super::link::Data;
 use super::nvm;
 use super::revisions as rev;
 use super::sqe;
-use super::verdict::{status_case, COMPARE_FAILURE, INVALID_OPCODE, SUCCESS};
-use crate::compliance::{case, Case};
+use super::verdict::{COMPARE_FAILURE, INVALID_OPCODE, SUCCESS, status_case};
+use crate::compliance::{Case, case};
 
 /// ONCS bits for the optional commands.
 const ONCS_COMPARE: u16 = 1 << 0;

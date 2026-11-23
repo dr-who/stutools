@@ -6,7 +6,7 @@
 //! CAPACITY (SBC-3 5.16) gives the same numbers, which the cases compare against.
 
 use super::cases::record;
-use super::disk::{label, Disk, SECTION};
+use super::disk::{Disk, SECTION, label};
 use super::port::Port;
 use crate::compliance::Case;
 

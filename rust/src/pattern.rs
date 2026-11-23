@@ -2,7 +2,7 @@
 // Overlapping writes agree byte-for-byte. Pure write workers can reuse the
 // seeded payload and only update addresses, like the C engine's reusable data.
 fn word(offset: u64, seed: u64) -> [u8; 8] {
-    if offset % 512 == 0 {
+    if offset.is_multiple_of(512) {
         return (offset ^ seed.wrapping_mul(0x9e3779b97f4a7c15)).to_le_bytes();
     }
     mix(((offset % 4096) / 8) ^ seed.wrapping_mul(0x9e3779b97f4a7c15)).to_le_bytes()
@@ -29,7 +29,7 @@ pub fn stamp(buf: &mut [u8], offset: u64, seed: u64) {
     }
 }
 pub fn fill_cached(buf: &mut [u8], offset: u64, seed: u64, template: &[u8; 4096]) {
-    if offset % 512 != 0 || buf.len() % 512 != 0 {
+    if !offset.is_multiple_of(512) || !buf.len().is_multiple_of(512) {
         fill(buf, offset, seed);
         return;
     }
@@ -44,10 +44,10 @@ pub fn fill_cached(buf: &mut [u8], offset: u64, seed: u64, template: &[u8; 4096]
     stamp(buf, offset, seed);
 }
 pub fn matches_cached(buf: &[u8], offset: u64, seed: u64, template: &[u8; 4096]) -> bool {
-    if offset % 512 != 0 || buf.len() % 512 != 0 {
+    if !offset.is_multiple_of(512) || !buf.len().is_multiple_of(512) {
         return matches(buf, offset, seed);
     }
-    for (i, sector) in buf.chunks_exact(512).enumerate() {
+    for (i, sector) in buf.as_chunks::<512>().0.iter().enumerate() {
         let address = offset + i as u64 * 512;
         let phase = address as usize % template.len();
         if sector[..8] != word(address, seed) || sector[8..] != template[phase + 8..phase + 512] {

@@ -198,8 +198,10 @@ mod tests {
         names.sort_unstable();
         names.dedup();
         assert_eq!(names.len(), SECTIONS.len());
-        assert!(SECTIONS
-            .iter()
-            .all(|s| !s.standard.is_empty() && !s.tests.is_empty()));
+        assert!(
+            SECTIONS
+                .iter()
+                .all(|s| !s.standard.is_empty() && !s.tests.is_empty())
+        );
     }
 }

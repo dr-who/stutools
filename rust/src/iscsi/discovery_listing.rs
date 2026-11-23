@@ -4,11 +4,11 @@
 //! it, and the command to run a workload on the first target that answered.
 
 use super::credentials::chap_from_config;
-use super::identity::{collect, Collected};
+use super::identity::{Collected, collect};
 use super::path::Path;
 use super::scsi::{self};
 use crate::columns::print_columns;
-use crate::{cli::Config, Result};
+use crate::{Result, cli::Config};
 
 /// Prints the table and the verdict. Returns an error when the paths are not one LUN.
 /// `--iscsi HOST` with no IQN: lists the targets the portal reports with SendTargets, then logs in to each

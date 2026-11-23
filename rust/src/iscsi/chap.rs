@@ -152,7 +152,7 @@ pub fn sha3_256(input: &[u8]) -> [u8; 32] {
     let mut state = [0u64; 25];
     let mut message = input.to_vec();
     message.push(0x06);
-    while message.len() % RATE != 0 {
+    while !message.len().is_multiple_of(RATE) {
         message.push(0);
     }
     let last = message.len() - 1;

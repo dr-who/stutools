@@ -203,7 +203,7 @@ impl Periods {
             row(minutes, self.minute, self.minute * 60, 60., utc, true, m)?;
             self.hour_metrics.merge(m);
             self.minute += 1;
-            if self.minute % 60 == 0 {
+            if self.minute.is_multiple_of(60) {
                 row(
                     hours,
                     self.hour,
@@ -424,9 +424,10 @@ mod tests {
             .unwrap();
             assert!(hours.is_empty());
         }
-        assert!(p
-            .advance(900., true, &mut store, 0, &mut minutes, &mut hours)
-            .unwrap());
+        assert!(
+            p.advance(900., true, &mut store, 0, &mut minutes, &mut hours)
+                .unwrap()
+        );
         assert_eq!(minutes.iter().filter(|b| **b == b'\n').count(), 15);
         let row = String::from_utf8(hours).unwrap();
         let fields: Vec<_> = row.trim_end().split(',').map(str::trim).collect();

@@ -95,18 +95,20 @@ fn memory_failure_suggests_a_working_cli_budget() {
 #[test]
 fn workload_seed_overrides_global_seed() {
     let reference = Target::new();
-    assert!(reference
-        .run(&[
-            "--backend",
-            "pagecache",
-            "-c",
-            "ws1k4q4j2x1",
-            "-R",
-            "42",
-            "-v"
-        ])
-        .status
-        .success());
+    assert!(
+        reference
+            .run(&[
+                "--backend",
+                "pagecache",
+                "-c",
+                "ws1k4q4j2x1",
+                "-R",
+                "42",
+                "-v"
+            ])
+            .status
+            .success()
+    );
     let actual = Target::new();
     let out = actual.run(&[
         "--backend",
@@ -708,10 +710,12 @@ fn variable_writes_preserve_range() {
             String::from_utf8_lossy(&out.stderr)
         );
         let data = fs::read(&t.0).unwrap();
-        assert!(data[..262144]
-            .iter()
-            .chain(data[786432..].iter())
-            .all(|b| *b == 0x55));
+        assert!(
+            data[..262144]
+                .iter()
+                .chain(data[786432..].iter())
+                .all(|b| *b == 0x55)
+        );
     }
 }
 
@@ -865,10 +869,12 @@ fn command_range_preserves_surroundings() {
         String::from_utf8_lossy(&out.stderr)
     );
     let data = fs::read(&t.0).unwrap();
-    assert!(data[..262144]
-        .iter()
-        .chain(data[786432..].iter())
-        .all(|b| *b == 0x55));
+    assert!(
+        data[..262144]
+            .iter()
+            .chain(data[786432..].iter())
+            .all(|b| *b == 0x55)
+    );
 }
 
 #[test]
@@ -889,10 +895,12 @@ fn gib_range_and_shared_worker_split_preserve_surroundings() {
         String::from_utf8_lossy(&out.stderr)
     );
     let data = fs::read(&target.0).unwrap();
-    assert!(data[..262144]
-        .iter()
-        .chain(data[786432..].iter())
-        .all(|b| *b == 0x55));
+    assert!(
+        data[..262144]
+            .iter()
+            .chain(data[786432..].iter())
+            .all(|b| *b == 0x55)
+    );
 }
 
 #[test]

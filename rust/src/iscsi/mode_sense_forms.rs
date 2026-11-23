@@ -9,13 +9,13 @@
 //! command skips its form. What it finds goes into `Disk` (the page list and whether saved values
 //! answer) for the Windows cases.
 
-use super::cases::{describe, expect, record, record_should, residual_not_reported, Want};
-use super::disk::{hex_list, label, Disk, SECTION};
+use super::cases::{Want, describe, expect, record, record_should, residual_not_reported};
+use super::disk::{Disk, SECTION, hex_list, label};
 use super::port::Port;
 use super::scsi_fields::be16;
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 /// The allocation length asked for: room for every page of a disk.
 const ALLOC_10: u16 = 4096;
@@ -132,11 +132,7 @@ impl Form {
 
     /// The clause of the command: SPC-6 6.13, or SPC-5 6.14 for the form SPC-6 made obsolete.
     fn clause(self) -> &'static str {
-        if self.ten {
-            "SPC-6 6.13"
-        } else {
-            "SPC-5 6.14"
-        }
+        if self.ten { "SPC-6 6.13" } else { "SPC-5 6.14" }
     }
 
     /// The clause of the header: SPC-6 7.5.6, or SPC-5 7.5.6 for the 4-byte header of (6).
@@ -149,11 +145,7 @@ impl Form {
     }
 
     fn header_len(self) -> usize {
-        if self.ten {
-            8
-        } else {
-            4
-        }
+        if self.ten { 8 } else { 4 }
     }
 
     fn alloc(self) -> u32 {

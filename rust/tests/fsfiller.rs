@@ -109,10 +109,11 @@ fn fills_two_levels_with_mixed_sizes_until_the_cap() {
 
     for t in 0..3 {
         for s in 0..2 {
-            assert!(root
-                .join(format!("t{t:03}"))
-                .join(format!("s{s:03}"))
-                .is_dir());
+            assert!(
+                root.join(format!("t{t:03}"))
+                    .join(format!("s{s:03}"))
+                    .is_dir()
+            );
         }
     }
     let files = files_under(&root);

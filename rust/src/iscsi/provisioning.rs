@@ -6,9 +6,9 @@
 //! the second-to-last one, and its original data is written back.
 
 use super::block_io::cdb16;
-use super::cases::{expect, expect_should, record, record_info, Want, REFUSED, REFUSED_SA};
+use super::cases::{REFUSED, REFUSED_SA, Want, expect, expect_should, record};
 use super::disk::Disk;
-use super::lun_access::{read_block, write_block};
+use super::lun_access::{read_block64, write_block64};
 use super::ops;
 use super::port::Port;
 use super::scsi_fields::{be32, be64};
@@ -102,22 +102,10 @@ pub(super) fn run(
         );
     }
 
-    let Ok(target) = u32::try_from(disk.last_lba.saturating_sub(1)) else {
-        // Nothing failed; the cases that would test UNMAP could not address the block.
-        record_info(
-            cases,
-            SECTION,
-            label("UNMAP and provisioning"),
-            "not run: the test block is past 32-bit LBAs, which READ (10) and WRITE (10) cannot address",
-        );
-        return Findings {
-            trim: false,
-            clean: true,
-            ran: false,
-        };
-    };
+    // The test block is the last LBA: READ and WRITE (16) address it past 32-bit LBAs (SBC-3 5.18, 5.42).
+    let target = disk.last_lba.saturating_sub(1);
     let len = disk.block_len as usize;
-    let original = match read_block(s, target, len) {
+    let original = match read_block64(s, target, len) {
         Ok(d) => d,
         Err(err) => {
             record(
@@ -147,14 +135,14 @@ pub(super) fn run(
         SECTION,
         label("UNMAP one block"),
         &unmap_wants,
-        ops::unmap(s, target as u64, 1),
+        ops::unmap(s, target, 1),
     );
     seen.answer("UNMAP", SECTION, &answer);
     let unmapped = answer.0 && lbpu;
     if unmapped {
         // SBC-5 4.7.4.5: an unmapped block reads as zeros when LBPRZ is set; otherwise zeros or the old
         // data are both allowed, since UNMAP may leave a block mapped (4.7.3.4).
-        let after = read_block(s, target, len);
+        let after = read_block64(s, target, len);
         let zeros = matches!(&after, Ok(d) if d.iter().all(|&b| b == 0));
         let old = matches!(&after, Ok(d) if *d == original);
         record(
@@ -175,15 +163,35 @@ pub(super) fn run(
             },
             zeros || old,
         );
-        // SBC-5 5.35.2: a parameter list with no block descriptors unmaps nothing and is not an error.
+        // SBC-5 5.35.2 and SBC-3 5.28.2: a parameter list with no block descriptors unmaps nothing and is not an error.
         let header = [0u8, 6, 0, 0, 0, 0, 0, 0];
         let empty = s.command(&[0x42, 0, 0, 0, 0, 0, 0, 0, 8, 0], 0, Some(&header));
         let a = expect(
             cases,
             SECTION,
-            label("UNMAP with no block descriptors"),
+            label("SBC-3 5.28.2 UNMAP with no block descriptors"),
             &[Want::Good],
             empty,
+        );
+        seen.answer("UNMAP", SECTION, &a);
+        // SBC-3 5.28.2: a block descriptor data length that is not a multiple of 16 leaves an incomplete last
+        // descriptor, which shall be ignored. The valid descriptor unmaps the target block; the 12 bytes after it
+        // name an LBA past the capacity, so they would be refused if they were processed.
+        let mut list = vec![0u8; 8 + 16 + 12];
+        list[1] = (list.len() - 2) as u8;
+        list[3] = (list.len() - 8) as u8;
+        list[8..16].copy_from_slice(&target.to_be_bytes());
+        list[16..20].copy_from_slice(&1u32.to_be_bytes());
+        list[24..32].copy_from_slice(&(disk.last_lba + 1).to_be_bytes());
+        list[32..36].copy_from_slice(&1u32.to_be_bytes());
+        let cdb = [0x42, 0, 0, 0, 0, 0, 0, 0, list.len() as u8, 0];
+        let partial = s.command(&cdb, 0, Some(&list));
+        let a = expect(
+            cases,
+            SECTION,
+            label("SBC-3 5.28.2 UNMAP ignores an incomplete last block descriptor"),
+            &[Want::Good],
+            partial,
         );
         seen.answer("UNMAP", SECTION, &a);
         // SBC-5 5.35.2: an LBA past the capacity is LOGICAL BLOCK ADDRESS OUT OF RANGE.
@@ -204,7 +212,7 @@ pub(super) fn run(
     let mut cdb = [0u8; 16];
     cdb[0] = 0x9e;
     cdb[1] = 0x12;
-    cdb[2..10].copy_from_slice(&(target as u64).to_be_bytes());
+    cdb[2..10].copy_from_slice(&(target).to_be_bytes());
     cdb[10..14].copy_from_slice(&alloc);
     // SBC-5 table 48: GET LBA STATUS (16) is optional (O), at any LBPME, so a clean refusal is correct too.
     let mut wants = vec![Want::Good];
@@ -233,7 +241,7 @@ pub(super) fn run(
                 "length {n}, starts at {lba}, status {status:x}h, {} blocks",
                 be32(&o.data, 16)
             ),
-            n >= 20 && (n - 4) % 16 == 0 && lba == target as u64 && status <= most,
+            n >= 20 && (n - 4).is_multiple_of(16) && lba == target && status <= most,
         );
     }
 
@@ -249,7 +257,7 @@ pub(super) fn run(
         (false, false) => vec![Want::Good, Want::Ascq(0x5, 0x24, 0x00)],
         (false, true) => vec![Want::Ascq(0x5, 0x24, 0x00)],
     };
-    let unmap = s.command(&cdb16(0x93, WS_UNMAP, target as u64, 1), 0, Some(&zeros));
+    let unmap = s.command(&cdb16(0x93, WS_UNMAP, target, 1), 0, Some(&zeros));
     let answer = if lbpws || !lbpme {
         expect(
             cases,
@@ -273,7 +281,7 @@ pub(super) fn run(
     if !lbpws && lbpme {
         ndob_wants.remove(0);
     }
-    let ndob = s.command(&cdb16(0x93, WS_UNMAP | WS_NDOB, target as u64, 1), 0, None);
+    let ndob = s.command(&cdb16(0x93, WS_UNMAP | WS_NDOB, target, 1), 0, None);
     let answer = expect(
         cases,
         SECTION,
@@ -286,7 +294,7 @@ pub(super) fn run(
         matches!(&answer.1, Some(o) if o.status == 0),
     );
 
-    if let Err(err) = write_block(s, target, &original) {
+    if let Err(err) = write_block64(s, target, &original) {
         record(
             cases,
             SECTION,

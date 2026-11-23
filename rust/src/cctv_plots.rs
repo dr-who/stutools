@@ -77,7 +77,7 @@ fn gnu_path(path: &Path) -> String {
 }
 
 fn block_label(bytes: usize) -> String {
-    if bytes % 1048576 == 0 {
+    if bytes.is_multiple_of(1048576) {
         format!("{} MiB", bytes / 1048576)
     } else {
         format!("{} KiB", bytes / 1024)
@@ -134,7 +134,9 @@ fn write_sweep(dir: &Path, runs: &[Run], io_mode: &str) -> io::Result<()> {
         loss.flush()?;
         (
             format!("LOSS = \"{}\"\n", gnu_path(&loss_path)),
-            String::from(", \\\n     LOSS using 1:2 axes x1y2 with lines dt 2 lw 4 lc rgb \"#7f7f7f\" title \"offered Mbit/s\", \\\n     LOSS using 1:4 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb \"#d62728\" title \"dropped Mbit/s\""),
+            String::from(
+                ", \\\n     LOSS using 1:2 axes x1y2 with lines dt 2 lw 4 lc rgb \"#7f7f7f\" title \"offered Mbit/s\", \\\n     LOSS using 1:4 axes x1y2 with linespoints lw 6 pt 7 ps 3 lc rgb \"#d62728\" title \"dropped Mbit/s\"",
+            ),
         )
     } else {
         (String::new(), String::new())

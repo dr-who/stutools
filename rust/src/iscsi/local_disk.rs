@@ -72,7 +72,7 @@ pub fn cases(
             alua: None,
             protocol_level: None,
         };
-        conformance::run(&[target], FIRST, second, None, levels, cases);
+        conformance::run(&[target], FIRST, second, None, None, levels, cases);
         reset(device, cases);
         super::cases::NO_RESIDUAL.store(false, std::sync::atomic::Ordering::Relaxed);
     }

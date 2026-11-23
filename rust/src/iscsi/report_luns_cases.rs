@@ -8,12 +8,12 @@
 //! LENGTH a multiple of 8 never cut by the allocation length. Returns the 00h list for the cases that
 //! address each logical unit.
 
-use super::cases::{describe, expect, introduced_in, record, residual_not_reported, Want};
+use super::cases::{Want, describe, expect, introduced_in, record, residual_not_reported};
 use super::port::Port;
 use super::scsi_fields::be32;
 use super::session::Outcome;
-use crate::compliance::{Case, Edition};
 use crate::Result;
+use crate::compliance::{Case, Edition};
 
 const SECTION: &str = "spc";
 
@@ -33,9 +33,9 @@ pub(super) fn parse_luns(d: &[u8]) -> (usize, Vec<[u8; 8]>) {
     let luns = d
         .get(8..(8 + len).min(d.len()))
         .unwrap_or(&[])
-        .chunks_exact(8)
-        .map(|c| c.try_into().unwrap())
-        .collect();
+        .as_chunks::<8>()
+        .0
+        .to_vec();
     (len, luns)
 }
 
@@ -216,7 +216,9 @@ pub(super) fn run(s: &mut Port, name: &str, at_lun_0: bool, cases: &mut Vec<Case
             SECTION,
             format!("{name} SPC-6 4.2.5.6 REPORT LUNS at allocation {alloc}"),
             if alloc < 16 {
-                format!("GOOD, the first 8 bytes, LUN LIST LENGTH {len}; or CHECK CONDITION 5/24/00 (SPC-3)")
+                format!(
+                    "GOOD, the first 8 bytes, LUN LIST LENGTH {len}; or CHECK CONDITION 5/24/00 (SPC-3)"
+                )
             } else {
                 format!(
                     "GOOD, the first {} bytes, LUN LIST LENGTH {len}",

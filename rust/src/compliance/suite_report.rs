@@ -5,7 +5,7 @@
 
 use super::case::Case;
 use super::device::Device;
-use super::suite::{judge, Coverage, Judged, Outcome, Suite};
+use super::suite::{Coverage, Judged, Outcome, Suite, judge};
 use super::suites::SUITES;
 
 /// The cases of the devices a suite is for, and the transports tested.

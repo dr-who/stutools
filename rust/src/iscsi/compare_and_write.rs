@@ -8,8 +8,8 @@
 //! the limit allows; more than MAXIMUM COMPARE AND WRITE LENGTH is INVALID FIELD IN CDB, and an LBA
 //! past the capacity LOGICAL BLOCK ADDRESS OUT OF RANGE. Two hosts at once are `ats_race`.
 
-use super::cases::{describe, expect, information, record, Want, REFUSED};
-use super::disk::{label, Disk};
+use super::cases::{REFUSED, Want, describe, expect, information, record};
+use super::disk::{Disk, label};
 use super::lun_access::{read_block, write_block};
 use super::ops;
 use super::port::Port;

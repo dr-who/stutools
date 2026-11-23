@@ -2,15 +2,15 @@
 //! all its forms, its list agreeing with the one-command answers, and REPORT SUPPORTED TASK
 //! MANAGEMENT FUNCTIONS (6.35) with and without REPD.
 
-use super::cases::{expect, record, Want, REFUSED_SA};
-use super::disk::{label, Disk, SECTION};
+use super::cases::{REFUSED_SA, Want, expect, record};
+use super::disk::{Disk, SECTION, label};
 use super::operation_codes::{parse_rsoc, rsoc_all, rsoc_one};
 use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Seen;
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 /// SPC-6 6.32 REPORT SUPPORTED OPERATION CODES and 6.35 REPORT SUPPORTED TASK MANAGEMENT FUNCTIONS.
 pub(super) fn operation_codes(

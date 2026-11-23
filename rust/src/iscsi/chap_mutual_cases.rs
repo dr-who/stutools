@@ -12,10 +12,10 @@
 
 use super::cases::{record, record_info};
 use super::chap;
-use super::login::{self, check_mutual, Mutual};
+use super::login::{self, Mutual, check_mutual};
 use super::login_cases::Reachable;
-use super::login_step::{refused_with, LoginAnswer, LoginConnection, ANSWER_WAIT};
-use super::lun_access::{short_name, Creds};
+use super::login_step::{ANSWER_WAIT, LoginAnswer, LoginConnection, refused_with};
+use super::lun_access::{Creds, short_name};
 use super::path::Path;
 use crate::compliance::Case;
 
@@ -528,6 +528,46 @@ fn mutual_cases(
             );
         }
     }
+    // RFC 7143 12.1.3: the initiator checks the target's CHAP_R against the target's secret. With a wrong
+    // target secret the target is not authenticated, so the initiator must not reach full feature phase.
+    let label = format!("{name} mutual CHAP with a wrong target secret refused by the initiator");
+    match mutual_login(
+        path,
+        initiator,
+        user,
+        secret,
+        b"not-the-target-secret",
+        &[0x22; 8],
+        false,
+        false,
+    ) {
+        MutualOutcome::Verified(_) => {
+            record(
+                cases,
+                SECTION,
+                label,
+                "no full feature phase: the target's CHAP_R does not verify",
+                "the target was accepted with a wrong secret",
+                false,
+            );
+        }
+        MutualOutcome::NotMutual | MutualOutcome::Refused(_) => record_info(
+            cases,
+            SECTION,
+            label,
+            "SKIP: target does not authenticate itself",
+        ),
+        MutualOutcome::Failed(why) => {
+            record(
+                cases,
+                SECTION,
+                label,
+                "no full feature phase: the target's CHAP_R does not verify",
+                why,
+                true,
+            );
+        }
+    }
 }
 
 enum MutualOutcome {
@@ -590,7 +630,7 @@ fn mutual_login(
     let reply = match &answer {
         LoginAnswer::Response(r) if r.status == (0, 0) => r.clone(),
         LoginAnswer::Response(r) if r.status.0 == 2 => {
-            return MutualOutcome::Refused(answer.show())
+            return MutualOutcome::Refused(answer.show());
         }
         LoginAnswer::Closed => return MutualOutcome::Refused("connection closed".into()),
         other => return MutualOutcome::Failed(other.show()),

@@ -94,23 +94,25 @@ fn cameras_write_fixed_files_and_live_logs_without_hot_allocations() {
     assert!(files.len() >= 4, "expected rotation: {files:?}");
     for p in files {
         assert_eq!(fs::metadata(&p).unwrap().len(), 65536);
-        assert!(p
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .contains(".cam00000"));
+        assert!(
+            p.file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains(".cam00000")
+        );
     }
     for ext in ["log", "min", "hour"] {
         let files = dir.files(ext);
         assert_eq!(files.len(), 1);
         let path = &files[0];
-        assert!(path
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .starts_with("cctv-test-"));
+        assert!(
+            path.file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("cctv-test-")
+        );
         let text = fs::read_to_string(path).unwrap();
         if ext == "log" {
             assert!(text.contains("] read "));
@@ -145,11 +147,12 @@ fn cameras_write_fixed_files_and_live_logs_without_hot_allocations() {
             );
         }
     }
-    assert!(!fs::read_dir(&dir.0).unwrap().any(|e| e
-        .unwrap()
-        .path()
-        .extension()
-        .is_some_and(|e| e == "pending")));
+    assert!(!fs::read_dir(&dir.0).unwrap().any(|e| {
+        e.unwrap()
+            .path()
+            .extension()
+            .is_some_and(|e| e == "pending")
+    }));
 }
 
 #[test]
@@ -307,9 +310,10 @@ fn interrupt_finalizes_a_seven_day_run_without_waiting_seven_days() {
     let out = child.wait_with_output().unwrap();
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stdout).contains("write_ops="));
-    assert!(!fs::read_dir(&dir.0).unwrap().any(|e| e
-        .unwrap()
-        .path()
-        .extension()
-        .is_some_and(|e| e == "pending")));
+    assert!(!fs::read_dir(&dir.0).unwrap().any(|e| {
+        e.unwrap()
+            .path()
+            .extension()
+            .is_some_and(|e| e == "pending")
+    }));
 }

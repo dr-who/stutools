@@ -22,11 +22,11 @@ use std::net::SocketAddr;
 use super::controller::{self, Association};
 use super::discovery_cases::SUBTYPE_NVM;
 use super::{
-    admin_cases, ana_cases, discovery_cases, fabric_cases, feature_cases, identify_cases, io_cases,
-    log_page_cases, reservation_cases, windows_cases, DEFAULT_HOSTNQN,
+    DEFAULT_HOSTNQN, admin_cases, ana_cases, discovery_cases, fabric_cases, feature_cases,
+    identify_cases, io_cases, log_page_cases, reservation_cases, windows_cases,
 };
-use crate::compliance::{case, Case, Device};
 use crate::Result;
+use crate::compliance::{Case, Device, case};
 
 /// One NVM subsystem under test: its NQN and every address the discovery log gives for it, the
 /// first of which runs every case.

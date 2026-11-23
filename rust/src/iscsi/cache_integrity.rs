@@ -11,10 +11,10 @@ use super::block_io::cdb10;
 use super::cases::{describe, record, record_info};
 use super::disk::Disk;
 use super::port::Port;
-use super::scratch_region::{read, read_with, stamps, write, Scratch};
-use super::write_cache::{self, caching_page, wce, CHANGEABLE, CURRENT, WCE};
-use crate::compliance::Case;
+use super::scratch_region::{Scratch, read, read_with, stamps, write};
+use super::write_cache::{self, CHANGEABLE, CURRENT, WCE, caching_page, wce};
 use crate::Result;
+use crate::compliance::Case;
 
 const SECTION: &str = "io";
 
@@ -34,9 +34,9 @@ fn round_trip(
     let data = stamps(w.len, w.start, w.blocks, pass);
     write(s, op, flags, w.start, &data, w.len, w.chunk)?;
     if flush {
-        let l = u32::try_from(w.start).map_err(|_| {
-            "not run: window past 32-bit LBAs, which READ (10) and WRITE (10) cannot address"
-        })?;
+        let l = u32::try_from(w.start).map_err(
+            |_| "not run: window past 32-bit LBAs, which READ (10) and WRITE (10) cannot address",
+        )?;
         let o = s.command(
             &cdb10(0x35, 0, l, w.blocks.min(u32::from(u16::MAX)) as u16),
             0,

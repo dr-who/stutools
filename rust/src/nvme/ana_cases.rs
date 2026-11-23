@@ -6,15 +6,15 @@
 //! CMIC bit 3 the log page must be refused. The page itself is parsed in `ana_log`; Figure 312 gives
 //! CMIC bit 3 (ANARS), ANACAP, ANAGRPMAX, NANAGRPID.
 
-use super::ana_log::{self, anacap_bit, state_name, LOG_ANA, LOG_LEN};
+use super::DEFAULT_HOSTNQN;
+use super::ana_log::{self, LOG_ANA, LOG_LEN, anacap_bit, state_name};
 use super::compliance::Target;
 use super::controller::{self, Association, Controller};
 use super::identify_cases::Facts;
 use super::revisions as rev;
-use super::verdict::{rev_case, status_case, INVALID_FIELD, INVALID_LOG_PAGE, SUCCESS};
-use super::DEFAULT_HOSTNQN;
-use crate::compliance::{case, Case};
+use super::verdict::{INVALID_FIELD, INVALID_LOG_PAGE, SUCCESS, rev_case, status_case};
 use crate::Result;
+use crate::compliance::{Case, case};
 
 /// CMIC bit 3: the controller reports Asymmetric Namespace Access.
 const CMIC_ANA: u8 = 0x08;

@@ -78,16 +78,34 @@ impl std::fmt::Display for Failure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::System(e) => write!(f, "{e}"),
-            Self::Operation { error, write, offset, len } => {
-                write!(f, "{} at byte offset {offset}, length {len} bytes: {error}", if *write { "write" } else { "read" })?;
+            Self::Operation {
+                error,
+                write,
+                offset,
+                len,
+            } => {
+                write!(
+                    f,
+                    "{} at byte offset {offset}, length {len} bytes: {error}",
+                    if *write { "write" } else { "read" }
+                )?;
                 #[cfg(windows)]
                 if error.raw_os_error() == Some(87) {
-                    write!(f, "; Windows rejected an I/O request parameter (not a CLI option); raw-volume offsets, lengths and buffers must be sector-aligned")?;
+                    write!(
+                        f,
+                        "; Windows rejected an I/O request parameter (not a CLI option); raw-volume offsets, lengths and buffers must be sector-aligned"
+                    )?;
                 }
                 Ok(())
-            },
+            }
             Self::Incomplete(n, r) => {
-                write!(f, "{} at byte offset {}, length {} bytes: ", if r.write { "write" } else { "read" }, r.offset, r.len)?;
+                write!(
+                    f,
+                    "{} at byte offset {}, length {} bytes: ",
+                    if r.write { "write" } else { "read" },
+                    r.offset,
+                    r.len
+                )?;
                 write!(f, "incomplete I/O: result {n}, expected {} bytes", r.len)?;
                 if *n < 0 {
                     write!(f, ": {}", io::Error::from_raw_os_error((-n) as i32))?;
@@ -95,7 +113,10 @@ impl std::fmt::Display for Failure {
                 Ok(())
             }
             #[cfg(target_os = "linux")]
-            Self::Timeout => write!(f, "I/O timed out: no completion within -T; increase -T SECONDS for a slow or heavily queued device"),
+            Self::Timeout => write!(
+                f,
+                "I/O timed out: no completion within -T; increase -T SECONDS for a slow or heavily queued device"
+            ),
         }
     }
 }

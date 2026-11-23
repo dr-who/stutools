@@ -88,7 +88,9 @@ impl fmt::Display for ScsiLevel {
 /// The levels one `--scsilevel` value names, lowest first: "4", "3..6" or "3,5".
 pub fn parse(v: &str) -> Result<Vec<ScsiLevel>, String> {
     let refused = || {
-        format!("--scsilevel takes {LOWEST} to {HIGHEST}, a range such as {LOWEST}..{HIGHEST}, or a list such as 3,5 (got {v})")
+        format!(
+            "--scsilevel takes {LOWEST} to {HIGHEST}, a range such as {LOWEST}..{HIGHEST}, or a list such as 3,5 (got {v})"
+        )
     };
     let one = |s: &str| {
         s.trim()

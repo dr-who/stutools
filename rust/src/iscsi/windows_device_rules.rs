@@ -11,7 +11,7 @@ use super::cases::record_should;
 use super::disk::Disk;
 use super::report_luns_cases::single_level;
 use super::scsi_fields::be16;
-use super::version_descriptors::{descriptors, ISCSI};
+use super::version_descriptors::{ISCSI, descriptors};
 use crate::compliance::Case;
 
 const SECTION: &str = "windows";

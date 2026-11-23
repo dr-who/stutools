@@ -5,8 +5,8 @@
 //! checks a case makes (a status, an access, the holder, the keys, the unit attentions), and whether
 //! the cases Windows clustering relies on still pass.
 
-use super::cases::{expect, expect_should, record, Want};
-use super::lun_access::{open, read_cmd64, show_attentions, unit_attentions, write_cmd64, Creds};
+use super::cases::{Want, expect, expect_should, record};
+use super::lun_access::{Creds, open, read_cmd64, show_attentions, unit_attentions, write_cmd64};
 use super::ops::{self};
 use super::path::Path;
 use super::port::Port;
@@ -15,8 +15,8 @@ use super::pr_commands::{
 };
 use super::scsi;
 use super::session::Outcome;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 pub(super) const SECTION: &str = "pr";
 
@@ -277,8 +277,10 @@ mod tests {
         assert_ne!(ISID_A[4..], ISID_A2[4..], "different qualifier");
         assert_ne!(ISID_A[1], ISID_B[1]);
         assert_ne!(ISID_B[1], ISID_C[1]);
-        assert!([ISID_A, ISID_A2, ISID_B, ISID_C]
-            .iter()
-            .all(|i| i[0] >> 6 == 0b10));
+        assert!(
+            [ISID_A, ISID_A2, ISID_B, ISID_C]
+                .iter()
+                .all(|i| i[0] >> 6 == 0b10)
+        );
     }
 }

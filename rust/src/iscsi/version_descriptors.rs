@@ -35,8 +35,10 @@ pub(super) fn descriptors(inquiry: &[u8]) -> Vec<u16> {
     inquiry
         .get(58..74.min(inquiry.len()))
         .unwrap_or(&[])
-        .chunks_exact(2)
-        .map(|c| u16::from_be_bytes([c[0], c[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|c| u16::from_be_bytes(*c))
         .collect()
 }
 

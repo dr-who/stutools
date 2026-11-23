@@ -6,17 +6,17 @@
 //! only when the target negotiated iSCSIProtocolLevel "2" (RFC 7144 6.3). TARGET RESET is obsolete (SAM-6) and is
 //! never sent.
 
-use super::cases::{expect, record, Want};
+use super::cases::{Want, expect, record};
 use super::login;
-use super::lun_access::{open, show_attentions, unit_attentions, Creds};
+use super::lun_access::{Creds, open, show_attentions, unit_attentions};
 use super::ops;
 use super::path::Path;
 use super::pdu;
 use super::port::Port;
 use super::seen::Seen;
 use super::session::TaskAnswer;
-use crate::compliance::Case;
 use crate::Result;
+use crate::compliance::Case;
 
 const SECTION: &str = "tmf";
 const KEY: u64 = 0x5350_4954_0000_007e;

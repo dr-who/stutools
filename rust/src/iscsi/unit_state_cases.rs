@@ -2,8 +2,8 @@
 //! with nothing to report (SPC-6 6.36), START STOP UNIT with START (SBC-5 5.31; Windows and macOS send
 //! it), and LOG SENSE of the supported log pages and subpages (SPC-6 6.9).
 
-use super::cases::{expect, introduced_in, record, residual_not_reported, Want, REFUSED};
-use super::disk::{hex_list, label, Disk, SECTION};
+use super::cases::{REFUSED, Want, expect, introduced_in, record, residual_not_reported};
+use super::disk::{Disk, SECTION, hex_list, label};
 use super::port::Port;
 use super::scsi_fields::be16;
 use super::seen::Seen;
@@ -51,7 +51,10 @@ pub(super) fn run(
         super::cases::record_info(
             cases,
             SECTION,
-            label(name, "SPC-3 4.5.2 REQUEST SENSE, descriptor format (DESC 1)"),
+            label(
+                name,
+                "SPC-3 4.5.2 REQUEST SENSE, descriptor format (DESC 1)",
+            ),
             "descriptor format not supported: DESC 1 refused as an invalid field (optional, SPC-3 4.5.2)",
         );
         (true, None)
@@ -136,7 +139,9 @@ pub(super) fn run(
                 o.data
                     .get(4..4 + n)
                     .unwrap_or(&[])
-                    .chunks_exact(2)
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
                     .map(|c| (c[0] & 0x3f, c[1]))
                     .collect(),
             );
@@ -172,7 +177,12 @@ fn sense_length(
         record(
             cases,
             SECTION,
-            label(name, &format!("{clause} REQUEST SENSE, {format} format: ADDITIONAL SENSE LENGTH counts the bytes returned")),
+            label(
+                name,
+                &format!(
+                    "{clause} REQUEST SENSE, {format} format: ADDITIONAL SENSE LENGTH counts the bytes returned"
+                ),
+            ),
             "ADDITIONAL SENSE LENGTH + 8 bytes",
             "not run: the transport reports the whole allocation as returned (no residual)",
             false,
@@ -184,7 +194,9 @@ fn sense_length(
         SECTION,
         label(
             name,
-            &format!("{clause} REQUEST SENSE, {format} format: ADDITIONAL SENSE LENGTH counts the bytes returned"),
+            &format!(
+                "{clause} REQUEST SENSE, {format} format: ADDITIONAL SENSE LENGTH counts the bytes returned"
+            ),
         ),
         "ADDITIONAL SENSE LENGTH + 8 bytes, the length at most 244",
         format!("ADDITIONAL SENSE LENGTH {asl}, {} bytes", d.len()),

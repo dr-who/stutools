@@ -235,9 +235,11 @@ mod tests {
             LOG_EFFECTS.name(),
             "NVMe 1.2 Commands Supported and Effects log page"
         );
-        assert!(LOG_EFFECTS
-            .absent(0x0001_0400)
-            .starts_with("optional before NVMe 2.0"));
+        assert!(
+            LOG_EFFECTS
+                .absent(0x0001_0400)
+                .starts_with("optional before NVMe 2.0")
+        );
     }
 
     #[test]

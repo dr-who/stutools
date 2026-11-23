@@ -8,9 +8,9 @@ use std::{
 };
 
 use super::{
+    Result,
     link::{Data, Link},
     sqe::{self, Command, Completion},
-    Result,
 };
 
 const TIMEOUT: Duration = Duration::from_secs(30);

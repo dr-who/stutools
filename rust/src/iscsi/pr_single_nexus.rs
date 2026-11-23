@@ -4,10 +4,10 @@
 //! there; these do. Every command is sent through the session the conformance run already holds, and the
 //! LUN is left with no registration and no reservation.
 
-use super::cases::{expect, record, record_info, sense, Want, REFUSED_SA};
+use super::cases::{REFUSED_SA, Want, expect, record, record_info, sense};
 use super::ops::{self, persistent_reserve_in, persistent_reserve_out, pr_parameters};
 use super::port::Port;
-use super::pr_commands::{out, read_holder, read_keys, show_holder, show_keys, TYPES};
+use super::pr_commands::{TYPES, out, read_holder, read_keys, show_holder, show_keys};
 use super::pr_ports::{KEY_A, KEY_B2, KEY_WRONG, SECTION};
 use crate::compliance::Case;
 
@@ -220,7 +220,9 @@ fn rules(s: &mut Port, name: &str, cases: &mut Vec<Case>) {
     expect(
         cases,
         SECTION,
-        at("SPC-3 6.12 REGISTER with a 16-byte parameter list refused, PARAMETER LIST LENGTH ERROR"),
+        at(
+            "SPC-3 6.12 REGISTER with a 16-byte parameter list refused, PARAMETER LIST LENGTH ERROR",
+        ),
         &[Want::Ascq(0x5, 0x1a, 0x00)],
         short,
     );

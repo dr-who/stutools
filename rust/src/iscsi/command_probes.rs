@@ -9,7 +9,7 @@
 //! on two sessions.
 
 use super::block_commands::SECTION;
-use super::cases::{describe, refused, Want};
+use super::cases::{Want, describe, refused};
 use super::command_set::Row;
 use super::disk::Disk;
 use super::lun_access::{pattern, read_block, write_block};

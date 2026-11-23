@@ -9,8 +9,8 @@
 //! logical unit.
 
 use super::block_io::cdb10;
-use super::cases::{describe, expect, record, Want};
-use super::lun_access::{open, test_unit_ready, unit_attentions, Lun};
+use super::cases::{Want, describe, expect, record};
+use super::lun_access::{Lun, open, test_unit_ready, unit_attentions};
 use super::path::Path;
 use super::port::Port;
 use super::report_luns_cases::{report_luns, single_level};

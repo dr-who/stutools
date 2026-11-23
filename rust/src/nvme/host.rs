@@ -10,11 +10,11 @@ use std::{
 };
 
 use super::{
+    Result,
     controller::{self, Association, Controller},
     identify,
     link::{Data, Link},
     sqe::{Command, Completion},
-    Result,
 };
 
 /// Keep Alive goes out when this long has passed since the last one: well inside `KATO_MS`.

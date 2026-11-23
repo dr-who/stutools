@@ -1,7 +1,7 @@
 //! iSCSI discovery (RFC 7143 4.3, 13.4 and 13.21): a discovery session to a portal, the text request
 //! `SendTargets=All`, and the targets its answer names with every address each is reachable on.
 
-use super::login::{connect_stream, exchange, random_isid, LOGIN_CMD_SN, LOGIN_ITT};
+use super::login::{LOGIN_CMD_SN, LOGIN_ITT, connect_stream, exchange, random_isid};
 use super::pdu::{self, LoginRequest, Stage};
 use crate::Result;
 use std::io::{Read, Write};

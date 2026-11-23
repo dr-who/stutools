@@ -8,9 +8,9 @@ pub mod lanes;
 pub mod pool;
 pub mod stats;
 
-pub use any::{open_paths, MultiPool, PathSpec};
+pub use any::{MultiPool, PathSpec, open_paths};
 pub use lanes::Policy;
-pub use pool::{Done, Fabric, Geometry, Io, Pool, Transport, SENSE_CAPACITY};
+pub use pool::{Done, Fabric, Geometry, Io, Pool, SENSE_CAPACITY, Transport};
 pub use stats::{print_totals, set_dump};
 
 /// Expands `TARGET,N` into N copies of the target, one per connection. A target without a count is one

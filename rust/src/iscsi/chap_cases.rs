@@ -5,8 +5,8 @@
 
 use super::login::{self, reason};
 use super::login_cases::Reachable;
-use super::lun_access::{short_name, Creds};
-use crate::compliance::{case, Case};
+use super::lun_access::{Creds, short_name};
+use crate::compliance::{Case, case};
 
 /// The CHAP_A values defined for iSCSI (MD5, SHA-1, SHA-256, SHA3-256), all of which spit implements.
 const DEFINED_CHAP: [u32; 4] = [5, 6, 7, 8];

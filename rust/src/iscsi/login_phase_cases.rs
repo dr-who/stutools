@@ -11,8 +11,8 @@
 
 use super::cases::{record, record_info};
 use super::login_cases::Reachable;
-use super::login_step::{refused_with, text, LoginAnswer, LoginConnection, ANSWER_WAIT};
-use super::lun_access::{short_name, Creds};
+use super::login_step::{ANSWER_WAIT, LoginAnswer, LoginConnection, refused_with, text};
+use super::lun_access::{Creds, short_name};
 use super::path::Path;
 use super::pdu::{self, BHS_LEN};
 use super::send_targets;

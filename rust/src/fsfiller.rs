@@ -7,19 +7,20 @@ mod journal;
 mod stats;
 
 use crate::{
+    Result,
     aligned::{AlignedBuf, DIRECT_ALIGN},
-    checked_close, pattern, rate, signals, Result,
+    checked_close, pattern, rate, signals,
 };
 use chart::{write_chart, write_sizes};
 use journal::Journal;
-use stats::{distribution, log_bands, Sample, Sizes, SAMPLE};
+use stats::{SAMPLE, Sample, Sizes, distribution, log_bands};
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Write},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering::Relaxed},
         Mutex,
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering::Relaxed},
     },
     thread,
     time::{Duration, Instant},
@@ -452,11 +453,11 @@ fn worker(s: &Settings, shared: &Shared) {
     while !shared.done.load(Relaxed) && !shared.no_new.load(Relaxed) {
         let index = shared.next.fetch_add(1, Relaxed);
         let (kind, size) = file_kind_and_size(index);
-        if let Some(cap) = s.cap {
-            if shared.reserved.fetch_add(size, Relaxed) + size > cap {
-                shared.stop_new(Stop::Cap);
-                return;
-            }
+        if let Some(cap) = s.cap
+            && shared.reserved.fetch_add(size, Relaxed) + size > cap
+        {
+            shared.stop_new(Stop::Cap);
+            return;
         }
         let path = file_path(s, index);
         if s.verify {

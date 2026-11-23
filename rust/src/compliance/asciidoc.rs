@@ -25,7 +25,7 @@ use super::judged::Row;
 use super::parts::Part;
 use super::score::Tally;
 use super::scsi_level::ScsiLevel;
-use super::sections::{Section, SECTIONS};
+use super::sections::{SECTIONS, Section};
 use super::suite_report;
 
 /// The NVMe editions the NVMe/TCP cases are judged against.

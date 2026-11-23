@@ -1,8 +1,8 @@
 [package]
 name = "stutools"
 version = "2.3.0"
-edition = "2021"
-rust-version = "1.85"
+edition = "2024"
+rust-version = "1.90"
 authors = ["Stuart Inglis <stuart.inglis@gmail.com>"]
 license = "Apache-2.0"
 description = "Stu's powerful I/O tester"

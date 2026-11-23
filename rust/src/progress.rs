@@ -1,8 +1,8 @@
 use std::{
     io::{self, Write},
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, OnceLock,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
@@ -92,18 +92,36 @@ fn write_line(
     let writes = total.writes.saturating_sub(previous.writes);
     let read_bytes = total.read_bytes.saturating_sub(previous.read_bytes);
     let write_bytes = total.write_bytes.saturating_sub(previous.write_bytes);
-    writeln!(out, "[{elapsed:2.2} / {} / {}] read {} MB/s ({} IOPS / {:.0}), write {} MB/s ({} IOPS / {:.0}), total {:.2} GiB",
-        total.workers, total.in_flight,
-        Commas(read_bytes as f64 / 1_000_000. / seconds), Commas(reads as f64 / seconds),
-        if reads == 0 { 0. } else { read_bytes as f64 / reads as f64 },
-        Commas(write_bytes as f64 / 1_000_000. / seconds), Commas(writes as f64 / seconds),
-        if writes == 0 { 0. } else { write_bytes as f64 / writes as f64 },
-        (total.read_bytes + total.write_bytes) as f64 / 1073741824.)
+    writeln!(
+        out,
+        "[{elapsed:2.2} / {} / {}] read {} MB/s ({} IOPS / {:.0}), write {} MB/s ({} IOPS / {:.0}), total {:.2} GiB",
+        total.workers,
+        total.in_flight,
+        Commas(read_bytes as f64 / 1_000_000. / seconds),
+        Commas(reads as f64 / seconds),
+        if reads == 0 {
+            0.
+        } else {
+            read_bytes as f64 / reads as f64
+        },
+        Commas(write_bytes as f64 / 1_000_000. / seconds),
+        Commas(writes as f64 / seconds),
+        if writes == 0 {
+            0.
+        } else {
+            write_bytes as f64 / writes as f64
+        },
+        (total.read_bytes + total.write_bytes) as f64 / 1073741824.
+    )
 }
 
 fn write_pending_notice(out: &mut impl Write, total: Sample, elapsed: f64) -> io::Result<()> {
     if total.reads == 0 && total.writes == 0 && total.in_flight > 0 {
-        writeln!(out, "*info* no I/O completed within {elapsed:.2} seconds; {} requests are still pending in the OS/driver. Waiting for submitted I/O; synchronous calls cannot be stopped by -t/-T. For file tests, try a NEW prefix with -F PREFIX -G 1MiB -c ws1x1 first; -G limits the test range but does not shrink an existing file", total.in_flight)?;
+        writeln!(
+            out,
+            "*info* no I/O completed within {elapsed:.2} seconds; {} requests are still pending in the OS/driver. Waiting for submitted I/O; synchronous calls cannot be stopped by -t/-T. For file tests, try a NEW prefix with -F PREFIX -G 1MiB -c ws1x1 first; -G limits the test range but does not shrink an existing file",
+            total.in_flight
+        )?;
     }
     Ok(())
 }
@@ -180,14 +198,13 @@ impl Reporter {
                     if write_line(&mut stderr.lock(), elapsed, seconds, total, previous).is_err() {
                         break;
                     }
-                    if let Some(log) = &mut log {
-                        if let Err(e) = write_line(log, elapsed, seconds, total, previous)
+                    if let Some(log) = &mut log
+                        && let Err(e) = write_line(log, elapsed, seconds, total, previous)
                             .and_then(|_| log.flush())
-                        {
-                            eprintln!("*error* write CCTV progress log: {e}");
-                            shared.log_failed.store(true, Ordering::Release);
-                            break;
-                        }
+                    {
+                        eprintln!("*error* write CCTV progress log: {e}");
+                        shared.log_failed.store(true, Ordering::Release);
+                        break;
                     }
                     previous = total;
                     last = elapsed;
@@ -263,7 +280,10 @@ mod tests {
             Sample::default(),
         )
         .unwrap();
-        assert_eq!(String::from_utf8(output).unwrap(), "[1.00 / 1 / 6] read     414 MB/s (100,991 IOPS / 4096), write       0 MB/s (      0 IOPS / 0), total 0.39 GiB\n");
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "[1.00 / 1 / 6] read     414 MB/s (100,991 IOPS / 4096), write       0 MB/s (      0 IOPS / 0), total 0.39 GiB\n"
+        );
         assert_eq!(format!("{}", Commas(1234.9)), "  1,234");
         assert_eq!(format!("{}", Commas(1_234_567.9)), "1,234,567");
         assert_eq!(format!("{}", Commas(1_234_567_890.9)), "1,234,567,890");
@@ -285,6 +305,9 @@ mod tests {
         };
         let mut output = Vec::new();
         write_line(&mut output, 1.1, 0.1, total, previous).unwrap();
-        assert_eq!(String::from_utf8(output).unwrap(), "[1.10 / 32 / 2048] read   4,096 MB/s (1,000,000 IOPS / 4096), write   6,553 MB/s (100,000 IOPS / 65536), total 4.81 GiB\n");
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "[1.10 / 32 / 2048] read   4,096 MB/s (1,000,000 IOPS / 4096), write   6,553 MB/s (100,000 IOPS / 65536), total 4.81 GiB\n"
+        );
     }
 }

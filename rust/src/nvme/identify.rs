@@ -147,8 +147,10 @@ pub fn parse_namespace(d: &[u8]) -> NamespaceInfo {
 
 /// The active namespace IDs listed by CNS 2, in order, until the zero terminator.
 pub fn parse_active_namespaces(d: &[u8]) -> Vec<u32> {
-    d.chunks_exact(4)
-        .map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+    d.as_chunks::<4>()
+        .0
+        .iter()
+        .map(|c| u32::from_le_bytes(*c))
         .take_while(|&nsid| nsid != 0)
         .collect()
 }

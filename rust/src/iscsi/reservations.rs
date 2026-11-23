@@ -8,15 +8,15 @@
 //! write sends the block's own data back, so the LUN is unchanged. Returns whether the commands Windows
 //! clustering relies on all behaved.
 
-use super::cases::{allowed, record, record_info, Want};
-use super::lun_access::{last_block64, open, read_block64, unit_attentions, Creds};
+use super::cases::{Want, allowed, record, record_info};
+use super::lun_access::{Creds, last_block64, open, read_block64, unit_attentions};
 use super::ops::{self, persistent_reserve_in};
 use super::path::Path;
 use super::port::Port;
-use super::pr_commands::{out, read_keys, Capabilities, TYPES};
+use super::pr_commands::{Capabilities, TYPES, out, read_keys};
 use super::pr_ports::{
-    clean_slate, Run, ISID_A, ISID_B, ISID_C, ISID_SIBLING, KEY_A, KEY_B, KEY_B2, KEY_C, KEY_WRONG,
-    SECTION,
+    ISID_A, ISID_B, ISID_C, ISID_SIBLING, KEY_A, KEY_B, KEY_B2, KEY_C, KEY_WRONG, Run, SECTION,
+    clean_slate,
 };
 use super::scsi;
 use crate::compliance::Case;

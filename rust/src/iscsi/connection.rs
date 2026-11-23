@@ -5,9 +5,9 @@ use super::credentials::login_with_fallback;
 use super::path::Path;
 use super::scsi;
 use super::session::Session;
+use crate::Result;
 use crate::paths::lanes;
 use crate::paths::{Done, Fabric, Geometry, Io, Transport};
-use crate::Result;
 
 /// How the pool opens an iSCSI path: the initiator name, and CHAP where a target asks for it.
 pub struct IscsiFabric {
@@ -103,6 +103,10 @@ impl Transport for Session {
 
     fn poll(&mut self) -> Result<Done> {
         Session::poll(self)
+    }
+
+    fn poll_within(&mut self, wait: std::time::Duration) -> Result<Done> {
+        Session::poll_within(self, wait)
     }
 
     fn failure(&self, io: Io, done: &Done) -> String {
